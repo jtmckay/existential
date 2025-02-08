@@ -1,0 +1,35 @@
+services:
+  # STT - speech to text
+  # UI interface at http://localhost:8000/
+  whisper: # GPU version
+    container_name: whisper
+    image: fedirz/faster-whisper-server:latest-cuda
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - 11408:8000
+    volumes:
+      - ./whisper_data:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+              # If you have CDI feature enabled use the following instead
+              # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html
+              # https://docs.docker.com/reference/cli/dockerd/#enable-cdi-devices
+              # - driver: cdi
+              #   device_ids:
+              #   - nvidia.com/gpu=all
+
+  # whisper: # CPU version
+  #   container_name: whisper
+  #   image: fedirz/faster-whisper-server:latest-cpu
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ../.env
+  #   ports:
+  #     - 8000:8000
+  #   volumes:
+  #     - ./whisper_data:/root/.cache/huggingface

@@ -1,0 +1,18 @@
+services:
+  # LLM and OCR
+  # Status check at http://localhost:11434/
+  ollama:
+    container_name: ollama
+    image: ollama/ollama
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "11434:11434" # Ollama's default API port
+    runtime: nvidia ## NVIDIA GPU required obviously
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./ollama_data:/root/.ollama
+      - ./ollama_entrypoint.sh:/entrypoint.sh # Mount the script
+    entrypoint: ["/entrypoint.sh"] # Use the custom script

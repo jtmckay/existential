@@ -1,0 +1,15 @@
+**/.env
+
+**/minio_data
+**/n8n_data
+**/nextcloud_data
+**/openwebui_data
+**/nextcloudsql_data
+**/ollama_data
+**/pg_data
+**/qdrant_data
+**/redis_data
+**/speaches_data
+**/whisper_data
+
+**/node_modules

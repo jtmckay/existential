@@ -1,0 +1,17 @@
+services:
+  # UI interface at http://localhost:11488/
+  open-webui:
+    container_name: open-webui
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "11488:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./open-webui_data:/app/backend/data
+    environment:
+      - OPENAI_API_BASE_URL=http://host.docker.internal:11408
+      - AUDIO_STT_ENGINE=whisper

@@ -1,0 +1,15 @@
+services:
+  # UI interface at http://localhost:9980/
+  collabora:
+    container_name: collabora
+    image: collabora/code:latest
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - username=${COLLABORA_USERNAME}
+      - password=${COLLABORA_PASSWORD} 
+      - domain=${NGROK_URL} # example.com
+      # - extra_params=--o:ssl.enable=true
+    ports:
+      - 9980:9980

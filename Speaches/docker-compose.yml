@@ -1,0 +1,21 @@
+services:
+  speaches:
+    container_name: speaches
+    image: ghcr.io/speaches-ai/speaches:latest-cuda
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - ./speaches_data:/home/ubuntu/.cache/huggingface/hub
+    environment:
+      - WHISPER__MODEL=Systran/faster-whisper-large-v3
+    deploy:
+      resources:
+        reservations:
+          # WARN: requires Docker Compose 2.24.2
+          # https://docs.docker.com/reference/compose-file/merge/#replace-value
+          devices:
+            - capabilities: ["gpu"]
+              # driver: cdi
+              # device_ids:
+              #   - nvidia.com/gpu=all

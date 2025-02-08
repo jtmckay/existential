@@ -1,0 +1,21 @@
+services:
+  # Workflow automation
+  # UI interface at http://localhost:5678
+  n8n:
+    container_name: n8n
+    image: docker.n8n.io/n8nio/n8n
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - WEBHOOK_TUNNEL_URL=${WEBHOOK_TUNNEL_URL}
+      - GENERIC_TIMEZONE=America/Denver
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - ./n8n_data:/home/node/.n8n

@@ -1,0 +1,43 @@
+services:
+  # File share
+  # UI interface at http://localhost:8421/
+  nextcloud:
+    container_name: nextcloud
+    image: nextcloud:latest
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "8421:80"
+    volumes:
+      - ./nextcloud_data:/var/www/html
+    environment:
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
+      - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=nextcloudsql
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_HOST_PASSWORD=${REDIS_PASSWORD}
+    links:
+      - nextcloudsql
+    depends_on:
+      - minio
+
+  # Database for Nextcloud
+  nextcloudsql:
+    container_name: nextcloudsql
+    image: mariadb:10.6
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - ./nextcloudsql_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${NEXTCLOUD_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud

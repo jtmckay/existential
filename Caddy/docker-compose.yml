@@ -1,0 +1,12 @@
+services:
+  reverse-proxy:
+    image: caddy:builder-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80" # The HTTP port
+      - "443:443" # The HTTP port
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./site:/srv
+      - ./caddy_data:/data
+      - ./caddy_config:/config

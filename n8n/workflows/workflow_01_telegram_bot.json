@@ -1,0 +1,891 @@
+{
+  "name": "Telegram bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": false
+        }
+      },
+      "id": "6d79ea79-ee3b-4e3e-9bbd-63d5b194f765",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -260,
+        920
+      ],
+      "webhookId": "8dec3cd9-5f64-4865-92d1-bb88f1b0e042",
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "0d27cb87-9aa1-4df8-a100-06b5046dd1da",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        1640
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "F81GACcZAl2jNdgU",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "id": "e3efecdb-f1d3-4eff-9a25-8a9d2ffd981a",
+      "name": "Ollama Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        1140
+      ],
+      "notesInFlow": false,
+      "credentials": {
+        "ollamaApi": {
+          "id": "F81GACcZAl2jNdgU",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "VectorDB"
+      },
+      "id": "2c450754-ec3a-4f1a-8640-c0055ffa3a03",
+      "name": "Vector Store Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "id": "0f2fd9cc-7cbe-4d02-87c1-53557361c179",
+      "name": "Ollama Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        1500
+      ],
+      "notesInFlow": false,
+      "credentials": {
+        "ollamaApi": {
+          "id": "F81GACcZAl2jNdgU",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "the_db_name",
+          "mode": "list",
+          "cachedResultName": "the_db_name"
+        },
+        "options": {}
+      },
+      "id": "12c68f85-715d-41e8-8550-a76b702e0bcb",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        1500
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "o8sZ9CgCBx72qgFB",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const photos = $json.message.photo;\nif (!photos || photos.length === 0) {\n  return null;\n}\nconst highestResolutionPhoto = photos[photos.length - 1];\n\nreturn { json: { file_id: highestResolutionPhoto.file_id, caption: $json.message.caption } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        1120
+      ],
+      "id": "7b0dcd11-37d3-4036-a77b-836c363b9482",
+      "name": "Code",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "## Photo",
+        "height": 549.7036671240952,
+        "width": 574.2252256721589,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        360,
+        1060
+      ],
+      "id": "b99f73ae-61ba-4f80-9e44-78579abad843",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1160,
+        1140
+      ],
+      "id": "97000912-5d41-4b05-9d55-ae142e5ec449",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "uD12OMSu0IaCDFdB",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Voice",
+        "height": 330.9506144115263,
+        "width": 635.1678977055899,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        360,
+        569.0493855884736
+      ],
+      "id": "294cdda3-4379-4569-92f2-49d49ebe52d0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Vector store\nUse another workflow to create and load data",
+        "height": 508.118344862517,
+        "width": 461.64938745853254
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        980,
+        1272.9080039013422
+      ],
+      "id": "f0142409-1e66-4472-8c74-b728d7ecad83",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "id": "0b771151-00ea-45c2-93ee-5c1d5f5297ab",
+      "name": "Postgres Chat Memory2",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        1460
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "uD12OMSu0IaCDFdB",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "user",
+              "message": "={{ $json.output }}"
+            }
+          ]
+        }
+      },
+      "id": "b3b39677-9cff-4400-b416-f87c9614d4a9",
+      "name": "Chat Memory Manager",
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://whisper:8000/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "=data"
+            },
+            {
+              "name": "model",
+              "value": "large"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b348fa1d-2e64-48e4-a6ab-00a5d4d82beb",
+      "name": "Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        720
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=You are an expert personal assistant. Any response should be in a conversational text format.\n\nThe person you are helping is based in Orem, Utah. The time is {{ $now }}. Software engineer. Aspiring entrepreneur. Interests include philosophy, psychology, physics, engineering, programming, software, computers, gaming, biking, and knowledge management.\n\nUnless otherwise specified, assume the environment in which a coding solution will be provided should be in typescript, using React, tailwind, MobX, ReactQuery, and ionic/capacitor when native APIs are necessary. Prefer functional components. Use function declarations instead of const, unless using a MobX observer from mobx-react-lite.\n\nConcise responses. Provide a lengthy response when requested. Do not repeat yourself in the same response. Do not provide disclaimers about what ChatGPT can or cannot do. Use MLA format to cite sources at the end of each response. Expand URLs so they are all selectable. State the confidence level of each response at the very end.\n\nRespond as an uplifting friend, with critical but constructive feedback. Do not tell me what you think I want to hear, but tell me verifiably true facts, with the references provided in MLA format. Do not lie, make things up, or hallucinate. Be absolutely certain to communicate the confidence of each response at the end of each message."
+        }
+      },
+      "id": "6df88a0f-69e2-4aff-aab7-8ef824490f92",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1220,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2798e0e7-48ca-49ef-a75b-924ddc279d24",
+              "name": "=text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c836328f-12a6-4b56-9956-dd515ed879ec",
+      "name": "Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "You are not allowed to use this bot.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6ea9774d-beb4-4443-9217-80811560ac64",
+      "name": "Deny Msg",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        1100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "[7848136566]",
+                    "rightValue": "={{ $json.message.from.id }}",
+                    "operator": {
+                      "type": "array",
+                      "operation": "contains",
+                      "rightType": "any"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Allowed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "be4f384e-8e5d-442e-88fe-5811a09d533b",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Blocked"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "4a94f2b0-ff10-4737-82b2-8035e4232d10",
+      "name": "Allowed?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -40,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.voice.file_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "be4f384e-8e5d-442e-88fe-5811a09d533b",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "eab53a85-0ac6-4b64-b5ae-5c19611dc3d0",
+                    "leftValue": "={{ $json.message.photo }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "array",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Photo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f59dcdaf-bedd-4266-a62a-241d739edcc8",
+      "name": "Format",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        200,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}"
+      },
+      "id": "ee627f0b-4eb6-45a0-b92a-28c7895ad679",
+      "name": "Download Audio",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        720
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.file_id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        1120
+      ],
+      "id": "7779dd3d-b635-4a96-a2fc-6ffee30ca3ba",
+      "name": "Download Image",
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        640,
+        1120
+      ],
+      "id": "c015a8fd-ab4d-448f-8902-f326d7bd65c3",
+      "name": "Base64"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2-vision\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Be as specific and precise as possible. Describe the image as if it were to someone that is blind. {{ $('Code').item.json.caption }}\",\n      \"images\": [\n        \"{{ $json.data }}\"\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        1120
+      ],
+      "id": "095db111-bf9d-4cda-bd10-52cccb55be02",
+      "name": "Llama 3.2 Vision"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $json.data.split('\\n');\nconst caption = $('Telegram Trigger').item.json.message.caption;\n\nconst contents = []\ndata.forEach(datum => {\n  try {\n    const item = JSON.parse(datum)\n    if (item.message.content) {\n      contents.push(item.message.content)\n    }\n  } catch (err) {}\n})\n\nreturn {\n  output: `Caption: ${caption}\n\nImage analysis results: ${contents.join('')}`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        1300
+      ],
+      "id": "8a8584b7-a55c-4642-bd86-c07a5e9f4a69",
+      "name": "Image results"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=`{{ $json.output }}`",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a6bb8263-c879-4c7a-9da2-8cd1852049ed",
+      "name": "Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1560,
+        920
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Transcription: {{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "8d1b3baf-c275-4601-9acf-f66364d4baab",
+      "name": "Transcription",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        600
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "jnD7wtgOblkBWAqR",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Vector Store Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Tool",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Chat Memory Manager",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper": {
+      "main": [
+        [
+          {
+            "node": "Transcription",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deny Msg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64": {
+      "main": [
+        [
+          {
+            "node": "Llama 3.2 Vision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llama 3.2 Vision": {
+      "main": [
+        [
+          {
+            "node": "Image results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image results": {
+      "main": [
+        [
+          {
+            "node": "Chat Memory Manager",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "21b824c3-9a42-40ef-af10-1e891550bc2c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "92d24185ff14dab649f77d92a8c66c07723e495a2b9bf44766aeb5ba72f9a7cc"
+  },
+  "id": "9LaAFjM28Itn8S8m",
+  "tags": []
+}
