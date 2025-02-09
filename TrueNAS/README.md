@@ -36,4 +36,4 @@ In order to see the hard drives, I had to select the VM and add the 2 hardware (
 In order for the docker host/containers to write to the TrueNAS share, you MUST update the access. Ensure Maproot User, and Maproot group are set to root.
 
 #### Helpful manual mount to explore TrueNAS data
-`sudo mount -t nfs -o rw,nolock 192.168.44.127:/path/in/nas /mnt/test`
+`sudo mount -t nfs -o rw,nolock 192.168.1.10:/path/in/nas /mnt/test`

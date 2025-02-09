@@ -5,7 +5,8 @@ services:
     container_name: nextcloud
     image: nextcloud:latest
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -13,6 +14,7 @@ services:
     volumes:
       - nextcloud_data:/var/www/html
     environment:
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN}
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
       - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
