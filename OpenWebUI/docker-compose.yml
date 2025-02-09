@@ -4,7 +4,8 @@ services:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -16,3 +17,7 @@ services:
     environment:
       - OPENAI_API_BASE_URL=http://host.docker.internal:11408
       - AUDIO_STT_ENGINE=whisper
+
+networks:
+  exist:
+    external: true

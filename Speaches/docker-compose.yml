@@ -3,7 +3,8 @@ services:
     container_name: speaches
     image: ghcr.io/speaches-ai/speaches:latest-cuda
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     ports:
       - 8000:8000
     volumes:
@@ -20,3 +21,7 @@ services:
               # driver: cdi
               # device_ids:
               #   - nvidia.com/gpu=all
+
+networks:
+  exist:
+    external: true

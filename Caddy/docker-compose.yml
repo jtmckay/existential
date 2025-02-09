@@ -3,7 +3,8 @@ services:
     container_name: caddy
     image: caddy:builder-alpine
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -14,3 +15,7 @@ services:
       - ./site:/srv
       - ./caddy_data:/data
       - ./caddy_config:/config
+
+networks:
+  exist:
+    external: true

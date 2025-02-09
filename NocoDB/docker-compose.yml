@@ -3,7 +3,8 @@ services:
     container_name: nocodb_postgres
     image: postgres:16.6
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     environment: 
@@ -23,6 +24,8 @@ services:
     container_name: nocodb
     image: "nocodb/nocodb:latest"
     restart: unless-stopped
+    networks:
+      - exist
     env_file:
       - ../.env
     depends_on: 
@@ -34,3 +37,7 @@ services:
       - "11580:8080"
     volumes: 
       - "./nc_data:/usr/app/data"
+
+networks:
+  exist:
+    external: true

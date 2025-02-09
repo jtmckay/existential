@@ -4,7 +4,8 @@ services:
     container_name: postgres
     image: postgres:latest
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     environment:
@@ -15,3 +16,7 @@ services:
       - ./pg_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+networks:
+  exist:
+    external: true

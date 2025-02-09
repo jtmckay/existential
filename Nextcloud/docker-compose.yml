@@ -28,6 +28,8 @@ services:
     container_name: nextcloudsql
     image: mariadb:10.6
     restart: unless-stopped
+    networks:
+      - exist
     env_file:
       - ../.env
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
@@ -52,3 +54,7 @@ volumes:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/nextcloudsql_data"
+
+networks:
+  exist:
+    external: true

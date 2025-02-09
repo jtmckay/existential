@@ -3,7 +3,8 @@ services:
     container_name: flowise
     image: flowiseai/flowise
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     environment:
@@ -15,3 +16,7 @@ services:
     volumes:
       - ~/.flowise:/root/.flowise
     entrypoint: /bin/sh -c "sleep 3; flowise start"
+
+networks:
+  exist:
+    external: true

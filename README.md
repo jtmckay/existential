@@ -42,7 +42,9 @@ Personal knowledge management, and automations.
 https://www.docker.com/
 
 ### Setup
-Copy .env.example and fill in your values `cp .env.example .env`
+- Copy .env.example files and fill in your values `cp .env.example .env`
+- Setup the docker network
+- `docker network create exist`
 
 #### Recommended server administrator method
 Remote SSH using VSCode.

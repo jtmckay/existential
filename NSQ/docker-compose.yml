@@ -3,7 +3,8 @@ services:
     container_name: nsqlookupd
     image: nsqio/nsq
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     command: /nsqlookupd
@@ -37,3 +38,7 @@ services:
       - nsqlookupd  
     ports:
       - "4171"
+
+networks:
+  exist:
+    external: true

@@ -5,7 +5,8 @@ services:
     container_name: minio
     image: minio/minio:latest
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -23,10 +24,6 @@ volumes:
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_PATH}"
 
-
-# docker volume create \
-#   --driver local \
-#   --opt type=nfs \
-#   --opt o=addr=192.168.44.127,rw,nolock \
-#   --opt device=":/mnt/TWER/minio" \
-#   minio_data
+networks:
+  exist:
+    external: true

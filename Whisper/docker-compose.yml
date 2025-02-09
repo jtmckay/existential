@@ -5,7 +5,8 @@ services:
     container_name: whisper
     image: fedirz/faster-whisper-server:latest-cuda
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -28,9 +29,15 @@ services:
   #   container_name: whisper
   #   image: fedirz/faster-whisper-server:latest-cpu
   #   restart: unless-stopped
+  #   networks:
+  #     - exist
   #   env_file:
   #     - ../.env
   #   ports:
   #     - 8000:8000
   #   volumes:
   #     - ./whisper_data:/root/.cache/huggingface
+
+networks:
+  exist:
+    external: true

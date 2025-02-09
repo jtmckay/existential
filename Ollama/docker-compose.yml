@@ -5,7 +5,8 @@ services:
     container_name: ollama
     image: ollama/ollama
     restart: unless-stopped
-    network_mode: "bridge"
+    networks:
+      - exist
     env_file:
       - ../.env
     ports:
@@ -17,3 +18,7 @@ services:
       - ./ollama_data:/root/.ollama
       - ./ollama_entrypoint.sh:/entrypoint.sh # Mount the script
     entrypoint: ["/entrypoint.sh"] # Use the custom script
+
+networks:
+  exist:
+    external: true
