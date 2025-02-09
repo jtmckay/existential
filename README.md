@@ -41,8 +41,21 @@ Personal knowledge management, and automations.
 #### Docker
 https://www.docker.com/
 
+### Setup
+Copy .env.example and fill in your values `cp .env.example .env`
+
+#### Recommended server administrator method
+Remote SSH using VSCode.
+- Using Remote Explorer VSCode plugin
+- Add new connection
+- Enter the address of the server
+- Save the configuration to user config (or whatever)
+- Enter password
+- Open directory: wherever you want to clone this repo
+
 ### Running
 Run a service:
 - In the directory for the service you would like to run
 - Run the command `docker-compose up -d`
+
 Services are separated in different docker-compose.yml files to make it easier to split up the workload across servers.
