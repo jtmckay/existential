@@ -25,12 +25,12 @@ In order to see the hard drives, I had to select the VM and add the 2 hardware (
 - Shares (on the left)
 - Add a UNIX (NFS)
 - Create dataset
-- Add host (the proxmox static IP address, otherwise anyone on the LAN can access)
+- Add host (the docker host VM static IP address, otherwise anyone on the LAN can access)
+- Expand the advanced options
+- Set Maproot User to `root`
+- Set Maproot Group to `root`
 - Save
 - Turn on NFS automatically
 
-### Mount in proxmox
-- Make dir on proxmox server `sudo mkdir -p /mnt/minio-data`
-- Mount NFS share `sudo mount -t nfs <TrueNAS_IP>:/path/to/dataset /mnt/minio_data`
-	- Make sure to give the TrueNAS server a static IP
-	- /path/to/dataset is the path listed under UNIX (NFS) Shares in TrueNAS gui
+### Mount on docker host
+In order for the docker host/containers to write to the TrueNAS share, you MUST update the access. Ensure Maproot User, and Maproot group are set to root.

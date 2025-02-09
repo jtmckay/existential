@@ -5,6 +5,7 @@ services:
     container_name: whisper
     image: fedirz/faster-whisper-server:latest-cuda
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     ports:

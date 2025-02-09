@@ -5,6 +5,7 @@ services:
     container_name: qdrant
     image: qdrant/qdrant:latest
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     ports:

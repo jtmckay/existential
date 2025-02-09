@@ -5,6 +5,7 @@ services:
     container_name: ollama
     image: ollama/ollama
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     ports:

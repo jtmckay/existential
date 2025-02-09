@@ -3,6 +3,7 @@ services:
     container_name: nsqlookupd
     image: nsqio/nsq
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     command: /nsqlookupd
@@ -14,6 +15,7 @@ services:
     container_name: nsqd
     image: nsqio/nsq
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     command: /nsqd --lookupd-tcp-address=nsqlookupd:4160
@@ -27,6 +29,7 @@ services:
     container_name: nsqadmin
     image: nsqio/nsq
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     command: /nsqadmin --lookupd-http-address=nsqlookupd:4161

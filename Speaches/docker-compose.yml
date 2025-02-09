@@ -3,6 +3,7 @@ services:
     container_name: speaches
     image: ghcr.io/speaches-ai/speaches:latest-cuda
     restart: unless-stopped
+    network_mode: "bridge"
     ports:
       - 8000:8000
     volumes:

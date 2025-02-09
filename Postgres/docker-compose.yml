@@ -4,6 +4,7 @@ services:
     container_name: postgres
     image: postgres:latest
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     environment:

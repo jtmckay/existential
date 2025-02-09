@@ -5,14 +5,28 @@ services:
     container_name: minio
     image: minio/minio:latest
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - /mnt/minio_data:/data # Path to the mounted NFS share on the Proxmox host
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - minio_data:/data # Path to the mounted NFS share on the Proxmox host
     command: server /data --console-address :9001
+
+volumes:
+  minio_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_PATH}"
+
+
+# docker volume create \
+#   --driver local \
+#   --opt type=nfs \
+#   --opt o=addr=192.168.44.127,rw,nolock \
+#   --opt device=":/mnt/TWER/minio" \
+#   minio_data

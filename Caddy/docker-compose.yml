@@ -1,7 +1,11 @@
 services:
   reverse-proxy:
+    container_name: caddy
     image: caddy:builder-alpine
     restart: unless-stopped
+    network_mode: "bridge"
+    env_file:
+      - ../.env
     ports:
       - "80:80" # The HTTP port
       - "443:443" # The HTTP port

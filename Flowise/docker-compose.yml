@@ -3,6 +3,7 @@ services:
     container_name: flowise
     image: flowiseai/flowise
     restart: unless-stopped
+    network_mode: "bridge"
     env_file:
       - ../.env
     environment:
