@@ -10,18 +10,17 @@ Why use MinIO? It might be overkill, but maybe not.
 ### Create access key
 #### Name: Nextcloud
 ### Save Access Key and Secret Key for use with Nextclout
+
+# TODO
+## Publish to NSQ
 ### After connecting Nextcloud (which will create the bucket in MinIO)
-#### In MinIO go to Buckets -> nextclout (whatever your bucket is named)
-
-## Trigger n8n
+#### In MinIO go to Buckets -> nextcloud (whatever your bucket is named)
 #### Click on Events -> Subscribe to Event
-##### ARN dropdown should have an n8n option (which comes from the .env through docker-compose)
-##### Prefix: Input
-##### Check PUT
-##### Hit Save
-This will subscribe to all PUT events for the Input directory, and POST to the n8n endpoint with the file metadata.
+This will subscribe to all PUT events for the Input directory, and publish to the minio topic with the file metadata.
 
 ## Trigger n8n
+### After connecting Nextcloud (which will create the bucket in MinIO)
+#### In MinIO go to Buckets -> nextcloud (whatever your bucket is named)
 #### Click on Events -> Subscribe to Event
 ##### ARN dropdown should have an n8n option (which comes from the .env through docker-compose)
 ##### Prefix: Input

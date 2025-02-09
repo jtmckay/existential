@@ -1,7 +1,7 @@
 services:
   reverse-proxy:
     container_name: caddy
-    image: caddy:builder-alpine
+    image: caddy:latest
     restart: unless-stopped
     networks:
       - exist
@@ -11,10 +11,13 @@ services:
       - "80:80" # The HTTP port
       - "443:443" # The HTTP port
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./site:/srv
-      - ./caddy_data:/data
-      - ./caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
 
 networks:
   exist:
