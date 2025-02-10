@@ -13,9 +13,13 @@ services:
       - "8421:80"
     volumes:
       - nextcloud_data:/var/www/html
+      - ./servername.conf:/etc/apache2/conf-enabled/servername.conf
     environment:
+      - TRUSTED_PROXIES=${NETWORK_GATEWAY_IP} # Unfortunately most of these values are only used on the first run.
+      - OVERWRITEHOST=${NEXTCLOUD_DOMAIN} # To update values, you will need to manually change config/config.php.
+      - OVERWRITEPROTOCOL=https # Or nuke your Nextcloud volumes and start over.
+      - OVERWRITECLIURL='https://${NEXTCLOUD_DOMAIN}'
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN}
-      - NEXTCLOUD_TRUSTED_PROXIES=caddy
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
       - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}

@@ -15,3 +15,7 @@
 **/node_modules
 
 Caddy/Caddyfile
+Cloudflare/cloudflare-key.pem
+Cloudflare/cloudflare.pem
+
+Nextcloud/servername.conf
