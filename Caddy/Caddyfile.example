@@ -1,5 +1,16 @@
-your_domain.com {
+nextcloud.example.com {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  redir /.well-known/carddav /remote.php/dav/ 301
+  redir /.well-known/caldav /remote.php/dav/ 301
 
+
+  # the mapped port in caddy should be to the port on the container
+  # not the port mapped to the host.
+  # EG: a container with ports: "8421:80" would point to :80 in the Caddyfile
+  reverse_proxy nextcloud:80
+}
+
+# another_domain {
   # handle_path strips the uri prefix. EG: `uri strip_prefix /blog`
   # handle leaves the uri as is and passes it on
 
@@ -9,9 +20,7 @@ your_domain.com {
   #   }
   # }
 
-  # reverse_proxy nextcloud:8421 {
+  # reverse_proxy nextcloud:80 {
   #   header_down Strict-Transport-Security max-age=31536000;
   # }
-
-  reverse_proxy nextcloud:8421
-}
+# }

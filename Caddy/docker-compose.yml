@@ -4,7 +4,8 @@ services:
     image: caddy:latest
     restart: unless-stopped
     networks:
-      - exist
+      exist:
+        ipv4_address: 172.18.0.5 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' caddy`
     env_file:
       - ../.env
     ports:
@@ -16,6 +17,8 @@ services:
       - caddy_config:/config
       - ../Cloudflare/cloudflare.pem:/etc/caddy/certs/cloudflare.crt:ro
       - ../Cloudflare/cloudflare-key.pem:/etc/caddy/certs/cloudflare.key:ro
+    environment:
+      - CADDY_INGRESS_NETWORKS=exist
 
 volumes:
   caddy_data:

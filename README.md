@@ -10,6 +10,10 @@ Personal knowledge management, and automations.
 - [NSQ](./NSQ/README.md)
 - [MinIO](./MinIO/README.md)
 
+### External hosting
+- [Caddy](./Caddy/README.md)
+
+### File sharing
 - [Redis](./Redis/README.md)
 - [Nextcloud](./Nextcloud/README.md)
 
@@ -32,9 +36,9 @@ Personal knowledge management, and automations.
 - [n8n](./n8n/README.md)
 - [NocoDB](./NocoDB/README.md)
 
-### External hosting
+### Unused options
+#### External hosting option
 - [Ngrok](./Ngrok/README.md)
-- [Caddy](./Caddy/README.md)
 
 ## Using
 ### Prerequisites
@@ -44,7 +48,7 @@ https://www.docker.com/
 ### Setup
 - Copy .env.example files and fill in your values `cp .env.example .env`
 - Setup the docker network
-- `docker network create exist`
+- `docker network create exist --subnet=172.18.0.0/24`
 
 #### Recommended server administrator method
 Remote SSH using VSCode.
