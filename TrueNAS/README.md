@@ -3,9 +3,9 @@ File storage
 - RAID
 - Scrubbing
 
-
 ## VM on Proxmox
 - I am attempting this setup with 2 external 20TB USB drives.
+- Added to the Proxmox VM through 2 USB ports (added hardware)
 
 ### Load the image into Proxmox
 - Download the iso from TrueNAS.
@@ -18,7 +18,7 @@ File storage
 Then you can create a VM using the TrueNAS ISO
 
 ### Create a pool
-In order to see the hard drives, I had to select the VM and add the 2 hardware (USB) interfaces.
+Select all the drives you want. I did mirror, for full redundancy.
 
 ### Turn on NFS Share & Create dataset
 - Load the TrueNAS UI
