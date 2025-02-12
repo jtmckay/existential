@@ -6,8 +6,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     command:
       - /bin/sh
       - -c

@@ -5,8 +5,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     command: /nsqlookupd
     ports:
       - "4160"
@@ -17,8 +15,6 @@ services:
     image: nsqio/nsq
     restart: unless-stopped
     network_mode: "bridge"
-    env_file:
-      - ../.env
     command: /nsqd --lookupd-tcp-address=nsqlookupd:4160
     depends_on:
       - nsqlookupd
@@ -31,8 +27,6 @@ services:
     image: nsqio/nsq
     restart: unless-stopped
     network_mode: "bridge"
-    env_file:
-      - ../.env
     command: /nsqadmin --lookupd-http-address=nsqlookupd:4161
     depends_on:
       - nsqlookupd  

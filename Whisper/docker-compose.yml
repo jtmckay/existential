@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     ports:
       - 11408:8000
     volumes:
@@ -31,8 +29,6 @@ services:
   #   restart: unless-stopped
   #   networks:
   #     - exist
-  #   env_file:
-  #     - ../.env
   #   ports:
   #     - 8000:8000
   #   volumes:

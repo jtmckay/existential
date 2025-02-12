@@ -5,8 +5,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     environment:
       - PORT=3001
     ports:

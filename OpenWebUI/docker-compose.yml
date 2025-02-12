@@ -6,8 +6,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     ports:
       - "11488:8080"
     extra_hosts:

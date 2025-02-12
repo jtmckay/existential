@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    env_file:
-      - ../.env
     ports:
       - "6333:6333"
     volumes:
