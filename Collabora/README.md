@@ -1,6 +1,9 @@
 # Collabora
 Live collaborative editor like you would get with google docs.
 
+## Domain setup
+Setup your Domain DNS server to point the subdomain `collabora` to Caddy, and ensure Caddy is pointing here.
+
 ## Setup with Nextcloud
 - In Nextcloud
 - Apps

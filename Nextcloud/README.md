@@ -53,6 +53,16 @@ Testing this one out, and sharing the folder to hopefully keep recipes in sync w
 
 Still working on scheduling maintenance automatically.
 
+### Cron
+Nextcloud wants you to run cron.php every 5 minutes.
+- Add a cron job to the docker host running Nextcloud
+- `sudo crontab -e`
+- Append to the end of the file
+- `*/5 * * * * docker exec -u www-data nextcloud php /var/www/html/cron.php`
+- Save
+- Verify in Nextcloud Administration -> Basic settings
+- Nextcloud should switch itself from `AJAX` to `Cron (Recommended)`
+
 ### Restart servers
 Order you'd likely want to boot up:
 - TrueNAS
