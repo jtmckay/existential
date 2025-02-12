@@ -17,12 +17,13 @@ Personal knowledge management, and automations.
 - [Redis](./Redis/README.md)
 - [Nextcloud](./Nextcloud/README.md)
 
-### Editors
+### Knowledge interfaces
 - [Collabora](./Collabora/README.md)
 - [Obsidian](./Obsidian/README.md)
+- [Tasks](./Tasks/README.md)
 
 ### AI
-- [ollama](./ollama/README.md)
+- [Ollama](./Ollama/README.md)
 - [Whisper](./Whisper/README.md)
 - [Speaches](./Speaches/README.md)
 - [OpenWebUI](./OpenWebUI/README.md)
@@ -33,7 +34,7 @@ Personal knowledge management, and automations.
 
 ### Automation workflows
 - [Flowise](./Flowise/README.md)
-- [n8n](./n8n/README.md)
+- [N8N](./N8N/README.md)
 - [NocoDB](./NocoDB/README.md)
 
 ### Unused options

@@ -5,14 +5,18 @@ services:
     image: collabora/code:latest
     restart: unless-stopped
     networks:
-      - exist
+      exist:
+        ipv4_address: 172.18.0.8 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' collabora`
     env_file:
       - ../.env
     environment:
       - username=${COLLABORA_USERNAME}
       - password=${COLLABORA_PASSWORD} 
-      - domain=${NGROK_URL} # example.com
+      - domain=${NEXTCLOUD_DOMAIN} # example.com
+      - server_name=${COLLABORA_DOMAIN} # example.com
+      - dictionaries=en
       # - extra_params=--o:ssl.enable=true
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true
     ports:
       - 9980:9980
 
