@@ -1,11 +1,28 @@
 # Nextcloud
 File sharing
 
+
 ## Setup
 Make sure to update the `.env` with your variables, because a lot of the configuration settings are only applied on the initial run.
 
-### Trusted domains
-Add domains to the list in `nextcloud_data/config/config.php`
+### Housekeeping
+Any command that starts with occ can be run from the host by using `docker exec -u www-data nextcloud php /var/www/html/occ` before the occ command you want to run.
+
+#### Add new indicies
+- `docker exec -u www-data nextcloud php /var/www/html/occ db:add-missing-indices`
+
+#### Migrate mimetypes to better handle certain file types
+- `docker exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive`
+
+#### Cron job
+Nextcloud wants you to run cron.php every 5 minutes.
+- Add a cron job to the docker host running Nextcloud
+- `sudo crontab -e`
+- Append to the end of the file
+- `*/5 * * * * docker exec -u www-data nextcloud php /var/www/html/cron.php`
+- Save
+- Verify in Nextcloud Administration -> Basic settings
+- Nextcloud should switch itself from `AJAX` to `Cron (Recommended)`
 
 ### Enable exteranl storage
 - Login as admin
@@ -42,26 +59,15 @@ December 2024 Google revoked "All file access" permissions for the Nextcloud app
 - Turn on instant upload
 
 ### Task app from Nextcloud
-Doesn't support recurring tasks. Will use task.org solution instead.
+Doesn't support recurring tasks. Will use tasks.org solution instead.
 
 ### Cookbook app from Nextcloud
 Testing this one out, and sharing the folder to hopefully keep recipes in sync with multiple people.
 
+
 ## Maintenance
 - Enter maintenance mode: `docker exec -u www-data nextcloud php occ maintenance:mode --on`
 - Exit: `docker exec -u www-data nextcloud php occ maintenance:mode --off`
-
-Still working on scheduling maintenance automatically.
-
-### Cron
-Nextcloud wants you to run cron.php every 5 minutes.
-- Add a cron job to the docker host running Nextcloud
-- `sudo crontab -e`
-- Append to the end of the file
-- `*/5 * * * * docker exec -u www-data nextcloud php /var/www/html/cron.php`
-- Save
-- Verify in Nextcloud Administration -> Basic settings
-- Nextcloud should switch itself from `AJAX` to `Cron (Recommended)`
 
 ### Restart servers
 Order you'd likely want to boot up:
@@ -69,3 +75,15 @@ Order you'd likely want to boot up:
 - MinIO
 - Nextcloud
 - Rest can start before/after, doesn't matter
+
+
+## Debugging
+#### Check background processes
+- Load into the mariadb container
+- `docker exec -it nextcloudsql mysql -u root -p`
+- Check how many pending jobs there are
+- `SELECT COUNT(*) FROM nextcloud.oc_jobs WHERE last_run = 0;`
+
+#### Manually run cron.php
+- Run with time tracking
+- `time docker exec -u www-data nextcloud php /var/www/html/cron.php`
