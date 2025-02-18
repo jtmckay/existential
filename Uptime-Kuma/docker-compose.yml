@@ -1,0 +1,19 @@
+services:
+  # UI interface at http://localhost:30565
+  uptime-kuma:
+    container_name: uptime-kuma
+    image: 'louislam/uptime-kuma:1'
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+        - '30565:3001'
+    environment:
+      - ADMIN_USERNAME=${KUMA_ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${KUMA_ADMIN_PASSWORD}
+    volumes:
+      - ./uptime-kuma_data:/app/data
+
+networks:
+  exist:
+    external: true

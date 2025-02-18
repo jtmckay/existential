@@ -1,0 +1,13 @@
+services:
+  it-tools:
+    container_name: it-tools
+    image: 'corentinth/it-tools:latest'
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - '43491:80'
+
+networks:
+  exist:
+    external: true

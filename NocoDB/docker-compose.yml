@@ -15,7 +15,8 @@ services:
       test: "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
       timeout: 2s
     volumes: 
-      - "./ncpg_data:/var/lib/postgresql/data"
+      - nocodb_postgres_data:/var/lib/postgresql/data
+      # - ./ncpg_data:/var/lib/postgresql/data # Local volume for Postgres data
 
   # UI interface at http://localhost:11580/
   nocodb: 
@@ -29,10 +30,27 @@ services:
         condition: service_healthy
     environment: 
       NC_DB: "pg://nocodb_postgres:5432?u=${NOCODB_POSTGRES_USER}&p=${NOCODB_POSTGRES_PASSWORD}&d=nocodb_postgres"
+      NC_ADMIN_EMAIL: ${NC_ADMIN_EMAIL}
+      NC_ADMIN_PASSWORD: ${NC_ADMIN_PASSWORD}
     ports: 
       - "11580:8080"
     volumes: 
-      - "./nc_data:/usr/app/data"
+      - nocodb_data:/usr/app/data
+      # - ./nc_data:/usr/app/data # Local volume for NocoDB data
+
+volumes:
+  nocodb_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/nocodb_data"
+  nocodb_postgres_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/nocodb_postgres_data"
 
 networks:
   exist:

@@ -32,6 +32,18 @@ Select all the drives you want. I did mirror, for full redundancy.
 - Save
 - Turn on NFS automatically
 
+#### Configure dataset
+- It likely changes with usecase, and hardware setups, but:
+- Set compression level: `Inherit (ZSTD-FAST-10)`
+
+#### Configure Data Protection
+- Adjust a Scrub Task
+  - Threshold days: 35 (will only attempt again after 35 days have lapsed since the last run)
+  - Schedule: `(0 4 15 * *)`
+- Periodic S.M.A.R.T. Tests
+  - Add SHORT `(0 0 * * *)`
+  - Add LONG `(0 1 1 * *)`
+
 ### Mount on docker host
 In order for the docker host/containers to write to the TrueNAS share, you MUST update the access. Ensure Maproot User, and Maproot group are set to root.
 

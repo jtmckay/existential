@@ -1,0 +1,13 @@
+services:
+  tasks:
+    container_name: tasks
+    image: johannesjo/super-productivity:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 11480:80
+
+networks:
+  exist:
+    external: true

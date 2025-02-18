@@ -3,3 +3,19 @@
 - Load workflows from the workflows directory
 - Create workflows
 - Enable workflows
+
+## Postgres
+https://github.com/postgres/postgres
+
+Relational database.
+
+### Chat history
+Memory for N8N agents.
+
+## Qdrant
+https://github.com/qdrant/qdrant
+
+Vector database
+
+### Retrieval-augmentated generation
+Make N8N agents smarter.

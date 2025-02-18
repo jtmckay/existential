@@ -1,5 +1,7 @@
 # Collabora
-Live collaborative editor like you would get with google docs.
+https://github.com/CollaboraOnline/online
+
+Live collaborative editor like you would get with google docs, libre office, or office 365.
 
 ## Domain setup
 Setup your Domain DNS server to point the subdomain `collabora` to Caddy, and ensure Caddy is pointing here.

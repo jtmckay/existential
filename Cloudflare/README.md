@@ -1,4 +1,12 @@
 # Cloudflare
+## DNS
+Any services you want exposed to the internet will need to be setup/exposed.
+
+One option is to set it up with:
+- Cloudflare proxy (your home external IP is not exposed)
+- Cloudflare Origin Certificate (below).
+- By specific subdomain, or wildcard https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-subdomain/
+
 ## Certificate
 ### Generate an Origin certificate
 - Go to the dashboard

@@ -15,6 +15,24 @@ collabora.example.com {
   reverse_proxy collabora:9980
 }
 
+tasks.example.comp {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  
+  reverse_proxy tasks:80
+}
+
+nocodb.existential.company {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  
+  reverse_proxy nocodb:8080
+}
+
+it.existential.company {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  
+  reverse_proxy it-tools:80
+}
+
 
 
 
