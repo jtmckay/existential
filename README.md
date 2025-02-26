@@ -3,39 +3,39 @@ Personal knowledge management, and automations.
 
 ![Architecture Diagram](architecture.jpg)
 
-## Journey to PKM and automation
-### File system
+# Journey to PKM and automation
+### File system (self hosting)
 - [Proxmox](./Proxmox/README.md) (alt: Unraid)
 - [TrueNAS](./TrueNAS/README.md)
 
-### File system abstraction (alt: AWS S3)
+### File system API (alt: AWS S3)
 - [MinIO](./MinIO/README.md)
 
-### File sharing (alt: Dropbox/Onedrive/Google Drive)
+### File sharing (managed alt: Dropbox/Onedrive/Google Drive)
 - [Redis](./Redis/README.md) (cache for Nextcloud)
 - [Nextcloud](./Nextcloud/README.md)
 
-### External hosting AKA reverse-proxy
-- [Caddy](./Caddy/README.md) (alt: Nginx)
+### External network (access self hosted from the internet)
+- [Caddy](./Caddy/README.md) (Reverse proxy. Alt: Traefik/Nginx)
 - [Cloudflare](./Cloudflare/README.md) (alt: any domain manager/DNS/[Ngrok](./Ngrok/README.md))
 
 ### File editing (alt: LibreOffice/Open Office/Office 365/Google Docs)
 - [Collabora](./Collabora/README.md)
 
-### Note taking (alt: OneNote/Evernote/Notion)
+### Note taking (managed alt: OneNote/Evernote/Notion)
 - [Obsidian](./Obsidian/README.md)
 
 ### Optional tools
-- [Tasks: Super Productivity](./Tasks/README.md)
-- [IT-Tools](./IT-Tools/README.md)
-- [Uptime-Kuma](./Uptime-Kuma/README.md)
-- [NocoDB](./NocoDB/README.md)
+- [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist)
+- [IT-Tools](./IT-Tools/README.md) (managed alt: https://it-tools.tech/ or a handful of websites)
+- [Uptime-Kuma](./Uptime-Kuma/README.md)  (alt: Prometheus & Grafana or https://uptimerobot.com/ or https://www.statuscake.com/)
+- [NocoDB](./NocoDB/README.md) (alt: AirTable)
 - [Fabric](./Fabric/README.md)
 
 ### PubSub (alt: RabbitMQ/Kafka)
 - [NSQ](./NSQ/README.md)
 
-### AI
+## AI
 - [Ollama](./Ollama/README.md) (alt: OpenAI)
 - [Whisper](./Whisper/README.md) (alt: OpenAI)
 - [Speaches](./Speaches/README.md)

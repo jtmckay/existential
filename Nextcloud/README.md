@@ -1,4 +1,6 @@
 # Nextcloud
+https://github.com/nextcloud/server
+
 File sharing
 
 
@@ -34,6 +36,7 @@ Nextcloud wants you to run cron.php every 5 minutes.
 - Click Enable
 
 ### Add S3 (MinIO)
+Note: BEFORE adding this, if you are loading a large amount of files, it may be easier to upload directly to MinIO rather than let Nextcloud sync it. It also struggled to sync any files larger than 10GB and long paths, EG node_modules (maybe nuke those before backing up).
 - Go to `settings/admin/externalstorages`
   - Click on top right profile icon
   - Select Administrative settings

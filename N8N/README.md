@@ -1,4 +1,6 @@
 # N8N
+https://github.com/n8n-io/n8n
+
 - Open the web interface [REFERENCE](./docker-compose.yml)
 - Load workflows from the workflows directory
 - Create workflows
