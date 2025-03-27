@@ -6,6 +6,7 @@ File sharing
 
 ## Setup
 Make sure to update the `.env` with your variables, because a lot of the configuration settings are only applied on the initial run.
+- There is a way to install Nextcloud curing an Ubuntu Server installation, but I'm not sure how to configure it with all of the things that must be configured before the first time it runs.
 
 ### Housekeeping
 Any command that starts with occ can be run from the host by using `docker exec -u www-data nextcloud php /var/www/html/occ` before the occ command you want to run.

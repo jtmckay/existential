@@ -13,21 +13,22 @@ collabora.example.com {
   tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
   
   reverse_proxy collabora:9980
+  # reverse_proxy 192.168.1.101:9980
 }
 
-tasks.example.comp {
+tasks.example.com {
   tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
   
   reverse_proxy tasks:80
 }
 
-nocodb.existential.company {
+nocodb.example.com {
   tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
   
   reverse_proxy nocodb:8080
 }
 
-it.existential.company {
+it.example.com {
   tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
   
   reverse_proxy it-tools:80
