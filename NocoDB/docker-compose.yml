@@ -9,13 +9,13 @@ services:
       POSTGRES_DB: nocodb_postgres
       POSTGRES_PASSWORD: ${NOCODB_POSTGRES_PASSWORD}
       POSTGRES_USER: ${NOCODB_POSTGRES_USER}
-    healthcheck: 
+    healthcheck:
       interval: 10s
       retries: 10
       test: "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
       timeout: 2s
-    volumes: 
-      - nocodb_postgres_data:/var/lib/postgresql/data
+    volumes:
+      - nocodb_pg_data:/var/lib/postgresql/data
       # - ./ncpg_data:/var/lib/postgresql/data # Local volume for Postgres data
 
   # UI interface at http://localhost:11580/
@@ -45,12 +45,12 @@ volumes:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/nocodb_data"
-  nocodb_postgres_data:
+  nocodb_pg_data:
     driver: local
     driver_opts:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/nocodb_postgres_data"
+      device: ":${TRUENAS_CONTAINER_PATH}/nocodb_pg_data"
 
 networks:
   exist:

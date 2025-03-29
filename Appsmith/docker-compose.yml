@@ -1,0 +1,24 @@
+services:
+  appsmith:
+    container_name: appsmith
+    image: index.docker.io/appsmith/appsmith-ee
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      # - "80:80"
+      - "4443:80"
+    volumes:
+      - appsmith_data:/appsmith-stacks
+
+volumes:
+  appsmith_data: # appsmith_data dataset will need to be created in TrueNAS
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/appsmith_data"
+
+networks:
+  exist:
+    external: true

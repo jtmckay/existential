@@ -13,11 +13,11 @@ sleep 2
 # echo "PULL deepseek-r1:7b model"
 # ollama pull deepseek-r1:7b
 
-# echo "PULL deepseek-r1:8b model"
-# ollama pull deepseek-r1:8b
+echo "PULL deepseek-r1:8b model"
+ollama pull deepseek-r1:8b
 
-echo "PULL deepseek-r1:14b model"
-ollama pull deepseek-r1:14b
+# echo "PULL deepseek-r1:14b model"
+# ollama pull deepseek-r1:14b
 
 # echo "PULL deepseek-r1:32b model"
 # ollama pull deepseek-r1:32b
