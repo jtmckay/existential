@@ -34,6 +34,18 @@ it.example.com {
   reverse_proxy it-tools:80
 }
 
+minio.example.com {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  
+  reverse_proxy minio:9000
+}
+
+app.example.com {
+  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  
+  reverse_proxy appsmith:443
+}
+
 
 
 
