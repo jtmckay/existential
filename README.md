@@ -25,11 +25,12 @@ Personal knowledge management, and automations.
 ### Note taking (managed alt: OneNote/Evernote/Notion)
 - [Obsidian](./Obsidian/README.md)
 
-### Optional tools
+### Random tools
 - [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist)
 - [IT-Tools](./IT-Tools/README.md) (managed alt: https://it-tools.tech/ or a handful of websites)
 - [Uptime-Kuma](./Uptime-Kuma/README.md)  (alt: Prometheus & Grafana or https://uptimerobot.com/ or https://www.statuscake.com/)
 - [NocoDB](./NocoDB/README.md) (alt: AirTable)
+- [Appsmith](./Appsmith/README.md) (alt: Retool)
 - [Fabric](./Fabric/README.md)
 
 ### PubSub (alt: RabbitMQ/Kafka)
