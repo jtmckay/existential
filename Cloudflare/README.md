@@ -8,6 +8,11 @@ One option is to set it up with:
 - By specific subdomain, or wildcard https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-subdomain/
 
 ## Certificate
+### Set SSL/TLS encryption
+- Go to the SSL/TLS for your domain
+- Configure SSL/TLS encryption
+- Set it to Full (strict)
+
 ### Generate an Origin certificate
 - Go to the dashboard
 - Click on the ellipses for your domain

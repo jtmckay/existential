@@ -20,7 +20,8 @@ Personal knowledge management, and automations.
 - [Cloudflare](./Cloudflare/README.md) (alt: any domain manager/DNS/[Ngrok](./Ngrok/README.md))
 
 ### File editing (alt: LibreOffice/Open Office/Office 365/Google Docs)
-- [Collabora](./Collabora/README.md)
+- [Collabora](./Collabora/README.md) (Powerpoint option is terrible)
+- [WPS Office](https://www.wps.com/) (Better powerpoint at least)
 
 ### Note taking (managed alt: OneNote/Evernote/Notion)
 - [Obsidian](./Obsidian/README.md)

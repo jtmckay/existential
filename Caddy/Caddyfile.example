@@ -1,5 +1,5 @@
 nextcloud.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   redir /.well-known/carddav /remote.php/dav/ 301
   redir /.well-known/caldav /remote.php/dav/ 301
 
@@ -10,38 +10,38 @@ nextcloud.example.com {
 }
 
 collabora.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy collabora:9980
   # reverse_proxy 192.168.1.101:9980
 }
 
 tasks.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy tasks:80
 }
 
 nocodb.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy nocodb:8080
 }
 
 it.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy it-tools:80
 }
 
 minio.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy minio:9000
 }
 
 app.example.com {
-  tls /etc/caddy/certs/cloudflare.crt /etc/caddy/certs/cloudflare.key
+  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   
   reverse_proxy appsmith:443
 }

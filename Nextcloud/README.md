@@ -11,11 +11,11 @@ Make sure to update the `.env` with your variables, because a lot of the configu
 ### Housekeeping
 Any command that starts with occ can be run from the host by using `docker exec -u www-data nextcloud php /var/www/html/occ` before the occ command you want to run.
 
-#### Add new indicies
-- `docker exec -u www-data nextcloud php /var/www/html/occ db:add-missing-indices`
-
-#### Migrate mimetypes to better handle certain file types
+#### Migrate mimetypes to better handle certain file types (may be required after each major update)
 - `docker exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive`
+
+#### Add new indicies (may be required after each major update)
+- `docker exec -u www-data nextcloud php /var/www/html/occ db:add-missing-indices`
 
 #### Cron job
 Nextcloud wants you to run cron.php every 5 minutes.
@@ -26,6 +26,10 @@ Nextcloud wants you to run cron.php every 5 minutes.
 - Save
 - Verify in Nextcloud Administration -> Basic settings
 - Nextcloud should switch itself from `AJAX` to `Cron (Recommended)`
+
+#### Set maintenance window
+Nextcloud’s maintenance_window_start value is in UTC hours (0–23), not local time.
+- `docker exec -u www-data nextcloud php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=8`
 
 ### Enable exteranl storage
 - Login as admin

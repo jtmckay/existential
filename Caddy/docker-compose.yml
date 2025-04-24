@@ -13,8 +13,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      - ../Cloudflare/cloudflare.pem:/etc/caddy/certs/cloudflare.crt:ro
-      - ../Cloudflare/cloudflare-key.pem:/etc/caddy/certs/cloudflare.key:ro
+      - ../Cloudflare/:/etc/caddy/certs/
     environment:
       - CADDY_INGRESS_NETWORKS=exist
 
