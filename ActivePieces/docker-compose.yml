@@ -1,0 +1,50 @@
+services:
+  activepieces:
+    container_name: activepieces
+    image: activepieces/activepieces:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      AP_DB_TYPE: POSTGRES
+      AP_EDITION: ce
+      AP_QUEUE_MODE: REDIS
+      AP_REDIS_HOST: redis
+      AP_REDIS_PORT: 6379
+      AP_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      POSTGRES_DB: ${AP_POSTGRES_DATABASE}
+      POSTGRES_USER: ${AP_POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+    ports:
+      - "41313:80"
+    depends_on: [postgres, redis]
+
+  activepieces_postgres: 
+    container_name: activepieces_postgres
+    image: postgres:16.6
+    restart: unless-stopped
+    networks:
+      - exist
+    environment: 
+      POSTGRES_DB: ${AP_POSTGRES_DATABASE}
+      POSTGRES_USER: ${AP_POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+    healthcheck:
+      interval: 10s
+      retries: 10
+      test: "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+      timeout: 2s
+    volumes:
+      - activepieces_pg_data:/var/lib/postgresql/data
+
+volumes:
+  activepieces_pg_data: # activepieces_pg_data dataset will need to be created in TrueNAS
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/activepieces_pg_data"
+
+networks:
+  exist:
+    external: true

@@ -1,41 +1,65 @@
 # existential
+
 Personal knowledge management, and automations.
 
 ![Architecture Diagram](architecture.jpg)
 
 # Journey to PKM and automation
-### File system (self hosting)
+
+## Data
+### System OS (self hosting)
 - [Proxmox](./Proxmox/README.md) (alt: Unraid)
+
+### File redundancy
 - [TrueNAS](./TrueNAS/README.md)
 
-### File system API (alt: AWS S3)
-- [MinIO](./MinIO/README.md)
+### File API
+- [MinIO](./MinIO/README.md) (alt: AWS S3)
 
-### File sharing (managed alt: Dropbox/Onedrive/Google Drive)
-- [Redis](./Redis/README.md) (cache for Nextcloud)
-- [Nextcloud](./Nextcloud/README.md)
+### Cache
+- [Redis](./Redis/README.md)
 
+### File sharing
+- [Nextcloud](./Nextcloud/README.md) (managed alt: Dropbox/Onedrive/Google Drive)
+
+## Network
 ### External network (access self hosted from the internet)
 - [Caddy](./Caddy/README.md) (Reverse proxy. Alt: Traefik/Nginx)
 - [Cloudflare](./Cloudflare/README.md) (alt: any domain manager/DNS/[Ngrok](./Ngrok/README.md))
 
-### File editing (alt: LibreOffice/Open Office/Office 365/Google Docs)
-- [Collabora](./Collabora/README.md) (Powerpoint option is terrible)
-- [WPS Office](https://www.wps.com/) (Better powerpoint at least)
-
-### Note taking (managed alt: OneNote/Evernote/Notion)
-- [Obsidian](./Obsidian/README.md)
-
-### Random tools
-- [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist)
-- [IT-Tools](./IT-Tools/README.md) (managed alt: https://it-tools.tech/ or a handful of websites)
+### Monitoring
 - [Uptime-Kuma](./Uptime-Kuma/README.md)  (alt: Prometheus & Grafana or https://uptimerobot.com/ or https://www.statuscake.com/)
-- [NocoDB](./NocoDB/README.md) (alt: AirTable)
-- [Appsmith](./Appsmith/README.md) (alt: Retool)
-- [Fabric](./Fabric/README.md)
 
 ### PubSub (alt: RabbitMQ/Kafka)
-- [NSQ](./NSQ/README.md)
+- Kafka https://github.com/apache/kafka
+- [NSQ](./NSQ/README.md) (UNUSED)
+- [RabbitMQ](./RabbitMQ/README.md)
+
+## Applications
+### File editing
+- [Collabora](./Collabora/README.md) (Powerpoint option is terrible, but web based) (alt: Office 365/Google Docs)
+- [WPS Office](https://www.wps.com/) (Better powerpoint at least) (alt: LibreOffice/Open Office)
+
+### Note taking
+- [Obsidian](./Obsidian/README.md) (managed alt: OneNote/Evernote/Notion)
+
+### Task management
+- [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist, Notion)
+
+### Low code database (advanced spreadsheets)
+- [NocoDB](./NocoDB/README.md) (alt: AirTable)
+
+### Low code UI website editor
+- [Appsmith](./Appsmith/README.md) (alt: Retool)
+
+### Random tools
+- [IT-Tools](./IT-Tools/README.md) (managed alt: https://it-tools.tech/ or a handful of websites)
+- [Fabric](./Fabric/README.md)
+
+### Workflow
+- [ActivePieces](./ActivePieces/README.md)
+- [N8N](./N8N/README.md) (Self host only)
+- Node-red https://github.com/node-red/node-red
 
 ## AI
 - [Ollama](./Ollama/README.md) (alt: OpenAI)
@@ -43,9 +67,13 @@ Personal knowledge management, and automations.
 - [Speaches](./Speaches/README.md)
 - [OpenWebUI](./OpenWebUI/README.md) (alt: ChatGPT)
 
-### Automation workflow options
+### Agents
 - [Flowise](./Flowise/README.md)
-- [N8N](./N8N/README.md)
+- Huginn https://github.com/huginn/huginn
+- Browser use https://github.com/browser-use/browser-use
+
+### Background jobs
+- Trigger.dev https://github.com/triggerdotdev/trigger.dev
 
 ## Using
 ### Prerequisites
