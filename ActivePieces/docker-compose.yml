@@ -8,16 +8,22 @@ services:
     environment:
       AP_DB_TYPE: POSTGRES
       AP_EDITION: ce
+      AP_FRONTEND_URL: "https://ap.existential.company"
       AP_QUEUE_MODE: REDIS
       AP_REDIS_HOST: redis
-      AP_REDIS_PORT: 6379
       AP_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      POSTGRES_DB: ${AP_POSTGRES_DATABASE}
-      POSTGRES_USER: ${AP_POSTGRES_USERNAME}
-      POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+      AP_REDIS_PORT: 6379
+      AP_REDIS_DB: ap
+      AP_POSTGRES_HOST: activepieces_postgres
+      AP_POSTGRES_DATABASE: ${AP_POSTGRES_DATABASE}
+      AP_POSTGRES_USERNAME: ${AP_POSTGRES_USERNAME}
+      AP_POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+      AP_POSTGRES_PORT: 5432
+      AP_ENCRYPTION_KEY: ${AP_ENCRYPTION_KEY}
+      AP_JWT_SECRET: ${AP_JWT_SECRET}
     ports:
       - "41313:80"
-    depends_on: [postgres, redis]
+    depends_on: [activepieces_postgres]
 
   activepieces_postgres: 
     container_name: activepieces_postgres

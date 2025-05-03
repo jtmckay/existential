@@ -1,5 +1,4 @@
 services:
-  # Cache for nextcloud
   redis:
     container_name: redis
     image: redis:alpine
@@ -9,10 +8,6 @@ services:
     command:
       - /bin/sh
       - -c
-      # - Double dollars, so that the variable is not expanded by Docker Compose
-      # - Surround by quotes, so that the shell does not split the password
-      # - The ${variable:?message} syntax causes shell to exit with a non-zero
-      #   code and print a message, when the variable is not set or empty
       - redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "6379:6379"
