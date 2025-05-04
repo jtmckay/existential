@@ -22,3 +22,7 @@ Cloudflare/cloudflare-key.pem
 Cloudflare/cloudflare.pem
 
 Nextcloud/servername.conf
+
+RabbitMQ/ssl/ca.pem
+RabbitMQ/ssl/server_cert.pem
+RabbitMQ/ssl/server_key.pem

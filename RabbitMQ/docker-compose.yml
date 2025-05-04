@@ -1,7 +1,7 @@
 services:
   rabbitmq:
     container_name: rabbitmq
-    image: rabbitmq:3.12-management
+    image: rabbitmq:latest
     restart: unless-stopped
     networks:
       - exist
@@ -10,6 +10,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
     ports:
+      # - "1883:1883"   # MQTT protocol
+      - "8883:8883"   # Secure MQTT protocol
       - "5672:5672"   # AMQP protocol
       - "15672:15672" # Management UI
     healthcheck:
@@ -19,6 +21,9 @@ services:
       retries: 5
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./ssl:/etc/rabbitmq/ssl:ro
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
 
 volumes:
   rabbitmq_data:
