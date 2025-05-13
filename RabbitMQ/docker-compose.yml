@@ -10,7 +10,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
     ports:
-      # - "1883:1883"   # MQTT protocol
+      - "1883:1883"   # MQTT protocol
       - "8883:8883"   # Secure MQTT protocol
       - "5672:5672"   # AMQP protocol
       - "15672:15672" # Management UI
@@ -24,6 +24,20 @@ services:
       - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
       - ./ssl:/etc/rabbitmq/ssl:ro
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+
+  rabbitmq-webhook-bridge:
+    container_name: rabbitmq-webhook-bridge
+    image: rabbitmq-webhook-bridge
+    build: ./webhook-bridge
+    env_file:
+      - ./webhook-bridge/.env
+    networks:
+      - exist
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    init: true
 
 volumes:
   rabbitmq_data:

@@ -1,0 +1,15 @@
+[req]
+distinguished_name = dn
+x509_extensions    = v3_req
+prompt             = no
+
+[dn]
+CN = rabbitmq
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = rabbitmq
+IP.1  = 192.168.1.11       # ← change as needed
