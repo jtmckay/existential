@@ -18,3 +18,6 @@ Options: ignore, lock, poweroff, hibernate
 
 ## VM
 I had to up the VM CPU type from `KVM` to `host` in order to fix some errors I saw starting with the MinIO container.
+
+### Update main VM
+If you can't run `apt-get update` comment out (add `#` at the beginning of the lines) for the files in: `/etc/apt/sources.list.d`

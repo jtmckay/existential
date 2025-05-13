@@ -12,6 +12,23 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data # Path to the mounted NFS share on the Proxmox host
+      - ../RabbitMQ/ssl/ca.pem:/etc/minio/certs/rabbitmq-ca.pem:ro
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_DOMAIN=${MINIO_DOMAIN}
+      - MINIO_SERVER_URL=${MINIO_SERVER_URL}
+      - MINIO_NOTIFY_MQTT_ENABLE=on
+      - MINIO_NOTIFY_MQTT_BROKER=${RABBITMQ_BROKER}
+      - MINIO_NOTIFY_MQTT_TOPIC=minio
+      - MINIO_NOTIFY_MQTT_USERNAME=${RABBITMQ_USERNAME}
+      - MINIO_NOTIFY_MQTT_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_NOTIFY_MQTT_QOS=1
+      - MINIO_NOTIFY_MQTT_CLIENT_ID=minio
+      - MINIO_NOTIFY_MQTT_RECONNECT_SECONDS=5
+      - MINIO_NOTIFY_MQTT_KEEP_ALIVE_SECONDS=60
+      - MINIO_NOTIFY_MQTT_TLS_SKIP_VERIFY=false
+      - MINIO_NOTIFY_MQTT_TLS_CA_PATH=/etc/minio/certs/rabbitmq-ca.pem
     command: server /data --console-address :9001
 
 volumes:
