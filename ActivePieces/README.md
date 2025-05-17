@@ -1,14 +1,8 @@
 # Active Pieces
 https://github.com/activepieces/activepieces
 
-### Connect RabbitMQ
-- In RabbitMQ
-- Add a user for active pieces
-- Go to Queues and Streams
-- Add a queue named "minio"
-- Click into it, and aa a record "From exchange:" `amq.topic` with "Routing key:" `minio`
-
 ### MinIO trigger
+Pre-req: [AMQP MinIO queue](../RabbitMQ/README.md#connect-minio)
 - In Active Pieces
 - Create a new trigger
 - Select Catch Webhook

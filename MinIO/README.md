@@ -3,6 +3,9 @@ https://github.com/minio/minio
 
 Why use MinIO? It might be overkill, but maybe not.
 
+## Queue
+[AMQP MinIO queue](../RabbitMQ/README.md#connect-minio)
+
 ## VM
 I had to up the VM CPU type from `KVM` to `host` in order to fix some errors I saw starting this container.
 

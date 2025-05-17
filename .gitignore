@@ -26,3 +26,4 @@ Nextcloud/servername.conf
 RabbitMQ/ssl/ca.pem
 RabbitMQ/ssl/server_cert.pem
 RabbitMQ/ssl/server_key.pem
+RabbitMQ/defs.json

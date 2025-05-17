@@ -5,6 +5,14 @@ https://github.com/rabbitmq/rabbitmq-server
 - Update env variables
 - Create and save secure passwords
 
+## Connect Minio
+This can be automated by using `defs.json`
+- In RabbitMQ
+- Add a user for active pieces
+- Go to Queues and Streams
+- Add a queue named "minio"
+- Click into it, and aa a record "From exchange:" `amq.topic` with "Routing key:" `minio`
+
 ## Webhook bridge
 Post to a webhook URL for every message received in an AMQP queue.
 

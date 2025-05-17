@@ -1,14 +1,17 @@
 services:
   rabbitmq:
     container_name: rabbitmq
+    hostname: rabbitmq
     image: rabbitmq:latest
     restart: unless-stopped
     networks:
       - exist
     environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/defs.json
     ports:
       - "1883:1883"   # MQTT protocol
       - "8883:8883"   # Secure MQTT protocol
@@ -24,6 +27,7 @@ services:
       - ./enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
       - ./ssl:/etc/rabbitmq/ssl:ro
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./defs.json:/etc/rabbitmq/defs.json:ro
 
   rabbitmq-webhook-bridge:
     container_name: rabbitmq-webhook-bridge

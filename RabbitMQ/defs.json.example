@@ -1,0 +1,44 @@
+{
+  "users": [
+    {
+      "name": "ha",
+      "password": "super_secure_password_1", 
+      "tags": ""
+    },
+    {
+      "name": "ap",
+      "password": "super_secure_password_2", 
+      "tags": ""
+    },
+    {
+      "name": "minio",
+      "password": "super_secure_password_3", 
+      "tags": ""
+    }
+  ],
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "permissions": [
+    { "user": "ha", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" },
+    { "user": "ap", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" },
+    { "user": "minio", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" }
+  ],
+  "queues": [
+    { "name": "minio", "vhost": "/", "durable": true, "auto_delete": false }
+  ],
+  "bindings": [
+    {
+      "source": "amq.topic",
+      "vhost": "/",
+      "destination": "minio",
+      "destination_type": "queue",
+      "routing_key": "minio"
+    }
+  ],
+  "parameters": [],
+  "policies": [],
+  "global_parameters": [
+    { "name": "cluster_name", "value": "rabbit@rabbitmq" }
+  ]
+}
