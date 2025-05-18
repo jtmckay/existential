@@ -62,8 +62,9 @@ Personal knowledge management, and automations.
 - Node-red https://github.com/node-red/node-red
 
 ## AI
-- [Ollama](./Ollama/README.md) (alt: OpenAI)
+- [Parakeet](./Parakeet/README.md) (alt: Whisper)
 - [Whisper](./Whisper/README.md) (alt: OpenAI)
+- [Ollama](./Ollama/README.md) (alt: OpenAI)
 - [Speaches](./Speaches/README.md)
 - [OpenWebUI](./OpenWebUI/README.md) (alt: ChatGPT)
 
