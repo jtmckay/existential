@@ -2,7 +2,7 @@
 
 Personal knowledge management, and automations.
 
-![Architecture Diagram](architecture.jpg)
+![Architecture Diagram](architecture.png)
 
 # Journey to PKM and automation
 
