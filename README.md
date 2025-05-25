@@ -6,9 +6,15 @@ Personal knowledge management, and automations.
 
 # Journey to PKM and automation
 
-## Data
-### System OS (self hosting)
+Pick and choose the components to use. EG: use GoogleDrive for files, and skip TrueNAS, MinIO, Redis, and Nextcloud.
+
+## Hosting
+### System OS
 - [Proxmox](./Proxmox/README.md) (alt: Unraid)
+
+### CI/CD (TODO: explore options)
+- [Dokku](https://github.com/dokku/dokku)
+- [Coolify](https://github.com/coollabsio/coolify)
 
 ### File redundancy
 - [TrueNAS](./TrueNAS/README.md)
@@ -38,7 +44,8 @@ Personal knowledge management, and automations.
 ## Applications
 ### File editing
 - [Collabora](./Collabora/README.md) (Powerpoint option is terrible, but web based) (alt: Office 365/Google Docs)
-- [WPS Office](https://www.wps.com/) (Better powerpoint at least) (alt: LibreOffice/Open Office)
+- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop) (TODO: test; I didn't want to have to login to WPS)
+- [WPS Office](https://www.wps.com/) (Better powerpoint at least) (alt: LibreOffice/Open Office/OnlyOffice)
 
 ### Note taking
 - [Obsidian](./Obsidian/README.md) (managed alt: OneNote/Evernote/Notion)
@@ -46,15 +53,20 @@ Personal knowledge management, and automations.
 ### Task management
 - [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist, Notion)
 
+### Personal finance
+- [Firefly-III](https://github.com/firefly-iii/firefly-iii) (TODO: test)
+
 ### Low code database (advanced spreadsheets)
 - [NocoDB](./NocoDB/README.md) (alt: AirTable)
 
 ### Low code UI website editor
+- [Lowcoder](https://github.com/lowcoder-org/lowcoder) (TODO: test)
 - [Appsmith](./Appsmith/README.md) (alt: Retool)
 
 ### Random tools
 - [IT-Tools](./IT-Tools/README.md) (managed alt: https://it-tools.tech/ or a handful of websites)
 - [Fabric](./Fabric/README.md)
+- [Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF) (TODO: test)
 
 ### Workflow
 - [ActivePieces](./ActivePieces/README.md)
