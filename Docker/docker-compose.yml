@@ -10,7 +10,7 @@ services:
       REGISTRY_STORAGE_DELETE_ENABLED: "true"  # allow `docker image rm`
       # REGISTRY_HTTP_ADDR: 0.0.0.0:5000       # change bind address if needed
     networks:
-      - registry_net
+      - exist_net
     deploy:
       replicas: 1                       # one copy is enough
       placement:                        # optional: keep it on a manager
@@ -20,7 +20,6 @@ services:
         condition: on-failure
     restart: unless-stopped
     
-
 volumes:
   registry_data:
     driver: local
@@ -30,6 +29,7 @@ volumes:
       device: ":${TRUENAS_CONTAINER_PATH}/registry_data"
 
 networks:
-  registry_net:
+  exist_net:
+    name: exist_net
     driver: overlay                     # cluster-wide
     attachable: true                    # lets stand-alone compose containers join

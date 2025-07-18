@@ -13,7 +13,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     networks:
-      - exist
+      - exist_net
     restart: unless-stopped
 
 volumes:
@@ -23,3 +23,7 @@ volumes:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/portainer_data"
+
+networks:
+  exist_net:
+    external: true
