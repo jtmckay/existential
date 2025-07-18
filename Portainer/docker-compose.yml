@@ -1,0 +1,25 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    ports:
+      - "8000:8000"
+      - "9443:9443"
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      replicas: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - exist
+    restart: unless-stopped
+
+volumes:
+  portainer_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/portainer_data"

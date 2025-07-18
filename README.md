@@ -12,9 +12,9 @@ Pick and choose the components to use. EG: use GoogleDrive for files, and skip T
 ### System OS
 - [Proxmox](./Proxmox/README.md) (alt: Unraid)
 
-### CI/CD (TODO: explore options)
-- [Dokku](https://github.com/dokku/dokku)
-- [Coolify](https://github.com/coollabsio/coolify)
+### Container management
+- [Docker](./Docker/README.md) (+Swarm alt: Kubernetes)
+- [Portainer](./Portainer/README.md) (alt: Dokku, Coolify)
 
 ### File redundancy
 - [TrueNAS](./TrueNAS/README.md)
@@ -48,19 +48,21 @@ Pick and choose the components to use. EG: use GoogleDrive for files, and skip T
 - [WPS Office](https://www.wps.com/) (Better powerpoint at least) (alt: LibreOffice/Open Office/OnlyOffice)
 
 ### Note taking
+- [AnyType](https://anytype.io/) (live P2P local file sync; perfect for VPN)
 - [Obsidian](./Obsidian/README.md) (managed alt: OneNote/Evernote/Notion)
 
 ### Task management
+- ntfy https://github.com/binwiederhier/ntfy (TODO: test)
 - [Tasks: Super Productivity](./Tasks/README.md) (managed alt: todoist, Notion)
 
 ### Personal finance
-- [Firefly-III](https://github.com/firefly-iii/firefly-iii) (TODO: test)
+- Firefly-III https://github.com/firefly-iii/firefly-iii (TODO: test)
 
 ### Low code database (advanced spreadsheets)
 - [NocoDB](./NocoDB/README.md) (alt: AirTable)
 
 ### Low code UI website editor
-- [Lowcoder](https://github.com/lowcoder-org/lowcoder) (TODO: test)
+- [Lowcoder](./Lowcoder/README.md) (TODO: test)
 - [Appsmith](./Appsmith/README.md) (alt: Retool)
 
 ### Random tools
@@ -70,6 +72,7 @@ Pick and choose the components to use. EG: use GoogleDrive for files, and skip T
 
 ### Workflow
 - [ActivePieces](./ActivePieces/README.md)
+- Kestra https://github.com/kestra-io/kestra (TODO: test)
 - [N8N](./N8N/README.md) (Self host only)
 - Node-red https://github.com/node-red/node-red
 

@@ -1,0 +1,35 @@
+services:
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"                # published=5000,target=5000
+    volumes:
+      - registry_data:/var/lib/registry   # keep layers if the task is rescheduled
+      # - ./certs:/certs:ro              # uncomment + add ENV vars for TLS
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"  # allow `docker image rm`
+      # REGISTRY_HTTP_ADDR: 0.0.0.0:5000       # change bind address if needed
+    networks:
+      - registry_net
+    deploy:
+      replicas: 1                       # one copy is enough
+      placement:                        # optional: keep it on a manager
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+    restart: unless-stopped
+    
+
+volumes:
+  registry_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/registry_data"
+
+networks:
+  registry_net:
+    driver: overlay                     # cluster-wide
+    attachable: true                    # lets stand-alone compose containers join
