@@ -15,15 +15,18 @@
 
 **/node_modules
 
-Caddy/Caddyfile
+caddy/Caddyfile
 
-Cloudflare/other
-Cloudflare/cloudflare-key.pem
-Cloudflare/cloudflare.pem
+# Cloudflare
+**/cloudflare/other
+**/cloudflare-key.pem
+**/cloudflare.pem
 
-Nextcloud/servername.conf
+# Nextcloud
+**/nextcloud/servername.conf
 
-RabbitMQ/ssl/ca.pem
-RabbitMQ/ssl/server_cert.pem
-RabbitMQ/ssl/server_key.pem
-RabbitMQ/defs.json
+# RabbitMQ
+**/ssl/ca.pem
+**/ssl/server_cert.pem
+**/ssl/server_key.pem
+**/rabbitMQ/defs.json
