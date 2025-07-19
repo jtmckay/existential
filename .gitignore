@@ -15,7 +15,8 @@
 
 **/node_modules
 
-caddy/Caddyfile
+# Caddy
+**/Caddyfile
 
 # Cloudflare
 **/cloudflare/other
