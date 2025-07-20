@@ -1,20 +1,40 @@
 services:
+  portainer-init:
+    container_name: portainer_init
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "echo \"$ADMIN_PASSWORD\" > /shared/portainer_password"
+    volumes:
+      - portainer_data:/data
+      - portainer_password:/shared
+    environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    restart: "no"
+
   portainer:
+    container_name: portainer
     image: portainer/portainer-ce:latest
+    depends_on:
+      - portainer-init
     ports:
       - "8000:8000"
       - "9443:9443"
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-      replicas: 1
+    # deploy:
+    #   placement:
+    #     constraints:
+    #       - node.role == manager
+    #   replicas: 1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
+      - portainer_password:/shared:ro
     networks:
-      - exist_net
+      - exist
     restart: unless-stopped
+    command: >
+      -H unix:///var/run/docker.sock
+      --admin-password-file /shared/portainer_password
 
 volumes:
   portainer_data:
@@ -23,7 +43,9 @@ volumes:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/portainer_data"
+  portainer_password:
+    driver: local
 
 networks:
-  exist_net:
+  exist:
     external: true

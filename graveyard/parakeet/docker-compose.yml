@@ -23,7 +23,7 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_REGION=${S3_REGION}
     ports:
-      - "8000:8000"
+      - "8040:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       timeout: 1200s

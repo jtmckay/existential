@@ -34,6 +34,7 @@ See [/hosting/README.md](/hosting/README.md)
 
 ### Note taking [alts](./graveyard/notes.md)
 - [AnyType](https://anytype.io/)
+- TODO custom tldraw https://tldraw.dev/ with yjs https://github.com/ueberdosis/hocuspocus
 
 ### When: notification/task management [alts](./graveyard/when.md)
 - ntfy TBD
