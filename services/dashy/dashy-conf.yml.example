@@ -1,0 +1,52 @@
+pageInfo:
+  title: My Dashboard
+  navLinks:
+    - title: Home
+      path: /
+
+appConfig:
+  theme: colorful
+  layout: auto
+
+sections:
+  - name: Hosting
+    items:
+      - title: Nextcloud
+        url: https://cloud.example.com/apps/files/
+        icon: simple-icons:nextcloud
+
+      - title: Portainer
+        url: https://192.168.1.10:9443/
+        icon: simple-icons:portainer
+
+      - title: Uptime Kuma
+        url: http://192.168.1.10:30565/dashboard
+        icon: simple-icons:uptimekuma
+
+  - name: Services
+    items:
+      - title: Home Assistant
+        url: http://homeassistant:8123/
+        icon: mdi:home-assistant
+
+      - title: NocoDB
+        url: https://nocodb.example.com
+        icon: simple-icons:nocodb
+
+      - title: Tools
+        url: http://it.example.com/
+        icon: mdi:tools
+
+  - name: Lowcode
+    items:
+      - title: AppSmith
+        url: https://app.example.com
+        icon: simple-icons:appsmith
+
+      - title: Kestra
+        url: http://192.168.1.10:8080/
+        icon: logos:kestra
+
+      - title: Lowcoder
+        url: https://lowcoder.example.com
+        icon: simple-icons:lowcoder

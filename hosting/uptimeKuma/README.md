@@ -13,3 +13,8 @@ An option: Telegram bot
 - Configure it once, then restore those settings later if necessary.
 - Export/import your uptime settings via Settings -> Backup & Restore.
 - Place the back into `./uptime-kuma-data/kuma.db` (in the mounted volume for the container)
+
+# Alts
+- Prometheus & Grafana
+- https://uptimerobot.com/
+- https://www.statuscake.com/

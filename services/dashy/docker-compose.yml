@@ -1,0 +1,17 @@
+services:
+  dashy:
+    container_name: dashy
+    image: 'lissy93/dashy:latest'
+    restart: unless-stopped
+    volumes:
+        - './dashy-conf.yml:/app/user-data/conf.yml'
+    ports:
+        - '4000:8080'
+    networks:
+      - exist
+    environment:
+      - NODE_ENV=production
+
+networks:
+  exist:
+    external: true

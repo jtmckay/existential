@@ -20,17 +20,18 @@ See [/hosting/README.md](/hosting/README.md)
 - `docker network create exist --subnet=172.18.0.0/24`
 
 #### Run
-- ``
-- ``
+- `docker-compose up -d` in each service directory you want to run.
+OR
+- Coming soon `./deployStack.sh` to deploy each service marked in main .env
 
 ## Applications
 ### Monitoring/managing containers
+- [Dashy](./services/dashy/README.md)
 - [Portainer](./hosting/portainer/README.md)
-- [Uptime-Kuma](./hosting/uptimeKuma/README.md)  (alt: Prometheus & Grafana or https://uptimerobot.com/ or https://www.statuscake.com/)
+- [Uptime-Kuma](./hosting/uptimeKuma/README.md)
 
 ### File editing [alts](./graveyard/fileEditor.md)
-- [Collabora](./nas/collabora/README.md) web app embedded into nextcloud interface (comparable: Office 365/Google Docs)
-- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop) desktop app
+- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop)
 
 ### Note taking [alts](./graveyard/notes.md)
 - [AnyType](https://anytype.io/)

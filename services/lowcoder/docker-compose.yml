@@ -5,15 +5,15 @@ services:
   ## Start services required for Lowcoder (MongoDB and Redis)
   ##
   lowcoder-mongodb:
-    image: "mongo:7.0"
     container_name: lowcoder-mongodb
+    image: "mongo:7.0"
+    restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: lowcoder
       MONGO_INITDB_ROOT_USERNAME: ${LOWCODER_MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${LOWCODER_MONGO_ROOT_PASSWORD}
     volumes:
       - lowcoder_mongo:/data/db
-    restart: unless-stopped
     healthcheck: # https://github.com/rodrigobdz/docker-compose-healthchecks?tab=readme-ov-file#mongo
       test:
         [
@@ -32,8 +32,8 @@ services:
       - exist
 
   lowcoder-redis:
-    image: redis:7-alpine
     container_name: lowcoder-redis
+    image: redis:7-alpine
     restart: unless-stopped
     healthcheck: # https://stackoverflow.com/a/71504657
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
@@ -48,8 +48,9 @@ services:
   ## Start Lowcoder backend services (api-service and node-service)
   ##
   lowcoder-api-service:
-    image: lowcoderorg/lowcoder-ce-api-service:latest
     container_name: lowcoder-api-service
+    image: lowcoderorg/lowcoder-ce-api-service:latest
+    restart: unless-stopped
     # Enabled ports to be able to access backend from host
     # ports:
     #   - "8080:8080"
@@ -97,7 +98,6 @@ services:
       LOWCODER_SUPERUSER_USERNAME: admin@localhost
       # If left blank, a password will be generated and written into api-service log
       LOWCODER_SUPERUSER_PASSWORD: ${LOWCODER_PASSWORD}
-    restart: unless-stopped
     depends_on:
       lowcoder-mongodb:
         condition: service_healthy

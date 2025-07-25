@@ -23,6 +23,9 @@
 **/cloudflare-key.pem
 **/cloudflare.pem
 
+# Dashy
+**/dashy-conf.yml
+
 # Nextcloud
 **/nextcloud/servername.conf
 
