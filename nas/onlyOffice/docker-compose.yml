@@ -1,0 +1,17 @@
+services:
+  onylyoffice:
+    container_name: onylyoffice
+    image: onlyoffice/documentserver
+    restart: unless-stopped
+    environment:
+      - JWT_SECRET=${ONLY_OFFICE_JWT_SECRET}
+    ports:
+      - '9080:80'
+    tty: true
+    stdin_open: true
+    networks:
+      - exist
+
+networks:
+  exist:
+    external: true

@@ -4,9 +4,6 @@ services:
     container_name: collabora
     image: collabora/code:latest
     restart: unless-stopped
-    networks:
-      exist:
-        ipv4_address: 172.18.0.8 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' collabora`
     environment:
       - username=${COLLABORA_USERNAME}
       - password=${COLLABORA_PASSWORD} 
