@@ -1,0 +1,67 @@
+services:
+  std_notes_server:
+    container_name: std_notes_server
+    image: standardnotes/server
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 34580:3000
+      - 34125:3104
+    environment:
+      - DB_HOST=std_notes_db
+      - DB_PORT=3306
+      - DB_USERNAME=${STD_NOTES_DB_USERNAME}
+      - DB_PASSWORD=${STD_NOTES_DB_PASSWORD}
+      - DB_DATABASE=${STD_NOTES_DATABASE}
+      - DB_TYPE=mysql
+      - REDIS_PORT=6379
+      - REDIS_HOST=std_notes_cache
+      - CACHE_TYPE=redis
+      - AUTH_JWT_SECRET=${STD_NOTES_AUTH_JWT_SECRET}
+      - AUTH_SERVER_ENCRYPTION_SERVER_KEY=${STD_NOTES_AUTH_SERVER_ENCRYPTION_SERVER_KEY}
+      - VALET_TOKEN_SECRET=${STD_NOTES_VALET_TOKEN_SECRET}
+    volumes:
+      - ./logs:/var/lib/server/logs
+      - ./uploads:/opt/server/packages/files/dist/uploads
+
+  std_notes_localstack:
+    container_name: std_notes_localstack
+    image: localstack/localstack:3.0
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - SERVICES=sns,sqs
+      - HOSTNAME_EXTERNAL=localstack
+      - LS_LOG=warn
+    # volumes:
+    #   - ./localstack_bootstrap.sh:/etc/localstack/init/ready.d/localstack_bootstrap.sh
+
+  std_notes_db:
+    container_name: std_notes_db
+    image: mysql:8
+    networks:
+      - exist
+    environment:
+      - MYSQL_DATABASE=${STD_NOTES_DATABASE}
+      - MYSQL_USER=${STD_NOTES_DB_USERNAME}
+      - MYSQL_ROOT_PASSWORD=${STD_NOTES_DB_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${STD_NOTES_DB_PASSWORD}
+    restart: unless-stopped
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      # - ./data/import:/docker-entrypoint-initdb.d
+
+  std_notes_cache:
+    container_name: std_notes_cache
+    image: redis:6.0-alpine
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - ./data/redis/:/data
+
+networks:
+  exist:
+    external: true

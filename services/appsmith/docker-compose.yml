@@ -1,7 +1,7 @@
 services:
   appsmith:
     container_name: appsmith
-    image: index.docker.io/appsmith/appsmith-ee
+    image: index.docker.io/appsmith/appsmith-ce
     restart: unless-stopped
     networks:
       - exist
@@ -10,6 +10,16 @@ services:
       - "4443:80"
     volumes:
       - appsmith_data:/appsmith-stacks
+
+  # nuke:
+  #   image: node:20-alpine
+  #   entrypoint: >
+  #     sh -c '
+  #       sleep 500
+  #     '
+  #   restart: "no"
+  #   volumes:
+  #     - appsmith_data:/appsmith-stacks
 
 volumes:
   appsmith_data: # appsmith_data dataset will need to be created in TrueNAS

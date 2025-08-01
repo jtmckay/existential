@@ -2,6 +2,8 @@
 - Recurring tasks
 - Notifications [compromise](#compromise)
 
+# [Vikunja](../services/vikunja/README.md)
+
 # TBD
 # ntfy
 https://github.com/binwiederhier/ntfy

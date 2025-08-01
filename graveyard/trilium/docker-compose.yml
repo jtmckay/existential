@@ -1,0 +1,26 @@
+# To run in the background, use `docker-compose up -d`
+services:
+  trilium:
+    container_name: trilium
+    image: triliumnext/notes:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - '46880:8080'
+    volumes:
+      - trilium_data:/home/node/trilium-data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+volumes:
+  trilium_data: # trilium_data dataset will need to be created in TrueNAS
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/trilium_data"
+
+networks:
+  exist:
+    external: true

@@ -2,8 +2,12 @@
 # Kestra
 https://github.com/kestra-io/kestra
 
-# RIP licensing
+# TBD
 # Node-red
+https://github.com/node-red/node-red
+
+# TBD
+# Windmill
 https://github.com/node-red/node-red
 
 # RIP closed source licensing practices

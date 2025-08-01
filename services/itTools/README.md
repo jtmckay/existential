@@ -1,7 +1,8 @@
 # IT - Tools
-https://github.com/CorentinTh/it-tools
+- https://github.com/CorentinTh/it-tools
+- License: [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
 
-Random tools for development.
+#### Random tools for development.
 
 #### Examples
 - Random port generator

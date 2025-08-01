@@ -10,7 +10,14 @@
 - API
 - Nice to have: task management
 
-# Using
+# [Logseq](../services/logseq/README.md)
+- lacks sync (resolved with Nextcloud + FolderSync)
+
+# RIP closed source practices, but still EXTREMELY viable
+# [Obsidian](./obsidian/README.md)
+- lacks FOSS
+
+# RIP licensing
 # AnyType
 https://anytype.io/
 - live P2P local file sync; perfect for VPN
@@ -18,10 +25,6 @@ https://anytype.io/
 - lacks recurring events
 - API may be clunky to auth atm (TBD)
 - simple setup - no plugins
-
-# RIP closed source practices, but still EXTREMELY viable
-# [Obsidian](./obsidian/README.md)
-- lacks FOSS
 
 # RIP closed & no eject
 # Notion
@@ -42,11 +45,11 @@ https://anytype.io/
 - lacks FOSS
 - lacks graph view
 
-# RIP there's a difference between typing enter, and hitting the carriage return on mobile (AKA constant format issues)
-# Logseq
-- lacks sync compared to Anytype
-
 # RIP
 # Joplin
 - lacks drawing/diagramming
+- lacks graph view
+
+# RIP
+# Zettlr
 - lacks graph view

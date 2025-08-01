@@ -1,0 +1,17 @@
+services:
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nodered
+    ports:
+      - "1880:1880"
+    environment:
+      - NODE_RED_USER=${NODE_RED_USER}
+      - NODE_RED_PASSWORD_HASH=${NODE_RED_PASSWORD_HASH}
+      - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
+    volumes:
+      - nodered_data:/data
+      - ./settings.js:/data/settings.js
+    restart: unless-stopped
+
+volumes:
+  nodered_data:

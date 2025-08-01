@@ -4,6 +4,9 @@ Elevating static personal knowledge management, into an active personal operatin
 
 ![Architecture Diagram](architecture.png)
 
+## Alternatives
+- [Tana](https://tana.inc/)
+
 ## [Hosting](/hosting/README.md)
 
 ## Getting started
@@ -50,10 +53,46 @@ OR
 - [IT-Tools](./services/itTools/README.md)
 
 ### Workflow [alts](./graveyard/lowcodeWorkflow.md)
-- Kestra
+- Node-RED
 
 ### Personal finance
 - Firefly-III https://github.com/firefly-iii/firefly-iii (TODO: test)
 
 ### Coming soon
 [AI](./graveyard/ai.md)
+
+## Third-Party Software
+
+This project includes multiple open source projects with respective licensing.
+
+#### Appsmith
+- Source: https://github.com/appsmithorg/appsmith
+- License: [Apache2](https://www.apache.org/licenses/LICENSE-2.0)
+
+#### Dashy
+- Source: https://github.com/Lissy93/dashy
+- License: [MIT](https://opensource.org/license/mit)
+
+#### IT Tools
+- Source: https://github.com/CorentinTh/it-tools
+- License: [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+
+#### Logseq
+- Source: https://github.com/logseq/logseq
+- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+
+#### Lowcoder
+- Source: https://github.com/lowcoder-org/lowcoder
+- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+
+#### NocoDB
+- Source: https://github.com/nocodb/nocodb
+- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+
+#### Vikunja
+- Source: https://github.com/go-vikunja/
+- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+
+#### Windmill
+- Source: https://github.com/windmill-labs/windmill
+- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html) + other unused licenses
