@@ -1,0 +1,62 @@
+services:
+  mealie:
+    container_name: mealie
+    image: ghcr.io/mealie-recipes/mealie:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - mealie_data:/app/data/
+    ports:
+      - 9091:9000
+    environment:
+      ALLOW_SIGNUP: "false"
+      LOG_LEVEL: "DEBUG"
+      BASE_URL: ${MEALIE_BASE_URL}
+
+      DB_ENGINE: postgres # Optional: 'sqlite', 'postgres'
+      # =====================================
+      # Postgres Config
+      POSTGRES_USER: ${MEALIE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${MEALIE_POSTGRES_PASSWORD}
+      POSTGRES_SERVER: mealie_postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: mealie
+      # =====================================
+      # Email Configuration
+      # SMTP_HOST=
+      # SMTP_PORT=587
+      # SMTP_FROM_NAME=Mealie
+      # SMTP_AUTH_STRATEGY=TLS # Options: 'TLS', 'SSL', 'NONE'
+      # SMTP_FROM_EMAIL=
+      # SMTP_USER=
+      # SMTP_PASSWORD=
+  mealie_postgres:
+    container_name: mealie_postgres
+    image: postgres:17
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      POSTGRES_PASSWORD: ${MEALIE_POSTGRES_PASSWORD}
+      POSTGRES_USER: ${MEALIE_POSTGRES_USER}
+    volumes:
+      - mealie_pg_data:/var/lib/postgresql/data
+
+volumes:
+  mealie_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/mealie_data"
+  mealie_pg_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/mealie_pg_data"
+
+networks:
+  exist:
+    external: true

@@ -58,6 +58,9 @@ OR
 ### Personal finance
 - Firefly-III https://github.com/firefly-iii/firefly-iii (TODO: test)
 
+### Recipe management
+- [Mealie](./services/mealie/README.md)
+
 ### Coming soon
 [AI](./graveyard/ai.md)
 
