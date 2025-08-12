@@ -1,0 +1,24 @@
+# ./ntfy-config/server.yml
+base-url: "https://ntfy.example.com"
+listen-http: ":80"
+enable-login: true
+enable-signup: false
+
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+
+# bcrypt hashes ⇒ `echo -n 'MyS3cret' | docker run --rm -i httpd:2-alpine htpasswd -niB pick_a_name`
+auth-users:
+  - "admin:$2y$10$REPLACE_ADMIN_HASH:admin"
+  - "bot:$2y$10$REPLACE_BOT_HASH:user"
+
+# generate once: `echo "tk_$(tr -dc 'a-z0-9' </dev/urandom | head -c 29)"`
+auth-tokens:
+  - "bot:tk_REPLACE_BOT_TOKEN:MQTT-bridge"
+
+# allow the bot to publish/subscribe under exist*
+auth-access:
+  - "bot:exist*:rw"
+
+cache-file: "/var/lib/ntfy/cache.db"
+attachment-cache-dir: "/var/lib/ntfy/attachments"

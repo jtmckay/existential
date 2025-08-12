@@ -1,7 +1,11 @@
-# existential
+# Existential
+Be present and EXIST. Unlock potential and free time with free software. Built for individuals seeking an edge against the onslaught of tasks and ideas before them—those willing to put in (or delegate) significant effort to make it happen. This is a collection of vetted solutions, stitched together to create something greater.
+If it exists; don't remake it—bridle it.
 
-Elevating static personal knowledge management, into an active personal operating system.
+### Dashboard (courtesy of [dashy](https://opensource.org/license/mit))
+![Dashy](dashy.png)
 
+### Architecture diagram
 ![Architecture Diagram](architecture.png)
 
 ## Alternatives
@@ -14,7 +18,7 @@ Elevating static personal knowledge management, into an active personal operatin
 ##### Docker
 https://www.docker.com/
 
-##### Compatible S3 API
+##### An S3 compatible API like MinIO for file triggers
 See [/hosting/README.md](/hosting/README.md)
 
 #### Setup
@@ -37,26 +41,26 @@ OR
 - [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop)
 
 ### Note taking [alts](./graveyard/notes.md)
-- [AnyType](https://anytype.io/)
-- TODO custom tldraw https://tldraw.dev/ with yjs https://github.com/ueberdosis/hocuspocus
+- [Logseq](./services/logseq/README.md)
 
-### When: notification/task management [alts](./graveyard/when.md)
-- ntfy TBD
+### When/notification/task management [alts](./graveyard/when.md)
+- [ntfy](./services/ntfy/README.md)
 
 ### Low code database/spreadsheets [alts](./graveyard/lowcodeDB.md)
 - [NocoDB](./services/nocoDB/README.md)
 
 ### Low code UI website editor [alts](./graveyard/lowcodeUI.md)
-- [Lowcoder](./services/lowcoder/README.md)
+- [Appsmith](./services/appsmith/README.md) for "internal" apps (more functional)
+- [Lowcoder](./services/lowcoder/README.md) for "external" apps (prettier)
+
+### Workflow [alts](./graveyard/lowcodeWorkflow.md)
+- [Windmill](./services/windmill/README.md)
 
 ### Random tools [alts](./graveyard/tools.md)
 - [IT-Tools](./services/itTools/README.md)
 
-### Workflow [alts](./graveyard/lowcodeWorkflow.md)
-- Node-RED
-
 ### Personal finance
-- Firefly-III https://github.com/firefly-iii/firefly-iii (TODO: test)
+- Firefly-III https://github.com/firefly-iii/firefly-iii (TBD)
 
 ### Recipe management
 - [Mealie](./services/mealie/README.md)
@@ -78,24 +82,24 @@ This project includes multiple open source projects with respective licensing.
 
 #### IT Tools
 - Source: https://github.com/CorentinTh/it-tools
-- License: [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+- License: [GPL-3](https://www.gnu.org/licenses/gpl-3.0.html)
 
 #### Logseq
 - Source: https://github.com/logseq/logseq
-- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 
 #### Lowcoder
 - Source: https://github.com/lowcoder-org/lowcoder
-- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 
 #### NocoDB
 - Source: https://github.com/nocodb/nocodb
-- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 
 #### Vikunja
 - Source: https://github.com/go-vikunja/
-- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 
 #### Windmill
 - Source: https://github.com/windmill-labs/windmill
-- License: [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html) + other unused licenses
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html) + other unused licenses
