@@ -15,6 +15,9 @@
 
 **/node_modules
 
+# Bridge Config
+**/bridge.config.json
+
 # Caddy
 **/Caddyfile
 
@@ -28,6 +31,11 @@
 
 # Nextcloud
 **/nextcloud/servername.conf
+
+# NTFY
+**/ntfy-config/server.yml
+**/ntfy-config/user.db
+**/mqtfy-config.yml
 
 # RabbitMQ
 **/ssl/ca.pem

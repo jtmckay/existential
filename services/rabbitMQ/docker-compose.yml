@@ -32,15 +32,15 @@ services:
   rabbitmq-webhook-bridge:
     container_name: rabbitmq-webhook-bridge
     image: rabbitmq-webhook-bridge
+    restart: unless-stopped
     build: ./webhook-bridge
-    env_file:
-      - ./webhook-bridge/.env
     networks:
       - exist
-    restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./bridge.config.json:/app/config.json:ro
     init: true
 
 volumes:

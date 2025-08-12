@@ -1,0 +1,24 @@
+{
+  "rabbitmq": {
+    "url": "amqp://admin:admin@rabbitmq:5672/%2f"
+  },
+  "webhooks": [
+    {
+      "queue": "minio",
+      "url": "https://your-webhook-endpoint.com/api/webhooks/xyz"
+    },
+    {
+      "queue": "notifications",
+      "url": "http://ntfy:80/exist",
+      "auth": "Bearer tk_your_ntfy_token_here"
+    },
+    {
+      "queue": "alerts",
+      "url": "https://webhook.site/xyz",
+      "auth": "Bearer custom-token-123",
+      "headers": {
+        "X-Custom-Header": "value"
+      }
+    }
+  ]
+}
