@@ -1,0 +1,188 @@
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "${LOG_MAX_SIZE:-20m}"
+    max-file: "${LOG_MAX_FILE:-10}"
+    compress: "true"
+
+services:
+  windmill_pg:
+    container_name: windmill_pg
+    image: postgres:16
+    restart: unless-stopped
+    networks:
+      - exist
+    deploy:
+      # To use an external database, set replicas to 0 and set DATABASE_URL to the external database url in the .env file
+      replicas: 1
+    shm_size: 1g
+    volumes:
+      - windmill_db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${WINDMILL_PG_PASSWORD}
+      POSTGRES_DB: windmill
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  windmill_server:
+    container_name: windmill_server
+    image: ${WINDMILL_IMAGE}
+    restart: unless-stopped
+    networks:
+      - exist
+    pull_policy: always
+    deploy:
+      replicas: 1
+    ports: 
+      - 8800:8000
+      - 2525:2525
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=server
+      - SUPERADMIN_SECRET=${WINDMILL_SUPERADMIN_SECRET}
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+
+  windmill_admin_init:
+    container_name: windmill_admin_init
+    image: node:20-alpine
+    restart: "no"
+    networks:
+      - exist
+    depends_on:
+      windmill_server:
+        condition: service_started
+    environment:
+      WINDMILL_ADMIN_EMAIL: ${WINDMILL_ADMIN_EMAIL}
+      WINDMILL_ADMIN_PASSWORD: ${WINDMILL_ADMIN_PASSWORD}
+      WINDMILL_SUPERADMIN_SECRET: ${WINDMILL_SUPERADMIN_SECRET}
+    entrypoint: >
+      sh -c '
+        echo "Installing Windmill CLI (npm)...";
+        npm install -g windmill-cli@latest;
+        echo "Waiting for Windmill...";
+        sleep 15;
+        echo "Creating new superadmin...";
+        wmill user add ${WINDMILL_ADMIN_EMAIL} ${WINDMILL_ADMIN_PASSWORD} --superadmin --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
+        echo "Deleting default admin...";
+        wmill user remove admin@windmill.dev --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
+        echo "✅ Superadmin migration complete.";
+      '
+
+  windmill_worker:
+    image: ${WINDMILL_IMAGE}
+    pull_policy: always
+    restart: unless-stopped
+    networks:
+      - exist
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+          # for GB, use syntax '2Gi'
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=worker
+      - WORKER_GROUP=default
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    # to mount the worker folder to debug, KEEP_JOB_DIR=true and mount /tmp/windmill
+    volumes:
+      # mount the docker socket to allow to run docker containers from within the workers
+      - /var/run/docker.sock:/var/run/docker.sock
+      - worker_dependency_cache:/tmp/windmill/cache
+      - worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+
+  ## This worker is specialized for "native" jobs. Native jobs run in-process and thus are much more lightweight than other jobs
+  windmill_worker_native:
+    # Use ghcr.io/windmill-labs/windmill-ee:main for the ee
+    image: ${WINDMILL_IMAGE}
+    restart: unless-stopped
+    networks:
+      - exist
+    pull_policy: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+          # for GB, use syntax '2Gi'
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=worker
+      - WORKER_GROUP=native
+      - NUM_WORKERS=8
+      - SLEEP_QUEUE=200
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+  # This worker is specialized for reports or scraping jobs. It is assigned the "reports" worker group which has an init script that installs chromium and can be targeted by using the "chromium" worker tag.
+  # windmill_worker_reports:
+  #   image: ${WINDMILL_IMAGE}
+  #   pull_policy: always
+  #   deploy:
+  #     replicas: 1
+  #     resources:
+  #       limits:
+  #         cpus: "1"
+  #         memory: 2048M
+  #         # for GB, use syntax '2Gi'
+  #   restart: unless-stopped
+  #   environment:
+  #     - DATABASE_URL=${WINDMILL_DATABASE_URL}
+  #     - MODE=worker
+  #     - WORKER_GROUP=reports
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   # to mount the worker folder to debug, KEEP_JOB_DIR=true and mount /tmp/windmill
+  #   volumes:
+  #     # mount the docker socket to allow to run docker containers from within the workers
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - worker_dependency_cache:/tmp/windmill/cache
+  #     - worker_logs:/tmp/windmill/logs
+
+  windmill_lsp:
+    container_name: windmill_lsp
+    image: ghcr.io/windmill-labs/windmill-lsp:latest
+    networks:
+      - exist
+    pull_policy: always
+    restart: unless-stopped
+    # ports: 
+    #   - 3301:3001
+    volumes:
+      - lsp_cache:/pyls/.cache
+    logging: *default-logging
+
+volumes:
+  windmill_db_data: # windmill_db_data dataset will need to be created in TrueNAS
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/windmill_db_data"
+  worker_dependency_cache: null
+  worker_logs: null
+  lsp_cache: null
+
+networks:
+  exist:
+    external: true
