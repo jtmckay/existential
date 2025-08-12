@@ -3,7 +3,7 @@
 ## RabbitMQ
 - Source: https://github.com/rabbitmq/rabbitmq-server
 - License: [MPL 2.0](https://www.mozilla.org/MPL/2.0/) / [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
-
+- Alternatives: NSQ, Kafka
 
 This service provides RabbitMQ message broker with a universal webhook bridge that can forward queue messages to various webhook endpoints, including HTTP/HTTPS webhooks and ntfy notifications.
 

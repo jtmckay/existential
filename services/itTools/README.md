@@ -1,6 +1,6 @@
 # IT - Tools
-- https://github.com/CorentinTh/it-tools
-- License: [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+- Source: https://github.com/CorentinTh/it-tools
+- License: [GPL-3](https://www.gnu.org/licenses/gpl-3.0.html)
 
 #### Random tools for development.
 

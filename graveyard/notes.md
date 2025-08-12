@@ -17,6 +17,10 @@
 # [Obsidian](./obsidian/README.md)
 - lacks FOSS
 
+# RIP; great option if you don't care about markdown syntax
+# Trilium
+- lacks proper markdown support
+
 # RIP licensing
 # AnyType
 https://anytype.io/
@@ -49,6 +53,12 @@ https://anytype.io/
 # Joplin
 - lacks drawing/diagramming
 - lacks graph view
+
+# RIP
+# Standard notes
+- lacks graph view
+- lacks (auto) backlinking
+- had sync issues
 
 # RIP
 # Zettlr
