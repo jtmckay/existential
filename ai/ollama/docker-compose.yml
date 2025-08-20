@@ -14,7 +14,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - ./ollama_data:/root/.ollama
-      - ./ollama_entrypoint.sh:/entrypoint.sh # Mount the script
+      - ./entrypoint.sh:/entrypoint.sh # Mount the script
     entrypoint: ["/entrypoint.sh"] # Use the custom script
 
 networks:

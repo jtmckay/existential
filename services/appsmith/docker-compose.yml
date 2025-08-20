@@ -12,7 +12,7 @@ services:
       - appsmith_data:/appsmith-stacks
 
   # nuke:
-  #   image: node:20-alpine
+  #   image: node:24-alpine
   #   entrypoint: >
   #     sh -c '
   #       sleep 500

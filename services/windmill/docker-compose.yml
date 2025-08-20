@@ -54,7 +54,7 @@ services:
 
   windmill_admin_init:
     container_name: windmill_admin_init
-    image: node:20-alpine
+    image: node:24-alpine
     restart: "no"
     networks:
       - exist

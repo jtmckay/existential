@@ -42,3 +42,6 @@
 **/ssl/server_cert.pem
 **/ssl/server_key.pem
 **/rabbitMQ/defs.json
+
+# Windmill
+**/windmill/local

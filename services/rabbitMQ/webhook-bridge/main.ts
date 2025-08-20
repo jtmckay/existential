@@ -19,6 +19,7 @@ declare namespace Deno {
 interface QueueWebhook {
   queue: string;
   url: string;
+  method?: string;
   auth?: string;
   headers?: Record<string, string>;
   format?: 'json' | 'plain';
@@ -156,13 +157,18 @@ async function sendToHttpWebhook(messageBody: string, config: QueueWebhook): Pro
       if (parsed.pathSuffix && typeof parsed.pathSuffix === 'string') {
         url.pathname += parsed.pathSuffix;
       }
+
+      // If message has method property, use it
+      if (parsed.method && typeof parsed.method === 'string') {
+        config.method = parsed.method;
+      }
     }
   } catch {
     // If JSON parsing fails, use the original message format
   }
 
   const response = await fetch(url.toString(), {
-    method: "POST",
+    method: config.method || "POST",
     headers,
     body,
   });

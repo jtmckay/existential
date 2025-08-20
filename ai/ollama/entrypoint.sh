@@ -13,8 +13,8 @@ sleep 2
 # echo "PULL deepseek-r1:7b model"
 # ollama pull deepseek-r1:7b
 
-echo "PULL deepseek-r1:8b model"
-ollama pull deepseek-r1:8b
+# echo "PULL deepseek-r1:8b model"
+# ollama pull deepseek-r1:8b
 
 # echo "PULL deepseek-r1:14b model"
 # ollama pull deepseek-r1:14b
@@ -30,6 +30,9 @@ ollama pull deepseek-r1:8b
 
 # echo "PULL llama3.2-vision:latest model"
 # ollama pull llama3.2-vision:latest
+
+echo "PULL gemma3n:e4b model"
+ollama pull gemma3n:e4b
 
 # Keep the container running
 wait
