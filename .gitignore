@@ -29,6 +29,14 @@
 # Dashy
 **/dashy-conf.yml
 
+# LibreChat
+**/data-node
+**/images
+**/logs
+**/meili_data_v1.12
+**/uploads
+**/librechat.yaml
+
 # Nextcloud
 **/nextcloud/servername.conf
 

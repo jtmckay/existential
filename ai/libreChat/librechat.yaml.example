@@ -1,0 +1,186 @@
+# For more information, see the Configuration Guide:
+# https://www.librechat.ai/docs/configuration/librechat_yaml
+
+# Configuration version (required)
+version: 1.2.1
+
+# Cache settings: Set to true to enable caching
+cache: true
+
+# Custom interface configuration
+interface:
+  customWelcome: 'Welcome to LibreChat! Enjoy your experience.'
+  # Enable/disable file search as a chatarea selection (default: true)
+  # Note: This setting does not disable the Agents File Search Capability.
+  # To disable the Agents Capability, see the Agents Endpoint configuration instead.
+  fileSearch: true
+  # Privacy policy settings
+  privacyPolicy:
+    externalUrl: 'https://librechat.ai/privacy-policy'
+    openNewTab: true
+
+  # Terms of service
+  termsOfService:
+    externalUrl: 'https://librechat.ai/tos'
+    openNewTab: true
+    modalAcceptance: true
+    modalTitle: 'Terms of Service for LibreChat'
+    modalContent: |
+      # Terms and Conditions for LibreChat
+
+      *Effective Date: February 18, 2024*
+
+      Welcome to LibreChat, the informational website for the open-source AI chat platform, available at https://librechat.ai. These Terms of Service ("Terms") govern your use of our website and the services we offer. By accessing or using the Website, you agree to be bound by these Terms and our Privacy Policy, accessible at https://librechat.ai//privacy.
+
+      ## 1. Ownership
+
+      Upon purchasing a package from LibreChat, you are granted the right to download and use the code for accessing an admin panel for LibreChat. While you own the downloaded code, you are expressly prohibited from reselling, redistributing, or otherwise transferring the code to third parties without explicit permission from LibreChat.
+
+      ## 2. User Data
+
+      We collect personal data, such as your name, email address, and payment information, as described in our Privacy Policy. This information is collected to provide and improve our services, process transactions, and communicate with you.
+
+      ## 3. Non-Personal Data Collection
+
+      The Website uses cookies to enhance user experience, analyze site usage, and facilitate certain functionalities. By using the Website, you consent to the use of cookies in accordance with our Privacy Policy.
+
+      ## 4. Use of the Website
+
+      You agree to use the Website only for lawful purposes and in a manner that does not infringe the rights of, restrict, or inhibit anyone else's use and enjoyment of the Website. Prohibited behavior includes harassing or causing distress or inconvenience to any person, transmitting obscene or offensive content, or disrupting the normal flow of dialogue within the Website.
+
+      ## 5. Governing Law
+
+      These Terms shall be governed by and construed in accordance with the laws of the United States, without giving effect to any principles of conflicts of law.
+
+      ## 6. Changes to the Terms
+
+      We reserve the right to modify these Terms at any time. We will notify users of any changes by email. Your continued use of the Website after such changes have been notified will constitute your consent to such changes.
+
+      ## 7. Contact Information
+
+      If you have any questions about these Terms, please contact us at contact@librechat.ai.
+
+      By using the Website, you acknowledge that you have read these Terms of Service and agree to be bound by them.
+
+  endpointsMenu: true
+  modelSelect: false
+  parameters: true
+  sidePanel: true
+  presets: true
+  prompts: true
+  bookmarks: true
+  multiConvo: true
+  agents: true
+  peoplePicker:
+    users: true
+    groups: true
+    roles: true
+  marketplace:
+      use: false
+  fileCitations: true
+  # Temporary chat retention period in hours (default: 720, min: 1, max: 8760)
+  # temporaryChatRetention: 1
+
+# Example Registration Object Structure (optional)
+registration:
+  socialLogins: []
+  # allowedDomains:
+  # - "gmail.com"
+
+# speech:
+#   tts:
+#     openai:
+#       url: ''
+#       apiKey: '${TTS_API_KEY}'
+#       model: ''
+#       voices: ['']
+
+#
+#   stt:
+#     openai:
+#       url: ''
+#       apiKey: '${STT_API_KEY}'
+#       model: ''
+
+# Example Actions Object Structure
+actions:
+  allowedDomains:
+    - 'swapi.dev'
+    - 'librechat.ai'
+    - 'google.com'
+
+# Definition of custom endpoints
+endpoints:
+  assistants:
+    disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
+    allowedProviders:
+      - "Ollama"
+  agents:
+    recursionLimit: 50
+    maxRecursionLimit: 100
+    disableBuilder: false
+    capabilities:
+      - execute_code
+      - file_search
+      - web_search
+      - ocr
+      - actions
+      - tools
+      - artifacts
+      - chain
+  custom:
+    # Ollama
+    - name: 'ollama'
+      apiKey: 'ollama-dummy-key'
+      baseURL: 'http://ollama:11434/v1/'
+      models:
+        default:
+          [
+            'qwen3:8b',
+          ]
+        fetch: false
+      titleConvo: true
+      titleModel: 'current_model'
+      summarize: false
+      summaryModel: "current_model"
+      modelDisplayLabel: 'Ollama'
+
+# Memory configuration for user memories
+# memory:
+#   # (optional) Disable memory functionality
+#   disabled: false
+#   # (optional) Restrict memory keys to specific values to limit memory storage and improve consistency
+#   validKeys: ["preferences", "work_info", "personal_info", "skills", "interests", "context"]
+#   # (optional) Maximum token limit for memory storage (not yet implemented for token counting)
+#   tokenLimit: 10000
+#   # (optional) Enable personalization features (defaults to true if memory is configured)
+#   # When false, users will not see the Personalization tab in settings
+#   personalize: true
+#   # Memory agent configuration - either use an existing agent by ID or define inline
+#   agent:
+#     # Option 1: Use existing agent by ID
+#     id: "your-memory-agent-id"
+#     # Option 2: Define agent inline
+#     # provider: "openai"
+#     # model: "gpt-4o-mini"
+#     # instructions: "You are a memory management assistant. Store and manage user information accurately."
+#     # model_parameters:
+#     #   temperature: 0.1
+
+modelSpecs:
+  enforce: true          # hide conflicting UI (e.g., modelSelect/parameters/presets) unless explicitly turned on
+  prioritize: true       # always select a spec in the header
+  list:
+    # - name: "kb-agent"
+    #   label: "Agent • RAG"
+    #   default: false        # set true later after you create the agent
+    #   preset:
+    #     endpoint: "agents"  # this makes the Agents endpoint selectable
+    - name: "default-ollama"
+      label: "Ollama • qwen3:8b"
+      default: true      # <- auto-selected on every NEW chat
+      preset:
+        endpoint: "ollama"          # must equal endpoints.custom[].name
+        model: "qwen3:8b"      # must be in models.default above
+        modelLabel: "Ollama (qwen3:8b)"
+        greeting: "Ready."

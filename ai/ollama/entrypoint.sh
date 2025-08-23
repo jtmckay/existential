@@ -31,8 +31,15 @@ sleep 2
 # echo "PULL llama3.2-vision:latest model"
 # ollama pull llama3.2-vision:latest
 
-echo "PULL gemma3n:e4b model"
-ollama pull gemma3n:e4b
+# Gemma doesn't support tools, but it is a very small model for low VRAM envs
+# echo "PULL gemma3n:e4b model"
+# ollama pull gemma3n:e4b
+
+echo "PULL qwen3:8b model"
+ollama pull qwen3:8b
+
+echo "PULL nomic-embed-text model for RAG embeddings"
+ollama pull nomic-embed-text
 
 # Keep the container running
 wait
