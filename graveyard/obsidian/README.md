@@ -1,4 +1,5 @@
-# Amazing - testing out Anytype as an alternative
+# RIP licensing (not open source)
+# Amazing
 # Obsidian
 ## Core plugins
 - Unique note creator

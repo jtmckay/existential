@@ -1,4 +1,5 @@
 # NAS
+- Main constraints: storage
 
 Pick and choose the components to use. EG: use GoogleDrive for files, and skip TrueNAS, MinIO, Redis, and Nextcloud.
 

@@ -11,13 +11,9 @@ appConfig:
 sections:
   - name: Apps
     items:
-      - title: Home Assistant
-        url: http://homeassistant:8123/
-        icon: si-homeassistant
-        
-      - title: IT-Tools
-        url: http://ittools.example.com/
-        icon: hl-it-tools
+      - title: LibreChat
+        url: http://192.168.1.10:44480/
+        icon: fas fa-ghost
 
       - title: Logseq
         url: logseq://graph/Logseq?page=root
@@ -33,6 +29,10 @@ sections:
 
   - name: Infrastructure
     items:
+      - title: Home Assistant
+        url: http://homeassistant:8123/
+        icon: si-homeassistant
+        
       - title: Nextcloud
         url: https://cloud.example.com/apps/files/
         icon: si-nextcloud
@@ -49,11 +49,15 @@ sections:
         url: http://192.168.1.10:15672
         icon: si-rabbitmq
 
-  - name: Lowcode
+  - name: Tools
     items:
       - title: AppSmith
         url: https://app.example.com
         icon: fas fa-code
+        
+      - title: IT-Tools
+        url: http://ittools.example.com/
+        icon: hl-it-tools
 
       - title: Lowcoder
         url: https://lowcoder.example.com

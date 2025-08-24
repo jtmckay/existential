@@ -4,13 +4,16 @@
 
 # [Vikunja](../services/vikunja/README.md)
 
-# TBD
-# ntfy
-https://github.com/binwiederhier/ntfy
+# [ntfy](../services//ntfy/README.md)
 
 # RIP had sync issues after a few weeks (unrecoverable phone state)
 # Super Productivity
 - lacks notifications
+
+# Notion
+# Tasks.org
+# Todoist
+# TickTick
 
 # Compromise
 Use [tasker](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm&hl=en_US) to open the task app every Nth time you unlock your phone. EG every 7th unlock run Anytype:

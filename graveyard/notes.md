@@ -63,3 +63,15 @@ https://anytype.io/
 # RIP
 # Zettlr
 - lacks graph view
+
+# TBD
+# Capacities
+https://capacities.io/
+
+# TBD
+# Mem
+https://get.mem.ai/
+
+# TBD
+# Tana
+https://tana.inc/

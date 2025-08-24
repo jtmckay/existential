@@ -58,19 +58,13 @@ Note: BEFORE adding this, if you are loading a large amount of files, it may be 
 ### Auto sync from phone
 - Turn on auto upload
 - Configure the target path to be in S3 (if you like)
-#### Non-audio/video file sync
+<!-- #### Non-audio/video file sync
 December 2024 Google revoked "All file access" permissions for the Nextcloud app.
 - Download FolderSync (or use F-Droid?)
 - Add Nextcloud credentials
 - Add folder sync
 - Setup schedule
-- Turn on instant upload
-
-### Task app from Nextcloud
-Doesn't support recurring tasks. Will use tasks.org solution instead.
-
-### Cookbook app from Nextcloud
-Testing this one out, and sharing the folder to hopefully keep recipes in sync with multiple people.
+- Turn on instant upload -->
 
 
 ## Maintenance
