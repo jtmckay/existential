@@ -1,0 +1,601 @@
+version: '3.8'
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "${LOG_MAX_SIZE:-20m}"
+    max-file: "${LOG_MAX_FILE:-10}"
+    compress: "true"
+
+x-common-env: &common-env
+  TZ: ${TZ:-UTC}
+  TRUENAS_SERVER_ADDRESS: ${TRUENAS_SERVER_ADDRESS}
+  TRUENAS_CONTAINER_PATH: ${TRUENAS_CONTAINER_PATH}
+
+services:
+  #==================================================#
+  #                  AI Services                     #
+  #==================================================#
+
+  # LibreChat with dependencies
+  librechat-mongodb:
+    profiles: ["librechat", "ai", "all"]
+    container_name: librechat-mongodb
+    image: mongo:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - librechat-mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: LibreChat
+    logging: *default-logging
+
+  librechat-meilisearch:
+    profiles: ["librechat", "ai", "all"]
+    container_name: librechat-meilisearch
+    image: getmeili/meilisearch:v1.7
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - librechat-meili-data:/meili_data
+    environment:
+      MEILI_MASTER_KEY: ${LIBRECHAT_MEILI_MASTER_KEY}
+      MEILI_NO_ANALYTICS: true
+    logging: *default-logging
+
+  librechat-rag:
+    profiles: ["librechat", "ai", "all"]
+    container_name: librechat-rag
+    image: ghcr.io/danny-avila/librechat-rag-api-dev:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "8000:8000"
+    depends_on:
+      - librechat-vectordb
+    environment:
+      POSTGRES_DB: pgvector
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${LIBRECHAT_PG_PASSWORD}
+      DB_HOST: librechat-vectordb
+      DB_PORT: 5432
+      RAG_PORT: 8000
+    logging: *default-logging
+
+  librechat-vectordb:
+    profiles: ["librechat", "ai", "all"]
+    container_name: librechat-vectordb
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      POSTGRES_DB: pgvector
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${LIBRECHAT_PG_PASSWORD}
+    volumes:
+      - librechat-pgvector-data:/var/lib/postgresql/data
+    logging: *default-logging
+
+  librechat:
+    profiles: ["librechat", "ai", "all"]
+    container_name: librechat
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${LIBRECHAT_PORT:-3080}:3080"
+    depends_on:
+      - librechat-mongodb
+      - librechat-meilisearch
+      - librechat-rag
+    volumes:
+      - ./ai/librechat/librechat.yaml:/app/librechat.yaml
+      - librechat-images:/app/api/server/uploads/temp
+    environment:
+      <<: *common-env
+      HOST: 0.0.0.0
+      PORT: 3080
+      MONGO_URI: mongodb://librechat-mongodb:27017/LibreChat
+      MEILI_HOST: http://librechat-meilisearch:7700
+      MEILI_MASTER_KEY: ${LIBRECHAT_MEILI_MASTER_KEY}
+      RAG_API_URL: http://librechat-rag:8000
+      EMBEDDINGS_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+      EMBEDDINGS_MODEL: nomic-embed-text
+      CREDS_KEY: ${LIBRECHAT_CREDS_KEY}
+      CREDS_IV: ${LIBRECHAT_CREDS_IV}
+      JWT_SECRET: ${LIBRECHAT_JWT_SECRET}
+      JWT_REFRESH_SECRET: ${LIBRECHAT_JWT_REFRESH_SECRET}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+    logging: *default-logging
+
+  # Ollama
+  ollama:
+    profiles: ["ollama", "ai", "all"]
+    container_name: ollama
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      <<: *common-env
+      OLLAMA_MODELS: ${OLLAMA_MODELS:-nomic-embed-text,llama3.2,qwen2.5-coder}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    logging: *default-logging
+
+  # Whisper
+  whisper:
+    profiles: ["whisper", "ai", "all"]
+    container_name: whisper
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${WHISPER_PORT:-9000}:9000"
+    environment:
+      <<: *common-env
+      ASR_MODEL: ${WHISPER_MODEL:-base}
+    logging: *default-logging
+
+  #==================================================#
+  #              Workflow Automation                 #
+  #==================================================#
+
+  windmill_pg:
+    profiles: ["windmill", "automation", "all"]
+    container_name: windmill_pg
+    image: postgres:16
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - windmill-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${WINDMILL_PG_PASSWORD}
+      POSTGRES_DB: windmill
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  windmill_server:
+    profiles: ["windmill", "automation", "all"]
+    container_name: windmill_server
+    image: ${WINDMILL_IMAGE:-ghcr.io/windmill-labs/windmill:main}
+    restart: unless-stopped
+    networks:
+      - exist
+    ports: 
+      - "${WINDMILL_PORT:-8800}:8000"
+    environment:
+      DATABASE_URL: postgres://postgres:${WINDMILL_PG_PASSWORD}@windmill_pg/windmill?sslmode=disable
+      MODE: server
+      SUPERADMIN_SECRET: ${WINDMILL_SUPERADMIN_SECRET}
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - windmill-worker-logs:/tmp/windmill/logs
+    logging: *default-logging
+
+  windmill_worker:
+    profiles: ["windmill", "automation", "all"]
+    image: ${WINDMILL_IMAGE:-ghcr.io/windmill-labs/windmill:main}
+    restart: unless-stopped
+    networks:
+      - exist
+    deploy:
+      replicas: 2
+    environment:
+      DATABASE_URL: postgres://postgres:${WINDMILL_PG_PASSWORD}@windmill_pg/windmill?sslmode=disable
+      MODE: worker
+      WORKER_GROUP: default
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - windmill-worker-cache:/tmp/windmill/cache
+      - windmill-worker-logs:/tmp/windmill/logs
+    logging: *default-logging
+
+  #==================================================#
+  #                 Data Services                    #
+  #==================================================#
+
+  # MinIO
+  minio:
+    profiles: ["minio", "storage", "all"]
+    container_name: minio
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    environment:
+      <<: *common-env
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_DOMAIN: ${MINIO_DOMAIN:-minio.example.com}
+      MINIO_SERVER_URL: ${MINIO_SERVER_URL:-http://localhost:9000}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    logging: *default-logging
+
+  # Redis
+  redis:
+    profiles: ["redis", "cache", "all"]
+    container_name: redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # NocoDB
+  nocodb_pg:
+    profiles: ["nocodb", "database", "all"]
+    container_name: nocodb_pg
+    image: postgres:14
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - nocodb-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${NOCODB_POSTGRES_USER:-nocodb}
+      POSTGRES_PASSWORD: ${NOCODB_POSTGRES_PASSWORD}
+      POSTGRES_DB: nocodb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOCODB_POSTGRES_USER:-nocodb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  nocodb:
+    profiles: ["nocodb", "database", "all"]
+    container_name: nocodb
+    image: nocodb/nocodb:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${NOCODB_PORT:-8080}:8080"
+    depends_on:
+      nocodb_pg:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      NC_DB: pg://nocodb_pg:5432?u=${NOCODB_POSTGRES_USER:-nocodb}&p=${NOCODB_POSTGRES_PASSWORD}&d=nocodb
+      NC_AUTH_ADMIN_EMAIL: ${NOCODB_ADMIN_EMAIL}
+      NC_AUTH_ADMIN_PASSWORD: ${NOCODB_ADMIN_PASSWORD}
+    logging: *default-logging
+
+  #==================================================#
+  #              Productivity Services               #
+  #==================================================#
+
+  # Vikunja
+  vikunja_db:
+    profiles: ["vikunja", "productivity", "all"]
+    container_name: vikunja_db
+    image: postgres:14
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - vikunja-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${VIKUNJA_DB_PASSWORD}
+      POSTGRES_DB: vikunja
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  vikunja:
+    profiles: ["vikunja", "productivity", "all"]
+    container_name: vikunja
+    image: vikunja/vikunja
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${VIKUNJA_PORT:-3456}:3456"
+    depends_on:
+      vikunja_db:
+        condition: service_healthy
+    volumes:
+      - vikunja-files:/app/vikunja/files
+    environment:
+      <<: *common-env
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_HOST: vikunja_db
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_DATABASE_USER: postgres
+      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DB_PASSWORD}
+      VIKUNJA_SERVICE_JWTSECRET: ${VIKUNJA_JWT_SECRET}
+    logging: *default-logging
+
+  # Mealie
+  mealie_postgres:
+    profiles: ["mealie", "productivity", "all"]
+    container_name: mealie_postgres
+    image: postgres:15
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - mealie-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: mealie
+      POSTGRES_PASSWORD: ${MEALIE_PG_PASSWORD}
+      POSTGRES_DB: mealie
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mealie"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  mealie:
+    profiles: ["mealie", "productivity", "all"]
+    container_name: mealie
+    image: ghcr.io/mealie-recipes/mealie:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${MEALIE_PORT:-9092}:9000"
+    depends_on:
+      mealie_postgres:
+        condition: service_healthy
+    volumes:
+      - mealie-data:/app/data
+    environment:
+      <<: *common-env
+      DB_ENGINE: postgres
+      POSTGRES_USER: mealie
+      POSTGRES_PASSWORD: ${MEALIE_PG_PASSWORD}
+      POSTGRES_SERVER: mealie_postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: mealie
+      DEFAULT_EMAIL: ${MEALIE_DEFAULT_USER}
+      DEFAULT_PASSWORD: ${MEALIE_DEFAULT_PASSWORD}
+    logging: *default-logging
+
+  #==================================================#
+  #            Notification & Messaging              #
+  #==================================================#
+
+  # ntfy
+  ntfy:
+    profiles: ["ntfy", "messaging", "all"]
+    container_name: ntfy
+    image: binwiederhier/ntfy
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${NTFY_PORT:-80}:80"
+    volumes:
+      - ntfy-cache:/var/cache/ntfy
+      - ntfy-data:/etc/ntfy
+      - ./services/ntfy/ntfy-config/server.yml:/etc/ntfy/server.yml
+    command: serve
+    environment:
+      <<: *common-env
+      NTFY_BASE_URL: ${NTFY_BASE_URL:-http://localhost}
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/cache/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+    logging: *default-logging
+
+  #==================================================#
+  #              UI & Management Tools               #
+  #==================================================#
+
+  # Dashy
+  dashy:
+    profiles: ["dashy", "ui", "all"]
+    container_name: dashy
+    image: lissy93/dashy:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${DASHY_PORT:-4000}:8080"
+    volumes:
+      - ./services/dashy/dashy-conf.yml:/app/user-data/conf.yml:ro
+    environment:
+      <<: *common-env
+      NODE_ENV: production
+    logging: *default-logging
+
+  # Appsmith
+  appsmith:
+    profiles: ["appsmith", "ui", "all"]
+    container_name: appsmith
+    image: appsmith/appsmith-ce:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${APPSMITH_PORT:-8090}:80"
+    volumes:
+      - appsmith-data:/appsmith-stacks
+    environment:
+      <<: *common-env
+      APPSMITH_DEFAULT_USERNAME: ${APPSMITH_DEFAULT_USERNAME}
+      APPSMITH_DEFAULT_PASSWORD: ${APPSMITH_DEFAULT_PASSWORD}
+      APPSMITH_DISABLE_TELEMETRY: true
+    logging: *default-logging
+
+  # IT-Tools
+  it-tools:
+    profiles: ["ittools", "tools", "all"]
+    container_name: it-tools
+    image: ghcr.io/corentinth/it-tools:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${ITTOOLS_PORT:-8091}:80"
+    logging: *default-logging
+
+  #==================================================#
+  #           Infrastructure & Monitoring            #
+  #==================================================#
+
+  # Portainer
+  portainer:
+    profiles: ["portainer", "management", "all"]
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${PORTAINER_PORT:-9000}:9000"
+      - "${PORTAINER_EDGE_PORT:-8000}:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    environment:
+      <<: *common-env
+    logging: *default-logging
+
+  # Uptime-Kuma
+  uptime-kuma:
+    profiles: ["uptime-kuma", "monitoring", "all"]
+    container_name: uptime-kuma
+    image: louislam/uptime-kuma:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${UPTIME_KUMA_PORT:-3001}:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    environment:
+      <<: *common-env
+    logging: *default-logging
+
+  # Caddy (Reverse Proxy)
+  caddy:
+    profiles: ["caddy", "proxy", "all"]
+    container_name: caddy
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
+      - "${CADDY_ADMIN_PORT:-2019}:2019"
+    volumes:
+      - ./hosting/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      <<: *common-env
+      BASE_DOMAIN: ${BASE_DOMAIN}
+    logging: *default-logging
+
+volumes:
+  # AI Services
+  librechat-mongo-data:
+  librechat-meili-data:
+  librechat-pgvector-data:
+  librechat-images:
+  ollama-data:
+
+  # Automation
+  windmill-db-data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/windmill_db_data"
+  windmill-worker-cache:
+  windmill-worker-logs:
+
+  # Storage
+  minio-data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/minio_data"
+  redis-data:
+
+  # Databases
+  nocodb-db-data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/nocodb_db_data"
+
+  # Productivity
+  vikunja-db-data:
+  vikunja-files:
+  mealie-db-data:
+  mealie-data:
+
+  # Messaging
+  ntfy-cache:
+  ntfy-data:
+
+  # UI & Management
+  appsmith-data:
+  portainer-data:
+  uptime-kuma-data:
+
+  # Infrastructure
+  caddy-data:
+  caddy-config:
+
+networks:
+  exist:
+    external: true
+    name: exist
