@@ -74,7 +74,7 @@ See [/hosting/README.md](/hosting/README.md)
 #### Setup
 - Copy .example files and fill in your values eg: `cp .env.example .env`
 - Setup the docker network
-- `docker network create exist --subnet=172.18.0.0/24`
+- `docker network create exist --subnet=10.0.0.0/24`
 
 #### Run
 - `docker-compose up -d` in each service directory you want to run.

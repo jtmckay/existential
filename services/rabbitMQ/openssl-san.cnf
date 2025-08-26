@@ -12,4 +12,4 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost
 DNS.2 = rabbitmq
-IP.1  = 192.168.1.11       # ← change as needed
+IP.1  = 10.0.0.11       # ← change as needed

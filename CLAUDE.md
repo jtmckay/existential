@@ -11,7 +11,7 @@ Existential is a curated homelab stack combining AI tools, workflow automation, 
 ### Setup New Service
 1. Copy `.env.example` to `.env` in the service directory: `cp .env.example .env`
 2. Fill in required environment variables
-3. Ensure the Docker network exists: `docker network create exist --subnet=172.18.0.0/24`
+3. Ensure the Docker network exists: `docker network create exist --subnet=10.0.0.0/24`
 4. Deploy the service: `docker-compose up -d`
 
 ### Testing Services
@@ -37,7 +37,7 @@ The project follows a modular architecture with services organized into categori
    - Environment variables from `.env` files
    - Health checks for dependent services
 
-2. **Network Configuration**: All services connect to the external Docker network `exist` (172.18.0.0/24)
+2. **Network Configuration**: All services connect to the external Docker network `exist` (10.0.0.0/24)
 
 3. **Volume Management**: Services use either local volumes or NFS mounts to TrueNAS for persistent storage
 

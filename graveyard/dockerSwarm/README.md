@@ -19,7 +19,7 @@ docker network create \
 ### Setup swarm (manager first)
 https://docs.docker.com/engine/swarm/swarm-tutorial/create-swarm/
 - `docker swarm init --advertise-addr <MANAGER-IP>`
-- Save the output to add a worker to the swarm. EG: "docker swarm join --token SmthnSprlng1 192.168.1.10:2377"
+- Save the output to add a worker to the swarm. EG: "docker swarm join --token SmthnSprlng1 10.0.0.10:2377"
 
 Deploy the registry Docker container. In the Docker directory:
 `docker stack deploy -c docker-compose.yml registry`
