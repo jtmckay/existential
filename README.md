@@ -1,5 +1,5 @@
 # Existential
-Personal knowledge mangement meets AI automation. Existential is a currated homelab with AI tools, workflow automation, note-taking, file management, and various productivity applications. Ensuring use of only free open source software that can be used commercially (in case a project takes off). Combining all of the best existing solutions into an app who's single purpose is to serve the individual.
+Personal productivity suite targetting self-actualization. Remember everything, plan anything, empathize with yourself, simplify and automate tasks. The core of Existential is the individual. A collection of free open source software for AI tools, workflow automation, note-taking, file management, and various productivity applications, all of which can be used commercially, in case you want to run a business.
 
 ### Dashboard (courtesy of [dashy](https://opensource.org/license/mit))
 ![Dashy](./services/dashy/dashy.png)
@@ -28,6 +28,7 @@ Personal knowledge mangement meets AI automation. Existential is a currated home
 
 ### Note taking [alts](./graveyard/notes.md)
 - [Logseq](./services/logseq/README.md)
+- Nightlio https://github.com/shirsakm/nightlio (TBD)
 
 ### Recipe management
 - [Mealie](./services/mealie/README.md)

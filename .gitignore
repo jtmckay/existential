@@ -40,6 +40,9 @@
 # Nextcloud
 **/nextcloud/servername.conf
 
+# Nightlio
+**/nightlio
+
 # NTFY
 **/ntfy-config/server.yml
 **/ntfy-config/user.db
