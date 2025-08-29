@@ -62,7 +62,7 @@ run_existential_workflow() {
     echo "📋 Processing ALL .example files in the project..."
     echo "=================================================="
     
-    if process_all_example_files "." 2 "*.example" true; then
+    if process_all_example_files "." 2 "*.example" true "$FORCE_OVERWRITE"; then
         echo "✅ All .example files processed successfully!"
     else
         echo "⚠️  Some .example files had processing issues - check output above"
@@ -196,7 +196,7 @@ run_env_only_workflow() {
     }
     
     # Process only .env.example files
-    if process_all_example_files "." 2 "*.env.example" true; then
+    if process_all_example_files "." 2 "*.env.example" true "$FORCE_OVERWRITE"; then
         echo "✅ All .env.example files processed successfully!"
     else
         echo "⚠️  Some .env.example files had processing issues"
@@ -220,7 +220,7 @@ process_specific_pattern() {
         exit 1
     }
     
-    if process_all_example_files "." "$depth" "$pattern" true; then
+    if process_all_example_files "." "$depth" "$pattern" true "$FORCE_OVERWRITE"; then
         echo "✅ All $description processed successfully!"
     else
         echo "⚠️  Some $description had processing issues"
@@ -272,8 +272,25 @@ show_example_file_types() {
     echo ""
 }
     
+# Global variables for options
+FORCE_OVERWRITE=false
+
 # Main execution
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    # Parse options first
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force)
+                FORCE_OVERWRITE=true
+                shift
+                ;;
+            *)
+                # Not an option, break and process as action
+                break
+                ;;
+        esac
+    done
+    
     action="${1:-workflow}"
     
     case "$action" in
@@ -281,17 +298,20 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "Existential - Unified Example File Processor"
             echo "============================================"
             echo ""
-            echo "Usage: $0 [ACTION] [OPTIONS...]"
+            echo "Usage: $0 [OPTIONS] [ACTION] [ACTION_OPTIONS...]"
+            echo ""
+            echo "OPTIONS (must come before ACTION):"
+            echo "  --force               Force overwrite existing files (skip safety check)"
             echo ""
             echo "ACTIONS:"
-            echo "  workflow          Complete workflow for ALL .example files (default)"
-            echo "  env-only          Process only .env.example files"
-            echo "  pattern PATTERN   Process files matching specific pattern"
-            echo "  types             Show all example file types in project"
-            echo "  services [cmd]    Manage service enablement"
-            echo "  generate-compose  Generate docker-compose.yml from enabled services"
-            echo "  profiles          Show available Docker Compose profiles"
-            echo "  --help, -h        Show this help message"
+            echo "  workflow              Complete workflow for ALL .example files (default)"
+            echo "  env-only              Process only .env.example files"
+            echo "  pattern PATTERN       Process files matching specific pattern"
+            echo "  types                 Show all example file types in project"
+            echo "  services [cmd]        Manage service enablement"
+            echo "  generate-compose      Generate docker-compose.yml from enabled services"
+            echo "  profiles              Show available Docker Compose profiles"
+            echo "  --help, -h            Show this help message"
             echo ""
             echo "PATTERN EXAMPLES:"
             echo "  '*.env.example'   Only environment files"
@@ -313,7 +333,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo ""
             echo "Features:"
             echo "  • Processes ANY file type with .example extension"
-            echo "  • Never overwrites existing files"
+            echo "  • Never overwrites existing files (unless --force is used)"
             echo "  • Root-level files processed first and sourced"
             echo "  • Interactive CLI placeholder replacement"
             echo "  • Automatic password/key generation"
@@ -321,12 +341,14 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "  • Docker Compose generation with diff tracking"
             echo ""
             echo "Examples:"
-            echo "  $0                      # Process all .example files"
-            echo "  $0 workflow             # Same as above (explicit)"
-            echo "  $0 env-only             # Only .env.example files"
+            echo "  $0                          # Process all .example files"
+            echo "  $0 --force                  # Process all files, overwrite existing"
+            echo "  $0 workflow                 # Same as first example (explicit)"
+            echo "  $0 --force env-only         # Only .env.example files, overwrite existing"
             echo "  $0 pattern '*.yml.example'  # Only YAML files"
-            echo "  $0 types                # Show what file types exist"
-            echo "  $0 services status      # Show service enablement status"
+            echo "  $0 --force pattern '*.yml.example'  # Only YAML files, overwrite existing"
+            echo "  $0 types                    # Show what file types exist"
+            echo "  $0 services status          # Show service enablement status"
             echo ""
             ;;
         "workflow")

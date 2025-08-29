@@ -327,6 +327,7 @@ process_file_placeholders() {
 process_example_file() {
     local example_file="$1"
     local is_root_level="$2"  # true/false
+    local force_overwrite="${3:-false}"  # Force overwrite existing files
     local target_file="${example_file%.example}"
     local success=true
     
@@ -338,28 +339,44 @@ process_example_file() {
         return 1
     fi
     
-    # CRITICAL: Never modify existing files - only create new ones
-    if [ -f "$target_file" ]; then
-        echo "  ℹ️  skipped $target_file - file already exists"
-        return 0
-    fi
+    # Check if target file exists and handle based on force flag
+    local file_already_exists=false
+    local should_process_placeholders=true
     
-    # Step 1: Create the target file by copying the example file
-    # Create the directory for the target file if it doesn't exist
-    local target_dir="$(dirname "$target_file")"
-    if [ ! -d "$target_dir" ]; then
-        if ! mkdir -p "$target_dir"; then
-            echo "  ❌ Error: Cannot create directory $target_dir"
-            return 1
+    if [ -f "$target_file" ]; then
+        file_already_exists=true
+        if [ "$force_overwrite" = true ]; then
+            echo "  ⚠️  Overwriting existing file: $target_file (--force enabled)"
+            # Will copy from example and then process placeholders
+        else
+            echo "  ℹ️  Processing placeholders in existing file: $target_file"
+            # Will process placeholders in existing file without overwriting
         fi
     fi
     
-    # Copy the .example file to create the target file
-    if cp "$example_file" "$target_file"; then
-        echo "  ✅ Created $target_file from $example_file"
-    else
-        echo "  ❌ Error: Failed to create $target_file"
-        return 1
+    # Step 1: Create or overwrite the target file by copying the example file 
+    # (only if it doesn't exist OR if force_overwrite is true)
+    if [ "$file_already_exists" = false ] || [ "$force_overwrite" = true ]; then
+        # Create the directory for the target file if it doesn't exist
+        local target_dir="$(dirname "$target_file")"
+        if [ ! -d "$target_dir" ]; then
+            if ! mkdir -p "$target_dir"; then
+                echo "  ❌ Error: Cannot create directory $target_dir"
+                return 1
+            fi
+        fi
+        
+        # Copy the .example file to create/overwrite the target file
+        if cp "$example_file" "$target_file"; then
+            if [ "$file_already_exists" = false ]; then
+                echo "  ✅ Created $target_file from $example_file"
+            else
+                echo "  ✅ Overwrote $target_file from $example_file"
+            fi
+        else
+            echo "  ❌ Error: Failed to create $target_file"
+            return 1
+        fi
     fi
     
     # Step 2: For root-level files, process CLI placeholders first
@@ -430,6 +447,7 @@ process_all_example_files() {
     local max_depth="${2:-2}"
     local file_pattern="${3:-*.example}"
     local root_first="${4:-true}"  # Process root-level files first by default
+    local force_overwrite="${5:-false}"  # Force overwrite existing files
     
     local processed_count=0
     local success_count=0
@@ -441,6 +459,7 @@ process_all_example_files() {
     echo "Max depth: $max_depth"
     echo "File pattern: $file_pattern"
     echo "Process root first: $root_first"
+    echo "Force overwrite: $force_overwrite"
     echo ""
     
     # Change to search directory for consistent relative path handling
@@ -460,7 +479,7 @@ process_all_example_files() {
             echo "Found ${#root_files[@]} root-level .example files"
             for file in "${root_files[@]}"; do
                 ((processed_count++))
-                if process_example_file "$file" true; then
+                if process_example_file "$file" true "$force_overwrite"; then
                     ((success_count++))
                 else
                     ((error_count++))
@@ -499,7 +518,7 @@ process_all_example_files() {
         echo "Found ${#filtered_files[@]} service-level .example files"
         for file in "${filtered_files[@]}"; do
             ((processed_count++))
-            if process_example_file "$file" false; then
+            if process_example_file "$file" false "$force_overwrite"; then
                 ((success_count++))
             else
                 ((error_count++))
@@ -541,16 +560,19 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     
     # Test 1: Process all .example files (default behavior)
     echo "Test 1: Processing all .example files with default settings..."
-    process_all_example_files "." 2 "*.example" true
+    process_all_example_files "." 2 "*.example" true false
     
     echo ""
     echo "=== Additional Usage Examples ==="
     echo "# Process only .env.example files:"
-    echo "process_all_example_files \".\" 2 \"*.env.example\" true"
+    echo "process_all_example_files \".\" 2 \"*.env.example\" true false"
     echo ""
     echo "# Process all .example files but don't prioritize root:"
-    echo "process_all_example_files \".\" 2 \"*.example\" false"
+    echo "process_all_example_files \".\" 2 \"*.example\" false false"
+    echo ""
+    echo "# Process with force overwrite enabled:"
+    echo "process_all_example_files \".\" 2 \"*.example\" true true"
     echo ""
     echo "# Process with deeper search:"
-    echo "process_all_example_files \".\" 3 \"*.example\" true"
+    echo "process_all_example_files \".\" 3 \"*.example\" true false"
 fi
