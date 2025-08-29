@@ -440,15 +440,12 @@ generate_compose_override() {
             echo "  # No services found in $compose_file"
         fi
         
-        # Extract volumes section - get only volume names, ignore configuration
+        # Extract volumes section - get complete volume definitions
         local volumes_section
         volumes_section=$(awk '
         /^volumes:/ { in_volumes = 1; next }
         /^[a-zA-Z]/ && in_volumes && !/^[[:space:]]/ { in_volumes = 0 }
-        in_volumes && /^  [a-zA-Z0-9_-]+:[[:space:]]*$/ {
-            match($0, /^  ([a-zA-Z0-9_-]+):/, arr)
-            if (arr[1]) print "  " arr[1] ":"
-        }' "$compose_file")
+        in_volumes { print $0 }' "$compose_file")
         
         if [ -n "$volumes_section" ]; then
             # Resolve variables in the volumes section content
@@ -473,18 +470,23 @@ generate_compose_override() {
         # Create a temporary file to track declared volumes
         local temp_file=$(mktemp)
         
-        # Process each volume section and output unique volume names
+        # Process each volume section and output unique volume definitions
         for volume_section in "${all_volumes[@]}"; do
             if [ -n "$volume_section" ]; then
                 echo "$volume_section" | while IFS= read -r line; do
-                    if [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_-]+):[[:space:]]*$ ]]; then
+                    # Check if this is a volume definition line (starts with 2 spaces and has a colon)
+                    if [[ "$line" =~ ^[[:space:]]{2}([a-zA-Z0-9_-]+):[[:space:]]*(.*) ]]; then
                         local volume_name="${BASH_REMATCH[1]}"
+                        local volume_config="${BASH_REMATCH[2]}"
                         
                         # Check if we've already declared this volume
                         if ! grep -q "^$volume_name$" "$temp_file" 2>/dev/null; then
                             echo "$volume_name" >> "$temp_file"
                             echo "$line"
                         fi
+                    elif [[ "$line" =~ ^[[:space:]]{4,} ]]; then
+                        # This is a continuation line for the previous volume (driver config, etc.)
+                        echo "$line"
                     fi
                 done
             fi
