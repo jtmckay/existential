@@ -6,7 +6,7 @@
 
 generate_24_char_password() {
     local length=24
-    local charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?"
+    local charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%^&*-_=+|:,.<>?"
     
     # Method 1: Use /dev/urandom if available (most systems)
     if [ -r /dev/urandom ]; then

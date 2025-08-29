@@ -27,17 +27,19 @@
 10. Report completion summary and thank you
 
 ### Enable/disable services
-When you enable/disable services you must regenerate the docker-compose.yml to reflect the enabled services. The script will not replace an existing docker-compose.yml, but instead will create a docker-compose.generated.yml that you can copy over the docker-compose.yml if desired. It also generates a `diff` file to help you find the changes, if you want to keep some of the existing customized file.
+After running `./existential.sh`, there should be a `.env` file at the root of the repository, there are environment variables for each service. Set the services you want to run to `true` and the ones you are not running on the machine to `false`. When you enable/disable services you must regenerate the docker-compose.yml using `./existential.sh` to reflect the enabled services. The script will not replace an existing docker-compose.yml, but instead will create a docker-compose.generated.yml that you can copy over the docker-compose.yml if desired. It also generates a `diff` file to help you find the changes, if you want to keep the majority of your existing docker-compose.yml file.
 
-## Explanation
+## Supplemental
   1. .env.example
 
   A comprehensive environment configuration file with:
   - Global settings (enabled services, Docker network, logging)
-  - Service-specific configurations organized by category
-  - Security settings with placeholders for secrets
-  - Clear comments and grouping for easy navigation
   - Default values for common settings
+  - EXIST_CLI is the value for env variables, the `./existential.sh` script will prompt for a value
+  - EXIST_24_CHAR_PASSWORD will generate a 24 character password for the corresponding .env file
+  - EXIST_32_CHAR_HEX_KEY will generate a 32 character hex for the corresponding .env file
+  - EXIST_64_CHAR_HEX_KEY will generate a 64 character hex for the corresponding .env file
+  - EXIST_DEFAULT_ values will be used to populate any service .env.example variables
 
   2. docker-compose.yml
 

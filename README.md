@@ -68,7 +68,7 @@ https://www.docker.com/
 ### Run
 - Run `./existential.sh`
 - Follow the steps to configure defaults
-- Enable/disable services in the main `.env`
+- See [Hosting](/hosting/README.md#enabledisable-services) to enable/disable services
 - `docker-compose up` to run all configured services
 
 ### Learn
