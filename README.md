@@ -62,18 +62,17 @@ Personal productivity suite targetting self-actualization. Remember everything, 
 ![Architecture Diagram](architecture.png)
 
 ## Getting started
-### Hosting
-Self [hosting](/hosting/README.md).
-
-#### Prerequisites
-##### Docker
+### Pre-requisite: Docker
 https://www.docker.com/
 
-#### Getting started
+### Run
 - Run `./existential.sh`
 - Follow the steps to configure defaults
 - Enable/disable services in the main `.env`
 - `docker-compose up` to run all configured services
+
+### Learn
+[Hosting](/hosting/README.md)
 
 ## Third-Party Software
 

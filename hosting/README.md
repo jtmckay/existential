@@ -13,6 +13,22 @@
 - [Caddy](./caddy/README.md) (Reverse proxy. Alt: Traefik/Nginx)
 - [Cloudflare](./cloudflare/README.md) (alt: any domain manager/DNS/[Ngrok](../graveyard/ngrok/README.md))
 
+## Existential script
+`./existential.sh`
+1. Find top-level .env.example file
+2. Create .env from .env.example (if .env doesn't exist)
+3. Interactively replace EXIST_CLI placeholders in .env
+4. Automatically replace other EXIST_* placeholders in .env
+5. Source .env to load variables into shell environment
+6. Find and create service-level .env files (depth 2)
+7. Interactively replace EXIST_CLI in service .env files
+8. Automatically replace EXIST_* in service .env files
+9. Generate docker-compose.yml from enabled services
+10. Report completion summary and thank you
+
+### Enable/disable services
+When you enable/disable services you must regenerate the docker-compose.yml to reflect the enabled services. The script will not replace an existing docker-compose.yml, but instead will create a docker-compose.generated.yml that you can copy over the docker-compose.yml if desired. It also generates a `diff` file to help you find the changes, if you want to keep some of the existing customized file.
+
 ## Explanation
   1. .env.example
 
