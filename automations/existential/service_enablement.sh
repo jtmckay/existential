@@ -7,11 +7,11 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source the docker compose finder
-if [ -f "$SCRIPT_DIR/find_docker_compose.sh" ]; then
-    source "$SCRIPT_DIR/find_docker_compose.sh"
+# Source the unified example processor for docker-compose finding functionality
+if [ -f "$SCRIPT_DIR/unified_example_processor.sh" ]; then
+    source "$SCRIPT_DIR/unified_example_processor.sh"
 else
-    echo "Error: find_docker_compose.sh not found in $SCRIPT_DIR"
+    echo "Error: unified_example_processor.sh not found in $SCRIPT_DIR"
     exit 1
 fi
 

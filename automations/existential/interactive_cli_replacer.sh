@@ -8,12 +8,34 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source the find_env_examples.sh script if needed
-if [ -f "$SCRIPT_DIR/find_env_examples.sh" ]; then
-    source "$SCRIPT_DIR/find_env_examples.sh"
-else
-    echo "Warning: find_env_examples.sh not found in $SCRIPT_DIR"
-fi
+# Simple function to find .env files (standalone version)
+find_env_files_simple() {
+    local search_dir="${1:-.}"
+    local max_depth="${2:-2}"
+    
+    if command -v find >/dev/null 2>&1; then
+        if [ "$max_depth" -eq 0 ]; then
+            find "$search_dir" -maxdepth 1 -type f -name "*.env" -not -path "*/graveyard/*" 2>/dev/null
+        else
+            find "$search_dir" -mindepth 2 -maxdepth $((max_depth + 1)) -type f -name "*.env" -not -path "*/graveyard/*" 2>/dev/null
+        fi
+    else
+        # Fallback for systems without find
+        if [ "$max_depth" -eq 0 ]; then
+            for file in "$search_dir"/*.env; do
+                if [ -f "$file" ] && [[ "$file" != */graveyard/* ]]; then
+                    echo "$file"
+                fi
+            done
+        else
+            for file in "$search_dir"/*/*.env "$search_dir"/*/*/*.env; do
+                if [ -f "$file" ] && [[ "$file" != */graveyard/* ]]; then
+                    echo "$file"
+                fi
+            done
+        fi
+    fi
+}
 
 # Function to extract context comments for a variable
 extract_context_comments() {
@@ -139,7 +161,7 @@ process_file_interactive() {
         
         # Escape special characters in the user value for sed
         local escaped_value
-        escaped_value=$(printf '%s\n' "$user_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        escaped_value=$(printf '%s\n' "$user_value" | sed 's/[[\.*^$()+?{|/]/\\&/g')
         
         # Make the replacement immediately on the original file
         # Use line number to target the specific line and only replace the value part
@@ -237,7 +259,7 @@ process_files_interactive() {
     fi
 }
 
-# Function to process files found by find_env_examples
+# Function to process files found by find_env_files_simple
 process_env_files_interactive() {
     local search_dir="${1:-.}"
     local max_depth="${2:-2}"
@@ -247,14 +269,9 @@ process_env_files_interactive() {
     echo "Search depth: $max_depth"
     echo ""
     
-    # Get files using find_env_examples if available
+    # Get files using find_env_files_simple
     local env_files=()
-    if command -v find_env_examples >/dev/null 2>&1; then
-        mapfile -t env_files < <(find_env_examples "$search_dir" "$max_depth")
-    else
-        # Fallback to manual find
-        mapfile -t env_files < <(find "$search_dir" -maxdepth $((max_depth + 1)) -type f -name "*.env*" -not -path "*/graveyard/*" 2>/dev/null)
-    fi
+    mapfile -t env_files < <(find_env_files_simple "$search_dir" "$max_depth")
     
     if [ ${#env_files[@]} -eq 0 ]; then
         echo "❌ No .env files found in $search_dir"

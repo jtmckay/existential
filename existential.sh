@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Existential Script - Complete Environment File Processing Workflow
-# This script provides a comprehensive environment file setup and processing workflow
+# Existential Script - Unified Example File Processing
+# This script provides a comprehensive workflow for processing ALL .example files systematically
+# It combines environment file processing with any other .example file types
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,38 +11,15 @@ AUTOMATION_DIR="$SCRIPT_DIR/automations/existential"
 # Save the original script directory before sourcing other scripts
 ORIGINAL_SCRIPT_DIR="$SCRIPT_DIR"
 
-# Source required scripts
-if [ -f "$AUTOMATION_DIR/find_env_examples.sh" ]; then
-    source "$AUTOMATION_DIR/find_env_examples.sh"
+# Source the unified example processor
+if [ -f "$AUTOMATION_DIR/unified_example_processor.sh" ]; then
+    source "$AUTOMATION_DIR/unified_example_processor.sh"
 else
-    echo "❌ Error: find_env_examples.sh not found in $AUTOMATION_DIR/"
+    echo "❌ Error: unified_example_processor.sh not found in $AUTOMATION_DIR/"
     exit 1
 fi
 
-if [ -f "$AUTOMATION_DIR/create_env_files.sh" ]; then
-    source "$AUTOMATION_DIR/create_env_files.sh"
-else
-    echo "❌ Error: create_env_files.sh not found in $AUTOMATION_DIR/"
-    exit 1
-fi
-
-if [ -f "$AUTOMATION_DIR/interactive_cli_replacer.sh" ]; then
-    source "$AUTOMATION_DIR/interactive_cli_replacer.sh"
-else
-    echo "❌ Error: interactive_cli_replacer.sh not found in $AUTOMATION_DIR/"
-    exit 1
-fi
-
-# Restore the original script directory
-SCRIPT_DIR="$ORIGINAL_SCRIPT_DIR"
-
-if [ -f "$AUTOMATION_DIR/process_env_placeholders.sh" ]; then
-    source "$AUTOMATION_DIR/process_env_placeholders.sh"
-else
-    echo "❌ Error: process_env_placeholders.sh not found in $AUTOMATION_DIR/"
-    exit 1
-fi
-
+# Source service management for docker-compose generation
 if [ -f "$AUTOMATION_DIR/service_enablement.sh" ]; then
     source "$AUTOMATION_DIR/service_enablement.sh"
 else
@@ -51,18 +29,6 @@ fi
 
 # Restore the original script directory after all sourcing
 SCRIPT_DIR="$ORIGINAL_SCRIPT_DIR"
-
-# Function to check if file has EXIST_CLI placeholders
-has_exist_cli_placeholders() {
-    local file="$1"
-    [ -f "$file" ] && grep -q "EXIST_CLI" "$file" 2>/dev/null
-}
-
-# Function to check if file has EXIST_* placeholders (any kind)
-has_exist_placeholders() {
-    local file="$1"
-    [ -f "$file" ] && grep -q "EXIST_" "$file" 2>/dev/null
-}
 
 # Function to count variables in a .env file
 count_env_variables() {
@@ -77,32 +43,13 @@ count_env_variables() {
     grep -E '^[A-Z_][A-Z0-9_]*=' "$file" 2>/dev/null | wc -l
 }
 
-# Function to copy .env.example to .env if .env doesn't exist
-copy_env_example_if_needed() {
-    local example_file="$1"
-    local env_file="${example_file%.example}"
-    
-    if [ ! -f "$env_file" ]; then
-        if cp "$example_file" "$env_file"; then
-            echo "✅ Created $env_file from $example_file"
-            return 0
-        else
-            echo "❌ Failed to create $env_file from $example_file"
-            return 1
-        fi
-    else
-        echo "ℹ️  $env_file already exists, skipping"
-        return 0
-    fi
-}
-
-# Main comprehensive workflow
+# Main unified workflow that processes ALL example files systematically
 run_existential_workflow() {
     local variables_processed=0
     local files_processed=0
     
-    echo "🚀 Welcome to Existential - Environment Setup Workflow"
-    echo "======================================================"
+    echo "🚀 Existential - Unified Example File Processing"
+    echo "================================================"
     echo ""
     
     # Step 0: Change to script directory for relative path operations
@@ -111,175 +58,26 @@ run_existential_workflow() {
         exit 1
     }
     
-    # Step 1: Find the top level .env.example
-    echo "📋 Step 1: Finding top-level .env.example file..."
-    local top_level_env_example
-    if [ -f ".env.example" ]; then
-        top_level_env_example=".env.example"
-        echo "✅ Found top-level .env.example"
+    # Step 1: Process ALL .example files systematically
+    echo "📋 Processing ALL .example files in the project..."
+    echo "=================================================="
+    
+    if process_all_example_files "." 2 "*.example" true; then
+        echo "✅ All .example files processed successfully!"
     else
-        echo "⚠️  No top-level .env.example found, skipping top-level processing"
-        top_level_env_example=""
+        echo "⚠️  Some .example files had processing issues - check output above"
     fi
     
-    # Step 2: Copy .env.example to .env (if it doesn't exist)
-    if [ -n "$top_level_env_example" ]; then
-        echo ""
-        echo "📋 Step 2: Creating top-level .env file..."
-        copy_env_example_if_needed "$top_level_env_example"
-        local top_level_env=".env"
-    fi
-    
-    # Step 3: Run interactive CLI replacer on top-level .env file
-    if [ -n "$top_level_env_example" ] && [ -f "$top_level_env" ]; then
-        echo ""
-        echo "📋 Step 3: Processing top-level EXIST_CLI placeholders..."
-        
-        if has_exist_cli_placeholders "$top_level_env"; then
-            echo "🔧 Found EXIST_CLI placeholders in $top_level_env"
-            if process_file_interactive "$top_level_env"; then
-                ((files_processed++))
-            fi
-        else
-            echo "ℹ️  No EXIST_CLI placeholders found in $top_level_env"
-        fi
-    fi
-    
-    # Step 4: Run placeholder processing on top-level .env file
-    if [ -n "$top_level_env_example" ] && [ -f "$top_level_env" ]; then
-        echo ""
-        echo "📋 Step 4: Processing top-level EXIST_* placeholders..."
-        
-        if has_exist_placeholders "$top_level_env"; then
-            local pre_count=$(count_env_variables "$top_level_env")
-            echo "🔧 Found EXIST_* placeholders in $top_level_env"
-            if process_env_generated_file "$top_level_env"; then
-                local post_count=$(count_env_variables "$top_level_env")
-                local processed_vars=$((post_count - pre_count))
-                if [ $processed_vars -gt 0 ]; then
-                    variables_processed=$((variables_processed + processed_vars))
-                fi
-                ((files_processed++))
-            fi
-        else
-            echo "ℹ️  No EXIST_* placeholders found in $top_level_env"
-        fi
-    fi
-    
-    # Step 5: Source the top-level .env file
-    if [ -n "$top_level_env_example" ] && [ -f "$top_level_env" ]; then
-        echo ""
-        echo "📋 Step 5: Loading top-level environment variables..."
-        
-        # Count variables before sourcing
-        local env_var_count=$(count_env_variables "$top_level_env")
-        
-        if set -a && source "$top_level_env" && set +a; then
-            echo "✅ Successfully loaded $env_var_count environment variables from $top_level_env"
-            variables_processed=$((variables_processed + env_var_count))
-        else
-            echo "❌ Failed to source $top_level_env"
-        fi
-    fi
-    
-    # Step 6: Find all .env.example files at depth 2 (excluding top level)
     echo ""
-    echo "📋 Step 6: Finding service-level .env.example files..."
     
-    local service_env_examples=()
-    mapfile -t service_env_examples < <(find_env_examples "." 2)
-    
-    # Filter out the top-level .env.example if it exists
-    local filtered_service_examples=()
-    for file in "${service_env_examples[@]}"; do
-        if [ "$file" != "./.env.example" ] && [ "$file" != ".env.example" ]; then
-            filtered_service_examples+=("$file")
-        fi
-    done
-    
-    echo "✅ Found ${#filtered_service_examples[@]} service-level .env.example files"
-    
-    # Copy .env.example to .env for each service file
-    if [ ${#filtered_service_examples[@]} -gt 0 ]; then
-        echo ""
-        echo "📋 Step 6b: Creating service-level .env files..."
-        
-        for example_file in "${filtered_service_examples[@]}"; do
-            copy_env_example_if_needed "$example_file"
-        done
-    fi
-    
-    # Step 7: Run interactive CLI replacer for all service-level .env files
-    echo ""
-    echo "📋 Step 7: Processing service-level EXIST_CLI placeholders..."
-    
-    local service_env_files=()
-    for example_file in "${filtered_service_examples[@]}"; do
-        local env_file="${example_file%.example}"
-        if [ -f "$env_file" ]; then
-            service_env_files+=("$env_file")
-        fi
-    done
-    
-    if [ ${#service_env_files[@]} -gt 0 ]; then
-        local files_with_cli=()
-        for env_file in "${service_env_files[@]}"; do
-            if has_exist_cli_placeholders "$env_file"; then
-                files_with_cli+=("$env_file")
-            fi
-        done
-        
-        if [ ${#files_with_cli[@]} -gt 0 ]; then
-            echo "🔧 Found EXIST_CLI placeholders in ${#files_with_cli[@]} service files"
-            process_files_interactive "${files_with_cli[@]}"
-            files_processed=$((files_processed + ${#files_with_cli[@]}))
-        else
-            echo "ℹ️  No EXIST_CLI placeholders found in service-level .env files"
-        fi
-    else
-        echo "ℹ️  No service-level .env files to process"
-    fi
-    
-    # Step 8: Run placeholder processing on all service-level .env files
-    echo ""
-    echo "📋 Step 8: Processing service-level EXIST_* placeholders..."
-    
-    if [ ${#service_env_files[@]} -gt 0 ]; then
-        local files_with_placeholders=()
-        for env_file in "${service_env_files[@]}"; do
-            if has_exist_placeholders "$env_file"; then
-                files_with_placeholders+=("$env_file")
-            fi
-        done
-        
-        if [ ${#files_with_placeholders[@]} -gt 0 ]; then
-            echo "🔧 Found EXIST_* placeholders in ${#files_with_placeholders[@]} service files"
-            for env_file in "${files_with_placeholders[@]}"; do
-                local pre_count=$(count_env_variables "$env_file")
-                if process_env_generated_file "$env_file"; then
-                    local post_count=$(count_env_variables "$env_file")
-                    local processed_vars=$((post_count - pre_count))
-                    if [ $processed_vars -gt 0 ]; then
-                        variables_processed=$((variables_processed + processed_vars))
-                    fi
-                fi
-            done
-            files_processed=$((files_processed + ${#files_with_placeholders[@]}))
-        else
-            echo "ℹ️  No EXIST_* placeholders found in service-level .env files"
-        fi
-    else
-        echo "ℹ️  No service-level .env files to process"
-    fi
-    
-    # Step 9: Generate docker-compose.yml from enabled services
-    echo ""
-    echo "📋 Step 9: Generating docker-compose.yml from enabled services..."
+    # Step 2: Generate docker-compose.yml from enabled services
+    echo "📋 Generating docker-compose.yml from enabled services..."
+    echo "======================================================="
     
     local compose_output="docker-compose.yml"
     local generate_diff=false
     
-    # Check if docker-compose.yml already exists
+    # Check if docker-compose.yml already exists - use .generated.yml instead
     if [ -f "$compose_output" ]; then
         echo "ℹ️  Existing $compose_output found, generating docker-compose.generated.yml instead"
         compose_output="docker-compose.generated.yml"
@@ -316,16 +114,27 @@ run_existential_workflow() {
         echo "💡 Try running: ./automations/existential/service_enablement.sh generate-compose"
     fi
     
-    # Step 10: Thank the user and report results
+    # Step 3: Report final status
     echo ""
-    echo "🎉 Thank you for using Existential!"
+    echo "🎉 Existential Processing Complete!"
     echo "=================================="
     echo ""
+    
+    # Count the results
+    local env_files_count=$(find . -name ".env" -not -path "*/graveyard/*" | wc -l)
+    local example_files_count=$(find . -name "*.example" -not -path "*/graveyard/*" | wc -l)
+    local generated_files_count=$(find . -name "*" -not -name "*.example" -not -path "*/graveyard/*" | while read -r file; do
+        local example_counterpart="${file}.example"
+        if [ -f "$example_counterpart" ]; then
+            echo "$file"
+        fi
+    done | wc -l)
+    
     echo "📊 Processing Summary:"
-    echo "  • Files processed: $files_processed"
-    echo "  • Variables configured: $variables_processed"
-    echo "  • Top-level .env: $([ -f "$top_level_env" ] && echo "✅ Ready" || echo "❌ Not found")"
-    echo "  • Service .env files: ${#service_env_files[@]}"
+    echo "  • Example files found: $example_files_count"
+    echo "  • Generated/updated files: $generated_files_count"
+    echo "  • Environment files: $env_files_count"
+    echo "  • Top-level .env: $([ -f ".env" ] && echo "✅ Ready" || echo "❌ Not found")"
     echo "  • Docker Compose: $([ -f "$compose_output" ] && echo "✅ Generated ($compose_output)" || echo "❌ Not generated")"
     if [ "$generate_diff" = true ] && [ -f "docker-compose.diff.yml" ]; then
         echo "  • Diff file: ✅ Generated (docker-compose.diff.yml)"
@@ -333,133 +142,198 @@ run_existential_workflow() {
     echo ""
     
     # Show service enablement status if .env file exists
-    if [ -f "$top_level_env" ]; then
+    if [ -f ".env" ]; then
         echo "🔧 Service Configuration:"
         echo "========================="
         show_service_status
     fi
     
-    if [ $files_processed -gt 0 ]; then
-        echo "✅ Your environment is now configured and ready to use!"
-        echo ""
-        echo "💡 Tips:"
-        echo "  • Your environment variables are loaded in this shell session"
-        echo "  • Run 'source .env' in other terminals to load the top-level variables"
-        echo "  • Each service directory has its own .env file for service-specific configuration"
-        echo "  • Use './automations/existential/service_enablement.sh' to manage service configuration"
-    else
-        echo "ℹ️  No environment files needed processing - you're all set!"
-    fi
-    
     echo ""
+    echo "✅ Your entire project configuration is now processed and ready to use!"
+    echo ""
+    echo "💡 What happened:"
+    echo "  • All .example files in your project were found and processed"
+    echo "  • Counterpart files were created (removing .example extension)"  
+    echo "  • EXIST_CLI placeholders were replaced interactively"
+    echo "  • EXIST_* placeholders were replaced automatically"
+    echo "  • Root-level .env was sourced to load environment variables"
+    echo "  • Docker Compose configuration was generated from enabled services"
+    echo ""
+    echo "💡 Next steps:"
+    echo "  • Run 'source .env' in other terminals to load top-level variables"
+    echo "  • Use 'docker compose up' to start your services"
+    echo "  • Use './automations/existential/service_enablement.sh' to manage services"
+    echo "  • Check individual service directories for their specific .env files"
+    echo ""
+    
     return 0
 }
 
-# Legacy functions for backward compatibility
-get_env_example_files() {
-    local search_dir="${1:-.}"
-    mapfile -t env_example_files < <(find_env_examples "$search_dir")
-    printf '%s\n' "${env_example_files[@]}"
+# Specialized function to process only .env.example files (backward compatibility)
+run_env_only_workflow() {
+    echo "🚀 Environment-Only Processing Workflow"
+    echo "======================================="
+    echo ""
+    
+    # Change to script directory
+    cd "$SCRIPT_DIR" || {
+        echo "❌ Error: Cannot change to script directory: $SCRIPT_DIR"
+        exit 1
+    }
+    
+    # Process only .env.example files
+    if process_all_example_files "." 2 "*.env.example" true; then
+        echo "✅ All .env.example files processed successfully!"
+    else
+        echo "⚠️  Some .env.example files had processing issues"
+    fi
+    
+    return 0
 }
 
-process_env_files() {
-    local search_dir="${1:-.}"
-    local action="${2:-list}"
+# Function to process specific file patterns
+process_specific_pattern() {
+    local pattern="$1"
+    local depth="${2:-2}"
+    local description="${3:-$pattern files}"
     
-    echo "Processing .env files in: $search_dir"
-    echo "======================================="
+    echo "🚀 Processing $description"
+    echo "=================================="
+    echo ""
+    
+    cd "$SCRIPT_DIR" || {
+        echo "❌ Error: Cannot change to script directory: $SCRIPT_DIR"
+        exit 1
+    }
+    
+    if process_all_example_files "." "$depth" "$pattern" true; then
+        echo "✅ All $description processed successfully!"
+    else
+        echo "⚠️  Some $description had processing issues"
+    fi
+    
+    return 0
+}
+
+# Function to show available example files by type
+show_example_file_types() {
+    echo "📋 Example File Types in Project"
+    echo "================================"
+    
+    cd "$SCRIPT_DIR" || {
+        echo "❌ Error: Cannot change to script directory: $SCRIPT_DIR"
+        return 1
+    }
+    
+    # Find all example files and group by extension
+    local extensions=()
+    while IFS= read -r file; do
+        # Extract the extension before .example
+        local basename=$(basename "$file")
+        local extension="${basename%.example}"
+        extension="${extension##*.}"
+        extensions+=("$extension")
+    done < <(find . -name "*.example" -not -path "*/graveyard/*" 2>/dev/null)
+    
+    # Count occurrences of each extension
+    local extension_counts=()
+    for ext in $(printf '%s\n' "${extensions[@]}" | sort | uniq); do
+        local count=$(printf '%s\n' "${extensions[@]}" | grep -c "^$ext$")
+        extension_counts+=("$ext:$count")
+    done
+    
+    echo ""
+    echo "File types found:"
+    for item in "${extension_counts[@]}"; do
+        local ext="${item%:*}"
+        local count="${item#*:}"
+        printf "  %-15s %3d files\n" ".$ext.example" "$count"
+    done
+    
+    echo ""
+    echo "Usage examples:"
+    echo "  $0 env-only          # Process only .env.example files"
+    echo "  $0 pattern '*.yml.example'  # Process only .yml.example files"
+    echo "  $0 pattern '*.json.example' # Process only .json.example files"
+    echo ""
+}
+    
+# Main execution
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    action="${1:-workflow}"
     
     case "$action" in
-        "list")
-            mapfile -t env_files < <(get_env_example_files "$search_dir")
-            
-            echo "Found ${#env_files[@]} .env.example files:"
+        "--help"|"-h")
+            echo "Existential - Unified Example File Processor"
+            echo "============================================"
             echo ""
-            
-            for i in "${!env_files[@]}"; do
-                printf "%2d: %s\n" $((i+1)) "${env_files[i]}"
-            done
-            
+            echo "Usage: $0 [ACTION] [OPTIONS...]"
             echo ""
-            echo "Array variable 'env_files' contains all found files."
-            ;;
-        "interactive-cli")
-            echo "Starting interactive EXIST_CLI replacement..."
-            process_env_files_interactive "$search_dir" 2
-            ;;
-        "services")
-            echo "Service enablement management..."
-            shift  # Remove 'services' from arguments
-            "$AUTOMATION_DIR/service_enablement.sh" "$@"
+            echo "ACTIONS:"
+            echo "  workflow          Complete workflow for ALL .example files (default)"
+            echo "  env-only          Process only .env.example files"
+            echo "  pattern PATTERN   Process files matching specific pattern"
+            echo "  types             Show all example file types in project"
+            echo "  services [cmd]    Manage service enablement"
+            echo "  generate-compose  Generate docker-compose.yml from enabled services"
+            echo "  profiles          Show available Docker Compose profiles"
+            echo "  --help, -h        Show this help message"
+            echo ""
+            echo "PATTERN EXAMPLES:"
+            echo "  '*.env.example'   Only environment files"
+            echo "  '*.yml.example'   Only YAML configuration files"
+            echo "  '*.json.example'  Only JSON configuration files"
+            echo "  '*.pem.example'   Only certificate/key files"
+            echo ""
+            echo "UNIFIED WORKFLOW (default):"
+            echo "  1. Find ALL .example files in project (excluding graveyard/)"
+            echo "  2. Process root-level .example files first"
+            echo "  3. Create counterpart files (remove .example extension)"
+            echo "  4. Process EXIST_CLI placeholders interactively"
+            echo "  5. Process EXIST_* placeholders automatically"
+            echo "  6. Source root-level .env to load environment variables"
+            echo "  7. Process service-level .example files"
+            echo "  8. Generate docker-compose.yml from enabled services"
+            echo "  9. Generate diff file if docker-compose.yml exists"
+            echo " 10. Report comprehensive summary"
+            echo ""
+            echo "Features:"
+            echo "  • Processes ANY file type with .example extension"
+            echo "  • Never overwrites existing files"
+            echo "  • Root-level files processed first and sourced"
+            echo "  • Interactive CLI placeholder replacement"
+            echo "  • Automatic password/key generation"
+            echo "  • Service enablement integration"
+            echo "  • Docker Compose generation with diff tracking"
+            echo ""
+            echo "Examples:"
+            echo "  $0                      # Process all .example files"
+            echo "  $0 workflow             # Same as above (explicit)"
+            echo "  $0 env-only             # Only .env.example files"
+            echo "  $0 pattern '*.yml.example'  # Only YAML files"
+            echo "  $0 types                # Show what file types exist"
+            echo "  $0 services status      # Show service enablement status"
+            echo ""
             ;;
         "workflow")
             run_existential_workflow
             ;;
-        *)
-            echo "Unknown action: $action"
-            echo "Available actions: list, interactive-cli, services, workflow"
-            return 1
+        "env-only")
+            run_env_only_workflow
             ;;
-    esac
-    
-    return 0
-}
-
-# Main execution
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    action="${1:-workflow}"
-    search_dir="${2:-.}"
-    
-    case "$action" in
-        "--help"|"-h")
-            echo "Existential - Complete Environment Setup Workflow"
-            echo "================================================="
-            echo ""
-            echo "Usage: $0 [ACTION] [DIRECTORY]"
-            echo ""
-            echo "ACTIONS:"
-            echo "  workflow          Complete environment setup workflow (default)"
-            echo "  list              List all .env.example files"
-            echo "  interactive-cli   Interactively replace EXIST_CLI placeholders only"
-            echo "  services [cmd]    Manage service enablement (see services --help)"
-            echo "  generate-compose  Generate merged docker-compose.yml from enabled services"
-            echo "  profiles          Show available Docker Compose profiles"
-            echo "  --help, -h        Show this help message"
-            echo ""
-            echo "ARGUMENTS:"
-            echo "  DIRECTORY         Directory to search (default: current directory)"
-            echo ""
-            echo "WORKFLOW STEPS (when using 'workflow' action):"
-            echo "  1. Find top-level .env.example file"
-            echo "  2. Create .env from .env.example (if .env doesn't exist)"
-            echo "  3. Interactively replace EXIST_CLI placeholders in .env"
-            echo "  4. Automatically replace other EXIST_* placeholders in .env"
-            echo "  5. Source .env to load variables into shell environment"
-            echo "  6. Find and create service-level .env files (depth 2)"
-            echo "  7. Interactively replace EXIST_CLI in service .env files"
-            echo "  8. Automatically replace EXIST_* in service .env files"
-            echo "  9. Generate docker-compose.yml from enabled services (or .generated.yml if exists)"
-            echo " 10. Report completion summary and thank you"
-            echo ""
-            echo "Examples:"
-            echo "  $0                        # Run complete workflow"
-            echo "  $0 workflow               # Run complete workflow"
-            echo "  $0 list services/         # List .env.example files in services/"
-            echo "  $0 interactive-cli        # Only process EXIST_CLI placeholders"
-            echo "  $0 services status        # Show which services are enabled/disabled"
-            echo "  $0 services enabled       # List only enabled services"
-            echo "  $0 generate-compose       # Generate docker-compose.generated.yml"
-            echo "  $0 generate-compose prod.yml  # Generate custom filename"
-            echo "  $0 profiles               # Show available Docker Compose profiles"
-            echo ""
-            echo "Features:"
-            echo "  • Never overwrites existing .env files"
-            echo "  • Shows context comments for interactive prompts"
-            echo "  • Automatically generates secure passwords and keys"
-            echo "  • Loads environment variables for immediate use"
-            echo "  • Processes both top-level and service configurations"
-            echo "  • Individual service enable/disable control"
-            echo "  • Automatic Docker Compose generation with diff tracking"
+        "pattern")
+            pattern="$2"
+            depth="${3:-2}"
+            if [ -z "$pattern" ]; then
+                echo "❌ Error: Pattern is required"
+                echo "Usage: $0 pattern 'PATTERN' [DEPTH]"
+                echo "Example: $0 pattern '*.yml.example' 2"
+                exit 1
+            fi
+            process_specific_pattern "$pattern" "$depth" "$pattern"
+            ;;
+        "types")
+            show_example_file_types
             ;;
         "services")
             shift  # Remove 'services' from arguments
@@ -467,15 +341,44 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             ;;
         "generate-compose")
             echo "Generating merged docker-compose.yml from enabled services..."
-            output_file="${2:-docker-compose.generated.yml}"
-            "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$output_file"
+            output_file="${2:-docker-compose.yml}"
+            generate_diff=false
+            
+            # Check if docker-compose.yml already exists and no custom output specified
+            if [ -f "docker-compose.yml" ] && [ "$output_file" = "docker-compose.yml" ]; then
+                echo "ℹ️  Existing docker-compose.yml found, generating docker-compose.generated.yml instead"
+                output_file="docker-compose.generated.yml"
+                generate_diff=true
+            fi
+            
+            if "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$output_file"; then
+                echo "Generated merged docker-compose.yml as: $output_file"
+                
+                # Generate diff file if requested
+                if [ "$generate_diff" = true ] && [ -f "docker-compose.yml" ] && [ -f "$output_file" ]; then
+                    diff_file="docker-compose.diff.yml"
+                    echo ""
+                    echo "🔍 Generating difference file: $diff_file"
+                    
+                    if diff -u "docker-compose.yml" "$output_file" > "$diff_file" 2>/dev/null; then
+                        # No differences found
+                        echo "NO CHANGES" > "$diff_file"
+                        echo "ℹ️  No changes detected between docker-compose.yml and $output_file"
+                    else
+                        # Differences found
+                        change_count=$(grep -c "^[+-]" "$diff_file" 2>/dev/null || echo "0")
+                        echo "📊 Generated $diff_file with $change_count line changes"
+                    fi
+                fi
+            fi
             ;;
         "profiles")
             "$AUTOMATION_DIR/service_enablement.sh" profiles
             ;;
         *)
-            search_dir="${2:-.}"
-            process_env_files "$search_dir" "$action"
+            echo "❌ Unknown action: $action"
+            echo "Run '$0 --help' for usage information"
+            exit 1
             ;;
     esac
 fi

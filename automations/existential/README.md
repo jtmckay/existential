@@ -2,41 +2,117 @@
 
 This directory contains shell scripts and utilities for the Existential project automation tasks.
 
-## Scripts
 
-### `find_env_examples.sh`
-A cross-platform bash script that recursively finds all `.env.example` files in a directory structure, excluding the graveyard directory, with configurable search depth.
+## 🚀 Quick Start
+
+Get your entire Existential environment configured in one command:
+
+```bash
+./existential.sh
+```
+
+This unified script will:
+- **Find ALL `.example` files** in your project (30+ configuration files)
+- **Create counterpart files** by removing the `.example` extension
+- **Process placeholders** interactively and automatically
+- **Load environment variables** from your root `.env` file
+- **Generate Docker Compose configuration** from enabled services
+- **Provide comprehensive reporting** of what was configured
+
+### What Gets Processed
+
+The unified processor handles **7 different file types** across your entire project:
+
+- **18** `.env.example` files → Environment configuration
+- **5** `.pem.example` files → SSL certificates and keys  
+- **2** `.json.example` files → JSON configuration
+- **2** `.yml.example` files → YAML configuration
+- **1** `.yaml.example` file → YAML configuration
+- **1** `.Caddyfile.example` file → Reverse proxy configuration
+- **1** `.conf.example` file → Server configuration
+
+### 🔒 Safe Processing & File Protection
+
+The system is designed with safety in mind:
+- **Never modifies existing files** - Only creates new files from `.example` templates
+- **Clear messaging** when files already exist with guidance to delete and regenerate if needed
+- **Root-level priority** - Processes root `.env.example` first with CLI prompts and password generation
+- **Environment sourcing** - Automatically loads root `.env` variables after creation
+
+### 🌟 Dynamic Variable System
+
+Use `EXIST_DEFAULT_*` variables in your root `.env` file to automatically propagate values across all service configurations:
+
+```bash
+# In root .env file
+EXIST_DEFAULT_EMAIL=your@email.com
+EXIST_DEFAULT_USERNAME=yourusername
+EXIST_DEFAULT_PASSWORD=generated_password
+```
+
+These values automatically replace matching variables in all service `.env` files:
+```bash
+# In services/nocodb/.env (automatically replaced)
+NOCODB_ADMIN_EMAIL=your@email.com  # was EXIST_DEFAULT_EMAIL
+```
+
+### Advanced Usage
+
+```bash
+# See what example file types exist in your project
+./existential.sh types
+
+# Process only environment files
+./existential.sh env-only
+
+# Process only YAML configuration files
+./existential.sh pattern '*.yml.example'
+
+# Process only SSL certificate files
+./existential.sh pattern '*.pem.example'
+
+# Manage individual services
+./existential.sh services status
+./existential.sh services enable mealie
+./existential.sh services disable windmill
+
+# Generate Docker Compose configuration
+./existential.sh generate-compose
+```
+
+## Main Scripts
+
+### `unified_example_processor.sh`
+A comprehensive cross-platform bash script that systematically processes ALL `.example` files in the project, creating configuration files and handling placeholder replacements.
 
 **Features:**
-- Cross-platform compatibility (Windows Git Bash/WSL, Mac, Linux)
-- Uses basic bash operations for maximum portability
-- Can be sourced by other scripts or run independently
-- Provides both array storage and streaming options
-- Automatically excludes `/graveyard/` directory from search results
-- Configurable search depth (0=current dir only, default=2)
+- **Universal file processing**: Handles 7+ different file types (`.env`, `.pem`, `.yml`, `.json`, `.yaml`, `.conf`, `.Caddyfile`)
+- **Dynamic variable system**: `EXIST_DEFAULT_*` variables from root `.env` automatically propagate to all services
+- **Safe processing**: Never modifies existing files, only creates new ones from templates
+- **Interactive prompts**: `EXIST_CLI` placeholders prompt for user input
+- **Automatic generation**: Passwords, hex keys, timestamps, and UUIDs generated automatically
+- **Cross-platform compatibility**: Works on Windows (Git Bash/WSL), Mac, and Linux
+- **Root-first processing**: Prioritizes root-level files for environment sourcing
 
 **Usage:**
 ```bash
-# Run independently
-./find_env_examples.sh
+# Process all .example files in the project
+./unified_example_processor.sh
 
-# Source in another script
-source find_env_examples.sh
-mapfile -t env_files < <(find_env_examples "." 2)  # depth 2 (default)
-mapfile -t env_files < <(find_env_examples "." 0)  # current directory only
+# Process with custom parameters
+./unified_example_processor.sh "search_dir" "max_depth" "file_pattern" "process_root_first"
+
+# Example: Process only .env files with depth 3
+./unified_example_processor.sh "." "3" "*.env.example" "true"
 ```
 
-**Function:**
-- `find_env_examples(search_dir, max_depth)` - Returns newline-separated list of .env.example files
-  - `search_dir`: Directory to search (default: current directory)
-  - `max_depth`: Maximum search depth (default: 2)
-    - 0: Current directory only
-    - 1: 1 level deep only (excludes current directory)
-    - 2: 1-2 levels deep (excludes current directory, includes services/app/)
-    - 3+: 1-3+ levels deep (excludes current directory)
-
+**Functions:**
+- `process_all_example_files(dir, depth, pattern, root_first)` - Main processing function
+- `find_example_files(dir, depth, pattern)` - File discovery with pattern matching
+- `process_example_file(file, is_root_level)` - Individual file processing
+- `get_exist_default_variables()` - Extract dynamic variables from root `.env`
 ### `interactive_cli_replacer.sh`
-Interactive script that finds and replaces `EXIST_CLI` placeholders in .env files by prompting the user for values. Shows context comments before each variable to help understand what value is needed.
+Interactive script that finds and replaces `EXIST_CLI` placeholders in files by prompting the user for values. Shows context comments before each variable to help understand what value is needed.
 
 **Features:**
 - Finds all instances of `EXIST_CLI` in files
@@ -44,20 +120,11 @@ Interactive script that finds and replaces `EXIST_CLI` placeholders in .env file
 - Interactive prompts for each placeholder
 - Option to skip individual variables
 - Processes files individually with confirmation between files
-- Works with specific files or directory scanning
 - Backup and rollback on errors
+- Proper escaping for special characters including `/`
 
 **Usage:**
 ```bash
-# Process .env files in current directory (depth 2)
-./interactive_cli_replacer.sh
-
-# Process .env files in current directory only
-./interactive_cli_replacer.sh --depth 0
-
-# Process specific directory
-./interactive_cli_replacer.sh services/
-
 # Process specific files
 ./interactive_cli_replacer.sh file1.env file2.env
 
@@ -67,11 +134,10 @@ Interactive script that finds and replaces `EXIST_CLI` placeholders in .env file
 
 **Functions:**
 - `process_files_interactive(file_paths...)` - Process specific files
-- `process_env_files_interactive(search_dir, max_depth)` - Find and process .env files
 - `extract_context_comments(file, line_number)` - Extract comments before a variable
 
 ### `service_enablement.sh`
-Helper script for managing service enablement through individual environment variables. Each service can be enabled/disabled independently using EXIST_ENABLE_* variables.
+Helper script for managing service enablement through individual environment variables. Each service can be enabled/disabled independently using `EXIST_ENABLE_*` variables.
 
 **Features:**
 - Individual service control via environment variables
@@ -117,7 +183,7 @@ EXIST_ENABLE_HOSTING_PORTAINER=false
 ```
 
 ### `generate_password.sh`
-Generates a secure 24-character password using mixed case letters, numbers, and safe special characters.
+Generates secure passwords of various lengths using mixed case letters, numbers, and safe special characters.
 
 **Usage:**
 ```bash
@@ -126,11 +192,13 @@ Generates a secure 24-character password using mixed case letters, numbers, and 
 
 # Source in another script
 source generate_password.sh
-password=$(generate_24_char_password)
+password=$(generate_password 24)  # Generate 24-character password
+password_24=$(generate_24_char_password)  # Convenience function
 ```
 
-**Function:**
-- `generate_24_char_password()` - Returns a 24-character secure password
+**Functions:**
+- `generate_password(length)` - Returns a secure password of specified length
+- `generate_24_char_password()` - Convenience function for 24-character passwords
 
 ### `generate_hex_key.sh`
 Generates hexadecimal keys of any specified length (0-9, a-f) suitable for API keys, tokens, and encryption keys.
@@ -154,112 +222,41 @@ hex_key_custom=$(generate_hex_key 48)
 - `generate_32_char_hex()` - Convenience function for 32-character hex keys
 - `generate_64_char_hex()` - Convenience function for 64-character hex keys
 
-### `create_env_generated.sh`
-Creates `.env.generated` files from all `.env.example` files found recursively in a directory structure.
+## Placeholder Processing
 
-**Usage:**
-```bash
-# Create all .env.generated files in current directory
-./create_env_generated.sh
+The system supports several types of placeholders that are automatically processed:
 
-# Create .env.generated files in specific directory
-./create_env_generated.sh /path/to/project
+### Interactive Placeholders
+- `EXIST_CLI` - Prompts user for input during processing
 
-# Create files with specific depth
-./create_env_generated.sh --depth 0      # Current directory only
-./create_env_generated.sh --depth 1      # Current + 1 level
-./create_env_generated.sh --depth 2      # Current + 2 levels (default)
+### Generated Values
+- `EXIST_24_CHAR_PASSWORD` - Generates secure 24-character passwords
+- `EXIST_32_CHAR_HEX_KEY` - Generates 32-character hex keys  
+- `EXIST_64_CHAR_HEX_KEY` - Generates 64-character hex keys
+- `EXIST_TIMESTAMP` - Generates current timestamp (YYYYMMDD_HHMMSS)
+- `EXIST_UUID` - Generates UUID (or timestamp-based fallback)
 
-# Dry run - show what would be created without creating files
-./create_env_generated.sh --dry-run
-./create_env_generated.sh --dry-run --depth 0
-
-# Show help
-./create_env_generated.sh --help
-```
-
-**Functions:**
-- `create_env_generated_files(search_dir, max_depth)` - Creates .env.generated files from .env.example files
-- `list_env_generated_files(search_dir, max_depth)` - Lists what files would be created (dry run mode)
-
-**Features:**
-- Skips existing `.env.generated` files
-- Creates necessary directories
-- Provides detailed progress and summary
-- Error handling and validation
-
-### `process_env_placeholders.sh`
-Processes `.env.generated` files and replaces placeholder variables with actual generated values or environment variables.
-
-**Usage:**
-```bash
-# Set required environment variables
-export EXIST_DEFAULT_EMAIL='admin@example.com'
-export EXIST_DEFAULT_USERNAME='admin'
-
-# Process all .env.generated files in current directory
-./process_env_placeholders.sh
-
-# Process .env.generated files in specific directory
-./process_env_placeholders.sh /path/to/project
-
-# Process files with specific depth
-./process_env_placeholders.sh --depth 0      # Current directory only
-./process_env_placeholders.sh --depth 1      # Current + 1 level
-./process_env_placeholders.sh --depth 2      # Current + 2 levels (default)
-
-# Check environment variable status
-./process_env_placeholders.sh --status
-
-# Show help
-./process_env_placeholders.sh --help
-```
-
-**Placeholder Replacements:**
-- `EXIST_24_CHAR_PASSWORD` → Generated 24-character secure password
-- `EXIST_32_CHAR_HEX_KEY` → Generated 32-character hex key
-- `EXIST_64_CHAR_HEX_KEY` → Generated 64-character hex key
-- `EXIST_DEFAULT_EMAIL` → Value from `$EXIST_DEFAULT_EMAIL` environment variable
-- `EXIST_DEFAULT_USERNAME` → Value from `$EXIST_DEFAULT_USERNAME` environment variable
-
-**Functions:**
-- `process_env_generated_file(file)` - Process a single .env.generated file
-- `process_all_env_generated_files(search_dir, max_depth)` - Process all .env.generated files in directory
-- `show_env_status()` - Display current environment variable values
+### Dynamic Variables
+- `EXIST_DEFAULT_*` - Any variable starting with this prefix in root `.env` automatically propagates to all service configurations
 
 ## Integration
 
-These scripts are designed to be sourced by the main `existential.sh` script in the project root, providing modular functionality for environment file processing and other automation tasks.
+These scripts are integrated into the main `existential.sh` workflow:
 
-The generator scripts are specifically designed to replace placeholder variables in `.env.example` files:
-- `EXIST_24_CHAR_PASSWORD` → Use `generate_password.sh` or `process_env_placeholders.sh`
-- `EXIST_32_CHAR_HEX_KEY` → Use `generate_hex_key.sh 32` or `process_env_placeholders.sh`
-- `EXIST_64_CHAR_HEX_KEY` → Use `generate_hex_key.sh 64` or `process_env_placeholders.sh`
-- `EXIST_DEFAULT_EMAIL` → Set environment variable, use `process_env_placeholders.sh`
-- `EXIST_DEFAULT_USERNAME` → Set environment variable, use `process_env_placeholders.sh`
-
-**Complete Workflow:**
-1. `find_env_examples.sh` - Find all .env.example files (with depth control)
-2. `create_env_generated.sh` - Create .env.generated files from .env.example (with depth control)
-3. `process_env_placeholders.sh` - Replace placeholders with actual values (with depth control)
-
-**Depth Behavior Examples:**
+```bash
+./existential.sh           # Uses unified_example_processor.sh
+./existential.sh env-only   # Processes only .env.example files
+./existential.sh services   # Uses service_enablement.sh
 ```
-. (root)                    ← Depth 0: 1 file (.env.example)
-├── services/               ← Depth 1: 0 files (no .env.example here)
-│   ├── nocoDB/             ← Depth 2: 17 files (.env.example files)
-│   ├── appsmith/           
-│   └── ...
-├── hosting/                ← Depth 1: 0 files
-│   ├── portainer/          ← Depth 2: included in 17 files
-│   └── ...
-└── .env.example            
 
-# Usage examples:
-find_env_examples "." 0     # Only root .env.example (1 file)
-find_env_examples "." 1     # No files (no .env.example at depth 1)  
-find_env_examples "." 2     # All service .env.example files (17 files)
-```
+## Development Notes
+
+All scripts follow these patterns:
+- **Cross-platform compatibility**: Work on Windows (Git Bash/WSL), Mac, and Linux
+- **Safe operations**: Never overwrite existing files without explicit confirmation
+- **Comprehensive error handling**: Clear error messages and graceful failures
+- **Modular design**: Can be sourced by other scripts or run independently
+- **Consistent interfaces**: Similar parameter patterns across scripts
 
 ## Adding New Scripts
 

@@ -1,7 +1,17 @@
 # Existential
-Personal productivity suite targetting self-actualization. Remember everything, plan anything, empathize with yourself, simplify and automate tasks. The core of Existential is the individual. A collection of free open source software for AI tools, workflow automation, note-taking, file management, and various productivity applications, all of which can be used commercially, in case you want to run a business.
 
-### Dashboard (courtesy of [dashy](https://opensource.org/license/mit))
+Personal productivity suite targeting self-actualization. Remember everything, plan anything, empathize with yourself, simplify and automate tasks. The core of Existential is the individual. A collection of free open source software for AI tools, workflow automation, note-taking, file management, and various productivity applications, all of which can be used commercially, in case you want to run a business.
+
+## 🚀 Quick Start
+
+Get your entire Existential environment configured in one command:
+
+```bash
+./existential.sh
+```
+
+## 📊 Dashboard
+### (courtesy of [dashy](https://opensource.org/license/mit))
 ![Dashy](./services/dashy/dashy.png)
 
 ## Examples
@@ -67,7 +77,7 @@ https://www.docker.com/
 
 ### Run
 - Run `./existential.sh`
-- Follow the steps to configure defaults
+- Follow the steps to configure defaults (see [dynamic variables](./automations/existential/README.md#dynamic-variables))
 - See [Hosting](/hosting/README.md#enabledisable-services) to enable/disable services
 - `docker-compose up` to run all configured services
 
