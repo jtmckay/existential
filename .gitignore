@@ -17,6 +17,8 @@
 **/node_modules
 
 docker-compose.yml
+docker-compose.diff.yml
+docker-compose.generated.yml
 
 # Bridge Config
 **/bridge.config.json

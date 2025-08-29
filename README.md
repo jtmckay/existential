@@ -69,18 +69,11 @@ Self [hosting](/hosting/README.md).
 ##### Docker
 https://www.docker.com/
 
-##### An S3 compatible API like MinIO for file triggers
-See [/hosting/README.md](/hosting/README.md)
-
-#### Setup
-- Copy .example files and fill in your values eg: `cp .env.example .env`
-- Setup the docker network
-- `docker network create exist --subnet=10.0.0.0/24`
-
-#### Run
-- `docker-compose up -d` in each service directory you want to run.
-OR
-- Coming soon `./deployStack.sh` to deploy each service marked in main .env
+#### Getting started
+- Run `./existential.sh`
+- Follow the steps to configure defaults
+- Enable/disable services in the main `.env`
+- `docker-compose up` to run all configured services
 
 ## Third-Party Software
 

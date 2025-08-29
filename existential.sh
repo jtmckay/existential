@@ -277,11 +277,37 @@ run_existential_workflow() {
     echo "📋 Step 9: Generating docker-compose.yml from enabled services..."
     
     local compose_output="docker-compose.yml"
+    local generate_diff=false
+    
+    # Check if docker-compose.yml already exists
+    if [ -f "$compose_output" ]; then
+        echo "ℹ️  Existing $compose_output found, generating docker-compose.generated.yml instead"
+        compose_output="docker-compose.generated.yml"
+        generate_diff=true
+    fi
+    
     if "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$compose_output" > /dev/null 2>&1; then
         if [ -f "$compose_output" ]; then
             local service_count=$(grep -c "^  [a-zA-Z]" "$compose_output" 2>/dev/null || echo "0")
             echo "✅ Successfully generated $compose_output with $service_count services"
             echo "📄 Docker Compose file ready for: docker compose up"
+            
+            # Generate diff file if requested
+            if [ "$generate_diff" = true ]; then
+                local diff_file="docker-compose.diff.yml"
+                echo ""
+                echo "🔍 Generating difference file: $diff_file"
+                
+                if diff -u "docker-compose.yml" "$compose_output" > "$diff_file" 2>/dev/null; then
+                    # No differences found
+                    echo "NO CHANGES" > "$diff_file"
+                    echo "ℹ️  No changes detected between docker-compose.yml and $compose_output"
+                else
+                    # Differences found
+                    local change_count=$(grep -c "^[+-]" "$diff_file" 2>/dev/null || echo "0")
+                    echo "📊 Generated $diff_file with $change_count line changes"
+                fi
+            fi
         else
             echo "⚠️  Docker Compose generation completed but no output file created"
         fi
@@ -300,7 +326,10 @@ run_existential_workflow() {
     echo "  • Variables configured: $variables_processed"
     echo "  • Top-level .env: $([ -f "$top_level_env" ] && echo "✅ Ready" || echo "❌ Not found")"
     echo "  • Service .env files: ${#service_env_files[@]}"
-    echo "  • Docker Compose: $([ -f "$compose_output" ] && echo "✅ Generated" || echo "❌ Not generated")"
+    echo "  • Docker Compose: $([ -f "$compose_output" ] && echo "✅ Generated ($compose_output)" || echo "❌ Not generated")"
+    if [ "$generate_diff" = true ] && [ -f "docker-compose.diff.yml" ]; then
+        echo "  • Diff file: ✅ Generated (docker-compose.diff.yml)"
+    fi
     echo ""
     
     # Show service enablement status if .env file exists
@@ -409,7 +438,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "  6. Find and create service-level .env files (depth 2)"
             echo "  7. Interactively replace EXIST_CLI in service .env files"
             echo "  8. Automatically replace EXIST_* in service .env files"
-            echo "  9. Generate docker-compose.yml from enabled services"
+            echo "  9. Generate docker-compose.yml from enabled services (or .generated.yml if exists)"
             echo " 10. Report completion summary and thank you"
             echo ""
             echo "Examples:"
@@ -430,6 +459,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "  • Loads environment variables for immediate use"
             echo "  • Processes both top-level and service configurations"
             echo "  • Individual service enable/disable control"
+            echo "  • Automatic Docker Compose generation with diff tracking"
             ;;
         "services")
             shift  # Remove 'services' from arguments
