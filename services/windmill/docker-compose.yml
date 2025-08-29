@@ -1,11 +1,4 @@
 
-x-logging: &default-logging
-  driver: "json-file"
-  options:
-    max-size: "${LOG_MAX_SIZE:-20m}"
-    max-file: "${LOG_MAX_FILE:-10}"
-    compress: "true"
-
 services:
   windmill_pg:
     container_name: windmill_pg
@@ -27,7 +20,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    logging: *default-logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILE:-10}"
+        compress: "true"
 
   windmill_server:
     container_name: windmill_server
@@ -50,7 +48,12 @@ services:
         condition: service_healthy
     volumes:
       - worker_logs:/tmp/windmill/logs
-    logging: *default-logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILE:-10}"
+        compress: "true"
 
   windmill_admin_init:
     container_name: windmill_admin_init
@@ -104,7 +107,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - worker_dependency_cache:/tmp/windmill/cache
       - worker_logs:/tmp/windmill/logs
-    logging: *default-logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILE:-10}"
+        compress: "true"
 
   ## This worker is specialized for "native" jobs. Native jobs run in-process and thus are much more lightweight than other jobs
   windmill_worker_native:
@@ -132,7 +140,12 @@ services:
         condition: service_healthy
     volumes:
       - worker_logs:/tmp/windmill/logs
-    logging: *default-logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILE:-10}"
+        compress: "true"
   # This worker is specialized for reports or scraping jobs. It is assigned the "reports" worker group which has an init script that installs chromium and can be targeted by using the "chromium" worker tag.
   # windmill_worker_reports:
   #   image: ${WINDMILL_IMAGE}
@@ -170,7 +183,12 @@ services:
     #   - 3301:3001
     volumes:
       - lsp_cache:/pyls/.cache
-    logging: *default-logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILE:-10}"
+        compress: "true"
 
 volumes:
   windmill_db_data: # windmill_db_data dataset will need to be created in TrueNAS
