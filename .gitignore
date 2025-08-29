@@ -1,4 +1,5 @@
 **/.env
+**/.env.generated
 
 **/minio_data
 **/n8n_data
@@ -14,6 +15,8 @@
 **/whisper_data
 
 **/node_modules
+
+docker-compose.yml
 
 # Bridge Config
 **/bridge.config.json
