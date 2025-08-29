@@ -303,8 +303,8 @@ get_compose_services_only() {
     }' "$compose_file"
 }
 
-# Function to add env_file and profiles to services
-add_env_file_and_profiles_to_services() {
+# Function to add profiles to services and update relative volume paths and env_file paths
+add_profiles_to_services() {
     local service_path="$1"
     local services_content="$2"
     
@@ -316,59 +316,74 @@ add_env_file_and_profiles_to_services() {
     local category=$(echo "$service_path" | cut -d'/' -f1)
     local service_name=$(echo "$service_path" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
     
-    # First, remove any existing env_file declarations from the content
-    local cleaned_content
-    cleaned_content=$(echo "$services_content" | awk '
-    BEGIN { 
-        in_env_file = 0
-        skip_line = 0
-    }
-    /^[[:space:]]*env_file:[[:space:]]*$/ { 
-        in_env_file = 1
-        skip_line = 1
-        next
-    }
-    in_env_file && /^[[:space:]]*-/ {
-        skip_line = 1
-        next
-    }
-    in_env_file && !/^[[:space:]]*-/ && !/^[[:space:]]*$/ {
-        in_env_file = 0
-        skip_line = 0
-    }
-    in_env_file && /^[[:space:]]*$/ {
-        skip_line = 1
-        next
-    }
-    !skip_line {
-        if (in_env_file && !/^[[:space:]]*-/) {
-            in_env_file = 0
-        }
-        print $0
-    }
-    {
-        if (!skip_line && !in_env_file) {
-            skip_line = 0
-        }
-    }')
+    # Handle edge case where category and service_name are the same
+    local profiles_to_add="all $category"
+    if [ "$category" != "$service_name" ]; then
+        profiles_to_add="$profiles_to_add $service_name"
+    fi
     
-    # Process the cleaned services content line by line and update relative volume paths
-    echo "$cleaned_content" | awk -v service_path="$service_path" -v category="$category" -v service_name="$service_name" '
+    # Process the services content line by line and update relative volume paths and env_file paths
+    echo "$services_content" | awk -v service_path="$service_path" -v profiles_to_add="$profiles_to_add" '
     BEGIN {
         in_volumes = 0
+        in_env_file = 0
         service_started = 0
+        current_service = ""
+        split(profiles_to_add, profiles_array, " ")
     }
     
     # Service definition line
     /^[[:space:]]{2}[a-zA-Z0-9_-]+:[[:space:]]*$/ {
+        # If we had a previous service, add profiles to it before starting new one
+        if (service_started && current_service != "") {
+            print "    profiles:"
+            for (i in profiles_array) {
+                if (profiles_array[i] != "") {
+                    print "      - " profiles_array[i]
+                }
+            }
+        }
+        
         service_started = 1
+        current_service = $0
         print $0
-        print "    env_file:"
-        print "      - " service_path "/.env"
-        print "    profiles:"
-        print "      - all"
-        print "      - " category
-        print "      - " service_name
+        next
+    }
+    
+    # env_file section start
+    service_started && /^[[:space:]]*env_file:[[:space:]]*$/ {
+        in_env_file = 1
+        print $0
+        next
+    }
+    
+    # env_file line with relative path (starts with ./ or just . or filename without path)
+    in_env_file && /^[[:space:]]*-[[:space:]]*[^\/]/ {
+        # Extract the env file path
+        line = $0
+        # Remove leading whitespace and dash
+        gsub(/^[[:space:]]*-[[:space:]]*/, "", line)
+        
+        # If line doesn'\''t start with /, it'\''s relative, so prefix with service path
+        if (substr(line, 1, 1) != "/") {
+            print "      - " service_path "/" line
+        } else {
+            # Absolute path, keep as is
+            print "      - " line
+        }
+        next
+    }
+    
+    # End of env_file section when we hit another service-level key
+    in_env_file && /^[[:space:]]{2,}[a-zA-Z]/ && !/^[[:space:]]*-/ {
+        in_env_file = 0
+        print $0
+        next
+    }
+    
+    # Any other line in env_file section (absolute paths, etc.)
+    in_env_file {
+        print $0
         next
     }
     
@@ -455,7 +470,61 @@ add_env_file_and_profiles_to_services() {
     # All other lines
     {
         print $0
+    }
+    
+    # Add profiles to the last service at the end
+    END {
+        if (service_started && current_service != "") {
+            print "    profiles:"
+            for (i in profiles_array) {
+                if (profiles_array[i] != "") {
+                    print "      - " profiles_array[i]
+                }
+            }
+        }
     }'
+}
+
+# Function to resolve environment variables in docker-compose content
+resolve_env_variables() {
+    local content="$1"
+    local service_path="$2"
+    
+    # Process content line by line to resolve ${VARIABLE} and ${VARIABLE:-default} patterns
+    echo "$content" | while IFS= read -r line; do
+        resolved_line="$line"
+        
+        # Find all ${...} patterns in the line
+        while [[ "$resolved_line" =~ \$\{([^}]+)\} ]]; do
+            local full_match="${BASH_REMATCH[0]}"
+            local var_expr="${BASH_REMATCH[1]}"
+            local var_name=""
+            local default_value=""
+            
+            # Check if it has a default value (VARIABLE:-default format)
+            if [[ "$var_expr" =~ ^([^:]+):-(.*)$ ]]; then
+                var_name="${BASH_REMATCH[1]}"
+                default_value="${BASH_REMATCH[2]}"
+            else
+                var_name="$var_expr"
+                default_value=""
+            fi
+            
+            # Get the actual value from environment
+            local actual_value
+            actual_value=$(eval echo "\$${var_name}")
+            
+            # Use default if variable is empty or unset
+            if [ -z "$actual_value" ]; then
+                actual_value="$default_value"
+            fi
+            
+            # Replace the placeholder with the actual value
+            resolved_line="${resolved_line//$full_match/$actual_value}"
+        done
+        
+        echo "$resolved_line"
+    done
 }
 
 # Function to generate merged docker-compose.yml based on enabled services
@@ -469,6 +538,7 @@ generate_compose_override() {
     
     echo "# Generated docker-compose.yml based on enabled services"
     echo "# This file is auto-generated from individual service docker-compose.yml files"
+    echo "# Environment variables have been resolved to their actual values"
     echo "# Services enabled: ${#enabled_services[@]}"
     echo "# Generated on: $(date)"
     echo ""
@@ -491,10 +561,18 @@ generate_compose_override() {
     # Process each enabled service
     for service in "${enabled_services[@]}"; do
         local compose_file="$search_dir/$service/docker-compose.yml"
+        local env_file="$search_dir/$service/.env"
         
         if [ ! -f "$compose_file" ]; then
             echo "  # Warning: docker-compose.yml not found for $service" >&2
             continue
+        fi
+        
+        # Source the service-specific .env file if it exists
+        if [ -f "$env_file" ]; then
+            set -a  # Automatically export all variables
+            source "$env_file"
+            set +a  # Turn off automatic export
         fi
         
         echo ""
@@ -505,37 +583,35 @@ generate_compose_override() {
         services_content=$(get_compose_services_only "$compose_file")
         
         if [ -n "$services_content" ]; then
-            # Add env_file and profiles to each service in the content
-            add_env_file_and_profiles_to_services "$service" "$services_content"
+            # Add profiles to each service in the content
+            local enhanced_services_content
+            enhanced_services_content=$(add_profiles_to_services "$service" "$services_content")
+            
+            # Resolve environment variables in the content
+            local resolved_services_content
+            resolved_services_content=$(resolve_env_variables "$enhanced_services_content" "$service")
+            
+            echo "$resolved_services_content"
         else
             echo "  # No services found in $compose_file"
         fi
         
-        # Extract volumes section - only get actual named volume definitions
+        # Extract volumes section - get full volume definitions with their configuration
         local volumes_section
         volumes_section=$(awk '
-        /^volumes:/ { in_volumes = 1; depth = 0; next }
+        /^volumes:/ { in_volumes = 1; next }
         /^[a-zA-Z]/ && in_volumes && !/^[[:space:]]/ { in_volumes = 0 }
         in_volumes {
-            # Count indentation to determine if this is a top-level volume definition
-            indent = match($0, /[^ ]/) - 1
-            if (indent == 2 && /^[[:space:]]*[a-zA-Z0-9_-]+:/) {
-                # This is a volume name at the correct indentation level
-                gsub(/:.*$/, "", $1)
-                gsub(/^[[:space:]]*/, "", $1)
-                # Skip known driver option keys
-                if ($1 != "driver" && $1 != "driver_opts" && $1 != "external") {
-                    print $1
-                }
-            }
+            print $0
         }' "$compose_file")
         
         if [ -n "$volumes_section" ]; then
-            while IFS= read -r volume; do
-                # Remove trailing colon
-                volume="${volume%:}"
-                all_volumes+=("$volume")
-            done <<< "$volumes_section"
+            # Resolve variables in the volumes section content
+            local resolved_volumes_section
+            resolved_volumes_section=$(resolve_env_variables "$volumes_section" "$service")
+            
+            # Add to global volumes collection (we'll deduplicate later)
+            all_volumes+=("$resolved_volumes_section")
         fi
         
         # Check if this compose file has networks
@@ -548,10 +624,63 @@ generate_compose_override() {
     if [ ${#all_volumes[@]} -gt 0 ]; then
         echo ""
         echo "volumes:"
-        # Remove duplicates and sort
-        printf '%s\n' "${all_volumes[@]}" | sort -u | while IFS= read -r volume; do
-            echo "  $volume:"
+        
+        # Create a temporary file to track declared volumes
+        local temp_file=$(mktemp)
+        local current_volume=""
+        local in_driver_opts=false
+        
+        # Process each volume section and merge them intelligently
+        for volume_section in "${all_volumes[@]}"; do
+            if [ -n "$volume_section" ]; then
+                echo "$volume_section" | while IFS= read -r line; do
+                    if [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_-]+):[[:space:]]*(.*)$ ]]; then
+                        local volume_name="${BASH_REMATCH[1]}"
+                        local volume_config="${BASH_REMATCH[2]}"
+                        current_volume="$volume_name"
+                        in_driver_opts=false
+                        
+                        # Check if we've already declared this volume
+                        if ! grep -q "^$volume_name$" "$temp_file" 2>/dev/null; then
+                            echo "$volume_name" >> "$temp_file"
+                            echo "  $volume_name:"
+                            if [ -n "$volume_config" ] && [ "$volume_config" != "null" ]; then
+                                # Handle inline configuration
+                                if [[ "$volume_config" =~ ^#.*$ ]]; then
+                                    echo "    $volume_config"
+                                else
+                                    echo "    $volume_config"
+                                fi
+                            fi
+                        fi
+                    elif [[ "$line" =~ ^[[:space:]]*driver_opts:[[:space:]]*$ ]]; then
+                        in_driver_opts=true
+                        echo "    driver_opts:"
+                    elif [[ "$line" =~ ^[[:space:]]*([a-zA-Z_]+):[[:space:]]*(.*)$ ]] && [ -n "$current_volume" ]; then
+                        # This is a configuration key for the volume
+                        local config_key="${BASH_REMATCH[1]}"
+                        local config_value="${BASH_REMATCH[2]}"
+                        if [ "$in_driver_opts" = true ]; then
+                            echo "      $config_key: $config_value"
+                        else
+                            echo "    $config_key: $config_value"
+                        fi
+                    elif [[ "$line" =~ ^[[:space:]]+(.+)$ ]] && [ -n "$current_volume" ]; then
+                        # This is a continuation line for volume configuration
+                        local config_line="${BASH_REMATCH[1]}"
+                        if [[ "$config_line" =~ ^#.*$ ]]; then
+                            # Comment line
+                            echo "    $config_line"
+                        else
+                            echo "    $config_line"
+                        fi
+                    fi
+                done
+            fi
         done
+        
+        # Clean up temporary file
+        rm -f "$temp_file"
     fi
     
     # Always add the exist network
