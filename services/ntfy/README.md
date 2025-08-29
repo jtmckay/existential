@@ -73,7 +73,7 @@ curl -u rabbitmq:super-secret-password \
 ```bash
 curl -d "Backup completed successfully" \
   -H "Authorization: Bearer tk_REPLACE_BOT_TOKEN" \
-  http://192.168.1.10:36880/exist/backup
+  http://10.0.0.10:36880/exist/backup
 ```
 
 ## Client Setup
@@ -84,9 +84,9 @@ curl -d "Backup completed successfully" \
 
 ## Services
 
-- **Web Interface**: http://192.168.1.10:36880
-- **API Endpoint**: http://192.168.1.10:36880/{topic}
-- **Health Check**: http://192.168.1.10:36880/v1/health
+- **Web Interface**: http://10.0.0.10:36880
+- **API Endpoint**: http://10.0.0.10:36880/{topic}
+- **Health Check**: http://10.0.0.10:36880/v1/health
 
 # Debugging
 #### List users

@@ -48,4 +48,4 @@ Select all the drives you want. I did mirror, for full redundancy.
 In order for the docker host/containers to write to the TrueNAS share, you MUST update the access. Ensure Maproot User, and Maproot group are set to root.
 
 #### Helpful manual mount to explore TrueNAS data
-`sudo mount -t nfs -o rw,nolock 192.168.1.10:/path/in/nas /mnt/test`
+`sudo mount -t nfs -o rw,nolock 10.0.0.10:/path/in/nas /mnt/test`

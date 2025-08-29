@@ -1,0 +1,670 @@
+# Generated docker-compose.yml based on enabled services
+# This file is auto-generated from individual service docker-compose.yml files
+# Services enabled: 10
+# Generated on: Fri Aug 29 07:18:14 AM UTC 2025
+
+version: '3.8'
+
+services:
+
+  # Services from ai/libreChat
+  librechat-api:
+    container_name: librechat-api
+    image: ghcr.io/danny-avila/librechat-dev-api:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 23080:3080
+    depends_on:
+      - librechat-mongodb
+      - librechat-rag
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+    environment:
+      # - DEBUG_LOGGING=true        # write detailed debug files
+      # - DEBUG_CONSOLE=true        # (optional) verbose to stdout
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://librechat-mongodb:27017/LibreChat
+      - MEILI_HOST=http://librechat-meilisearch:7700
+      - RAG_PORT=${RAG_PORT:-8000}
+      - RAG_API_URL=http://librechat-rag:${RAG_PORT:-8000}
+    volumes:
+      - type: bind
+        source: ./ai/libreChat/librechat.yaml
+        target: /app/librechat.yaml
+      - ./ai/libreChat/images:/app/client/public/images
+      - ./ai/libreChat/uploads:/app/uploads
+      - ./ai/libreChat/logs:/app/api/logs
+
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+  librechat-client:
+    container_name: librechat-client
+    image: nginx:1.27.0-alpine
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 44480:80
+      - 44443:443
+    depends_on:
+      - librechat-api
+    volumes:
+      - ./ai/libreChat/client/nginx.conf:/etc/nginx/conf.d/default.conf
+
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+  librechat-mongodb:
+    container_name: librechat-mongodb
+    # ports:  # Uncomment this to access mongodb from outside docker, not safe in deployment
+    #   - 27018:27017
+    image: mongo
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - ./ai/libreChat/data-node:/data/db
+    command: mongod --noauth
+
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+  librechat-meilisearch:
+    container_name: librechat-meilisearch
+    image: getmeili/meilisearch:v1.12.3
+    restart: unless-stopped
+    networks:
+      - exist
+    # ports: # Uncomment this to access meilisearch from outside docker
+    #   - 7700:7700 # if exposing these ports, make sure your master key is not the default value
+    environment:
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - ./ai/libreChat/meili_data_v1.12:/meili_data
+
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+  librechat-vectordb:
+    container_name: librechat-vectordb
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      POSTGRES_DB: librechat
+      POSTGRES_USER: librechat
+      POSTGRES_PASSWORD: ${LIBRECHAT_PG_PASSWORD}
+    volumes:
+      - ./ai/libreChat/librechat_pg_data:/var/lib/postgresql/data
+  
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+  librechat-rag:
+    container_name: librechat-rag
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DB_HOST=librechat-vectordb
+      - DB_PORT=5432
+      - POSTGRES_DB=librechat
+      - POSTGRES_USER=librechat
+      - POSTGRES_PASSWORD=${LIBRECHAT_PG_PASSWORD}
+      - RAG_PORT=${RAG_PORT:-8000}
+      - RAG_UPLOAD_DIR=/app/uploads
+      - EMBEDDINGS_PROVIDER=ollama
+      - EMBEDDINGS_MODEL=nomic-embed-text
+    depends_on:
+      - librechat-vectordb
+    env_file:
+      - ai/libreChat/.env
+    profiles:
+      - all
+      - ai
+      - librechat
+
+  # Services from ai/ollama
+  # LLM and OCR
+  # Status check at http://localhost:11434/
+  ollama:
+    container_name: ollama
+    image: ollama/ollama
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "11434:11434" # Ollama's default API port
+    runtime: nvidia ## NVIDIA GPU required obviously
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./ai/ollama/ollama_data:/root/.ollama
+      - ./ai/ollama/entrypoint.sh:/entrypoint.sh # Mount the script
+    entrypoint: ["/entrypoint.sh"] # Use the custom script
+    env_file:
+      - ai/ollama/.env
+    profiles:
+      - all
+      - ai
+      - ollama
+
+  # Services from hosting/portainer
+  portainer-init:
+    container_name: portainer_init
+    image: alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "echo \"$ADMIN_PASSWORD\" > /shared/portainer_password"
+    volumes:
+      - ./hosting/portainer/portainer_data:/data
+      - ./hosting/portainer/portainer_password:/shared
+    environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    restart: "no"
+
+    env_file:
+      - hosting/portainer/.env
+    profiles:
+      - all
+      - hosting
+      - portainer
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    depends_on:
+      - portainer-init
+    ports:
+      - ./hosting/portainer/"8000:8000"
+      - ./hosting/portainer/"9443:9443"
+    # deploy:
+    #   placement:
+    #     constraints:
+    #       - node.role == manager
+    #   replicas: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./hosting/portainer/portainer_data:/data
+      - ./hosting/portainer/portainer_password:/shared:ro
+    networks:
+      - exist
+    restart: unless-stopped
+    command: >
+      -./hosting/portainer/H unix:///var/run/docker.sock
+      --admin-password-file /shared/portainer_password
+    env_file:
+      - hosting/portainer/.env
+    profiles:
+      - all
+      - hosting
+      - portainer
+
+  # Services from nas/minIO
+  # Object storage for Nextcloud
+  # UI interface at http://localhost:9001
+  minio:
+    container_name: minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./nas/minIO/minio_data:/data # Path to the mounted NFS share on the Proxmox host
+      - ./nas/minIO/../RabbitMQ/ssl/ca.pem:/etc/minio/certs/rabbitmq-ca.pem:ro
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_DOMAIN=${MINIO_DOMAIN}
+      - MINIO_SERVER_URL=${MINIO_SERVER_URL}
+      - MINIO_NOTIFY_MQTT_ENABLE=on
+      - MINIO_NOTIFY_MQTT_BROKER=${RABBITMQ_BROKER}
+      - MINIO_NOTIFY_MQTT_TOPIC=minio
+      - MINIO_NOTIFY_MQTT_USERNAME=${RABBITMQ_USERNAME}
+      - MINIO_NOTIFY_MQTT_PASSWORD=${RABBITMQ_PASSWORD}
+      - MINIO_NOTIFY_MQTT_QOS=1
+      - MINIO_NOTIFY_MQTT_CLIENT_ID=minio
+      - MINIO_NOTIFY_MQTT_RECONNECT_SECONDS=5
+      - MINIO_NOTIFY_MQTT_KEEP_ALIVE_SECONDS=60
+      - MINIO_NOTIFY_MQTT_TLS_SKIP_VERIFY=false
+      - MINIO_NOTIFY_MQTT_TLS_CA_PATH=/etc/minio/certs/rabbitmq-ca.pem
+    command: server /data --console-address :9001
+    env_file:
+      - nas/minIO/.env
+    profiles:
+      - all
+      - nas
+      - minio
+
+  # Services from nas/redis
+  redis:
+    container_name: redis
+    image: redis:alpine
+    restart: unless-stopped
+    networks:
+      - exist
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./nas/redis/redis_data:/data
+    env_file:
+      - nas/redis/.env
+    profiles:
+      - all
+      - nas
+      - redis
+
+  # Services from services/dashy
+  dashy:
+    container_name: dashy
+    image: 'lissy93/dashy:latest'
+    restart: unless-stopped
+    volumes:
+        - ./services/dashy/'./dashy-conf.yml:/app/user-data/conf.yml'
+    ports:
+        - ./services/dashy/'4000:8080'
+    networks:
+      - exist
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - services/dashy/.env
+    profiles:
+      - all
+      - services
+      - dashy
+
+  # Services from services/nocoDB
+  nocodb_postgres: 
+    container_name: nocodb_postgres
+    image: postgres:16.6
+    restart: unless-stopped
+    networks:
+      - exist
+    environment: 
+      POSTGRES_DB: nocodb_postgres
+      POSTGRES_PASSWORD: ${NOCODB_POSTGRES_PASSWORD}
+      POSTGRES_USER: ${NOCODB_POSTGRES_USER}
+    volumes:
+      - ./services/nocoDB/nocodb_pg_data:/var/lib/postgresql/data
+      # - ./ncpg_data:/var/lib/postgresql/data # Local volume for Postgres data
+    healthcheck:
+      interval: 10s
+      retries: 10
+      test: "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+      timeout: 2s
+
+  # UI interface at http://localhost:11580/
+  nocodb: 
+    container_name: nocodb
+    image: "nocodb/nocodb:latest"
+    restart: unless-stopped
+    networks:
+      - exist
+    depends_on: 
+      nocodb_postgres: 
+        condition: service_healthy
+    environment: 
+      NC_DB: "pg://nocodb_postgres:5432?u=${NOCODB_POSTGRES_USER}&p=${NOCODB_POSTGRES_PASSWORD}&d=nocodb_postgres"
+      NC_ADMIN_EMAIL: ${NOCODB_ADMIN_EMAIL}
+      NC_ADMIN_PASSWORD: ${NOCODB_ADMIN_PASSWORD}
+    ports: 
+      - "11580:8080"
+    volumes: 
+      - nocodb_data:/usr/app/data
+      # - ./nc_data:/usr/app/data # Local volume for NocoDB data
+
+  # Services from services/ntfy
+  ntfy:
+    container_name: ntfy
+    image: binwiederhier/ntfy:v2.14
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 36880:80
+    command:
+      - serve
+    environment:
+      - TZ=${NTFY_TZ}    # optional: set desired timezone
+    volumes:
+      - ./services/ntfy/ntfy_cache:/var/lib/ntfy
+      - ./services/ntfy/ntfy-config:/etc/ntfy:ro
+    healthcheck: # optional: remember to adapt the host:port to your environment
+        test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+        interval: 60s
+        timeout: 10s
+        retries: 3
+        start_period: 40s
+    env_file:
+      - services/ntfy/.env
+    profiles:
+      - all
+      - services
+      - ntfy
+
+  # Services from services/vikunja
+  vikunja:
+    container_name: vikunja
+    image: vikunja/vikunja
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 3456:3456
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: ${VIKUNJA_SERVICE_PUBLICURL}
+      VIKUNJA_DATABASE_HOST: ${VIKUNJA_DATABASE_HOST}
+      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+      VIKUNJA_DATABASE_TYPE: ${VIKUNJA_DATABASE_TYPE}
+      VIKUNJA_DATABASE_USER: ${VIKUNJA_DATABASE_USER}
+      VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: ${VIKUNJA_SERVICE_ENABLEREGISTRATION}
+    volumes:
+      - ./services/vikunja/vikunja_data:/app/vikunja/files
+    depends_on:
+      vikunja_db:
+        condition: service_healthy
+
+    env_file:
+      - services/vikunja/.env
+    profiles:
+      - all
+      - services
+      - vikunja
+  vikunja_db:
+    container_name: vikunja_db
+    image: postgres:17
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      POSTGRES_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+      POSTGRES_USER: ${VIKUNJA_DATABASE_USER}
+    volumes:
+      - ./services/vikunja/vikunja_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U $$POSTGRES_USER"]
+      interval: 2s
+      start_period: 30s
+
+    env_file:
+      - services/vikunja/.env
+    profiles:
+      - all
+      - services
+      - vikunja
+  vikunja_user_init:
+    image: vikunja/vikunja
+    depends_on:
+      vikunja_db:
+        condition: service_healthy
+    networks:
+      - exist
+    environment:
+      VIKUNJA_DATABASE_HOST: ${VIKUNJA_DATABASE_HOST}
+      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+      VIKUNJA_DATABASE_TYPE: ${VIKUNJA_DATABASE_TYPE}
+      VIKUNJA_DATABASE_USER: ${VIKUNJA_DATABASE_USER}
+      VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
+    entrypoint: >
+      /app/vikunja/vikunja user create
+      --username ${VIKUNJA_DEFAULT_USERNAME}
+      --password ${VIKUNJA_DEFAULT_PASSWORD}
+      --email ${VIKUNJA_DEFAULT_EMAIL}
+    restart: "no"
+    env_file:
+      - services/vikunja/.env
+    profiles:
+      - all
+      - services
+      - vikunja
+
+  # Services from services/windmill
+  windmill_pg:
+    container_name: windmill_pg
+    image: postgres:16
+    restart: unless-stopped
+    networks:
+      - exist
+    deploy:
+      # To use an external database, set replicas to 0 and set DATABASE_URL to the external database url in the .env file
+      replicas: 1
+    shm_size: 1g
+    volumes:
+      - ./services/windmill/windmill_db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${WINDMILL_PG_PASSWORD}
+      POSTGRES_DB: windmill
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+  windmill_server:
+    container_name: windmill_server
+    image: ${WINDMILL_IMAGE}
+    restart: unless-stopped
+    networks:
+      - exist
+    pull_policy: always
+    deploy:
+      replicas: 1
+    ports: 
+      - 8800:8000
+      - 2525:2525
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=server
+      - SUPERADMIN_SECRET=${WINDMILL_SUPERADMIN_SECRET}
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - ./services/windmill/worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+  windmill_admin_init:
+    container_name: windmill_admin_init
+    image: node:24-alpine
+    restart: "no"
+    networks:
+      - exist
+    depends_on:
+      windmill_server:
+        condition: service_started
+    environment:
+      WINDMILL_ADMIN_EMAIL: ${WINDMILL_ADMIN_EMAIL}
+      WINDMILL_ADMIN_PASSWORD: ${WINDMILL_ADMIN_PASSWORD}
+      WINDMILL_SUPERADMIN_SECRET: ${WINDMILL_SUPERADMIN_SECRET}
+    entrypoint: >
+      sh -c '
+        echo "Installing Windmill CLI (npm)...";
+        npm install -g windmill-cli@latest;
+        echo "Waiting for Windmill...";
+        sleep 15;
+        echo "Creating new superadmin...";
+        wmill user add ${WINDMILL_ADMIN_EMAIL} ${WINDMILL_ADMIN_PASSWORD} --superadmin --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
+        echo "Deleting default admin...";
+        wmill user remove admin@windmill.dev --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
+        echo "✅ Superadmin migration complete.";
+      '
+
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+  windmill_worker:
+    image: ${WINDMILL_IMAGE}
+    pull_policy: always
+    restart: unless-stopped
+    networks:
+      - exist
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+          # for GB, use syntax '2Gi'
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=worker
+      - WORKER_GROUP=default
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    # to mount the worker folder to debug, KEEP_JOB_DIR=true and mount /tmp/windmill
+    volumes:
+      # mount the docker socket to allow to run docker containers from within the workers
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./services/windmill/worker_dependency_cache:/tmp/windmill/cache
+      - ./services/windmill/worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+
+  ## This worker is specialized for "native" jobs. Native jobs run in-process and thus are much more lightweight than other jobs
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+  windmill_worker_native:
+    # Use ghcr.io/windmill-labs/windmill-ee:main for the ee
+    image: ${WINDMILL_IMAGE}
+    restart: unless-stopped
+    networks:
+      - exist
+    pull_policy: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+          # for GB, use syntax '2Gi'
+    environment:
+      - DATABASE_URL=${WINDMILL_DATABASE_URL}
+      - MODE=worker
+      - WORKER_GROUP=native
+      - NUM_WORKERS=8
+      - SLEEP_QUEUE=200
+    depends_on:
+      windmill_pg:
+        condition: service_healthy
+    volumes:
+      - ./services/windmill/worker_logs:/tmp/windmill/logs
+    logging: *default-logging
+  # This worker is specialized for reports or scraping jobs. It is assigned the "reports" worker group which has an init script that installs chromium and can be targeted by using the "chromium" worker tag.
+  # windmill_worker_reports:
+  #   image: ${WINDMILL_IMAGE}
+  #   pull_policy: always
+  #   deploy:
+  #     replicas: 1
+  #     resources:
+  #       limits:
+  #         cpus: "1"
+  #         memory: 2048M
+  #         # for GB, use syntax '2Gi'
+  #   restart: unless-stopped
+  #   environment:
+  #     - DATABASE_URL=${WINDMILL_DATABASE_URL}
+  #     - MODE=worker
+  #     - WORKER_GROUP=reports
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   # to mount the worker folder to debug, KEEP_JOB_DIR=true and mount /tmp/windmill
+  #   volumes:
+  #     # mount the docker socket to allow to run docker containers from within the workers
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - worker_dependency_cache:/tmp/windmill/cache
+  #     - worker_logs:/tmp/windmill/logs
+
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+  windmill_lsp:
+    container_name: windmill_lsp
+    image: ghcr.io/windmill-labs/windmill-lsp:latest
+    networks:
+      - exist
+    pull_policy: always
+    restart: unless-stopped
+    # ports: 
+    #   - 3301:3001
+    volumes:
+      - ./services/windmill/lsp_cache:/pyls/.cache
+    logging: *default-logging
+    env_file:
+      - services/windmill/.env
+    profiles:
+      - all
+      - services
+      - windmill
+
+volumes:
+  librechat_pg_data:
+  lsp_cache:
+  minio_data:
+  nocodb_data:
+  nocodb_pg_data:
+  ntfy_cache:
+  portainer_data:
+  portainer_password:
+  vikunja_data:
+  vikunja_db_data:
+  windmill_db_data:
+  worker_dependency_cache:
+  worker_logs:
+
+networks:
+  exist:
+    external: true

@@ -12,7 +12,7 @@ sections:
   - name: Apps
     items:
       - title: LibreChat
-        url: http://192.168.1.10:44480/
+        url: http://10.0.0.10:44480/
         icon: fas fa-ghost
 
       - title: Logseq
@@ -42,11 +42,11 @@ sections:
         icon: fas fa-database
 
       - title: Ntfy
-        url: http://192.168.1.10:36880
+        url: http://10.0.0.10:36880
         icon: si-ntfy
 
       - title: RabbitMQ
-        url: http://192.168.1.10:15672
+        url: http://10.0.0.10:15672
         icon: si-rabbitmq
 
   - name: Tools
@@ -64,18 +64,18 @@ sections:
         icon: fas fa-file-code
 
       - title: Windmill
-        url: http://192.168.1.10:8800/
+        url: http://10.0.0.10:8800/
         icon: fas fa-fan
 
   - name: Monitoring
     items:
 
       - title: Portainer
-        url: https://192.168.1.10:9443/
+        url: https://10.0.0.10:9443/
         icon: hl-portainer
 
       - title: Uptime Kuma
-        url: http://192.168.1.10:30565/dashboard
+        url: http://10.0.0.10:30565/dashboard
         icon: si-uptimekuma
 
 # Reference for icons: https://fontawesome.com/search?ic=free&o=r
