@@ -85,9 +85,10 @@ find_example_files() {
             done < <(find "$search_dir" -maxdepth 1 -type f -name "$file_pattern" -not -path "*/graveyard/*" 2>/dev/null)
         else
             # Depth > 0: search subdirectories only (exclude current directory)
+            # Use maxdepth 3 to find service files, suppress all errors
             while IFS= read -r file; do
                 files+=("$file")
-            done < <(find "$search_dir" -mindepth 2 -maxdepth $((max_depth + 1)) -type f -name "$file_pattern" -not -path "*/graveyard/*" 2>/dev/null)
+            done < <(find "$search_dir" -mindepth 2 -maxdepth 3 -type f -name "$file_pattern" -not -path "*/graveyard/*" 2>/dev/null || true)
         fi
     else
         # Fallback for systems without find (rare but possible)
@@ -115,8 +116,15 @@ find_example_files() {
                     files+=("$file")
                 fi
             done
+        elif [ "$max_depth" -eq 3 ]; then
+            # Depth 3: one, two, and three levels down (skip current directory)
+            for file in "$search_dir"/*/$file_pattern "$search_dir"/*/*/$file_pattern "$search_dir"/*/*/*/$file_pattern; do
+                if [ -f "$file" ] && [[ "$file" != */graveyard/* ]]; then
+                    files+=("$file")
+                fi
+            done
         else
-            # Depth > 2: use full globstar (skip current directory)
+            # Depth > 3: use full globstar (skip current directory)
             for file in "$search_dir"/**/$file_pattern; do
                 # Skip files in current directory (only include files with at least one subdirectory)
                 if [ -f "$file" ] && [[ "$file" != */graveyard/* ]] && [[ "$file" == */*/* ]]; then
@@ -304,8 +312,7 @@ process_example_file() {
     
     # CRITICAL: Never modify existing files - only create new ones
     if [ -f "$target_file" ]; then
-        echo "  ℹ️  $target_file already exists - skipping to avoid overwriting"
-        echo "  💡 If you want to regenerate $target_file, delete it first and re-run"
+        echo "  ℹ️  skipped $target_file - file already exists"
         return 0
     fi
     

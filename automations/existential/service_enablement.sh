@@ -281,6 +281,183 @@ show_service_status() {
     echo "Summary: $enabled_count of $total_count services enabled"
 }
 
+# Function to extract only the services section from a docker-compose.yml file
+get_compose_services_only() {
+    local compose_file="$1"
+    
+    if [ ! -f "$compose_file" ]; then
+        return 1
+    fi
+    
+    # Extract the services section using awk
+    awk '
+    /^services:/ { 
+        in_services = 1
+        next
+    }
+    /^[a-zA-Z]/ && in_services && !/^[[:space:]]/ { 
+        in_services = 0 
+    }
+    in_services {
+        print $0
+    }' "$compose_file"
+}
+
+# Function to add env_file and profiles to services
+add_env_file_and_profiles_to_services() {
+    local service_path="$1"
+    local services_content="$2"
+    
+    if [ -z "$services_content" ]; then
+        return 0
+    fi
+    
+    # Extract category and service name for profiles
+    local category=$(echo "$service_path" | cut -d'/' -f1)
+    local service_name=$(echo "$service_path" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
+    
+    # First, remove any existing env_file declarations from the content
+    local cleaned_content
+    cleaned_content=$(echo "$services_content" | awk '
+    BEGIN { 
+        in_env_file = 0
+        skip_line = 0
+    }
+    /^[[:space:]]*env_file:[[:space:]]*$/ { 
+        in_env_file = 1
+        skip_line = 1
+        next
+    }
+    in_env_file && /^[[:space:]]*-/ {
+        skip_line = 1
+        next
+    }
+    in_env_file && !/^[[:space:]]*-/ && !/^[[:space:]]*$/ {
+        in_env_file = 0
+        skip_line = 0
+    }
+    in_env_file && /^[[:space:]]*$/ {
+        skip_line = 1
+        next
+    }
+    !skip_line {
+        if (in_env_file && !/^[[:space:]]*-/) {
+            in_env_file = 0
+        }
+        print $0
+    }
+    {
+        if (!skip_line && !in_env_file) {
+            skip_line = 0
+        }
+    }')
+    
+    # Process the cleaned services content line by line and update relative volume paths
+    echo "$cleaned_content" | awk -v service_path="$service_path" -v category="$category" -v service_name="$service_name" '
+    BEGIN {
+        in_volumes = 0
+        service_started = 0
+    }
+    
+    # Service definition line
+    /^[[:space:]]{2}[a-zA-Z0-9_-]+:[[:space:]]*$/ {
+        service_started = 1
+        print $0
+        print "    env_file:"
+        print "      - " service_path "/.env"
+        print "    profiles:"
+        print "      - all"
+        print "      - " category
+        print "      - " service_name
+        next
+    }
+    
+    # Volumes section start
+    service_started && /^[[:space:]]*volumes:[[:space:]]*$/ {
+        in_volumes = 1
+        print $0
+        next
+    }
+    
+    # Volume line with relative path (starts with ./ or just .)
+    in_volumes && /^[[:space:]]*-[[:space:]]*\./ {
+        # Extract the volume definition
+        line = $0
+        # Remove leading whitespace and dash
+        gsub(/^[[:space:]]*-[[:space:]]*/, "", line)
+        
+        # Split on colon to get source and target
+        colon_pos = index(line, ":")
+        if (colon_pos > 0) {
+            source = substr(line, 1, colon_pos - 1)
+            target = substr(line, colon_pos)
+            
+            # If source starts with ./ remove it, if it starts with . remove it
+            if (substr(source, 1, 2) == "./") {
+                source = substr(source, 3)
+            } else if (substr(source, 1, 1) == ".") {
+                source = substr(source, 2)
+                if (substr(source, 1, 1) == "/") {
+                    source = substr(source, 2)
+                }
+            }
+            
+            # Clean up any remaining leading slashes or dots
+            while (substr(source, 1, 1) == "/" || substr(source, 1, 1) == ".") {
+                if (substr(source, 1, 2) == "./") {
+                    source = substr(source, 3)
+                } else {
+                    source = substr(source, 2)
+                }
+            }
+            
+            # Reconstruct with service path
+            new_source = "./" service_path "/" source
+            print "      - " new_source target
+        } else {
+            # No colon found, just prefix the path
+            if (substr(line, 1, 2) == "./") {
+                line = substr(line, 3)
+            } else if (substr(line, 1, 1) == ".") {
+                line = substr(line, 2)
+                if (substr(line, 1, 1) == "/") {
+                    line = substr(line, 2)
+                }
+            }
+            
+            # Clean up any remaining leading slashes or dots
+            while (substr(line, 1, 1) == "/" || substr(line, 1, 1) == ".") {
+                if (substr(line, 1, 2) == "./") {
+                    line = substr(line, 3)
+                } else {
+                    line = substr(line, 2)
+                }
+            }
+            
+            print "      - ./" service_path "/" line
+        }
+        next
+    }
+    
+    # End of volumes section when we hit another service-level key
+    in_volumes && /^[[:space:]]{2,}[a-zA-Z]/ && !/^[[:space:]]*-/ {
+        in_volumes = 0
+        print $0
+        next
+    }
+    
+    # Any other line in volumes section (named volumes, bind mounts with absolute paths, etc.)
+    in_volumes {
+        print $0
+        next
+    }
+    
+    # All other lines
+    {
+        print $0
+    }'
+}
+
 # Function to generate merged docker-compose.yml based on enabled services
 generate_compose_override() {
     local search_dir="${1:-.}"

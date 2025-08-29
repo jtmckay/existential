@@ -70,6 +70,20 @@ run_existential_workflow() {
     
     echo ""
     
+    # Step 1.5: Source the root .env file to load environment variables for service enablement
+    if [ -f ".env" ]; then
+        echo "📋 Loading environment variables from .env..."
+        echo "=============================================="
+        set -a  # Automatically export all variables
+        source ".env"
+        set +a  # Turn off automatic export
+        echo "✅ Environment variables loaded successfully!"
+        echo ""
+    else
+        echo "⚠️  No .env file found - service enablement may not work correctly"
+        echo ""
+    fi
+    
     # Step 2: Generate docker-compose.yml from enabled services
     echo "📋 Generating docker-compose.yml from enabled services..."
     echo "======================================================="
@@ -84,7 +98,7 @@ run_existential_workflow() {
         generate_diff=true
     fi
     
-    if "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$compose_output" > /dev/null 2>&1; then
+    if (set -a; source ".env" 2>/dev/null; "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$compose_output") > /dev/null 2>&1; then
         if [ -f "$compose_output" ]; then
             local service_count=$(grep -c "^  [a-zA-Z]" "$compose_output" 2>/dev/null || echo "0")
             echo "✅ Successfully generated $compose_output with $service_count services"
@@ -121,9 +135,9 @@ run_existential_workflow() {
     echo ""
     
     # Count the results
-    local env_files_count=$(find . -name ".env" -not -path "*/graveyard/*" | wc -l)
-    local example_files_count=$(find . -name "*.example" -not -path "*/graveyard/*" | wc -l)
-    local generated_files_count=$(find . -name "*" -not -name "*.example" -not -path "*/graveyard/*" | while read -r file; do
+    local env_files_count=$(find . -maxdepth 3 -name ".env" -not -path "*/graveyard/*" 2>/dev/null | wc -l)
+    local example_files_count=$(find . -maxdepth 3 -name "*.example" -not -path "*/graveyard/*" 2>/dev/null | wc -l)
+    local generated_files_count=$(find . -maxdepth 3 -name "*" -not -name "*.example" -not -path "*/graveyard/*" 2>/dev/null | while read -r file; do
         local example_counterpart="${file}.example"
         if [ -f "$example_counterpart" ]; then
             echo "$file"
@@ -351,7 +365,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
                 generate_diff=true
             fi
             
-            if "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$output_file"; then
+            if (set -a; source ".env" 2>/dev/null; "$AUTOMATION_DIR/service_enablement.sh" generate-compose "$output_file"); then
                 echo "Generated merged docker-compose.yml as: $output_file"
                 
                 # Generate diff file if requested
