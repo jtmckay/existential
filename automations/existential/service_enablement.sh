@@ -596,13 +596,14 @@ generate_compose_override() {
             echo "  # No services found in $compose_file"
         fi
         
-        # Extract volumes section - get full volume definitions with their configuration
+        # Extract volumes section - get only volume names, ignore configuration
         local volumes_section
         volumes_section=$(awk '
         /^volumes:/ { in_volumes = 1; next }
         /^[a-zA-Z]/ && in_volumes && !/^[[:space:]]/ { in_volumes = 0 }
-        in_volumes {
-            print $0
+        in_volumes && /^  [a-zA-Z0-9_-]+:[[:space:]]*$/ {
+            match($0, /^  ([a-zA-Z0-9_-]+):/, arr)
+            if (arr[1]) print "  " arr[1] ":"
         }' "$compose_file")
         
         if [ -n "$volumes_section" ]; then
@@ -627,52 +628,18 @@ generate_compose_override() {
         
         # Create a temporary file to track declared volumes
         local temp_file=$(mktemp)
-        local current_volume=""
-        local in_driver_opts=false
         
-        # Process each volume section and merge them intelligently
+        # Process each volume section and output unique volume names
         for volume_section in "${all_volumes[@]}"; do
             if [ -n "$volume_section" ]; then
                 echo "$volume_section" | while IFS= read -r line; do
-                    if [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_-]+):[[:space:]]*(.*)$ ]]; then
+                    if [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_-]+):[[:space:]]*$ ]]; then
                         local volume_name="${BASH_REMATCH[1]}"
-                        local volume_config="${BASH_REMATCH[2]}"
-                        current_volume="$volume_name"
-                        in_driver_opts=false
                         
                         # Check if we've already declared this volume
                         if ! grep -q "^$volume_name$" "$temp_file" 2>/dev/null; then
                             echo "$volume_name" >> "$temp_file"
-                            echo "  $volume_name:"
-                            if [ -n "$volume_config" ] && [ "$volume_config" != "null" ]; then
-                                # Handle inline configuration
-                                if [[ "$volume_config" =~ ^#.*$ ]]; then
-                                    echo "    $volume_config"
-                                else
-                                    echo "    $volume_config"
-                                fi
-                            fi
-                        fi
-                    elif [[ "$line" =~ ^[[:space:]]*driver_opts:[[:space:]]*$ ]]; then
-                        in_driver_opts=true
-                        echo "    driver_opts:"
-                    elif [[ "$line" =~ ^[[:space:]]*([a-zA-Z_]+):[[:space:]]*(.*)$ ]] && [ -n "$current_volume" ]; then
-                        # This is a configuration key for the volume
-                        local config_key="${BASH_REMATCH[1]}"
-                        local config_value="${BASH_REMATCH[2]}"
-                        if [ "$in_driver_opts" = true ]; then
-                            echo "      $config_key: $config_value"
-                        else
-                            echo "    $config_key: $config_value"
-                        fi
-                    elif [[ "$line" =~ ^[[:space:]]+(.+)$ ]] && [ -n "$current_volume" ]; then
-                        # This is a continuation line for volume configuration
-                        local config_line="${BASH_REMATCH[1]}"
-                        if [[ "$config_line" =~ ^#.*$ ]]; then
-                            # Comment line
-                            echo "    $config_line"
-                        else
-                            echo "    $config_line"
+                            echo "$line"
                         fi
                     fi
                 done
