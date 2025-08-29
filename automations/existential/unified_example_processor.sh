@@ -207,43 +207,71 @@ process_file_placeholders() {
     # STEP 1: Replace generated placeholders first (passwords, keys, etc.)
     # These need to be processed before dynamic defaults to avoid conflicts
     
-    # Replace EXIST_24_CHAR_PASSWORD with generated password
-    if grep -q "EXIST_24_CHAR_PASSWORD" "$temp_file"; then
+    # Replace EXIST_24_CHAR_PASSWORD with unique generated passwords (one per occurrence)
+    while grep -q "EXIST_24_CHAR_PASSWORD" "$temp_file"; do
         local password=$(generate_24_char_password)
         if [ -n "$password" ]; then
-            # Escape special characters for sed
-            local escaped_password=$(printf '%s\n' "$password" | sed 's/[[\.*^$()+?{|]/\\&/g')
-            sed -i "s/EXIST_24_CHAR_PASSWORD/$escaped_password/g" "$temp_file"
-            echo "    ✅ Replaced EXIST_24_CHAR_PASSWORD"
+            # Validate password contains only safe characters to prevent injection
+            if echo "$password" | grep -q '[^A-Za-z0-9!@#%*_=+-]'; then
+                echo "    ❌ Error: Generated password contains unsafe characters, skipping"
+                break
+            fi
+            
+            # Use awk for safe replacement (handles all special characters correctly)
+            awk -v pwd="$password" '
+                !replaced && /EXIST_24_CHAR_PASSWORD/ {
+                    sub(/EXIST_24_CHAR_PASSWORD/, pwd)
+                    replaced=1
+                }
+                {print}
+            ' "$temp_file" > "$temp_file.tmp" && mv "$temp_file.tmp" "$temp_file"
+            echo "    ✅ Replaced one EXIST_24_CHAR_PASSWORD with unique value"
             ((changes_made++))
         else
             echo "    ❌ Error: Failed to generate password"
+            break
         fi
-    fi
+    done
     
-    # Replace EXIST_32_CHAR_HEX_KEY with generated 32-char hex key
-    if grep -q "EXIST_32_CHAR_HEX_KEY" "$temp_file"; then
+    # Replace EXIST_32_CHAR_HEX_KEY with unique generated 32-char hex keys (one per occurrence)
+    while grep -q "EXIST_32_CHAR_HEX_KEY" "$temp_file"; do
         local hex_key_32=$(generate_32_char_hex)
         if [ -n "$hex_key_32" ]; then
-            sed -i "s/EXIST_32_CHAR_HEX_KEY/$hex_key_32/g" "$temp_file"
-            echo "    ✅ Replaced EXIST_32_CHAR_HEX_KEY"
+            # Use awk for safe replacement
+            awk -v key="$hex_key_32" '
+                !replaced && /EXIST_32_CHAR_HEX_KEY/ {
+                    sub(/EXIST_32_CHAR_HEX_KEY/, key)
+                    replaced=1
+                }
+                {print}
+            ' "$temp_file" > "$temp_file.tmp" && mv "$temp_file.tmp" "$temp_file"
+            echo "    ✅ Replaced one EXIST_32_CHAR_HEX_KEY with unique value"
             ((changes_made++))
         else
             echo "    ❌ Error: Failed to generate 32-char hex key"
+            break
         fi
-    fi
+    done
     
-    # Replace EXIST_64_CHAR_HEX_KEY with generated 64-char hex key
-    if grep -q "EXIST_64_CHAR_HEX_KEY" "$temp_file"; then
+    # Replace EXIST_64_CHAR_HEX_KEY with unique generated 64-char hex keys (one per occurrence)
+    while grep -q "EXIST_64_CHAR_HEX_KEY" "$temp_file"; do
         local hex_key_64=$(generate_64_char_hex)
         if [ -n "$hex_key_64" ]; then
-            sed -i "s/EXIST_64_CHAR_HEX_KEY/$hex_key_64/g" "$temp_file"
-            echo "    ✅ Replaced EXIST_64_CHAR_HEX_KEY"
+            # Use awk for safe replacement
+            awk -v key="$hex_key_64" '
+                !replaced && /EXIST_64_CHAR_HEX_KEY/ {
+                    sub(/EXIST_64_CHAR_HEX_KEY/, key)
+                    replaced=1
+                }
+                {print}
+            ' "$temp_file" > "$temp_file.tmp" && mv "$temp_file.tmp" "$temp_file"
+            echo "    ✅ Replaced one EXIST_64_CHAR_HEX_KEY with unique value"
             ((changes_made++))
         else
             echo "    ❌ Error: Failed to generate 64-char hex key"
+            break
         fi
-    fi
+    done
     
     # STEP 2: Dynamic EXIST_DEFAULT_* variable replacement
     # Only process files other than the root .env to avoid circular references

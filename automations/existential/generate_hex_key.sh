@@ -7,6 +7,7 @@
 generate_hex_key() {
     local length="${1:-32}"  # Default to 32 if no length specified
     local hex_charset="0123456789abcdef"
+    local charset_len=${#hex_charset}
     
     # Validate input is a positive integer
     if ! [[ "$length" =~ ^[0-9]+$ ]] || [ "$length" -lt 1 ]; then
@@ -14,29 +15,35 @@ generate_hex_key() {
         return 1
     fi
     
-    # Method 1: Use /dev/urandom if available (most systems)
-    if [ -r /dev/urandom ]; then
-        # Generate random hex bytes
-        tr -dc "$hex_charset" < /dev/urandom | head -c "$length"
-    elif command -v openssl >/dev/null 2>&1; then
-        # Method 2: Use openssl if available
-        # Calculate bytes needed (length/2, rounded up)
-        local bytes_needed=$(( (length + 1) / 2 ))
-        openssl rand -hex "$bytes_needed" | head -c "$length"
-    else
-        # Fallback method using date and RANDOM
-        local hex_key=""
-        local charset_len=${#hex_charset}
+    # Use the safe generation method consistently
+    local hex_key=""
+    
+    for i in $(seq 1 "$length"); do
+        # Generate random index using multiple entropy sources
+        local rand_seed
+        if [ -r /dev/urandom ]; then
+            # Use /dev/urandom for better randomness
+            rand_seed=$(od -An -N4 -tu4 < /dev/urandom | tr -d ' ')
+        elif command -v openssl >/dev/null 2>&1; then
+            # Use openssl for entropy
+            rand_seed=$(openssl rand -hex 4 | od -An -tx4 | tr -d ' ' | head -c 8)
+            rand_seed=$((0x$rand_seed))
+        else
+            # Fallback to time-based randomness
+            rand_seed=$(($(date +%s%N 2>/dev/null || date +%s) + RANDOM + i + $$))
+        fi
         
-        for i in $(seq 1 "$length"); do
-            # Use current time and RANDOM for entropy
-            local rand_seed=$(($(date +%s%N 2>/dev/null || date +%s) + RANDOM + i))
-            local char_index=$((rand_seed % charset_len))
-            hex_key="${hex_key}${hex_charset:$char_index:1}"
-        done
-        
-        echo "$hex_key"
+        local char_index=$((rand_seed % charset_len))
+        hex_key="${hex_key}${hex_charset:$char_index:1}"
+    done
+    
+    # Validate the hex key contains only safe characters
+    if ! echo "$hex_key" | grep -q '^[0-9a-f]*$'; then
+        echo "Error: Generated hex key contains invalid characters" >&2
+        return 1
     fi
+    
+    echo "$hex_key"
 }
 
 # Convenience functions for common lengths
