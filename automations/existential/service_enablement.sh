@@ -130,118 +130,6 @@ get_available_service_names() {
     printf '%s\n' "${service_names[@]}" | sort -u
 }
 
-# Function to show available profiles
-show_available_profiles() {
-    local search_dir="${1:-.}"
-    local max_depth="${2:-2}"
-    
-    echo "Available Docker Compose Profiles"
-    echo "================================="
-    echo ""
-    
-    echo "🌐 Global Profiles:"
-    echo "  all                   - All services"
-    echo ""
-    
-    echo "📂 Category Profiles:"
-    local categories=()
-    mapfile -t categories < <(get_available_categories "$search_dir" "$max_depth")
-    
-    for category in "${categories[@]}"; do
-        local services_in_category=()
-        mapfile -t services_in_category < <(get_all_available_services "$search_dir" "$max_depth" | grep "^$category/")
-        echo "  $category$(printf "%*s" $((20 - ${#category})) "")- ${#services_in_category[@]} services ($(echo "${services_in_category[@]}" | sed "s|$category/||g" | tr ' ' ',' | tr '\n' ' ' | sed 's/, $//'))"
-    done
-    
-    echo ""
-    echo "🔧 Individual Service Profiles:"
-    local service_names=()
-    mapfile -t service_names < <(get_available_service_names "$search_dir" "$max_depth")
-    
-    local col_count=0
-    for service_name in "${service_names[@]}"; do
-        printf "  %-20s" "$service_name"
-        ((col_count++))
-        if [ $((col_count % 3)) -eq 0 ]; then
-            echo ""
-        fi
-    done
-    
-    if [ $((col_count % 3)) -ne 0 ]; then
-        echo ""
-    fi
-    
-    echo ""
-    echo "💡 Usage Examples:"
-    echo "  docker-compose --profile ai up -d           # Start all AI services"
-    echo "  docker-compose --profile hosting up -d      # Start all hosting services"
-    echo "  docker-compose --profile librechat up -d    # Start only LibreChat service"
-    echo "  docker-compose --profile all up -d          # Start all enabled services"
-}
-
-# Function to generate profile usage documentation
-generate_profile_documentation() {
-    local search_dir="${1:-.}"
-    local max_depth="${2:-2}"
-    
-    echo "# Docker Compose Profiles Usage"
-    echo ""
-    echo "This docker-compose.yml file uses profiles to organize services by category and individual services."
-    echo ""
-    echo "## Available Profiles"
-    echo ""
-    
-    echo "### Global"
-    echo "- \`all\` - All services"
-    echo ""
-    
-    echo "### Categories"
-    local categories=()
-    mapfile -t categories < <(get_available_categories "$search_dir" "$max_depth")
-    
-    for category in "${categories[@]}"; do
-        local services_in_category=()
-        mapfile -t services_in_category < <(get_all_available_services "$search_dir" "$max_depth" | grep "^$category/")
-        echo "- \`$category\` - ${#services_in_category[@]} services:"
-        for service_path in "${services_in_category[@]}"; do
-            local service_name=$(echo "$service_path" | cut -d'/' -f2)
-            echo "  - $service_name"
-        done
-        echo ""
-    done
-    
-    echo "### Individual Services"
-    local service_names=()
-    mapfile -t service_names < <(get_available_service_names "$search_dir" "$max_depth")
-    
-    for service_name in "${service_names[@]}"; do
-        echo "- \`$service_name\`"
-    done
-    
-    echo ""
-    echo "## Usage Examples"
-    echo ""
-    echo "\`\`\`bash"
-    echo "# Start all services"
-    echo "docker-compose --profile all up -d"
-    echo ""
-    echo "# Start AI services only"
-    echo "docker-compose --profile ai up -d"
-    echo ""
-    echo "# Start hosting services only"
-    echo "docker-compose --profile hosting up -d"
-    echo ""
-    echo "# Start specific service"
-    echo "docker-compose --profile librechat up -d"
-    echo ""
-    echo "# Combine profiles"
-    echo "docker-compose --profile ai --profile hosting up -d"
-    echo ""
-    echo "# Stop services by profile"
-    echo "docker-compose --profile ai down"
-    echo "\`\`\`"
-}
-
 # Function to list all available services
 list_all_services() {
     local search_dir="${1:-.}"
@@ -303,8 +191,8 @@ get_compose_services_only() {
     }' "$compose_file"
 }
 
-# Function to add profiles to services and update relative volume paths and env_file paths
-add_profiles_to_services() {
+# Function to update relative paths in docker-compose content
+update_relative_paths() {
     local service_path="$1"
     local services_content="$2"
     
@@ -312,46 +200,15 @@ add_profiles_to_services() {
         return 0
     fi
     
-    # Extract category and service name for profiles
-    local category=$(echo "$service_path" | cut -d'/' -f1)
-    local service_name=$(echo "$service_path" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
-    
-    # Handle edge case where category and service_name are the same
-    local profiles_to_add="all $category"
-    if [ "$category" != "$service_name" ]; then
-        profiles_to_add="$profiles_to_add $service_name"
-    fi
-    
     # Process the services content line by line and update relative volume paths and env_file paths
-    echo "$services_content" | awk -v service_path="$service_path" -v profiles_to_add="$profiles_to_add" '
+    echo "$services_content" | awk -v service_path="$service_path" '
     BEGIN {
         in_volumes = 0
         in_env_file = 0
-        service_started = 0
-        current_service = ""
-        split(profiles_to_add, profiles_array, " ")
-    }
-    
-    # Service definition line
-    /^[[:space:]]{2}[a-zA-Z0-9_-]+:[[:space:]]*$/ {
-        # If we had a previous service, add profiles to it before starting new one
-        if (service_started && current_service != "") {
-            print "    profiles:"
-            for (i in profiles_array) {
-                if (profiles_array[i] != "") {
-                    print "      - " profiles_array[i]
-                }
-            }
-        }
-        
-        service_started = 1
-        current_service = $0
-        print $0
-        next
     }
     
     # env_file section start
-    service_started && /^[[:space:]]*env_file:[[:space:]]*$/ {
+    /^[[:space:]]*env_file:[[:space:]]*$/ {
         in_env_file = 1
         print $0
         next
@@ -388,7 +245,7 @@ add_profiles_to_services() {
     }
     
     # Volumes section start
-    service_started && /^[[:space:]]*volumes:[[:space:]]*$/ {
+    /^[[:space:]]*volumes:[[:space:]]*$/ {
         in_volumes = 1
         print $0
         next
@@ -471,18 +328,7 @@ add_profiles_to_services() {
     {
         print $0
     }
-    
-    # Add profiles to the last service at the end
-    END {
-        if (service_started && current_service != "") {
-            print "    profiles:"
-            for (i in profiles_array) {
-                if (profiles_array[i] != "") {
-                    print "      - " profiles_array[i]
-                }
-            }
-        }
-    }'
+    '
 }
 
 # Function to resolve environment variables in docker-compose content
@@ -581,13 +427,13 @@ generate_compose_override() {
         services_content=$(get_compose_services_only "$compose_file")
         
         if [ -n "$services_content" ]; then
-            # Add profiles to each service in the content
-            local enhanced_services_content
-            enhanced_services_content=$(add_profiles_to_services "$service" "$services_content")
+            # Update relative paths for env_file and volumes
+            local path_updated_content
+            path_updated_content=$(update_relative_paths "$service" "$services_content")
             
             # Resolve environment variables in the content
             local resolved_services_content
-            resolved_services_content=$(resolve_env_variables "$enhanced_services_content" "$service")
+            resolved_services_content=$(resolve_env_variables "$path_updated_content" "$service")
             
             echo "$resolved_services_content"
         else
