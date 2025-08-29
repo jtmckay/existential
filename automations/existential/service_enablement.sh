@@ -542,8 +542,6 @@ generate_compose_override() {
     echo "# Services enabled: ${#enabled_services[@]}"
     echo "# Generated on: $(date)"
     echo ""
-    echo "version: '3.8'"
-    echo ""
     echo "services:"
     
     if [ ${#enabled_services[@]} -eq 0 ]; then

@@ -4,12 +4,12 @@ services:
     image: alpine
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "echo \"$ADMIN_PASSWORD\" > /shared/portainer_password"
+      "echo \"$$PORTAINER_ADMIN_PASSWORD\" > /shared/portainer_password"
     volumes:
       - portainer_data:/data
       - portainer_password:/shared
     environment:
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - PORTAINER_ADMIN_PASSWORD=${PORTAINER_ADMIN_PASSWORD}
     restart: "no"
 
   portainer:
