@@ -39,8 +39,9 @@ For targeted configuration:
 If you need to manually configure a single service:
 1. Copy `.env.example` to `.env` in the service directory: `cp .env.example .env`
 2. Fill in required environment variables
-3. Ensure the Docker network exists: `docker network create exist --subnet=10.0.0.0/24`
-4. Deploy the service: `docker-compose up -d`
+3. Deploy the service: `docker compose up -d`
+
+**Note**: The `exist` network is now automatically created with overlay driver, attachable option, and encryption when you run `docker compose up`. No manual network creation required!
 
 ### Testing Services
 - Check service status: `docker ps | grep <service_name>`
@@ -65,7 +66,7 @@ The project follows a modular architecture with services organized into categori
    - Environment variables from `.env` files
    - Health checks for dependent services
 
-2. **Network Configuration**: All services connect to the external Docker network `exist` (10.0.0.0/24)
+2. **Network Configuration**: All services connect to the `exist` overlay network with encryption enabled, automatically created when deploying services
 
 3. **Volume Management**: Services use either local volumes or NFS mounts to TrueNAS for persistent storage
 

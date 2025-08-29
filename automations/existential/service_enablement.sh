@@ -549,7 +549,10 @@ generate_compose_override() {
         echo ""
         echo "networks:"
         echo "  exist:"
-        echo "    external: true"
+        echo "    driver: overlay"
+        echo "    attachable: true"
+        echo "    driver_opts:"
+        echo "      encrypted: \"true\""
         return 0
     fi
     
@@ -648,11 +651,14 @@ generate_compose_override() {
         rm -f "$temp_file"
     fi
     
-    # Always add the exist network
+    # Always add the exist network with overlay driver and encryption
     echo ""
     echo "networks:"
     echo "  exist:"
-    echo "    external: true"
+    echo "    driver: overlay"
+    echo "    attachable: true"
+    echo "    driver_opts:"
+    echo "      encrypted: \"true\""
 }
 
 # Main execution

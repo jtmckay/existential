@@ -8,7 +8,7 @@ generate_24_char_password() {
     local length=24
     # Ultra-safe character set - only alphanumeric and a few safe symbols
     # Completely avoids any characters that could cause shell injection or parsing issues
-    local charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#%*-_=+"
+    local charset="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@%*-_=+"
     local charset_len=${#charset}
     
     # Always use the fallback method for maximum safety and control
