@@ -1,12 +1,12 @@
 services:
   dashy:
     container_name: dashy
-    image: 'lissy93/dashy:latest'
+    image: "lissy93/dashy:latest"
     restart: unless-stopped
     volumes:
-        - './dashy-conf.yml:/app/user-data/conf.yml'
+      - ./dashy-conf.yml:/app/user-data/conf.yml
     ports:
-        - '4000:8080'
+      - "4000:8080"
     networks:
       - exist
     environment:

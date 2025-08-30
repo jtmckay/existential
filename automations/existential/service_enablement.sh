@@ -7,6 +7,24 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Find and source the .env file (look in parent directories)
+find_and_source_env() {
+    local current_dir="$SCRIPT_DIR"
+    while [ "$current_dir" != "/" ]; do
+        if [ -f "$current_dir/.env" ]; then
+            source "$current_dir/.env"
+            return 0
+        fi
+        current_dir=$(dirname "$current_dir")
+    done
+    return 1
+}
+
+# Source .env file if running as standalone script
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    find_and_source_env
+fi
+
 # Source the unified example processor for docker-compose finding functionality
 if [ -f "$SCRIPT_DIR/unified_example_processor.sh" ]; then
     source "$SCRIPT_DIR/unified_example_processor.sh"
@@ -152,11 +170,9 @@ show_service_status() {
     mapfile -t all_services < <(get_all_available_services "$search_dir" "$max_depth")
     
     for service in "${all_services[@]}"; do
-        local env_var_name="EXIST_ENABLE_$(echo "$service" | tr '[:lower:]/' '[:upper:]_')"
-        local env_var_value=$(eval echo "\$${env_var_name}")
         local status="❌ Disabled"
         
-        if [[ "${env_var_value,,}" == "true" ]]; then
+        if is_service_enabled "$service"; then
             status="✅ Enabled"
         fi
         
@@ -200,11 +216,28 @@ update_relative_paths() {
         return 0
     fi
     
-    # Process the services content line by line and update relative volume paths and env_file paths
+    # Process the services content line by line and update relative paths
     echo "$services_content" | awk -v service_path="$service_path" '
     BEGIN {
         in_volumes = 0
         in_env_file = 0
+    }
+    
+    # Function to normalize relative path
+    function normalize_path(path) {
+        # Only handle actual relative path indicators (./ or .), not filenames starting with dot
+        if (substr(path, 1, 2) == "./") {
+            path = substr(path, 3)
+        } else if (path == ".") {
+            path = ""
+        }
+        
+        # Clean up any remaining leading slashes (but preserve filenames starting with dot)
+        while (substr(path, 1, 1) == "/") {
+            path = substr(path, 2)
+        }
+        
+        return path
     }
     
     # env_file section start
@@ -214,31 +247,27 @@ update_relative_paths() {
         next
     }
     
-    # env_file line with relative path (starts with ./ or just . or filename without path)
+    # env_file line with relative path
     in_env_file && /^[[:space:]]*-[[:space:]]*[^\/]/ {
-        # Extract the env file path
         line = $0
-        # Remove leading whitespace and dash
         gsub(/^[[:space:]]*-[[:space:]]*/, "", line)
         
-        # If line doesn'\''t start with /, it'\''s relative, so prefix with service path
         if (substr(line, 1, 1) != "/") {
-            print "      - " service_path "/" line
+            print "      - " service_path "/" normalize_path(line)
         } else {
-            # Absolute path, keep as is
             print "      - " line
         }
         next
     }
     
-    # End of env_file section when we hit another service-level key
+    # End of env_file section
     in_env_file && /^[[:space:]]{2,}[a-zA-Z]/ && !/^[[:space:]]*-/ {
         in_env_file = 0
         print $0
         next
     }
     
-    # Any other line in env_file section (absolute paths, etc.)
+    # Any other line in env_file section
     in_env_file {
         print $0
         next
@@ -251,76 +280,57 @@ update_relative_paths() {
         next
     }
     
-    # Volume line with relative path (starts with ./ or just .)
+    # Volume line with relative path
     in_volumes && /^[[:space:]]*-[[:space:]]*\./ {
-        # Extract the volume definition
         line = $0
-        # Remove leading whitespace and dash
         gsub(/^[[:space:]]*-[[:space:]]*/, "", line)
         
-        # Split on colon to get source and target
         colon_pos = index(line, ":")
         if (colon_pos > 0) {
             source = substr(line, 1, colon_pos - 1)
             target = substr(line, colon_pos)
-            
-            # If source starts with ./ remove it, if it starts with . remove it
-            if (substr(source, 1, 2) == "./") {
-                source = substr(source, 3)
-            } else if (substr(source, 1, 1) == ".") {
-                source = substr(source, 2)
-                if (substr(source, 1, 1) == "/") {
-                    source = substr(source, 2)
-                }
-            }
-            
-            # Clean up any remaining leading slashes or dots
-            while (substr(source, 1, 1) == "/" || substr(source, 1, 1) == ".") {
-                if (substr(source, 1, 2) == "./") {
-                    source = substr(source, 3)
-                } else {
-                    source = substr(source, 2)
-                }
-            }
-            
-            # Reconstruct with service path
-            new_source = "./" service_path "/" source
+            new_source = "./" service_path "/" normalize_path(source)
             print "      - " new_source target
         } else {
-            # No colon found, just prefix the path
-            if (substr(line, 1, 2) == "./") {
-                line = substr(line, 3)
-            } else if (substr(line, 1, 1) == ".") {
-                line = substr(line, 2)
-                if (substr(line, 1, 1) == "/") {
-                    line = substr(line, 2)
-                }
-            }
-            
-            # Clean up any remaining leading slashes or dots
-            while (substr(line, 1, 1) == "/" || substr(line, 1, 1) == ".") {
-                if (substr(line, 1, 2) == "./") {
-                    line = substr(line, 3)
-                } else {
-                    line = substr(line, 2)
-                }
-            }
-            
-            print "      - ./" service_path "/" line
+            print "      - ./" service_path "/" normalize_path(line)
         }
         next
     }
     
-    # End of volumes section when we hit another service-level key
-    in_volumes && /^[[:space:]]{2,}[a-zA-Z]/ && !/^[[:space:]]*-/ {
+    # Volume source line with relative path (for bind mounts with type specification)
+    in_volumes && /^[[:space:]]*source:[[:space:]]*\./ {
+        line = $0
+        match(line, /^([[:space:]]*source:[[:space:]]*)(.*)$/, parts)
+        prefix = parts[1]
+        source_path = parts[2]
+        
+        new_source_path = "./" service_path "/" normalize_path(source_path)
+        print prefix new_source_path
+        next
+    }
+    
+    # End of volumes section
+    in_volumes && /^[[:space:]]{2,}[a-zA-Z]/ && !/^[[:space:]]*-/ && !/^[[:space:]]*source:/ && !/^[[:space:]]*target:/ && !/^[[:space:]]*type:/ && !/^[[:space:]]*driver/ {
         in_volumes = 0
         print $0
         next
     }
     
-    # Any other line in volumes section (named volumes, bind mounts with absolute paths, etc.)
+    # Any other line in volumes section
     in_volumes {
         print $0
+        next
+    }
+    
+    # Build path with relative path
+    /^[[:space:]]*build:[[:space:]]*\./ {
+        line = $0
+        match(line, /^([[:space:]]*build:[[:space:]]*)(.*)$/, parts)
+        prefix = parts[1]
+        build_path = parts[2]
+        
+        new_build_path = "./" service_path "/" normalize_path(build_path)
+        print prefix new_build_path
         next
     }
     
@@ -328,6 +338,45 @@ update_relative_paths() {
     {
         print $0
     }
+    '
+}
+
+# Function to comment out driver configurations in volume sections
+comment_out_drivers() {
+    local content="$1"
+    
+    echo "$content" | awk '
+    BEGIN {
+        in_driver_opts = 0
+    }
+    
+    # Comment out driver lines
+    /^[[:space:]]*driver:/ {
+        print "    # " $0 " # Commented out by existential"
+        next
+    }
+    
+    # Comment out driver_opts and its sub-options
+    /^[[:space:]]*driver_opts:/ {
+        in_driver_opts = 1
+        print "    # " $0 " # Commented out by existential"
+        next
+    }
+    
+    # Comment out driver_opts sub-options (more indented than driver_opts line)
+    in_driver_opts && /^[[:space:]]{6,}/ {
+        print "    # " $0 " # Commented out by existential"
+        next
+    }
+    
+    # End driver_opts section when we hit a line at same or less indentation
+    in_driver_opts && /^[[:space:]]{0,5}[^[:space:]]/ {
+        in_driver_opts = 0
+        # Process this line normally (fall through)
+    }
+    
+    # All other lines
+    { print }
     '
 }
 
@@ -452,8 +501,12 @@ generate_compose_override() {
             local resolved_volumes_section
             resolved_volumes_section=$(resolve_env_variables "$volumes_section" "$service")
             
+            # Comment out driver configurations
+            local commented_volumes_section
+            commented_volumes_section=$(comment_out_drivers "$resolved_volumes_section")
+            
             # Add to global volumes collection (we'll deduplicate later)
-            all_volumes+=("$resolved_volumes_section")
+            all_volumes+=("$commented_volumes_section")
         fi
         
         # Check if this compose file has networks

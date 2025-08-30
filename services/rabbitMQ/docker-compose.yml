@@ -13,9 +13,9 @@ services:
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
       RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/defs.json
     ports:
-      - "1883:1883"   # MQTT protocol
-      - "8883:8883"   # Secure MQTT protocol
-      - "5672:5672"   # AMQP protocol
+      - "1883:1883" # MQTT protocol
+      - "8883:8883" # Secure MQTT protocol
+      - "5672:5672" # AMQP protocol
       - "15672:15672" # Management UI
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
@@ -31,7 +31,6 @@ services:
 
   rabbitmq-webhook-bridge:
     container_name: rabbitmq-webhook-bridge
-    image: rabbitmq-webhook-bridge
     restart: unless-stopped
     build: ./webhook-bridge
     networks:

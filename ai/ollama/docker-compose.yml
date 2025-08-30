@@ -9,9 +9,9 @@ services:
       - exist
     ports:
       - "11434:11434" # Ollama's default API port
-    runtime: nvidia ## NVIDIA GPU required obviously
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+    # runtime: nvidia ## NVIDIA GPU required obviously
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - ./ollama_data:/root/.ollama
       - ./entrypoint.sh:/entrypoint.sh # Mount the script
