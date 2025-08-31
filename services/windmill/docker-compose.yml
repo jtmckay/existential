@@ -1,4 +1,3 @@
-
 services:
   windmill_pg:
     container_name: windmill_pg
@@ -36,7 +35,7 @@ services:
     pull_policy: always
     deploy:
       replicas: 1
-    ports: 
+    ports:
       - 8800:8000
       - 2525:2525
     environment:
@@ -179,7 +178,7 @@ services:
       - exist
     pull_policy: always
     restart: unless-stopped
-    # ports: 
+    # ports:
     #   - 3301:3001
     volumes:
       - lsp_cache:/pyls/.cache
@@ -191,7 +190,7 @@ services:
         compress: "true"
 
 volumes:
-  windmill_db_data: # windmill_db_data dataset will need to be created in TrueNAS
+  windmill_db_data:
     driver: local
     driver_opts:
       type: "nfs"

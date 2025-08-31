@@ -7,14 +7,14 @@ services:
     networks:
       - exist
     ports:
-      - '46880:8080'
+      - "46880:8080"
     volumes:
       - trilium_data:/home/node/trilium-data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 
 volumes:
-  trilium_data: # trilium_data dataset will need to be created in TrueNAS
+  trilium_data:
     driver: local
     driver_opts:
       type: "nfs"

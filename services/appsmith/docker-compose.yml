@@ -22,7 +22,7 @@ services:
   #     - appsmith_data:/appsmith-stacks
 
 volumes:
-  appsmith_data: # appsmith_data dataset will need to be created in TrueNAS
+  appsmith_data:
     driver: local
     driver_opts:
       type: "nfs"

@@ -25,26 +25,26 @@ services:
       - "41313:80"
     depends_on: [activepieces_postgres]
 
-  activepieces_postgres: 
+  activepieces_postgres:
     container_name: activepieces_postgres
     image: postgres:16.6
     restart: unless-stopped
     networks:
       - exist
-    environment: 
+    environment:
       POSTGRES_DB: ${AP_POSTGRES_DATABASE}
       POSTGRES_USER: ${AP_POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
     healthcheck:
       interval: 10s
       retries: 10
-      test: "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+      test: 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
       timeout: 2s
     volumes:
       - activepieces_pg_data:/var/lib/postgresql/data
 
 volumes:
-  activepieces_pg_data: # activepieces_pg_data dataset will need to be created in TrueNAS
+  activepieces_pg_data:
     driver: local
     driver_opts:
       type: "nfs"

@@ -12,7 +12,7 @@ sections:
   - name: Apps
     items:
       - title: LibreChat
-        url: http://10.0.0.10:44480/
+        url: http://localhost:44480/
         icon: fas fa-ghost
 
       - title: Logseq
@@ -20,11 +20,11 @@ sections:
         icon: fas fa-scroll
         
       - title: Mealie
-        url: https://mealie.example.com
+        url: https://localhost:9091
         icon: fas fa-utensils
         
       - title: Vikunja
-        url: http://vikunja.example.com
+        url: http://localhost:3456
         icon: fas fa-list
 
   - name: Infrastructure
@@ -34,48 +34,48 @@ sections:
         icon: si-homeassistant
         
       - title: Nextcloud
-        url: https://cloud.example.com/apps/files/
+        url: https://localhost:8421
         icon: si-nextcloud
 
       - title: NocoDB
-        url: https://nocodb.example.com
+        url: https://localhost:11580
         icon: fas fa-database
 
       - title: Ntfy
-        url: http://10.0.0.10:36880
+        url: http://localhost:36880
         icon: si-ntfy
 
       - title: RabbitMQ
-        url: http://10.0.0.10:15672
+        url: http://localhost:15672
         icon: si-rabbitmq
 
   - name: Tools
     items:
       - title: AppSmith
-        url: https://app.example.com
+        url: https://localhost:4443
         icon: fas fa-code
         
       - title: IT-Tools
-        url: http://ittools.example.com/
+        url: http://localhost:43491
         icon: hl-it-tools
 
       - title: Lowcoder
-        url: https://lowcoder.example.com
+        url: https://localhost:3033
         icon: fas fa-file-code
 
       - title: Windmill
-        url: http://10.0.0.10:8800/
+        url: http://localhost:8800/
         icon: fas fa-fan
 
   - name: Monitoring
     items:
 
       - title: Portainer
-        url: https://10.0.0.10:9443/
+        url: https://localhost:49443/
         icon: hl-portainer
 
       - title: Uptime Kuma
-        url: http://10.0.0.10:30565/dashboard
+        url: http://localhost:30565/dashboard
         icon: si-uptimekuma
 
 # Reference for icons: https://fontawesome.com/search?ic=free&o=r

@@ -58,13 +58,13 @@ services:
     restart: "no"
 
 volumes:
-  vikunja_data: # vikunja_data dataset will need to be created in TrueNAS
+  vikunja_data:
     driver: local
     driver_opts:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/vikunja_data"
-  vikunja_db_data: # vikunja_db_data dataset will need to be created in TrueNAS
+  vikunja_db_data:
     driver: local
     driver_opts:
       type: "nfs"

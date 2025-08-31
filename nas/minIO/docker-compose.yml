@@ -12,7 +12,7 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data # Path to the mounted NFS share on the Proxmox host
-      - ../RabbitMQ/ssl/ca.pem:/etc/minio/certs/rabbitmq-ca.pem:ro
+      - ../../services/rabbitMQ/ssl/ca.pem:/etc/minio/certs/rabbitmq-ca.pem:ro
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}

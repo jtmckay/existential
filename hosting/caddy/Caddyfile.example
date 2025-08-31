@@ -9,13 +9,6 @@ nextcloud.example.com {
   reverse_proxy nextcloud:80
 }
 
-collabora.example.com {
-  tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
-  
-  reverse_proxy collabora:9980
-  # reverse_proxy 10.0.0.101:9980
-}
-
 tasks.example.com {
   tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
   

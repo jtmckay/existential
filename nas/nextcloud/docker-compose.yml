@@ -16,8 +16,8 @@ services:
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN} # Unfortunately most of these values are only used on the first run.
       - TRUSTED_PROXIES=${TRUSTED_PROXIES} # To update values, you will need to manually change config/config.php.
       - OVERWRITEHOST=${NEXTCLOUD_DOMAIN} # Or nuke your Nextcloud volumes and start over.
-      - OVERWRITECLIURL=https://${NEXTCLOUD_DOMAIN}
-      - OVERWRITEPROTOCOL=https
+      - OVERWRITECLIURL=${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_DOMAIN}
+      - OVERWRITEPROTOCOL=${NEXTCLOUD_PROTOCOL}
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
       - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
