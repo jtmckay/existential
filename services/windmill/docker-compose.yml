@@ -36,8 +36,8 @@ services:
     deploy:
       replicas: 1
     ports:
-      - 8800:8000
-      - 2525:2525
+      - 48008:8000
+      - 42525:2525
     environment:
       - DATABASE_URL=${WINDMILL_DATABASE_URL}
       - MODE=server
@@ -53,32 +53,6 @@ services:
         max-size: "${LOG_MAX_SIZE:-20m}"
         max-file: "${LOG_MAX_FILE:-10}"
         compress: "true"
-
-  windmill_admin_init:
-    container_name: windmill_admin_init
-    image: node:24-alpine
-    restart: "no"
-    networks:
-      - exist
-    depends_on:
-      windmill_server:
-        condition: service_started
-    environment:
-      WINDMILL_ADMIN_EMAIL: ${WINDMILL_ADMIN_EMAIL}
-      WINDMILL_ADMIN_PASSWORD: ${WINDMILL_ADMIN_PASSWORD}
-      WINDMILL_SUPERADMIN_SECRET: ${WINDMILL_SUPERADMIN_SECRET}
-    entrypoint: >
-      sh -c '
-        echo "Installing Windmill CLI (npm)...";
-        npm install -g windmill-cli@latest;
-        echo "Waiting for Windmill...";
-        sleep 15;
-        echo "Creating new superadmin...";
-        wmill user add ${WINDMILL_ADMIN_EMAIL} ${WINDMILL_ADMIN_PASSWORD} --superadmin --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
-        echo "Deleting default admin...";
-        wmill user remove admin@windmill.dev --base-url http://windmill_server:8000 --workspace default --token ${WINDMILL_SUPERADMIN_SECRET};
-        echo "✅ Superadmin migration complete.";
-      '
 
   windmill_worker:
     image: ${WINDMILL_IMAGE}
@@ -104,7 +78,7 @@ services:
     volumes:
       # mount the docker socket to allow to run docker containers from within the workers
       - /var/run/docker.sock:/var/run/docker.sock
-      - worker_dependency_cache:/tmp/windmill/cache
+      - /tmp/windmill/cache
       - worker_logs:/tmp/windmill/logs
     logging:
       driver: "json-file"

@@ -2,7 +2,6 @@
 
 This directory contains shell scripts and utilities for the Existential project automation tasks.
 
-
 ## 🚀 Quick Start
 
 Get your entire Existential environment configured in one command:
@@ -12,6 +11,7 @@ Get your entire Existential environment configured in one command:
 ```
 
 This unified script will:
+
 - **Find ALL `.example` files** in your project (30+ configuration files)
 - **Create counterpart files** by removing the `.example` extension
 - **Process placeholders** interactively and automatically
@@ -24,7 +24,7 @@ This unified script will:
 The unified processor handles **7 different file types** across your entire project:
 
 - **18** `.env.example` files → Environment configuration
-- **5** `.pem.example` files → SSL certificates and keys  
+- **5** `.pem.example` files → SSL certificates and keys
 - **2** `.json.example` files → JSON configuration
 - **2** `.yml.example` files → YAML configuration
 - **1** `.yaml.example` file → YAML configuration
@@ -34,6 +34,7 @@ The unified processor handles **7 different file types** across your entire proj
 ### 🔒 Safe Processing & File Protection
 
 The system is designed with safety in mind:
+
 - **Never modifies existing files** - Only creates new files from `.example` templates
 - **Clear messaging** when files already exist with guidance to delete and regenerate if needed
 - **Root-level priority** - Processes root `.env.example` first with CLI prompts and password generation
@@ -51,6 +52,7 @@ EXIST_DEFAULT_PASSWORD=generated_password
 ```
 
 These values automatically replace matching variables in all service `.env` files:
+
 ```bash
 # In services/nocodb/.env (automatically replaced)
 NOCODB_ADMIN_EMAIL=your@email.com  # was EXIST_DEFAULT_EMAIL
@@ -83,9 +85,11 @@ NOCODB_ADMIN_EMAIL=your@email.com  # was EXIST_DEFAULT_EMAIL
 ## Main Scripts
 
 ### `unified_example_processor.sh`
+
 A comprehensive cross-platform bash script that systematically processes ALL `.example` files in the project, creating configuration files and handling placeholder replacements.
 
 **Features:**
+
 - **Universal file processing**: Handles 7+ different file types (`.env`, `.pem`, `.yml`, `.json`, `.yaml`, `.conf`, `.Caddyfile`)
 - **Dynamic variable system**: `EXIST_DEFAULT_*` variables from root `.env` automatically propagate to all services
 - **Safe processing**: Never modifies existing files, only creates new ones from templates
@@ -95,6 +99,7 @@ A comprehensive cross-platform bash script that systematically processes ALL `.e
 - **Root-first processing**: Prioritizes root-level files for environment sourcing
 
 **Usage:**
+
 ```bash
 # Process all .example files in the project
 ./unified_example_processor.sh
@@ -107,14 +112,18 @@ A comprehensive cross-platform bash script that systematically processes ALL `.e
 ```
 
 **Functions:**
+
 - `process_all_example_files(dir, depth, pattern, root_first)` - Main processing function
 - `find_example_files(dir, depth, pattern)` - File discovery with pattern matching
 - `process_example_file(file, is_root_level)` - Individual file processing
 - `get_exist_default_variables()` - Extract dynamic variables from root `.env`
+
 ### `interactive_cli_replacer.sh`
+
 Interactive script that finds and replaces `EXIST_CLI` placeholders in files by prompting the user for values. Shows context comments before each variable to help understand what value is needed.
 
 **Features:**
+
 - Finds all instances of `EXIST_CLI` in files
 - Shows preceding comment lines (starting with `# `) as context
 - Interactive prompts for each placeholder
@@ -124,6 +133,7 @@ Interactive script that finds and replaces `EXIST_CLI` placeholders in files by 
 - Proper escaping for special characters including `/`
 
 **Usage:**
+
 ```bash
 # Process specific files
 ./interactive_cli_replacer.sh file1.env file2.env
@@ -133,13 +143,16 @@ Interactive script that finds and replaces `EXIST_CLI` placeholders in files by 
 ```
 
 **Functions:**
+
 - `process_files_interactive(file_paths...)` - Process specific files
 - `extract_context_comments(file, line_number)` - Extract comments before a variable
 
 ### `service_enablement.sh`
+
 Helper script for managing service enablement through individual environment variables. Each service can be enabled/disabled independently using `EXIST_ENABLE_*` variables.
 
 **Features:**
+
 - Individual service control via environment variables
 - Service status reporting and management
 - Docker compose override generation
@@ -147,6 +160,7 @@ Helper script for managing service enablement through individual environment var
 - Integration with existential.sh workflow
 
 **Usage:**
+
 ```bash
 # Show status of all services
 ./service_enablement.sh status
@@ -166,6 +180,7 @@ Helper script for managing service enablement through individual environment var
 ```
 
 **Functions:**
+
 - `is_service_enabled(service_path)` - Check if a service is enabled
 - `get_enabled_services()` - List all enabled services
 - `get_disabled_services()` - List all disabled services
@@ -174,6 +189,7 @@ Helper script for managing service enablement through individual environment var
 
 **Environment Variables:**
 Service enablement uses individual boolean variables:
+
 ```bash
 EXIST_ENABLE_AI_LIBRECHAT=true
 EXIST_ENABLE_AI_OLLAMA=true
@@ -183,9 +199,11 @@ EXIST_ENABLE_HOSTING_PORTAINER=false
 ```
 
 ### `generate_password.sh`
+
 Generates secure passwords of various lengths using mixed case letters, numbers, and safe special characters.
 
 **Usage:**
+
 ```bash
 # Run independently
 ./generate_password.sh
@@ -197,13 +215,16 @@ password_24=$(generate_24_char_password)  # Convenience function
 ```
 
 **Functions:**
+
 - `generate_password(length)` - Returns a secure password of specified length
 - `generate_24_char_password()` - Convenience function for 24-character passwords
 
 ### `generate_hex_key.sh`
+
 Generates hexadecimal keys of any specified length (0-9, a-f) suitable for API keys, tokens, and encryption keys.
 
 **Usage:**
+
 ```bash
 # Run independently
 ./generate_hex_key.sh 32    # Generate 32-character hex key
@@ -218,6 +239,7 @@ hex_key_custom=$(generate_hex_key 48)
 ```
 
 **Functions:**
+
 - `generate_hex_key(length)` - Returns hex key of specified length
 - `generate_32_char_hex()` - Convenience function for 32-character hex keys
 - `generate_64_char_hex()` - Convenience function for 64-character hex keys
@@ -227,16 +249,19 @@ hex_key_custom=$(generate_hex_key 48)
 The system supports several types of placeholders that are automatically processed:
 
 ### Interactive Placeholders
+
 - `EXIST_CLI` - Prompts user for input during processing
 
 ### Generated Values
+
 - `EXIST_24_CHAR_PASSWORD` - Generates secure 24-character passwords
-- `EXIST_32_CHAR_HEX_KEY` - Generates 32-character hex keys  
+- `EXIST_32_CHAR_HEX_KEY` - Generates 32-character hex keys
 - `EXIST_64_CHAR_HEX_KEY` - Generates 64-character hex keys
 - `EXIST_TIMESTAMP` - Generates current timestamp (YYYYMMDD_HHMMSS)
 - `EXIST_UUID` - Generates UUID (or timestamp-based fallback)
 
 ### Dynamic Variables
+
 - `EXIST_DEFAULT_*` - Any variable starting with this prefix in root `.env` automatically propagates to all service configurations
 
 ## Integration
@@ -249,20 +274,129 @@ These scripts are integrated into the main `existential.sh` workflow:
 ./existential.sh services   # Uses service_enablement.sh
 ```
 
+### `create_vikunja_user.sh`
+
+Script to create a default user in Vikunja after the containers are started. This replaces the init container approach with a more reliable post-startup script.
+
+**Features:**
+
+- Waits for Vikunja database and service to be ready
+- Checks if user already exists before creating
+- Uses environment variables for user credentials
+- Provides detailed status and error reporting
+- Can be run independently or as part of setup workflow
+
+**Usage:**
+
+```bash
+# Run as standalone script (requires .env to be sourced)
+./create_vikunja_user.sh
+
+# Called automatically by run_initial_setup.sh
+```
+
+**Environment Variables:**
+
+- `VIKUNJA_DEFAULT_USERNAME` - Username for the admin user (default: admin)
+- `VIKUNJA_DEFAULT_PASSWORD` - Password for the admin user
+- `VIKUNJA_DEFAULT_EMAIL` - Email for the admin user
+- `VIKUNJA_DATABASE_*` - Database connection parameters
+
+### `create_windmill_admin.sh`
+
+Script to create a superadmin user in Windmill and remove the default admin after the containers are started. This replaces the init container approach with a more reliable post-startup script.
+
+**Features:**
+
+- Waits for Windmill database and server to be ready
+- Installs Windmill CLI in a temporary container
+- Checks if admin user already exists before creating
+- Creates superadmin and removes default admin user
+- Uses environment variables for admin credentials
+- Provides detailed status and error reporting
+- Automatic cleanup of temporary containers
+
+**Usage:**
+
+```bash
+# Run as standalone script (requires .env to be sourced)
+./create_windmill_admin.sh
+
+# Called automatically by run_initial_setup.sh
+```
+
+**Environment Variables:**
+
+- `WINDMILL_ADMIN_EMAIL` - Email for the admin user
+- `WINDMILL_ADMIN_PASSWORD` - Password for the admin user
+- `WINDMILL_SUPERADMIN_SECRET` - Secret token for superadmin operations
+
+### `run_initial_setup.sh`
+
+Comprehensive script that runs all necessary setup scripts after containers are started. This coordinates various service setup tasks.
+
+**Features:**
+
+- Checks service enablement status
+- Waits for services to be running before setup
+- Runs service-specific setup scripts for services that need post-startup configuration
+- Shows service access information with URLs and credentials
+- Focuses only on services that actually need setup (like Vikunja and Windmill)
+- Modular design for easy addition of new services requiring setup
+
+**Usage:**
+
+```bash
+# Run all setup scripts
+./run_initial_setup.sh
+./run_initial_setup.sh all
+
+# Run specific service setup
+./run_initial_setup.sh vikunja
+./run_initial_setup.sh windmill
+
+# Show service access information only
+./run_initial_setup.sh info
+```
+
+**Functions:**
+
+- `setup_vikunja()` - Creates Vikunja admin user (required)
+- `setup_windmill()` - Creates Windmill superadmin user (required)
+- `setup_other_services()` - Placeholder for future services needing setup
+- `show_service_access_info()` - Displays service URLs and credentials
+- `is_service_enabled()` / `is_service_running()` - Service status checks
+
+**Note:** Most services (RabbitMQ, Portainer, etc.) work immediately with environment variables and don't need post-startup setup scripts.
+
 ## Development Notes
 
 All scripts follow these patterns:
+
 - **Cross-platform compatibility**: Work on Windows (Git Bash/WSL), Mac, and Linux
 - **Safe operations**: Never overwrite existing files without explicit confirmation
 - **Comprehensive error handling**: Clear error messages and graceful failures
 - **Modular design**: Can be sourced by other scripts or run independently
 - **Consistent interfaces**: Similar parameter patterns across scripts
 
+## Interactive Workflow
+
+The enhanced `existential.sh` now includes interactive prompts after processing:
+
+1. **Configuration Processing** - All `.example` files are processed
+2. **Container Startup Prompt** - Ask user if they want to start Docker containers
+3. **Initial Setup Prompt** - Ask user if they want to run setup scripts
+4. **Service Access Info** - Display URLs and credentials for running services
+
+This creates a complete end-to-end workflow from configuration to running services.
+
 ## Adding New Scripts
 
 When creating new shell scripts for the Existential project:
+
 1. Place them in this directory (`automations/existential/`)
 2. Use basic bash operations for cross-platform compatibility
 3. Include proper error handling and documentation
 4. Make them sourceable by other scripts when appropriate
 5. Update this README with new script descriptions
+6. Add service setup to `run_initial_setup.sh` if needed

@@ -6,7 +6,7 @@ services:
     environment:
       - JWT_SECRET=${ONLY_OFFICE_JWT_SECRET}
     ports:
-      - '9080:80'
+      - "49080:80"
     tty: true
     stdin_open: true
     networks:

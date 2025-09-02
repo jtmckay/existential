@@ -33,7 +33,7 @@ services:
       NC_ADMIN_EMAIL: ${NOCODB_ADMIN_EMAIL}
       NC_ADMIN_PASSWORD: ${NOCODB_ADMIN_PASSWORD}
     ports:
-      - 11580:8080
+      - 48080:8080
     volumes:
       - nocodb_data:/usr/app/data
       # - ./nc_data:/usr/app/data # Local volume for NocoDB data

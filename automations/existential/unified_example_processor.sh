@@ -273,7 +273,36 @@ process_file_placeholders() {
         fi
     done
     
-    # STEP 2: Dynamic EXIST_DEFAULT_* variable replacement
+    # STEP 2: Replace EXIST_* variables with their literal values from environment
+    # This handles all EXIST_* variables found anywhere in the file
+    echo "    🔍 Processing EXIST_* environment variable replacements..."
+    
+    # Find all unique EXIST_* variables in the file (must be followed by non-alphanumeric/underscore or end of line)
+    local exist_vars=()
+    mapfile -t exist_vars < <(grep -o 'EXIST_[A-Z0-9_]\+' "$temp_file" 2>/dev/null | sort -u)
+    
+    for exist_var in "${exist_vars[@]}"; do
+        if [ -n "$exist_var" ]; then
+            # Get the value from environment
+            local env_value="${!exist_var}"
+            
+            if [ -n "$env_value" ]; then
+                # Escape special characters for sed (both the variable name and value)
+                # Use a different delimiter (|) to avoid conflicts with forward slashes
+                local escaped_value=$(printf '%s\n' "$env_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                local escaped_exist_var=$(printf '%s\n' "$exist_var" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                
+                # Replace all occurrences of this EXIST_* variable using | as delimiter
+                sed -i "s|$escaped_exist_var|$escaped_value|g" "$temp_file"
+                echo "    ✅ Replaced all occurrences of $exist_var with environment value: '$env_value'"
+                ((changes_made++))
+            else
+                echo "    ⚠️  Environment variable $exist_var not set, leaving as placeholder"
+            fi
+        fi
+    done
+
+    # STEP 3: Dynamic EXIST_DEFAULT_* variable replacement
     # Only process files other than the root .env to avoid circular references
     local current_file_path=$(realpath "$file" 2>/dev/null || echo "$file")
     local root_env_path=$(realpath ".env" 2>/dev/null || echo "./.env")
@@ -289,13 +318,13 @@ process_file_placeholders() {
                 
                 # Only process if there's a value and it doesn't contain EXIST_ placeholders
                 if [ -n "$var_value" ] && ! [[ "$var_value" =~ EXIST_ ]]; then
-                    # Check if this variable exists in the file
-                    if grep -q "=$var_name" "$temp_file" || grep -q "=$var_name$" "$temp_file"; then
-                        # Escape special characters for sed
-                        local escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|/]/\\&/g')
-                        # Replace the variable when it appears as a value (after =)
-                        sed -i "s/=$var_name$/=$escaped_value/g" "$temp_file"
-                        sed -i "s/=$var_name\([^A-Z0-9_]\)/=$escaped_value\1/g" "$temp_file"
+                    # Check if this variable exists in the file anywhere
+                    if grep -q "$var_name" "$temp_file"; then
+                        # Escape special characters for sed using | as delimiter
+                        local escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                        local escaped_var_name=$(printf '%s\n' "$var_name" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                        # Replace all occurrences of this variable name with its value
+                        sed -i "s|$escaped_var_name|$escaped_value|g" "$temp_file"
                         echo "    ✅ Replaced dynamic variable $var_name with '$var_value'"
                         ((changes_made++))
                     fi

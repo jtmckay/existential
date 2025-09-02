@@ -30,7 +30,7 @@ services:
     networks:
       - exist
     ports:
-      - 8000:8000
+      - 48000:8000
     volumes:
       - ./whisper_data:/root/.cache/huggingface
 

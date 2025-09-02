@@ -5,13 +5,13 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    ports:
-      - 23080:3080
+    # ports:
+    #   - 23080:3080
     depends_on:
       - librechat-mongodb
       - librechat-rag
     extra_hosts:
-    - "host.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
@@ -85,7 +85,7 @@ services:
       POSTGRES_PASSWORD: ${LIBRECHAT_PG_PASSWORD}
     volumes:
       - librechat_pg_data:/var/lib/postgresql/data
-  
+
   librechat-rag:
     container_name: librechat-rag
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest

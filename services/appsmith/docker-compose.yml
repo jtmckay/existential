@@ -7,7 +7,7 @@ services:
       - exist
     ports:
       # - "80:80"
-      - "4443:80"
+      - "44080:80"
     volumes:
       - appsmith_data:/appsmith-stacks
 

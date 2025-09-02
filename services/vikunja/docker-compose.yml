@@ -6,7 +6,7 @@ services:
     networks:
       - exist
     ports:
-      - 3456:3456
+      - 43456:3456
     environment:
       VIKUNJA_SERVICE_PUBLICURL: ${VIKUNJA_SERVICE_PUBLICURL}
       VIKUNJA_DATABASE_HOST: ${VIKUNJA_DATABASE_HOST}
@@ -36,26 +36,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -h localhost -U $$POSTGRES_USER"]
       interval: 2s
       start_period: 30s
-
-  vikunja_user_init:
-    image: vikunja/vikunja
-    depends_on:
-      vikunja_db:
-        condition: service_healthy
-    networks:
-      - exist
-    environment:
-      VIKUNJA_DATABASE_HOST: ${VIKUNJA_DATABASE_HOST}
-      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
-      VIKUNJA_DATABASE_TYPE: ${VIKUNJA_DATABASE_TYPE}
-      VIKUNJA_DATABASE_USER: ${VIKUNJA_DATABASE_USER}
-      VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
-    entrypoint: >
-      /app/vikunja/vikunja user create
-      --username ${VIKUNJA_DEFAULT_USERNAME}
-      --password ${VIKUNJA_DEFAULT_PASSWORD}
-      --email ${VIKUNJA_DEFAULT_EMAIL}
-    restart: "no"
 
 volumes:
   vikunja_data:

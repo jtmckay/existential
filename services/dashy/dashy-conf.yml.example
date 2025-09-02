@@ -20,11 +20,11 @@ sections:
         icon: fas fa-scroll
         
       - title: Mealie
-        url: https://localhost:9091
+        url: https://localhost:49009
         icon: fas fa-utensils
         
       - title: Vikunja
-        url: http://localhost:3456
+        url: http://localhost:43456
         icon: fas fa-list
 
   - name: Infrastructure
@@ -34,15 +34,15 @@ sections:
         icon: si-homeassistant
         
       - title: Nextcloud
-        url: https://localhost:8421
+        url: https://localhost:48421
         icon: si-nextcloud
 
       - title: NocoDB
-        url: https://localhost:11580
+        url: https://localhost:48080
         icon: fas fa-database
 
       - title: Ntfy
-        url: http://localhost:36880
+        url: http://localhost:44680
         icon: si-ntfy
 
       - title: RabbitMQ
@@ -52,7 +52,7 @@ sections:
   - name: Tools
     items:
       - title: AppSmith
-        url: https://localhost:4443
+        url: https://localhost:44080
         icon: fas fa-code
         
       - title: IT-Tools
@@ -60,11 +60,11 @@ sections:
         icon: hl-it-tools
 
       - title: Lowcoder
-        url: https://localhost:3033
+        url: https://localhost:43000
         icon: fas fa-file-code
 
       - title: Windmill
-        url: http://localhost:8800/
+        url: http://localhost:48008/
         icon: fas fa-fan
 
   - name: Monitoring
@@ -75,7 +75,7 @@ sections:
         icon: hl-portainer
 
       - title: Uptime Kuma
-        url: http://localhost:30565/dashboard
+        url: http://localhost:43001/dashboard
         icon: si-uptimekuma
 
 # Reference for icons: https://fontawesome.com/search?ic=free&o=r

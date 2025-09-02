@@ -27,8 +27,65 @@ else
     exit 1
 fi
 
+# Source RabbitMQ certificate generation
+if [ -f "$AUTOMATION_DIR/generate_rabbitmq_certs.sh" ]; then
+    source "$AUTOMATION_DIR/generate_rabbitmq_certs.sh"
+else
+    echo "❌ Error: generate_rabbitmq_certs.sh not found in $AUTOMATION_DIR/"
+    exit 1
+fi
+
 # Restore the original script directory after all sourcing
 SCRIPT_DIR="$ORIGINAL_SCRIPT_DIR"
+
+# Function to check if diff contains only timestamp-related changes
+is_only_timestamp_changes() {
+    local diff_file="$1"
+    
+    if [ ! -f "$diff_file" ]; then
+        return 1
+    fi
+    
+    # Check if diff file contains "NO CHANGES" marker
+    if grep -q "^NO CHANGES$" "$diff_file"; then
+        return 0  # No changes at all
+    fi
+    
+    # Filter out diff header lines and look at actual changes
+    local meaningful_changes=0
+    
+    # Look for lines that start with + or - (actual changes)
+    # Exclude lines that are just timestamps, file headers, or whitespace
+    while IFS= read -r line; do
+        # Skip diff header lines (starting with +++, ---, @@)
+        if [[ "$line" =~ ^(\+\+\+|---|@@) ]]; then
+            continue
+        fi
+        
+        # Check if it's an actual change line (starts with + or -)
+        if [[ "$line" =~ ^[+-] ]]; then
+            # Remove the +/- prefix for analysis
+            local content="${line:1}"
+            
+            # Skip if it's just whitespace
+            if [[ "$content" =~ ^[[:space:]]*$ ]]; then
+                continue
+            fi
+            
+            # Check if it looks like a timestamp or generated comment
+            # Common patterns: dates, times, "generated on", "created at", etc.
+            if [[ "$content" =~ (generated|created|updated|timestamp|[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{2}:[0-9]{2}:[0-9]{2}|[0-9]{10,}) ]]; then
+                continue
+            fi
+            
+            # If we get here, it's likely a meaningful change
+            ((meaningful_changes++))
+        fi
+    done < "$diff_file"
+    
+    # Return 0 (true) if no meaningful changes found, 1 (false) otherwise
+    [ "$meaningful_changes" -eq 0 ]
+}
 
 # Function to count variables in a .env file
 count_env_variables() {
@@ -57,6 +114,18 @@ run_existential_workflow() {
         echo "❌ Error: Cannot change to script directory: $SCRIPT_DIR"
         exit 1
     }
+    
+    # Step 0.5: Generate RabbitMQ certificates if needed
+    echo "🔐 Checking for RabbitMQ certificate requirements..."
+    echo "==================================================="
+    
+    if check_and_generate_rabbitmq_certs "."; then
+        echo "✅ RabbitMQ certificate check completed!"
+    else
+        echo "⚠️  RabbitMQ certificate generation had issues - check output above"
+    fi
+    
+    echo ""
     
     # Step 1: Process ALL .example files systematically
     echo "📋 Processing ALL .example files in the project..."
@@ -114,10 +183,22 @@ run_existential_workflow() {
                     # No differences found
                     echo "NO CHANGES" > "$diff_file"
                     echo "ℹ️  No changes detected between docker-compose.yml and $compose_output"
+                    echo "🧹 Cleaning up unnecessary files (no real changes)..."
+                    rm -f "$diff_file" "$compose_output"
+                    echo "✅ Removed $diff_file and $compose_output"
                 else
-                    # Differences found
+                    # Differences found - check if they're only timestamps
                     local change_count=$(grep -c "^[+-]" "$diff_file" 2>/dev/null || echo "0")
-                    echo "📊 Generated $diff_file with $change_count line changes"
+                    
+                    if is_only_timestamp_changes "$diff_file"; then
+                        echo "ℹ️  Only timestamp/metadata changes detected (no functional differences)"
+                        echo "🧹 Cleaning up unnecessary files..."
+                        rm -f "$diff_file" "$compose_output"
+                        echo "✅ Removed $diff_file and $compose_output (only timestamps changed)"
+                    else
+                        echo "📊 Generated $diff_file with $change_count line changes"
+                        echo "⚠️  Meaningful differences found - review $diff_file and consider updating docker-compose.yml"
+                    fi
                 fi
             fi
         else
@@ -149,9 +230,11 @@ run_existential_workflow() {
     echo "  • Generated/updated files: $generated_files_count"
     echo "  • Environment files: $env_files_count"
     echo "  • Top-level .env: $([ -f ".env" ] && echo "✅ Ready" || echo "❌ Not found")"
-    echo "  • Docker Compose: $([ -f "$compose_output" ] && echo "✅ Generated ($compose_output)" || echo "❌ Not generated")"
+    echo "  • Docker Compose: $([ -f "$compose_output" ] && echo "✅ Generated ($compose_output)" || echo "✅ No changes needed")"
     if [ "$generate_diff" = true ] && [ -f "docker-compose.diff.yml" ]; then
-        echo "  • Diff file: ✅ Generated (docker-compose.diff.yml)"
+        echo "  • Diff file: ✅ Generated (docker-compose.diff.yml) - review needed"
+    elif [ "$generate_diff" = true ]; then
+        echo "  • Diff file: ✅ Auto-cleaned (no meaningful changes detected)"
     fi
     echo ""
     
@@ -173,11 +256,107 @@ run_existential_workflow() {
     echo "  • Root-level .env was sourced to load environment variables"
     echo "  • Docker Compose configuration was generated from enabled services"
     echo ""
-    echo "💡 Next steps:"
-    echo "  • Run 'source .env' in other terminals to load top-level variables"
-    echo "  • Use 'docker compose up' to start your services"
-    echo "  • Use './automations/existential/service_enablement.sh' to manage services"
-    echo "  • Check individual service directories for their specific .env files"
+    
+    # Interactive prompts for starting containers and running setup
+    echo "� Ready to Start Your Services!"
+    echo "==============================="
+    echo ""
+    
+    # Check if any services are enabled
+    local enabled_services_count=0
+    if [ -f ".env" ]; then
+        # Use the correct pattern for EXIST_ENABLE_* variables
+        enabled_services_count=$(grep -c "^EXIST_ENABLE_.*=true" ".env" 2>/dev/null | head -1 || echo "0")
+        # Ensure we have a valid number
+        if ! [[ "$enabled_services_count" =~ ^[0-9]+$ ]]; then
+            enabled_services_count=0
+        fi
+    fi
+    
+    if [ "$enabled_services_count" -gt 0 ]; then
+        echo "📋 Found $enabled_services_count enabled service(s) ready to start"
+        echo ""
+        
+        # Prompt to start containers
+        while true; do
+            read -p "🐳 Would you like to start your Docker containers now? (y/n): " start_containers
+            case $start_containers in
+                [Yy]* )
+                    echo ""
+                    echo "🚀 Starting Docker containers..."
+                    echo "==============================="
+                    
+                    if docker compose up -d; then
+                        echo ""
+                        echo "✅ Containers started successfully!"
+                        echo ""
+                        
+                        # Show running containers
+                        echo "📋 Running containers:"
+                        docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+                        echo ""
+                        
+                        # Prompt for initial setup
+                        while true; do
+                            read -p "🔧 Would you like to run the initial setup scripts now? (y/n): " run_setup
+                            case $run_setup in
+                                [Yy]* )
+                                    echo ""
+                                    echo "🛠️  Running initial setup scripts..."
+                                    echo "====================================="
+                                    
+                                    if [ -f "$AUTOMATION_DIR/run_initial_setup.sh" ]; then
+                                        "$AUTOMATION_DIR/run_initial_setup.sh" all
+                                    else
+                                        echo "❌ Initial setup script not found"
+                                        echo "💡 You can run setup manually later with:"
+                                        echo "   ./automations/existential/run_initial_setup.sh"
+                                    fi
+                                    break
+                                    ;;
+                                [Nn]* )
+                                    echo ""
+                                    echo "ℹ️  Skipping initial setup for now"
+                                    echo "💡 You can run setup later with:"
+                                    echo "   ./automations/existential/run_initial_setup.sh"
+                                    break
+                                    ;;
+                                * )
+                                    echo "Please answer yes (y) or no (n)"
+                                    ;;
+                            esac
+                        done
+                    else
+                        echo ""
+                        echo "❌ Failed to start containers"
+                        echo "💡 Check the error above and try manually: docker compose up -d"
+                    fi
+                    break
+                    ;;
+                [Nn]* )
+                    echo ""
+                    echo "ℹ️  Containers not started - you can start them later"
+                    echo "💡 Manual commands:"
+                    echo "   docker compose up -d                              # Start all services"
+                    echo "   ./automations/existential/run_initial_setup.sh    # Run setup scripts"
+                    break
+                    ;;
+                * )
+                    echo "Please answer yes (y) or no (n)"
+                    ;;
+            esac
+        done
+    else
+        echo "ℹ️  No services are currently enabled"
+        echo "💡 Enable services with: ./automations/existential/service_enablement.sh"
+    fi
+    
+    echo ""
+    echo "💡 Additional commands:"
+    echo "  • Load environment: source .env"
+    echo "  • Manage services: ./automations/existential/service_enablement.sh"
+    echo "  • View logs: docker compose logs [service_name]"
+    echo "  • Stop services: docker compose down"
     echo ""
     
     return 0
@@ -329,7 +508,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "  7. Process service-level .example files"
             echo "  8. Generate docker-compose.yml from enabled services"
             echo "  9. Generate diff file if docker-compose.yml exists"
-            echo " 10. Report comprehensive summary"
+            echo " 10. Auto-cleanup diff/generated files if only timestamps changed"
+            echo " 11. Report comprehensive summary"
             echo ""
             echo "Features:"
             echo "  • Processes ANY file type with .example extension"
@@ -338,7 +518,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             echo "  • Interactive CLI placeholder replacement"
             echo "  • Automatic password/key generation"
             echo "  • Service enablement integration"
-            echo "  • Docker Compose generation with diff tracking"
+            echo "  • Docker Compose generation with smart diff tracking"
+            echo "  • Auto-cleanup of timestamp-only changes"
             echo ""
             echo "Examples:"
             echo "  $0                          # Process all .example files"
@@ -400,10 +581,22 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
                         # No differences found
                         echo "NO CHANGES" > "$diff_file"
                         echo "ℹ️  No changes detected between docker-compose.yml and $output_file"
+                        echo "🧹 Cleaning up unnecessary files (no real changes)..."
+                        rm -f "$diff_file" "$output_file"
+                        echo "✅ Removed $diff_file and $output_file"
                     else
-                        # Differences found
+                        # Differences found - check if they're only timestamps
                         change_count=$(grep -c "^[+-]" "$diff_file" 2>/dev/null || echo "0")
-                        echo "📊 Generated $diff_file with $change_count line changes"
+                        
+                        if is_only_timestamp_changes "$diff_file"; then
+                            echo "ℹ️  Only timestamp/metadata changes detected (no functional differences)"
+                            echo "🧹 Cleaning up unnecessary files..."
+                            rm -f "$diff_file" "$output_file"
+                            echo "✅ Removed $diff_file and $output_file (only timestamps changed)"
+                        else
+                            echo "📊 Generated $diff_file with $change_count line changes"
+                            echo "⚠️  Meaningful differences found - review $diff_file and consider updating docker-compose.yml"
+                        fi
                     fi
                 fi
             fi

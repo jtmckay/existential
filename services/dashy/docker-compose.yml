@@ -6,7 +6,7 @@ services:
     volumes:
       - ./dashy-conf.yml:/app/user-data/conf.yml
     ports:
-      - "4000:8080"
+      - 80:8080
     networks:
       - exist
     environment:

@@ -8,8 +8,8 @@ services:
     networks:
       - exist
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "49000:9000"
+      - "49001:9001"
     volumes:
       - minio_data:/data # Path to the mounted NFS share on the Proxmox host
       - ../../services/rabbitMQ/ssl/ca.pem:/etc/minio/certs/rabbitmq-ca.pem:ro

@@ -1,6 +1,5 @@
 # https://github.com/lowcoder-org/lowcoder/blob/main/deploy/docker/docker-compose-multi.yaml
 services:
-
   ##
   ## Start services required for Lowcoder (MongoDB and Redis)
   ##
@@ -42,7 +41,6 @@ services:
       retries: 10
     networks:
       - exist
-
 
   ##
   ## Start Lowcoder backend services (api-service and node-service)
@@ -116,7 +114,6 @@ services:
     networks:
       - exist
 
-
   lowcoder-node-service:
     image: lowcoderorg/lowcoder-ce-node-service:latest
     container_name: lowcoder-node-service
@@ -147,7 +144,7 @@ services:
     image: lowcoderorg/lowcoder-ce-frontend:latest
     container_name: lowcoder-frontend
     ports:
-      - "3033:3000"
+      - 43000:3000
     environment:
       LOWCODER_PUID: "9001"
       LOWCODER_PGID: "9001"
