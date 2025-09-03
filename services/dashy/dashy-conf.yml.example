@@ -1,5 +1,6 @@
 pageInfo:
-  title: My Dashboard
+  title: Existential Dashboard
+  description: Your self-hosted local development environment
   navLinks:
     - title: Home
       path: /
@@ -12,7 +13,7 @@ sections:
   - name: Apps
     items:
       - title: LibreChat
-        url: http://localhost:44480/
+        url: https://cloud.local.existential.company/
         icon: fas fa-ghost
 
       - title: Logseq
@@ -20,11 +21,11 @@ sections:
         icon: fas fa-scroll
         
       - title: Mealie
-        url: https://localhost:49009
+        url: https://recipes.local.existential.company/
         icon: fas fa-utensils
         
       - title: Vikunja
-        url: http://localhost:43456
+        url: https://tasks.local.existential.company/
         icon: fas fa-list
 
   - name: Infrastructure
@@ -34,48 +35,71 @@ sections:
         icon: si-homeassistant
         
       - title: Nextcloud
-        url: https://localhost:48421
+        url: https://cloud.local.existential.company/
         icon: si-nextcloud
 
       - title: NocoDB
-        url: https://localhost:48080
+        url: https://db.local.existential.company/
         icon: fas fa-database
 
       - title: Ntfy
-        url: http://localhost:44680
+        url: https://notify.local.existential.company/
         icon: si-ntfy
 
       - title: RabbitMQ
-        url: http://localhost:15672
+        url: https://queue.local.existential.company/
         icon: si-rabbitmq
 
   - name: Tools
     items:
       - title: AppSmith
-        url: https://localhost:44080
+        url: https://apps.local.existential.company/
         icon: fas fa-code
         
       - title: IT-Tools
-        url: http://localhost:43491
+        url: https://tools.local.existential.company/
         icon: hl-it-tools
 
       - title: Lowcoder
-        url: https://localhost:43000
+        url: https://build.local.existential.company/
         icon: fas fa-file-code
 
       - title: Windmill
-        url: http://localhost:48008/
+        url: https://windmill.local.existential.company/
         icon: fas fa-fan
+
+      - title: MinIO
+        url: https://storage.local.existential.company/
+        icon: fas fa-database
 
   - name: Monitoring
     items:
-
       - title: Portainer
-        url: https://localhost:49443/
+        url: https://portainer.local.existential.company/
         icon: hl-portainer
 
       - title: Uptime Kuma
-        url: http://localhost:43001/dashboard
+        url: https://monitor.local.existential.company/dashboard
         icon: si-uptimekuma
+
+      - title: Dashy (Current)
+        url: https://local.local.existential.company/
+        icon: fas fa-tachometer-alt
+
+# Services available via HTTPS subdomains (*.local.existential.company):
+# - local: Dashy Dashboard
+# - cloud: LibreChat AI Chat & Nextcloud Files  
+# - portainer: Container Management
+# - tasks: Vikunja Task Management
+# - windmill: Workflow Automation
+# - tools: IT-Tools Utilities
+# - db: NocoDB Database Interface
+# - storage: MinIO Object Storage
+# - apps: Appsmith Low-Code Platform
+# - queue: RabbitMQ Message Queue
+# - notify: NTFY Push Notifications
+# - recipes: Mealie Recipe Management
+# - monitor: Uptime Kuma Service Monitoring
+# - build: Lowcoder Alternative Low-Code Platform
 
 # Reference for icons: https://fontawesome.com/search?ic=free&o=r

@@ -117,13 +117,13 @@ setup_other_services() {
     # - Database migrations
     # - Admin user creation
     # - Initial configuration
-    
-    # RabbitMQ works fine out of the box with environment variables
+
+    # Most services work fine out of the box with environment variables
     # No additional setup needed
     
     if [ ${#services_needing_setup[@]} -eq 0 ]; then
         echo "ℹ️  No additional services require post-startup setup"
-        echo "💡 Most services (RabbitMQ, Portainer, etc.) work immediately with environment variables"
+        echo "💡 Most services work immediately with environment variables"
         return 0
     fi
     
@@ -162,7 +162,7 @@ show_service_access_info() {
         echo "📝 Vikunja (Task Management):"
         echo "   URL: ${VIKUNJA_SERVICE_PUBLICURL:-http://localhost:43456}"
         echo "   Username: ${VIKUNJA_DEFAULT_USERNAME:-admin}"
-        echo "   Password: ${VIKUNJA_DEFAULT_PASSWORD:-changeme}"
+        echo "   Password: [set from environment variable]"
         echo ""
     fi
     
@@ -170,19 +170,10 @@ show_service_access_info() {
         echo "⚡ Windmill (Workflow Automation):"
         echo "   URL: ${WINDMILL_PUBLIC_URL:-http://localhost:48008}"
         echo "   Email: ${WINDMILL_ADMIN_EMAIL:-admin@localhost}"
-        echo "   Password: ${WINDMILL_ADMIN_PASSWORD:-changeme}"
+        echo "   Password: [set from environment variable]"
         echo ""
     fi
-    
-    if is_service_enabled "SERVICES_RABBITMQ" && is_service_running "rabbitmq"; then
-        echo "🐰 RabbitMQ Management:"
-        echo "   URL: ${RABBITMQ_MANAGEMENT_URL:-http://localhost:15672}"
-        echo "   Username: ${RABBITMQ_DEFAULT_USER:-admin}"
-        echo "   Password: ${RABBITMQ_DEFAULT_PASS:-changeme}"
-        echo "   💡 Ready to use - no additional setup required"
-        echo ""
-    fi
-    
+
     # Add other services as needed
     if is_service_enabled "HOSTING_PORTAINER" && is_service_running "portainer"; then
         echo "🐳 Portainer (Docker Management):"

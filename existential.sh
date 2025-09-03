@@ -4,6 +4,29 @@
 # This script provides a comprehensive workflow for processing ALL .example files systematically
 # It combines environment file processing with any other .example file types
 
+# Function to display dashboard message
+show_dashboard_message() {
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                               🎯 YOUR DASHBOARD IS READY! 🎯                  ║"
+    echo "╚═══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🌐 Access your Existential Dashboard at:"
+    echo ""
+    echo "    ➜  https://local.existential.company/"
+    echo ""
+    echo "📋 Your dashboard provides access to all enabled services with SSL certificates"
+    echo "🔒 All subdomains use secure HTTPS with automatically trusted certificates"
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║  💡 Bookmark this URL for easy access to your self-hosted services!          ║"
+    echo "╚═══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+# Set trap to always show dashboard message on script exit
+trap 'show_dashboard_message' EXIT
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTOMATION_DIR="$SCRIPT_DIR/automations/existential"

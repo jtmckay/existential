@@ -76,7 +76,7 @@ create_admin_user() {
     if [ "$user_http_code" = "201" ]; then
         echo "✅ Successfully created admin user: $username"
         echo "📧 Email: $email"
-        echo "🔑 Password: $password"
+        echo "🔑 Password: [set from environment variable]"
     elif [ "$user_http_code" = "400" ]; then
         echo "ℹ️  User '$username' may already exist"
     else
@@ -97,7 +97,8 @@ create_admin_user() {
     
     if [ "$admin_token_http_code" = "200" ]; then
         local admin_token
-        admin_token=$(cat /tmp/windmill_admin_token.json 2>/dev/null | tr -d '\n')
+        admin_token=$(cat /tmp/windmill_admin_token.json 2>/dev/null | tr -d '
+')
         
         if [ -n "$admin_token" ] && [ "$admin_token" != "null" ]; then
             echo "✅ Successfully created token for admin user"
@@ -220,7 +221,7 @@ setup_windmill_admin() {
         echo "🎉 Windmill admin setup completed successfully!"
         echo "==============================================="
         echo "📧 Admin Email: $WINDMILL_ADMIN_EMAIL"
-        echo "🔑 Admin Password: $WINDMILL_ADMIN_PASSWORD"
+        echo "🔑 Admin Password: [set from environment variable]"
         echo "🏢 Default Workspace: $WINDMILL_DEFAULT_WORKSPACE"
         echo "🌐 Access Windmill at: http://localhost:48008"
         echo ""

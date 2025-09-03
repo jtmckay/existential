@@ -7,8 +7,8 @@ services:
       exist:
         # ipv4_address: 10.0.0.5 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' caddy`
     ports:
-      - "44880:80" # The HTTP port
-      - "443:443" # The HTTPS port
+      - "80:80" # Standard HTTP port for local development
+      - "443:443" # Standard HTTPS port for local development
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
