@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Temporarily Unavailable - Existential</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+      }
+
+      .container {
+        background: white;
+        border-radius: 15px;
+        padding: 40px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 500px;
+        margin: 20px;
+      }
+
+      .icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.7;
+      }
+
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        font-size: 28px;
+        font-weight: 300;
+      }
+
+      p {
+        color: #7f8c8d;
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+
+      .status {
+        background: #f8f9fa;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+        text-align: left;
+      }
+
+      .retry-btn {
+        background: #667eea;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.3s ease;
+        margin-top: 20px;
+      }
+
+      .retry-btn:hover {
+        background: #5a6fd8;
+      }
+
+      .dashboard-link {
+        display: inline-block;
+        margin-top: 20px;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .dashboard-link:hover {
+        text-decoration: underline;
+      }
+
+      .footer {
+        margin-top: 30px;
+        font-size: 14px;
+        color: #95a5a6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">🔧</div>
+      <h1>Service Temporarily Unavailable</h1>
+      <p>
+        The service you're trying to reach is currently down for maintenance or
+        experiencing technical difficulties.
+      </p>
+
+      <div class="status">
+        <strong>What's happening?</strong><br />
+        The backend service is not responding. This could be due to:
+        <ul style="margin-top: 10px; padding-left: 20px">
+          <li>Service is not enabled</li>
+          <li>Service restart or maintenance</li>
+          <li>Container startup delay</li>
+          <li>Network connectivity issues</li>
+        </ul>
+      </div>
+
+      <button class="retry-btn" onclick="window.location.reload()">
+        🔄 Try Again
+      </button>
+
+      <br />
+
+      <a href="https://local.existential.company" class="dashboard-link"
+        >← Return to Dashboard</a
+      >
+
+      <div class="footer">
+        <p>
+          Existential Stack • If this issue persists, check your service logs
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

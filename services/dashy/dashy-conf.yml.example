@@ -13,7 +13,7 @@ sections:
   - name: Apps
     items:
       - title: LibreChat
-        url: https://cloud.local.existential.company/
+        url: https://chat.local.existential.company/
         icon: fas fa-ghost
 
       - title: Logseq
@@ -80,10 +80,6 @@ sections:
 
       - title: Uptime Kuma
         url: https://monitor.local.existential.company/dashboard
-        icon: si-uptimekuma
-
-      - title: Dashy (Current)
-        url: https://local.local.existential.company/
         icon: fas fa-tachometer-alt
 
 # Services available via HTTPS subdomains (*.local.existential.company):

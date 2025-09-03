@@ -11,6 +11,7 @@ services:
       - "443:443" # Standard HTTPS port for local development
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./error.html:/var/www/html/error.html:ro
       - caddy_data:/data
       - caddy_config:/config
       - ../cloudflare/:/etc/caddy/certs/

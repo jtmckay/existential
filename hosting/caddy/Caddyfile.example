@@ -8,89 +8,126 @@
   auto_https disable_redirects
 }
 
+# Error handling snippet - reusable across all sites
+(error_handling) {
+  handle_errors {
+    root * /var/www/html
+    file_server
+    rewrite * /error.html
+  }
+}
+
+# Health check snippet - reusable with custom health URI
+(health_check) {
+  health_uri {args.0}
+  health_interval 10s
+  health_timeout 5s
+}
+
 # Main dashboard
 local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy dashy:8080
 }
 
 # Nextcloud - gets its own clean subdomain
 cloud.local.existential.company {
   tls internal
+  import error_handling
   redir /.well-known/carddav /remote.php/dav/ 301
   redir /.well-known/caldav /remote.php/dav/ 301
   reverse_proxy nextcloud:80
 }
 
+# LibreChat
+chat.local.existential.company {
+  tls internal
+  import error_handling
+  reverse_proxy librechat-client:80
+}
+
 # Docker management
 portainer.local.existential.company {
   tls internal
-  reverse_proxy portainer:9000
+  import error_handling
+  reverse_proxy portainer:9001
 }
 
 # Task management
 tasks.local.existential.company {
   tls internal
-  reverse_proxy vikunja:80
+  import error_handling
+  reverse_proxy vikunja:3456
 }
 
 # Workflow automation
 windmill.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy windmill_server:8000
 }
 
 # IT Tools
 tools.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy it-tools:80
 }
 
 # Database interface
 db.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy nocodb:8080
 }
 
 # Object storage
 storage.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy minio:9000
 }
 
 # Low-code platform
 apps.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy appsmith:80
 }
 
 # Message queue management
 queue.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy rabbitmq:15672
 }
 
 # Notifications
 notify.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy ntfy:80
 }
 
 # Recipe management
 recipes.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy mealie:9000
 }
 
 # Monitoring
 monitor.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy uptime-kuma:3001
 }
 
 # Alternative low-code platform
 build.local.existential.company {
   tls internal
+  import error_handling
   reverse_proxy lowcoder-frontend:3000
 }
 

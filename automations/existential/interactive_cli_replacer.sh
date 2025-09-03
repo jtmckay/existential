@@ -72,6 +72,45 @@ extract_context_comments() {
     done
 }
 
+# Function to extract example value from context comments
+extract_example_value() {
+    local file="$1"
+    local line_number="$2"
+    
+    # Start from the line before the EXIST_CLI line and work backwards
+    local current_line=$((line_number - 1))
+    
+    while [ $current_line -gt 0 ]; do
+        local line_content
+        line_content=$(sed -n "${current_line}p" "$file")
+        
+        # If we hit a blank line, stop
+        if [[ "$line_content" =~ ^[[:space:]]*$ ]]; then
+            break
+        fi
+        
+        # Check if this line contains "EG: " pattern
+        if [[ "$line_content" =~ ^[[:space:]]*#[[:space:]]*EG:[[:space:]]*(.+)$ ]]; then
+            echo "${BASH_REMATCH[1]}"
+            return 0
+        fi
+        
+        # If line starts with "# ", continue checking
+        if [[ "$line_content" =~ ^[[:space:]]*#[[:space:]] ]]; then
+            ((current_line--))
+            continue
+        else
+            # If it's not a comment and not blank, stop (we've gone too far)
+            break
+        fi
+        
+        ((current_line--))
+    done
+    
+    # No example found
+    return 1
+}
+
 # Function to process a single file for EXIST_CLI placeholders
 process_file_interactive() {
     local file="$1"
@@ -142,21 +181,43 @@ process_file_interactive() {
             variable_name="UNKNOWN_VARIABLE"
         fi
         
-        # Prompt user for value
-        echo "🔧 Please provide a value for '$variable_name':"
-        echo -n "Enter value (or 'skip' to leave unchanged, blank for empty): "
-        read -r user_value
-        
-        # Handle user input
-        if [ "$user_value" = "skip" ]; then
-            echo "⏭️  Skipping $variable_name"
-            continue
-        fi
-        
-        # If user_value is empty, we'll replace with empty string
-        if [ -z "$user_value" ]; then
-            echo "📝 Setting $variable_name to empty value"
-            user_value=""
+        # Extract example value if available
+        local example_value=""
+        if example_value=$(extract_example_value "$file" "$line_number"); then
+            # Prompt user for value with example shown
+            echo "🔧 Please provide a value for '$variable_name':"
+            echo "💡 Example: $example_value"
+            echo -n "Enter value (or 'skip' to leave unchanged, blank to use example): "
+            read -r user_value
+            
+            # Handle user input
+            if [ "$user_value" = "skip" ]; then
+                echo "⏭️  Skipping $variable_name"
+                continue
+            fi
+            
+            # If user_value is empty, use the example value
+            if [ -z "$user_value" ]; then
+                user_value="$example_value"
+                echo "📝 Using example value '$example_value' for $variable_name"
+            fi
+        else
+            # No example available, use original prompt
+            echo "🔧 Please provide a value for '$variable_name':"
+            echo -n "Enter value (or 'skip' to leave unchanged, blank for empty): "
+            read -r user_value
+            
+            # Handle user input
+            if [ "$user_value" = "skip" ]; then
+                echo "⏭️  Skipping $variable_name"
+                continue
+            fi
+            
+            # If user_value is empty, we'll replace with empty string
+            if [ -z "$user_value" ]; then
+                echo "📝 Setting $variable_name to empty value"
+                user_value=""
+            fi
         fi
         
         # Escape special characters in the user value for sed
