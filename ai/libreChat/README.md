@@ -1,7 +1,8 @@
 # LibreChat
+
 - Source: https://github.com/danny-avila/LibreChat
 - License: [MIT](https://opensource.org/licenses/MIT)
-- Alternatives: ChatGPT UI, OpenWebUI, Chatbot UI
+- Alternatives: ChatGPT UI, OpenWebUI, GPT4All, Chatbot UI
 
 ## Features
 
@@ -14,12 +15,14 @@
 - **Custom Presets**: Save conversation settings and system prompts
 - **Message Export**: Download conversations in various formats
 
-
 ### Getting started
+
 #### Generate the password hash for your password (replace SUPER_SECURE_PASSWORD)
+
 `docker run --rm node:20-alpine sh -c 'mkdir /app && cd /app && npm init -y >/dev/null && npm install bcryptjs >/dev/null && node -e "console.log(require(\"bcryptjs\").hashSync(\"SUPER_SECURE_PASSWORD\", 10))"'`
 
 #### Run one command at a time in a terminal to add a user:
+
 ```sql
 docker exec -it librechat-mongodb mongosh
 use LibreChat
@@ -36,14 +39,18 @@ db.users.insertOne({
 Generate credentials and replace all .env secrets: https://www.librechat.ai/toolkit/creds_generator?utm_source=chatgpt.com
 
 #### Add agents
+
 Create agents, likely just with "file search" capability, for use with Windmill scripts. After creating you can get the agent_id at the top of the side panel.
 
 ### Debugging
+
 Helpful commands when troubleshooting illegal action / violation / bans.
+
 - `docker compose exec librechat-api sh -lc 'cat /app/api/data/logs.json'`
 - `docker compose exec librechat-api sh -lc 'cat /app/api/data/violations.json'`
 
 Find your mongo UserID
+
 - `docker exec -it librechat-mongodb mongosh`
 - `use LibreChat`
 - `db.user.find()`

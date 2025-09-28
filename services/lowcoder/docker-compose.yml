@@ -93,7 +93,7 @@ services:
       # Email used as sender in lost password email
       LOWCODER_EMAIL_NOTIFICATIONS_SENDER: info@localhost
       # Lowcoder superuser details
-      LOWCODER_SUPERUSER_USERNAME: admin@localhost
+      LOWCODER_SUPERUSER_USERNAME: ${LOWCODER_USERNAME}
       # If left blank, a password will be generated and written into api-service log
       LOWCODER_SUPERUSER_PASSWORD: ${LOWCODER_PASSWORD}
     depends_on:

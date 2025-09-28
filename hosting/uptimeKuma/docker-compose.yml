@@ -12,7 +12,15 @@ services:
       - ADMIN_USERNAME=${KUMA_ADMIN_USERNAME}
       - ADMIN_PASSWORD=${KUMA_ADMIN_PASSWORD}
     volumes:
-      - ./uptime-kuma_data:/app/data
+      - uptime_kuma_data:/app/data
+
+volumes:
+  uptime_kuma_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/uptime_kuma_data"
 
 networks:
   exist:

@@ -1,5 +1,6 @@
 **/.env
 **/.env.generated
+**/.pnpm-store
 
 **/minio_data
 **/n8n_data
@@ -16,9 +17,9 @@
 
 **/node_modules
 
-/docker-compose.yml
-/docker-compose.diff.yml
-/docker-compose.generated.yml
+./docker-compose.yml
+./docker-compose.diff.yml
+./docker-compose.generated.yml
 
 # Bridge Config
 **/bridge.config.json
@@ -44,9 +45,6 @@
 
 # Nextcloud
 **/nextcloud/servername.conf
-
-# Nightlio
-**/nightlio
 
 # NTFY
 **/ntfy-config/server.yml
