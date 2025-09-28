@@ -17,9 +17,9 @@
 
 **/node_modules
 
-./docker-compose.yml
-./docker-compose.diff.yml
-./docker-compose.generated.yml
+/docker-compose.yml
+/docker-compose.diff.yml
+/docker-compose.generated.yml
 
 # Bridge Config
 **/bridge.config.json
@@ -67,6 +67,9 @@ node_modules/
 **/ssl/server_cert.pem
 **/ssl/server_key.pem
 **/rabbitMQ/defs.json
+
+# StirlingPDF
+**/StirlingPDF
 
 # Windmill
 **/windmill/local
