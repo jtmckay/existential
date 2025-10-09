@@ -1,4 +1,5 @@
 # Lowcoder
+
 - Source: https://github.com/lowcoder-org/lowcoder
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Lowcoder, Retool, Budibase, ToolJet.
@@ -13,4 +14,3 @@
 - **App Templates**: Pre-built templates for common business applications
 - **Real-time Data**: Live data binding and automatic UI updates
 - **Custom Plugins**: Extensible architecture with custom component support
-

@@ -1,7 +1,9 @@
 # Docker
+
 https://github.com/docker/compose
 
 ### Setup network for all containers to use
+
 ```bash
 docker network create \
   --driver overlay \
