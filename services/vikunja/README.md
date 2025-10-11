@@ -1,4 +1,5 @@
 # Vikunja
+
 - Source: https://github.com/go-vikunja/
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Todoist, Notion, TickTick, Tasks.org

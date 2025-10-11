@@ -1,4 +1,5 @@
 # Dashy
+
 - Source: https://github.com/Lissy93/dashy
 - License: [MIT](https://opensource.org/license/mit)
 
@@ -14,6 +15,7 @@
 - **Mobile Responsive**: Optimized interface for desktop and mobile devices
 
 ## Setup
+
 - Copy `.env.example` to `.env`
 - Replace placeholder values
 - Copy `dashy-conf.yml.example` to `dashy-conf.yml`

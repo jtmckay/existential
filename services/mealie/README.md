@@ -1,4 +1,5 @@
 # Mealie
+
 - Source: https://github.com/mealie-recipes/mealie
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.en.html)
 - Alternatives: Tandoor Recipes, RecipeSage, Grocy, Paprika

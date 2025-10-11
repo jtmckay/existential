@@ -1,6 +1,7 @@
 # RabbitMQ & universal webhook bridge
 
 ## RabbitMQ
+
 - Source: https://github.com/rabbitmq/rabbitmq-server
 - License: [MPL 2.0](https://www.mozilla.org/MPL/2.0/) / [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 - Alternatives: NSQ, Kafka
@@ -30,6 +31,7 @@ The webhook bridge is configured via the `./bridge.config.json` file. See [webho
 ## Message Examples
 
 ### Send to ntfy
+
 ```bash
 curl -u rabbitmq:super-secret-password -H "Content-Type: application/json" -X POST \
   http://localhost:5672/api/exchanges/%2F/amq.default/publish -d \
@@ -37,6 +39,7 @@ curl -u rabbitmq:super-secret-password -H "Content-Type: application/json" -X PO
 ```
 
 ### Send to webhook
+
 ```bash
 curl -u guest:guest -H "Content-Type: application/json" -X POST \
   http://localhost:15672/api/exchanges/%2F/amq.default/publish \
@@ -47,7 +50,7 @@ curl -u guest:guest -H "Content-Type: application/json" -X POST \
 ## Ports & Services
 
 - **AMQP**: 5672 (plain), 5671 (SSL)
-- **MQTT**: 1883 (plain), 8883 (SSL)  
+- **MQTT**: 1883 (plain), 8883 (SSL)
 - **Management UI**: 15672 (http://192.168.44.191:15672)
 
 ## Monitoring
@@ -56,11 +59,12 @@ curl -u guest:guest -H "Content-Type: application/json" -X POST \
 # View bridge logs
 docker logs rabbitmq-webhook-bridge -f
 
-# View RabbitMQ logs  
+# View RabbitMQ logs
 docker logs rabbitmq -f
 ```
 
 TODO: look at certs/ssl/etc.
+
 <!-- ### Certificates
 #### Configure SANs (subjectAltName)
 Update the `./openssl-san.cnf` with your specific configuration.
@@ -96,9 +100,10 @@ cat ./ssl/client_cert.pem ./ssl/client_key.pem > ./ssl/client.pem
 Copy the cert for Home Assistant etc.
 `cp ./ssl/server_cert.pem ./ssl/ca.pem` -->
 
-
 # Third-party licenses & attribution
+
 ## RabbitMQ
+
 Copyright (c) 2007-2025 VMware, Inc. or its affiliates.
 
 This product includes software developed at VMware, Inc. and its contributors.
@@ -111,6 +116,7 @@ Source code:
 https://github.com/rabbitmq/rabbitmq-server
 
 ## Erlang/OTP
+
 Copyright (c) 1999-2025 Ericsson AB.
 
 Licensed under the Apache License, Version 2.0.

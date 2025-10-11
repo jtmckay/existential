@@ -136,8 +136,89 @@ localhost/rabbitmq* {
   reverse_proxy rabbitmq:15672
 }
 
-
-
+appflowy.local.existential.company {
+  tls internal
+  import error_handling
+  
+  # GoTrue authentication - strip /gotrue prefix
+  handle_path /gotrue/* {
+    reverse_proxy appflowy-gotrue:9999
+  }
+  
+  # WebSocket connections
+  handle /ws {
+    reverse_proxy appflowy-cloud:8000 {
+      # WebSocket upgrade headers
+      header_up Upgrade {http.request.header.Upgrade}
+      header_up Connection {http.request.header.Connection}
+    }
+  }
+  
+  # API endpoints with special handling
+  handle /api/* {
+    # Chat API - streaming responses, no buffering
+    handle /api/chat* {
+      reverse_proxy appflowy-cloud:8000 {
+        flush_interval -1
+      }
+    }
+    
+    # Import API - large file uploads, extended timeouts
+    handle /api/import* {
+      reverse_proxy appflowy-cloud:8000 {
+        transport http {
+          dial_timeout 30s
+          response_header_timeout 600s
+        }
+      }
+      request_body {
+        max_size 2GB
+      }
+    }
+    
+    # Workspace publish - large file uploads
+    handle_path /api/workspace/*/publish {
+      reverse_proxy appflowy-cloud:8000 {
+        transport http {
+          dial_timeout 30s
+          response_header_timeout 300s
+        }
+      }
+      request_body {
+        max_size 256MB
+      }
+    }
+    
+    # All other API endpoints
+    reverse_proxy appflowy-cloud:8000
+  }
+  
+  # MinIO Web UI - strip /minio prefix
+  handle_path /minio/* {
+    reverse_proxy appflowy-minio:9001 {
+      # WebSocket support for MinIO UI
+      header_up Upgrade {http.request.header.Upgrade}
+      header_up Connection {http.request.header.Connection}
+    }
+  }
+  
+  # MinIO API - strip /minio-api prefix, special host header
+  handle_path /minio-api/* {
+    reverse_proxy appflowy-minio:9000 {
+      header_up Host "appflowy-minio:9000"
+    }
+  }
+  
+  # Admin console - rewrite /console to root
+  handle_path /console* {
+    reverse_proxy appflowy-admin-frontend:3000
+  }
+  
+  # Main AppFlowy web interface (catch-all)
+  handle {
+    reverse_proxy appflowy-web:80
+  }
+}
 
 
 

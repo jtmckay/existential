@@ -1,4 +1,5 @@
 # NocoDB
+
 - Source: https://github.com/nocodb/nocodb
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Airtable, Supabase, Baserow, Directus
@@ -15,6 +16,7 @@
 - **Self-Hosted**: Deploy on your own infrastructure with full data control
 
 ## Postgres
+
 https://github.com/postgres/postgres
 
 Relational database.
