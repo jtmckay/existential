@@ -2,23 +2,26 @@
 # Essential services for AppFlowy Cloud
 
 services:
-  appflowy-nginx:
-    restart: unless-stopped
-    image: nginx
-    ports:
-      - ${NGINX_PORT:-80}:80 # Disable this if you are using TLS
-      - ${NGINX_TLS_PORT:-443}:443
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl/certificate.crt:/etc/nginx/ssl/certificate.crt
-      - ./nginx/ssl/private_key.key:/etc/nginx/ssl/private_key.key
+  # appflowy-nginx:
+  #   restart: unless-stopped
+  #   image: nginx
+  #   ports:
+  #     - ${NGINX_PORT:-4488}:80 # Disable this if you are using TLS
+  #     - ${NGINX_TLS_PORT:-4443}:443
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #     - ./nginx/ssl/certificate.crt:/etc/nginx/ssl/certificate.crt
+  #     - ./nginx/ssl/private_key.key:/etc/nginx/ssl/private_key.key
 
   # You do not need this if you have configured to use your own s3 file storage
   appflowy-minio:
-    restart: unless-stopped
+    container_name: appflowy-minio
     image: minio/minio
+    restart: unless-stopped
+    networks:
+      - exist
     environment:
-      - MINIO_BROWSER_REDIRECT_URL=${APPFLOWY_BASE_URL?:err}/minio
+      - MINIO_BROWSER_REDIRECT_URL=${APPFLOWY_BASE_URL}/minio
       - MINIO_ROOT_USER=${APPFLOWY_S3_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${APPFLOWY_S3_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
@@ -26,8 +29,11 @@ services:
       - appflowy_minio_data:/data
 
   appflowy-postgres:
-    restart: unless-stopped
+    container_name: appflowy-postgres
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    networks:
+      - exist
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
@@ -43,11 +49,18 @@ services:
       - appflowy_postgres_data:/var/lib/postgresql/data
 
   appflowy-redis:
-    restart: unless-stopped
+    container_name: appflowy-redis
     image: redis
+    restart: unless-stopped
+    networks:
+      - exist
 
   appflowy-gotrue:
+    container_name: appflowy-gotrue
+    image: appflowyinc/gotrue:${GOTRUE_VERSION:-latest}
     restart: unless-stopped
+    networks:
+      - exist
     depends_on:
       appflowy-postgres:
         condition: service_healthy
@@ -56,7 +69,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-    image: appflowyinc/gotrue:${GOTRUE_VERSION:-latest}
     environment:
       # There are a lot of options to configure GoTrue. You can reference the example config:
       # https://github.com/supabase/auth/blob/master/example.env
@@ -108,9 +120,16 @@ services:
       # SAML 2.0 OAuth config
       - GOTRUE_SAML_ENABLED=${GOTRUE_SAML_ENABLED}
       - GOTRUE_SAML_PRIVATE_KEY=${GOTRUE_SAML_PRIVATE_KEY}
+      # Webhook configuration to notify AppFlowy Cloud of user events
+      - GOTRUE_WEBHOOK_URL=http://appflowy-cloud:8000/api/webhook/gotrue
+      - GOTRUE_WEBHOOK_SECRET=${GOTRUE_JWT_SECRET}
 
   appflowy-cloud:
+    container_name: appflowy-cloud
+    image: appflowyinc/appflowy_cloud:${APPFLOWY_CLOUD_VERSION:-latest}
     restart: unless-stopped
+    networks:
+      - exist
     environment:
       - RUST_LOG=${RUST_LOG:-info}
       - APPFLOWY_ENVIRONMENT=production
@@ -118,7 +137,7 @@ services:
       - APPFLOWY_REDIS_URI=${APPFLOWY_REDIS_URI}
       - APPFLOWY_GOTRUE_JWT_SECRET=${GOTRUE_JWT_SECRET}
       - APPFLOWY_GOTRUE_JWT_EXP=${GOTRUE_JWT_EXP}
-      - APPFLOWY_GOTRUE_BASE_URL=${APPFLOWY_GOTRUE_BASE_URL}
+      - APPFLOWY_GOTRUE_BASE_URL=http://appflowy-gotrue:9999
       - APPFLOWY_S3_CREATE_BUCKET=${APPFLOWY_S3_CREATE_BUCKET}
       - APPFLOWY_S3_USE_MINIO=${APPFLOWY_S3_USE_MINIO}
       - APPFLOWY_S3_MINIO_URL=${APPFLOWY_S3_MINIO_URL}
@@ -134,20 +153,23 @@ services:
       - APPFLOWY_MAILER_SMTP_PASSWORD=${APPFLOWY_MAILER_SMTP_PASSWORD}
       - APPFLOWY_MAILER_SMTP_TLS_KIND=${APPFLOWY_MAILER_SMTP_TLS_KIND}
       - APPFLOWY_ACCESS_CONTROL=${APPFLOWY_ACCESS_CONTROL}
+      - APPFLOWY_AUTO_USER_CREATION=${APPFLOWY_AUTO_USER_CREATION}
       - APPFLOWY_DATABASE_MAX_CONNECTIONS=${APPFLOWY_DATABASE_MAX_CONNECTIONS}
       - AI_SERVER_HOST=${AI_SERVER_HOST}
       - AI_SERVER_PORT=${AI_SERVER_PORT}
       - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY}
       - APPFLOWY_WEB_URL=${APPFLOWY_WEB_URL}
       - APPFLOWY_BASE_URL=${APPFLOWY_BASE_URL}
-    image: appflowyinc/appflowy_cloud:${APPFLOWY_CLOUD_VERSION:-latest}
     depends_on:
       appflowy-gotrue:
         condition: service_healthy
 
   appflowy-admin-frontend:
-    restart: unless-stopped
+    container_name: appflowy-admin-frontend
     image: appflowyinc/admin_frontend:${APPFLOWY_ADMIN_FRONTEND_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - exist
     environment:
       - APPFLOWY_GOTRUE_BASE_URL=${APPFLOWY_BASE_URL}/gotrue
       - APPFLOWY_BASE_URL=${APPFLOWY_BASE_URL}
@@ -159,8 +181,11 @@ services:
         condition: service_started
 
   appflowy-ai:
-    restart: unless-stopped
+    container_name: appflowy-ai
     image: appflowyinc/appflowy_ai:${APPFLOWY_AI_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - exist
     environment:
       - AI_SERVER_PORT=${AI_SERVER_PORT}
       - OPENAI_API_KEY=${AI_OPENAI_API_KEY}
@@ -192,8 +217,11 @@ services:
         condition: service_started
 
   appflowy-worker:
-    restart: unless-stopped
+    container_name: appflowy-worker
     image: appflowyinc/appflowy_worker:${APPFLOWY_WORKER_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - exist
     environment:
       - RUST_LOG=${RUST_LOG:-info}
       - APPFLOWY_ENVIRONMENT=production
@@ -219,8 +247,11 @@ services:
         condition: service_healthy
 
   appflowy-web:
-    restart: unless-stopped
+    container_name: appflowy-web
     image: appflowyinc/appflowy_web:${APPFLOWY_WEB_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - exist
     depends_on:
       - appflowy-cloud
     environment:
@@ -231,3 +262,7 @@ services:
 volumes:
   appflowy_postgres_data:
   appflowy_minio_data:
+
+networks:
+  exist:
+    external: true

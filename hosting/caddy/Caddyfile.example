@@ -166,7 +166,10 @@ appflowy.local.existential.company {
     # Import API - large file uploads, extended timeouts
     handle /api/import* {
       reverse_proxy appflowy-cloud:8000 {
-        timeout 600s
+        transport http {
+          dial_timeout 30s
+          response_header_timeout 600s
+        }
       }
       request_body {
         max_size 2GB
@@ -176,7 +179,10 @@ appflowy.local.existential.company {
     # Workspace publish - large file uploads
     handle_path /api/workspace/*/publish {
       reverse_proxy appflowy-cloud:8000 {
-        timeout 300s
+        transport http {
+          dial_timeout 30s
+          response_header_timeout 300s
+        }
       }
       request_body {
         max_size 256MB

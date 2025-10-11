@@ -1,3 +1,5 @@
+# RIP: never logged in successfully; had issues with the postgres database setting up a user, though it existed in GoTrue for Auth
+
 # AppFlowy
 
 - Source: https://github.com/AppFlowy-IO/AppFlowy
@@ -16,3 +18,5 @@
 - **Customizable Workspace**: Flexible page organization and hierarchical structure
 - **Open Source**: Transparent development with community contributions
 - **Self-Hosted Option**: Deploy on your own infrastructure for maximum control
+
+Note: the nginx.conf is not being used, it is just a reference.
