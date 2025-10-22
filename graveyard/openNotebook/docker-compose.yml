@@ -1,0 +1,41 @@
+services:
+  open-notebook:
+    container_name: open-notebook
+    image: lfnovo/open_notebook:v1-latest-single
+    restart: unless-stopped
+    # Or use: ghcr.io/lfnovo/open-notebook:v1-latest-single
+    ports:
+      - "8502:8502" # Web UI
+      - "5055:5055" # API (required!)
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPEN_NOTEBOOK_PASSWORD=${OPEN_NOTEBOOK_PASSWORD}
+      # For remote access, uncomment and set your server IP/domain:
+      - API_URL=http://open-notebook:5055
+      # Database connection (required for single-container)
+      - SURREAL_URL=ws://localhost:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=${OPEN_NOTEBOOK_DB_PASSWORD}
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=production
+    volumes:
+      - open_notebook_data:/app/data
+      - open_notebook_surreal:/mydata
+
+volumes:
+  open_notebook_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/open_notebook_data"
+  open_notebook_surreal:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${TRUENAS_CONTAINER_PATH}/open_notebook_surreal"
+
+networks:
+  exist:
+    external: true
