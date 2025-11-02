@@ -20,9 +20,24 @@ This service provides RabbitMQ message broker with a universal webhook bridge th
 ## Quick Setup
 
 1. Copy `.env.example` to `.env` and update variables
-2. Copy `./webhook-bridge/.env.example` to `./webhook-bridge/.env`
-3. Configure webhook endpoints in the webhook bridge `.env`
-4. Run `docker-compose up -d`
+2. Copy `bridge.config.json.example` to `bridge.config.json`
+3. Configure webhook endpoints in the `bridge.config.json` file
+4. Add any configured queues in the bridge.config.json to the `defs.json` file. EG if you use the "notifications" queue in the webhook you would add:
+
+```json
+bindings: [
+  ...,
+  {
+    "source": "amq.topic",
+    "vhost": "/",
+    "destination": "notifications",
+    "destination_type": "queue",
+    "routing_key": "notifications"
+  }
+]
+```
+
+5. Run `docker-compose up -d`
 
 ## Webhook Bridge Configuration
 

@@ -1,6 +1,6 @@
 {
   "rabbitmq": {
-    "url": "amqp://admin:admin@rabbitmq:5672/%2f"
+    "url": "amqp://EXIST_DEFAULT_USERNAME:EXIST_DEFAULT_PASSWORD@rabbitmq:5672/"
   },
   "webhooks": [
     {

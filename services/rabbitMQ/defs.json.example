@@ -2,17 +2,17 @@
   "users": [
     {
       "name": "ha",
-      "password": "super_secure_password_1", 
+      "password": "EXIST_24_CHAR_PASSWORD", 
       "tags": ""
     },
     {
       "name": "ap",
-      "password": "super_secure_password_2", 
+      "password": "EXIST_24_CHAR_PASSWORD", 
       "tags": ""
     },
     {
       "name": "minio",
-      "password": "super_secure_password_3", 
+      "password": "EXIST_24_CHAR_PASSWORD", 
       "tags": ""
     }
   ],
@@ -34,7 +34,14 @@
       "destination": "minio",
       "destination_type": "queue",
       "routing_key": "minio"
-    }
+    },
+    {
+      "source": "amq.topic",
+      "vhost": "/",
+      "destination": "notifications",
+      "destination_type": "queue",
+      "routing_key": "notifications"
+    },
   ],
   "parameters": [],
   "policies": [],
