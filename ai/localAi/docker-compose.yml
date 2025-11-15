@@ -7,7 +7,6 @@ services:
       - exist
     volumes:
       - local_ai_models:/models:cached
-      - local_ai_backends:/usr/share/localai/backends
     group_add:
       - video
     devices:
@@ -25,12 +24,6 @@ volumes:
       type: "nfs"
       o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${TRUENAS_CONTAINER_PATH}/local_ai_models"
-  local_ai_backends:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/local_ai_backends"
 
 networks:
   exist:
