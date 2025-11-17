@@ -1,5 +1,3 @@
-# RIP replacing all AI use with LocalAI
-
 # Whisper
 
 Speech-to-text (transcription)

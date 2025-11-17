@@ -1,3 +1,5 @@
+# RIP issues on AMD Linux machine - no benefit over Ollama etc.
+
 # LocalAI
 
 - Source: [https://github.com/mudler/LocalAI](https://github.com/mudler/LocalAI)
