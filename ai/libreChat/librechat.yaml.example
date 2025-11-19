@@ -130,7 +130,7 @@ endpoints:
       - chain
   custom:
     # Ollama
-    - name: 'ollama'
+    - name: 'my-ollama'
       apiKey: 'ollama-dummy-key'
       baseURL: 'http://ollama:11434/v1/'
       models:
@@ -180,7 +180,7 @@ modelSpecs:
       label: "Ollama • qwen3:8b"
       default: true      # <- auto-selected on every NEW chat
       preset:
-        endpoint: "ollama"          # must equal endpoints.custom[].name
+        endpoint: "my-ollama"          # must equal endpoints.custom[].name
         model: "qwen3:8b"      # must be in models.default above
         modelLabel: "Ollama (qwen3:8b)"
         greeting: "Ready."
