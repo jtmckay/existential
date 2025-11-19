@@ -4,18 +4,30 @@ services:
   ollama:
     container_name: ollama
     image: ollama/ollama
+
+    # AMD GPU
+    privileged: true # needed for GPU
+    environment:
+      - OLLAMA_VULKAN=1
+
+    # NVIDIA GPU or CPU
+    # runtime: nvidia ## NVIDIA GPU required obviously
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+
     restart: unless-stopped
     networks:
       - exist
     ports:
       - 11434:11434 # Ollama's default API port
-    # runtime: nvidia ## NVIDIA GPU required obviously
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
+
     volumes:
-      - ./ollama_data:/root/.ollama
-      - ./entrypoint.sh:/entrypoint.sh # Mount the script
+      - ollama_data:/root/.ollama
+      - ./entrypoint.sh:/entrypoint.sh:Z # Mount the script
     entrypoint: ["/entrypoint.sh"] # Use the custom script
+
+volumes:
+  ollama_data:
 
 networks:
   exist:

@@ -1,7 +1,7 @@
 services:
   local-ai:
     container_name: local-ai
-    image: "localai/localai:latest-gpu-hipblas"
+    image: "localai/localai:latest-gpu-vulkan"
     restart: unless-stopped
     networks:
       - exist

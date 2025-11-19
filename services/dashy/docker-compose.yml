@@ -4,7 +4,7 @@ services:
     image: "lissy93/dashy:latest"
     restart: unless-stopped
     volumes:
-      - ./dashy-conf.yml:/app/user-data/conf.yml
+      - ./dashy-conf.yml:/app/user-data/conf.yml:Z
     ports:
       - 44280:8080
     networks:

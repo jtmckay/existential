@@ -51,6 +51,9 @@
 **/ntfy-config/user.db
 **/mqtfy-config.yml
 
+# Ollama
+**/ollama/entrypoint.sh
+
 # Playwright
 node_modules/
 /automations/playwright/test-results/

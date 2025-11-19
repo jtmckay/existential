@@ -24,12 +24,10 @@ services:
       - RAG_PORT=${RAG_PORT:-8000}
       - RAG_API_URL=http://librechat-rag:${RAG_PORT:-8000}
     volumes:
-      - type: bind
-        source: ./librechat.yaml
-        target: /app/librechat.yaml
-      - ./images:/app/client/public/images
-      - ./uploads:/app/uploads
-      - ./logs:/app/api/logs
+      - ./librechat.yaml:/app/librechat.yaml:Z
+      - ./images:/app/client/public/images:Z
+      - ./uploads:/app/uploads:Z
+      - ./logs:/app/api/logs:Z
 
   librechat-client:
     container_name: librechat-client
@@ -43,7 +41,7 @@ services:
     depends_on:
       - librechat-api
     volumes:
-      - ./client/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./client/nginx.conf:/etc/nginx/conf.d/default.conf:Z
 
   librechat-mongodb:
     container_name: librechat-mongodb
@@ -54,7 +52,7 @@ services:
     networks:
       - exist
     volumes:
-      - ./data-node:/data/db
+      - ./data-node:/data/db:Z
     command: mongod --noauth
 
   librechat-meilisearch:
@@ -71,7 +69,7 @@ services:
       - MEILI_HOST=http://meilisearch:7700
       - MEILI_NO_ANALYTICS=true
     volumes:
-      - ./meili_data_v1.12:/meili_data
+      - ./meili_data_v1.12:/meili_data:Z
 
   librechat-vectordb:
     container_name: librechat-vectordb

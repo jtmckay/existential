@@ -36,7 +36,7 @@ db.users.insertOne({
 })
 ```
 
-Generate credentials and replace all .env secrets: https://www.librechat.ai/toolkit/creds_generator?utm_source=chatgpt.com
+IF NOT USING ./existential.sh script: generate credentials and replace all .env secrets: https://www.librechat.ai/toolkit/creds_generator?utm_source=chatgpt.com
 
 #### Add agents
 

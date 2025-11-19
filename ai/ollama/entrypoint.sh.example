@@ -38,6 +38,9 @@ sleep 2
 echo "PULL qwen3:8b model"
 ollama pull qwen3:8b
 
+# echo "PULL gpt-oss:120b model"
+# ollama pull gpt-oss:120b
+
 echo "PULL nomic-embed-text model for RAG embeddings"
 ollama pull nomic-embed-text
 
