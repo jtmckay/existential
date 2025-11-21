@@ -62,6 +62,7 @@ services:
     volumes:
       - kestra_data:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
+      # - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
       - /tmp/kestra-wd:/tmp/kestra-wd
 
 volumes:

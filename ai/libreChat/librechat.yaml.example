@@ -109,6 +109,10 @@ actions:
     - 'librechat.ai'
     - 'google.com'
 
+includedTools:
+  - google
+  - web_search
+
 # Definition of custom endpoints
 endpoints:
   assistants:
@@ -120,7 +124,6 @@ endpoints:
     maxRecursionLimit: 100
     disableBuilder: false
     capabilities:
-      - execute_code
       - file_search
       - web_search
       - ocr
@@ -168,17 +171,16 @@ endpoints:
 #     #   temperature: 0.1
 
 modelSpecs:
-  enforce: true          # hide conflicting UI (e.g., modelSelect/parameters/presets) unless explicitly turned on
+  enforce: false          # hide conflicting UI (e.g., modelSelect/parameters/presets) unless explicitly turned on
   prioritize: true       # always select a spec in the header
   list:
-    # - name: "kb-agent"
-    #   label: "Agent • RAG"
-    #   default: false        # set true later after you create the agent
-    #   preset:
-    #     endpoint: "agents"  # this makes the Agents endpoint selectable
+    - name: "agent"
+      label: "Custom Agent"
+      default: false        # set true later after you create the agent
+      preset:
+        endpoint: "agents"  # this makes the Agents endpoint selectable
     - name: "default-ollama"
       label: "Ollama • qwen3:8b"
-      default: true      # <- auto-selected on every NEW chat
       preset:
         endpoint: "my-ollama"          # must equal endpoints.custom[].name
         model: "qwen3:8b"      # must be in models.default above

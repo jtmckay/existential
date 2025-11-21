@@ -9,7 +9,7 @@ services:
       # For Docker
       # - /var/run/docker.sock:/var/run/docker.sock
       # For Podman
-      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:Z
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
       - portainer_data:/data
       - ./portainer_password.txt:/shared/portainer_password.txt:Z
     security_opt:

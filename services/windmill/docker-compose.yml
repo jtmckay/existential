@@ -77,7 +77,8 @@ services:
     # to mount the worker folder to debug, KEEP_JOB_DIR=true and mount /tmp/windmill
     volumes:
       # mount the docker socket to allow to run docker containers from within the workers
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
+      # - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/windmill/cache
       - worker_logs:/tmp/windmill/logs
     logging:

@@ -38,6 +38,12 @@ db.users.insertOne({
 
 IF NOT USING ./existential.sh script: generate credentials and replace all .env secrets: https://www.librechat.ai/toolkit/creds_generator?utm_source=chatgpt.com
 
+#### Add tools
+
+To add google search as a tool, fill out these .env values following https://www.librechat.ai/docs/configuration/tools/google_search
+GOOGLE_SEARCH_API_KEY=
+GOOGLE_CSE_ID=
+
 #### Add agents
 
 Create agents, likely just with "file search" capability, for use with Windmill scripts. After creating you can get the agent_id at the top of the side panel.
