@@ -71,6 +71,9 @@ node_modules/
 **/ssl/server_key.pem
 **/rabbitMQ/defs.json
 
+# Searxng
+**/searxng/settings.yml
+
 # StirlingPDF
 **/StirlingPDF
 

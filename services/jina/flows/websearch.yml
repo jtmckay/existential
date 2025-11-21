@@ -1,0 +1,5 @@
+jtype: Flow
+executors:
+  - name: web_search_executor
+    uses: docker://jinaai/jinaexecutor-http:latest
+    port: 8080

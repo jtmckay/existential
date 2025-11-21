@@ -30,8 +30,9 @@ Get your entire Existential environment configured in one command:
 ## Applications
 ### AI
 - [LibreChat](./ai/libreChat/README.md) (interface with RAG: all notes/digital context)
+- TODO: add [firecrawl](https://github.com/firecrawl/firecrawl?tab=readme-ov-file) for web search
 - [Ollama](./ai/ollama/README.md) (general AI)
-- [Whisper](./ai//whisper/README.md) (transcription)
+- [Whisper](./ai//whisper/README.md) (TODO transcription)
 
 ### Workflow automation [alts](./graveyard/lowcodeWorkflow.md)
 - [Windmill](./services/windmill/README.md)

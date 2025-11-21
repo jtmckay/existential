@@ -170,6 +170,25 @@ endpoints:
 #     # model_parameters:
 #     #   temperature: 0.1
 
+webSearch:
+  firecrawlApiKey: "${FIRECRAWL_API_KEY}" # Specifically needs to use variable reference and not a literal string, or it complains
+  firecrawlApiUrl: "${FIRECRAWL_API_URL}" # optional if custom instance
+  searchProvider: "searxng" # Only use SearXNG for search
+  scraperType: "firecrawl"    # Only use Firecrawl for scraping
+  rerankerType: "jina"        # Only use Jina for reranking
+  firecrawlOptions:
+    formats: ["markdown", "rawHtml"]
+    includeTags: ["main", "article", ".content"]
+    excludeTags: ["nav", "footer", ".ads"]
+    waitFor: 2000
+    timeout: 10000
+    mobile: false
+    blockAds: true
+    onlyMainContent: true
+    location:
+      country: "US"
+      languages: ["en"]
+
 modelSpecs:
   enforce: false          # hide conflicting UI (e.g., modelSelect/parameters/presets) unless explicitly turned on
   prioritize: true       # always select a spec in the header

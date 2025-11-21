@@ -1,0 +1,49 @@
+services:
+  jina-gateway:
+    container_name: jina-gateway
+    image: jinaai/jina:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    # ports:
+    #   - "8080:8080"
+    environment:
+      JINA_OPTOUT_TELEMETRY: 1
+      JINA_LOG_LEVEL: INFO
+    volumes:
+      - ./flows/websearch.yml:/flow.yml:Z
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
+      # - /var/run/docker.sock:/var/run/docker.sock
+    command: flow --name gateway --port 8080 --protocol http --uses /flow.yml
+
+  jina-encoder:
+    container_name: jina-encoder
+    image: jinaai/jina:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      JINA_OPTOUT_TELEMETRY: 1
+      JINA_LOG_LEVEL: INFO
+    volumes:
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
+      # - /var/run/docker.sock:/var/run/docker.sock
+    command: executor --uses jinaai+docker://${JINA_USERNAME}/EncoderPrivate
+
+  jina-indexer:
+    container_name: jina-indexer
+    image: jinaai/jina:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      JINA_OPTOUT_TELEMETRY: 1
+      JINA_LOG_LEVEL: INFO
+    volumes:
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
+      # - /var/run/docker.sock:/var/run/docker.sock
+    command: executor --uses jinaai+docker://${JINA_USERNAME}/IndexerPrivate
+
+networks:
+  exist:
+    driver: bridge
