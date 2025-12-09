@@ -35,6 +35,10 @@
 # Dashy
 **/dashy-conf.yml
 
+# Immich
+**/immich/library
+**/immich/postgres
+
 # LibreChat
 **/data-node
 **/images
