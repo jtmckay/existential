@@ -1,0 +1,49 @@
+services:
+  # TTS - text to speech
+  # UI interface at http://localhost:8004/
+  # API docs at http://localhost:8004/docs
+  chatterbox:
+    container_name: chatterbox
+    image: ghcr.io/devnen/chatterbox-tts-server:main
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - ${CHATTERBOX_PORT:-8004}:8004
+
+    # AMD GPU
+    # privileged: true
+    # environment:
+    #   - CHATTERBOX_DEVICE=vulkan
+
+    # NVIDIA GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    # CPU only - comment out 'deploy' above and uncomment below
+    # No additional configuration needed, device auto-detects to cpu
+
+    environment:
+      - HF_TOKEN=${CHATTERBOX_HF_TOKEN}
+      - HF_HUB_ENABLE_HF_TRANSFER=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./config.yaml:/app/config.yaml:Z
+      - ./voices:/app/voices:Z
+      - ./reference_audio:/app/reference_audio:Z
+      - ./outputs:/app/outputs:Z
+      - ./logs:/app/logs:Z
+      - chatterbox_hf_cache:/app/hf_cache
+
+volumes:
+  chatterbox_hf_cache:
+
+networks:
+  exist:
+    external: true
