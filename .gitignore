@@ -24,6 +24,9 @@
 # Bridge Config
 **/bridge.config.json
 
+# Chatterbox
+**/chatterbox/config.yaml
+
 # Caddy
 **/Caddyfile
 

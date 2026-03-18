@@ -9,7 +9,7 @@ services:
     networks:
       - exist
     ports:
-      - ${CHATTERBOX_PORT:-8004}:8004
+      - ${CHATTERBOX_PORT:-48004}:8000
 
     # AMD GPU
     # privileged: true
