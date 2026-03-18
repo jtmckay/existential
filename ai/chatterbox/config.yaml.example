@@ -9,7 +9,7 @@ server:
   log_file_max_size_mb: 10
   log_file_backup_count: 5
 model:
-  repo_id: chatterbox-turbo
+  repo_id: chatterbox
 tts_engine:
   device: auto
   predefined_voices_path: voices
