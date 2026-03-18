@@ -58,7 +58,7 @@ is_service_enabled() {
     
     # Get the value of the environment variable
     local env_var_value
-    env_var_value=$(eval echo "\$${env_var_name}")
+    env_var_value="${!env_var_name}"
     
     # Check if the value is "true" (case insensitive)
     if [[ "${env_var_value,,}" == "true" ]]; then
@@ -407,7 +407,7 @@ resolve_env_variables() {
             
             # Get the actual value from environment
             local actual_value
-            actual_value=$(eval echo "\$${var_name}")
+            actual_value="${!var_name}"
             
             # Use default if variable is empty or unset
             if [ -z "$actual_value" ]; then
