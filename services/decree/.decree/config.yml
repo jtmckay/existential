@@ -1,0 +1,28 @@
+commands:
+  ai_router: "opencode run {prompt}"
+  ai_interactive: "opencode"
+  # ai_router: "claude -p {prompt}"
+  # ai_interactive: "claude"
+  # ai_router: "copilot -p {prompt}"
+  # ai_interactive: "copilot"
+
+max_retries: 3
+max_depth: 10
+max_log_size: 2097152 # Per-log size cap in bytes (2MB), 0 to disable
+default_routine: develop
+routine_source: "~/.decree/routines" # optional, shared routines directory
+
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: ""
+  afterEach: ""
+  # --- Git stash workflow (uncomment to enable) ---
+  # beforeEach: "git-baseline"
+  # afterEach: "git-stash-changes"
+
+routines:
+  develop:
+    enabled: true
+  rust-develop:
+    enabled: true

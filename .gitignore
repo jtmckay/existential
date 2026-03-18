@@ -35,6 +35,9 @@
 # Dashy
 **/dashy-conf.yml
 
+# Decree
+**/rclone.conf
+
 # Immich
 **/immich/library
 **/immich/postgres

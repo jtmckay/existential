@@ -1,0 +1,33 @@
+services:
+  decree:
+    image: ghcr.io/jtmckay/decree:latest
+    volumes:
+      - .:/work:z
+      - share_data:/shared_data:ro
+    environment:
+      - DECREE_AI=${DECREE_AI}
+      - DECREE_DAEMON=${DECREE_DAEMON}
+      - DECREE_INTERVAL=${DECREE_INTERVAL}
+      - DECREE_CONTAINER=${DECREE_CONTAINER}
+    tty: false
+    restart: unless-stopped
+
+  decree-share:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    volumes:
+      - share_data:/data
+      - ./rclone:/config/rclone # contains rclone.conf with your `nextcloud` remote
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          rclone sync nextcloud:${DECREE_SHARE_DIR} /data
+          sleep 300
+        done
+volumes:
+  share_data:
+
+networks:
+  exist:
+    external: true
