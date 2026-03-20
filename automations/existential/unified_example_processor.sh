@@ -470,6 +470,51 @@ process_example_file() {
     fi
 }
 
+# Function to copy directories ending with .example to their counterparts
+copy_example_directories() {
+    local search_dir="${1:-.}"
+    local max_depth="${2:-3}"
+    local force_overwrite="${3:-false}"
+    local copied_count=0
+
+    echo "📁 Checking for .example directories..."
+
+    local example_dirs=()
+    mapfile -t example_dirs < <(find "$search_dir" -maxdepth "$max_depth" -type d -name "*.example" -not -path "*/graveyard/*" 2>/dev/null)
+
+    if [ ${#example_dirs[@]} -eq 0 ]; then
+        echo "  ℹ️  No .example directories found"
+        return 0
+    fi
+
+    echo "  Found ${#example_dirs[@]} .example director(ies)"
+
+    for example_dir in "${example_dirs[@]}"; do
+        local target_dir="${example_dir%.example}"
+
+        if [ -d "$target_dir" ]; then
+            if [ "$force_overwrite" = true ]; then
+                echo "  ⚠️  Overwriting existing directory: $target_dir (--force enabled)"
+                rm -rf "$target_dir"
+            else
+                echo "  ℹ️  Directory already exists, skipping: $target_dir"
+                continue
+            fi
+        fi
+
+        if cp -r "$example_dir" "$target_dir"; then
+            echo "  ✅ Copied directory: $example_dir → $target_dir"
+            ((copied_count++))
+        else
+            echo "  ❌ Error: Failed to copy $example_dir → $target_dir"
+        fi
+    done
+
+    echo "  📊 Copied $copied_count .example director(ies)"
+    echo ""
+    return 0
+}
+
 # Main function to process all example files systematically
 process_all_example_files() {
     local search_dir="${1:-.}"
@@ -477,11 +522,11 @@ process_all_example_files() {
     local file_pattern="${3:-*.example}"
     local root_first="${4:-true}"  # Process root-level files first by default
     local force_overwrite="${5:-false}"  # Force overwrite existing files
-    
+
     local processed_count=0
     local success_count=0
     local error_count=0
-    
+
     echo "🚀 Unified Example File Processor"
     echo "=================================="
     echo "Search directory: $search_dir"
@@ -490,14 +535,17 @@ process_all_example_files() {
     echo "Process root first: $root_first"
     echo "Force overwrite: $force_overwrite"
     echo ""
-    
+
     # Change to search directory for consistent relative path handling
     local original_dir="$(pwd)"
     cd "$search_dir" || {
         echo "❌ Error: Cannot change to directory: $search_dir"
         return 1
     }
-    
+
+    # Step 0: Copy .example directories first so their contents are available for file processing
+    copy_example_directories "." "$((max_depth + 1))" "$force_overwrite"
+
     # Step 1: Process root-level files first if requested
     if [ "$root_first" = true ]; then
         echo "📋 Step 1: Processing root-level .example files..."
