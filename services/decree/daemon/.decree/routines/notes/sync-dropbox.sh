@@ -12,14 +12,14 @@ chain="${chain:-}"
 seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 1; }
+    command -v rclone >/dev/null 2>&1 || { echo "rclone not found" >&2; exit 1; }
     exit 0
 fi
 
-# Check if volume has content before syncing
-count=$(docker compose --profile worker run --rm --entrypoint ls decree-dropbox /data 2>/dev/null | wc -l)
+# Check if output directory has content before syncing
+count=$(find /dropbox_data -maxdepth 1 -type f | wc -l)
 if [ "$count" -gt 0 ]; then
-    docker compose --profile worker run --rm decree-dropbox
+    rclone sync --config /config/rclone/rclone.conf /dropbox_data "dropbox:${DROPBOX_DEST_DIR}"
 else
     echo "Output volume is empty, skipping sync."
 fi

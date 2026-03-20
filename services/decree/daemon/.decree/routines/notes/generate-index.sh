@@ -13,14 +13,7 @@ chain="${chain:-}"
 seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 1; }
     exit 0
-fi
-
-# When invoked by decree on the host, run inside the container
-if [ -z "${IN_CONTAINER:-}" ]; then
-    exec docker compose --profile worker run --rm -e IN_CONTAINER=1 decree-worker \
-        "bash /routines/generate-index.sh"
 fi
 
 # --- Configuration ---

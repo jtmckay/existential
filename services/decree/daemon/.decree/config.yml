@@ -5,22 +5,21 @@ max_retries: 3
 max_depth: 10
 max_log_size: 2097152
 default_routine: develop
-routine_source: ../routines
 hooks:
-  beforeAll: ""
-  afterAll: ""
-  beforeEach: ""
-  afterEach: ""
-shared_routines:
+  beforeAll: ''
+  afterAll: ''
+  beforeEach: ''
+  afterEach: ''
+routines:
   develop:
     enabled: true
   notes/compile-notes:
-    enabled: false
+    enabled: true
   notes/generate-index:
-    enabled: false
+    enabled: true
   notes/sync-dropbox:
-    enabled: false
+    enabled: true
   notes/sync-nextcloud:
-    enabled: false
+    enabled: true
   notify:
     enabled: true

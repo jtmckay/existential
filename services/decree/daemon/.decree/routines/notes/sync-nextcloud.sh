@@ -11,8 +11,8 @@ chain="${chain:-}"
 seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v docker >/dev/null 2>&1 || { echo "docker not found" >&2; exit 1; }
+    command -v rclone >/dev/null 2>&1 || { echo "rclone not found" >&2; exit 1; }
     exit 0
 fi
 
-docker compose --profile worker run --rm decree-notes
+rclone sync --config /config/rclone/rclone.conf "nextcloud:${DECREE_NOTES_DIR}" /notes_data

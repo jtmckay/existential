@@ -1,69 +1,26 @@
 services:
   decree:
-    image: ghcr.io/jtmckay/decree:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - ./daemon/.decree:/work/.decree:z
-      - ./routines:/routines:ro,z
-      - notes_data:/notes_data:ro
+      - notes_data:/notes_data
       - dropbox_data:/dropbox_data:z
+      - ./rclone:/config/rclone:ro,z
     environment:
       - DECREE_AI=${DECREE_AI}
       - DECREE_DAEMON=true
       - DECREE_INTERVAL=2
       - NTFY_TOKEN=${NTFY_TOKEN}
       - NTFY_URL=${NTFY_URL}
+      - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
+      - DROPBOX_DEST_DIR=${DROPBOX_DEST_DIR}
+      - IN_CONTAINER=1
     tty: false
     # networks:
     #   - exist
-
-  decree-admin:
-    build:
-      context: .
-      dockerfile: Dockerfile.admin
-    restart: unless-stopped
-    volumes:
-      - ./daemonAdmin/.decree:/work/.decree:z
-      - ./routines:/routines:ro,z
-      - ${DECREE_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
-      - notes_data:/notes_data:ro
-      - dropbox_data:/dropbox_data:z
-    environment:
-      - DECREE_AI=${DECREE_AI}
-      - DECREE_DAEMON=true
-      - DECREE_INTERVAL=2
-      - NTFY_TOKEN=${NTFY_TOKEN}
-      - NTFY_URL=${NTFY_URL}
-    tty: false
-    networks:
-      - exist
-
-  decree-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    profiles: [worker]
-    volumes:
-      - notes_data:/notes_data:ro
-      - dropbox_data:/dropbox_data
-      - ./routines:/routines:ro,z
-    entrypoint: ["/bin/sh", "-c"]
-
-  decree-notes:
-    image: rclone/rclone:latest
-    profiles: [worker]
-    volumes:
-      - notes_data:/data
-      - ./rclone:/config/rclone:z
-    command: sync nextcloud:${DECREE_NOTES_DIR} /data
-
-  decree-dropbox:
-    image: rclone/rclone:latest
-    profiles: [worker]
-    volumes:
-      - dropbox_data:/data:ro
-      - ./rclone:/config/rclone:z
-    command: sync /data dropbox:${DROPBOX_DEST_DIR}
 
 volumes:
   notes_data:
