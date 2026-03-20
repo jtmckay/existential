@@ -1,0 +1,26 @@
+commands:
+  ai_router: opencode run {prompt}
+  ai_interactive: opencode
+max_retries: 3
+max_depth: 10
+max_log_size: 2097152
+default_routine: develop
+routine_source: ../routines
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: ""
+  afterEach: ""
+shared_routines:
+  develop:
+    enabled: false
+  notes/compile-notes:
+    enabled: true
+  notes/generate-index:
+    enabled: true
+  notes/sync-dropbox:
+    enabled: true
+  notes/sync-nextcloud:
+    enabled: true
+  notify:
+    enabled: true

@@ -40,6 +40,9 @@
 
 # Decree
 **/rclone.conf
+**/decree/**/inbox
+**/decree/**/outbox
+**/decree/**/runs
 
 # Immich
 **/immich/library
