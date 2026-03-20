@@ -6,8 +6,8 @@ max_depth: 10
 max_log_size: 2097152
 default_routine: develop
 hooks:
-  beforeAll: ''
-  afterAll: ''
+  beforeAll: /work/.decree/hooks/config-watch.sh
+  afterAll: /work/.decree/hooks/config-watch.sh
   beforeEach: ''
   afterEach: ''
 routines:
@@ -20,6 +20,8 @@ routines:
   notes/sync-dropbox:
     enabled: true
   notes/sync-nextcloud:
+    enabled: true
+  clean-runs:
     enabled: true
   notify:
     enabled: true

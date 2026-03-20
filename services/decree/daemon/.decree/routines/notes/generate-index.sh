@@ -60,6 +60,12 @@ echo "Generating index..."
 
         echo ""
     done < "$MANIFEST"
-} > "$INDEX"
+} > "${INDEX}.tmp"
 
-echo "  Wrote: index.md"
+if [ -f "$INDEX" ] && cmp -s "${INDEX}.tmp" "$INDEX"; then
+    rm -f "${INDEX}.tmp"
+    echo "No changes to index."
+else
+    mv "${INDEX}.tmp" "$INDEX"
+    echo "  Wrote: index.md"
+fi
