@@ -40,7 +40,8 @@
 
 # Decree
 **/rclone.conf
-**/decree/**/inbox
+**/decree/**/inbox/*.md
+**/decree/**/inbox/dead
 **/decree/**/outbox
 **/decree/**/runs
 

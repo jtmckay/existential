@@ -322,18 +322,30 @@ update_relative_paths() {
         next
     }
     
-    # Build path with relative path
+    # Build path with relative path (single-line form: build: ./path)
     /^[[:space:]]*build:[[:space:]]*\./ {
         line = $0
         match(line, /^([[:space:]]*build:[[:space:]]*)(.*)$/, parts)
         prefix = parts[1]
         build_path = parts[2]
-        
+
         new_build_path = "./" service_path "/" normalize_path(build_path)
         print prefix new_build_path
         next
     }
-    
+
+    # Build context with relative path (multi-line form: context: ./path)
+    /^[[:space:]]*context:[[:space:]]*\./ {
+        line = $0
+        match(line, /^([[:space:]]*context:[[:space:]]*)(.*)$/, parts)
+        prefix = parts[1]
+        context_path = parts[2]
+
+        new_context_path = "./" service_path "/" normalize_path(context_path)
+        print prefix new_context_path
+        next
+    }
+
     # All other lines
     {
         print $0
