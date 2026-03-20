@@ -8,7 +8,7 @@ services:
       - ./daemon/.decree:/work/.decree:z
       - notes_data:/notes_data
       - dropbox_data:/dropbox_data:z
-      - ./rclone:/config/rclone:ro,z
+      - ./rclone:/config/rclone:z
     environment:
       - DECREE_AI=${DECREE_AI}
       - DECREE_DAEMON=true
