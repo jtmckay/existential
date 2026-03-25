@@ -23,12 +23,12 @@ OUTPUT_DIR="${OUTPUT_DIR:-/dropbox_data}"
 HASH_FILE="${OUTPUT_DIR}/.compile-hash"
 MANIFEST="${OUTPUT_DIR}/.compile-manifest"
 
-# --- Change Detection ---
+# --- Change Detection (content-based, ignores mtime) ---
 current_hash=$(find "$NOTES_DIR" -type f \
   -not -path '*/.obsidian/*' \
   -not -path '*/.trash/*' \
   -not -path '*/.git/*' \
-  -printf '%P %T@ %s\n' 2>/dev/null | sort | sha256sum | awk '{print $1}')
+  -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}')
 
 if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$current_hash" ]; then
     echo "No changes detected."
@@ -83,6 +83,19 @@ for e in data.get('elements', []):
 # Track created files for cleanup
 new_manifest=()
 
+# --- Write only if content changed (avoids unnecessary mtime updates) ---
+write_if_changed() {
+    local target="$1"
+    local tmp="${target}.tmp"
+    cat > "$tmp"
+    if [ -f "$target" ] && cmp -s "$tmp" "$target"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    mv "$tmp" "$target"
+    return 0
+}
+
 # --- Compile a directory (includes all subdirectory content) ---
 compile_dir() {
     local dir="$1"
@@ -91,6 +104,18 @@ compile_dir() {
     local out="${OUTPUT_DIR}/${name}.md"
     local has_content=false
 
+    # Check if directory has any matching files first
+    local file_count
+    file_count=$(find "$dir" -type f \
+        \( -name '*.md' -o -name '*.txt' -o -name '*.pdf' -o -name '*.excalidraw' \) \
+        -not -path '*/.obsidian/*' -not -path '*/.trash/*' -not -path '*/.git/*' \
+        2>/dev/null | wc -l)
+
+    if [ "$file_count" -eq 0 ]; then
+        rm -f "$out"
+        return
+    fi
+
     {
         echo "# $name"
         echo ""
@@ -98,43 +123,39 @@ compile_dir() {
         echo ""
 
         while IFS= read -r -d '' file; do
-            has_content=true
             extract "$file"
         done < <(find "$dir" -type f \
             \( -name '*.md' -o -name '*.txt' -o -name '*.pdf' -o -name '*.excalidraw' \) \
             -not -path '*/.obsidian/*' -not -path '*/.trash/*' -not -path '*/.git/*' \
             -print0 2>/dev/null | sort -z)
-    } > "$out"
+    } | write_if_changed "$out" && echo "  Wrote: ${name}.md" || true
 
-    if [ "$has_content" = true ]; then
-        echo "  Wrote: ${name}.md"
-        new_manifest+=("$out")
-    else
-        rm -f "$out"
-    fi
+    new_manifest+=("$out")
 }
 
 # --- Root-level files → unfiled.md ---
 unfiled="${OUTPUT_DIR}/unfiled.md"
 has_root=false
-{
-    echo "# Unfiled"
-    echo ""
-    echo "*Auto-compiled from Obsidian vault. Do not edit.*"
-    echo ""
-    for f in "$NOTES_DIR"/*; do
-        [ -f "$f" ] || continue
-        case "${f##*.}" in
-            md|markdown|txt|pdf|excalidraw)
-                has_root=true
-                extract "$f"
-                ;;
-        esac
-    done
-} > "$unfiled"
+for f in "$NOTES_DIR"/*; do
+    [ -f "$f" ] || continue
+    case "${f##*.}" in
+        md|markdown|txt|pdf|excalidraw) has_root=true; break ;;
+    esac
+done
 
 if [ "$has_root" = true ]; then
-    echo "  Wrote: unfiled.md"
+    {
+        echo "# Unfiled"
+        echo ""
+        echo "*Auto-compiled from Obsidian vault. Do not edit.*"
+        echo ""
+        for f in "$NOTES_DIR"/*; do
+            [ -f "$f" ] || continue
+            case "${f##*.}" in
+                md|markdown|txt|pdf|excalidraw) extract "$f" ;;
+            esac
+        done
+    } | write_if_changed "$unfiled" && echo "  Wrote: unfiled.md" || true
     new_manifest+=("$unfiled")
 else
     rm -f "$unfiled"
