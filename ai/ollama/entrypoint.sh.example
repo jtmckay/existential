@@ -35,8 +35,11 @@ sleep 2
 # echo "PULL gemma3n:e4b model"
 # ollama pull gemma3n:e4b
 
-echo "PULL qwen3:8b model"
-ollama pull qwen3:8b
+echo "PULL qwen3.5:4b model"
+ollama pull qwen3.5:4b
+
+# echo "PULL qwen3.5:9b model"
+# ollama pull qwen3.5:9b
 
 # echo "PULL gpt-oss:120b model"
 # ollama pull gpt-oss:120b

@@ -6,18 +6,25 @@ services:
     image: ollama/ollama
 
     # AMD GPU
-    privileged: true # needed for GPU
-    environment:
-      - OLLAMA_VULKAN=1
+    # privileged: true # needed for GPU
+    # environment:
+    #   - OLLAMA_VULKAN=1
 
     # NVIDIA GPU or CPU
-    # runtime: nvidia ## NVIDIA GPU required obviously
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # or a number, e.g. 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
     restart: unless-stopped
-    networks:
-      - exist
+    # networks:
+    #   - exist
     ports:
       - 11434:11434 # Ollama's default API port
 
@@ -29,6 +36,6 @@ services:
 volumes:
   ollama_data:
 
-networks:
-  exist:
-    external: true
+# networks:
+#   exist:
+#     external: true
