@@ -19,7 +19,7 @@ services:
       - DATABASE_URL=postgresql://${LINKWARDEN_POSTGRES_USER}:${LINKWARDEN_POSTGRES_PASSWORD}@linkwarden-pg:5432/postgres
       - LINKWARDEN_NEXTAUTH_URL=http://192.168.44.191:44200/api/v1/auth
       - NEXTAUTH_SECRET=${LINKWARDEN_NEXTAUTH_SECRET}
-    restart: always
+    restart: unless-stopped
     networks:
       - exist
     ports:
@@ -33,7 +33,7 @@ services:
   linkwarden-meilisearch:
     container_name: linkwarden-meilisearch
     image: getmeili/meilisearch:v1.12.8
-    restart: always
+    restart: unless-stopped
     networks:
       - exist
     environment:
