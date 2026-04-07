@@ -1,0 +1,2 @@
+FROM deepseek-coder:6.7b
+PARAMETER num_ctx 5096

@@ -1,17 +1,44 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "edit": {
+      "*": "allow"
+    },
+    "bash": {
+      "*": "ask"
+    }
+  },
   "mcp": {
     "playwright": {
-      "command": ["npx", "-y", "@playwright/mcp@latest", "--headless"],
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest"
+      ],
       "type": "local"
     }
   },
   "provider": {
     "ollama": {
       "models": {
-        "qwen3.5:4B": {
+        "gemma4:e2b": {
           "_launch": true,
-          "name": "qwen3.5:4B"
+          "name": "gemma4:e2b",
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "extraBody": {
+              "options": {
+                "num_ctx": 128000
+              }
+            }
+          }
         }
       },
       "name": "Ollama",
@@ -22,16 +49,66 @@
     },
     "ollama-local": {
       "models": {
-        "qwen3.5:9B": {
+        "gpt-oss:20b-32k": {
           "_launch": true,
-          "name": "qwen3.5:9B",
+          "name": "gpt-oss:20b-32k",
           "modalities": {
-            "input": ["text", "image"],
-            "output": ["text"]
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
           },
           "options": {
             "extraBody": {
-              "think": "high"
+              "think": "high",
+              "options": {
+                "num_ctx": 32000
+              }
+            }
+          }
+        },
+        "gemma4:e2b": {
+          "_launch": true,
+          "name": "gemma4:e2b",
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "extraBody": {
+              "think": "high",
+              "options": {
+                "num_ctx": 128000
+              }
+            }
+          }
+        },
+        "gemma4:26b": {
+          "_launch": true,
+          "name": "gemma4:26b",
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "extraBody": {
+              "think": "high",
+              "options": {
+                "num_ctx": 256000
+              }
             }
           }
         }

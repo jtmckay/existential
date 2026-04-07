@@ -68,6 +68,7 @@
 
 # Ollama
 **/ollama/entrypoint.sh
+**/ollama/Modelfile
 
 # Playwright
 node_modules/
@@ -88,6 +89,9 @@ node_modules/
 
 # StirlingPDF
 **/StirlingPDF
+
+# VLLM
+**/vllm/.env
 
 # Windmill
 **/windmill/local

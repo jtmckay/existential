@@ -29,6 +29,7 @@ services:
       - 11434:11434 # Ollama's default API port
 
     volumes:
+      - ./Modelfile:/root/Modelfile
       - ollama_data:/root/.ollama
       - ./entrypoint.sh:/entrypoint.sh:Z # Mount the script
     entrypoint: ["/entrypoint.sh"] # Use the custom script
