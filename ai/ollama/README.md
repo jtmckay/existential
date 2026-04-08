@@ -54,4 +54,4 @@ ollama create gpt-oss:20b-32k -f Modelfile
 
 ##### Point to it
 
-Use the opencode.json.example\_ to see how to use the variant. Select it in opencode.
+Reference the opencode.json.example\_ to see how to use the variant.

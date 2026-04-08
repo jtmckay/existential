@@ -23,8 +23,8 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
     restart: unless-stopped
-    # networks:
-    #   - exist
+    networks:
+      - exist
     ports:
       - 11434:11434 # Ollama's default API port
 
@@ -37,6 +37,6 @@ services:
 volumes:
   ollama_data:
 
-# networks:
-#   exist:
-#     external: true
+networks:
+  exist:
+    external: true

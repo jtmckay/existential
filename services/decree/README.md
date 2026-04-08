@@ -1,11 +1,25 @@
-Configure remote fileshare
+# Setup
+
+## Configure remote fileshare
+
+Add Nextcloud/WebDAV, Dropbox, or whatever file sharing solutions you want to use.
 
 ```
 mkdir -p rclone
-docker run --rm -it --network host -v ./rclone:/config/rclone:Z rclone/rclone:latest config
+docker run --rm -it --network host -v ./rclone:/config/rclone:Z $(docker build -q .) rclone config
 ```
 
-Run decree one off (if it isn't currently running with daemon)
+## Configure S3
+
+# Run decree
+
+#### Connect to shell (currently running)
+
+```
+docker compose run decree bash
+```
+
+#### One off (if it isn't currently running with daemon)
 
 ```
 docker compose run --rm decree decree process

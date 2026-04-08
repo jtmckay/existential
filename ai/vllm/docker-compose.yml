@@ -1,0 +1,24 @@
+services:
+  vllm:
+    container_name: vllm
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 48030:8000
+    gpus: all
+    environment:
+      - VLLM_MODEL=${VLLM_MODEL}
+      - VLLM_GPU_MEMORY_UTILIZATION=0.9
+      - VLLM_MAX_MODEL_LEN=128000
+      - VLLM_DTYPE=auto
+    volumes:
+      - minicpm_hf_cache:/root/.cache/huggingface
+
+volumes:
+  minicpm_hf_cache:
+
+networks:
+  exist:
+    external: true

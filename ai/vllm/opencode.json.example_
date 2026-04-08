@@ -19,11 +19,15 @@
     }
   },
   "provider": {
-    "ollama": {
+    "vllm-local": {
+      "name": "vllm-Local",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:48030/v1"
+      },
       "models": {
-        "gemma4:e2b": {
-          "_launch": true,
-          "name": "gemma4:e2b",
+        "gemma4:e4b-64k": {
+          "id": "gemma-4",
           "modalities": {
             "input": [
               "text"
@@ -38,17 +42,10 @@
           },
           "options": {
             "extraBody": {
-              "options": {
-                "num_ctx": 128000
-              }
+              "think": "high"
             }
           }
         }
-      },
-      "name": "Ollama",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "http://192.168.1.31:11434/v1"
       }
     }
   }
