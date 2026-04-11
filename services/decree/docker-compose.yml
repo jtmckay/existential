@@ -39,6 +39,10 @@ services:
       - DECREE_WEBHOOK_PORT=${DECREE_WEBHOOK_PORT}
       - DECREE_WEBHOOK_INBOX=/inbox
       - NODE_ENV=production
+      #- DECREE_WEBHOOK_MAX_BODY=256kb
+      #- DECREE_WEBHOOK_RATE_WINDOW_MS=60000
+      #- DECREE_WEBHOOK_RATE_MAX=60
+      #- DECREE_WEBHOOK_RATE_FAIL_MAX=10
     volumes:
       - ./daemon/.decree/inbox:/inbox:z
       - ./webhook/config.yml:/app/config.yml:ro
@@ -60,4 +64,4 @@ volumes:
 
 networks:
   exist:
-    external: true
+external: true

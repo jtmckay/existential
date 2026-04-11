@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const yaml = require('js-yaml');
 const crypto = require('crypto');
 const fs = require('fs/promises');
@@ -9,6 +10,9 @@ const PORT = parseInt(process.env.DECREE_WEBHOOK_PORT || '8801', 10);
 const INBOX = path.resolve(process.env.DECREE_WEBHOOK_INBOX || '/inbox');
 const MAX_BODY = process.env.DECREE_WEBHOOK_MAX_BODY || '256kb';
 const CONFIG_PATH = process.env.DECREE_WEBHOOK_CONFIG || '/app/config.yml';
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.DECREE_WEBHOOK_RATE_WINDOW_MS || '60000', 10);
+const RATE_LIMIT_MAX = parseInt(process.env.DECREE_WEBHOOK_RATE_MAX || '60', 10);
+const RATE_LIMIT_FAIL_MAX = parseInt(process.env.DECREE_WEBHOOK_RATE_FAIL_MAX || '10', 10);
 
 const PATH_RE = /^\/[A-Za-z0-9._\-/{}]+$/;
 const PARAM_NAME_RE = /^\w+$/;
@@ -167,6 +171,24 @@ function main() {
   app.disable('x-powered-by');
 
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true }));
+
+  app.use(rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max: RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'too many requests' },
+  }));
+
+  // Stricter limit on failed requests only — does not penalise successful callers
+  app.use(rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max: RATE_LIMIT_FAIL_MAX,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'too many requests' },
+  }));
 
   app.use(express.text({ type: '*/*', limit: MAX_BODY }));
 

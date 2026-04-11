@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "express": "^4.21.0",
+    "express-rate-limit": "^7.0.0",
     "js-yaml": "^4.1.0"
   }
 }
