@@ -32,7 +32,8 @@ if [ -z "$body" ]; then
 fi
 
 # Build curl args
-args=(-s -d "$body")
+# --data-raw prevents curl from interpreting @ as a filename
+args=(-s --data-raw "$body")
 
 if [ -n "$ntfy_token" ]; then
     args+=(-H "Authorization: Bearer $ntfy_token")

@@ -12,7 +12,7 @@ hooks:
   afterEach: ""
 routines:
   develop:
-    enabled: true
+    enabled: false
   clean-runs:
     enabled: true
   notes:
