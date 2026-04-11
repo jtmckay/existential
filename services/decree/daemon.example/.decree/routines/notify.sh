@@ -12,6 +12,7 @@ seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v curl >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
+    command -v awk >/dev/null 2>&1 || { echo "awk not found" >&2; exit 1; }
     exit 0
 fi
 
@@ -23,7 +24,7 @@ ntfy_priority="${ntfy_priority:-}"
 ntfy_tags="${ntfy_tags:-}"
 
 # Strip YAML frontmatter and leading/trailing whitespace
-body=$(sed '1{/^---$/d}; /^---$/,/^---$/d' "$message_file" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
+body=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$message_file" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
 
 if [ -z "$body" ]; then
     echo "Empty message body, skipping notification."

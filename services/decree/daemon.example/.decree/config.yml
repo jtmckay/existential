@@ -8,20 +8,14 @@ default_routine: develop
 hooks:
   beforeAll: /work/.decree/hooks/config-watch.sh
   afterAll: /work/.decree/hooks/config-watch.sh
-  beforeEach: ''
-  afterEach: ''
+  beforeEach: ""
+  afterEach: ""
 routines:
   develop:
     enabled: true
-  notes/compile-notes:
-    enabled: true
-  notes/generate-index:
-    enabled: true
-  notes/sync-dropbox:
-    enabled: true
-  notes/sync-nextcloud:
-    enabled: true
   clean-runs:
+    enabled: true
+  notes:
     enabled: true
   notify:
     enabled: true

@@ -5,11 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    volumes:
-      - ./daemon/.decree:/work/.decree:z
-      - notes_data:/notes_data
-      - dropbox_data:/dropbox_data:z
-      - ./rclone:/config/rclone:z
+    networks:
+      - exist
     environment:
       - DECREE_AI=${DECREE_AI}
       - DECREE_DAEMON=true
@@ -19,9 +16,43 @@ services:
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
       - DROPBOX_DEST_DIR=${DROPBOX_DEST_DIR}
       - IN_CONTAINER=1
+    volumes:
+      - ./daemon/.decree:/work/.decree:z
+      - notes_data:/notes_data
+      - dropbox_data:/dropbox_data:z
+      - ./rclone:/config/rclone:z
     tty: false
-    # networks:
-    #   - exist
+
+  decree-webhook:
+    container_name: decree-webhook
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - decree
+    networks:
+      - exist
+    ports:
+      - "${DECREE_WEBHOOK_PORT}:${DECREE_WEBHOOK_PORT}"
+    environment:
+      - DECREE_WEBHOOK_PORT=${DECREE_WEBHOOK_PORT}
+      - DECREE_WEBHOOK_INBOX=/inbox
+      - NODE_ENV=production
+    volumes:
+      - ./daemon/.decree/inbox:/inbox:z
+      - ./webhook/config.yml:/app/config.yml:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:${DECREE_WEBHOOK_PORT}/healthz",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
 volumes:
   notes_data:

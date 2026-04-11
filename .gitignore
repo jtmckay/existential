@@ -1,6 +1,7 @@
 **/.env
 **/.env.generated
 **/.pnpm-store
+.claude
 
 **/minio_data
 **/n8n_data
@@ -41,6 +42,7 @@
 # Decree
 **/rclone.conf
 **/decree/daemon/
+**/decree/webhook/config.yml
 **/decree/**/inbox/*.md
 **/decree/**/inbox/dead/*.md
 **/decree/**/outbox

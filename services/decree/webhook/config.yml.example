@@ -1,0 +1,46 @@
+# Applies to all endpoints unless overridden per-endpoint
+secret: EXIST_32_CHAR_HEX_KEY
+
+endpoints:
+  - path: /notify
+    frontmatter:
+      routine: notify
+      ntfy_priority: high
+      ntfy_tags: lobster
+      ntfy_title: Untitled
+      ntfy_topic: exist
+  - path: /notify/{title}
+    frontmatter:
+      routine: notify
+      ntfy_priority: high
+      ntfy_tags: anger
+      ntfy_title: '{{title}}'
+      ntfy_topic: exist
+  - path: /notify/alert/{title}
+    frontmatter:
+      routine: notify
+      ntfy_priority: high
+      ntfy_tags: white_check_mark
+      ntfy_title: '{{title}}'
+      ntfy_topic: exist
+
+  - path: /task
+    frontmatter:
+      routine: notify
+      priority: high
+
+  # Dynamic route params — values must match [A-Za-z0-9_\-!]+ (default)
+  # Use `params` to add a stricter per-param pattern (anchored automatically)
+  # - path: /note/{id}
+  #   params:
+  #     id: '[0-9a-f]{8,16}'   # tighter than default; still alphanumeric-safe
+  #   frontmatter:
+  #     routine: notes/compile-notes
+  #     note_id: '{{id}}'
+  #     tags: [api]
+
+  # Per-endpoint secret:
+  # - path: /external
+  #   secret: EXIST_32_CHAR_HEX_KEY
+  #   frontmatter:
+  #     routine: notify
