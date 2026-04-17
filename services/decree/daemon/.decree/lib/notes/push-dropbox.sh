@@ -19,7 +19,7 @@ fi
 # Check if output directory has content before syncing
 count=$(find /dropbox_data -maxdepth 1 -type f | wc -l)
 if [ "$count" -gt 0 ]; then
-    rclone sync --config /config/rclone/rclone.conf \
+    rclone sync --config /secrets/rclone/rclone.conf \
         --exclude ".sync_*" \
         --exclude ".compile-*" \
         /dropbox_data "dropbox:${DROPBOX_DEST_DIR}"

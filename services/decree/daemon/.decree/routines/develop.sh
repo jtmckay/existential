@@ -20,7 +20,10 @@ seq="${seq:-}"
 
 # Pre-check: verify AI tool is available
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v opencode >/dev/null 2>&1 || { echo "opencode not found" >&2; exit 1; }
+    # shellcheck source=../lib/precheck.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+    command -v opencode >/dev/null 2>&1 || precheck_fail "develop" "opencode not found"
+    precheck_pass "develop"
     exit 0
 fi
 

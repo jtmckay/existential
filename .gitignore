@@ -40,13 +40,14 @@
 **/dashy-conf.yml
 
 # Decree
-**/rclone.conf
-**/decree/daemon/
 **/decree/webhook/config.yml
 **/decree/**/inbox/*.md
 **/decree/**/inbox/dead/*.md
 **/decree/**/outbox
 **/decree/**/runs
+**/decree/daemon/.decree/cron/
+**/decree/daemon/.decree/config.yml
+services/decree/secrets/
 
 # Immich
 **/immich/library

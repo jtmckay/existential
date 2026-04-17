@@ -11,11 +11,15 @@ hooks:
   beforeEach: ""
   afterEach: ""
 routines:
-  develop:
-    enabled: false
   clean-runs:
     enabled: true
+  develop:
+    enabled: false
+  gmail:
+    enabled: false
+  gmail-sync:
+    enabled: false
   notes:
-    enabled: true
+    enabled: false
   notify:
     enabled: true

@@ -17,6 +17,25 @@
 - [Caddy](./caddy/README.md) (Reverse proxy. Alt: Traefik/Nginx)
 - [Cloudflare](./cloudflare/README.md) (alt: any domain manager/DNS/[Ngrok](../graveyard/ngrok/README.md))
 
+### Networking
+
+Existential automatically creates a Docker overlay network called `exist` with the following features:
+
+- **Overlay driver**: Enables multi-host communication (Docker Swarm compatible)
+- **Attachable**: Allows standalone containers to join the network
+- **Encrypted**: IP-sec encryption between nodes for secure communication
+
+The network is automatically created when you run `docker compose up` - no manual network creation required!
+
+Individual services communicate with each other using container names (e.g., `librechat-api` can reach `librechat-mongodb:27017`).
+
+### Run
+
+- Run `./existential.sh`
+- Follow the steps to configure defaults (see [dynamic variables](./automations/existential/README.md#dynamic-variables))
+- See [Hosting](/hosting/README.md#enabledisable-services) to enable/disable services
+- `docker compose up` to run all configured services
+
 ## Existential script
 
 `./existential.sh`

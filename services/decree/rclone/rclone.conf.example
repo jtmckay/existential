@@ -1,6 +1,0 @@
-[nextcloud]
-type = webdav
-url = https://cloud.local.existential.company/remote.php/dav/files/EXIST_DEFAULT_USERNAME
-vendor = nextcloud
-user = EXIST_DEFAULT_USERNAME
-pass = # Configure the remote file share by following the readme

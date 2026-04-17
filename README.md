@@ -1,20 +1,67 @@
 # Existential
 
-Personal productivity suite targeting self-actualization. Remember everything, plan anything, empathize with yourself, simplify and automate tasks. The core of Existential is the individual. A collection of free open source software for AI tools, workflow automation, note-taking, file management, and various productivity applications, all of which can be used commercially, in case you want to run a business.
+Balance in technology, free open source software.
+
+![Existential](./icon.png)
+
+Take control of your digital footprint to turn knowledge and intention into reality.
 
 ## 🚀 Quick Start
 
 Get your entire Existential environment configured in one command:
 
+### Pre-requisite: [Docker](https://www.docker.com/get-started/)
+
 ```bash
 ./existential.sh
 ```
 
-## 📊 Dashboard
+[Self Hosting Guide](/hosting/README.md)
 
-### (courtesy of [dashy](https://opensource.org/license/mit))
+## System design
+
+Use existing apps like normal; perhaps switch to more friendly alternatives that allow data extraction. Push all your data into a single sink. With all your data available, create routines to automate tasks, leverage AI, and get notified only when necessary. Use more technology so you can see less technology.
+
+![Architecture Diagram](architecture.png)
+
+## 📊 Dashboard ([dashy](https://opensource.org/license/mit))
 
 ![Dashy](./services/dashy/dashy.png)
+
+## Applications
+
+### Interactive
+
+- Perplexity (paid enterprise) [FOSS alts](./graveyard/ai.md)
+- [ActualBudget](./services/actualBudget/README.md) Budget
+- [Immich](./services/immich/README.md) Images and Videos
+- [Logseq](./services/logseq/README.md) Notes [alts](./graveyard/notes.md)
+- [Mealie](./services/mealie/README.md) Recipes / meal planning
+- [Ntfy](./services/ntfy/README.md) Notifications
+- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop) PDF/word editor [alts](./graveyard/fileEditor.md)
+- [Vikunja](./services/vikunja/README.md) Tasks
+
+#### Advanced custom interfaces
+
+- [Decree](./services/decree/README.md) automation [alts](./graveyard/lowcodeWorkflow.md)
+- [NocoDB](./services/nocoDB/README.md) Database [alts](./graveyard/lowcodeDB.md)
+- [Lowcode](./graveyard/lowcodeUI.md)
+
+### Background services
+
+- [Ollama](./ai/ollama/README.md) (general AI)
+- [Chatterbox](./ai//chatterbox/README.md) (TTS)
+- [Whisper](./ai//whisper/README.md) (STT transcription)
+
+### Monitoring/managing containers
+
+- [Dashy](./services/dashy/README.md) dashboard.
+- [Portainer](./hosting/portainer/README.md) remote docker container management.
+- [Uptime-Kuma](./hosting/uptimeKuma/README.md) notifications when servers go down.
+
+### Random tools [alts](./graveyard/tools.md)
+
+- [IT-Tools](./services/itTools/README.md)
 
 ## Examples
 
@@ -29,96 +76,6 @@ Get your entire Existential environment configured in one command:
 - Add tasks in Vikunja
 
 ##### ![Vikunja](services/vikunja/vikunja.png)
-
-### Recall
-
-![LibreChat UI](./ai/libreChat/recall.png)
-
-- Chat with your notes using [LibreChat](./ai/libreChat/README.md)
-
-## Applications
-
-### AI
-
-- [LibreChat](./ai/libreChat/README.md) (interface with RAG: all notes/digital context)
-- [Ollama](./ai/ollama/README.md) (general AI)
-- [Whisper](./ai//whisper/README.md) (transcription)
-
-### Workflow automation [alts](./graveyard/lowcodeWorkflow.md)
-
-- [Windmill](./services/windmill/README.md)
-
-### Note taking [alts](./graveyard/notes.md)
-
-- [Logseq](./services/logseq/README.md)
-- Nightlio https://github.com/shirsakm/nightlio (TBD)
-
-### Household management
-
-- [ActualBudget](./services/actualBudget/README.md) Budget
-- [Immich](./services/immich/README.md) Images and Videos
-- [Mealie](./services/mealie/README.md) Recipes / meal planning
-
-### File editing [alts](./graveyard/fileEditor.md)
-
-- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop)
-
-### When (notification/task management) [alts](./graveyard/when.md)
-
-- [ntfy](./services/ntfy/README.md)
-- [Vikunja](./services/vikunja/README.md)
-
-### Low code database/spreadsheets [alts](./graveyard/lowcodeDB.md)
-
-- [NocoDB](./services/nocoDB/README.md)
-
-### Low code UI website editor [alts](./graveyard/lowcodeUI.md)
-
-- [Appsmith](./services/appsmith/README.md) for "internal" apps (more functional)
-- [Lowcoder](./services/lowcoder/README.md) for "external" apps (prettier)
-
-### Monitoring/managing containers
-
-- [Dashy](./services/dashy/README.md) dashboard.
-- [Portainer](./hosting/portainer/README.md) remote docker container management.
-- [Uptime-Kuma](./hosting/uptimeKuma/README.md) notifications when servers go down.
-
-### Random tools [alts](./graveyard/tools.md)
-
-- [IT-Tools](./services/itTools/README.md)
-
-## Architecture diagram
-
-![Architecture Diagram](architecture.png)
-
-## Getting started
-
-### Pre-requisite: Docker
-
-https://www.docker.com/
-
-### Networking
-
-Existential automatically creates a Docker overlay network called `exist` with the following features:
-
-- **Overlay driver**: Enables multi-host communication (Docker Swarm compatible)
-- **Attachable**: Allows standalone containers to join the network
-- **Encrypted**: IP-sec encryption between nodes for secure communication
-
-The network is automatically created when you run `docker compose up` - no manual network creation required!
-
-Individual services communicate with each other using container names (e.g., `librechat-api` can reach `librechat-mongodb:27017`).
-
-### Run
-
-- Run `./existential.sh`
-- Follow the steps to configure defaults (see [dynamic variables](./automations/existential/README.md#dynamic-variables))
-- See [Hosting](/hosting/README.md#enabledisable-services) to enable/disable services
-- `docker compose up` to run all configured services
-
-### Learn
-
-[Hosting](/hosting/README.md)
 
 ## Third-Party Software
 

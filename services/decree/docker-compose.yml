@@ -16,11 +16,13 @@ services:
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
       - DROPBOX_DEST_DIR=${DROPBOX_DEST_DIR}
       - IN_CONTAINER=1
+      #- GMAIL_INITIAL_SYNC_DAYS=7
+      #- GMAIL_LABEL_FILTER=INBOX
     volumes:
       - ./daemon/.decree:/work/.decree:z
+      - ./secrets:/secrets:z
       - notes_data:/notes_data
       - dropbox_data:/dropbox_data:z
-      - ./rclone:/config/rclone:z
     tty: false
 
   decree-webhook:
@@ -64,4 +66,4 @@ volumes:
 
 networks:
   exist:
-external: true
+    external: true

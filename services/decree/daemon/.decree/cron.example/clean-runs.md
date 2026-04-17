@@ -1,5 +1,5 @@
 ---
-cron: "0 4 * * *"
+cron: "0 10 * * *"
 routine: clean-runs
 ---
 

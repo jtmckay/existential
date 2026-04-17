@@ -26,8 +26,6 @@ services:
       - ${UPLOAD_LOCATION}:/data:Z
       - /etc/localtime:/etc/localtime:ro
       - ${EXTERNAL_READ_ONLY_FILES}:/mnt/media/external_photos:ro
-      - ${EXTERNAL_READ_ONLY_FILES_H}:/mnt/media/haley:ro
-      - ${EXTERNAL_READ_ONLY_FILES_T}:/mnt/media/taylor:ro
     env_file:
       - .env
     depends_on:

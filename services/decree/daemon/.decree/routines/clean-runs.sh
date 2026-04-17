@@ -12,6 +12,9 @@ chain="${chain:-}"
 seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
+    # shellcheck source=../lib/precheck.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+    precheck_pass "clean-runs"
     exit 0
 fi
 

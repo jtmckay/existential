@@ -106,3 +106,8 @@ https://get.mem.ai/
 # Tana
 
 https://tana.inc/
+
+# Nightlio
+
+- Nightlio https://github.com/shirsakm/nightlio (TBD)
+  Daily check-in

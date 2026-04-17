@@ -11,8 +11,11 @@ chain="${chain:-}"
 seq="${seq:-}"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v curl >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
-    command -v awk >/dev/null 2>&1 || { echo "awk not found" >&2; exit 1; }
+    # shellcheck source=../lib/precheck.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+    command -v curl >/dev/null 2>&1 || precheck_fail "notify" "curl not found"
+    command -v awk  >/dev/null 2>&1 || precheck_fail "notify" "awk not found"
+    precheck_pass "notify"
     exit 0
 fi
 

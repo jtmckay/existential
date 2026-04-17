@@ -15,4 +15,4 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     exit 0
 fi
 
-rclone sync --config /config/rclone/rclone.conf "nextcloud:${DECREE_NOTES_DIR}" /notes_data
+rclone sync --config /secrets/rclone/rclone.conf "nextcloud:${DECREE_NOTES_DIR}" /notes_data

@@ -5,8 +5,8 @@
 Add Nextcloud/WebDAV, Dropbox, or whatever file sharing solutions you want to use.
 
 ```
-mkdir -p rclone
-docker run --rm -it --network host -v ./rclone:/config/rclone:Z $(docker build -q .) rclone config
+mkdir -p secrets/rclone
+docker run --rm -it --network host -v ./secrets/rclone:/config/rclone:Z $(docker build -q .) rclone config
 ```
 
 ## Configure S3
