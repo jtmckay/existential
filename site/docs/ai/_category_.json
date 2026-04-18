@@ -1,0 +1,8 @@
+{
+  "label": "AI",
+  "position": 7,
+  "link": {
+    "type": "doc",
+    "id": "ai/index"
+  }
+}

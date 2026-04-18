@@ -1,0 +1,8 @@
+taylor:
+  name: Taylor McKay
+  title: Founder, Existential LLC
+  url: https://existential.company
+  image_url: https://github.com/jtmckay.png
+  page: true
+  socials:
+    github: jtmckay

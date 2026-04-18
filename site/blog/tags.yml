@@ -1,0 +1,24 @@
+homelab:
+  label: Homelab
+  permalink: /homelab
+  description: Self-hosted home server projects and setups
+
+automation:
+  label: Automation
+  permalink: /automation
+  description: Home and workflow automation
+
+ai:
+  label: AI
+  permalink: /ai
+  description: Artificial intelligence and machine learning
+
+bitcoin:
+  label: Bitcoin
+  permalink: /bitcoin
+  description: Bitcoin and cryptocurrency
+
+programming:
+  label: Programming
+  permalink: /programming
+  description: Software engineering and computer science

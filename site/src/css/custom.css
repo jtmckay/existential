@@ -1,0 +1,26 @@
+/**
+ * Infima CSS variables for Existential branding.
+ */
+
+:root {
+  --ifm-color-primary: #027bcb;
+  --ifm-color-primary-dark: #026fb5;
+  --ifm-color-primary-darker: #0261a0;
+  --ifm-color-primary-darkest: #014d80;
+  --ifm-color-primary-light: #038de5;
+  --ifm-color-primary-lighter: #19a5f6;
+  --ifm-color-primary-lightest: #47bcff;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #47bcff;
+  --ifm-color-primary-dark: #19a5f6;
+  --ifm-color-primary-darker: #038de5;
+  --ifm-color-primary-darkest: #027bcb;
+  --ifm-color-primary-light: #74cbff;
+  --ifm-color-primary-lighter: #9ed8ff;
+  --ifm-color-primary-lightest: #c9ebff;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}

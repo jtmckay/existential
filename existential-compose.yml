@@ -1,0 +1,20 @@
+services:
+  existential-adhoc:
+    container_name: existential-adhoc
+    build:
+      context: ./services/decree
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      - IN_CONTAINER=1
+      - DECREE_DIR=/work/.decree
+      - SECRETS_DIR=/secrets
+      - NTFY_TOKEN=${EXIST_DEFAULT_NTFY_TOKEN:-}
+      - NTFY_URL=${EXIST_DEFAULT_NTFY_URL:-}
+    volumes:
+      - ./automations:/work/.decree:z
+      - ./services/decree/secrets:/secrets:z
+      - ./src:/src:z
+      - .:/repo:z
+    tty: true
+    stdin_open: true

@@ -1,0 +1,30 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem;
+  }
+}
+
+.heroLogo {
+  height: 120px;
+  width: 120px;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+[data-theme='dark'] .heroLogo {
+  filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.15));
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}

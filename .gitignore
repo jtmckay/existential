@@ -41,12 +41,13 @@
 
 # Decree
 **/decree/webhook/config.yml
-**/decree/**/inbox/*.md
-**/decree/**/inbox/dead/*.md
-**/decree/**/outbox
-**/decree/**/runs
-**/decree/daemon/.decree/cron/
-**/decree/daemon/.decree/config.yml
+automations/config.yml
+automations/cron/
+automations/hooks/
+automations/inbox/
+automations/inbox/dead/
+automations/outbox
+automations/runs
 services/decree/secrets/
 
 # Immich

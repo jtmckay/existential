@@ -1,0 +1,19 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+  width: 100%;
+}
+
+.featureIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.featureIcon {
+  height: 80px;
+  width: 80px;
+  color: var(--ifm-color-primary);
+}

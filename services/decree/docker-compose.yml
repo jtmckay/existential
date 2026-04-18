@@ -19,7 +19,7 @@ services:
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
     volumes:
-      - ./daemon/.decree:/work/.decree:z
+      - ../../automations:/work/.decree:z
       - ./secrets:/secrets:z
       - notes_data:/notes_data
       - dropbox_data:/dropbox_data:z
@@ -46,7 +46,7 @@ services:
       #- DECREE_WEBHOOK_RATE_MAX=60
       #- DECREE_WEBHOOK_RATE_FAIL_MAX=10
     volumes:
-      - ./daemon/.decree/inbox:/inbox:z
+      - ../../automations/inbox:/inbox:z
       - ./webhook/config.yml:/app/config.yml:ro
     healthcheck:
       test:

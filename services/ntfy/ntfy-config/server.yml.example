@@ -14,7 +14,7 @@ auth-users:
 
 # generate once: `echo "tk_$(tr -dc 'a-z0-9' </dev/urandom | head -c 29)"`
 auth-tokens:
-  - "bot:tk_REPLACE_BOT_TOKEN:MQTT-bridge"
+  - "bot:EXIST_DEFAULT_NTFY_TOKEN:MQTT-bridge"
 
 # allow the bot to publish/subscribe under exist*
 auth-access:
