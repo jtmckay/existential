@@ -43,7 +43,7 @@
 **/decree/webhook/config.yml
 automations/config.yml
 automations/cron/
-automations/hooks/
+automations/emails/
 automations/inbox/
 automations/inbox/dead/
 automations/outbox

@@ -21,12 +21,7 @@ mkdir -p "$(dirname "$RCLONE_CONFIG")"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 rclone_run() {
-    local tty_flag=()
-    if [ "${1:-}" = "-t" ]; then
-        tty_flag=(-t)
-        shift
-    fi
-    rclone "${tty_flag[@]}" --config "$RCLONE_CONFIG" "$@"
+    rclone --config "$RCLONE_CONFIG" "$@"
 }
 
 # ── Show existing remotes ─────────────────────────────────────────────────────
@@ -49,7 +44,7 @@ echo ""
 
 # ── Interactive rclone config ─────────────────────────────────────────────────
 
-rclone_run -t config
+rclone_run config
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 
