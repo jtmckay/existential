@@ -19,6 +19,8 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
 
+  clientModules: ['./src/unregister-sw.ts'],
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
