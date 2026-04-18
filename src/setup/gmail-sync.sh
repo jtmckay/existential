@@ -89,22 +89,56 @@ hr
 echo ""
 echo "${AUTH_URL}"
 echo ""
-echo "After authorizing, your browser redirects to ${REDIRECT_URI}?code=..."
-echo "The page will show a connection error — that is expected."
-echo "Copy the full URL from your browser's address bar and paste it below."
+echo "Waiting for authorization (timeout: 2 minutes)..."
 echo ""
-read -rp "Redirect URL: " REDIRECT_URL
 
-# Regex must be in a variable to prevent bash from misinterpreting & as a metacharacter
-CODE_REGEX='[?&]code=([^&]+)'
-if [[ "$REDIRECT_URL" =~ $CODE_REGEX ]]; then
-    CODE="${BASH_REMATCH[1]}"
+_CODE_FILE="$(mktemp)"
+
+python3 - "$_CODE_FILE" << 'PYEOF' &
+import http.server, urllib.parse, sys
+
+code_file = sys.argv[1]
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        code = urllib.parse.unquote(params.get('code', [''])[0])
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(
+            b'<html><body style="font-family:sans-serif;padding:2rem">'
+            b'<h2>Authorization complete!</h2>'
+            b'<p>You may close this tab and return to the terminal.</p>'
+            b'</body></html>'
+        )
+        with open(code_file, 'w') as f:
+            f.write(code)
+    def log_message(self, *args):
+        pass
+
+with http.server.HTTPServer(('0.0.0.0', 8803), Handler) as httpd:
+    httpd.handle_request()
+PYEOF
+
+_SERVER_PID=$!
+( sleep 120; kill "$_SERVER_PID" 2>/dev/null ) &
+_KILLER_PID=$!
+
+wait "$_SERVER_PID" 2>/dev/null || true
+kill "$_KILLER_PID" 2>/dev/null || true
+
+if [[ -s "$_CODE_FILE" ]]; then
+    CODE=$(cat "$_CODE_FILE")
+    rm -f "$_CODE_FILE"
 else
-    die "Could not find 'code=' in the URL you pasted"
-fi
-
-if command -v python3 >/dev/null 2>&1; then
-    CODE=$(python3 -c "import urllib.parse,sys; print(urllib.parse.unquote(sys.argv[1]))" "$CODE")
+    rm -f "$_CODE_FILE"
+    echo "Automatic capture timed out. Paste the redirect URL manually."
+    echo ""
+    read -rp "Redirect URL: " REDIRECT_URL
+    CODE_REGEX='[?&]code=([^&]+)'
+    [[ "$REDIRECT_URL" =~ $CODE_REGEX ]] || die "Could not find 'code=' in the URL you pasted"
+    CODE=$(python3 -c "import urllib.parse,sys; print(urllib.parse.unquote(sys.argv[1]))" "${BASH_REMATCH[1]}")
 fi
 
 echo ""

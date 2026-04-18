@@ -143,6 +143,7 @@ process_examples() {
 
 run_adhoc() {
     docker compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
+        --entrypoint "" \
         existential-adhoc "$@"
 }
 
@@ -166,7 +167,9 @@ run_setup() {
     fi
 
     case "$integration" in
-        gmail)  run_adhoc bash /src/setup/gmail-sync.sh ;;
+        gmail)  docker compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
+                    --entrypoint "" -p 8803:8803 \
+                    existential-adhoc bash /src/setup/gmail-sync.sh ;;
         ntfy)   run_adhoc bash /src/setup/ntfy.sh ;;
         rclone) run_adhoc bash /src/setup/rclone.sh ;;
         *)      echo "Unknown integration: $integration. Available: gmail, ntfy, rclone" >&2; return 1 ;;
