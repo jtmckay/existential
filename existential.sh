@@ -97,25 +97,43 @@ replace_placeholders() {
 process_examples() {
     local created=0 skipped=0
 
+    _find_examples() {
+        find "$SCRIPT_DIR" \
+            "$@" \
+            -not -path "*/graveyard/*" \
+            -not -path "*/.git/*" \
+            -not -path "*/node_modules/*" \
+            -not -path "*/site/*" \
+            -name "*.example" \
+            2>/dev/null \
+            | sort
+    }
+
+    # Directories first (no placeholder replacement)
     while IFS= read -r src; do
         local dst="${src%.example}"
-
-        if [[ -f "$dst" ]] && [[ "$FORCE" != "true" ]]; then
+        if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then
             (( skipped++ )) || true
             continue
         fi
+        cp -r "$src" "$dst"
+        while IFS= read -r f; do replace_placeholders "$f"; done < <(find "$dst" -type f 2>/dev/null)
+        (( created++ )) || true
+        echo "  created: ${dst#"$SCRIPT_DIR/"}"
+    done < <(_find_examples -type d)
 
+    # Files second (with placeholder replacement)
+    while IFS= read -r src; do
+        local dst="${src%.example}"
+        if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then
+            (( skipped++ )) || true
+            continue
+        fi
         cp "$src" "$dst"
         replace_placeholders "$dst"
         (( created++ )) || true
         echo "  created: ${dst#"$SCRIPT_DIR/"}"
-    done < <(find "$SCRIPT_DIR" \
-        -not -path "*/graveyard/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/node_modules/*" \
-        -not -path "*/site/*" \
-        -name "*.example" \
-        | sort)
+    done < <(_find_examples -type f)
 
     echo "Created ${created} file(s), skipped ${skipped} existing"
     [[ "$skipped" -gt 0 ]] && echo "  (use --force to regenerate existing files)"
