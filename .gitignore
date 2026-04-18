@@ -1,4 +1,5 @@
 **/.env
+**/.env.exist
 **/.env.generated
 **/.pnpm-store
 .claude

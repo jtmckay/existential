@@ -25,15 +25,16 @@ Existential is a curated homelab stack combining AI tools, workflow automation, 
 ```
 
 This will:
-1. Find all `.example` files and create counterparts (skips existing)
-2. Replace `EXIST_` placeholders interactively (`EXIST_CLI`) or automatically (passwords, hex keys, UUIDs)
+1. Find all `.example` files and create counterparts (skips existing; directories first, then files)
+2. Replace `EXIST_` placeholders interactively (`EXIST_CLI`) or automatically (passwords, hex keys, UUIDs) — reads `EXIST_DEFAULT_*` values from root `.env.exist`
 3. Merge enabled services into a unified `docker-compose.yml` via the existential-adhoc container
+4. Generate a master `.env` at the repo root by merging `.env.exist` with all enabled service `.env` files
 
 ### Targeted commands
 ```bash
 ./existential.sh --force          # Regenerate existing files too
 ./existential.sh examples         # Only process .example files
-./existential.sh compose          # Only regenerate docker-compose.yml
+./existential.sh compose          # Only regenerate docker-compose.yml and master .env
 ./existential.sh setup gmail      # Gmail OAuth setup
 ./existential.sh setup rclone     # Configure remote file storage
 ./existential.sh test             # Run test suite
@@ -56,17 +57,17 @@ docker compose up -d
 | `EXIST_64_CHAR_HEX_KEY` | Generates a unique 64-character hex key per instance |
 | `EXIST_TIMESTAMP` | Current timestamp (`YYYYMMDD_HHMMSS`) |
 | `EXIST_UUID` | UUID |
-| `EXIST_DEFAULT_*` | Value of matching variable from root `.env` |
+| `EXIST_DEFAULT_*` | Value of matching variable from root `.env.exist` |
 
 ## Service Enablement
 
-Services are toggled via `EXIST_ENABLE_*=true/false` in the root `.env`. After changing, regenerate the compose file:
+Services are toggled via `EXIST_ENABLE_*=true/false` in the root `.env.exist`. After changing, regenerate the compose file:
 
 ```bash
 ./existential.sh compose
 ```
 
-The compose merge is handled by `src/generate-compose.py` (runs in the `existential-adhoc` container using `python3-yaml`). It discovers docker-compose.yml files at depth 2, adjusts relative paths to be correct from the repo root, and merges services/volumes/networks.
+The compose merge is handled by `src/generate-compose.py` (runs in the `existential-adhoc` container using `python3-yaml`). It reads `EXIST_ENABLE_*` from `.env.exist`, discovers `docker-compose.yml` files at depth 2 (generated from `.example` counterparts), adjusts relative paths to be correct from the repo root, and merges services/volumes/networks. It also generates a master `.env` by merging `.env.exist` with all enabled service `.env` files — this is auto-loaded by Docker Compose for variable substitution. Before writing, the previous `docker-compose.yml` is archived as `docker-compose-<timestamp_ms>.yml`.
 
 ## Decree (Automations)
 

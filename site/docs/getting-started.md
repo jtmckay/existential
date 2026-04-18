@@ -17,14 +17,15 @@ sidebar_position: 2
 
 This will:
 
-1. Find all `.example` files and create non-example counterparts
+1. Find all `.example` files and create non-example counterparts (directories first, then files)
 2. Prompt for any `EXIST_CLI` placeholder values interactively
 3. Auto-generate passwords, keys, and UUIDs for other placeholders
 4. Generate a unified `docker-compose.yml` from all enabled services
+5. Generate a master `.env` by merging `.env.exist` with all enabled service `.env` files
 
 ## Enable/Disable Services
 
-Edit the root `.env` and set services to `true` or `false`:
+Edit `.env.exist` and set services to `true` or `false`:
 
 ```bash
 EXIST_ENABLE_AI_OLLAMA=true

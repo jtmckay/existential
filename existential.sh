@@ -34,13 +34,13 @@ gen_uuid()     {
 replace_placeholders() {
     local file="$1"
 
-    # EXIST_DEFAULT_* — values from root .env
-    if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    # EXIST_DEFAULT_* — values from root .env.exist
+    if [[ -f "$SCRIPT_DIR/.env.exist" ]]; then
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_DEFAULT_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
             _sed "s|${key}|${value}|g" "$file"
-        done < "$SCRIPT_DIR/.env"
+        done < "$SCRIPT_DIR/.env.exist"
     fi
 
     # Auto-generated — replace one instance at a time so each gets a unique value
