@@ -11,6 +11,14 @@ sidebar_position: 5
 
 Punches a hole to the internet, allowing access to a specific port on your machine from anywhere without port forwarding on your router.
 
+## Features
+
+- **Instant HTTPS Tunnels**: Expose any local port with a public HTTPS URL in one command
+- **Request Inspection**: Built-in dashboard to inspect and replay incoming HTTP requests
+- **TLS Termination**: Handles SSL certificates automatically
+- **TCP & TLS Tunnels**: Supports non-HTTP protocols (SSH, databases, etc.)
+- **Custom Subdomains**: Stable URLs on paid plans (random URLs on free tier)
+
 ```bash
 ngrok http 80
 

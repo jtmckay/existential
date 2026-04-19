@@ -9,6 +9,14 @@ sidebar_position: 2
 - Alternatives: n8n, Decree, Zapier, Make
 - Status: RIP — closed source licensing practices
 
+## Features
+
+- **Visual Workflow Builder**: Connect triggers and actions in a step-by-step flow editor
+- **200+ Pre-Built Pieces**: Integrations for Gmail, Slack, Notion, GitHub, HTTP, and more
+- **Webhook & Schedule Triggers**: Kick off flows from external events or on a cron schedule
+- **Branching & Loops**: Conditional logic and iteration within flows
+- **Self-Hosted with MIT License**: Full control over data with no vendor lock-in
+
 ## MinIO Trigger
 
 Pre-req: AMQP MinIO queue via RabbitMQ.

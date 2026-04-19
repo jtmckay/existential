@@ -11,6 +11,15 @@ sidebar_position: 2
 
 Multi-server Docker orchestration.
 
+## Features
+
+- **Native Docker Integration**: Built into Docker Engine — no extra tools to install
+- **Multi-Host Networking**: Encrypted overlay networks spanning multiple machines
+- **Service Scaling**: Scale containers up or down with a single command
+- **Rolling Updates & Rollbacks**: Deploy new images with zero downtime and easy rollback
+- **Node Placement Constraints**: Pin services to specific nodes via labels
+- **Built-In Secrets Management**: Securely distribute credentials to services
+
 ## Setup Network
 
 ```bash
