@@ -207,7 +207,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/2024-10-12_15-43-12_2706.jpeg"
+                    src="/images/2024-10-12_15-43-12_2706.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -314,7 +314,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/2024-10-12_15-43-12_2706.jpeg"
+                    src="/images/2024-10-12_15-43-12_2706.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -378,7 +378,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/2024-10-12_15-43-12_2706.jpeg"
+                    src="/images/2024-10-12_15-43-12_2706.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -426,7 +426,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/Screenshot_1605720485.png"
+                    src="/images/Screenshot_1605720485.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -455,7 +455,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/2024-10-12_15-43-12_2706.jpeg"
+                    src="/images/2024-10-12_15-43-12_2706.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -486,7 +486,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/mathite.png"
+                    src="/images/mathite.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -537,7 +537,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/penguin_wars.png"
+                    src="/images/penguin_wars.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
@@ -556,7 +556,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/2024-10-12_15-43-12_2706.jpeg"
+                    src="/images/2024-10-12_15-43-12_2706.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                 </div>
