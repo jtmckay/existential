@@ -19,16 +19,6 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
 
-  clientModules: ['./src/unregister-sw.ts'],
-
-  headTags: [
-    {
-      tagName: 'script',
-      attributes: {},
-      innerHTML: `if('serviceWorker'in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){if(reg.scope.startsWith(location.origin))reg.unregister();})})}`,
-    },
-  ],
-
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
