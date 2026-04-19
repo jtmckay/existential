@@ -225,7 +225,7 @@ export default function TaylorAbout(): ReactNode {
                 </div>
                 <div className={TIMELINE_HEADER_CLASS}>
                   <img
-                    src="/images/swingset.png"
+                    src="/images/swingset.jpg"
                     className={SECTION_IMAGE_CLASS}
                   />
                   <Timeline />
