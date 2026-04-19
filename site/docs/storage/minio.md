@@ -10,6 +10,15 @@ sidebar_position: 2
 
 S3-compatible object storage. Provides an S3 interface to all files — replaceable with Amazon S3 if needed.
 
+## Features
+
+- **S3-Compatible API**: Works with any S3 SDK, CLI, or tool — swap for AWS S3 without changing integrations
+- **High Performance**: Designed for throughput with parallel read/write across drives
+- **Event Notifications**: Publish file events to webhooks, Kafka, AMQP, or NATS for automations
+- **Web Console**: Browser-based UI for bucket management, access keys, and policies
+- **IAM-Style Access Control**: Per-bucket policies and scoped access keys for multi-tenant use
+- **Erasure Coding**: Configurable data redundancy to survive drive failures
+
 ## Benefits of S3 Interface
 
 - Uniform file API across all services

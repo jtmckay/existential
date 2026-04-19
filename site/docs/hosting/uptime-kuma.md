@@ -10,6 +10,15 @@ sidebar_position: 8
 
 Self-hosted monitoring tool for service availability.
 
+## Features
+
+- **Multi-Protocol Monitoring**: HTTP(S), TCP, DNS, ping, and Docker container health checks
+- **Public Status Pages**: Hosted status page to show uptime to users or teammates
+- **90+ Notification Channels**: Telegram, Slack, email, ntfy, PagerDuty, and more
+- **Response Time Graphs**: Historical latency charts and incident timeline
+- **Maintenance Windows**: Silence alerts during planned downtime
+- **Heartbeat Monitoring**: Detect when a cron job or script stops phoning home
+
 ## Setup Alerts
 
 One option: Telegram bot

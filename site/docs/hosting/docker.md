@@ -10,6 +10,15 @@ sidebar_position: 3
 
 Install using the [official Docker guide](https://docs.docker.com/engine/install/ubuntu/) (NOT via Snap).
 
+## Features
+
+- **Container Runtime**: Package apps with all their dependencies into portable, reproducible images
+- **Docker Compose**: Define and run multi-container stacks with a single YAML file
+- **Image Layering**: Shared layers between images reduce disk usage and speed up pulls
+- **Networking**: Bridge, overlay, and host networks for flexible container communication
+- **Volume Mounts**: Persist data outside containers and share it between services
+- **Resource Limits**: Cap CPU, memory, and I/O per container
+
 ## Network
 
 The `exist` network is automatically created when running `docker compose up`. To create it manually:

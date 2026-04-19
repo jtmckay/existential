@@ -10,6 +10,15 @@ General AI model hosting.
 - License: [MIT](https://opensource.org/licenses/MIT)
 - Alternatives: vLLM, LocalAI, LM Studio
 
+## Features
+
+- **Simple Model Management**: One-command download and run from the Ollama model library
+- **OpenAI-Compatible API**: Works as a drop-in backend for any OpenAI SDK or tool
+- **GPU Acceleration**: Automatic CUDA/ROCm/Metal detection for hardware acceleration
+- **Custom Models via Modelfile**: Extend base models with system prompts and context size tweaks
+- **Concurrent Model Hosting**: Keep multiple models loaded and warm simultaneously
+- **Embedding Support**: Generate embeddings for RAG and vector search workflows
+
 ## Pick Your LLM
 
 In `ollama_entrypoint.sh`, uncomment the LLM you want to preload.

@@ -10,6 +10,15 @@ sidebar_position: 5
 
 Useful for when you need full tool-calling support (Ollama does not support tools).
 
+## Features
+
+- **High-Throughput Serving**: PagedAttention memory management for maximum GPU utilization
+- **OpenAI-Compatible API**: Drop-in replacement for the OpenAI inference endpoint
+- **Full Tool/Function Calling**: Structured tool use that Ollama lacks
+- **Quantization Support**: BitsAndBytes, AWQ, and GPTQ for fitting large models on consumer GPUs
+- **Multi-GPU Tensor Parallelism**: Split large models across multiple GPUs
+- **HuggingFace Integration**: Load any compatible model directly from the Hub
+
 ## Direct Podman Run
 
 ```bash

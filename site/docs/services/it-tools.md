@@ -10,6 +10,14 @@ sidebar_position: 5
 
 A collection of handy developer utilities.
 
+## Features
+
+- **100+ Utilities**: Text, encoding, formatting, crypto, network, color, and more — all in one app
+- **Browser-Based**: Runs entirely in the browser; no backend calls for most tools
+- **Offline-Capable**: Progressive Web App — works without internet after first load
+- **Self-Hostable**: Single Docker container with no external dependencies
+- **Searchable & Categorized**: Quickly find the right tool from an organized, filterable library
+
 ## Examples
 
 - Random port generator

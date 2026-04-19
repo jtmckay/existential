@@ -8,6 +8,15 @@ sidebar_position: 2
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: XCP-ng, VMware ESXi, oVirt, Hyper-V
 
+## Features
+
+- **KVM Virtualization**: Full virtual machines with hardware-level isolation and PCI passthrough
+- **LXC Containers**: Lightweight Linux containers for services that don't need full VMs
+- **Web Management Console**: Manage all VMs, containers, and storage from a browser
+- **ZFS Storage**: Built-in ZFS with snapshots, clones, and replication for reliable storage
+- **Clustering**: Manage multiple Proxmox nodes as a single unified cluster
+- **Live Migration**: Move running VMs between hosts with minimal downtime
+
 ## Install Notes
 
 - If your clock is wrong, check that you can `ping google.com` before trying anything else.

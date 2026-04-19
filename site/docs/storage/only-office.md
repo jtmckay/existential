@@ -10,6 +10,15 @@ sidebar_position: 5
 
 Document editing suite — integrated with Nextcloud.
 
+## Features
+
+- **Full Office Suite**: Browser-based editing for documents, spreadsheets, and presentations
+- **Real-Time Collaboration**: Multiple users edit simultaneously with track changes and comments
+- **Format Compatibility**: Opens and saves .docx, .xlsx, .pptx, and ODF files
+- **Nextcloud Integration**: Embeds as the default editor in Nextcloud Files via the official app
+- **Plugin System**: Extend editor functionality with macros and custom plugins
+- **JWT Security**: Token-based authentication for secure API communication
+
 ## Requirements
 
 Requires HTTPS. Use a secure reverse proxy (e.g., Caddy).

@@ -10,6 +10,15 @@ sidebar_position: 4
 
 Remote Docker container management. Works with a single machine, Docker Swarm, or Kubernetes.
 
+## Features
+
+- **Web UI for Docker**: Manage containers, images, volumes, and networks from a browser
+- **Stack Deployment**: Deploy and update Docker Compose stacks through the UI
+- **Multi-Host Management**: Connect to remote Docker hosts via the Portainer agent
+- **Live Logs & Terminal**: Stream container logs and open a terminal in any running container
+- **Swarm & Kubernetes Support**: Unified UI across Docker Standalone, Swarm, and Kubernetes
+- **Access Control**: User and team permissions in the Business edition
+
 ## Deployment
 
 Must be run from a manager node in the Docker Swarm:
