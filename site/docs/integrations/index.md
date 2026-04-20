@@ -14,5 +14,6 @@ All integration setup scripts run inside the `decree-adhoc` container, so nothin
 
 | Integration | What it does |
 |---|---|
+| [Actual Budget](./actual-budget) | Post transactions to Actual Budget from bank alert emails |
 | [Gmail](./gmail) | Read-only Gmail access for the `gmail-sync` automation |
 | [rclone](./rclone) | Remote file storage — Nextcloud, Dropbox, S3, and more |

@@ -16,5 +16,11 @@ services:
       - ./services/decree/secrets:/secrets:z
       - ./src:/src:z
       - .:/repo:z
+    networks:
+      - exist
     tty: true
     stdin_open: true
+
+networks:
+  exist:
+    driver: bridge

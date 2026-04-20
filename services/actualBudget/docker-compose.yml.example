@@ -1,6 +1,6 @@
 services:
-  actual-server:
-    container_name: actual-server
+  actual-budget:
+    container_name: actual-budget
     image: actualbudget/actual-server:latest
     restart: unless-stopped
     networks:

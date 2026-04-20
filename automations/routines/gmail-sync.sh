@@ -31,9 +31,12 @@ set -euo pipefail
 GMAIL_DIR="${GMAIL_DIR:-/secrets/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
 HISTORY_FILE="${GMAIL_DIR}/history_id"
+OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 INBOX_DIR="${INBOX_DIR:-/work/.decree/inbox}"
+EMAILS_DIR="${EMAILS_DIR:-/work/.decree/emails}"
 LABEL_FILTER="${GMAIL_LABEL_FILTER:-INBOX}"
 INITIAL_SYNC_DAYS="${GMAIL_INITIAL_SYNC_DAYS:-7}"
+GMAIL_ROUTINE="${GMAIL_ROUTINE:-gmail}"
 
 message_file="${message_file:-}"
 message_id="${message_id:-}"
@@ -84,6 +87,31 @@ refresh_token() {
     fi
 
     printf '%s' "$token"
+}
+
+# ── Label ID resolution ───────────────────────────────────────────────────────
+# System labels (all-caps) are valid as-is. Custom labels are resolved from
+# the label cache at ${GMAIL_DIR}/labels.json, populated by gmail-labels setup.
+
+resolve_label_id() {
+    local label_name="$1"
+    case "$label_name" in
+        INBOX|SENT|DRAFTS|SPAM|TRASH|UNREAD|STARRED|IMPORTANT)
+            printf '%s' "$label_name"; return ;;
+    esac
+    local labels_file="${GMAIL_DIR}/labels.json"
+    if [ ! -f "$labels_file" ]; then
+        echo "Label cache missing. Run: ./existential.sh setup gmail-labels" >&2
+        exit 1
+    fi
+    local id
+    id=$(jq -r --arg n "$label_name" \
+        '.labels[] | select(.name == $n) | .id // empty' "$labels_file" | head -1)
+    if [ -z "$id" ]; then
+        echo "Label '${label_name}' not found in cache. Run: ./existential.sh setup gmail-labels" >&2
+        exit 1
+    fi
+    printf '%s' "$id"
 }
 
 # ── Base64url decode ──────────────────────────────────────────────────────────
@@ -142,16 +170,18 @@ yaml_str() {
     printf '%s' "${1:-}" | tr -d '\r' | tr '\n' ' ' | sed "s/'/''/g"
 }
 
-# ── Write one message to the decree inbox ─────────────────────────────────────
+# ── Write one message to the decree outbox ────────────────────────────────────
 
 write_message() {
     local access_token="$1"
     local msg_id="$2"
-    local outfile="${INBOX_DIR}/gmail-${msg_id}.md"
+    local outfile="${OUTBOX_DIR}/gmail-${msg_id}.md"
 
-    # Idempotency: skip if already in inbox or already processed (moved to dead/)
-    [ -f "$outfile" ] && return 0
-    [ -f "${INBOX_DIR}/dead/gmail-${msg_id}.md" ] && return 0
+    # Idempotency: skip if the message is anywhere in the pipeline already
+    [ -f "$outfile" ]                                  && return 0  # pending in outbox
+    [ -f "${INBOX_DIR}/gmail-${msg_id}.md" ]           && return 0  # queued in inbox
+    [ -f "${INBOX_DIR}/dead/gmail-${msg_id}.md" ]      && return 0  # dead-lettered
+    [ -f "${EMAILS_DIR}/gmail-${msg_id}.md" ]          && return 0  # processed by gmail routine
 
     local response
     response=$(curl -sf \
@@ -189,7 +219,7 @@ write_message() {
     # Write via a .tmp file so a crashed write never leaves a partial message
     {
         printf -- '---\n'
-        printf "routine: gmail\n"
+        printf "routine: %s\n" "${GMAIL_ROUTINE}"
         printf "msg_id: 'gmail-%s'\n"  "$(yaml_str "$msg_id")"
         printf "gmail_id: '%s'\n"      "$(yaml_str "$msg_id")"
         printf "thread_id: '%s'\n"     "$(yaml_str "$thread_id")"
@@ -199,11 +229,16 @@ write_message() {
         printf "date: '%s'\n"          "$(yaml_str "$date_hdr")"
         printf "labels: '%s'\n"        "$(yaml_str "$labels")"
         printf "has_attachments: %s\n" "$has_attachments"
+        # Forward any cron/message fields prefixed fwd_ into child messages (prefix stripped)
+        while IFS='=' read -r key value; do
+            printf "%s: '%s'\n" "${key#fwd_}" "$(yaml_str "$value")"
+        done < <(env | grep '^fwd_' | sort)
         printf -- '---\n'
         printf '\n'
         printf '%s\n' "$body"
     } > "${outfile}.tmp"
 
+    mkdir -p "$OUTBOX_DIR"
     mv "${outfile}.tmp" "$outfile"
     echo "Enqueued: ${msg_id} — ${subject}"
 }
@@ -279,7 +314,7 @@ incremental_sync() {
         curl_args=(-sG
             --data-urlencode "startHistoryId=${history_id}"
             --data-urlencode "historyTypes=messageAdded"
-            --data-urlencode "labelId=${LABEL_FILTER}"
+            --data-urlencode "labelId=${LABEL_ID}"
             --data-urlencode "maxResults=500"
             -H "Authorization: Bearer ${access_token}"
         )
@@ -332,6 +367,9 @@ incremental_sync() {
 echo "Refreshing access token..."
 ACCESS_TOKEN=$(refresh_token)
 echo "Token refreshed."
+
+LABEL_ID=$(resolve_label_id "$LABEL_FILTER")
+[ "$LABEL_ID" != "$LABEL_FILTER" ] && echo "Resolved label '${LABEL_FILTER}' → ${LABEL_ID}"
 
 HISTORY_ID=""
 [ -f "$HISTORY_FILE" ] && HISTORY_ID=$(cat "$HISTORY_FILE")

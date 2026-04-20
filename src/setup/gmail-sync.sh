@@ -204,3 +204,8 @@ if [ -f "$_CONFIG" ]; then
     echo "Routine 'gmail-sync' enabled in config.yml."
     echo "Restart the daemon to apply: docker compose restart decree"
 fi
+
+# ── Sync label cache ──────────────────────────────────────────────────────────
+
+echo ""
+bash /src/setup/gmail-labels.sh

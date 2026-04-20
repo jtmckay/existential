@@ -218,18 +218,21 @@ run_setup() {
     local integration="${1:-}"
 
     if [[ -z "$integration" ]]; then
-        echo "Available integrations: gmail, ntfy, rclone"
+        echo "Available integrations: actual-budget, gmail, gmail-chase-cron, gmail-labels, ntfy, rclone"
         echo "Usage: $0 setup <integration>"
         return 0
     fi
 
     case "$integration" in
+        actual-budget) bash "${SCRIPT_DIR}/src/setup/actual-budget.sh" ;;
         gmail)  $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
                     --entrypoint "" -p 8803:8803 \
                     existential-adhoc bash /src/setup/gmail-sync.sh ;;
+        gmail-chase-cron) run_adhoc bash /src/setup/gmail-chase-cron.sh ;;
+        gmail-labels) run_adhoc bash /src/setup/gmail-labels.sh ;;
         ntfy)   run_adhoc bash /src/setup/ntfy.sh ;;
         rclone) run_adhoc bash /src/setup/rclone.sh ;;
-        *)      echo "Unknown integration: $integration. Available: gmail, ntfy, rclone" >&2; return 1 ;;
+        *)      echo "Unknown integration: $integration. Available: actual-budget, gmail, gmail-chase-cron, gmail-labels, ntfy, rclone" >&2; return 1 ;;
     esac
 }
 
@@ -255,7 +258,7 @@ Actions:
   (default)           Process .example files then generate docker-compose.yml
   examples            Process .example files only
   compose [file]      Generate unified docker-compose.yml (default: docker-compose.yml)
-  setup <name>        Configure an integration: gmail, ntfy, rclone
+  setup <name>        Configure an integration: actual-budget, gmail, gmail-labels, ntfy, rclone
   test [name]         Run tests: all (default), syntax, gmail, rclone
 
 Options:

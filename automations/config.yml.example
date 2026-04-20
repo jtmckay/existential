@@ -11,6 +11,10 @@ hooks:
   beforeEach: ""
   afterEach: ""
 routines:
+  actual-budget:
+    enabled: false
+  actual-budget-parse:
+    enabled: false
   clean-runs:
     enabled: true
   develop:

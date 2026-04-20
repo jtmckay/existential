@@ -98,17 +98,67 @@ my_param="${my_param:-default_value}"
 For routines that invoke AI: `opencode run "Read ${message_file} and ..."`.
 For non-AI routines (data pipelines, sync tasks, notifications): call tools directly.
 
-**Routine chaining:** write follow-up messages to `automations/outbox/` — Decree
-processes them depth-first before moving to the next message.
+**Routine chaining:** routines must ONLY write new messages to `automations/outbox/`
+(`/work/.decree/outbox/` in the container) — never directly to `inbox/`. Writing to the
+outbox lets Decree tag the message with the current recursion depth and process it
+depth-first. Writing directly to the inbox bypasses that tracking and will cause
+incorrect depth counts. The inbox is for external entry points only (cron daemon,
+webhooks).
 
-### Step 2 — Register in `automations/config.yml`
+### Step 1b — Companion scripts (optional)
 
-Add the routine to the `routines:` section (alphabetical by convention):
+If the routine needs logic beyond what bash handles cleanly (e.g. a Node.js API client),
+put those files in `automations/lib/<domain>/` as TypeScript (`.ts`). One subdirectory
+per service or domain:
+
+```
+automations/lib/
+├── precheck.sh                  ← shared bash helper (top-level, not domain-specific)
+├── package.json                 ← deps for all lib TS files (tsx, @types/node, etc.)
+├── tsconfig.json                ← shared TS config
+├── actual-budget/
+│   ├── setup.ts
+│   └── post-transaction.ts
+└── notes/
+    └── compile-notes.sh
+```
+
+**Runtime:** `tsx` (no compile step). It is listed in `automations/lib/package.json` and
+installed at `automations/lib/node_modules/`. The decree container mounts `automations/`
+at `/work/.decree/`, so invoke it as:
+
+```bash
+/work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/<domain>/<file>.ts
+```
+
+**Dependencies:** add runtime deps to `automations/lib/package.json`. Always pin to an
+exact version number — never use `"latest"`. Check the currently installed version with
+`docker exec decree cat /work/.decree/lib/node_modules/<pkg>/package.json | grep version`
+and use that value. The setup script runs `npm install` on first use; a single
+`node_modules` is shared across all lib scripts.
+
+**Local IDE support:** after adding deps to `package.json`, run
+`docker exec decree sh -c "cd /work/.decree/lib && npm install"` to populate
+`automations/lib/node_modules/` on the host (npm is not installed on the host directly).
+
+Never inline companion logic as a heredoc inside a shell script.
+
+### Step 2 — Register in `automations/config.yml` AND `automations/config.yml.example`
+
+Add the routine to the `routines:` section **in both files** (alphabetical by convention).
+In `config.yml`, set `enabled: true` (it's a live environment). In `config.yml.example`,
+set `enabled: false` (it ships disabled; a setup script or the user enables it):
 
 ```yaml
+# automations/config.yml  ← enabled: true (live)
 routines:
   <name>:
     enabled: true
+
+# automations/config.yml.example  ← enabled: false (template default)
+routines:
+  <name>:
+    enabled: false
 ```
 
 A routine that exists on disk but is NOT in this registry will not be discoverable
@@ -116,6 +166,26 @@ or executable. After editing, the daemon picks up changes automatically via the
 `config-watch.sh` hook (beforeAll/afterAll).
 
 Alternatively: `docker exec decree decree routine-sync` auto-discovers all scripts.
+
+### Setup scripts must enable the routine
+
+If the routine has a companion setup script in `src/setup/`, the script must enable the
+routine in `automations/config.yml` after a successful run. Add this block at the end of
+the setup script (before the final success message), adjusting the routine name:
+
+```bash
+CONFIG="${SCRIPT_DIR}/../../automations/config.yml"
+if [ -f "$CONFIG" ]; then
+    awk '
+        /^  <name>:$/ { found=1 }
+        found && /enabled:/ { sub(/enabled: .*/, "enabled: true"); found=0 }
+        { print }
+    ' "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
+    echo "  Routine '<name>' enabled in automations/config.yml."
+fi
+```
+
+This mirrors the pattern in `src/setup/ntfy.sh` and `src/setup/actual-budget.sh`.
 
 ### Verify
 
