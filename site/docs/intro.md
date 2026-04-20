@@ -22,6 +22,9 @@ Use existing apps like normal; perhaps switch to more friendly alternatives that
 ### Pre-requisite: [Docker](https://www.docker.com/get-started/)
 
 ```bash
+git clone https://github.com/jtmckay/existential.git
+cd existential
+
 ./existential.sh
 ```
 

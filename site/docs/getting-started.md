@@ -8,6 +8,11 @@ sidebar_position: 2
 
 - [Docker](https://www.docker.com/get-started/)
 - A machine to host the services (see [Hosting](./hosting/))
+- Git clone the repo
+  ```
+  git clone https://github.com/jtmckay/existential.git
+  cd existential
+  ```
 
 ## Setup
 

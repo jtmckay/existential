@@ -9,6 +9,24 @@ SRC_DIR="$SCRIPT_DIR/src"
 
 FORCE=false
 
+# Expand PATH to cover user-local and host-injected binaries (distrobox, etc.)
+export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
+
+# ── Container runtime detection ───────────────────────────────────────────────
+
+if docker --version &>/dev/null 2>&1; then
+    DOCKER_CMD=docker
+elif podman --version &>/dev/null 2>&1; then
+    DOCKER_CMD=podman
+elif distrobox-host-exec podman --version &>/dev/null 2>&1; then
+    podman() { distrobox-host-exec podman "$@"; }
+    DOCKER_CMD=podman
+else
+    echo "Error: neither docker nor podman found." >&2
+    echo "Install Docker: https://docs.docker.com/engine/install/" >&2
+    exit 1
+fi
+
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
 # Cross-platform sed -i (BSD vs GNU)
@@ -27,6 +45,37 @@ gen_uuid()     {
     elif [[ -r /proc/sys/kernel/random/uuid ]]; then cat /proc/sys/kernel/random/uuid
     else python3 -c "import uuid; print(uuid.uuid4())"
     fi
+}
+
+# Comment out driver/driver_opts blocks that reference TRUENAS in a compose file,
+# leaving a bare named volume that Docker Compose will create as local storage.
+_comment_out_truenas_volumes() {
+    local file="$1"
+    python3 - "$file" <<'PYEOF'
+import sys, re
+
+lines = open(sys.argv[1]).readlines()
+out = []
+i = 0
+while i < len(lines):
+    line = lines[i]
+    if re.match(r'[ \t]+driver_opts\s*:', line):
+        base_indent = len(line) - len(line.lstrip())
+        block = [line]
+        j = i + 1
+        while j < len(lines) and lines[j].strip() and (len(lines[j]) - len(lines[j].lstrip())) > base_indent:
+            block.append(lines[j])
+            j += 1
+        if any('TRUENAS' in l for l in block):
+            if out and re.match(r'[ \t]+driver\s*:', out[-1]):
+                out[-1] = '#' + out[-1]
+            out.extend('#' + l for l in block)
+            i = j
+            continue
+    out.append(line)
+    i += 1
+open(sys.argv[1], 'w').writelines(out)
+PYEOF
 }
 
 # ── EXIST_ placeholder replacement ────────────────────────────────────────────
@@ -131,6 +180,14 @@ process_examples() {
         fi
         cp "$src" "$dst"
         replace_placeholders "$dst"
+        if [[ "$dst" == */docker-compose.yml ]] && grep -q 'TRUENAS' "$dst" 2>/dev/null; then
+            local truenas_addr=""
+            truenas_addr=$(grep '^EXIST_DEFAULT_TRUENAS_SERVER_ADDRESS=' "$SCRIPT_DIR/.env.exist" 2>/dev/null | cut -d= -f2-)
+            if [[ -z "$truenas_addr" || "$truenas_addr" == "EXIST_CLI" ]]; then
+                _comment_out_truenas_volumes "$dst"
+                echo "  note: TrueNAS not configured — NFS volumes commented out in ${dst#"$SCRIPT_DIR/"}"
+            fi
+        fi
         (( created++ )) || true
         echo "  created: ${dst#"$SCRIPT_DIR/"}"
     done < <(_find_examples -type f)
@@ -142,7 +199,7 @@ process_examples() {
 # ── Adhoc container runner ────────────────────────────────────────────────────
 
 run_adhoc() {
-    docker compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
+    $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
         --entrypoint "" \
         existential-adhoc "$@"
 }
@@ -167,7 +224,7 @@ run_setup() {
     fi
 
     case "$integration" in
-        gmail)  docker compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
+        gmail)  $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
                     --entrypoint "" -p 8803:8803 \
                     existential-adhoc bash /src/setup/gmail-sync.sh ;;
         ntfy)   run_adhoc bash /src/setup/ntfy.sh ;;
