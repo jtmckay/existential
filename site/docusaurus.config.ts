@@ -3,6 +3,10 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
   title: 'Existential',
   tagline: 'Take control of your digital footprint',
   favicon: 'img/favicon.svg',

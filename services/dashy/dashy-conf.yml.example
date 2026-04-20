@@ -12,14 +12,14 @@ appConfig:
 sections:
   - name: Apps
     items:
-      - title: LibreChat
-        url: https://chat.local.existential.company/
-        icon: fas fa-ghost
-
       - title: Logseq
         url: logseq://graph/Logseq?page=root
         icon: fas fa-scroll
-        
+
+      - title: Obsidian
+        url: obsidian://
+        icon: si-obsidian
+
       - title: Mealie
         url: https://recipes.local.existential.company/
         icon: fas fa-utensils
@@ -27,6 +27,10 @@ sections:
       - title: Vikunja
         url: https://tasks.local.existential.company/
         icon: fas fa-list
+
+      - title: Actual Budget
+        url: http://money.local.existential.company/
+        icon: fas fa-money-bill-wave
 
   - name: Infrastructure
     items:
@@ -46,10 +50,6 @@ sections:
         url: https://notify.local.existential.company/
         icon: si-ntfy
 
-      - title: RabbitMQ
-        url: https://queue.local.existential.company/
-        icon: si-rabbitmq
-
   - name: Tools
     items:
       - title: AppSmith
@@ -63,10 +63,6 @@ sections:
       - title: Lowcoder
         url: https://build.local.existential.company/
         icon: fas fa-file-code
-
-      - title: Windmill
-        url: https://windmill.local.existential.company/
-        icon: fas fa-fan
 
       - title: MinIO
         url: https://storage.local.existential.company/

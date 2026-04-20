@@ -2,13 +2,13 @@
 sidebar_position: 2
 ---
 
-# Gmail → Chase → Actual Budget
+# Transaction → Gmail → Budget
 
-Automatically imports Chase transaction alert emails into Actual Budget. A cron job polls a Gmail label every 5 minutes, routes matching emails through a parser, and posts any transactions it finds to your Actual Budget account.
+Automatically imports transaction alert emails into Actual Budget. A cron job polls a Gmail label every 5 minutes, routes matching emails through a parser, and posts any transactions it finds to your Actual Budget account.
 
 ```mermaid
 flowchart LR
-    A["🏦 Chase\nTransaction"] -->|alert email| B
+    A["🏦 Chase or Bank\nTransaction"] -->|alert email| B
 
     subgraph gmail["Gmail"]
         B["Chase label"]
