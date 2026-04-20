@@ -2,7 +2,7 @@
 **/.env.exist
 **/.env.generated
 **/.pnpm-store
-.claude
+.claude/settings.local.json
 
 **/minio_data
 **/n8n_data

@@ -4,6 +4,16 @@
 # Default routine that delegates work to an AI assistant.
 # Reads the task message, prompts the AI to implement all
 # requirements, then verifies acceptance criteria are met.
+#
+# Example inbox message (.decree/inbox/my-task.md):
+#
+#   ---
+#   routine: develop
+#   ---
+#   Add a health check endpoint to the API server.
+#
+#   Acceptance criteria:
+#   - GET /health returns 200 with {"status":"ok"}
 set -euo pipefail
 
 # --- Standard Environment Variables ---

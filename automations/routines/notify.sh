@@ -2,6 +2,17 @@
 # Notify
 #
 # Sends the message body to ntfy, stripping frontmatter and whitespace.
+#
+# Example inbox message:
+#
+#   ---
+#   routine: notify
+#   ntfy_topic: 'alerts'
+#   ntfy_title: 'My Alert'
+#   ntfy_priority: 'high'
+#   ntfy_tags: 'warning'
+#   ---
+#   Something happened that needs your attention.
 set -euo pipefail
 
 message_file="${message_file:-}"

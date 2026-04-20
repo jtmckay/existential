@@ -3,6 +3,14 @@
 #
 # Removes old run directories for cron routines, keeping only the
 # most recent 10 runs per routine. Adhoc runs are left untouched.
+#
+# Example cron trigger (.decree/cron/clean-runs.md):
+#
+#   ---
+#   cron: "0 4 * * *"
+#   routine: clean-runs
+#   keep: 10
+#   ---
 set -euo pipefail
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then

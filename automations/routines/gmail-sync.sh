@@ -5,6 +5,17 @@
 # as a markdown file to the decree inbox. Triggered by the cron entry
 # at .decree/cron/gmail-sync.md.
 #
+# Example cron trigger (.decree/cron/gmail-sync.md):
+#
+#   ---
+#   cron: "*/15 * * * *"
+#   routine: gmail-sync
+#   GMAIL_LABEL_FILTER: INBOX
+#   ---
+#
+# Set GMAIL_LABEL_FILTER to any Gmail label (e.g. "MyLabel", "UNREAD") to
+# filter which messages are synced. Each cron file can target a different label.
+#
 # Sync position is tracked in ${GMAIL_DIR}/history_id — a monotonically
 # increasing cursor that survives restarts and extended downtime. If the
 # cursor expires (Google purges history after ~30 days without a sync),
