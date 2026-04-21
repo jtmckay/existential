@@ -14,12 +14,12 @@
 #                   /work/.decree/lib/actual-budget/parse-chase.ts
 #   account_id    — Actual Budget account UUID
 #
-# Example cron trigger (automations/cron/gmail-chase.md):
+# Example cron trigger (automations/cron/gmail-transactions-<label>.md):
 #
 #   ---
 #   cron: "*/5 * * * *"
 #   routine: gmail-sync
-#   GMAIL_LABEL_FILTER: chase
+#   GMAIL_LABEL_FILTER: MyBank/Transactions
 #   GMAIL_ROUTINE: actual-budget-parse
 #   fwd_parse_script: /work/.decree/lib/actual-budget/parse-chase.ts
 #   fwd_account_id: dedddddd-2222-4444-9999-111111cccccc
@@ -77,6 +77,10 @@ fi
 
 [ -n "$txn_date" ] || txn_date=$(date +%Y-%m-%d)
 
+# ── YAML value escaping ───────────────────────────────────────────────────────
+
+yaml_str() { printf '%s' "${1:-}" | tr -d '\r' | tr '\n' ' ' | sed "s/'/''/g"; }
+
 # ── Write outbox message for actual-budget ────────────────────────────────────
 
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
@@ -86,10 +90,10 @@ outfile="${OUTBOX_DIR}/actual-budget-$(date +%s%N).md"
 {
     printf -- '---\n'
     printf 'routine: actual-budget\n'
-    printf "account_id: '%s'\n" "$account_id"
-    printf "payee_name: '%s'\n" "$payee"
-    printf "date: '%s'\n"       "$txn_date"
-    printf "notes: '%s'\n"      "$notes"
+    printf "account_id: '%s'\n" "$(yaml_str "$account_id")"
+    printf "payee_name: '%s'\n" "$(yaml_str "$payee")"
+    printf "date: '%s'\n"       "$(yaml_str "$txn_date")"
+    printf "notes: '%s'\n"      "$(yaml_str "$notes")"
     printf -- '---\n'
     printf '%s\n' "$amount"
 } > "$outfile"

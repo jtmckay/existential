@@ -69,7 +69,7 @@ src/
 ├── create_vikunja_user.sh      Vikunja user creation
 ├── setup/
 │   ├── actual-budget.sh        Actual Budget credentials setup (saves accounts.json)
-│   ├── gmail-chase-cron.sh     Interactive Gmail→Chase→Actual Budget cron file generator
+│   ├── gmail-transactions-cron.sh  Interactive Bank Alert→Gmail→Actual Budget cron file generator
 │   ├── gmail-sync.sh           Gmail OAuth setup (calls gmail-labels.sh at end)
 │   ├── gmail-labels.sh         Sync Gmail label name→ID cache to secrets/gmail/labels.json
 │   ├── ntfy.sh                 ntfy integration setup
@@ -105,7 +105,7 @@ src/
 ./existential.sh compose        # Only regenerate docker-compose.yml and master .env
 ./existential.sh setup actual-budget    # Actual Budget credentials setup (saves accounts.json)
 ./existential.sh setup gmail            # Gmail OAuth setup (also runs gmail-labels)
-./existential.sh setup gmail-chase-cron # Gmail→Chase→Actual Budget cron file generator
+./existential.sh setup gmail-transactions-cron # Bank Alert→Gmail→Actual Budget cron file generator
 ./existential.sh setup gmail-labels     # Sync Gmail label name→ID cache (re-run after adding labels)
 ./existential.sh setup rclone           # Configure remote file storage
 ./existential.sh setup ntfy             # ntfy integration setup

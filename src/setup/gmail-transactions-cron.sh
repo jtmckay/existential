@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# gmail-chase-cron setup
+# gmail-transactions-cron setup
 #
-# Walks through selecting a Gmail label and an Actual Budget account, then
-# writes (or overwrites) automations/cron/gmail-chase.md.
+# Walks through selecting a Gmail label, a parse script, and an Actual Budget
+# account, then writes automations/cron/gmail-transactions-<label>.md.
 #
-# Run via: ./existential.sh setup gmail-chase-cron
+# Run via: ./existential.sh setup gmail-transactions-cron
 # Requires: setup gmail and setup actual-budget already completed
 
 set -euo pipefail
@@ -12,13 +12,15 @@ set -euo pipefail
 SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
-CRON_FILE="${DECREE_DIR:-/work/.decree}/cron/gmail-chase.md"
+CRON_DIR="${DECREE_DIR:-/work/.decree}/cron"
+PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/automations/lib/actual-budget}"
+DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
 
 hr() { printf '%0.s─' {1..56}; echo; }
 die() { echo "Error: $*" >&2; exit 1; }
 
 echo ""
-echo "  Gmail → Chase → Actual Budget cron setup"
+echo "  Gmail → Actual Budget transaction cron setup"
 hr
 echo ""
 
@@ -56,6 +58,35 @@ idx=$(( sel - 1 ))
 
 GMAIL_LABEL="${LABEL_NAMES[$idx]}"
 echo "  Selected label: ${GMAIL_LABEL}"
+echo ""
+
+_label_slug=$(printf '%s' "$GMAIL_LABEL" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/_*$//')
+CRON_FILE="${CRON_DIR}/gmail-transactions-${_label_slug}.md"
+
+# ── Select parse script ───────────────────────────────────────────────────────
+
+echo "  Parse scripts:"
+echo ""
+
+mapfile -t PARSE_SCRIPTS < <(find "$PARSE_SCRIPTS_DIR" -maxdepth 1 -name 'parse-*.ts' -type f | sort | xargs -I{} basename {})
+
+if [ ${#PARSE_SCRIPTS[@]} -eq 0 ]; then
+    die "No parse-*.ts scripts found in ${PARSE_SCRIPTS_DIR}."
+fi
+
+for i in "${!PARSE_SCRIPTS[@]}"; do
+    printf "    %d. %s\n" $(( i + 1 )) "${PARSE_SCRIPTS[$i]}"
+done
+echo ""
+
+read -rp "  Select parse script [1-${#PARSE_SCRIPTS[@]}]: " sel
+idx=$(( sel - 1 ))
+[[ "$sel" =~ ^[0-9]+$ ]] && [ "$idx" -ge 0 ] && [ "$idx" -lt "${#PARSE_SCRIPTS[@]}" ] \
+    || die "Invalid selection."
+
+PARSE_SCRIPT_NAME="${PARSE_SCRIPTS[$idx]}"
+PARSE_SCRIPT_PATH="${DECREE_LIB_DIR}/${PARSE_SCRIPT_NAME}"
+echo "  Selected: ${PARSE_SCRIPT_NAME}"
 echo ""
 
 # ── Select Actual Budget account ──────────────────────────────────────────────
@@ -119,19 +150,20 @@ cron: "${CRON_SCHEDULE}"
 routine: gmail-sync
 GMAIL_LABEL_FILTER: ${GMAIL_LABEL}
 GMAIL_ROUTINE: actual-budget-parse
-fwd_parse_script: /work/.decree/lib/actual-budget/parse-chase.ts
+fwd_parse_script: ${PARSE_SCRIPT_PATH}
 fwd_account_id: ${ACCOUNT_ID}
 ---
 
-Fetch Chase transaction alert emails and route to actual-budget-parse
-for import into Actual Budget (${ACCOUNT_NAME}).
+Fetch transaction alert emails from label '${GMAIL_LABEL}' and route to
+actual-budget-parse for import into Actual Budget (${ACCOUNT_NAME}).
 EOF
 
 echo ""
 hr
 echo ""
-echo "  Created: automations/cron/gmail-chase.md"
+echo "  Created: automations/cron/gmail-transactions-${_label_slug}.md"
 echo "  Label:   ${GMAIL_LABEL}"
+echo "  Parser:  ${PARSE_SCRIPT_NAME}"
 echo "  Account: ${ACCOUNT_NAME}"
 echo ""
 echo "  The cron will fire on schedule '${CRON_SCHEDULE}' automatically."

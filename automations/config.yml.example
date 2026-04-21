@@ -2,14 +2,14 @@ commands:
   ai_router: opencode run {prompt}
   ai_interactive: opencode
 max_retries: 3
-max_depth: 10
+max_depth: 100
 max_log_size: 2097152
 default_routine: develop
 hooks:
-  beforeAll: /work/.decree/hooks/config-watch.sh
-  afterAll: /work/.decree/hooks/config-watch.sh
-  beforeEach: ""
-  afterEach: ""
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/hooks/config-watch.sh
+  afterEach: /work/.decree/hooks/config-watch.sh
 routines:
   actual-budget:
     enabled: false

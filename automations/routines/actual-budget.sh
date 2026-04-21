@@ -43,11 +43,6 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     exit 0
 fi
 
-# ── Load credentials ──────────────────────────────────────────────────────────
-
-# shellcheck source=/dev/null
-source /secrets/actual-budget/credentials.env
-
 # ── Read frontmatter fields ───────────────────────────────────────────────────
 
 account_id="${account_id:-}"

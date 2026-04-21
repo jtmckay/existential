@@ -42,6 +42,7 @@
 # Decree
 **/decree/webhook/config.yml
 automations/config.yml
+automations/config.hash
 automations/cron/
 automations/emails/
 automations/inbox/

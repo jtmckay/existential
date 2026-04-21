@@ -16,6 +16,12 @@
 //   TXN_CATEGORY_ID         — Actual Budget category UUID
 
 import * as api from '@actual-app/api';
+import * as dotenv from "dotenv";
+
+// ── Load credentials ──────────────────────────────────────────────────────────
+dotenv.config({
+  path: "/secrets/actual-budget/credentials.env",
+});
 
 function requireEnv(key: string): string {
     const v = process.env[key];

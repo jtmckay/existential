@@ -218,7 +218,7 @@ run_setup() {
     local integration="${1:-}"
 
     if [[ -z "$integration" ]]; then
-        echo "Available integrations: actual-budget, gmail, gmail-chase-cron, gmail-labels, ntfy, rclone"
+        echo "Available integrations: actual-budget, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone"
         echo "Usage: $0 setup <integration>"
         return 0
     fi
@@ -228,11 +228,11 @@ run_setup() {
         gmail)  $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
                     --entrypoint "" -p 8803:8803 \
                     existential-adhoc bash /src/setup/gmail-sync.sh ;;
-        gmail-chase-cron) run_adhoc bash /src/setup/gmail-chase-cron.sh ;;
+        gmail-transactions-cron) run_adhoc bash /src/setup/gmail-transactions-cron.sh ;;
         gmail-labels) run_adhoc bash /src/setup/gmail-labels.sh ;;
         ntfy)   run_adhoc bash /src/setup/ntfy.sh ;;
         rclone) run_adhoc bash /src/setup/rclone.sh ;;
-        *)      echo "Unknown integration: $integration. Available: actual-budget, gmail, gmail-chase-cron, gmail-labels, ntfy, rclone" >&2; return 1 ;;
+        *)      echo "Unknown integration: $integration. Available: actual-budget, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone" >&2; return 1 ;;
     esac
 }
 

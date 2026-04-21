@@ -10,9 +10,9 @@
 //   or exits 0 with no output if the email is not a transaction alert.
 //
 // Chase subject patterns handled:
+//   "You made a $47.66 transaction with AMAZON MKTPLACE PMTS"
 //   "Your $45.23 charge to STARBUCKS was authorized"
 //   "A $12.00 charge to AMAZON.COM was authorized on your account"
-//   "Transaction Alert - $23.50 at TARGET"
 
 const subject = process.env.subject ?? '';
 const rawDate = process.env.date ?? '';
@@ -34,13 +34,16 @@ const amount = '-' + amountMatch[1].replace(/,/g, '');
 // ── Payee ─────────────────────────────────────────────────────────────────────
 
 let payee = '';
-const chargeToMatch = subject.match(/charge to\s+(.+?)(?:\s+was\b|\s+on\b|$)/i);
-const atMatch       = subject.match(/\bat\s+([A-Z0-9][^$\s][^.!?]*?)(?:\s+was\b|\s+on\b|$)/i);
 
-if (chargeToMatch) {
+// "You made a $47.66 transaction with AMAZON MKTPLACE PMTS"
+const transactionWithMatch = subject.match(/transaction with\s+(.+)$/i);
+// "Your $45.23 charge to STARBUCKS was authorized"
+const chargeToMatch = subject.match(/charge to\s+(.+?)(?:\s+was\b|\s+on\b|$)/i);
+
+if (transactionWithMatch) {
+    payee = transactionWithMatch[1].trim();
+} else if (chargeToMatch) {
     payee = chargeToMatch[1].trim();
-} else if (atMatch) {
-    payee = atMatch[1].trim();
 } else {
     payee = subject;
 }

@@ -30,13 +30,17 @@ set -euo pipefail
 
 GMAIL_DIR="${GMAIL_DIR:-/secrets/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
-HISTORY_FILE="${GMAIL_DIR}/history_id"
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 INBOX_DIR="${INBOX_DIR:-/work/.decree/inbox}"
 EMAILS_DIR="${EMAILS_DIR:-/work/.decree/emails}"
 LABEL_FILTER="${GMAIL_LABEL_FILTER:-INBOX}"
-INITIAL_SYNC_DAYS="${GMAIL_INITIAL_SYNC_DAYS:-7}"
+INITIAL_SYNC_DAYS="${GMAIL_INITIAL_SYNC_DAYS:-30}"
 GMAIL_ROUTINE="${GMAIL_ROUTINE:-gmail}"
+
+# Each trigger gets its own cursor file, keyed by label, to avoid stomping between crons
+_history_key="${GMAIL_HISTORY_KEY:-${LABEL_FILTER}}"
+_history_slug=$(printf '%s' "$_history_key" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/_*$//')
+HISTORY_FILE="${GMAIL_DIR}/history_id.${_history_slug}"
 
 message_file="${message_file:-}"
 message_id="${message_id:-}"
@@ -216,6 +220,8 @@ write_message() {
     local body
     body=$(extract_body "$response")
 
+    mkdir -p "$OUTBOX_DIR"
+
     # Write via a .tmp file so a crashed write never leaves a partial message
     {
         printf -- '---\n'
@@ -238,7 +244,6 @@ write_message() {
         printf '%s\n' "$body"
     } > "${outfile}.tmp"
 
-    mkdir -p "$OUTBOX_DIR"
     mv "${outfile}.tmp" "$outfile"
     echo "Enqueued: ${msg_id} — ${subject}"
 }

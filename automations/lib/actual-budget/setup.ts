@@ -137,12 +137,13 @@ async function main(): Promise<void> {
 
     await api.shutdown();
 
+    const shellQuote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
     const lines = [
-        `ACTUAL_SERVER_URL=${serverURL}`,
-        `ACTUAL_SERVER_PASSWORD=${serverPassword}`,
-        `ACTUAL_BUDGET_ID=${budget.groupId}`,
-        `ACTUAL_BUDGET_NAME=${budget.name}`,
-        `ACTUAL_BUDGET_PASSWORD=${budgetPassword}`,
+        `ACTUAL_SERVER_URL=${shellQuote(serverURL)}`,
+        `ACTUAL_SERVER_PASSWORD=${shellQuote(serverPassword)}`,
+        `ACTUAL_BUDGET_ID=${shellQuote(budget.groupId)}`,
+        `ACTUAL_BUDGET_NAME=${shellQuote(budget.name)}`,
+        `ACTUAL_BUDGET_PASSWORD=${shellQuote(budgetPassword)}`,
     ].join('\n') + '\n';
 
     fs.writeFileSync(CREDENTIALS, lines, { mode: 0o600 });

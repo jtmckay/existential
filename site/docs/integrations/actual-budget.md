@@ -37,4 +37,4 @@ If you add accounts later, re-run `./existential.sh setup actual-budget` to refr
 
 ## Next Steps
 
-Set up automated Chase transaction imports: [Gmail → Chase → Actual Budget](../decree/transaction-gmail-actual-budget)
+Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../decree/transaction-gmail-actual-budget)
