@@ -19,6 +19,10 @@ routines:
     enabled: true
   develop:
     enabled: false
+  file-processor:
+    enabled: false
+  minio-router:
+    enabled: false
   gmail:
     enabled: false
   gmail-sync:

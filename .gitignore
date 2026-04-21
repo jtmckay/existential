@@ -47,6 +47,7 @@ automations/cron/
 automations/emails/
 automations/inbox/
 automations/inbox/dead/
+automations/lib/file-processors/*.sh
 automations/outbox
 automations/runs
 services/decree/secrets/

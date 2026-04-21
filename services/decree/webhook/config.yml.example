@@ -29,6 +29,23 @@ endpoints:
       routine: notify
       priority: high
 
+  # minIO S3 event notifications — configure minIO to POST to this endpoint with:
+  #   Authorization: Bearer <secret>   (set as a custom header in minIO notification target config)
+  #
+  # minio-router parses the S3 event, matches FILE_SOURCE ("rclone_src:bucket/key")
+  # against each processor's PATTERN in automations/lib/file-processors/, and
+  # enqueues one file-processor message per match. file-processor downloads the
+  # file, runs the processor, then deletes the temp file.
+  #
+  # To add a new file type: copy automations/lib/file-processors/example.sh,
+  # set PATTERN="<regex>" (matched against the full rclone path), and implement.
+  - path: /minio
+    secret: EXIST_DEFAULT_DECREE_MINIO_WEBHOOK_AUTH_TOKEN
+    frontmatter:
+      routine: minio-router
+      rclone_src: nextcloud # Name of the remote in rclone config
+      rclone_prefix: ''     # Directory prefix within the remote, e.g. "S3"
+
   # Dynamic route params — values must match [A-Za-z0-9_\-!]+ (default)
   # Use `params` to add a stricter per-param pattern (anchored automatically)
   # - path: /note/{id}

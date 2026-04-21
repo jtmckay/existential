@@ -33,11 +33,7 @@ S3-compatible object storage. Provides an S3 interface to all files — replacea
 
 ## File Event Hooks
 
-Subscribe to file events in MinIO to trigger automations:
-
-1. Go to **Buckets → [your bucket] → Events → Subscribe to Event**
-2. Select the ARN for your automation endpoint (n8n, Windmill, etc.)
-3. Set prefix (e.g., `Input/`), check `PUT`, and save
+MinIO can POST S3 events to the Decree webhook to trigger automations when files are created, updated, or deleted. See [File Change → Process](../decree/file-change-processing) for full setup instructions.
 
 ## VM Note
 

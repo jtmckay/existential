@@ -133,7 +133,10 @@ function makeHandler(endpoint) {
     const fmYaml = yaml.dump(fm, { flowLevel: 1, lineWidth: 1000 });
     const content = `---\n${fmYaml}---\n\n${body}${body.endsWith('\n') ? '' : '\n'}`;
 
-    const filename = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.md`;
+    const routineSlug = String(endpoint.frontmatter.routine || 'message').replace(/[^A-Za-z0-9_-]/g, '-');
+    const now = new Date();
+    const ts = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n => String(n).padStart(2, '0')).join('');
+    const filename = `${routineSlug}-${ts}.md`;
     const full = path.resolve(INBOX, filename);
     if (!full.startsWith(INBOX + path.sep)) {
       return res.status(500).json({ error: 'path resolution failed' });
