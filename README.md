@@ -16,7 +16,7 @@ Get your entire Existential environment configured in one command:
 ./existential.sh
 ```
 
-[Self Hosting Guide](/hosting/README.md)
+[Self Hosting Guide](https://existential.company/docs/hosting/)
 
 ## System design
 
@@ -24,7 +24,7 @@ Use existing apps like normal; perhaps switch to more friendly alternatives that
 
 ![Architecture Diagram](architecture.png)
 
-## 📊 Dashboard ([dashy](https://opensource.org/license/mit))
+## 📊 Dashboard
 
 ![Dashy](./services/dashy/dashy.png)
 
@@ -32,44 +32,41 @@ Use existing apps like normal; perhaps switch to more friendly alternatives that
 
 ### Interactive
 
-- Perplexity (paid enterprise) [FOSS alts](./graveyard/ai.md)
-- [ActualBudget](./services/actualBudget/README.md) Budget
-- [Immich](./services/immich/README.md) Images and Videos
-- [Logseq](./services/logseq/README.md) Notes [alts](./graveyard/notes.md)
-- [Mealie](./services/mealie/README.md) Recipes / meal planning
-- [Ntfy](./services/ntfy/README.md) Notifications
-- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop) PDF/word editor [alts](./graveyard/fileEditor.md)
-- [Vikunja](./services/vikunja/README.md) Tasks
+- Perplexity (paid enterprise) [FOSS alts](https://existential.company/docs/graveyard/ai/)
+- [ActualBudget](https://existential.company/docs/services/actual-budget) Budget
+- [Immich](https://existential.company/docs/services/immich) Images and Videos
+- [Logseq](https://existential.company/docs/services/logseq) Notes [alts](https://existential.company/docs/graveyard/notes/)
+- [Mealie](https://existential.company/docs/services/mealie) Recipes / meal planning
+- [Ntfy](https://existential.company/docs/services/ntfy) Notifications
+- [OnlyOffice](https://www.onlyoffice.com/download-desktop.aspx#desktop) PDF/word editor [alts](https://existential.company/docs/graveyard/file-editors/)
+- [Vikunja](https://existential.company/docs/services/vikunja) Tasks
 
 #### Advanced custom interfaces
 
-- [Decree](./services/decree/README.md) automation [alts](./graveyard/lowcodeWorkflow.md)
-- [NocoDB](./services/nocoDB/README.md) Database [alts](./graveyard/lowcodeDB.md)
-- [Lowcode](./graveyard/lowcodeUI.md)
+- [Decree](https://existential.company/docs/decree/decree) automation [alts](https://existential.company/docs/graveyard/automation/)
+- [NocoDB](https://existential.company/docs/services/nocodb) Database [alts](https://existential.company/docs/graveyard/automation/appsmith)
+- [Lowcoder](https://existential.company/docs/graveyard/automation/lowcoder)
 
 ### Background services
 
-- [Ollama](./ai/ollama/README.md) (general AI)
-- [Chatterbox](./ai//chatterbox/README.md) (TTS)
-- [Whisper](./ai//whisper/README.md) (STT transcription)
+- [Ollama](https://existential.company/docs/ai/ollama) (general AI)
+- [Chatterbox](https://existential.company/docs/ai/chatterbox) (TTS)
+- [Whisper](https://existential.company/docs/ai/whisper) (STT transcription)
 
 ### Monitoring/managing containers
 
-- [Dashy](./services/dashy/README.md) dashboard.
-- [Portainer](./hosting/portainer/README.md) remote docker container management.
-- [Uptime-Kuma](./hosting/uptimeKuma/README.md) notifications when servers go down.
+- [Dashy](https://existential.company/docs/services/dashy) dashboard.
+- [Portainer](https://existential.company/docs/hosting/portainer) remote docker container management.
+- [Uptime-Kuma](https://existential.company/docs/hosting/uptime-kuma) notifications when servers go down.
 
-### Random tools [alts](./graveyard/tools.md)
+### Random tools [alts](https://existential.company/docs/graveyard/tools/)
 
-- [IT-Tools](./services/itTools/README.md)
+- [IT-Tools](https://existential.company/docs/services/it-tools)
 
 ## Examples
 
 ### Meeting
 
-![Flow diagram](./automations/flows/basic-flow.png)
-
-###### [More detailed diagram](./automations/flows/transcribe/transcription.png)
 
 - Record a meeting (phone or desktop)
 - Get notified with the transciption and summary

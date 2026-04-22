@@ -18,6 +18,6 @@ sidebar_position: 1
 
 ## Workflow / UI Builders
 
-- [Lowcoder](https://github.com/lowcoder-org/lowcoder) — as needed, for "external" apps (prettier)
-- Appsmith — RIP, for "internal" apps (more functional)
+- [Lowcoder](./lowcoder) — as needed, for "external" apps (prettier)
+- [Appsmith](./appsmith) — RIP, for "internal" apps (more functional)
 - Retool — RIP licensing
