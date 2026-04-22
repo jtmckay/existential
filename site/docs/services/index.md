@@ -11,7 +11,6 @@ sidebar_position: 1
 - [Logseq](./logseq) — Notes
 - [Mealie](./mealie) — Recipes / meal planning
 - [Ntfy](./ntfy) — Notifications
-- [OnlyOffice](../storage/only-office) — PDF/word editor
 - [Vikunja](./vikunja) — Tasks
 
 ## Advanced Custom Interfaces

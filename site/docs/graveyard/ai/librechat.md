@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 6
 ---
 
 # LibreChat
@@ -7,6 +7,7 @@ sidebar_position: 1
 - Source: https://github.com/danny-avila/LibreChat
 - License: [MIT](https://opensource.org/licenses/MIT)
 - Alternatives: ChatGPT UI, OpenWebUI, GPT4All, Chatbot UI
+- Status: RIP
 
 ## Features
 

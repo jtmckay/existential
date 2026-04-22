@@ -8,7 +8,7 @@ sidebar_position: 1
 
 The idea is to converse with all notes and digital context.
 
-- [LibreChat](../../ai/librechat) — to get working
+- [LibreChat](./librechat) — RIP
 - [OpenWebUI](./open-web-ui) — replaced by LibreChat
 - Perplexity — paid enterprise
 - ChatGPT

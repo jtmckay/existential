@@ -18,6 +18,6 @@ Pick and choose components to use. For example: use Google Drive for files and s
 | --------------------------- | ---------------------- | ------------------------------- |
 | [MinIO](./minio)            | S3-compatible file API | AWS S3                          |
 | [Nextcloud](./nextcloud)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
+| [Collabora](./collabora)    | Nextcloud document editor | OnlyOffice                   |
 | [Redis](./redis)            | In-memory cache        | —                               |
-| [OnlyOffice](./only-office) | Document editing       | LibreOffice Online              |
 | TrueNAS                     | File redundancy & NFS  | —                               |

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 4
 ---
 
 # Collabora
@@ -7,9 +7,8 @@ sidebar_position: 2
 - Source: https://github.com/CollaboraOnline/online
 - License: [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/)
 - Alternatives: OnlyOffice, LibreOffice Online
-- Status: RIP — clunky UI
 
-Live collaborative editor like Google Docs / LibreOffice / Office 365, embedded in Nextcloud.
+Document editor embedded in Nextcloud — LibreOffice running as a server.
 
 ## Features
 

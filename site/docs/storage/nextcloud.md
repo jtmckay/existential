@@ -13,7 +13,7 @@ File sharing and sync — Dropbox/Google Drive alternative.
 ## Features
 
 - **File Sync & Sharing**: Desktop and mobile sync clients with granular sharing and permissions
-- **Collaborative Editing**: Real-time document editing via OnlyOffice or Collabora integration
+- **Collaborative Editing**: Real-time document editing via [Collabora](./collabora)
 - **Calendar & Contacts**: CalDAV/CardDAV server compatible with any standard client
 - **External Storage**: Mount S3, FTP, SFTP, and other backends as Nextcloud folders
 - **App Store**: 300+ apps for notes, email, photos, video calls, and more

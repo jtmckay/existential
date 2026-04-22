@@ -10,11 +10,11 @@ Evaluated alternatives — kept here for reference.
 |---|---|---|
 | ActivePieces | Automation | RIP closed source licensing |
 | AppFlowy | Notes | RIP login/DB issues |
-| Collabora | File Editors | RIP clunky UI |
 | Docker Swarm | Infrastructure | RIP networking complexity |
 | Fabric | Tools | TBD |
 | Flowise | AI | TBD |
 | Kestra | Automation | TBD |
+| LibreChat | AI | RIP |
 | Linkwarden | Tools | RIP no eject |
 | LocalAI | AI | RIP AMD Linux issues |
 | N8N | Automation | RIP closed source licensing |
@@ -24,6 +24,7 @@ Evaluated alternatives — kept here for reference.
 | NSQ | Tools | Replaced by RabbitMQ |
 | Obsidian | Notes | RIP not open source |
 | OpenNotebook | AI | TBD |
+| OnlyOffice | File Editors | RIP |
 | OpenWebUI | AI | Replaced by LibreChat |
 | Parakeet | AI | TBD |
 | RabbitMQ | Tools | Replaced by ntfy |

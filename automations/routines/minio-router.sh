@@ -82,12 +82,16 @@ for _processor in "$_processors_dir"/*.sh; do
         _processor_name=$(basename "$_processor" .sh)
         _outbox_file="/work/.decree/outbox/${message_id}-${_processor_name}.md"
 
+        _raw_ref=$(grep -m1 '^IS_PRE_SIGNED=' "$_processor" || true)
+        _is_pre_signed=$(echo "$_raw_ref" | sed "s/^IS_PRE_SIGNED=[\"']\?\([^\"']*\)[\"']\?$/\1/")
+
         cat > "$_outbox_file" << EOF
 ---
 routine: file-processor
 rclone_path: ${_file_source}
 processor: ${_processor_name}
 file_action: ${_file_action}
+is_pre_signed: ${_is_pre_signed:-false}
 ---
 EOF
         echo "Queued: $_processor_name"

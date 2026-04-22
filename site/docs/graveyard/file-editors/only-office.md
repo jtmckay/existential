@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 4
 ---
 
 # OnlyOffice
@@ -7,6 +7,7 @@ sidebar_position: 5
 - Source: https://github.com/ONLYOFFICE/DocumentServer
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Collabora, LibreOffice Online, Microsoft Office 365
+- Status: RIP
 
 Document editing suite — integrated with Nextcloud.
 

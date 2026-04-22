@@ -12,6 +12,7 @@
 #   rclone_path: minio:mybucket/path/to/file.pdf
 #   processor: my-processor
 #   file_action: created
+#   is_pre_signed: false
 #   ---
 set -euo pipefail
 
@@ -32,6 +33,7 @@ fi
 rclone_path="${rclone_path:-}"
 processor="${processor:-}"
 file_action="${file_action:-created}"
+is_pre_signed="${is_pre_signed:-false}"
 
 if [ -z "$rclone_path" ]; then
     echo "rclone_path is required."
@@ -55,21 +57,30 @@ export FILE_SOURCE="$rclone_path"
 export FILE_KEY="$_file_key"
 export FILE_ACTION="$file_action"
 export FILE_PATH=""
+export PRE_SIGNED_URL=""
 
 _tmpfile=""
 trap '[ -n "$_tmpfile" ] && rm -f "$_tmpfile" && echo "Deleted: $_tmpfile"' EXIT
 
 if [ "$file_action" = "created" ]; then
-    _filename=$(basename "$_file_key")
-    _tmpfile=$(mktemp "/tmp/${_filename}.XXXXXX")
+    if [ "$is_pre_signed" = "true" ]; then
+        echo "Generating signed URL for $rclone_path"
+        _signed_url=$(rclone link "$rclone_path" \
+            --config /secrets/rclone/rclone.conf)
+        export PRE_SIGNED_URL="$_signed_url"
+        echo "Signed URL: $PRE_SIGNED_URL"
+    else
+        _filename=$(basename "$_file_key")
+        _tmpfile=$(mktemp "/tmp/${_filename}.XXXXXX")
 
-    echo "Downloading $rclone_path → $_tmpfile"
-    rclone copyto "$rclone_path" "$_tmpfile" \
-        --config /secrets/rclone/rclone.conf \
-        --progress \
-        --stats-one-line
+        echo "Downloading $rclone_path → $_tmpfile"
+        rclone copyto "$rclone_path" "$_tmpfile" \
+            --config /secrets/rclone/rclone.conf \
+            --progress \
+            --stats-one-line
 
-    export FILE_PATH="$_tmpfile"
+        export FILE_PATH="$_tmpfile"
+    fi
 fi
 
 echo "Running processor: $processor (action: $file_action)"

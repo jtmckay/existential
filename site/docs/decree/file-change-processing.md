@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # File Change → Process
 
-React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `minio-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file, runs the processor, and deletes the local copy.
+React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `minio-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a signed URL if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ The request includes `Authorization: Bearer <DECREE_MINIO_WEBHOOK_AUTH_TOKEN>` �
 
 ### 2. minio-router — match and fan out
 
-`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<bucket>/<object-key>` (e.g. `minio:mybucket/documents/report.pdf`), and scans every script in `automations/lib/file-processors/` for a `PATTERN=` regex match.
+`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<bucket>/<object-key>` (e.g. `minio:mybucket/documents/report.pdf`), and scans every script in `automations/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
 
 For each matching processor it writes one message to the Decree outbox:
 
@@ -55,16 +55,19 @@ routine: file-processor
 rclone_path: minio:mybucket/documents/report.pdf
 processor: my-processor
 file_action: created
+is_pre_signed: false
 ---
 ```
 
 Multiple processors can match the same file — each runs independently as a separate Decree message.
 
-### 3. file-processor — download, run, clean up
+### 3. file-processor — download (or reference), run, clean up
 
-`file-processor` downloads the file from the rclone remote to a temp path, exports the standard `FILE_*` env vars, runs the matched processor script, then explicitly deletes the temp file. No trap-based cleanup — the delete is always the last step.
+`file-processor` exports the standard `FILE_*` env vars, runs the matched processor script, then deletes any local temp file.
 
-For `removed` events the download is skipped; `FILE_PATH` is empty and the processor decides what to do.
+- **Default (`IS_PRE_SIGNED=false`)**: downloads the file via `rclone copyto` to a temp path; `FILE_PATH` is the local file.
+- **Pre-signed (`IS_PRE_SIGNED=true`)**: skips the download and instead calls `rclone link` to generate a signed URL; `PRE_SIGNED_URL` is set to that URL and `FILE_PATH` remains empty. Useful when the processor needs to hand off the file to an external service rather than read it locally.
+- **`removed` events**: download is always skipped; `FILE_PATH` is empty.
 
 ## Adding a File Processor
 
@@ -74,6 +77,7 @@ Create `automations/lib/file-processors/<name>.sh`:
 #!/usr/bin/env bash
 # PATTERN is matched against FILE_SOURCE: "<rclone_src>:<bucket>/<object-key>"
 PATTERN="minio:documents/.*\.pdf$"
+IS_PRE_SIGNED=false
 
 set -euo pipefail
 
@@ -82,8 +86,8 @@ if [ "$FILE_ACTION" = "removed" ]; then
     exit 0
 fi
 
-# FILE_PATH is the absolute path to the downloaded temp file.
-# Do not delete it — file-processor handles cleanup after this script exits.
+# FILE_PATH is the local temp file (do not delete — file-processor handles cleanup).
+# PRE_SIGNED_URL is set instead of FILE_PATH when IS_PRE_SIGNED=true.
 echo "Processing $FILE_PATH"
 
 # your logic here — call opencode, run a script, POST to an API, etc.
@@ -96,7 +100,15 @@ echo "Processing $FILE_PATH"
 | `FILE_SOURCE` | `minio:mybucket/docs/file.pdf` | Full rclone source path |
 | `FILE_KEY` | `mybucket/docs/file.pdf` | Path after the `remote:` prefix |
 | `FILE_ACTION` | `created` \| `removed` | Event type |
-| `FILE_PATH` | `/tmp/file.pdf.xK3rQp` | Local temp file (empty for `removed`) |
+| `FILE_PATH` | `/tmp/file.pdf.xK3rQp` | Local temp file (empty for `removed` or when `IS_PRE_SIGNED=true`) |
+| `PRE_SIGNED_URL` | `https://…` | Signed URL (set when `IS_PRE_SIGNED=true`, otherwise empty) |
+
+**Script settings:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `PATTERN` | *(required)* | Regex matched against `FILE_SOURCE` |
+| `IS_PRE_SIGNED` | `false` | If `true`, skip download and set `PRE_SIGNED_URL` instead |
 
 **Pattern tips:**
 
