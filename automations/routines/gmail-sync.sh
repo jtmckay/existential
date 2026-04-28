@@ -190,7 +190,8 @@ write_message() {
     local response
     response=$(curl -sf \
         -H "Authorization: Bearer ${access_token}" \
-        "https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg_id}?format=full")
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg_id}?format=full") \
+        || { echo "Skipping message ${msg_id}: fetch failed (message may have been moved or deleted)" >&2; return 0; }
 
     # Extract headers (case-insensitive match via ascii_downcase)
     local subject from to date_hdr labels thread_id has_attachments
