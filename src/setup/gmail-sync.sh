@@ -52,27 +52,48 @@ json_field() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+_REAUTH=false
 if [ -f "$CREDENTIALS" ]; then
-    read -rp "Credentials already exist at ${CREDENTIALS}. Replace? (y/N): " answer
-    [[ "${answer,,}" == "y" ]] || { echo "Skipping."; exit 0; }
+    echo "Credentials already exist at ${CREDENTIALS}."
+    echo ""
+    echo "  [r] Reauthorize — keep existing client ID & secret, get a new refresh token"
+    echo "  [d] Delete old credentials — enter a new client ID and secret too"
+    echo "  [s] Skip (default)"
+    echo ""
+    read -rp "Choice [r/d/s]: " answer
+    case "${answer}" in
+        r) _REAUTH=true ;;
+        d) ;;  # fall through to full entry below
+        *) echo "Skipping."; exit 0 ;;
+    esac
     echo ""
 fi
 
-echo "You need a Google Cloud OAuth 2.0 Client ID (Desktop app type)."
-echo ""
-echo "  1. https://console.cloud.google.com/apis/credentials"
-echo "  2. Create/select a project → enable the Gmail API"
-echo "  3. Create Credentials → OAuth 2.0 Client ID → Desktop app"
-echo "  4. Add redirect URI:  ${REDIRECT_URI}"
-echo "  5. Note your Client ID and Client Secret"
-echo ""
+if [ "$_REAUTH" = "true" ]; then
+    # Load existing credentials — just the client pair, not the refresh token
+    # shellcheck disable=SC1090
+    source "$CREDENTIALS"
+    CLIENT_ID="${GMAIL_CLIENT_ID:?GMAIL_CLIENT_ID missing from ${CREDENTIALS}}"
+    CLIENT_SECRET="${GMAIL_CLIENT_SECRET:?GMAIL_CLIENT_SECRET missing from ${CREDENTIALS}}"
+    echo "Using existing Client ID: ${CLIENT_ID}"
+    echo ""
+else
+    echo "You need a Google Cloud OAuth 2.0 Client ID (Desktop app type)."
+    echo ""
+    echo "  1. https://console.cloud.google.com/apis/credentials"
+    echo "  2. Create/select a project → enable the Gmail API"
+    echo "  3. Create Credentials → OAuth 2.0 Client ID → Desktop app"
+    echo "  4. Add redirect URI:  ${REDIRECT_URI}"
+    echo "  5. Note your Client ID and Client Secret"
+    echo ""
 
-read -rp  "Client ID:     " CLIENT_ID
-read -rsp "Client Secret: " CLIENT_SECRET
-echo ""
+    read -rp  "Client ID:     " CLIENT_ID
+    read -rsp "Client Secret: " CLIENT_SECRET
+    echo ""
 
-[ -n "$CLIENT_ID" ]     || die "Client ID is required"
-[ -n "$CLIENT_SECRET" ] || die "Client Secret is required"
+    [ -n "$CLIENT_ID" ]     || die "Client ID is required"
+    [ -n "$CLIENT_SECRET" ] || die "Client Secret is required"
+fi
 
 AUTH_URL="https://accounts.google.com/o/oauth2/v2/auth\
 ?client_id=${CLIENT_ID}\

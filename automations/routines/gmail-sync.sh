@@ -87,7 +87,7 @@ refresh_token() {
         local err
         err=$(printf '%s' "$response" | jq -r '.error_description // .error // "unknown"')
         echo "Token refresh failed: ${err}" >&2
-        exit 1
+        return 1
     fi
 
     printf '%s' "$token"
@@ -367,10 +367,42 @@ incremental_sync() {
     echo "Incremental sync complete: ${count} new message(s), historyId=${new_history_id}"
 }
 
+# ── Auth failure tracking ─────────────────────────────────────────────────────
+
+_AUTH_FAILURE_FILE="${GMAIL_DIR}/auth_failure"
+
+_handle_auth_failure() {
+    if [ ! -f "$_AUTH_FAILURE_FILE" ]; then
+        touch "$_AUTH_FAILURE_FILE"
+        mkdir -p "$OUTBOX_DIR"
+        local outfile="${OUTBOX_DIR}/gmail-sync-auth-failure-$(date +%s).md"
+        {
+            printf -- '---\n'
+            printf 'routine: notify\n'
+            printf "ntfy_title: 'Gmail sync: authorization failed'\n"
+            printf "ntfy_priority: 'high'\n"
+            printf "ntfy_tags: 'warning,key'\n"
+            printf -- '---\n'
+            printf '\n'
+            printf 'Gmail token refresh failed. The gmail-sync routine is paused.\n'
+            printf '\n'
+            printf 'To reauthorize: ./existential.sh setup gmail\n'
+            printf 'Then restart the daemon: docker compose restart decree\n'
+        } > "$outfile"
+        echo "Auth failure notification queued." >&2
+    fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 echo "Refreshing access token..."
-ACCESS_TOKEN=$(refresh_token)
+if ! ACCESS_TOKEN=$(refresh_token); then
+    _handle_auth_failure
+    exit 1
+fi
+
+# Clear failure state on successful refresh (enables re-notification on future failures)
+rm -f "$_AUTH_FAILURE_FILE"
 echo "Token refreshed."
 
 LABEL_ID=$(resolve_label_id "$LABEL_FILTER")
