@@ -39,7 +39,7 @@ graveyard/    Archived/deprecated solutions
 `collabora` `minIO` `nextcloud` `redis` *(trueNAS is external — config note only)*
 
 ### hosting/
-`caddy` `cloudflare` `portainer` `uptimeKuma`
+`caddy` `cloudflare` `grafana` `loki` `portainer` `prometheus` `uptimeKuma`
 
 ### automations/ (Decree working directory)
 Mounted into the decree container at `/work/.decree`.
@@ -54,6 +54,7 @@ automations/
 ├── lib/                Shared shell helpers (precheck.sh, etc.)
 ├── cron/               Scheduled trigger files
 ├── inbox/              Message queue (dead/ subdir for failed messages)
+├── outbox/             Follow-up messages written by routines; decree relays to inbox
 ├── emails/             Archived email messages (written by gmail routine)
 └── runs/               Execution logs — one dir per message (audit trail)
 ```
@@ -162,15 +163,6 @@ paths from the repo root, and merges services/volumes/networks. The previous
 ---
 
 ## Decree (Automations)
-
-Use the `/decree` command for all Decree-related work: creating routines, cron jobs,
-webhooks, hooks, or answering questions about how the pipeline works.
-
-**Invoke `/decree` proactively** whenever the user is:
-- Adding or modifying anything in `automations/`
-- Adding or modifying anything in `services/decree/`
-- Asking how to automate something, schedule a task, or trigger a workflow
-- Asking how decree works
 
 Quick reference:
 - Routines: `automations/routines/<name>.sh` + registered in `automations/config.yml`

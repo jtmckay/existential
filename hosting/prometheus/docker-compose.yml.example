@@ -1,0 +1,31 @@
+services:
+  # Prometheus metrics UI at http://localhost:49090
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 49090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+
+  pushgateway:
+    container_name: pushgateway
+    image: prom/pushgateway:v1.10.0
+    restart: unless-stopped
+    networks:
+      - exist
+
+volumes:
+  prometheus_data:
+
+networks:
+  exist:
+    external: true

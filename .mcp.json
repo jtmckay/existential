@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "likec4": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "/home/taylor/GitHub/existential:/repo:z",
+        "--network",
+        "existential_exist",
+        "existential-existential-adhoc",
+        "npx",
+        "-y",
+        "@likec4/mcp"
+      ],
+      "env": {}
+    }
+  }
+}

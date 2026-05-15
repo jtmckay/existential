@@ -54,6 +54,13 @@ portainer.local.existential.company {
   reverse_proxy portainer:9001
 }
 
+# Decree monitor
+grafana.local.existential.company {
+  tls internal
+  import error_handling
+  reverse_proxy grafana:3000
+}
+
 # Task management
 tasks.local.existential.company {
   tls internal

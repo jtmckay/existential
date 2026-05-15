@@ -70,6 +70,10 @@ sections:
 
   - name: Monitoring
     items:
+      - title: Grafana
+        url: http://grafana.local.existential.company/d/decree-overview/decree-overview?orgId=1&refresh=1m
+        icon: hl-grafana
+
       - title: Portainer
         url: https://portainer.local.existential.company/
         icon: hl-portainer

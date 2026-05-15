@@ -34,3 +34,9 @@ All services connect to the `exist` overlay network with:
 - **Encrypted**: IPsec encryption between nodes
 
 The network is automatically created when you run `docker compose up`.
+
+### Observability
+
+- [Prometheus](./prometheus) — Metrics collection (+ Pushgateway for Decree)
+- [Loki](./loki) — Log aggregation (+ Promtail for Decree run logs)
+- [Grafana](./grafana) — Dashboards over Prometheus and Loki

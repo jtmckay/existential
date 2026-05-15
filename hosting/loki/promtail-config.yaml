@@ -1,0 +1,50 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: decree
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: decree
+          log_type: routine
+          __path__: /runs/**/routine.log
+    pipeline_stages:
+      - regex:
+          source: filename
+          expression: '.*/(?P<message_id>[^/]+)/routine\.log$'
+      - regex:
+          source: message_id
+          expression: '^(?P<chain>D\d+-\d+-.+)-(?P<seq>\d+)$'
+      - labels:
+          message_id:
+          chain:
+          seq:
+
+  - job_name: decree_messages
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: decree
+          log_type: message
+          __path__: /runs/**/message.md
+    pipeline_stages:
+      - regex:
+          source: filename
+          expression: '.*/(?P<message_id>[^/]+)/message\.md$'
+      - regex:
+          source: message_id
+          expression: '^(?P<chain>D\d+-\d+-.+)-(?P<seq>\d+)$'
+      - labels:
+          message_id:
+          chain:
+          seq:

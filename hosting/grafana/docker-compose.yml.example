@@ -1,0 +1,24 @@
+services:
+  # Grafana dashboards at http://localhost:43010
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 43010:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+
+volumes:
+  grafana_data:
+
+networks:
+  exist:
+    external: true

@@ -25,30 +25,28 @@ RUNS_DIR="${RUNS_DIR:-/work/.decree/runs}"
 CRON_DIR="${CRON_DIR:-/work/.decree/cron}"
 KEEP="${keep:-10}"
 
-# Discover cron routines dynamically from cron directory.
-# Routine names like "notes/compile-notes" become "compile-notes" in run dirs.
-CRON_ROUTINES=()
+# Run dirs are named after the cron file basename (not the routine name).
+# e.g. cron/gmail-transactions-jtmckay_chase_transaction.md → *-gmail-transactions-jtmckay_chase_transaction-*
+CRON_TRIGGERS=()
 for cronfile in "$CRON_DIR"/*.md; do
     [ -f "$cronfile" ] || continue
-    routine=$(sed -n 's/^routine: *//p' "$cronfile")
-    [ -n "$routine" ] || continue
-    # Use basename of routine path (notes/compile-notes → compile-notes)
-    CRON_ROUTINES+=("${routine##*/}")
+    trigger=$(basename "$cronfile" .md)
+    CRON_TRIGGERS+=("$trigger")
 done
 
-if [ ${#CRON_ROUTINES[@]} -eq 0 ]; then
-    echo "No cron routines found."
+if [ ${#CRON_TRIGGERS[@]} -eq 0 ]; then
+    echo "No cron triggers found."
     exit 0
 fi
 
 total_removed=0
 
-for routine in "${CRON_ROUTINES[@]}"; do
-    # Match directories containing -<routine>-
+for trigger in "${CRON_TRIGGERS[@]}"; do
+    # Match directories named *-<trigger>-<attempt>
     dirs=()
     while IFS= read -r -d '' d; do
         dirs+=("$d")
-    done < <(find "$RUNS_DIR" -maxdepth 1 -type d -name "*-${routine}-*" -print0 2>/dev/null | sort -z)
+    done < <(find "$RUNS_DIR" -maxdepth 1 -type d -name "*-${trigger}-*" -print0 2>/dev/null | sort -z)
 
     count=${#dirs[@]}
     if [ "$count" -le "$KEEP" ]; then
@@ -60,7 +58,7 @@ for routine in "${CRON_ROUTINES[@]}"; do
         rm -rf "${dirs[$i]}"
         total_removed=$(( total_removed + 1 ))
     done
-    echo "  ${routine}: removed ${remove}, kept ${KEEP}"
+    echo "  ${trigger}: removed ${remove}, kept ${KEEP}"
 done
 
 echo "Cleaned ${total_removed} run(s)."

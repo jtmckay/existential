@@ -25,6 +25,11 @@ services:
       - dropbox_data:/dropbox_data:z
     tty: false
 
+  decree-base:
+    image: ghcr.io/jtmckay/decree:latest
+    entrypoint: ["true"]
+    restart: "no"
+
   decree-webhook:
     container_name: decree-webhook
     build:
