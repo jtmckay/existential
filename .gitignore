@@ -75,6 +75,9 @@ services/decree/secrets/
 **/ollama/entrypoint.sh
 **/ollama/Modelfile
 
+# Pi-Hole
+**/piHole/etc-pihole
+
 # Playwright
 node_modules/
 /automations/playwright/test-results/
