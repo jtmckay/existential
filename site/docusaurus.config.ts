@@ -122,6 +122,10 @@ const config: Config = {
               label: 'About Us',
               to: '/about',
             },
+            {
+              label: 'Privacy Policy',
+              to: '/privacy',
+            },
           ],
         },
       ],

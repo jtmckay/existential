@@ -11,7 +11,7 @@ sidebar_position: 11
 
 Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) logs. Everything is provisioned from code — no manual setup needed.
 
-![Grafana](./img/grafana.png)
+![Grafana](../img/grafana.png)
 
 ## What's provisioned
 

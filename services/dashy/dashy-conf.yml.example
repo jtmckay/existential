@@ -52,6 +52,10 @@ sections:
 
   - name: Tools
     items:
+      - title: Hermes Workspace
+        url: https://hermes.local.existential.company/
+        icon: fas fa-frog
+
       - title: AppSmith
         url: https://apps.local.existential.company/
         icon: fas fa-code

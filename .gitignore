@@ -52,6 +52,9 @@ automations/outbox
 automations/runs
 services/decree/secrets/
 
+# Hermes
+**/hermes/data
+
 # Immich
 **/immich/library
 **/immich/postgres
@@ -79,6 +82,7 @@ services/decree/secrets/
 **/piHole/etc-pihole
 
 # Playwright
+**/mcp/playwright-data
 node_modules/
 /automations/playwright/test-results/
 /automations/playwright/playwright-report/

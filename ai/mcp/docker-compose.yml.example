@@ -1,0 +1,24 @@
+services:
+  playwright-mcp:
+    container_name: playwright-mcp
+    image: node:22-bullseye
+    restart: unless-stopped
+    networks:
+      - exist
+    working_dir: /app
+    command: ["npx", "@playwright/mcp@latest", "--port", "8931", "--headless"]
+    ports:
+      - "8931:8931"
+    environment:
+      # optional: tweak browser config via env if you want
+      PLAYWRIGHT_MCP_PORT: "8931"
+      PLAYWRIGHT_MCP_HOST: "0.0.0.0"
+      PLAYWRIGHT_MCP_ALLOWED_HOSTS: "*"
+    volumes:
+      - ./playwright-data:/root/.cache/ms-playwright:Z
+
+# docker compose exec hermes-agent /opt/hermes/.venv/bin/hermes mcp add playwright --url http://playwright-mcp:8931/sse
+
+networks:
+  exist:
+    external: true

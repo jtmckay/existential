@@ -18,7 +18,7 @@ services:
       test: 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
       timeout: 2s
 
-  # UI interface at http://localhost:11580/
+  # UI interface at http://localhost:48080/
   nocodb:
     container_name: nocodb
     image: "nocodb/nocodb:latest"
