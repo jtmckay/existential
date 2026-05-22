@@ -96,6 +96,10 @@ const config: Config = {
               label: 'Getting Started',
               to: '/docs/intro',
             },
+            {
+              label: 'Blog',
+              to: '/blog',
+            },
           ],
         },
         {
@@ -112,19 +116,24 @@ const config: Config = {
           ],
         },
         {
-          title: 'More',
+          title: 'Company',
           items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
             {
               label: 'About Us',
               to: '/about',
             },
+          ],
+        },
+        {
+          title: 'Legal',
+          items: [
             {
               label: 'Privacy Policy',
               to: '/privacy',
+            },
+            {
+              label: 'Terms of Service',
+              to: '/terms',
             },
           ],
         },
