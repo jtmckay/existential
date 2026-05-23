@@ -18,6 +18,8 @@ sidebar_position: 1
 - [Decree](../decree/) — Automation
 - [NocoDB](./nocodb) — Low-code database
 - [Dashy](./dashy) — Dashboard
+- [Appsmith](./appsmith) — Internal tool builder
+- [Lowcoder](./lowcoder) — Customer-facing app builder
 
 ## Background Services (AI)
 

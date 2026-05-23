@@ -40,3 +40,7 @@ The network is automatically created when you run `docker compose up`.
 - [Prometheus](./prometheus) — Metrics collection (+ Pushgateway for Decree)
 - [Loki](./loki) — Log aggregation (+ Promtail for Decree run logs)
 - [Grafana](./grafana) — Dashboards over Prometheus and Loki
+
+### Network
+
+- [Pi-hole](./pihole) — DNS ad blocking and DHCP

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 9
 ---
 
 # vLLM
@@ -7,8 +7,9 @@ sidebar_position: 5
 - Source: https://github.com/vllm-project/vllm
 - License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 - Alternatives: Ollama, Text Generation Inference, TensorRT-LLM
+- Status: Requires too much VRAM to be practical
 
-Useful for when you need full tool-calling support (Ollama does not support tools).
+Useful for full tool-calling support (Ollama does not support tools), but demands more VRAM than available.
 
 ## Features
 

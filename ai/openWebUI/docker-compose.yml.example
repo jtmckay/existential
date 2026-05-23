@@ -1,0 +1,34 @@
+services:
+  open-webui:
+    container_name: open-webui
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "11488:8080"
+    environment:
+      UID: "1000"
+      GID: "1000"
+      WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME}
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      # Connect to hermes-agent's OpenAI-compatible gateway
+      OPENAI_API_BASE_URL: http://hermes-agent:8642/v1
+      OPENAI_API_KEY: ${HERMES_API_KEY:-}
+      # Disable direct Ollama integration — hermes-agent is the backend
+      ENABLE_OLLAMA_API: "false"
+      # Point STT at the existing whisper service instead of running a second instance
+      AUDIO_STT_ENGINE: openai
+      AUDIO_STT_OPENAI_API_BASE_URL: http://whisper:8000/v1
+      AUDIO_STT_OPENAI_API_KEY: "none"
+    volumes:
+      - open-webui-data:/app/backend/data
+
+volumes:
+  open-webui-data:
+
+networks:
+  exist:
+    external: true

@@ -29,17 +29,17 @@ graveyard/    Archived/deprecated solutions
 ```
 
 ### ai/
-`chatterbox` `libreChat` `ollama` `vllm` `whisper`
+`chatterbox` `hermes` `mcp` `ollama` `openWebUI` `whisper`
 
 ### services/
-`actualBudget` `appsmith` `dashy` `decree` `ghost` `immich` `itTools` `logseq`
-`lowcoder` `mealie` `nocoDB` `ntfy` `rabbitMQ` `vikunja` `windmill`
+`actualBudget` `appsmith` `dashy` `decree` `immich` `itTools` `logseq`
+`lowcoder` `mealie` `nocoDB` `ntfy` `vikunja`
 
 ### nas/
 `collabora` `minIO` `nextcloud` `redis` *(trueNAS is external — config note only)*
 
 ### hosting/
-`caddy` `cloudflare` `grafana` `loki` `portainer` `prometheus` `uptimeKuma`
+`caddy` `cloudflare` `grafana` `loki` `piHole` `portainer` `prometheus` `uptimeKuma`
 
 ### automations/ (Decree working directory)
 Mounted into the decree container at `/work/.decree`.
