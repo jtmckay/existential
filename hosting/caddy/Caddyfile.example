@@ -1,14 +1,32 @@
-# Local development with real domain and self-signed SSL certificates
-# Since these domains point to 127.0.0.1, Let's Encrypt cannot validate them
-# Using self-signed certificates instead
+# Caddy reverse proxy — `.lan` convention.
+#
+# Each block fronts one logical endpoint on the LAN. The hostname matches the
+# slug used in hosting/piHole/docker-compose.yml's FTLCONF_dns_hosts list —
+# keep the two in sync when adding or removing services.
+#
+# ── Trusting Caddy's internal CA ──────────────────────────────────────────
+# `tls internal` makes Caddy issue certs from its own local CA. Browsers
+# warn until each device has imported the root cert. After Caddy has come up
+# at least once, dump the root and install it on every machine that needs to
+# access the homelab without warnings:
+#
+#   docker exec caddy cat /data/caddy/pki/authorities/local/root.crt \
+#       > existential-ca.crt
+#
+# Then on each device:
+#   - Linux: sudo cp existential-ca.crt /usr/local/share/ca-certificates/ \
+#            && sudo update-ca-certificates
+#   - macOS: drag into Keychain, mark "Always Trust"
+#   - iOS / Android: install via MDM or AirDrop / Settings → Security
+#   - Firefox: import via about:preferences#privacy → View Certificates
+#
+# The root cert lives in the `caddy_data` volume, so it survives container
+# rebuilds. Only regenerate / re-distribute if that volume is wiped.
 
-# Global options
 {
-  # Use internal CA for self-signed certificates
   auto_https disable_redirects
 }
 
-# Error handling snippet - reusable across all sites
 (error_handling) {
   handle_errors {
     root * /var/www/html
@@ -17,230 +35,197 @@
   }
 }
 
-# Health check snippet - reusable with custom health URI
-(health_check) {
-  health_uri {args.0}
-  health_interval 10s
-  health_timeout 5s
+# ── ai ──────────────────────────────────────────────────────────────────────
+chatterbox.lan {
+  tls internal
+  import error_handling
+  reverse_proxy chatterbox:8000
 }
 
-# Main dashboard
-local.existential.company {
+hermes-agent.lan {
+  tls internal
+  import error_handling
+  reverse_proxy hermes-agent:8642
+}
+
+hermes-dashboard.lan {
+  tls internal
+  import error_handling
+  reverse_proxy hermes-agent:9119
+}
+
+hermes-workspace.lan {
+  tls internal
+  import error_handling
+  reverse_proxy hermes-workspace:3000
+}
+
+librechat.lan {
+  tls internal
+  import error_handling
+  reverse_proxy librechat-client:80
+}
+
+lightrag.lan {
+  tls internal
+  import error_handling
+  reverse_proxy lightrag:9621
+}
+
+ollama.lan {
+  tls internal
+  import error_handling
+  reverse_proxy ollama:11434
+}
+
+open-webui.lan {
+  tls internal
+  import error_handling
+  reverse_proxy open-webui:8080
+}
+
+playwright-mcp.lan {
+  tls internal
+  import error_handling
+  reverse_proxy playwright-mcp:8931
+}
+
+whisper.lan {
+  tls internal
+  import error_handling
+  reverse_proxy whisper:8000
+}
+
+# ── services ────────────────────────────────────────────────────────────────
+actual-budget.lan {
+  tls internal
+  import error_handling
+  reverse_proxy actual-budget:5006
+}
+
+appsmith.lan {
+  tls internal
+  import error_handling
+  reverse_proxy appsmith:80
+}
+
+dashy.lan {
   tls internal
   import error_handling
   reverse_proxy dashy:8080
 }
 
-# Nextcloud - gets its own clean subdomain
-cloud.local.existential.company {
+decree-webhook.lan {
+  tls internal
+  import error_handling
+  reverse_proxy decree-webhook:{$DECREE_WEBHOOK_PORT}
+}
+
+immich.lan {
+  tls internal
+  import error_handling
+  reverse_proxy immich-server:2283
+}
+
+it-tools.lan {
+  tls internal
+  import error_handling
+  reverse_proxy it-tools:80
+}
+
+lowcoder.lan {
+  tls internal
+  import error_handling
+  reverse_proxy lowcoder-frontend:3000
+}
+
+mealie.lan {
+  tls internal
+  import error_handling
+  reverse_proxy mealie:9000
+}
+
+ntfy.lan {
+  tls internal
+  import error_handling
+  reverse_proxy ntfy:80
+}
+
+nocodb.lan {
+  tls internal
+  import error_handling
+  reverse_proxy nocodb:8080
+}
+
+vikunja.lan {
+  tls internal
+  import error_handling
+  reverse_proxy vikunja:3456
+}
+
+# ── hosting ─────────────────────────────────────────────────────────────────
+grafana.lan {
+  tls internal
+  import error_handling
+  reverse_proxy grafana:3000
+}
+
+pihole.lan {
+  tls internal
+  import error_handling
+  reverse_proxy pihole:80
+}
+
+# Portainer serves HTTPS on 9443 with its own self-signed cert. Caddy talks to
+# it over TLS and skips verification — the user-facing cert is still Caddy's.
+portainer.lan {
+  tls internal
+  import error_handling
+  reverse_proxy https://portainer:9443 {
+    transport http {
+      tls
+      tls_insecure_skip_verify
+    }
+  }
+}
+
+prometheus.lan {
+  tls internal
+  import error_handling
+  reverse_proxy prometheus:9090
+}
+
+uptime-kuma.lan {
+  tls internal
+  import error_handling
+  reverse_proxy uptime-kuma:3001
+}
+
+# ── nas ─────────────────────────────────────────────────────────────────────
+collabora.lan {
+  tls internal
+  import error_handling
+  reverse_proxy collabora:9980
+}
+
+# minio web console (port 9001)
+minio.lan {
+  tls internal
+  import error_handling
+  reverse_proxy minio:9001
+}
+
+# minio S3 API (port 9000)
+minio-api.lan {
+  tls internal
+  import error_handling
+  reverse_proxy minio:9000
+}
+
+nextcloud.lan {
   tls internal
   import error_handling
   redir /.well-known/carddav /remote.php/dav/ 301
   redir /.well-known/caldav /remote.php/dav/ 301
   reverse_proxy nextcloud:80
 }
-
-# LibreChat
-chat.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy librechat-client:80
-}
-
-# Docker management
-portainer.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy portainer:9001
-}
-
-# Decree monitor
-grafana.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy grafana:3000
-}
-
-# Task management
-tasks.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy vikunja:3456
-}
-
-# Workflow automation
-windmill.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy windmill_server:8000
-}
-
-# IT Tools
-tools.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy it-tools:80
-}
-
-# Database interface
-db.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy nocodb:8080
-}
-
-# Object storage
-storage.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy minio:9000
-}
-
-# Low-code platform
-apps.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy appsmith:80
-}
-
-# Message queue management
-queue.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy rabbitmq:15672
-}
-
-# Notifications
-notify.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy ntfy:80
-}
-
-# Recipe management
-recipes.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy mealie:9000
-}
-
-# Monitoring
-monitor.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy uptime-kuma:3001
-}
-
-# Alternative low-code platform
-build.local.existential.company {
-  tls internal
-  import error_handling
-  reverse_proxy lowcoder-frontend:3000
-}
-
-# RabbitMQ Management at localhost/rabbitmq
-localhost/rabbitmq* {
-  reverse_proxy rabbitmq:15672
-}
-
-appflowy.local.existential.company {
-  tls internal
-  import error_handling
-  
-  # GoTrue authentication - strip /gotrue prefix
-  handle_path /gotrue/* {
-    reverse_proxy appflowy-gotrue:9999
-  }
-  
-  # WebSocket connections
-  handle /ws {
-    reverse_proxy appflowy-cloud:8000 {
-      # WebSocket upgrade headers
-      header_up Upgrade {http.request.header.Upgrade}
-      header_up Connection {http.request.header.Connection}
-    }
-  }
-  
-  # API endpoints with special handling
-  handle /api/* {
-    # Chat API - streaming responses, no buffering
-    handle /api/chat* {
-      reverse_proxy appflowy-cloud:8000 {
-        flush_interval -1
-      }
-    }
-    
-    # Import API - large file uploads, extended timeouts
-    handle /api/import* {
-      reverse_proxy appflowy-cloud:8000 {
-        transport http {
-          dial_timeout 30s
-          response_header_timeout 600s
-        }
-      }
-      request_body {
-        max_size 2GB
-      }
-    }
-    
-    # Workspace publish - large file uploads
-    handle_path /api/workspace/*/publish {
-      reverse_proxy appflowy-cloud:8000 {
-        transport http {
-          dial_timeout 30s
-          response_header_timeout 300s
-        }
-      }
-      request_body {
-        max_size 256MB
-      }
-    }
-    
-    # All other API endpoints
-    reverse_proxy appflowy-cloud:8000
-  }
-  
-  # MinIO Web UI - strip /minio prefix
-  handle_path /minio/* {
-    reverse_proxy appflowy-minio:9001 {
-      # WebSocket support for MinIO UI
-      header_up Upgrade {http.request.header.Upgrade}
-      header_up Connection {http.request.header.Connection}
-    }
-  }
-  
-  # MinIO API - strip /minio-api prefix, special host header
-  handle_path /minio-api/* {
-    reverse_proxy appflowy-minio:9000 {
-      header_up Host "appflowy-minio:9000"
-    }
-  }
-  
-  # Admin console - rewrite /console to root
-  handle_path /console* {
-    reverse_proxy appflowy-admin-frontend:3000
-  }
-  
-  # Main AppFlowy web interface (catch-all)
-  handle {
-    reverse_proxy appflowy-web:80
-  }
-}
-
-
-
-
-# another_domain {
-  # handle_path strips the uri prefix. EG: `uri strip_prefix /blog`
-  # handle leaves the uri as is and passes it on
-
-  # handle /n8n* {
-  #   reverse_proxy n8n:5678 {
-  #     header_down Strict-Transport-Security max-age=31536000;
-  #   }
-  # }
-
-  # reverse_proxy nextcloud:80 {
-  #   header_down Strict-Transport-Security max-age=31536000;
-  # }
-# }

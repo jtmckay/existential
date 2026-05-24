@@ -23,14 +23,14 @@ services:
       - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
-      - MYSQL_HOST=nextcloudsql
+      - MYSQL_HOST=nextcloud-db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_HOST_PASSWORD=${REDIS_PASSWORD}
 
   # Database for Nextcloud
-  nextcloudsql:
-    container_name: nextcloudsql
+  nextcloud-db:
+    container_name: nextcloud-db
     image: mariadb:10.6
     restart: unless-stopped
     networks:

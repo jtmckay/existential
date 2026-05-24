@@ -10,8 +10,8 @@
 name: immich
 
 services:
-  immich_server:
-    container_name: immich_server
+  immich-server:
+    container_name: immich-server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
     restart: unless-stopped
     networks:
@@ -29,13 +29,13 @@ services:
     env_file:
       - .env
     depends_on:
-      - immich_redis
-      - immich_postgres
+      - immich-redis
+      - immich-postgres
     # healthcheck:
     #   disable: false
 
-  immich_machine_learning:
-    container_name: immich_machine_learning
+  immich-machine-learning:
+    container_name: immich-machine-learning
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
@@ -52,8 +52,8 @@ services:
     # healthcheck:
     #   disable: false
 
-  immich_redis:
-    container_name: immich_redis
+  immich-redis:
+    container_name: immich-redis
     image: docker.io/valkey/valkey:8
     restart: unless-stopped
     networks:
@@ -61,8 +61,8 @@ services:
     healthcheck:
       test: redis-cli ping || exit 1
 
-  immich_postgres:
-    container_name: immich_postgres
+  immich-postgres:
+    container_name: immich-postgres
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     restart: unless-stopped
     networks:

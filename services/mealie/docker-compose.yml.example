@@ -19,7 +19,7 @@ services:
       # Postgres Config
       POSTGRES_USER: ${MEALIE_POSTGRES_USER}
       POSTGRES_PASSWORD: ${MEALIE_POSTGRES_PASSWORD}
-      POSTGRES_SERVER: mealie_postgres
+      POSTGRES_SERVER: mealie-postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: mealie
       # =====================================
@@ -31,8 +31,8 @@ services:
       # SMTP_FROM_EMAIL=
       # SMTP_USER=
       # SMTP_PASSWORD=
-  mealie_postgres:
-    container_name: mealie_postgres
+  mealie-postgres:
+    container_name: mealie-postgres
     image: postgres:17
     restart: unless-stopped
     networks:

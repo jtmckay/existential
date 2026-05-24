@@ -14,7 +14,8 @@ services:
       WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD}
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
-      # Connect to hermes-agent's OpenAI-compatible gateway
+      # Connect to hermes-agent's OpenAI-compatible gateway over the exist
+      # Docker network — Caddy's only there for browser-facing .lan traffic.
       OPENAI_API_BASE_URL: http://hermes-agent:8642/v1
       OPENAI_API_KEY: ${HERMES_API_KEY:-}
       # Disable direct Ollama integration — hermes-agent is the backend

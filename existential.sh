@@ -119,20 +119,33 @@ replace_placeholders() {
         _sed "${line_num}s|EXIST_UUID|${val}|" "$file"
     done
 
-    # EXIST_CLI — interactive, show surrounding comment context
+    # EXIST_CLI — interactive, show surrounding comment context.
+    # If the context contains `# DEFAULT_FROM: EXIST_DEFAULT_FOO`, a blank entry
+    # falls back to the value of EXIST_DEFAULT_FOO already written in this file.
     while grep -q "EXIST_CLI" "$file" 2>/dev/null; do
-        local match line_content start context escaped
+        local match line_content start context escaped default_from default_val
         match=$(grep -n "EXIST_CLI" "$file" | head -1)
         line_num="${match%%:*}"
         line_content="${match#*:}"
-        start=$(( line_num > 4 ? line_num - 4 : 1 ))
+        start=$(( line_num > 6 ? line_num - 6 : 1 ))
         context=$(sed -n "${start},$((line_num - 1))p" "$file" | grep "^#" || true)
+
+        default_from=$(printf '%s\n' "$context" | sed -n 's/^# *DEFAULT_FROM: *\([A-Z_][A-Z0-9_]*\) *$/\1/p' | head -1)
+        default_val=""
+        if [[ -n "$default_from" ]]; then
+            default_val=$(grep -E "^${default_from}=" "$file" | head -1 | cut -d= -f2-)
+        fi
 
         echo ""
         echo "  ${file}"
         [[ -n "$context" ]] && printf '  %s\n' "$context"
         printf '  %s\n' "$line_content"
-        read -rp "  Value: " val
+        if [[ -n "$default_val" ]]; then
+            read -rp "  Value [${default_val}]: " val
+            [[ -z "$val" ]] && val="$default_val"
+        else
+            read -rp "  Value: " val
+        fi
 
         # Escape | and \ for sed
         escaped="${val//\\/\\\\}"
@@ -248,6 +261,38 @@ run_tests() {
     esac
 }
 
+# ── Validation (on-demand, not part of `test`) ────────────────────────────────
+#
+# `validate` runs convention + drift checks against the .example files. Kept
+# out of `test` because the user opts into running it explicitly — it doesn't
+# need to fire on every CI run.
+
+run_validate() {
+    local name="${1:-all}"
+    local rc=0
+
+    case "$name" in
+        all)
+            echo "=== Conventions ==="
+            python3 "${SCRIPT_DIR}/src/test/validate-conventions.py" || rc=1
+            echo ""
+            echo "=== Drift (.example vs rendered) ==="
+            python3 "${SCRIPT_DIR}/src/test/check-drift.py" || rc=1
+            ;;
+        conventions)
+            python3 "${SCRIPT_DIR}/src/test/validate-conventions.py" || rc=1
+            ;;
+        drift)
+            python3 "${SCRIPT_DIR}/src/test/check-drift.py" || rc=1
+            ;;
+        *)
+            echo "Unknown validation: $name. Available: all, conventions, drift" >&2
+            return 1
+            ;;
+    esac
+    return $rc
+}
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 usage() {
@@ -260,6 +305,9 @@ Actions:
   compose [file]      Generate unified docker-compose.yml (default: docker-compose.yml)
   setup <name>        Configure an integration: actual-budget, gmail, gmail-labels, ntfy, rclone
   test [name]         Run tests: all (default), syntax, gmail, rclone
+  validate [name]     On-demand checks: all (default), conventions, drift
+                        conventions — slugs in sync across compose/piHole/Caddy/dashy
+                        drift       — what re-rendering would change in your .env / compose files
 
 Options:
   --force             Overwrite existing files when processing .example files
@@ -295,6 +343,9 @@ case "$action" in
         ;;
     test)
         run_tests "${1:-all}"
+        ;;
+    validate)
+        run_validate "${1:-all}"
         ;;
     --help|-h)
         usage

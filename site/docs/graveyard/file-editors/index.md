@@ -12,4 +12,5 @@ Web-based document editing embedded into Nextcloud — comparable to Office 365/
 - [Collabora](../../storage/collabora) — active stack (Nextcloud editor)
 - [Stirling PDF](./stirling-pdf) — RIP only needed to add text fields, doable with OnlyOffice
 - WPS Office — RIP requires login to centralized server
+- LibreOffice — TBD
 - OpenOffice — RIP discontinued

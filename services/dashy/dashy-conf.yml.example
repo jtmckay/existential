@@ -1,105 +1,204 @@
+# Dashy dashboard config — `.lan` convention.
+#
+# Each item has TWO adjacent blocks: the active one points at the live service
+# (https://<slug>.lan), the commented one points at the public docs page. Flip
+# the comment when a service is decommissioned, paused, or never deployed —
+# users still get a landing page explaining what it is and where to find it.
+#
+# Slugs match the records in hosting/pihole/docker-compose.yml.example and the
+# reverse_proxy backends in hosting/caddy/Caddyfile.example. Keep all three in
+# sync — run `./existential.sh validate` to verify.
+#
+# Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
+# a red dot when unreachable. That covers runtime health; the comment-flip
+# covers "not enabled on either machine."
+#
+# Icon reference:
+#   https://dashy.to/docs/icons/  (hl-*, si-*, fas fa-*)
+
 pageInfo:
-  title: Existential Dashboard
-  description: Your self-hosted local development environment
+  title: Existential
+  description: Self-hosted homelab dashboard
   navLinks:
-    - title: Home
-      path: /
+    - title: Docs
+      path: https://existential.company/docs
 
 appConfig:
   theme: colorful
   layout: auto
+  statusCheckInterval: 60         # ping every 60s
+  faviconApi: local
 
 sections:
-  - name: Apps
+  # ── ai ────────────────────────────────────────────────────────────────────
+  - name: AI
+    icon: fas fa-robot
     items:
-      - title: Logseq
-        url: logseq://graph/Logseq?page=root
-        icon: fas fa-scroll
+      - title: Hermes Dashboard
+        url: https://hermes-dashboard.lan
+        # url: https://existential.company/docs/ai/hermes
+        icon: hl-dashy
+        statusCheck: true
+        description: Hermes Agent dashboard
 
-      - title: Obsidian
-        url: obsidian://
-        icon: si-obsidian
+      - title: Hermes Workspace
+        url: https://hermes-workspace.lan
+        # url: https://existential.company/docs/ai/hermes
+        icon: fas fa-frog
+        statusCheck: true
+        description: Hermes Workspace UI — swarms, terminal, kanban
+
+      - title: Open WebUI
+        url: https://open-webui.lan
+        # url: https://existential.company/docs/ai/open-webui
+        icon: si-openai
+        statusCheck: true
+        description: Chat UI routed through hermes-agent
+
+      - title: LibreChat
+        url: https://librechat.lan
+        # url: https://existential.company/docs/ai/librechat
+        icon: fas fa-comments
+        statusCheck: true
+        description: Multi-provider chat with RAG
+
+      - title: LightRAG
+        url: https://lightrag.lan
+        # url: https://existential.company/docs/ai/lightrag
+        icon: fas fa-diagram-project
+        statusCheck: true
+        description: GraphRAG over the Obsidian vault
+
+  # ── services ──────────────────────────────────────────────────────────────
+  - name: Productivity
+    icon: fas fa-list-check
+    items:
+      - title: Vikunja
+        url: https://vikunja.lan
+        # url: https://existential.company/docs/services/vikunja
+        icon: si-vikunja
+        statusCheck: true
+        description: Task management
 
       - title: Mealie
-        url: https://recipes.local.existential.company/
+        url: https://mealie.lan
+        # url: https://existential.company/docs/services/mealie
         icon: fas fa-utensils
-        
-      - title: Vikunja
-        url: https://tasks.local.existential.company/
-        icon: fas fa-list
+        statusCheck: true
+        description: Recipe management
 
       - title: Actual Budget
-        url: http://money.local.existential.company/
+        url: https://actual-budget.lan
+        # url: https://existential.company/docs/services/actual-budget
         icon: fas fa-money-bill-wave
-
-  - name: Infrastructure
-    items:
-      - title: Home Assistant
-        url: http://homeassistant:8123/
-        icon: si-homeassistant
-        
-      - title: Nextcloud
-        url: https://cloud.local.existential.company/
-        icon: si-nextcloud
+        statusCheck: true
+        description: Personal finance
 
       - title: NocoDB
-        url: https://db.local.existential.company/
+        url: https://nocodb.lan
+        # url: https://existential.company/docs/services/nocodb
         icon: fas fa-database
+        statusCheck: true
+        description: Airtable-style database UI
 
       - title: Ntfy
-        url: https://notify.local.existential.company/
+        url: https://ntfy.lan
+        # url: https://existential.company/docs/services/ntfy
         icon: si-ntfy
+        statusCheck: true
+        description: Push notifications
+
+      - title: Immich
+        url: https://immich.lan
+        # url: https://existential.company/docs/services/immich
+        icon: si-immich
+        statusCheck: true
+        description: Photo library
 
   - name: Tools
+    icon: fas fa-toolbox
     items:
-      - title: Hermes Workspace
-        url: https://hermes.local.existential.company/
-        icon: fas fa-frog
-
-      - title: AppSmith
-        url: https://apps.local.existential.company/
-        icon: fas fa-code
-        
-      - title: IT-Tools
-        url: https://tools.local.existential.company/
+      - title: IT Tools
+        url: https://it-tools.lan
+        # url: https://existential.company/docs/services/it-tools
         icon: hl-it-tools
+        statusCheck: true
+        description: Developer utility toolkit
 
       - title: Lowcoder
-        url: https://build.local.existential.company/
+        url: https://lowcoder.lan
+        # url: https://existential.company/docs/services/lowcoder
         icon: fas fa-file-code
+        statusCheck: true
+        description: Low-code app builder
 
-      - title: MinIO
-        url: https://storage.local.existential.company/
-        icon: fas fa-database
+      - title: Appsmith
+        url: https://appsmith.lan
+        # url: https://existential.company/docs/services/appsmith
+        icon: si-appsmith
+        statusCheck: true
+        description: Internal-tools platform
 
-  - name: Monitoring
+  # ── hosting ───────────────────────────────────────────────────────────────
+  - name: Infrastructure
+    icon: fas fa-server
     items:
-      - title: Grafana
-        url: http://grafana.local.existential.company/d/decree-overview/decree-overview?orgId=1&refresh=1m
-        icon: hl-grafana
-
       - title: Portainer
-        url: https://portainer.local.existential.company/
+        url: https://portainer.lan
+        # url: https://existential.company/docs/hosting/portainer
         icon: hl-portainer
+        statusCheck: true
+        description: Container management
+
+      - title: Pi-hole
+        url: https://pihole.lan
+        # url: https://existential.company/docs/hosting/pihole
+        icon: si-pihole
+        statusCheck: true
+        description: DNS + ad-blocking
+
+      - title: Grafana
+        url: https://grafana.lan
+        # url: https://existential.company/docs/hosting/grafana
+        icon: hl-grafana
+        statusCheck: true
+        description: Dashboards
+
+      - title: Prometheus
+        url: https://prometheus.lan
+        # url: https://existential.company/docs/hosting/prometheus
+        icon: hl-prometheus
+        statusCheck: true
+        description: Metrics scraper
 
       - title: Uptime Kuma
-        url: https://monitor.local.existential.company/dashboard
-        icon: fas fa-tachometer-alt
+        url: https://uptime-kuma.lan
+        # url: https://existential.company/docs/hosting/uptime-kuma
+        icon: hl-uptime-kuma
+        statusCheck: true
+        description: Service availability monitor
 
-# Services available via HTTPS subdomains (*.local.existential.company):
-# - local: Dashy Dashboard
-# - cloud: LibreChat AI Chat & Nextcloud Files  
-# - portainer: Container Management
-# - tasks: Vikunja Task Management
-# - windmill: Workflow Automation
-# - tools: IT-Tools Utilities
-# - db: NocoDB Database Interface
-# - storage: MinIO Object Storage
-# - apps: Appsmith Low-Code Platform
-# - queue: RabbitMQ Message Queue
-# - notify: NTFY Push Notifications
-# - recipes: Mealie Recipe Management
-# - monitor: Uptime Kuma Service Monitoring
-# - build: Lowcoder Alternative Low-Code Platform
+  # ── nas ───────────────────────────────────────────────────────────────────
+  - name: Storage
+    icon: fas fa-hard-drive
+    items:
+      - title: Nextcloud
+        url: https://nextcloud.lan
+        # url: https://existential.company/docs/nas/nextcloud
+        icon: si-nextcloud
+        statusCheck: true
+        description: File sync + collaboration
 
-# Reference for icons: https://fontawesome.com/search?ic=free&o=r
+      - title: MinIO Console
+        url: https://minio.lan
+        # url: https://existential.company/docs/nas/minio
+        icon: si-minio
+        statusCheck: true
+        description: S3-compatible object store (web console)
+
+      - title: Collabora
+        url: https://collabora.lan
+        # url: https://existential.company/docs/nas/collabora
+        icon: si-collaboraonline
+        statusCheck: true
+        description: Office document editing (Nextcloud companion)

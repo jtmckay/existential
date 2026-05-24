@@ -25,6 +25,10 @@ Simple HTTP-based pub-sub notification service. Send notifications to your phone
 3. Generate password hashes/tokens (see below)
 4. Run `docker-compose up -d`
 
+### Customization
+
+Ntfy emojis: https://docs.ntfy.sh/emojis/
+
 ## User Setup
 
 ### Compute password hash for admin

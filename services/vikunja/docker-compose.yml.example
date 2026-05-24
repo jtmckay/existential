@@ -18,11 +18,11 @@ services:
     volumes:
       - vikunja_data:/app/vikunja/files
     depends_on:
-      vikunja_db:
+      vikunja-db:
         condition: service_healthy
 
-  vikunja_db:
-    container_name: vikunja_db
+  vikunja-db:
+    container_name: vikunja-db
     image: postgres:17
     restart: unless-stopped
     networks:

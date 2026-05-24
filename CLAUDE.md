@@ -29,17 +29,17 @@ graveyard/    Archived/deprecated solutions
 ```
 
 ### ai/
-`chatterbox` `hermes` `mcp` `ollama` `openWebUI` `whisper`
+`chatterbox` `hermes` `librechat` `lightrag` `mcp` `ollama` `open-webui` `whisper`
 
 ### services/
-`actualBudget` `appsmith` `dashy` `decree` `immich` `itTools` `logseq`
-`lowcoder` `mealie` `nocoDB` `ntfy` `vikunja`
+`actual-budget` `appsmith` `dashy` `decree` `immich` `it-tools` `lowcoder`
+`mealie` `nocodb` `ntfy` `vikunja`
 
 ### nas/
-`collabora` `minIO` `nextcloud` `redis` *(trueNAS is external — config note only)*
+`collabora` `minio` `nextcloud` `redis` *(trueNAS is external — config note only)*
 
 ### hosting/
-`caddy` `cloudflare` `grafana` `loki` `piHole` `portainer` `prometheus` `uptimeKuma`
+`caddy` `cloudflare` `grafana` `loki` `pihole` `portainer` `prometheus` `uptime-kuma`
 
 ### automations/ (Decree working directory)
 Mounted into the decree container at `/work/.decree`.
@@ -111,6 +111,9 @@ src/
 ./existential.sh setup rclone           # Configure remote file storage
 ./existential.sh setup ntfy             # ntfy integration setup
 ./existential.sh test           # Run test suite
+./existential.sh validate       # On-demand: convention + drift checks
+./existential.sh validate conventions  # Slugs synced across compose/piHole/Caddy/dashy
+./existential.sh validate drift        # What re-rendering would change in your .env / compose files
 ```
 
 ### Manual service setup
@@ -133,6 +136,46 @@ docker compose up -d
 | `EXIST_TIMESTAMP` | Current timestamp (`YYYYMMDD_HHMMSS`) |
 | `EXIST_UUID` | UUID |
 | `EXIST_DEFAULT_*` | Value of matching variable from root `.env.exist` |
+
+An `EXIST_CLI` prompt can opt into a fallback by adding a comment immediately
+above the line: `# DEFAULT_FROM: EXIST_DEFAULT_FOO`. If the user enters blank,
+the value of `EXIST_DEFAULT_FOO` (already written earlier in the same file) is
+used. Used today for `EXIST_DEFAULT_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
+
+---
+
+## Networking convention
+
+Two layers — pick the right one for the call site.
+
+**Browser / cross-machine traffic → `https://<slug>.lan`** (the slug matches
+the service's `container_name`, lowercase-hyphenated):
+
+- **piHole** (`hosting/pihole/docker-compose.yml`) holds a record per slug,
+  active line pointing at `EXIST_DEFAULT_LOCAL_HOST_IP` and a commented PEER
+  alternative. Flip the comment to migrate a service between machines.
+- **Caddy** (`hosting/caddy/Caddyfile`) fronts every slug with `tls internal`
+  and reverse-proxies to `<container>:<port>`. Browsers see a cert from
+  Caddy's internal CA — install the root once per device for green locks.
+- **Dashy** (`services/dashy/dashy-conf.yml`) links every navigable slug.
+- **`.env.exist`** holds `EXIST_DEFAULT_LOCAL_HOST_IP` (this machine) and
+  `EXIST_DEFAULT_PEER_HOST_IP` (the other machine; defaults to LOCAL).
+
+**Container-to-container traffic → `http://<container>:<port>`** (Docker's
+built-in service DNS on the `exist` network):
+
+- Service env vars in `*/docker-compose.yml.example` and `.env.example` use
+  this form (e.g., `OLLAMA_BASE_URL=http://ollama:11434`).
+- Automation routines (`automations/routines/*.sh`) and shared libs use this
+  form for their default `${X_URL:-http://service:port}` fallbacks.
+- Faster (no Caddy hop), simpler (no TLS), and doesn't need Caddy CA trust
+  inside the calling container — which would otherwise require per-image
+  surgery for each base distro / runtime.
+
+When adding a service, the slug appears in three convention files (piHole,
+Caddy, Dashy if navigable). Cross-service references inside service env vars
+stay on Docker DNS. Run `./existential.sh validate conventions` to verify
+the three are in sync.
 
 ---
 
