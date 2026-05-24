@@ -1,6 +1,6 @@
 services:
-  playwright-mcp:
-    container_name: playwright-mcp
+  mcp-playwright:
+    container_name: mcp-playwright
     image: node:22-bullseye
     restart: unless-stopped
     networks:
@@ -17,7 +17,7 @@ services:
     volumes:
       - ./playwright-data:/root/.cache/ms-playwright:Z
 
-# docker compose exec hermes-agent /opt/hermes/.venv/bin/hermes mcp add playwright --url http://playwright-mcp:8931/sse
+# docker compose exec hermes-agent /opt/hermes/.venv/bin/hermes mcp add playwright --url http://mcp-playwright:8931/sse
 
 networks:
   exist:

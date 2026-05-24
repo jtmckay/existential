@@ -16,8 +16,8 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=90d'
 
-  pushgateway:
-    container_name: pushgateway
+  prometheus-pushgateway:
+    container_name: prometheus-pushgateway
     image: prom/pushgateway:v1.10.0
     restart: unless-stopped
     networks:

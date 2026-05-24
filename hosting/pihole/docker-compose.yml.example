@@ -81,9 +81,9 @@ services:
         ${EXIST_DEFAULT_LOCAL_HOST_IP} open-webui.lan
         # ${EXIST_DEFAULT_PEER_HOST_IP} open-webui.lan
 
-        # playwright-mcp   →  Caddy: playwright-mcp:8931     (ai/mcp)
-        ${EXIST_DEFAULT_LOCAL_HOST_IP} playwright-mcp.lan
-        # ${EXIST_DEFAULT_PEER_HOST_IP} playwright-mcp.lan
+        # mcp-playwright   →  Caddy: mcp-playwright:8931     (ai/mcp)
+        ${EXIST_DEFAULT_LOCAL_HOST_IP} mcp-playwright.lan
+        # ${EXIST_DEFAULT_PEER_HOST_IP} mcp-playwright.lan
 
         # whisper          →  Caddy: whisper:8000            (ai/whisper)
         ${EXIST_DEFAULT_LOCAL_HOST_IP} whisper.lan

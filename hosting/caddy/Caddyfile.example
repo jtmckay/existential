@@ -84,10 +84,10 @@ open-webui.lan {
   reverse_proxy open-webui:8080
 }
 
-playwright-mcp.lan {
+mcp-playwright.lan {
   tls internal
   import error_handling
-  reverse_proxy playwright-mcp:8931
+  reverse_proxy mcp-playwright:8931
 }
 
 whisper.lan {

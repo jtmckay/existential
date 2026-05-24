@@ -10,14 +10,14 @@ services:
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
-  promtail:
-    container_name: promtail
+  loki-promtail:
+    container_name: loki-promtail
     image: grafana/promtail:3.2.0
     restart: unless-stopped
     networks:
       - exist
     volumes:
-      - ./promtail-config.yaml:/etc/promtail/config.yml:ro
+      - ./loki-promtail-config.yaml:/etc/promtail/config.yml:ro
       - ../../automations/runs:/runs:ro
     command: -config.file=/etc/promtail/config.yml
     depends_on:

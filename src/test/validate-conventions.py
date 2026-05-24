@@ -8,11 +8,14 @@ default test suite.
 Conventions checked:
   1. Every container_name declared in a service compose appears as itself,
      not snake_case or camelCase (lowercase-hyphenated only).
-  2. Every piHole record (<slug>.lan) has a matching Caddy reverse_proxy
+  2. Every container_name starts with its folder's slug — so `docker ps`
+     makes the service-membership obvious. (e.g., promtail in hosting/loki
+     must be `loki-promtail`, not `promtail`.)
+  3. Every piHole record (<slug>.lan) has a matching Caddy reverse_proxy
      block where the backend matches `<container_name>:<internal_port>`.
-  3. Every piHole record has matching LOCAL active line + PEER commented line.
-  4. Every Caddy block has a matching piHole record.
-  5. Every dashy item points at a slug that has a piHole record.
+  4. Every piHole record has matching LOCAL active line + PEER commented line.
+  5. Every Caddy block has a matching piHole record.
+  6. Every dashy item points at a slug that has a piHole record.
 
 Note: container-to-container URLs in .env.example files use Docker service
 DNS (`http://<container>:<port>`) and are NOT validated here. The `.lan`
@@ -57,6 +60,7 @@ class ServiceDecl:
     slug: str
     file: Path
     line: int
+    folder_slug: str = ""
     ports: list[tuple[int, int]] = field(default_factory=list)  # (host, container)
 
 
@@ -87,13 +91,17 @@ def parse_service_composes() -> dict[str, ServiceDecl]:
     services: dict[str, ServiceDecl] = {}
     for cat in CATEGORY_DIRS:
         for compose in (REPO_ROOT / cat).glob("*/docker-compose.yml.example"):
+            folder_slug = compose.parent.name
             current_name: str | None = None
             current_decl: ServiceDecl | None = None
             for lineno, raw in enumerate(compose.read_text().splitlines(), start=1):
                 if m := CONTAINER_NAME_RE.match(raw):
                     current_name = m.group(1)
                     current_decl = ServiceDecl(
-                        slug=current_name, file=compose, line=lineno
+                        slug=current_name,
+                        file=compose,
+                        line=lineno,
+                        folder_slug=folder_slug,
                     )
                     services.setdefault(current_name, current_decl)
                     continue
@@ -178,6 +186,21 @@ def main() -> int:
             errors.append(
                 f"{decl.file.relative_to(REPO_ROOT)}:{decl.line}: "
                 f"container_name '{slug}' is not lowercase-hyphenated"
+            )
+
+    # ── (1b) container_name prefixed with folder slug ──────────────────────
+    # So `docker ps` makes service-membership obvious.
+    for slug, decl in services.items():
+        if not decl.folder_slug:
+            continue
+        if slug == decl.folder_slug:
+            continue  # primary container — slug-only is fine
+        if not slug.startswith(f"{decl.folder_slug}-"):
+            errors.append(
+                f"{decl.file.relative_to(REPO_ROOT)}:{decl.line}: "
+                f"container_name '{slug}' must start with '{decl.folder_slug}-' "
+                f"(or equal '{decl.folder_slug}') so it's obvious which "
+                f"service it belongs to"
             )
 
     # ── (2)+(3) piHole has both records, refs match Caddy ──────────────────
