@@ -1,4 +1,4 @@
-# Caddy reverse proxy — `.lan` convention.
+# Caddy reverse proxy — `.internal` convention.
 #
 # Each block fronts one logical endpoint on the LAN. The hostname matches the
 # slug used in hosting/piHole/docker-compose.yml's FTLCONF_dns_hosts list —
@@ -36,141 +36,141 @@
 }
 
 # ── ai ──────────────────────────────────────────────────────────────────────
-chatterbox.lan {
+chatterbox.internal {
   tls internal
   import error_handling
   reverse_proxy chatterbox:8000
 }
 
-hermes-agent.lan {
+hermes-agent.internal {
   tls internal
   import error_handling
   reverse_proxy hermes-agent:8642
 }
 
-hermes-dashboard.lan {
+hermes-dashboard.internal {
   tls internal
   import error_handling
   reverse_proxy hermes-agent:9119
 }
 
-hermes-workspace.lan {
+hermes-workspace.internal {
   tls internal
   import error_handling
   reverse_proxy hermes-workspace:3000
 }
 
-librechat.lan {
+librechat.internal {
   tls internal
   import error_handling
   reverse_proxy librechat-client:80
 }
 
-lightrag.lan {
+lightrag.internal {
   tls internal
   import error_handling
   reverse_proxy lightrag:9621
 }
 
-ollama.lan {
+ollama.internal {
   tls internal
   import error_handling
   reverse_proxy ollama:11434
 }
 
-open-webui.lan {
+open-webui.internal {
   tls internal
   import error_handling
   reverse_proxy open-webui:8080
 }
 
-mcp-playwright.lan {
+mcp-playwright.internal {
   tls internal
   import error_handling
   reverse_proxy mcp-playwright:8931
 }
 
-whisper.lan {
+whisper.internal {
   tls internal
   import error_handling
   reverse_proxy whisper:8000
 }
 
 # ── services ────────────────────────────────────────────────────────────────
-actual-budget.lan {
+actual-budget.internal {
   tls internal
   import error_handling
   reverse_proxy actual-budget:5006
 }
 
-appsmith.lan {
+appsmith.internal {
   tls internal
   import error_handling
   reverse_proxy appsmith:80
 }
 
-dashy.lan {
+dashy.internal {
   tls internal
   import error_handling
   reverse_proxy dashy:8080
 }
 
-decree-webhook.lan {
+decree-webhook.internal {
   tls internal
   import error_handling
   reverse_proxy decree-webhook:{$DECREE_WEBHOOK_PORT}
 }
 
-immich.lan {
+immich.internal {
   tls internal
   import error_handling
   reverse_proxy immich-server:2283
 }
 
-it-tools.lan {
+it-tools.internal {
   tls internal
   import error_handling
   reverse_proxy it-tools:80
 }
 
-lowcoder.lan {
+lowcoder.internal {
   tls internal
   import error_handling
   reverse_proxy lowcoder-frontend:3000
 }
 
-mealie.lan {
+mealie.internal {
   tls internal
   import error_handling
   reverse_proxy mealie:9000
 }
 
-ntfy.lan {
+ntfy.internal {
   tls internal
   import error_handling
   reverse_proxy ntfy:80
 }
 
-nocodb.lan {
+nocodb.internal {
   tls internal
   import error_handling
   reverse_proxy nocodb:8080
 }
 
-vikunja.lan {
+vikunja.internal {
   tls internal
   import error_handling
   reverse_proxy vikunja:3456
 }
 
 # ── hosting ─────────────────────────────────────────────────────────────────
-grafana.lan {
+grafana.internal {
   tls internal
   import error_handling
   reverse_proxy grafana:3000
 }
 
-pihole.lan {
+pihole.internal {
   tls internal
   import error_handling
   reverse_proxy pihole:80
@@ -178,7 +178,7 @@ pihole.lan {
 
 # Portainer serves HTTPS on 9443 with its own self-signed cert. Caddy talks to
 # it over TLS and skips verification — the user-facing cert is still Caddy's.
-portainer.lan {
+portainer.internal {
   tls internal
   import error_handling
   reverse_proxy https://portainer:9443 {
@@ -189,40 +189,40 @@ portainer.lan {
   }
 }
 
-prometheus.lan {
+prometheus.internal {
   tls internal
   import error_handling
   reverse_proxy prometheus:9090
 }
 
-uptime-kuma.lan {
+uptime-kuma.internal {
   tls internal
   import error_handling
   reverse_proxy uptime-kuma:3001
 }
 
 # ── nas ─────────────────────────────────────────────────────────────────────
-collabora.lan {
+collabora.internal {
   tls internal
   import error_handling
   reverse_proxy collabora:9980
 }
 
 # minio web console (port 9001)
-minio.lan {
+minio.internal {
   tls internal
   import error_handling
   reverse_proxy minio:9001
 }
 
 # minio S3 API (port 9000)
-minio-api.lan {
+minio-api.internal {
   tls internal
   import error_handling
   reverse_proxy minio:9000
 }
 
-nextcloud.lan {
+nextcloud.internal {
   tls internal
   import error_handling
   redir /.well-known/carddav /remote.php/dav/ 301

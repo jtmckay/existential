@@ -1,7 +1,7 @@
-# Dashy dashboard config — `.lan` convention.
+# Dashy dashboard config — `.internal` convention.
 #
 # Each item has TWO adjacent blocks: the active one points at the live service
-# (https://<slug>.lan), the commented one points at the public docs page. Flip
+# (https://<slug>.internal), the commented one points at the public docs page. Flip
 # the comment when a service is decommissioned, paused, or never deployed —
 # users still get a landing page explaining what it is and where to find it.
 #
@@ -35,35 +35,35 @@ sections:
     icon: fas fa-robot
     items:
       - title: Hermes Dashboard
-        url: https://hermes-dashboard.lan
+        url: https://hermes-dashboard.internal
         # url: https://existential.company/docs/ai/hermes
         icon: hl-dashy
         statusCheck: true
         description: Hermes Agent dashboard
 
       - title: Hermes Workspace
-        url: https://hermes-workspace.lan
+        url: https://hermes-workspace.internal
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true
         description: Hermes Workspace UI — swarms, terminal, kanban
 
       - title: Open WebUI
-        url: https://open-webui.lan
+        url: https://open-webui.internal
         # url: https://existential.company/docs/ai/open-webui
         icon: si-openai
         statusCheck: true
         description: Chat UI routed through hermes-agent
 
       - title: LibreChat
-        url: https://librechat.lan
+        url: https://librechat.internal
         # url: https://existential.company/docs/ai/librechat
         icon: fas fa-comments
         statusCheck: true
         description: Multi-provider chat with RAG
 
       - title: LightRAG
-        url: https://lightrag.lan
+        url: https://lightrag.internal
         # url: https://existential.company/docs/ai/lightrag
         icon: fas fa-diagram-project
         statusCheck: true
@@ -74,42 +74,42 @@ sections:
     icon: fas fa-list-check
     items:
       - title: Vikunja
-        url: https://vikunja.lan
+        url: https://vikunja.internal
         # url: https://existential.company/docs/services/vikunja
         icon: si-vikunja
         statusCheck: true
         description: Task management
 
       - title: Mealie
-        url: https://mealie.lan
+        url: https://mealie.internal
         # url: https://existential.company/docs/services/mealie
         icon: fas fa-utensils
         statusCheck: true
         description: Recipe management
 
       - title: Actual Budget
-        url: https://actual-budget.lan
+        url: https://actual-budget.internal
         # url: https://existential.company/docs/services/actual-budget
         icon: fas fa-money-bill-wave
         statusCheck: true
         description: Personal finance
 
       - title: NocoDB
-        url: https://nocodb.lan
+        url: https://nocodb.internal
         # url: https://existential.company/docs/services/nocodb
         icon: fas fa-database
         statusCheck: true
         description: Airtable-style database UI
 
       - title: Ntfy
-        url: https://ntfy.lan
+        url: https://ntfy.internal
         # url: https://existential.company/docs/services/ntfy
         icon: si-ntfy
         statusCheck: true
         description: Push notifications
 
       - title: Immich
-        url: https://immich.lan
+        url: https://immich.internal
         # url: https://existential.company/docs/services/immich
         icon: si-immich
         statusCheck: true
@@ -119,21 +119,21 @@ sections:
     icon: fas fa-toolbox
     items:
       - title: IT Tools
-        url: https://it-tools.lan
+        url: https://it-tools.internal
         # url: https://existential.company/docs/services/it-tools
         icon: hl-it-tools
         statusCheck: true
         description: Developer utility toolkit
 
       - title: Lowcoder
-        url: https://lowcoder.lan
+        url: https://lowcoder.internal
         # url: https://existential.company/docs/services/lowcoder
         icon: fas fa-file-code
         statusCheck: true
         description: Low-code app builder
 
       - title: Appsmith
-        url: https://appsmith.lan
+        url: https://appsmith.internal
         # url: https://existential.company/docs/services/appsmith
         icon: si-appsmith
         statusCheck: true
@@ -144,35 +144,35 @@ sections:
     icon: fas fa-server
     items:
       - title: Portainer
-        url: https://portainer.lan
+        url: https://portainer.internal
         # url: https://existential.company/docs/hosting/portainer
         icon: hl-portainer
         statusCheck: true
         description: Container management
 
       - title: Pi-hole
-        url: https://pihole.lan
+        url: https://pihole.internal
         # url: https://existential.company/docs/hosting/pihole
         icon: si-pihole
         statusCheck: true
         description: DNS + ad-blocking
 
       - title: Grafana
-        url: https://grafana.lan
+        url: https://grafana.internal
         # url: https://existential.company/docs/hosting/grafana
         icon: hl-grafana
         statusCheck: true
         description: Dashboards
 
       - title: Prometheus
-        url: https://prometheus.lan
+        url: https://prometheus.internal
         # url: https://existential.company/docs/hosting/prometheus
         icon: hl-prometheus
         statusCheck: true
         description: Metrics scraper
 
       - title: Uptime Kuma
-        url: https://uptime-kuma.lan
+        url: https://uptime-kuma.internal
         # url: https://existential.company/docs/hosting/uptime-kuma
         icon: hl-uptime-kuma
         statusCheck: true
@@ -183,21 +183,21 @@ sections:
     icon: fas fa-hard-drive
     items:
       - title: Nextcloud
-        url: https://nextcloud.lan
+        url: https://nextcloud.internal
         # url: https://existential.company/docs/nas/nextcloud
         icon: si-nextcloud
         statusCheck: true
         description: File sync + collaboration
 
       - title: MinIO Console
-        url: https://minio.lan
+        url: https://minio.internal
         # url: https://existential.company/docs/nas/minio
         icon: si-minio
         statusCheck: true
         description: S3-compatible object store (web console)
 
       - title: Collabora
-        url: https://collabora.lan
+        url: https://collabora.internal
         # url: https://existential.company/docs/nas/collabora
         icon: si-collaboraonline
         statusCheck: true

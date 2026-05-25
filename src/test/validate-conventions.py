@@ -11,14 +11,14 @@ Conventions checked:
   2. Every container_name starts with its folder's slug — so `docker ps`
      makes the service-membership obvious. (e.g., promtail in hosting/loki
      must be `loki-promtail`, not `promtail`.)
-  3. Every piHole record (<slug>.lan) has a matching Caddy reverse_proxy
+  3. Every piHole record (<slug>.internal) has a matching Caddy reverse_proxy
      block where the backend matches `<container_name>:<internal_port>`.
   4. Every piHole record has matching LOCAL active line + PEER commented line.
   5. Every Caddy block has a matching piHole record.
   6. Every dashy item points at a slug that has a piHole record.
 
 Note: container-to-container URLs in .env.example files use Docker service
-DNS (`http://<container>:<port>`) and are NOT validated here. The `.lan`
+DNS (`http://<container>:<port>`) and are NOT validated here. The `.internal`
 convention is for browser/cross-machine traffic only.
 
 Exit status: 0 if everything passes, 1 otherwise.
@@ -45,16 +45,16 @@ PORT_LINE_RE = re.compile(
     r'^\s*-\s*"?(?:\${[^}]+}|\d+):(\d+)(?:/(?:tcp|udp))?"?\s*(?:#.*)?$'
 )
 # Caddy reverse_proxy line — accepts http:// prefix, port, optional braces.
-CADDY_BLOCK_HEADER_RE = re.compile(r"^([\w.-]+)\.lan\s*\{")
+CADDY_BLOCK_HEADER_RE = re.compile(r"^([\w.-]+)\.internal\s*\{")
 CADDY_REVERSE_PROXY_RE = re.compile(
     r"^\s*reverse_proxy\s+(?:https?://)?([\w-]+):(\d+|\{[^}]+\})"
 )
-# piHole record line — `<IP> <slug>.lan` (optionally commented).
+# piHole record line — `<IP> <slug>.internal` (optionally commented).
 PIHOLE_RECORD_RE = re.compile(
-    r"^\s*(?P<comment>#\s*)?\$\{(?P<var>EXIST_DEFAULT_\w+_HOST_IP)\}\s+(?P<slug>[\w-]+)\.lan\s*$"
+    r"^\s*(?P<comment>#\s*)?\$\{(?P<var>EXIST_DEFAULT_\w+_HOST_IP)\}\s+(?P<slug>[\w-]+)\.internal\s*$"
 )
-# Dashy url line — `url: https://<slug>.lan`.
-DASHY_URL_RE = re.compile(r"^\s*url:\s*https?://([\w-]+)\.lan/?\s*$")
+# Dashy url line — `url: https://<slug>.internal`.
+DASHY_URL_RE = re.compile(r"^\s*url:\s*https?://([\w-]+)\.internal/?\s*$")
 @dataclass
 class ServiceDecl:
     slug: str
@@ -223,12 +223,12 @@ def main() -> int:
     for slug in pihole_slugs - caddy_slugs:
         errors.append(
             f"hosting/pihole/docker-compose.yml.example: "
-            f"slug '{slug}.lan' has a DNS record but no Caddy reverse_proxy block"
+            f"slug '{slug}.internal' has a DNS record but no Caddy reverse_proxy block"
         )
     for slug in caddy_slugs - pihole_slugs:
         errors.append(
             f"hosting/caddy/Caddyfile.example: "
-            f"slug '{slug}.lan' has a Caddy block but no piHole record"
+            f"slug '{slug}.internal' has a Caddy block but no piHole record"
         )
 
     # ── (5) Caddy backend matches an actual container ──────────────────────
@@ -240,7 +240,7 @@ def main() -> int:
         if decl is None:
             errors.append(
                 f"hosting/caddy/Caddyfile.example:{block.line}: "
-                f"'{slug}.lan' proxies to '{block.backend_container}' — "
+                f"'{slug}.internal' proxies to '{block.backend_container}' — "
                 f"no service compose declares that container_name"
             )
             continue
@@ -254,7 +254,7 @@ def main() -> int:
         if decl.ports and port_int not in container_to_ports[block.backend_container]:
             warnings.append(
                 f"hosting/caddy/Caddyfile.example:{block.line}: "
-                f"'{slug}.lan' → {block.backend_container}:{port_int}, but "
+                f"'{slug}.internal' → {block.backend_container}:{port_int}, but "
                 f"the compose file only publishes "
                 f"{sorted(container_to_ports[block.backend_container])} "
                 f"({decl.file.relative_to(REPO_ROOT)}:{decl.line}). "
@@ -266,7 +266,7 @@ def main() -> int:
         if item.slug not in pihole_slugs:
             errors.append(
                 f"services/dashy/dashy-conf.yml.example:{item.line}: "
-                f"item references '{item.slug}.lan' but no piHole record exists"
+                f"item references '{item.slug}.internal' but no piHole record exists"
             )
 
     # ── Report ─────────────────────────────────────────────────────────────

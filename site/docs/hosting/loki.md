@@ -16,7 +16,7 @@ Two containers work together:
 | Service | Role |
 |---|---|
 | `loki` | Stores and indexes logs (port 3100 internal) |
-| `promtail` | Tails log files and ships them to Loki |
+| `loki-promtail` | Tails log files and ships them to Loki |
 
 Promtail is mounted read-only on `automations/runs/` and watches `**/routine.log`. It parses the path to extract labels from the run ID format (`D<date>-<time>-<routine>-<seq>`):
 

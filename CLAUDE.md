@@ -144,11 +144,34 @@ used. Used today for `EXIST_DEFAULT_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
 
 ---
 
+## Container naming convention
+
+Every container in a service's compose file must be prefixed with the
+service's slug (the folder name). For a service in `hosting/loki/`:
+
+- `loki` (the primary container — slug-only is fine)
+- `loki-promtail` ✓
+- `promtail` ✗ — opaque, doesn't say which service it belongs to
+
+Reason: reading `docker ps` should make it immediately clear which service
+each container belongs to. No having to look up what "pushgateway" or
+"promtail" is.
+
+The same rule applies to support filenames where the container's identity
+is part of the name (e.g., `loki-promtail-config.yaml`, not
+`promtail-config.yaml`). Files specific to the primary service can use the
+slug alone (e.g., `loki-config.yaml`).
+
+The validation script (`./existential.sh validate conventions`) catches
+container names that don't start with their folder's slug.
+
+---
+
 ## Networking convention
 
 Two layers — pick the right one for the call site.
 
-**Browser / cross-machine traffic → `https://<slug>.lan`** (the slug matches
+**Browser / cross-machine traffic → `https://<slug>.internal`** (the slug matches
 the service's `container_name`, lowercase-hyphenated):
 
 - **piHole** (`hosting/pihole/docker-compose.yml`) holds a record per slug,

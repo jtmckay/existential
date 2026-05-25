@@ -17,10 +17,10 @@ Model Context Protocol server that exposes a headless Chromium browser to any MC
 
 ## Usage
 
-Point any MCP-compatible client (Claude, Hermes, etc.) at `http://mcp:8931` over the `exist` network. The server exposes browser control as MCP tools the model can call directly.
+Point any MCP-compatible client (Claude, Hermes, etc.) at `http://mcp-playwright:8931` over the `exist` network. The server exposes browser control as MCP tools the model can call directly.
 
 ## Debugging
 
 ```bash
-docker compose logs playwright-mcp
+docker compose logs mcp-playwright
 ```
