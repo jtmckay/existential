@@ -13,7 +13,6 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/repo}"
 ROOT_ENV="${REPO_DIR}/.env"
-DECREE_ENV="${REPO_DIR}/services/decree/.env"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,8 +51,8 @@ test_ntfy() {
 CURRENT_URL=""
 CURRENT_TOKEN=""
 if [ -f "$ROOT_ENV" ]; then
-    CURRENT_URL=$(env_get "$ROOT_ENV" "EXIST_DEFAULT_NTFY_URL")
-    CURRENT_TOKEN=$(env_get "$ROOT_ENV" "EXIST_DEFAULT_NTFY_TOKEN")
+    CURRENT_URL=$(env_get "$ROOT_ENV" "EXIST_NTFY_URL")
+    CURRENT_TOKEN=$(env_get "$ROOT_ENV" "EXIST_NTFY_TOKEN")
 fi
 
 # ── Intro ─────────────────────────────────────────────────────────────────────
@@ -136,20 +135,15 @@ fi
 echo ""
 
 if [ -f "$ROOT_ENV" ]; then
-    env_set "$ROOT_ENV" "EXIST_DEFAULT_NTFY_URL"   "$NTFY_URL"
-    env_set "$ROOT_ENV" "EXIST_DEFAULT_NTFY_TOKEN" "$NTFY_TOKEN"
+    env_set "$ROOT_ENV" "EXIST_NTFY_URL"   "$NTFY_URL"
+    env_set "$ROOT_ENV" "EXIST_NTFY_TOKEN" "$NTFY_TOKEN"
     echo "  Updated ${ROOT_ENV}"
 else
     echo "  Warning: ${ROOT_ENV} not found — skipping root .env update."
 fi
 
-if [ -f "$DECREE_ENV" ]; then
-    env_set "$DECREE_ENV" "NTFY_URL"   "$NTFY_URL"
-    env_set "$DECREE_ENV" "NTFY_TOKEN" "$NTFY_TOKEN"
-    echo "  Updated ${DECREE_ENV}"
-else
-    echo "  Warning: ${DECREE_ENV} not found — skipping decree .env update."
-fi
+# services/decree/docker-compose.yml.example now reads EXIST_NTFY_* from the
+# master .env directly; no per-service copy in services/decree/.env needed.
 
 _CONFIG="${DECREE_DIR:-/work/.decree}/config.yml"
 if [ -f "$_CONFIG" ]; then

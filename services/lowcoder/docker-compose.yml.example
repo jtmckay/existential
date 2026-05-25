@@ -176,20 +176,20 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/lowcoder_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_data"
   lowcoder_assets:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/lowcoder_assets"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_assets"
   lowcoder_mongo:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/lowcoder_mongo"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_mongo"
 
 networks:
   exist:

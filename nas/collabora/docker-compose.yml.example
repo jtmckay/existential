@@ -7,7 +7,7 @@ services:
     environment:
       - username=${COLLABORA_USERNAME}
       - password=${COLLABORA_PASSWORD} 
-      - domain=${NEXTCLOUD_DOMAIN} # nextcloud.internal
+      - domain=${COLLABORA_NEXTCLOUD_DOMAIN} # nextcloud.internal
       - server_name=${COLLABORA_DOMAIN} # collabora.internal
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true

@@ -146,10 +146,10 @@ setup_vikunja_user() {
 
 # Function to check if required environment variables are set
 check_vikunja_env() {
-    # Use service-specific variables first, then fallback to EXIST_DEFAULT_* variables
-    VIKUNJA_DEFAULT_USERNAME="${VIKUNJA_DEFAULT_USERNAME:-${EXIST_DEFAULT_USERNAME:-admin}}"
-    VIKUNJA_DEFAULT_PASSWORD="${VIKUNJA_DEFAULT_PASSWORD:-${EXIST_DEFAULT_PASSWORD:-changeme}}"
-    VIKUNJA_DEFAULT_EMAIL="${VIKUNJA_DEFAULT_EMAIL:-${EXIST_DEFAULT_EMAIL:-admin@example.com}}"
+    # Use service-specific variables first, then fallback to EXIST_* variables
+    VIKUNJA_DEFAULT_USERNAME="${VIKUNJA_DEFAULT_USERNAME:-${EXIST_USERNAME:-admin}}"
+    VIKUNJA_DEFAULT_PASSWORD="${VIKUNJA_DEFAULT_PASSWORD:-${EXIST_PASSWORD:-changeme}}"
+    VIKUNJA_DEFAULT_EMAIL="${VIKUNJA_DEFAULT_EMAIL:-${EXIST_EMAIL:-admin@example.com}}"
     
     echo "Using Vikunja credentials:"
     echo "  Username: $VIKUNJA_DEFAULT_USERNAME"

@@ -33,11 +33,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SKIP_DIRS = {"graveyard", "node_modules", ".git", "site"}
 
-# Match a placeholder anywhere in a line.
-PLACEHOLDER_RE = re.compile(
-    r"(EXIST_24_CHAR_PASSWORD|EXIST_32_CHAR_HEX_KEY|EXIST_64_CHAR_HEX_KEY"
-    r"|EXIST_TIMESTAMP|EXIST_UUID|EXIST_CLI|EXIST_DEFAULT_[A-Z0-9_]+)"
-)
+# Match any EXIST_* placeholder anywhere in a line. Includes the generators
+# (EXIST_CLI, EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY, EXIST_64_CHAR_HEX_KEY,
+# EXIST_TIMESTAMP, EXIST_UUID) AND lookups from .env.exist (EXIST_FOO, EXIST_IS_*).
+PLACEHOLDER_RE = re.compile(r"(EXIST_[A-Z0-9_]+)")
 
 # Extract the key (LHS) of an env-style or YAML-style assignment.
 ENV_KEY_RE = re.compile(r"^([A-Z_][A-Z0-9_]*)=")

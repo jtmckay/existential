@@ -42,14 +42,14 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/vikunja_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/vikunja_data"
   vikunja_db_data:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/vikunja_db_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/vikunja_db_data"
 
 networks:
   exist:

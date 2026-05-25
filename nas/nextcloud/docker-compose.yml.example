@@ -14,7 +14,7 @@ services:
       - ./servername.conf:/etc/apache2/conf-enabled/servername.conf
     environment:
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN} # Unfortunately most of these values are only used on the first run.
-      - TRUSTED_PROXIES=${TRUSTED_PROXIES} # To update values, you will need to manually change config/config.php.
+      - TRUSTED_PROXIES=${NEXTCLOUD_TRUSTED_PROXIES} # To update values, you will need to manually change config/config.php.
       - OVERWRITEHOST=${NEXTCLOUD_DOMAIN} # Or nuke your Nextcloud volumes and start over.
       - OVERWRITECLIURL=${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_DOMAIN}
       - OVERWRITEPROTOCOL=${NEXTCLOUD_PROTOCOL}
@@ -26,7 +26,7 @@ services:
       - MYSQL_HOST=nextcloud-db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_HOST_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}
 
   # Database for Nextcloud
   nextcloud-db:
@@ -37,7 +37,7 @@ services:
       - exist
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - nextcloudsql_data:/var/lib/mysql
+      - nextcloud_sql_data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${NEXTCLOUD_ROOT_PASSWORD}
       - MYSQL_PASSWORD=${NEXTCLOUD_SQL_PASSWORD}
@@ -49,14 +49,14 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/nextcloud_data"
-  nextcloudsql_data:
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/nextcloud_data"
+  nextcloud_sql_data:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/nextcloudsql_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/nextcloud_sql_data"
 
 networks:
   exist:

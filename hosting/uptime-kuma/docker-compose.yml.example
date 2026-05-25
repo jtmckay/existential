@@ -9,8 +9,8 @@ services:
     ports:
       - 43001:3001
     environment:
-      - ADMIN_USERNAME=${KUMA_ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${KUMA_ADMIN_PASSWORD}
+      - ADMIN_USERNAME=${UPTIME_KUMA_ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${UPTIME_KUMA_ADMIN_PASSWORD}
     volumes:
       - uptime_kuma_data:/app/data
 
@@ -19,8 +19,8 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/uptime_kuma_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/uptime_kuma_data"
 
 networks:
   exist:

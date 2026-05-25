@@ -33,9 +33,9 @@ This will:
 Edit `.env.exist` and set services to `true` or `false`:
 
 ```bash
-EXIST_ENABLE_AI_OLLAMA=true
-EXIST_ENABLE_SERVICES_DECREE=true
-EXIST_ENABLE_SERVICES_NOCODB=false
+EXIST_IS_AI_OLLAMA=true
+EXIST_IS_SERVICES_DECREE=true
+EXIST_IS_SERVICES_NOCODB=false
 ```
 
 Then regenerate the compose file (already done during initial setup above):

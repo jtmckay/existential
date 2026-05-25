@@ -94,7 +94,7 @@ src/
 
 1. Finds all `.example` files and creates counterparts (skips existing; dirs first, then files)
 2. Replaces `EXIST_` placeholders interactively (`EXIST_CLI`) or automatically — reads
-   `EXIST_DEFAULT_*` values from root `.env.exist`
+   `EXIST_*` values from root `.env.exist`
 3. Merges enabled services into a unified `docker-compose.yml` via the existential-adhoc container
 4. Generates a master `.env` at the repo root by merging `.env.exist` with all enabled
    service `.env` files (auto-loaded by Docker Compose for variable substitution)
@@ -135,12 +135,49 @@ docker compose up -d
 | `EXIST_64_CHAR_HEX_KEY` | Generates a unique 64-character hex key |
 | `EXIST_TIMESTAMP` | Current timestamp (`YYYYMMDD_HHMMSS`) |
 | `EXIST_UUID` | UUID |
-| `EXIST_DEFAULT_*` | Value of matching variable from root `.env.exist` |
+| `EXIST_*` | Value of matching variable from root `.env.exist` |
 
 An `EXIST_CLI` prompt can opt into a fallback by adding a comment immediately
-above the line: `# DEFAULT_FROM: EXIST_DEFAULT_FOO`. If the user enters blank,
-the value of `EXIST_DEFAULT_FOO` (already written earlier in the same file) is
-used. Used today for `EXIST_DEFAULT_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
+above the line: `# DEFAULT_FROM: EXIST_FOO`. If the user enters blank,
+the value of `EXIST_FOO` (already written earlier in the same file) is
+used. Used today for `EXIST_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
+
+---
+
+## Env var naming convention
+
+**Top-level (`.env.exist.example`):**
+- Every key starts with `EXIST_`. The legacy `EXIST_DEFAULT_*` and
+  `EXIST_ENABLE_*` prefixes are no longer accepted.
+- Service-enablement flags use `EXIST_IS_<CATEGORY>_<SLUG>=true|false`
+  (e.g., `EXIST_IS_AI_HERMES`, `EXIST_IS_SERVICES_MEALIE`).
+- Shared cross-service values live here and are referenced as `${EXIST_FOO}`
+  in service compose files — no need to copy them into each service's `.env`.
+
+**Per-service (`<cat>/<slug>/.env.example`):**
+- Every key starts with `<SLUG>_` (folder name uppercased; hyphens → underscores).
+  `actual-budget` → `ACTUAL_BUDGET_`, `open-webui` → `OPEN_WEBUI_`.
+- Image-required names (`MYSQL_USER`, `GF_*`, `LLM_BINDING`, etc.) get mapped
+  in `docker-compose.yml.example`: `MYSQL_USER: ${MEALIE_MYSQL_USER}`.
+- Files copied wholesale from an upstream project that uses `env_file:` (e.g.,
+  LibreChat, Immich, LightRAG) can opt out with a top-of-file marker:
+  `# convention-exempt: upstream-env`.
+
+Run `./existential.sh validate conventions` to check both rules.
+
+---
+
+## NFS volume convention
+
+- A volume that declares `driver_opts: type: nfs` must also set `o:` (with
+  `addr=…`) and `device:` — half-configured volumes silently fall back to
+  plain local storage.
+- Conventional name: `<service>_<purpose>_data` (snake_case), matching the
+  trailing segment of `device:`. E.g., `mealie_pg_data`, `vikunja_db_data`.
+- Service compose files reference TrueNAS via `${EXIST_TRUENAS_SERVER_ADDRESS}`
+  and `${EXIST_TRUENAS_CONTAINER_PATH}` directly — no per-service copy needed.
+- Validation runs against the generated master `docker-compose.yml`, not the
+  per-service templates.
 
 ---
 
@@ -175,14 +212,14 @@ Two layers — pick the right one for the call site.
 the service's `container_name`, lowercase-hyphenated):
 
 - **piHole** (`hosting/pihole/docker-compose.yml`) holds a record per slug,
-  active line pointing at `EXIST_DEFAULT_LOCAL_HOST_IP` and a commented PEER
+  active line pointing at `EXIST_LOCAL_HOST_IP` and a commented PEER
   alternative. Flip the comment to migrate a service between machines.
 - **Caddy** (`hosting/caddy/Caddyfile`) fronts every slug with `tls internal`
   and reverse-proxies to `<container>:<port>`. Browsers see a cert from
   Caddy's internal CA — install the root once per device for green locks.
 - **Dashy** (`services/dashy/dashy-conf.yml`) links every navigable slug.
-- **`.env.exist`** holds `EXIST_DEFAULT_LOCAL_HOST_IP` (this machine) and
-  `EXIST_DEFAULT_PEER_HOST_IP` (the other machine; defaults to LOCAL).
+- **`.env.exist`** holds `EXIST_LOCAL_HOST_IP` (this machine) and
+  `EXIST_PEER_HOST_IP` (the other machine; defaults to LOCAL).
 
 **Container-to-container traffic → `http://<container>:<port>`** (Docker's
 built-in service DNS on the `exist` network):
@@ -204,14 +241,14 @@ the three are in sync.
 
 ## Service Enablement
 
-Toggle services via `EXIST_ENABLE_*=true/false` in the root `.env.exist`, then:
+Toggle services via `EXIST_IS_*=true/false` in the root `.env.exist`, then:
 
 ```bash
 ./existential.sh compose
 ```
 
 `src/generate-compose.py` runs in the `existential-adhoc` container. It reads
-`EXIST_ENABLE_*`, discovers `docker-compose.yml` files at depth 2, adjusts relative
+`EXIST_IS_*`, discovers `docker-compose.yml` files at depth 2, adjusts relative
 paths from the repo root, and merges services/volumes/networks. The previous
 `docker-compose.yml` is archived as `docker-compose-<timestamp_ms>.yml` before writing.
 

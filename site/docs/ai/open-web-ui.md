@@ -50,7 +50,7 @@ WEBUI_ADMIN_EMAIL
 WEBUI_ADMIN_PASSWORD
 ```
 
-These default to `EXIST_DEFAULT_*` values from `.env.exist`.
+These default to `EXIST_*` values from `.env.exist`.
 
 ## Debugging
 

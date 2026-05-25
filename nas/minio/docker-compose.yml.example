@@ -19,7 +19,7 @@ services:
       - MINIO_SERVER_URL=${MINIO_SERVER_URL}
       - MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
       - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
-      - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${DECREE_MINIO_WEBHOOK_AUTH_TOKEN}
+      - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${MINIO_DECREE_WEBHOOK_AUTH_TOKEN}
     command: server /data --console-address :9001
 
 volumes:
@@ -27,8 +27,8 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_PATH}"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${MINIO_TRUENAS_PATH}"
 
 networks:
   exist:

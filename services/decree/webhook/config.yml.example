@@ -40,7 +40,7 @@ endpoints:
   # To add a new file type: copy automations/lib/file-processors/example.sh,
   # set PATTERN="<regex>" (matched against the full rclone path), and implement.
   - path: /minio
-    secret: EXIST_DEFAULT_DECREE_MINIO_WEBHOOK_AUTH_TOKEN
+    secret: EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN
     frontmatter:
       routine: minio-router
       rclone_src: nextcloud # Name of the remote in rclone config

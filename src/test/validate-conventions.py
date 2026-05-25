@@ -16,6 +16,20 @@ Conventions checked:
   4. Every piHole record has matching LOCAL active line + PEER commented line.
   5. Every Caddy block has a matching piHole record.
   6. Every dashy item points at a slug that has a piHole record.
+  7. Every key in a service's `.env.example` starts with `<SLUG>_` where
+     SLUG is the folder name uppercased (hyphens → underscores). Forces
+     contributors to make the owning service obvious; image-required names
+     (MYSQL_USER, POSTGRES_*, etc.) get mapped in docker-compose.yml.example.
+     A file can opt out with a `# convention-exempt: upstream-env` marker
+     in the first 5 lines — reserved for wholesale-copied upstream env
+     templates loaded via `env_file:` (LibreChat, Immich).
+  8. Every key in `.env.exist.example` starts with `EXIST_`, and the legacy
+     `EXIST_DEFAULT_*` / `EXIST_ENABLE_*` prefixes are not used (use plain
+     `EXIST_*` or `EXIST_IS_*` for service-enablement flags).
+  9. Every volume in the master `docker-compose.yml` that declares
+     `driver_opts: type: nfs` has the required NFS fields (`o: addr=…` and
+     `device:`). Catches volumes that claim NFS but would actually fall back
+     to a local Docker volume.
 
 Note: container-to-container URLs in .env.example files use Docker service
 DNS (`http://<container>:<port>`) and are NOT validated here. The `.internal`
@@ -35,8 +49,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PIHOLE = REPO_ROOT / "hosting/pihole/docker-compose.yml.example"
 CADDY = REPO_ROOT / "hosting/caddy/Caddyfile.example"
 DASHY = REPO_ROOT / "services/dashy/dashy-conf.yml.example"
+ENV_EXIST_EXAMPLE = REPO_ROOT / ".env.exist.example"
+MASTER_COMPOSE = REPO_ROOT / "docker-compose.yml"
 
 CATEGORY_DIRS = ("ai", "services", "hosting", "nas")
+
+# KEY=VALUE line in a dotenv file (key only — value is whatever follows `=`).
+ENV_KEY_LINE_RE = re.compile(r"^([A-Z_][A-Z0-9_]*)=")
 
 # Match `container_name: foo-bar` at any indent.
 CONTAINER_NAME_RE = re.compile(r"^\s*container_name:\s*([\w-]+)\s*$")
@@ -51,7 +70,7 @@ CADDY_REVERSE_PROXY_RE = re.compile(
 )
 # piHole record line — `<IP> <slug>.internal` (optionally commented).
 PIHOLE_RECORD_RE = re.compile(
-    r"^\s*(?P<comment>#\s*)?\$\{(?P<var>EXIST_DEFAULT_\w+_HOST_IP)\}\s+(?P<slug>[\w-]+)\.internal\s*$"
+    r"^\s*(?P<comment>#\s*)?\$\{(?P<var>EXIST_(?:LOCAL|PEER)_HOST_IP)\}\s+(?P<slug>[\w-]+)\.internal\s*$"
 )
 # Dashy url line — `url: https://<slug>.internal`.
 DASHY_URL_RE = re.compile(r"^\s*url:\s*https?://([\w-]+)\.internal/?\s*$")
@@ -126,9 +145,9 @@ def parse_pihole() -> dict[str, PiHoleRecord]:
         var = m.group("var")
         commented = m.group("comment") is not None
         rec = records.setdefault(slug, PiHoleRecord(slug=slug, line=lineno))
-        if var == "EXIST_DEFAULT_LOCAL_HOST_IP" and not commented:
+        if var == "EXIST_LOCAL_HOST_IP" and not commented:
             rec.has_local = True
-        if var == "EXIST_DEFAULT_PEER_HOST_IP" and commented:
+        if var == "EXIST_PEER_HOST_IP" and commented:
             rec.has_peer_commented = True
     return records
 
@@ -168,6 +187,138 @@ def parse_dashy() -> list[DashyItem]:
         if m := DASHY_URL_RE.match(raw):
             items.append(DashyItem(slug=m.group(1), line=lineno))
     return items
+
+
+def folder_slug_to_env_prefix(slug: str) -> str:
+    """Convert a folder slug (lowercase-hyphenated) into the env-var prefix
+    contributors must use in that service's `.env.example`.
+
+    `actual-budget` → `ACTUAL_BUDGET_`
+    `open-webui`    → `OPEN_WEBUI_`
+    `hermes`        → `HERMES_`
+    """
+    return slug.replace("-", "_").upper() + "_"
+
+
+def env_file_keys(path: Path) -> list[tuple[int, str]]:
+    """Return [(lineno, key)] for every KEY=VALUE line in a dotenv file."""
+    out: list[tuple[int, str]] = []
+    if not path.exists():
+        return out
+    for lineno, raw in enumerate(path.read_text().splitlines(), start=1):
+        stripped = raw.lstrip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if m := ENV_KEY_LINE_RE.match(raw):
+            out.append((lineno, m.group(1)))
+    return out
+
+
+def check_service_env_prefixes() -> list[str]:
+    """Rule 7: every key in `<cat>/<slug>/.env.example` starts with the
+    folder's slug uppercased. Excludes the top-level `.env.exist.example`.
+
+    A file can opt out by including a top-of-file marker:
+        # convention-exempt: upstream-env
+    Use sparingly — only for env files copied wholesale from upstream
+    projects (e.g., LibreChat, Immich) that load via `env_file:` and have
+    too many keys to map individually in docker-compose.yml.example.
+    """
+    errors: list[str] = []
+    for cat in CATEGORY_DIRS:
+        for env_file in (REPO_ROOT / cat).glob("*/.env.example"):
+            try:
+                head = env_file.read_text().splitlines()[:5]
+            except OSError:
+                continue
+            if any("convention-exempt: upstream-env" in line for line in head):
+                continue
+            slug = env_file.parent.name
+            prefix = folder_slug_to_env_prefix(slug)
+            for lineno, key in env_file_keys(env_file):
+                if not key.startswith(prefix):
+                    errors.append(
+                        f"{env_file.relative_to(REPO_ROOT)}:{lineno}: "
+                        f"key '{key}' must start with '{prefix}' "
+                        f"(map image-required names like MYSQL_USER in docker-compose.yml.example instead)"
+                    )
+    return errors
+
+
+def check_top_level_env_keys() -> list[str]:
+    """Rule 8: every key in `.env.exist.example` starts with `EXIST_`, and
+    the legacy `EXIST_DEFAULT_*` / `EXIST_ENABLE_*` prefixes are forbidden."""
+    errors: list[str] = []
+    for lineno, key in env_file_keys(ENV_EXIST_EXAMPLE):
+        if not key.startswith("EXIST_"):
+            errors.append(
+                f".env.exist.example:{lineno}: "
+                f"key '{key}' must start with 'EXIST_'"
+            )
+            continue
+        if key.startswith("EXIST_DEFAULT_"):
+            new_key = "EXIST_" + key[len("EXIST_DEFAULT_"):]
+            errors.append(
+                f".env.exist.example:{lineno}: "
+                f"key '{key}' uses the legacy DEFAULT prefix — rename to '{new_key}'"
+            )
+        elif key.startswith("EXIST_ENABLE_"):
+            new_key = "EXIST_IS_" + key[len("EXIST_ENABLE_"):]
+            errors.append(
+                f".env.exist.example:{lineno}: "
+                f"key '{key}' uses the legacy ENABLE prefix — rename to '{new_key}'"
+            )
+    return errors
+
+
+def check_nfs_volumes() -> list[str]:
+    """Rule 9: every volume in the master `docker-compose.yml` that declares
+    `driver_opts: type: nfs` must have `o:` (with `addr=`) and `device:`.
+    Catches partially-configured volumes that would silently fall back to a
+    local Docker volume despite claiming NFS."""
+    errors: list[str] = []
+    if not MASTER_COMPOSE.exists():
+        # No master compose yet — skip silently. The check runs after
+        # `./existential.sh compose` has been executed at least once.
+        return errors
+    try:
+        import yaml
+    except ImportError:
+        errors.append(
+            "docker-compose.yml: PyYAML required to validate NFS volumes "
+            "(pip install pyyaml)"
+        )
+        return errors
+
+    try:
+        data = yaml.safe_load(MASTER_COMPOSE.read_text()) or {}
+    except yaml.YAMLError as e:
+        errors.append(f"docker-compose.yml: failed to parse — {e}")
+        return errors
+
+    volumes = data.get("volumes") or {}
+    for name, spec in volumes.items():
+        if not isinstance(spec, dict):
+            continue
+        opts = spec.get("driver_opts") or {}
+        if not isinstance(opts, dict):
+            continue
+        # We only care about volumes that claim NFS.
+        if str(opts.get("type", "")).lower() != "nfs":
+            continue
+        o_field = str(opts.get("o", ""))
+        device = str(opts.get("device", ""))
+        if "addr=" not in o_field:
+            errors.append(
+                f"docker-compose.yml: volume '{name}' has type: nfs but "
+                f"`o:` is missing `addr=…` — would fall back to a local volume"
+            )
+        if not device:
+            errors.append(
+                f"docker-compose.yml: volume '{name}' has type: nfs but "
+                f"`device:` is empty"
+            )
+    return errors
 
 
 def main() -> int:
@@ -268,6 +419,15 @@ def main() -> int:
                 f"services/dashy/dashy-conf.yml.example:{item.line}: "
                 f"item references '{item.slug}.internal' but no piHole record exists"
             )
+
+    # ── (7) Service env var keys start with `<SLUG>_` ──────────────────────
+    errors.extend(check_service_env_prefixes())
+
+    # ── (8) .env.exist.example keys start with EXIST_, no legacy prefixes ──
+    errors.extend(check_top_level_env_keys())
+
+    # ── (9) NFS-declared volumes in master compose are fully configured ────
+    errors.extend(check_nfs_volumes())
 
     # ── Report ─────────────────────────────────────────────────────────────
     print(f"Services declared:    {len(services)}")

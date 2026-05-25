@@ -2,7 +2,7 @@
 """
 Generate a unified docker-compose.yml from all enabled services.
 
-Reads EXIST_ENABLE_*=true entries from <repo>/.env, finds the corresponding
+Reads EXIST_IS_*=true entries from <repo>/.env, finds the corresponding
 docker-compose.yml for each enabled service, adjusts relative paths so they
 resolve correctly from the repo root, then merges everything into one file.
 
@@ -41,14 +41,14 @@ SKIP_DIRS = {'graveyard', '.git', 'site', 'src', 'automations', 'node_modules'}
 
 
 def service_env_key(rel_path: str) -> str:
-    """'ai/libreChat' → 'EXIST_ENABLE_AI_LIBRECHAT'"""
-    return 'EXIST_ENABLE_' + re.sub(r'[^A-Z0-9]', '_', rel_path.upper())
+    """'ai/libreChat' → 'EXIST_IS_AI_LIBRECHAT'"""
+    return 'EXIST_IS_' + re.sub(r'[^A-Z0-9]', '_', rel_path.upper())
 
 
 def find_enabled_services(repo_root: str, env: dict[str, str]) -> list[str]:
     """
     Walk depth-2 directories, find docker-compose.yml files, return paths
-    where the matching EXIST_ENABLE_* variable is 'true'.
+    where the matching EXIST_IS_* variable is 'true'.
     """
     enabled = []
     root = Path(repo_root)
@@ -219,7 +219,7 @@ def main() -> None:
     enabled = find_enabled_services(repo_root, env)
 
     if not enabled:
-        print('No services enabled — set EXIST_ENABLE_*=true in .env', file=sys.stderr)
+        print('No services enabled — set EXIST_IS_*=true in .env', file=sys.stderr)
         sys.exit(0)
 
     print(f"Enabled ({len(enabled)}): {', '.join(enabled)}", file=sys.stderr)

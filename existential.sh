@@ -83,10 +83,12 @@ PYEOF
 replace_placeholders() {
     local file="$1"
 
-    # EXIST_DEFAULT_* — values from root .env.exist
+    # EXIST_* — values from root .env.exist (look-up placeholders). Excludes
+    # the dynamic generators (EXIST_CLI, EXIST_24_CHAR_PASSWORD, etc.) which
+    # aren't keys in .env.exist anyway.
     if [[ -f "$SCRIPT_DIR/.env.exist" ]]; then
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
-            [[ "$key" =~ ^EXIST_DEFAULT_ ]] || continue
+            [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
             _sed "s|${key}|${value}|g" "$file"
         done < "$SCRIPT_DIR/.env.exist"
@@ -120,8 +122,8 @@ replace_placeholders() {
     done
 
     # EXIST_CLI — interactive, show surrounding comment context.
-    # If the context contains `# DEFAULT_FROM: EXIST_DEFAULT_FOO`, a blank entry
-    # falls back to the value of EXIST_DEFAULT_FOO already written in this file.
+    # If the context contains `# DEFAULT_FROM: EXIST_FOO`, a blank entry
+    # falls back to the value of EXIST_FOO already written in this file.
     while grep -q "EXIST_CLI" "$file" 2>/dev/null; do
         local match line_content start context escaped default_from default_val
         match=$(grep -n "EXIST_CLI" "$file" | head -1)
@@ -195,7 +197,7 @@ process_examples() {
         replace_placeholders "$dst"
         if [[ "$dst" == */docker-compose.yml ]] && grep -q 'TRUENAS' "$dst" 2>/dev/null; then
             local truenas_addr=""
-            truenas_addr=$(grep '^EXIST_DEFAULT_TRUENAS_SERVER_ADDRESS=' "$SCRIPT_DIR/.env.exist" 2>/dev/null | cut -d= -f2-)
+            truenas_addr=$(grep '^EXIST_TRUENAS_SERVER_ADDRESS=' "$SCRIPT_DIR/.env.exist" 2>/dev/null | cut -d= -f2-)
             if [[ -z "$truenas_addr" || "$truenas_addr" == "EXIST_CLI" ]]; then
                 _comment_out_truenas_volumes "$dst"
                 echo "  note: TrueNAS not configured — NFS volumes commented out in ${dst#"$SCRIPT_DIR/"}"

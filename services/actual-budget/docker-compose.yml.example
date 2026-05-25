@@ -8,19 +8,19 @@ services:
     ports:
       - '45006:5006'
     volumes:
-      - actual_data:/data
+      - actual_budget_data:/data
     environment:
       - ACTUAL_BUDGET_PASSWORD=${ACTUAL_BUDGET_PASSWORD}
     #   - ACTUAL_BUDGET_HTTPS_KEY=/data/key.key # Uncomment and provide path if using HTTPS
     #   - ACTUAL_BUDGET_HTTPS_CERT=/data/cert.crt # Uncomment and provide path if using HTTPS
 
 volumes:
-  actual_data:
+  actual_budget_data:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${TRUENAS_CONTAINER_PATH}/actual_data"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/actual_budget_data"
 
 networks:
   exist:
