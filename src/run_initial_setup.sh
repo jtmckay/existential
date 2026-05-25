@@ -10,8 +10,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Function to check if a service is enabled
 is_service_enabled() {
     local service_name="$1"
-    # Use the correct EXIST_ENABLE_* pattern to match service_enablement.sh
-    local var_name="EXIST_ENABLE_${service_name}"
+    # Use the correct EXIST_IS_* pattern to match service_enablement.sh
+    local var_name="EXIST_IS_${service_name}"
     local enabled_value="${!var_name}"
     
     if [ "$enabled_value" = "true" ] || [ "$enabled_value" = "1" ] || [ "$enabled_value" = "yes" ]; then
@@ -52,9 +52,9 @@ setup_vikunja() {
     fi
     
     # Set fallback environment variables for Vikunja
-    VIKUNJA_DEFAULT_USERNAME="${VIKUNJA_DEFAULT_USERNAME:-${EXIST_DEFAULT_USERNAME:-admin}}"
-    VIKUNJA_DEFAULT_PASSWORD="${VIKUNJA_DEFAULT_PASSWORD:-${EXIST_DEFAULT_PASSWORD:-changeme}}"
-    VIKUNJA_DEFAULT_EMAIL="${VIKUNJA_DEFAULT_EMAIL:-${EXIST_DEFAULT_EMAIL:-admin@example.com}}"
+    VIKUNJA_DEFAULT_USERNAME="${VIKUNJA_DEFAULT_USERNAME:-${EXIST_USERNAME:-admin}}"
+    VIKUNJA_DEFAULT_PASSWORD="${VIKUNJA_DEFAULT_PASSWORD:-${EXIST_PASSWORD:-changeme}}"
+    VIKUNJA_DEFAULT_EMAIL="${VIKUNJA_DEFAULT_EMAIL:-${EXIST_EMAIL:-admin@example.com}}"
     
     echo "Using Vikunja credentials:"
     echo "  Username: $VIKUNJA_DEFAULT_USERNAME"

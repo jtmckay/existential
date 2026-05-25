@@ -11,11 +11,11 @@ services:
       - "80:80" # Standard HTTP port for local development
       - "443:443" # Standard HTTPS port for local development
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./error.html:/var/www/html/error.html:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
+      - ./error.html:/var/www/html/error.html:ro,Z
       - caddy_data:/data
       - caddy_config:/config
-      - ../cloudflare/:/etc/caddy/certs/
+      - ../cloudflare/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
 

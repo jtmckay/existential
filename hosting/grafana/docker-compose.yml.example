@@ -18,6 +18,11 @@ services:
 
 volumes:
   grafana_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/grafana_data"
 
 networks:
   exist:

@@ -63,6 +63,7 @@ automations/
 ```
 src/
 ├── generate-compose.py         Merges enabled services → docker-compose.yml
+├── backup-runner.sh            Entrypoint of the existential-backup container (tar/restore volumes)
 ├── interactive_cli_replacer.sh Replaces EXIST_CLI placeholders interactively
 ├── generate_hex_key.sh         Hex key generator utility
 ├── generate_password.sh        Password generator utility
@@ -70,6 +71,8 @@ src/
 ├── create_vikunja_user.sh      Vikunja user creation
 ├── setup/
 │   ├── actual-budget.sh        Actual Budget credentials setup (saves accounts.json)
+│   ├── backup.sh               Configure backup destination + toggle volume backups
+│   ├── backup-restore.sh       Interactive restore — DB dump or Docker volume
 │   ├── gmail-transactions-cron.sh  Interactive Bank Alert→Gmail→Actual Budget cron file generator
 │   ├── gmail-sync.sh           Gmail OAuth setup (calls gmail-labels.sh at end)
 │   ├── gmail-labels.sh         Sync Gmail label name→ID cache to secrets/gmail/labels.json
@@ -105,11 +108,15 @@ src/
 ./existential.sh examples       # Only process .example files
 ./existential.sh compose        # Only regenerate docker-compose.yml and master .env
 ./existential.sh setup actual-budget    # Actual Budget credentials setup (saves accounts.json)
+./existential.sh setup backup           # Configure DB-backup destination (rclone remote)
+./existential.sh setup backup-restore   # Restore a DB from an rclone-stored snapshot
 ./existential.sh setup gmail            # Gmail OAuth setup (also runs gmail-labels)
 ./existential.sh setup gmail-transactions-cron # Bank Alert→Gmail→Actual Budget cron file generator
 ./existential.sh setup gmail-labels     # Sync Gmail label name→ID cache (re-run after adding labels)
 ./existential.sh setup rclone           # Configure remote file storage
 ./existential.sh setup ntfy             # ntfy integration setup
+./existential.sh backup volumes [nightly|weekly]  # Tar NFS-intended volumes via existential-backup container
+./existential.sh backup restore                   # Interactive restore (DB or volume)
 ./existential.sh test           # Run test suite
 ./existential.sh validate       # On-demand: convention + drift checks
 ./existential.sh validate conventions  # Slugs synced across compose/piHole/Caddy/dashy

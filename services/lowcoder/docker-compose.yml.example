@@ -184,12 +184,9 @@ volumes:
       type: "nfs"
       o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_assets"
+  # MongoDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
+  # Backed up via automations/routines/db-backup.sh → rclone remote.
   lowcoder_mongo:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_mongo"
 
 networks:
   exist:

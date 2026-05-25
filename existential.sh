@@ -233,13 +233,15 @@ run_setup() {
     local integration="${1:-}"
 
     if [[ -z "$integration" ]]; then
-        echo "Available integrations: actual-budget, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone"
+        echo "Available integrations: actual-budget, backup, backup-restore, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone"
         echo "Usage: $0 setup <integration>"
         return 0
     fi
 
     case "$integration" in
         actual-budget) bash "${SCRIPT_DIR}/src/setup/actual-budget.sh" ;;
+        backup)         run_adhoc bash /src/setup/backup.sh ;;
+        backup-restore) bash "${SCRIPT_DIR}/src/setup/backup-restore.sh" ;;
         gmail)  $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
                     --entrypoint "" -p 8803:8803 \
                     existential-adhoc bash /src/setup/gmail-sync.sh ;;
@@ -247,7 +249,7 @@ run_setup() {
         gmail-labels) run_adhoc bash /src/setup/gmail-labels.sh ;;
         ntfy)   run_adhoc bash /src/setup/ntfy.sh ;;
         rclone) run_adhoc bash /src/setup/rclone.sh ;;
-        *)      echo "Unknown integration: $integration. Available: actual-budget, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone" >&2; return 1 ;;
+        *)      echo "Unknown integration: $integration. Available: actual-budget, backup, backup-restore, gmail, gmail-transactions-cron, gmail-labels, ntfy, rclone" >&2; return 1 ;;
     esac
 }
 
@@ -260,6 +262,52 @@ run_tests() {
         all)             run_adhoc bash /src/test/run-all.sh ;;
         syntax|gmail|rclone) run_adhoc bash "/src/test/test-${name}.sh" ;;
         *)               echo "Unknown test: $name. Available: all, syntax, gmail, rclone" >&2; return 1 ;;
+    esac
+}
+
+# ── Volume backup (on-demand or via host cron) ────────────────────────────────
+#
+# DB backups run inside decree on decree's internal cron schedule. File-level
+# volume backups run via the dedicated existential-backup adhoc container so
+# that no service mount is required: just `docker compose run`. Schedule with
+# host cron if you want them automated, e.g.:
+#
+#   0 4 * * * /path/to/existential.sh backup volumes nightly
+#   0 5 * * 0 /path/to/existential.sh backup volumes weekly
+
+run_backup() {
+    local sub="${1:-}"
+    [[ $# -gt 0 ]] && shift || true
+    case "$sub" in
+        volumes)
+            local tier="${1:-nightly}"
+            $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" \
+                --profile backup run --rm existential-backup backup "$tier"
+            ;;
+        restore)
+            bash "${SCRIPT_DIR}/src/setup/backup-restore.sh"
+            ;;
+        ""|--help|-h)
+            cat <<EOF
+Usage: $0 backup <subcommand> [args]
+
+Subcommands:
+  volumes [tier]    File-level tar of NFS-intended Docker volumes.
+                    tier = nightly (default) | weekly
+                    Add to host crontab for automation. See
+                    automations/lib/volume-backup-targets.sh for the volume
+                    list and existential-compose.yml for the mount layout.
+  restore           Interactive restore — DB or volume. (Same as
+                    \`./existential.sh setup backup-restore\`.)
+
+DB backups are scheduled inside decree — see automations/cron/db-backup-*.md.
+EOF
+            ;;
+        *)
+            echo "Unknown backup subcommand: $sub" >&2
+            $0 backup --help
+            return 1
+            ;;
     esac
 }
 
@@ -305,8 +353,9 @@ Actions:
   (default)           Process .example files then generate docker-compose.yml
   examples            Process .example files only
   compose [file]      Generate unified docker-compose.yml (default: docker-compose.yml)
-  setup <name>        Configure an integration: actual-budget, gmail, gmail-labels, ntfy, rclone
+  setup <name>        Configure an integration: actual-budget, backup, backup-restore, gmail, gmail-labels, ntfy, rclone
   test [name]         Run tests: all (default), syntax, gmail, rclone
+  backup <sub>        File-level volume backups: volumes [nightly|weekly], restore
   validate [name]     On-demand checks: all (default), conventions, drift
                         conventions — slugs in sync across compose/piHole/Caddy/dashy
                         drift       — what re-rendering would change in your .env / compose files
@@ -345,6 +394,9 @@ case "$action" in
         ;;
     test)
         run_tests "${1:-all}"
+        ;;
+    backup)
+        run_backup "$@"
         ;;
     validate)
         run_validate "${1:-all}"
