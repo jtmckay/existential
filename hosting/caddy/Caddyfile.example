@@ -60,12 +60,6 @@ hermes-workspace.internal {
   reverse_proxy hermes-workspace:3000
 }
 
-librechat.internal {
-  tls internal
-  import error_handling
-  reverse_proxy librechat-client:80
-}
-
 lightrag.internal {
   tls internal
   import error_handling
@@ -119,6 +113,12 @@ decree-webhook.internal {
   tls internal
   import error_handling
   reverse_proxy decree-webhook:{$DECREE_WEBHOOK_PORT}
+}
+
+homeassistant.internal {
+  tls internal
+  import error_handling
+  reverse_proxy homeassistant:8123
 }
 
 immich.internal {

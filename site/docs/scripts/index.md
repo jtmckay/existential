@@ -31,7 +31,7 @@ Full reference for `existential.sh` and the `src/` script library.
 
 ## Docker Network
 
-All services connect to a shared `exist` bridge network. Services communicate using container names as hostnames (e.g., `librechat-api` can reach `librechat-mongodb:27017`).
+All services connect to a shared `exist` bridge network. Services communicate using container names as hostnames (e.g., `mealie` can reach `mealie-postgres:5432`).
 
 ## Post-Startup Setup
 

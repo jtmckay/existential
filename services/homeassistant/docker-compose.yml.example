@@ -1,0 +1,26 @@
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    networks:
+      - exist
+    volumes:
+      - homeassistant_config:/config
+    ports:
+      - 8123:8123
+    environment:
+      TZ: ${HOMEASSISTANT_TZ}
+    # privileged: true  # uncomment if you need access to host hardware (e.g. USB zigbee/z-wave sticks)
+
+volumes:
+  homeassistant_config:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/homeassistant_config"
+
+networks:
+  exist:
+    external: true

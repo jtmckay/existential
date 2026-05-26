@@ -63,10 +63,10 @@ graveyard/    Archived/deprecated solutions
 ```
 
 ### ai/
-`chatterbox` `hermes` `librechat` `lightrag` `mcp` `ollama` `open-webui` `whisper`
+`chatterbox` `hermes` `lightrag` `mcp` `ollama` `open-webui` `whisper`
 
 ### services/
-`actual-budget` `appsmith` `dashy` `decree` `immich` `it-tools` `logseq`
+`actual-budget` `appsmith` `dashy` `decree` `homeassistant` `immich` `it-tools` `logseq`
 `lowcoder` `mealie` `nocodb` `ntfy` `vikunja`
 
 ### nas/
@@ -339,7 +339,7 @@ used. Used today for `EXIST_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
 - Image-required names (`MYSQL_USER`, `GF_*`, `LLM_BINDING`, etc.) get mapped
   in `docker-compose.yml.example`: `MYSQL_USER: ${MEALIE_MYSQL_USER}`.
 - Files copied wholesale from an upstream project that uses `env_file:` (e.g.,
-  LibreChat, Immich, LightRAG) can opt out with a top-of-file marker:
+  Immich, LightRAG) can opt out with a top-of-file marker:
   `# convention-exempt: upstream-env`.
 
 Run `./existential.sh validate conventions` to check both rules.

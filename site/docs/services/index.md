@@ -7,6 +7,7 @@ sidebar_position: 1
 ## Interactive
 
 - [ActualBudget](./actual-budget) — Budget
+- [Home Assistant](./homeassistant) — Home automation
 - [Immich](./immich) — Images and Videos
 - [Logseq](./logseq) — Notes
 - [Mealie](./mealie) — Recipes / meal planning

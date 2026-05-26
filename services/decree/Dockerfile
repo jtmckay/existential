@@ -17,4 +17,7 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y --no-install-recommends mongodb-database-tools \
     && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64" \
+        -o /usr/local/bin/yq \
+    && chmod +x /usr/local/bin/yq

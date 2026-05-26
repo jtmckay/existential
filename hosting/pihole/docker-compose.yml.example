@@ -65,10 +65,6 @@ services:
         ${EXIST_LOCAL_HOST_IP} hermes-workspace.internal
         # ${EXIST_PEER_HOST_IP} hermes-workspace.internal
 
-        # librechat        →  Caddy: librechat-client:80     (ai/librechat)
-        ${EXIST_LOCAL_HOST_IP} librechat.internal
-        # ${EXIST_PEER_HOST_IP} librechat.internal
-
         # lightrag         →  Caddy: lightrag:9621           (ai/lightrag — REST + MCP)
         ${EXIST_LOCAL_HOST_IP} lightrag.internal
         # ${EXIST_PEER_HOST_IP} lightrag.internal
@@ -105,6 +101,10 @@ services:
         # decree-webhook   →  Caddy: decree-webhook:${DECREE_WEBHOOK_PORT}  (services/decree — inbound webhooks)
         ${EXIST_LOCAL_HOST_IP} decree-webhook.internal
         # ${EXIST_PEER_HOST_IP} decree-webhook.internal
+
+        # homeassistant    →  Caddy: homeassistant:8123      (services/homeassistant)
+        ${EXIST_LOCAL_HOST_IP} homeassistant.internal
+        # ${EXIST_PEER_HOST_IP} homeassistant.internal
 
         # immich           →  Caddy: immich-server:2283      (services/immich)
         ${EXIST_LOCAL_HOST_IP} immich.internal
