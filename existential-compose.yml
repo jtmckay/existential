@@ -21,64 +21,6 @@ services:
     tty: true
     stdin_open: true
 
-  # One-shot container for file-level backup / restore of named Docker volumes.
-  # Started via ./existential.sh backup volumes [tier] (and the restore flow).
-  # Does NOT auto-start with the default compose profile.
-  #
-  # Each volume the user cares about is mounted at /volumes/<name> — keep the
-  # mount list below in sync with automations/lib/volume-backup-targets.sh.
-  existential-backup:
-    container_name: existential-backup
-    profiles: ["backup"]
-    build:
-      context: ./services/decree
-      dockerfile: Dockerfile
-    restart: "no"
-    entrypoint: ["/bin/bash", "/src/backup-runner.sh"]
-    environment:
-      - IN_CONTAINER=1
-      - SECRETS_DIR=/secrets
-    volumes:
-      - ./automations:/work/.decree:ro,z
-      - ./services/decree/secrets:/secrets:ro,z
-      - ./.env:/repo/.env:ro,Z
-      - ./src:/src:ro,z
-      # ── Volumes to back up (keep in sync with volume-backup-targets.sh) ─────
-      - actual_budget_data:/volumes/actual_budget_data
-      - appsmith_data:/volumes/appsmith_data
-      - hermes_agent_data:/volumes/hermes_agent_data
-      - lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
-      - lowcoder_data:/volumes/lowcoder_data
-      - lowcoder_assets:/volumes/lowcoder_assets
-      - mealie_data:/volumes/mealie_data
-      - nocodb_data:/volumes/nocodb_data
-      - open_webui_data:/volumes/open_webui_data
-      - vikunja_data:/volumes/vikunja_data
-      - grafana_data:/volumes/grafana_data
-      - portainer_data:/volumes/portainer_data
-      - uptime_kuma_data:/volumes/uptime_kuma_data
-    networks:
-      - exist
-
-volumes:
-  # Same name → same Docker volume as the per-service composes. If a volume
-  # doesn't exist yet (the consuming service has never started), Docker
-  # creates an empty one when existential-backup runs — fine for backup
-  # (produces a near-empty tar) and necessary for restore-before-enable.
-  actual_budget_data:
-  appsmith_data:
-  hermes_agent_data:
-  lightrag_rag_storage_data:
-  lowcoder_data:
-  lowcoder_assets:
-  mealie_data:
-  nocodb_data:
-  open_webui_data:
-  vikunja_data:
-  grafana_data:
-  portainer_data:
-  uptime_kuma_data:
-
 networks:
   exist:
     driver: bridge

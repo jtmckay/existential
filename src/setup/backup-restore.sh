@@ -8,18 +8,29 @@
 # the difference by querying docker for running consumers before kicking off
 # a volume restore.
 #
-# All rclone work (listing snapshots, streaming the dump back) is delegated
-# to the existential-backup adhoc container; the host script only orchestrates.
+# All work (rclone listing, dump streaming, untarring) happens inside
+# decree-backup — the only container that mounts both the master .env (for
+# credentials and rclone destination) and all the target volumes.
+#
+# Lookup tables (engine + creds env vars for DBs, consumer containers for
+# volumes) come straight from the cron .md frontmatter under
+# services/decree/decree-backup/cron.example_/.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-COMPOSE_FILE="${REPO_DIR}/existential-compose.yml"
-MASTER_COMPOSE="${REPO_DIR}/docker-compose.yml"
+CRON_DIR="${REPO_DIR}/services/decree/decree-backup/cron.example_"
 
 hr() { printf '%0.s─' {1..56}; echo; }
 die() { echo "Error: $*" >&2; exit 1; }
+
+frontmatter_get() {
+    local key="$1" file="$2"
+    docker compose -f "${REPO_DIR}/existential-compose.yml" \
+        run --rm -T --entrypoint "" existential-adhoc \
+        yq --front-matter=extract ".${key}" "/repo${file#${REPO_DIR}}"
+}
 
 env_get() {
     local file="$1" key="$2"
@@ -32,11 +43,13 @@ REMOTE=$(env_get "${REPO_DIR}/.env.exist" "EXIST_BACKUP_RCLONE_REMOTE")
 DOCKER_CMD="${DOCKER_CMD:-docker}"
 command -v "$DOCKER_CMD" >/dev/null 2>&1 || die "${DOCKER_CMD} not found on PATH"
 
-# Helper that runs the backup container with a sub-command.
-backup_run() {
-    $DOCKER_CMD compose -f "$COMPOSE_FILE" --profile backup run --rm \
-        existential-backup "$@"
+# Run an rclone command inside decree-backup.
+rclone_in_backup() {
+    $DOCKER_CMD exec decree-backup rclone --config /secrets/rclone/rclone.conf "$@"
 }
+
+# List rclone path entries (one per line) inside decree-backup.
+rclone_lsf() { rclone_in_backup lsf "${REMOTE}/$1" 2>/dev/null || true; }
 
 # ── Pick a restore kind ───────────────────────────────────────────────────────
 
@@ -68,13 +81,14 @@ esac
 # ── DB restore ────────────────────────────────────────────────────────────────
 
 if [ "$KIND" = "db" ]; then
-    # shellcheck source=../../automations/lib/db-backup-targets.sh
-    source "${REPO_DIR}/automations/lib/db-backup-targets.sh"
+    TARGETS_FILE="${CRON_DIR}/db-backup-${TIER}.md"
+    [ -f "$TARGETS_FILE" ] || die "${TARGETS_FILE} not found"
+    TARGETS=$(frontmatter_get TARGETS "$TARGETS_FILE")
+    [ -n "$TARGETS" ] || die "No TARGETS block in ${TARGETS_FILE}"
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
-    mapfile -t services < <(backup_run list "${TIER}/" 2>/dev/null \
-        | sed 's:/$::' | grep -v '^volumes$')
+    mapfile -t services < <(rclone_lsf "${TIER}/" | sed 's:/$::' | grep -v '^volumes$')
     [ ${#services[@]} -gt 0 ] || die "No DB backups at ${REMOTE}/${TIER}/"
     for i in "${!services[@]}"; do echo "  [$((i + 1))] ${services[$i]}"; done
     echo ""
@@ -84,17 +98,17 @@ if [ "$KIND" = "db" ]; then
     CONTAINER="${services[$idx]}"
 
     ENGINE="" USER_KEY="" PASS_KEY=""
-    for entry in "${BACKUP_TARGETS[@]}"; do
-        IFS='|' read -r e c u p <<< "$entry"
+    while read -r e c u p; do
+        [ -z "$e" ] && continue
         if [ "$c" = "$CONTAINER" ]; then
             ENGINE="$e"; USER_KEY="$u"; PASS_KEY="$p"; break
         fi
-    done
-    [ -n "$ENGINE" ] || die "No registry entry for '$CONTAINER'"
+    done <<< "$TARGETS"
+    [ -n "$ENGINE" ] || die "No entry for '$CONTAINER' in ${TARGETS_FILE}"
 
     echo ""
     echo "Snapshots:"
-    mapfile -t snaps < <(backup_run list "${TIER}/${CONTAINER}/" 2>/dev/null | sort)
+    mapfile -t snaps < <(rclone_lsf "${TIER}/${CONTAINER}/" | sort)
     [ ${#snaps[@]} -gt 0 ] || die "No snapshots for ${CONTAINER}."
     for i in "${!snaps[@]}"; do echo "  [$((i + 1))] ${snaps[$i]}"; done
     echo ""
@@ -115,9 +129,6 @@ if [ "$KIND" = "db" ]; then
     read -rp "Type the container name (${CONTAINER}) to confirm: " confirm
     [ "$confirm" = "$CONTAINER" ] || { echo "Aborted."; exit 0; }
 
-    # The DB restore is short enough to drive from decree-backup, which has
-    # the client tools + the master .env mount (main decree intentionally
-    # does not). Pipe the rclone-fetched dump in.
     echo ""
     echo "Streaming dump into ${CONTAINER}…"
     case "$ENGINE" in
@@ -125,7 +136,6 @@ if [ "$KIND" = "db" ]; then
             $DOCKER_CMD exec -i decree-backup bash -c "
                 set -euo pipefail
                 . /repo/.env
-                source /work/.decree/lib/db-backup-targets.sh
                 rclone --config /secrets/rclone/rclone.conf cat \
                     \"\${EXIST_BACKUP_RCLONE_REMOTE}/${TIER}/${CONTAINER}/${SNAP}\" \
                 | gunzip \
@@ -161,12 +171,14 @@ fi
 
 # ── Volume restore ────────────────────────────────────────────────────────────
 
-# shellcheck source=../../automations/lib/volume-backup-targets.sh
-source "${REPO_DIR}/automations/lib/volume-backup-targets.sh"
+VOLUMES_FILE="${CRON_DIR}/volume-backup-${TIER}.md"
+[ -f "$VOLUMES_FILE" ] || die "${VOLUMES_FILE} not found"
+VOLUMES=$(frontmatter_get VOLUMES "$VOLUMES_FILE")
+[ -n "$VOLUMES" ] || die "No VOLUMES block in ${VOLUMES_FILE}"
 
 echo ""
 echo "Volumes with backups in ${REMOTE}/${TIER}/volumes/:"
-mapfile -t vols < <(backup_run list "${TIER}/volumes/" 2>/dev/null | sed 's:/$::')
+mapfile -t vols < <(rclone_lsf "${TIER}/volumes/" | sed 's:/$::')
 [ ${#vols[@]} -gt 0 ] || die "No volume backups at ${REMOTE}/${TIER}/volumes/"
 for i in "${!vols[@]}"; do echo "  [$((i + 1))] ${vols[$i]}"; done
 echo ""
@@ -177,7 +189,7 @@ VOLUME="${vols[$idx]}"
 
 echo ""
 echo "Snapshots:"
-mapfile -t snaps < <(backup_run list "${TIER}/volumes/${VOLUME}/" 2>/dev/null | sort)
+mapfile -t snaps < <(rclone_lsf "${TIER}/volumes/${VOLUME}/" | sort)
 [ ${#snaps[@]} -gt 0 ] || die "No snapshots for ${VOLUME}."
 for i in "${!snaps[@]}"; do echo "  [$((i + 1))] ${snaps[$i]}"; done
 echo ""
@@ -190,10 +202,18 @@ else
     SNAP="${snaps[$i]}"
 fi
 
-# ── Pre-check: consumer containers must NOT be running ───────────────────────
+# Look up consumer containers from the cron frontmatter.
+CONSUMERS_RAW=""
+while read -r v consumers; do
+    [ -z "$v" ] && continue
+    if [ "$v" = "$VOLUME" ]; then
+        CONSUMERS_RAW="$consumers"
+        break
+    fi
+done <<< "$VOLUMES"
+[ -n "$CONSUMERS_RAW" ] || die "Volume '$VOLUME' has no entry in ${VOLUMES_FILE}"
 
-mapfile -t CONSUMERS < <(backup_targets_consumers "$VOLUME")
-[ ${#CONSUMERS[@]} -gt 0 ] || die "Volume '$VOLUME' has no consumers registered in volume-backup-targets.sh"
+IFS=',' read -r -a CONSUMERS <<< "$CONSUMERS_RAW"
 
 RUNNING=()
 for c in "${CONSUMERS[@]}"; do
@@ -230,7 +250,6 @@ fi
 read -rp "Type the volume name (${VOLUME}) to proceed: " confirm
 if [ "$confirm" != "$VOLUME" ]; then
     echo "Aborted."
-    # Restart anything we stopped so we don't leave the user worse off.
     if [ ${#STOPPED[@]} -gt 0 ]; then
         echo "Restarting ${STOPPED[*]}…"
         $DOCKER_CMD start "${STOPPED[@]}" >/dev/null
@@ -238,9 +257,20 @@ if [ "$confirm" != "$VOLUME" ]; then
     exit 0
 fi
 
-# ── Run the restore ──────────────────────────────────────────────────────────
+# ── Run the restore inside decree-backup ─────────────────────────────────────
 
-backup_run restore "$VOLUME" "${TIER}/volumes/${VOLUME}/${SNAP}"
+$DOCKER_CMD exec decree-backup bash -c "
+    set -euo pipefail
+    . /repo/.env
+    dst=/volumes/${VOLUME}
+    [ -d \"\$dst\" ] || { echo 'Volume not mounted at '\$dst' — add it to services/decree/docker-compose.yml.example'; exit 1; }
+    echo \"Wipe   \$dst\"
+    find \"\$dst\" -mindepth 1 -delete
+    echo \"Pull   \${EXIST_BACKUP_RCLONE_REMOTE}/${TIER}/volumes/${VOLUME}/${SNAP}\"
+    rclone --config /secrets/rclone/rclone.conf cat \
+        \"\${EXIST_BACKUP_RCLONE_REMOTE}/${TIER}/volumes/${VOLUME}/${SNAP}\" \
+    | tar xzf - -C \"\$dst\"
+"
 
 # ── Restart consumers we stopped ─────────────────────────────────────────────
 

@@ -27,9 +27,14 @@ services:
     tty: false
 
   # Isolated decree daemon — the only container that mounts /repo/.env.
-  # Runs db-backup on its own cron schedule; shares routines/lib/hooks with
-  # the main decree daemon but maintains its own config.yml, cron dir, and
-  # message state (inbox/outbox/runs/processed.md) under ./decree-backup/.
+  # Runs both db-backup (logical SQL dumps) and volume-backup (file-level
+  # tar) on its own cron schedule. Shares routines/lib/hooks with the main
+  # decree daemon but maintains its own config.yml, cron dir, and message
+  # state (inbox/outbox/runs/processed.md) under ./decree-backup/.
+  #
+  # Volume mounts at /volumes/<name> let the volume-backup routine tar each
+  # volume directly. Keep that list in sync with the VOLUMES frontmatter in
+  # services/decree/decree-backup/cron.example_/volume-backup-*.md.
   decree-backup:
     container_name: decree-backup
     build:
@@ -59,6 +64,21 @@ services:
       # Master .env — sole source of DB credentials. ONLY mounted here.
       - ../../.env:/repo/.env:ro,Z
       - ./secrets:/secrets:ro,z
+      # ── Volumes (writable so volume-restore can wipe+extract) ─────────
+      # Keep this list in sync with VOLUMES in cron.example_/volume-backup-*.md
+      - actual_budget_data:/volumes/actual_budget_data
+      - appsmith_data:/volumes/appsmith_data
+      - hermes_agent_data:/volumes/hermes_agent_data
+      - lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
+      - lowcoder_data:/volumes/lowcoder_data
+      - lowcoder_assets:/volumes/lowcoder_assets
+      - mealie_data:/volumes/mealie_data
+      - nocodb_data:/volumes/nocodb_data
+      - open_webui_data:/volumes/open_webui_data
+      - vikunja_data:/volumes/vikunja_data
+      - grafana_data:/volumes/grafana_data
+      - portainer_data:/volumes/portainer_data
+      - uptime_kuma_data:/volumes/uptime_kuma_data
     tty: false
 
   decree-base:
@@ -104,6 +124,23 @@ services:
 volumes:
   notes_data:
   dropbox_data:
+  # Same volume names as the per-service composes — Docker resolves them to
+  # the same underlying volumes. If a consumer service has never started,
+  # Docker creates an empty volume here, which is fine (produces a near-empty
+  # tar) and lets us restore-before-enable.
+  actual_budget_data:
+  appsmith_data:
+  hermes_agent_data:
+  lightrag_rag_storage_data:
+  lowcoder_data:
+  lowcoder_assets:
+  mealie_data:
+  nocodb_data:
+  open_webui_data:
+  vikunja_data:
+  grafana_data:
+  portainer_data:
+  uptime_kuma_data:
 
 networks:
   exist:

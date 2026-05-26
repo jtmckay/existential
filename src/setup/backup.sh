@@ -103,46 +103,27 @@ fi
 
 hr
 echo ""
-echo "DB backups (logical dumps) run inside the decree-backup container."
-echo "  nightly  02:00 UTC daily,  retained  7 days  (${DEST}/nightly/<container>/)"
-echo "  weekly   03:00 UTC Sun,    retained 28 days  (${DEST}/weekly/<container>/)"
+echo "Both DB backups (logical dumps) and volume backups (file-level tars)"
+echo "run inside the decree-backup container on its own cron schedule."
 echo ""
-echo "Reason for a separate container: only decree-backup mounts /repo/.env,"
-echo "so DB credentials never reach the routines run by the main decree daemon."
+echo "Schedules ship as templates in"
+echo "  services/decree/decree-backup/cron.example_/"
+echo "Activate by copying the ones you want into ./cron/ — for the full set:"
 echo ""
-echo "To activate scheduled DB backups, copy the example cron files into the"
-echo "decree-backup cron dir:"
-echo "  cp services/decree/decree-backup/cron.example_/db-backup-*.md \\"
+echo "  cp services/decree/decree-backup/cron.example_/*.md \\"
 echo "     services/decree/decree-backup/cron/"
+echo "  docker compose -f services/decree/docker-compose.yml restart decree-backup"
 echo ""
-echo "Run a DB backup now:    docker exec decree-backup decree run db-backup"
+echo "Defaults:"
+echo "  db-backup-nightly       02:00 UTC daily,  retained  7d  (${DEST}/nightly/<container>/)"
+echo "  db-backup-weekly        03:00 UTC Sun,    retained 28d  (${DEST}/weekly/<container>/)"
+echo "  volume-backup-nightly   02:30 UTC daily,  retained  7d  (${DEST}/nightly/volumes/<vol>/)"
+echo "  volume-backup-weekly    03:30 UTC Sun,    retained 28d  (${DEST}/weekly/volumes/<vol>/)"
 echo ""
-
-# ── Optional: volume backup (file-level) ──────────────────────────────────────
-
-hr
-echo "Volume backup (file-level tar of Docker volumes)"
-hr
+echo "Edit the lists of DBs / volumes directly in each cron file's frontmatter"
+echo "(TARGETS / VOLUMES blocks)."
 echo ""
-echo "Recommended when running WITHOUT TrueNAS — the volumes that would be"
-echo "NFS-backed (mealie_data, hermes_agent_data, …) live only on local disk"
-echo "and have no other persistence."
-echo ""
-echo "Mechanism: a one-shot 'existential-backup' container with each volume"
-echo "mounted at /volumes/<name>. No docker socket required."
-echo ""
-read -rp "Print the suggested host crontab lines for nightly/weekly? (Y/n): " print_cron
-if [[ "${print_cron,,}" != "n" ]]; then
-    echo ""
-    hr
-    echo "# Add to host crontab (\`crontab -e\`):"
-    echo "0 4 * * * cd ${REPO_DIR:-/repo} && ./existential.sh backup volumes nightly >> /var/log/existential-backup.log 2>&1"
-    echo "0 5 * * 0 cd ${REPO_DIR:-/repo} && ./existential.sh backup volumes weekly  >> /var/log/existential-backup.log 2>&1"
-    hr
-fi
-
-echo ""
-echo "Edit the volume list:           automations/lib/volume-backup-targets.sh"
-echo "Edit container mounts:           existential-compose.yml (keep in sync)"
-echo "Run a volume backup now:         ./existential.sh backup volumes"
-echo "Restore (DB or volume):          ./existential.sh setup backup-restore"
+echo "Run a backup right now:"
+echo "  ./existential.sh backup db       [nightly|weekly]"
+echo "  ./existential.sh backup volumes  [nightly|weekly]"
+echo "  ./existential.sh backup restore  (interactive — DB or volume)"

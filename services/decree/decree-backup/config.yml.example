@@ -1,9 +1,11 @@
-# decree-backup config — isolated daemon for credential-sensitive routines.
+# decree-backup config — isolated daemon for credential-sensitive routines
+# AND for routines that need bulk volume access (file-level tar / restore).
 #
-# This daemon is the only one that mounts /repo/.env, so it's the only one
-# allowed to perform database backups (which need DB credentials).
+# This daemon is the only one that mounts /repo/.env (so it's the only one
+# allowed to read DB credentials) and the only one that mounts the backup
+# volumes at /volumes/<name> (so it's the only one that can tar them).
 #
-# Add a routine here only if it genuinely needs access to the master .env.
+# Add a routine here only if it genuinely needs that access.
 max_retries: 3
 max_depth: 100
 max_log_size: 2097152
@@ -15,4 +17,6 @@ hooks:
   afterEach: /work/.decree/hooks/afterEach.sh
 routines:
   db-backup:
+    enabled: true
+  volume-backup:
     enabled: true

@@ -1,51 +1,52 @@
 #!/usr/bin/env bash
-# DB backup routine
+# db-backup — dump every database listed in $TARGETS, rclone the dumps to
+# `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
+# than the tier's retention window.
 #
-# Iterates every entry registered in lib/db-backup-targets.sh and dumps each
-# reachable database to a temporary file inside the decree container, then
-# rclones the file to EXIST_BACKUP_RCLONE_REMOTE under <tier>/<container>-<ts>.
-#
-# Tier ("nightly" / "weekly") is the first argument, default "nightly".
-# Retention deletes files older than the tier's window after the dump finishes.
-#
-# Wired up by:
-#   automations/cron/db-backup-nightly.md  → tier=nightly, 7-day retention
-#   automations/cron/db-backup-weekly.md   → tier=weekly, 28-day retention
+# Triggered by cron files in services/decree/decree-backup/cron/. Decree
+# exposes their frontmatter keys (TIER, TARGETS) as env vars. To add or
+# remove a database, edit the cron file's `TARGETS:` block — there is no
+# separate registry to keep in sync.
 #
 # Manual invocation:
-#   docker exec decree decree run db-backup
-#   docker exec decree decree run db-backup -- weekly
+#   docker exec decree-backup decree run db-backup
+#
+# $TARGETS format (one entry per line, whitespace-separated):
+#   <engine> <container> <USER_ENV_VAR> <PASS_ENV_VAR>
+# Use `_LITERAL_<value>` for a fixed username (e.g. `_LITERAL_root`).
+# Engines: postgres | mariadb | mongo.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/db-backup-targets.sh
-source "${SCRIPT_DIR}/../lib/db-backup-targets.sh"
-
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
 MASTER_ENV="${MASTER_ENV:-/repo/.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Pre-check (decree's startup probe) ────────────────────────────────────────
+# ── Pre-check ─────────────────────────────────────────────────────────────────
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     # shellcheck source=../lib/precheck.sh
     source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v rclone >/dev/null  || precheck_fail "db-backup" "rclone not found"
+    command -v rclone     >/dev/null || precheck_fail "db-backup" "rclone not found"
     command -v pg_dumpall >/dev/null || precheck_fail "db-backup" "pg_dumpall not found"
-    command -v mysqldump >/dev/null  || precheck_fail "db-backup" "mysqldump not found"
-    command -v mongodump >/dev/null  || precheck_fail "db-backup" "mongodump not found"
-    [ -f "$MASTER_ENV" ] || precheck_fail "db-backup" "master .env not mounted at $MASTER_ENV"
+    command -v mysqldump  >/dev/null || precheck_fail "db-backup" "mysqldump not found"
+    command -v mongodump  >/dev/null || precheck_fail "db-backup" "mongodump not found"
+    [ -f "$MASTER_ENV" ]    || precheck_fail "db-backup" "master .env not mounted at $MASTER_ENV"
     [ -f "$RCLONE_CONFIG" ] || precheck_fail "db-backup" "rclone not configured (run ./existential.sh setup rclone)"
     precheck_pass "db-backup"
     exit 0
 fi
 
-TIER="${1:-nightly}"
+# ── Config from cron frontmatter / args ───────────────────────────────────────
+
+TIER="${TIER:-${1:-nightly}}"
 case "$TIER" in
     nightly) RETENTION_DAYS=7 ;;
     weekly)  RETENTION_DAYS=28 ;;
     *) echo "Unknown tier: $TIER (expected nightly|weekly)" >&2; exit 2 ;;
 esac
+
+[ -n "${TARGETS:-}" ] || { echo "TARGETS is empty — set it in the cron frontmatter" >&2; exit 2; }
 
 # Source master .env so DB credential vars are available.
 set -a
@@ -62,8 +63,6 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 rclone_cmd() { rclone --config "$RCLONE_CONFIG" "$@"; }
 
-# Look up an env var by name, with `_LITERAL_<value>` as an escape hatch for
-# fixed strings (e.g., postgres user "librechat" isn't from an env var).
 resolve_value() {
     local key="$1"
     if [[ "$key" == _LITERAL_* ]]; then
@@ -96,14 +95,16 @@ dump_mongo() {
     echo "$out"
 }
 
-# ── Run each registered backup ────────────────────────────────────────────────
+# ── Run each target from $TARGETS ─────────────────────────────────────────────
 
 dumped=0
 skipped=0
 failed=0
 
-for entry in "${BACKUP_TARGETS[@]}"; do
-    IFS='|' read -r engine container user_key pass_key <<< "$entry"
+while read -r engine container user_key pass_key; do
+    [ -z "$engine" ] && continue
+    [[ "$engine" =~ ^# ]] && continue
+
     if ! container_reachable "$container"; then
         echo "skip   $container (not reachable on exist network)"
         skipped=$((skipped + 1))
@@ -133,7 +134,7 @@ for entry in "${BACKUP_TARGETS[@]}"; do
         echo "  rclone copy failed for $container" >&2
         failed=$((failed + 1))
     fi
-done
+done <<< "$TARGETS"
 
 # ── Retention ────────────────────────────────────────────────────────────────
 

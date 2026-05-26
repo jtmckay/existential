@@ -2,6 +2,9 @@
 **/.env.local
 **/.env.exist
 **/.env.generated
+
+# Per-service "exist.initial.sh has run" sentinel
+**/.exist.initialized
 **/.pnpm-store
 .claude/settings.local.json
 
@@ -52,6 +55,14 @@ automations/lib/file-processors/*.sh
 automations/outbox
 automations/runs
 services/decree/secrets/
+# decree-backup runtime state (everything except the tracked .example files)
+services/decree/decree-backup/config.yml
+services/decree/decree-backup/config.hash
+services/decree/decree-backup/cron/*
+!services/decree/decree-backup/cron/.gitkeep
+services/decree/decree-backup/inbox/
+services/decree/decree-backup/outbox/
+services/decree/decree-backup/emails/
 
 # Hermes
 **/hermes/data
