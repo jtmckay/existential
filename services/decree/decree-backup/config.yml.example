@@ -1,0 +1,18 @@
+# decree-backup config — isolated daemon for credential-sensitive routines.
+#
+# This daemon is the only one that mounts /repo/.env, so it's the only one
+# allowed to perform database backups (which need DB credentials).
+#
+# Add a routine here only if it genuinely needs access to the master .env.
+max_retries: 3
+max_depth: 100
+max_log_size: 2097152
+default_routine: db-backup
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/hooks/config-watch.sh
+  afterEach: /work/.decree/hooks/afterEach.sh
+routines:
+  db-backup:
+    enabled: true

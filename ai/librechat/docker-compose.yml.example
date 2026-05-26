@@ -106,6 +106,8 @@ services:
       - .env
 
 volumes:
+  # Postgres on local disk — NFS has unsafe fsync/lock semantics for DBs.
+  # Backed up via automations/routines/db-backup.sh → rclone remote.
   librechat_pg_data:
 
 networks:

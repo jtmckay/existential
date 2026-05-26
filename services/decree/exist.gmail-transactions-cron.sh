@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# gmail-transactions-cron setup
+# decree — Gmail → Actual Budget cron generator
 #
 # Walks through selecting a Gmail label, a parse script, and an Actual Budget
 # account, then writes automations/cron/gmail-transactions-<label>.md.
 #
-# Run via: ./existential.sh setup gmail-transactions-cron
-# Requires: setup gmail and setup actual-budget already completed
+# Run via: ./existential.sh setup decree gmail-transactions-cron
+# Requires: `./existential.sh setup decree gmail-sync` + `./existential.sh setup
+#           decree gmail-labels` + `./existential.sh setup actual-budget` first.
 
 set -euo pipefail
+
+# Self-elevate into existential-adhoc if we're on the host.
+if [[ -z "${IN_CONTAINER:-}" ]]; then
+    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
+    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
+        --entrypoint "" existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
+fi
 
 SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
@@ -24,7 +33,7 @@ echo "  Gmail → Actual Budget transaction cron setup"
 hr
 echo ""
 
-[ -f "$LABELS_FILE" ]   || die "Gmail labels not found. Run: ./existential.sh setup gmail-labels"
+[ -f "$LABELS_FILE" ]   || die "Gmail labels not found. Run: ./existential.sh setup decree gmail-labels"
 [ -f "$ACCOUNTS_FILE" ] || die "Actual Budget accounts not found. Run: ./existential.sh setup actual-budget"
 
 # ── Select Gmail label ────────────────────────────────────────────────────────
@@ -43,7 +52,7 @@ for l in custom:
 )
 
 if [ ${#LABEL_NAMES[@]} -eq 0 ]; then
-    die "No custom labels found in ${LABELS_FILE}. Add labels in Gmail then run: ./existential.sh setup gmail-labels"
+    die "No custom labels found in ${LABELS_FILE}. Add labels in Gmail then run: ./existential.sh setup decree gmail-labels"
 fi
 
 for i in "${!LABEL_NAMES[@]}"; do

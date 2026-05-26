@@ -115,13 +115,14 @@ if [ "$KIND" = "db" ]; then
     read -rp "Type the container name (${CONTAINER}) to confirm: " confirm
     [ "$confirm" = "$CONTAINER" ] || { echo "Aborted."; exit 0; }
 
-    # The DB restore is short enough to drive from decree (which already has
-    # the client tools + master .env). Pipe the rclone-fetched dump in.
+    # The DB restore is short enough to drive from decree-backup, which has
+    # the client tools + the master .env mount (main decree intentionally
+    # does not). Pipe the rclone-fetched dump in.
     echo ""
     echo "Streaming dump into ${CONTAINER}…"
     case "$ENGINE" in
         postgres)
-            $DOCKER_CMD exec -i decree bash -c "
+            $DOCKER_CMD exec -i decree-backup bash -c "
                 set -euo pipefail
                 . /repo/.env
                 source /work/.decree/lib/db-backup-targets.sh
@@ -133,7 +134,7 @@ if [ "$KIND" = "db" ]; then
             "
             ;;
         mariadb)
-            $DOCKER_CMD exec -i decree bash -c "
+            $DOCKER_CMD exec -i decree-backup bash -c "
                 set -euo pipefail
                 . /repo/.env
                 rclone --config /secrets/rclone/rclone.conf cat \
@@ -143,7 +144,7 @@ if [ "$KIND" = "db" ]; then
             "
             ;;
         mongo)
-            $DOCKER_CMD exec -i decree bash -c "
+            $DOCKER_CMD exec -i decree-backup bash -c "
                 set -euo pipefail
                 . /repo/.env
                 rclone --config /secrets/rclone/rclone.conf cat \

@@ -26,6 +26,41 @@ services:
       - dropbox_data:/dropbox_data:z
     tty: false
 
+  # Isolated decree daemon — the only container that mounts /repo/.env.
+  # Runs db-backup on its own cron schedule; shares routines/lib/hooks with
+  # the main decree daemon but maintains its own config.yml, cron dir, and
+  # message state (inbox/outbox/runs/processed.md) under ./decree-backup/.
+  decree-backup:
+    container_name: decree-backup
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_AI=${DECREE_AI}
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+    volumes:
+      # Working dir — writable; inbox/outbox/runs/processed.md land here.
+      - ./decree-backup:/work/.decree:z
+      # Shared from the main automations tree — read-only.
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/hooks:/work/.decree/hooks:ro,z
+      # Shared runs/ — execution logs land alongside the main daemon's so
+      # clean-runs and any log tooling pick them up uniformly.
+      - ../../automations/runs:/work/.decree/runs:z
+      # Backup-specific config and cron — read-only override.
+      - ./decree-backup/config.yml:/work/.decree/config.yml:ro,z
+      - ./decree-backup/cron:/work/.decree/cron:ro,z
+      # Master .env — sole source of DB credentials. ONLY mounted here.
+      - ../../.env:/repo/.env:ro,Z
+      - ./secrets:/secrets:ro,z
+    tty: false
+
   decree-base:
     image: ghcr.io/jtmckay/decree:latest
     entrypoint: ["true"]

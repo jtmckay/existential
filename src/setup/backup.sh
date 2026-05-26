@@ -103,11 +103,19 @@ fi
 
 hr
 echo ""
-echo "DB backups (logical dumps) are now scheduled inside decree:"
+echo "DB backups (logical dumps) run inside the decree-backup container."
 echo "  nightly  02:00 UTC daily,  retained  7 days  (${DEST}/nightly/<container>/)"
 echo "  weekly   03:00 UTC Sun,    retained 28 days  (${DEST}/weekly/<container>/)"
 echo ""
-echo "Run a DB backup now:    docker exec decree decree run db-backup"
+echo "Reason for a separate container: only decree-backup mounts /repo/.env,"
+echo "so DB credentials never reach the routines run by the main decree daemon."
+echo ""
+echo "To activate scheduled DB backups, copy the example cron files into the"
+echo "decree-backup cron dir:"
+echo "  cp services/decree/decree-backup/cron.example_/db-backup-*.md \\"
+echo "     services/decree/decree-backup/cron/"
+echo ""
+echo "Run a DB backup now:    docker exec decree-backup decree run db-backup"
 echo ""
 
 # ── Optional: volume backup (file-level) ──────────────────────────────────────

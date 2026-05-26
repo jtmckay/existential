@@ -10,14 +10,14 @@ services:
     environment:
       UID: "1000"
       GID: "1000"
-      WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME}
-      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL}
-      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD}
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      WEBUI_ADMIN_NAME: ${OPEN_WEBUI_ADMIN_NAME}
+      WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
+      WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
+      WEBUI_SECRET_KEY: ${OPEN_WEBUI_SECRET_KEY}
       # Connect to hermes-agent's OpenAI-compatible gateway over the exist
-      # Docker network — Caddy's only there for browser-facing .lan traffic.
+      # Docker network — Caddy's only there for browser-facing .internal traffic.
       OPENAI_API_BASE_URL: http://hermes-agent:8642/v1
-      OPENAI_API_KEY: ${HERMES_API_KEY:-}
+      OPENAI_API_KEY: ${OPEN_WEBUI_HERMES_API_KEY:-}
       # Disable direct Ollama integration — hermes-agent is the backend
       ENABLE_OLLAMA_API: "false"
       # Point STT at the existing whisper service instead of running a second instance
@@ -25,10 +25,15 @@ services:
       AUDIO_STT_OPENAI_API_BASE_URL: http://whisper:8000/v1
       AUDIO_STT_OPENAI_API_KEY: "none"
     volumes:
-      - open-webui-data:/app/backend/data
+      - open_webui_data:/app/backend/data
 
 volumes:
-  open-webui-data:
+  open_webui_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/open_webui_data"
 
 networks:
   exist:

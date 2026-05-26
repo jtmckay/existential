@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
-# Syntax-check every .sh file in /src.
+# Syntax-check every .sh file in /src and every service-dir exist.*.sh.
 
 set -euo pipefail
 
 FAIL=0
 
-while IFS= read -r -d '' script; do
+check_script() {
+    local script="$1"
     if ! bash -n "$script" 2>/dev/null; then
         echo "SYNTAX ERROR: $script"
         bash -n "$script" 2>&1 | sed 's/^/  /'
         ((FAIL++))
     fi
-done < <(find /src -name "*.sh" -print0 | sort -z)
+}
+
+while IFS= read -r -d '' script; do
+    check_script "$script"
+done < <(find /src -name "*.sh" -print0 2>/dev/null | sort -z)
+
+while IFS= read -r -d '' script; do
+    check_script "$script"
+done < <(find /repo/ai /repo/services /repo/hosting /repo/nas \
+              -maxdepth 2 -name 'exist.*.sh' -type f -print0 2>/dev/null | sort -z)
 
 if [ "$FAIL" -gt 0 ]; then
     echo "$FAIL script(s) have syntax errors" >&2

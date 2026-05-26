@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Actual Budget setup
+# Actual Budget — first-time setup
 #
 # Connects to your Actual Budget server, lets you select a budget, and saves
 # credentials to services/decree/secrets/actual-budget/credentials.env for use
 # in decree routines.
 #
-# Run via: ./existential.sh setup actual-budget
-# Requires: docker, running decree container with @actual-app/api available
+# Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_ACTUAL_BUDGET=true
+# and the .exist.initialized sentinel is missing. Re-run manually with:
+#   ./existential.sh setup actual-budget
+#
+# Runs on the host (uses `docker exec decree`). Requires: docker.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SECRETS_DIR="${SCRIPT_DIR}/../../services/decree/secrets"
+REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SECRETS_DIR="${REPO_DIR}/services/decree/secrets"
 CREDENTIALS="${SECRETS_DIR}/actual-budget/credentials.env"
 
 hr() { printf '%0.s─' {1..56}; echo; }
@@ -66,7 +70,7 @@ docker exec -it \
 
 # ── Enable routine in config.yml ─────────────────────────────────────────────
 
-CONFIG="${SCRIPT_DIR}/../../automations/config.yml"
+CONFIG="${REPO_DIR}/automations/config.yml"
 if [ -f "$CONFIG" ]; then
     awk '
         /^  actual-budget:$/ { found=1 }

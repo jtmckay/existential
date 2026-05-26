@@ -1,29 +1,28 @@
 #!/usr/bin/env bash
-# gmail-sync setup
+# decree — Gmail OAuth setup
 #
 # One-time OAuth 2.0 authorization for the gmail-sync routine.
 # Requests the gmail.readonly scope — read-only access only.
 # Credentials are written to ${SECRETS_DIR}/gmail/credentials.env (gitignored).
 #
-# Run via: ./existential.sh setup gmail
-# Or directly in the adhoc container: bash /src/setup/gmail-sync.sh
+# Run via: ./existential.sh setup decree gmail-sync
 #
-# Requires: curl, bash 4+
-# python3 is used for URL-decoding (optional; falls back to raw code).
+# Runs in existential-adhoc with port 8803 exposed for the OAuth redirect.
 
 set -euo pipefail
 
+# Self-elevate into existential-adhoc (with port 8803 published for the OAuth
+# redirect) if we're on the host.
+if [[ -z "${IN_CONTAINER:-}" ]]; then
+    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
+    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
+        --entrypoint "" -p 8803:8803 existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
+fi
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-if [ -z "${SECRETS_DIR:-}" ]; then
-    if [ "${IN_CONTAINER:-}" = "1" ]; then
-        SECRETS_DIR="/secrets"
-    else
-        # Host fallback: run via ./existential.sh setup gmail instead
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        SECRETS_DIR="${SCRIPT_DIR}/../../services/decree/secrets"
-    fi
-fi
+SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 
 GMAIL_DIR="${GMAIL_DIR:-${SECRETS_DIR}/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
@@ -230,4 +229,4 @@ fi
 # ── Sync label cache ──────────────────────────────────────────────────────────
 
 echo ""
-bash /src/setup/gmail-labels.sh
+bash /repo/services/decree/exist.gmail-labels.sh

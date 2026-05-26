@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
-# Gmail label sync
+# decree — Gmail label cache refresh
 #
 # Fetches all Gmail labels and saves them to ${GMAIL_DIR}/labels.json.
 # Used by the gmail-sync routine to resolve custom label names to IDs
 # without making an API call on every run.
 #
-# Run via: ./existential.sh setup gmail-labels
-# Or directly in the adhoc container: bash /src/setup/gmail-labels.sh
+# Run via: ./existential.sh setup decree gmail-labels
+# Re-run any time you add a new label in Gmail that you want decree to read.
 #
-# Requires Gmail credentials to already exist (run ./existential.sh setup gmail first).
+# Requires Gmail credentials (run `./existential.sh setup decree gmail-sync` first).
 
 set -euo pipefail
+
+# Self-elevate into existential-adhoc if we're on the host.
+if [[ -z "${IN_CONTAINER:-}" ]]; then
+    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
+    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
+        --entrypoint "" existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
+fi
 
 GMAIL_DIR="${GMAIL_DIR:-/secrets/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
@@ -33,7 +41,7 @@ echo "  Gmail label sync"
 hr
 echo ""
 
-[ -f "$CREDENTIALS" ] || die "Gmail credentials not found at ${CREDENTIALS}. Run: ./existential.sh setup gmail"
+[ -f "$CREDENTIALS" ] || die "Gmail credentials not found at ${CREDENTIALS}. Run: ./existential.sh setup decree gmail-sync"
 
 # shellcheck source=/dev/null
 source "$CREDENTIALS"
@@ -80,5 +88,5 @@ echo "  Label cache is current. The gmail-sync routine will use this"
 echo "  file to resolve custom label names. Re-run this command if you"
 echo "  add new labels in Gmail:"
 echo ""
-echo "    ./existential.sh setup gmail-labels"
+echo "    ./existential.sh setup decree gmail-labels"
 echo ""

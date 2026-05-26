@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
-# ntfy setup
+# ntfy — first-time setup
 #
 # Walks through obtaining an ntfy access token and URL after the stack is
-# running, then updates the root .env and services/decree/.env in place.
+# running, then updates the root .env in place.
 #
-# Run via: ./existential.sh setup ntfy
-# Or directly in the adhoc container: bash /src/setup/ntfy.sh
+# Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_NTFY=true and the
+# .exist.initialized sentinel is missing. Re-run manually with:
+#   ./existential.sh setup ntfy
+#
+# Runs in the existential-adhoc container (needs curl + master .env mount).
 
 set -euo pipefail
+
+# Self-elevate into existential-adhoc if we're on the host.
+if [[ -z "${IN_CONTAINER:-}" ]]; then
+    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
+    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
+        --entrypoint "" existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
+fi
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 

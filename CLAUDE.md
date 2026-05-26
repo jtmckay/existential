@@ -63,7 +63,7 @@ automations/
 ```
 src/
 ├── generate-compose.py         Merges enabled services → docker-compose.yml
-├── backup-runner.sh            Entrypoint of the existential-backup container (tar/restore volumes)
+├── backup-runner.sh            Entrypoint of the existential-backup container (DB dumps, tar/restore volumes)
 ├── interactive_cli_replacer.sh Replaces EXIST_CLI placeholders interactively
 ├── generate_hex_key.sh         Hex key generator utility
 ├── generate_password.sh        Password generator utility
@@ -115,6 +115,7 @@ src/
 ./existential.sh setup gmail-labels     # Sync Gmail label name→ID cache (re-run after adding labels)
 ./existential.sh setup rclone           # Configure remote file storage
 ./existential.sh setup ntfy             # ntfy integration setup
+./existential.sh backup db [nightly|weekly]        # Dump DBs via existential-backup container
 ./existential.sh backup volumes [nightly|weekly]  # Tar NFS-intended volumes via existential-backup container
 ./existential.sh backup restore                   # Interactive restore (DB or volume)
 ./existential.sh test           # Run test suite
