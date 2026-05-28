@@ -14,6 +14,28 @@ services:
     #   - ACTUAL_BUDGET_HTTPS_KEY=/data/key.key # Uncomment and provide path if using HTTPS
     #   - ACTUAL_BUDGET_HTTPS_CERT=/data/cert.crt # Uncomment and provide path if using HTTPS
 
+  actual-budget-decree:
+    container_name: actual-budget-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - actual_budget_data:/volumes/actual_budget_data
+    tty: false
+
 volumes:
   actual_budget_data:
     driver: local

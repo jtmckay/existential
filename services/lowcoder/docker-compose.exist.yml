@@ -185,8 +185,32 @@ volumes:
       o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${EXIST_TRUENAS_CONTAINER_PATH}/lowcoder_assets"
   # MongoDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
-  # Backed up via automations/routines/db-backup.sh → rclone remote.
   lowcoder_mongo:
+
+  lowcoder-decree:
+    container_name: lowcoder-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+      - LOWCODER_MONGO_ROOT_USERNAME=${LOWCODER_MONGO_ROOT_USERNAME}
+      - LOWCODER_MONGO_ROOT_PASSWORD=${LOWCODER_MONGO_ROOT_PASSWORD}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - lowcoder_data:/volumes/lowcoder_data
+      - lowcoder_assets:/volumes/lowcoder_assets
+    tty: false
 
 networks:
   exist:

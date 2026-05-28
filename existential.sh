@@ -2,11 +2,11 @@
 # existential.sh — orchestrator for the existential homelab stack.
 #
 # Responsibilities:
-#   1. Render *.example files into their counterparts (gated by EXIST_IS_*)
+#   1. Render *.exist.* template files into their counterparts (gated by EXIST_IS_*)
 #   2. Run service-specific exist.initial.sh scripts on first init (sentinel-gated)
 #   3. Merge enabled services into a unified docker-compose.yml
-#   4. Dispatch service-specific exist.<action>.sh scripts via `setup <slug> <action>`
-#   5. Dispatch general utilities (rclone, backup, restore) via `setup <name>`
+#   4. Dispatch service-specific exist.<action>.sh scripts via `run <slug> <action>`
+#   5. Dispatch general utilities (rclone, backup, restore) via `run <name>`
 #
 # This script does NOT contain service-specific code. Service setup lives in
 # each service's directory as exist.<name>.sh (sibling to docker-compose.yml).
@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FORCE=false
 
-# Service-bearing categories — walked for both .example processing and exist.*.sh.
+# Service-bearing categories — walked for both template rendering and exist.*.sh.
 # (automations/ is handled separately, tied to EXIST_IS_SERVICES_DECREE.)
 #
 # Order matters for run_initials: hosting first so pihole's router-config
@@ -56,17 +56,16 @@ _sed() {
 
 # Random value generators — kept as standalone sourceable libs in src/lib/ so
 # other scripts (tests, decree routines, ad-hoc tooling) can reuse them.
-# shellcheck source=src/lib/generate_password.sh
-. "${SCRIPT_DIR}/src/lib/generate_password.sh"
-# shellcheck source=src/lib/generate_hex_key.sh
-. "${SCRIPT_DIR}/src/lib/generate_hex_key.sh"
+# shellcheck source=src/utils/generate_password.sh
+. "${SCRIPT_DIR}/src/utils/generate_password.sh"
+# shellcheck source=src/utils/generate_hex_key.sh
+. "${SCRIPT_DIR}/src/utils/generate_hex_key.sh"
 
 gen_password() { generate_24_char_password; }
 gen_hex()      { generate_hex_key "${1:-32}"; }
 gen_uuid()     {
     if command -v uuidgen &>/dev/null; then uuidgen | tr '[:upper:]' '[:lower:]'
-    elif [[ -r /proc/sys/kernel/random/uuid ]]; then cat /proc/sys/kernel/random/uuid
-    else python3 -c "import uuid; print(uuid.uuid4())"
+    else cat /proc/sys/kernel/random/uuid
     fi
 }
 
@@ -74,31 +73,50 @@ gen_uuid()     {
 # leaving a bare named volume that Docker Compose will create as local storage.
 _comment_out_truenas_volumes() {
     local file="$1"
-    python3 - "$file" <<'PYEOF'
-import sys, re
+    local tmp
+    tmp=$(mktemp "${SCRIPT_DIR}/.tmp.XXXXXX")
+    trap 'rm -f "$tmp"' RETURN
 
-lines = open(sys.argv[1]).readlines()
-out = []
-i = 0
-while i < len(lines):
-    line = lines[i]
-    if re.match(r'[ \t]+driver_opts\s*:', line):
-        base_indent = len(line) - len(line.lstrip())
-        block = [line]
-        j = i + 1
-        while j < len(lines) and lines[j].strip() and (len(lines[j]) - len(lines[j].lstrip())) > base_indent:
-            block.append(lines[j])
-            j += 1
-        if any('TRUENAS' in l for l in block):
-            if out and re.match(r'[ \t]+driver\s*:', out[-1]):
-                out[-1] = '#' + out[-1]
-            out.extend('#' + l for l in block)
-            i = j
-            continue
-    out.append(line)
-    i += 1
-open(sys.argv[1], 'w').writelines(out)
-PYEOF
+    mapfile -t _lines < "$file"
+    local -a _out=()
+    local _i=0
+    local _n=${#_lines[@]}
+
+    while (( _i < _n )); do
+        local _line="${_lines[$_i]}"
+        if [[ "$_line" =~ ^([[:space:]]+)driver_opts[[:space:]]*: ]]; then
+            local _base_indent=${#BASH_REMATCH[1]}
+            local -a _block=("$_line")
+            local _j=$(( _i + 1 ))
+            while (( _j < _n )); do
+                local _bl="${_lines[$_j]}"
+                [[ -z "${_bl//[[:space:]]/}" ]] && break
+                local _leading="${_bl%%[![:space:]]*}"
+                (( ${#_leading} > _base_indent )) || break
+                _block+=("$_bl")
+                (( _j++ ))
+            done
+            local _has_truenas=0
+            for _bl in "${_block[@]}"; do
+                [[ "$_bl" == *TRUENAS* ]] && { _has_truenas=1; break; }
+            done
+            if (( _has_truenas )); then
+                if [[ ${#_out[@]} -gt 0 && "${_out[-1]}" =~ ^[[:space:]]+driver[[:space:]]*: ]]; then
+                    _out[-1]="#${_out[-1]}"
+                fi
+                for _bl in "${_block[@]}"; do _out+=("#$_bl"); done
+            else
+                _out+=("${_block[@]}")
+            fi
+            _i=$_j
+        else
+            _out+=("$_line")
+            (( _i++ ))
+        fi
+    done
+
+    printf '%s\n' "${_out[@]}" > "$tmp"
+    mv "$tmp" "$file"
 }
 
 # ── EXIST_ placeholder replacement ────────────────────────────────────────────
@@ -106,15 +124,15 @@ PYEOF
 replace_placeholders() {
     local file="$1"
 
-    # EXIST_* — values from root .env.exist (look-up placeholders). Excludes
+    # EXIST_* — values from .env.shared (look-up placeholders). Excludes
     # the dynamic generators (EXIST_CLI, EXIST_24_CHAR_PASSWORD, etc.) which
-    # aren't keys in .env.exist anyway.
-    if [[ -f "$SCRIPT_DIR/.env.exist" ]]; then
+    # aren't keys in .env.shared anyway.
+    if [[ -f "$SCRIPT_DIR/.env.shared" ]]; then
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
             _sed "s|${key}|${value}|g" "$file"
-        done < "$SCRIPT_DIR/.env.exist"
+        done < "$SCRIPT_DIR/.env.shared"
     fi
 
     # Auto-generated — replace one instance at a time so each gets a unique value
@@ -181,24 +199,24 @@ replace_placeholders() {
 
 # ── Service enablement (EXIST_IS_<CATEGORY>_<SLUG>) ───────────────────────────
 #
-# Source of truth is .env.exist. We re-source on demand so a freshly rendered
-# .env.exist (.env.exist.example → .env.exist) is picked up mid-run.
+# Source of truth is .env.shared. We re-source on demand so a freshly rendered
+# .env.shared (.env.exist.shared → .env.shared) is picked up mid-run.
 
-_env_exist_loaded=0
-_load_env_exist() {
-    [[ "$_env_exist_loaded" == "1" ]] && return 0
-    if [[ -f "${SCRIPT_DIR}/.env.exist" ]]; then
+_env_shared_loaded=0
+_load_env_shared() {
+    [[ "$_env_shared_loaded" == "1" ]] && return 0
+    if [[ -f "${SCRIPT_DIR}/.env.shared" ]]; then
         set -a
         # shellcheck disable=SC1091
-        . "${SCRIPT_DIR}/.env.exist"
+        . "${SCRIPT_DIR}/.env.shared"
         set +a
-        _env_exist_loaded=1
+        _env_shared_loaded=1
     fi
 }
 
-_reload_env_exist() {
-    _env_exist_loaded=0
-    _load_env_exist
+_reload_env_shared() {
+    _env_shared_loaded=0
+    _load_env_shared
 }
 
 # Compute the EXIST_IS_* variable name for a service directory like
@@ -214,14 +232,14 @@ _enable_var_for() {
 }
 
 service_is_enabled() {
-    _load_env_exist
+    _load_env_shared
     local var
     var="$(_enable_var_for "$1")"
     [[ "${!var:-false}" == "true" ]]
 }
 
 decree_is_enabled() {
-    _load_env_exist
+    _load_env_shared
     [[ "${EXIST_IS_SERVICES_DECREE:-false}" == "true" ]]
 }
 
@@ -234,11 +252,37 @@ _find_service_dirs() {
     done | sort
 }
 
-# ── Process .example files ────────────────────────────────────────────────────
+# ── Process *.exist.* and *.env.exist template files ─────────────────────────
+#
+# Template naming:
+#   foo.exist.ext        → renders to foo.ext
+#   foo.exist.Foo        → renders to Foo (palindrome rule — extension-less files)
+#   .env.exist.shared    → renders to .env.shared  (infix rule)
+#   <service>/.env.exist → renders to <service>/.env (ends-with-exist rule)
 
-_process_one_example() {
+_template_to_dst() {
+    local dir fname before after
+    dir="$(dirname "$1")"
+    fname="$(basename "$1")"
+    if [[ "$fname" == *".exist."* ]]; then
+        # Has .exist. infix
+        before="${fname%%.exist.*}"
+        after="${fname##*.exist.}"
+        if [[ "${before,,}" == "${after,,}" ]]; then
+            echo "${dir}/${before}"
+        else
+            echo "${dir}/${before}.${after}"
+        fi
+    elif [[ "$fname" == *".exist" ]]; then
+        # Ends with .exist — strip the suffix
+        echo "${dir}/${fname%.exist}"
+    fi
+}
+
+_process_one_template() {
     local src="$1"
-    local dst="${src%.example}"
+    local dst
+    dst="$(_template_to_dst "$src")"
 
     if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then
         return 1   # skipped
@@ -254,7 +298,7 @@ _process_one_example() {
         # still renders to a working compose without TrueNAS.
         if [[ "$dst" == */docker-compose.yml ]] && grep -q 'TRUENAS' "$dst" 2>/dev/null; then
             local truenas_addr=""
-            truenas_addr=$(grep '^EXIST_TRUENAS_SERVER_ADDRESS=' "$SCRIPT_DIR/.env.exist" 2>/dev/null | cut -d= -f2-)
+            truenas_addr=$(grep '^EXIST_TRUENAS_SERVER_ADDRESS=' "$SCRIPT_DIR/.env.shared" 2>/dev/null | cut -d= -f2-)
             if [[ -z "$truenas_addr" || "$truenas_addr" == "EXIST_CLI" ]]; then
                 _comment_out_truenas_volumes "$dst"
                 echo "  note: TrueNAS not configured — NFS volumes commented out in ${dst#"$SCRIPT_DIR/"}"
@@ -266,60 +310,55 @@ _process_one_example() {
     return 0
 }
 
-_process_examples_in() {
+_process_templates_in() {
     local root="$1"
     [[ -d "$root" ]] || return 0
 
     # Dirs first (so files inside the new dir get placeholders too)
     while IFS= read -r src; do
-        if _process_one_example "$src"; then
+        if _process_one_template "$src"; then
             _STATS_CREATED=$(( _STATS_CREATED + 1 ))
         else
             _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
         fi
-    done < <(find "$root" -name '*.example' -type d \
+    done < <(find "$root" -name '*.exist.*' -type d \
                    -not -path '*/graveyard/*' -not -path '*/.git/*' \
                    -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 
-    # Files second
+    # Files second: *.exist.* (infix) and *.env.exist (suffix)
     while IFS= read -r src; do
-        if _process_one_example "$src"; then
+        if _process_one_template "$src"; then
             _STATS_CREATED=$(( _STATS_CREATED + 1 ))
         else
             _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
         fi
-    done < <(find "$root" -name '*.example' -type f \
+    done < <(find "$root" \( -name '*.exist.*' -o -name '*.env.exist' \) -type f \
                    -not -path '*/graveyard/*' -not -path '*/.git/*' \
                    -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 }
 
-process_examples() {
+render_templates() {
     _STATS_CREATED=0
     _STATS_SKIPPED=0
 
-    # 1) Top-level: .env.exist.example always processes (it's the master config
-    #    that gates everything else).
-    if [[ -f "${SCRIPT_DIR}/.env.exist.example" ]]; then
-        if _process_one_example "${SCRIPT_DIR}/.env.exist.example"; then
+    # 1) Top-level: .env.exist.shared must run first — renders to .env.shared,
+    #    which gates all EXIST_IS_* checks in the service loop below.
+    if [[ -f "${SCRIPT_DIR}/.env.exist.shared" ]]; then
+        if _process_one_template "${SCRIPT_DIR}/.env.exist.shared"; then
             _STATS_CREATED=$(( _STATS_CREATED + 1 ))
-            _reload_env_exist
+            _reload_env_shared
         else
             _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
         fi
     fi
-    _load_env_exist
+    _load_env_shared
 
     # 2) Per-service: gate on EXIST_IS_<CATEGORY>_<SLUG>.
     while IFS= read -r svc_dir; do
         if service_is_enabled "$svc_dir"; then
-            _process_examples_in "$svc_dir"
+            _process_templates_in "$svc_dir"
         fi
     done < <(_find_service_dirs)
-
-    # 3) Special: automations/ is processed when decree is enabled.
-    if decree_is_enabled; then
-        _process_examples_in "${SCRIPT_DIR}/automations"
-    fi
 
     echo "Created ${_STATS_CREATED} file(s), skipped ${_STATS_SKIPPED} existing"
     [[ "$_STATS_SKIPPED" -gt 0 ]] && echo "  (use --force to regenerate existing files)"
@@ -328,14 +367,14 @@ process_examples() {
 # ── Service init scripts (exist.initial.sh) ───────────────────────────────────
 
 run_initials() {
-    _load_env_exist
+    _load_env_shared
     local ran=0 skipped=0
 
     while IFS= read -r svc_dir; do
         service_is_enabled "$svc_dir" || continue
 
         local init_script="${svc_dir}/exist.initial.sh"
-        local sentinel="${svc_dir}/.exist.initialized"
+        local sentinel="${svc_dir}/.existential.initialized"
         local rel="${svc_dir#"$SCRIPT_DIR"/}"
 
         [[ -f "$init_script" ]] || continue
@@ -367,7 +406,9 @@ run_initials() {
 # ── Adhoc container runner ────────────────────────────────────────────────────
 
 run_adhoc() {
-    $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm -it \
+    local tty_flags=()
+    [[ -t 0 && -t 1 ]] && tty_flags=(-it)
+    $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm "${tty_flags[@]}" \
         --entrypoint "" \
         existential-adhoc "$@"
 }
@@ -377,29 +418,29 @@ run_adhoc() {
 generate_compose() {
     local output="${1:-docker-compose.yml}"
     echo "Generating ${output}..."
-    run_adhoc python3 /src/generate-compose.py /repo "$output"
+    run_adhoc tsx /src/generate-compose.ts /repo "$output"
 }
 
-# ── Setup dispatch ────────────────────────────────────────────────────────────
+# ── Run dispatch ──────────────────────────────────────────────────────────────
 #
 # Two shapes:
-#   ./existential.sh setup <utility>           — runs src/setup/<utility>.sh
-#   ./existential.sh setup <slug> [action]     — runs <category>/<slug>/exist.<action>.sh
-#                                                action defaults to "initial"
+#   ./existential.sh run <utility>           — runs src/lib/<utility>.sh
+#   ./existential.sh run <slug> [action]     — runs <category>/<slug>/exist.<action>.sh
+#                                              action defaults to "initial"
 #
-# The dispatcher looks at src/setup/ first; if nothing matches there, it
+# The dispatcher looks at src/lib/ first; if nothing matches there, it
 # scans service categories. This keeps general utilities (rclone, backup,
 # restore) discoverable while letting services own their own setup scripts.
 
 _list_setup_actions() {
-    echo "Usage: $0 setup <name> [action]"
+    echo "Usage: $0 run <name> [action]"
     echo ""
-    echo "General utilities (src/setup/):"
-    local f
-    for f in "${SCRIPT_DIR}/src/setup/"*.sh; do
+    echo "General utilities (src/lib/):"
+    local f name
+    for f in "${SCRIPT_DIR}/src/lib/"*.sh; do
         [[ -f "$f" ]] || continue
-        local name="${f##*/}"
-        echo "  $0 setup ${name%.sh}"
+        name="${f##*/}"; name="${name%.sh}"
+        echo "  $0 run ${name}"
     done
     echo ""
     echo "Service-specific (exist.*.sh):"
@@ -414,9 +455,9 @@ _list_setup_actions() {
             sname="${sname#exist.}"
             sname="${sname%.sh}"
             if [[ "$sname" == "initial" ]]; then
-                echo "  $0 setup ${slug}"
+                echo "  $0 run ${slug}"
             else
-                echo "  $0 setup ${slug} ${sname}"
+                echo "  $0 run ${slug} ${sname}"
             fi
         done
     done < <(_find_service_dirs)
@@ -437,8 +478,8 @@ _run_service_action() {
     local slug="$1" action="$2"
     local svc_dir
     svc_dir="$(_find_service_dir_for_slug "$slug")" || {
-        echo "Unknown setup target: $slug" >&2
-        echo "Run \`$0 setup\` (no args) to see available actions." >&2
+        echo "Unknown run target: $slug" >&2
+        echo "Run \`$0 run\` (no args) to see available actions." >&2
         return 1
     }
 
@@ -457,16 +498,23 @@ _run_service_action() {
     bash "$script"
 }
 
-# General utilities from src/setup/. A couple need explicit invocation modes;
-# the rest just run on host (they self-elevate if they need container tooling).
+# General utilities run inside existential-adhoc; backup-restore runs on the
+# host and execs into per-service sidecars for actual operations.
 _run_general_utility() {
     local name="$1"
     case "$name" in
-        backup)         run_adhoc bash /src/setup/backup.sh ;;
-        rclone)         run_adhoc bash /src/setup/rclone.sh ;;
-        backup-restore) bash "${SCRIPT_DIR}/src/setup/backup-restore.sh" ;;
-        *)              bash "${SCRIPT_DIR}/src/setup/${name}.sh" ;;
+        backup-config)  run_adhoc bash "/src/lib/backup-config.sh" ;;
+        backup-restore) bash "${SCRIPT_DIR}/src/lib/backup-restore.sh" ;;
+        *)              run_adhoc bash "/src/lib/${name}.sh" ;;
     esac
+}
+
+_has_any_enabled() {
+    grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
+}
+
+run_quest() {
+    REPO_DIR="${SCRIPT_DIR}" bash "${SCRIPT_DIR}/src/quest.sh" "$@"
 }
 
 run_setup() {
@@ -484,9 +532,9 @@ run_setup() {
         return $?
     fi
 
-    # One-arg form: prefer src/setup/<first>.sh (general utility); fall back
+    # One-arg form: prefer src/lib/<first>.sh (general utility); fall back
     # to a service's exist.initial.sh.
-    if [[ -f "${SCRIPT_DIR}/src/setup/${first}.sh" ]]; then
+    if [[ -f "${SCRIPT_DIR}/src/lib/${first}.sh" ]]; then
         _run_general_utility "$first"
     else
         _run_service_action "$first" "initial"
@@ -518,9 +566,9 @@ run_tests() {
 
 # ── Backup (on-demand) ───────────────────────────────────────────────────────
 #
-# Both DB and volume backups run inside decree-backup on its internal cron
-# schedule. Activate by copying the cron templates from
-# services/decree/decree-backup/cron.example_/ into the active cron/ dir
+# DB and volume backups run inside per-service decree sidecars on their own
+# cron schedules. Activate by copying the cron templates from each service's
+# decree/cron.example/ into that service's decree/cron/ dir
 # (db-backup-{nightly,weekly}.md, volume-backup-{nightly,weekly}.md).
 #
 # The target lists (which DBs, which volumes) live in those cron files'
@@ -532,32 +580,33 @@ run_backup() {
     [[ $# -gt 0 ]] && shift || true
     case "$sub" in
         db|dbs)
-            local tier="${1:-nightly}"
-            $DOCKER_CMD exec decree-backup decree run db-backup -- "$tier"
+            local svc="${1:-}" tier="${2:-nightly}"
+            [ -n "$svc" ] || { echo "Usage: $0 backup db <service> [tier]" >&2; return 1; }
+            $DOCKER_CMD exec "${svc}-decree" decree run db-backup -- "$tier"
             ;;
-        volumes)
-            local tier="${1:-nightly}"
-            $DOCKER_CMD exec decree-backup decree run volume-backup -- "$tier"
+        volumes|vol)
+            local svc="${1:-}" tier="${2:-nightly}"
+            [ -n "$svc" ] || { echo "Usage: $0 backup volumes <service> [tier]" >&2; return 1; }
+            $DOCKER_CMD exec "${svc}-decree" decree run volume-backup -- "$tier"
             ;;
         restore)
-            bash "${SCRIPT_DIR}/src/setup/backup-restore.sh"
+            bash "${SCRIPT_DIR}/src/lib/backup-restore.sh"
             ;;
         ""|--help|-h)
             cat <<EOF
 Usage: $0 backup <subcommand> [args]
 
 Subcommands:
-  db [tier]         Trigger db-backup inside decree-backup right now.
-                    tier = nightly (default) | weekly
-  volumes [tier]    Trigger volume-backup inside decree-backup right now.
-                    tier = nightly (default) | weekly
-  restore           Interactive restore — DB or volume.
-                    (Same as \`./existential.sh setup backup-restore\`.)
+  db <service> [tier]       Trigger db-backup on a service sidecar now.
+                            tier = nightly (default) | weekly
+                            e.g. ./existential.sh backup db mealie
+  volumes <service> [tier]  Trigger volume-backup on a service sidecar now.
+                            e.g. ./existential.sh backup volumes hermes
+  restore                   Interactive restore — DB or volume.
+                            (Same as \`./existential.sh run backup-restore\`.)
 
-Scheduled runs come from decree-backup's cron — copy the templates in
-services/decree/decree-backup/cron.example_/ into the active cron/ dir.
-Edit the cron file's frontmatter (TARGETS / VOLUMES) to add or remove
-backup targets.
+Scheduled runs come from each service's decree/cron/ dir. Copy the templates
+from <service>/decree/cron.example/ into the active decree/cron/ dir to activate.
 EOF
             ;;
         *)
@@ -577,16 +626,16 @@ run_validate() {
     case "$name" in
         all)
             echo "=== Conventions ==="
-            python3 "${SCRIPT_DIR}/src/test/validate-conventions.py" || rc=1
+            run_adhoc tsx /src/test/validate-conventions.ts || rc=1
             echo ""
-            echo "=== Drift (.example vs rendered) ==="
-            python3 "${SCRIPT_DIR}/src/test/check-drift.py" || rc=1
+            echo "=== Drift (template vs rendered) ==="
+            run_adhoc tsx /src/test/check-drift.ts || rc=1
             ;;
         conventions)
-            python3 "${SCRIPT_DIR}/src/test/validate-conventions.py" || rc=1
+            run_adhoc tsx /src/test/validate-conventions.ts || rc=1
             ;;
         drift)
-            python3 "${SCRIPT_DIR}/src/test/check-drift.py" || rc=1
+            run_adhoc tsx /src/test/check-drift.ts || rc=1
             ;;
         *)
             echo "Unknown validation: $name. Available: all, conventions, drift" >&2
@@ -603,25 +652,31 @@ usage() {
 Usage: $0 [--force] <action> [args]
 
 Actions:
-  (default)           Process .example files, run exist.initial.sh for newly
+  (default)           Render *.exist.* templates, run exist.initial.sh for newly
                       enabled services, then generate docker-compose.yml.
-  examples            Process .example files only (gated by EXIST_IS_*).
+                      Auto-launches quest picker if no services are enabled.
+  quest               Interactive onboarding wizard — pick what to build, then
+                      run full setup. Re-run anytime to add more services.
+  templates           Render *.exist.* template files only (gated by EXIST_IS_*).
   initials            Run exist.initial.sh for enabled services with no sentinel.
   compose [file]      Generate unified docker-compose.yml (default: docker-compose.yml).
-  setup               List available setup actions.
-  setup <name>        Run a general utility (src/setup/<name>.sh) or a
+  run                 List available run actions.
+  run <name>          Run a general utility (src/lib/<name>.sh) or a
                       service's exist.initial.sh.
-  setup <slug> <act>  Run <category>/<slug>/exist.<act>.sh.
+  run <slug> <act>    Run <category>/<slug>/exist.<act>.sh.
   test [name]         Run tests. 'all' (default) runs general infra tests +
                       every enabled service's exist.test.sh. 'syntax|gmail|rclone'
                       run those individually. Anything else is treated as a
                       service slug and runs that service's exist.test.sh.
   backup <sub>        Volume backups / restore: volumes [tier], restore.
   validate [name]     On-demand checks: all (default), conventions, drift.
+  e2e [quest...]      End-to-end tests: fresh clone → render → docker up → test → down.
+                      Runs quests 1–6 by default; pass quest numbers to run specific ones.
+                      Pre-flight check aborts early if conflicting containers exist.
 
 Options:
   --force             Re-render existing files / re-run already-initialized
-                      services (bypasses the .exist.initialized sentinel).
+                      services (bypasses the .existential.initialized sentinel).
 EOF
 }
 
@@ -639,13 +694,28 @@ action="${1:-default}"
 
 case "$action" in
     default)
-        process_examples
+        render_templates
+        if ! _has_any_enabled; then
+            echo "No services are enabled yet."
+            echo "Tip: run ./existential.sh quest anytime to pick what to build."
+            echo ""
+            run_quest
+            # Re-render so newly-enabled service templates get processed
+            render_templates
+        fi
         run_initials
         echo ""
         generate_compose
         ;;
-    examples)
-        process_examples
+    quest)
+        run_quest "$@"
+        render_templates
+        run_initials
+        echo ""
+        generate_compose
+        ;;
+    templates)
+        render_templates
         ;;
     initials)
         run_initials
@@ -653,7 +723,7 @@ case "$action" in
     compose)
         generate_compose "${1:-docker-compose.yml}"
         ;;
-    setup)
+    run)
         run_setup "$@"
         ;;
     test)
@@ -664,6 +734,9 @@ case "$action" in
         ;;
     validate)
         run_validate "${1:-all}"
+        ;;
+    e2e)
+        bash "${SCRIPT_DIR}/src/test/e2e.sh" "$@"
         ;;
     --help|-h)
         usage

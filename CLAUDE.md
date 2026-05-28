@@ -14,33 +14,67 @@ network named `exist`.
 
 ---
 
+## Primary Goal: Don't Reinvent the Wheel
+
+**Before building anything — a script, a routine, a service, a utility — stop and ask:
+does this already exist?**
+
+This stack is called *Existential* for a reason. It is deliberately curated. Every tool
+added is a tool that must be maintained, understood, and kept working. The goal is not to
+accumulate — it is to compose the right set of existing pieces.
+
+Before writing new code:
+- Check if a service in the stack already does it (hermes has skills; decree has routines)
+- Check if a shell one-liner or standard Unix tool handles it
+- Check if an existing routine or helper in `automations/` covers the case
+- Ask: is there an npm package, CLI, or API that already solves this cleanly?
+
+**If something already exists and works, use it. Do not convert, reimplement, or
+"standardize" working code unless there is a concrete, specific problem to solve.**
+
+One exception: scripts we author and maintain should be written in a language the team
+can actually maintain. For this project that means bash (preferred) or TypeScript/NodeJS
+for anything bash can't handle cleanly — not Python. "Different language" is only a
+problem when it's a language we own and can't debug. External tools (hermes skills,
+third-party services, upstream configs) stay in whatever language they were written in.
+
+---
+
 ## Principles
 
 Keep conventions tight. The conventions ARE the documentation — someone new to this repo
 should be able to navigate it without an onboarding doc, because every service looks like
 every other service. **Match existing patterns first; invent only when you must.**
 
-1. **Custom logic is plain bash.** Reach for shell scripts before Python, Node, or any
-   other runtime. Bash is already on every host and in the `existential-adhoc` container.
+1. **Custom logic is plain bash, then TypeScript.** Reach for shell scripts first. When
+   bash becomes cumbersome, use TypeScript (run via `tsx` inside the decree/adhoc
+   container — not installed on the host). Do not use Python for scripts we own; Python
+   is only acceptable in external tooling already written in it (e.g. hermes skills).
 2. **Configuration is YAML.** Compose files, automations, dashy, caddy, prometheus, decree
    cron — all YAML. `.env` is for secrets and host-specific values only; never use it as
    a substitute for structured config.
-3. **Repeatable work is a decree routine.** If a script needs to run more than once — on a
+3. **`src/` is for host-run scripts. `automations/` is for everything else.** Scripts in
+   `src/` run directly on the host (or self-elevate into `existential-adhoc`). Scripts that
+   run on a schedule, respond to webhooks, or are triggered by decree belong in
+   `automations/routines/` and are enabled through decree's config. Shared code used across
+   routines lives in `automations/lib/` — entirely separated from `src/`. If it runs in a
+   container on a schedule, it is not a `src/` script.
+4. **Repeatable work is a decree routine.** If a script needs to run more than once — on a
    schedule, after a webhook, in response to a message — it lives in
    `automations/routines/`. Not host cron, not a one-off `docker exec`, not a sibling
    `exist.<action>.sh`. One-shots stay as `exist.<action>.sh`; recurring work is decree's
    job.
-4. **Services set themselves up deterministically.** Each service ships an
+5. **Services set themselves up deterministically.** Each service ships an
    `exist.initial.sh` that brings it from "fresh container" to "ready to use". Re-running
    should be a no-op (sentinel-gated). Prompts only when there's truly no deterministic
    answer.
-5. **Services validate themselves.** Each service ships an `exist.test.sh` that confirms
+6. **Services validate themselves.** Each service ships an `exist.test.sh` that confirms
    it is fully operational and prints copy-pasteable remediation for anything broken. See
    "Service test scripts" below.
-6. **Tests are read-only.** No stacking state. A test must not leave artifacts behind.
+7. **Tests are read-only.** No stacking state. A test must not leave artifacts behind.
    Prefer pure observation (HTTP probes, `docker inspect`, log scans) over create-and-
    delete dances. If a write is unavoidable, the cleanup runs in a `trap` and is verified.
-7. **Ignore the `graveyard/`.** Archived services don't get new initial scripts, tests, or
+8. **Ignore the `graveyard/`.** Archived services don't get new initial scripts, tests, or
    docs. If something graveyarded needs work, lift it out first; otherwise leave it alone.
 
 When in doubt, copy the closest existing example and adapt — divergence from the
@@ -76,52 +110,73 @@ graveyard/    Archived/deprecated solutions
 `caddy` `cloudflare` *(certs only — no container)* `grafana` `loki` `pihole`
 `portainer` `prometheus` `uptime-kuma`
 
-### automations/ (Decree working directory)
-Mounted into the `decree` container at `/work/.decree`.
+### automations/ (shared decree code)
+Mounted read-only into every decree daemon at the paths shown. Contains only
+shared code — no daemon-specific state.
 
 ```
 automations/
-├── config.yml          Routine registry, hooks, AI tool config
+├── routines/           Routine shell scripts (shared across all decree daemons)
+├── lib/                Shared shell helpers (precheck.sh, hooks/, etc.)
+│   └── hooks/          Lifecycle hook scripts (config-watch.sh, afterEach.sh)
+└── runs/               Execution logs — one dir per message, all daemons write here
+```
+
+### services/decree/decree/ — main decree daemon state
+Config, cron templates, and runtime dirs for the main `decree` daemon. All
+runtime dirs (`cron/`, `inbox/`, `outbox/`, `emails/`, `processed.md`) are gitignored.
+
+```
+services/decree/decree/
+├── config.exist.yml    Routine registry, AI tool config (template → config.yml)
 ├── router.md           Prompt template for automatic routine selection
-├── processed.md        Tracks completed migrations
-├── routines/           Routine shell scripts
-├── hooks/              Lifecycle hook scripts (beforeAll/afterAll/etc.)
-├── lib/                Shared shell helpers (precheck.sh, etc.)
-├── cron/               Scheduled trigger files
-├── inbox/              Message queue (dead/ subdir for failed messages)
-├── outbox/             Follow-up messages written by routines; decree relays to inbox
-├── emails/             Archived email messages (written by gmail routine)
-└── runs/               Execution logs — one dir per message (audit trail)
+├── cron.example/      Cron templates (copy to cron/ to activate)
+├── cron/               Active cron triggers (gitignored)
+├── inbox/              Message queue (gitignored)
+├── outbox/             Follow-up messages (gitignored)
+├── emails/             Archived email messages (gitignored)
+└── processed.md        Migration tracking (gitignored)
 ```
 
-#### services/decree/decree-backup/ — isolated backup daemon
-The `decree-backup` container is the **only** container that mounts the master
-`.env` (so it has DB credentials) AND the only one that mounts every backup
-target volume at `/volumes/<name>` (so it can tar / wipe / extract them). It
-runs both `db-backup` (logical SQL dumps) and `volume-backup` (file-level
-tars) on its own cron schedule, kept separate from the main `decree` daemon
-so neither secret has to leak there.
+### Per-service decree sidecars (`<slug>-decree`)
+Each backup-eligible service ships a `decree/` subdirectory and a `<slug>-decree`
+sidecar container. The sidecar mounts only its own service's volumes and receives
+only its own DB credentials via env vars (no master `.env` mount). Credentials
+flow through compose exactly as they do for the service's own containers.
 
 ```
-services/decree/decree-backup/
-├── config.yml          Routine registry — db-backup + volume-backup enabled
-├── cron/               Active cron triggers (gitignored; populate from cron.example_/)
-├── cron.example_/      Templates: db-backup-{nightly,weekly}.md, volume-backup-{nightly,weekly}.md
-├── processed.md        Tracks completed migrations
-└── inbox/, outbox/     Runtime state (gitignored)
+<category>/<slug>/
+├── decree/
+│   ├── config.yml          Enabled routines (tracked)
+│   ├── cron.example/      Cron templates (copy to cron/ to activate)
+│   ├── cron/               Active cron triggers (gitignored)
+│   ├── inbox/              Runtime state (gitignored)
+│   ├── outbox/             Runtime state (gitignored)
+│   └── processed.md        Migration tracking (gitignored)
+└── docker-compose.exist.yml  # includes the <slug>-decree sidecar
 ```
 
-Routines, `lib/`, and `hooks/` are mounted **read-only** from `automations/`
-so both daemons share the same code without duplication. `runs/` is mounted
-**writable** from `automations/runs/` so execution logs from both daemons
-land in the same audit trail (and `clean-runs` prunes them uniformly).
+All decree daemons (main + sidecars) share `automations/routines/`, `automations/lib/`,
+and `automations/runs/` via read-only mounts, so code lives in one place and logs
+from all daemons land in the same audit trail (pruned uniformly by `clean-runs`).
 
-The list of databases (DB engine + container + credential env vars) and
-volumes (volume + consumer containers) lives in each cron file's frontmatter
-— `TARGETS:` / `VOLUMES:` blocks. No separate registry to keep in sync; to
-add a target, edit the cron file. For volumes, also add a matching mount
-line to the `decree-backup` service in
-`services/decree/docker-compose.yml.example` so the container can see it.
+Backup-eligible services with sidecars:
+
+| Service | Sidecar | Backups |
+|---|---|---|
+| `services/mealie` | `mealie-decree` | DB (postgres) + volume |
+| `services/nocodb` | `nocodb-decree` | DB (postgres) + volume |
+| `services/vikunja` | `vikunja-decree` | DB (postgres) + volume |
+| `services/lowcoder` | `lowcoder-decree` | DB (mongo) + volumes |
+| `nas/nextcloud` | `nextcloud-decree` | DB (mariadb) |
+| `services/actual-budget` | `actual-budget-decree` | volume |
+| `services/appsmith` | `appsmith-decree` | volume |
+| `ai/hermes` | `hermes-decree` | volume |
+| `ai/lightrag` | `lightrag-decree` | volume |
+| `ai/open-webui` | `open-webui-decree` | — |
+| `hosting/grafana` | `grafana-decree` | — |
+| `hosting/portainer` | `portainer-decree` | volume |
+| `hosting/uptime-kuma` | `uptime-kuma-decree` | — |
 
 ### src/
 Holds **general-purpose** infra and utility code only. Service-specific setup
@@ -129,30 +184,41 @@ scripts live alongside their services as `exist.<name>.sh` (see next section).
 
 ```
 src/
-├── generate-compose.py             Merges enabled services → docker-compose.yml
+├── generate-compose.ts             Merges enabled services → docker-compose.yml
 ├── interactive_cli_replacer.sh     Legacy EXIST_CLI prompter (not currently sourced; existential.sh has an inline equivalent with DEFAULT_FROM support)
+├── quest.sh                        Interactive onboarding wizard — invoked by `./existential.sh quest`
 ├── lib/
-│   ├── exist-test.sh               Shared helpers for per-service exist.test.sh (probes, output, skip-if-disabled)
-│   ├── generate_hex_key.sh         `generate_hex_key N` / `generate_32_char_hex` / `generate_64_char_hex` — sourced by existential.sh
-│   └── generate_password.sh        `generate_24_char_password` — sourced by existential.sh
-├── setup/
-│   ├── backup.sh                   Configure rclone backup destination
-│   ├── backup-restore.sh           Interactive restore — DB dump or Docker volume
+│   ├── backup-config.sh            Configure rclone backup destination (run via: ./existential.sh run backup-config)
+│   ├── backup-restore.sh           Interactive restore — DB dump, SQLite dump, or Docker volume
+│   ├── check-versions.sh           Compare pinned image tags vs latest; --update patches .exist.yml files
 │   └── rclone.sh                   rclone remote configuration
+├── utils/
+│   ├── generate_hex_key.sh         `generate_hex_key N` / `generate_32_char_hex` / `generate_64_char_hex` — sourced only
+│   └── generate_password.sh        `generate_24_char_password` — sourced only
 └── test/
+    ├── e2e.sh                      End-to-end harness — fresh clone per quest, docker up, test, down
+    ├── exist-test.sh               Shared helpers for per-service exist.test.sh (probes, output, skip-if-disabled)
     ├── run-all.sh                  Test suite orchestrator — runs src/test/* + every enabled exist.test.sh
     ├── test-syntax.sh              Lint every script (src/ + every exist.*.sh)
     ├── test-gmail.sh               Validate Gmail credentials (routine-scoped, not service-scoped)
-    └── test-rclone.sh              Test rclone remote connectivity
+    ├── test-rclone.sh              Test rclone remote connectivity
+    ├── validate-conventions.ts     Convention checks (slug sync across compose/piHole/Caddy/dashy)
+    ├── check-drift.ts              Template vs rendered drift report
+    └── fixtures/
+        └── env.shared              Pre-filled .env.shared for e2e runs (committed, no real secrets)
 ```
 
-**Sourceable utilities** (`src/lib/*.sh`): standalone scripts with both a callable
-function and a CLI entrypoint. Source them from `existential.sh` or any other
-script instead of reimplementing the logic — see [[feedback_sourceable_utilities]].
+**`src/lib/`** holds interactive setup utilities dispatched by `./existential.sh run`
+(`backup-config.sh`, `backup-restore.sh`, `rclone.sh`). See [[feedback_sourceable_utilities]].
 
-Per-service tests (`<cat>/<slug>/exist.test.sh`) own the service-scoped checks.
-The general `src/test/test-*.sh` scripts cover only things that don't belong to any
-one service (syntax linting, rclone, Gmail routine credentials).
+**`src/utils/`** holds scripts that are **sourced only** — never run directly
+(`generate_hex_key.sh`, `generate_password.sh`). Source them from `existential.sh`
+rather than reimplementing the logic.
+
+**`src/test/`** holds all test infrastructure: `exist-test.sh` (shared helper sourced
+by every `exist.test.sh`) and the general test scripts (`run-all.sh`, `test-*.sh`,
+`validate-conventions.ts`, `check-drift.ts`) that cover things not owned by any one
+service. Per-service tests live in their own `<cat>/<slug>/exist.test.sh`.
 
 ### Service setup scripts (`exist.<name>.sh`)
 
@@ -160,19 +226,20 @@ Each service owns its setup, test, and on-demand action code in its own director
 
 ```
 <category>/<slug>/
-├── docker-compose.yml(.example)
+├── docker-compose.exist.yml  # template → renders to docker-compose.yml
+├── .env.exist                # template → renders to .env
 ├── exist.initial.sh          # auto-run on first init — sentinel-gated
 ├── exist.test.sh             # validate the service is fully operational (read-only)
 ├── exist.<action>.sh         # optional sibling scripts for refresh/cron/etc.
-└── .exist.initialized        # sentinel (gitignored) — touched after success
+└── .existential.initialized  # sentinel (gitignored) — touched after success
 ```
 
 - **`exist.initial.sh`** runs once on first init: `./existential.sh` checks each
-  enabled service, runs it if `.exist.initialized` is missing, then touches the
-  sentinel on success. Re-run manually with `./existential.sh setup <slug>` or
+  enabled service, runs it if `.existential.initialized` is missing, then touches the
+  sentinel on success. Re-run manually with `./existential.sh run <slug>` or
   force everything with `./existential.sh --force`.
 - **`exist.test.sh`** — see "Service test scripts" below.
-- **`exist.<action>.sh`** are on-demand sibling scripts: `./existential.sh setup
+- **`exist.<action>.sh`** are on-demand sibling scripts: `./existential.sh run
   <slug> <action>` runs them. Examples below.
 - **Runtime:** each script decides whether it runs on host or self-elevates
   into the `existential-adhoc` container. Adhoc-needing scripts include a
@@ -183,13 +250,13 @@ Current inventory:
 
 | Path | Trigger |
 |---|---|
-| `hosting/pihole/exist.initial.sh` | `./existential.sh setup pihole` — router DNS walkthrough, runs FIRST |
-| `hosting/caddy/exist.initial.sh` | `./existential.sh setup caddy` — optional public-domain (EXIST_PUBLIC_DOMAIN) |
-| `services/actual-budget/exist.initial.sh` | `./existential.sh setup actual-budget` |
-| `services/ntfy/exist.initial.sh` | `./existential.sh setup ntfy` |
-| `services/decree/exist.gmail-sync.sh` | `./existential.sh setup decree gmail-sync` |
-| `services/decree/exist.gmail-labels.sh` | `./existential.sh setup decree gmail-labels` |
-| `services/decree/exist.gmail-transactions-cron.sh` | `./existential.sh setup decree gmail-transactions-cron` |
+| `hosting/pihole/exist.initial.sh` | `./existential.sh run pihole` — router DNS walkthrough, runs FIRST |
+| `hosting/caddy/exist.initial.sh` | `./existential.sh run caddy` — optional public-domain (EXIST_PUBLIC_DOMAIN) |
+| `services/actual-budget/exist.initial.sh` | `./existential.sh run actual-budget` |
+| `services/ntfy/exist.initial.sh` | `./existential.sh run ntfy` |
+| `services/decree/exist.gmail-sync.sh` | `./existential.sh run decree gmail-sync` |
+| `services/decree/exist.gmail-labels.sh` | `./existential.sh run decree gmail-labels` |
+| `services/decree/exist.gmail-transactions-cron.sh` | `./existential.sh run decree gmail-transactions-cron` |
 
 **Init ordering:** `run_initials()` walks `SERVICE_CATEGORIES` in this order:
 `hosting → nas → ai → services`. Pihole's router walkthrough is in hosting,
@@ -232,7 +299,7 @@ Triggered via:
 
 ```bash
 ./existential.sh test                  # All enabled services (plus general src/test/*)
-./existential.sh setup <slug> test     # One service
+./existential.sh run <slug> test     # One service
 ```
 
 Tests for general infra (not tied to a single service — e.g., rclone, syntax linting)
@@ -248,56 +315,63 @@ as `exist.test.sh`.
 ./existential.sh
 ```
 
-1. Render `.env.exist.example` → `.env.exist` (prompts for any `EXIST_CLI` values)
-2. For every service with `EXIST_IS_<CATEGORY>_<SLUG>=true`, copy its `.example`
-   files into counterparts and run placeholder replacement. `automations/` is
-   processed when `EXIST_IS_SERVICES_DECREE=true`. Disabled services are **skipped**
+1. Render `.env.exist.shared` → `.env.shared` (prompts for any `EXIST_CLI` values)
+2. All services default to disabled. If none are enabled, the quest picker launches
+   automatically so you can choose what to build (re-run with `./existential.sh quest`).
+3. For every service with `EXIST_IS_<CATEGORY>_<SLUG>=true`, render its `*.exist.*`
+   template files (e.g. `docker-compose.exist.yml` → `docker-compose.yml`). `automations/`
+   is processed when `EXIST_IS_SERVICES_DECREE=true`. Disabled services are **skipped**
    so their secret/template files never land on disk.
-3. For each enabled service with `exist.initial.sh` and no `.exist.initialized`
+4. For each enabled service with `exist.initial.sh` and no `.existential.initialized`
    sentinel, run the script and touch the sentinel on success.
-4. Merge enabled services into a unified `docker-compose.yml` (and write the
+5. Merge enabled services into a unified `docker-compose.yml` (and write the
    master `.env`) via the existential-adhoc container.
 
 ### Targeted commands
 ```bash
 ./existential.sh --force        # Re-render existing files + re-run all initials
-./existential.sh examples       # Only process .example files
+./existential.sh quest          # Pick what to build (interactive), then run full setup
+./existential.sh templates      # Only render *.exist.* template files
 ./existential.sh initials       # Only run pending exist.initial.sh scripts
 ./existential.sh compose        # Only regenerate docker-compose.yml and master .env
 
-# Setup dispatch — general utilities (src/setup/<name>.sh):
-./existential.sh setup backup           # Configure rclone backup destination
-./existential.sh setup backup-restore   # Interactive DB or volume restore
-./existential.sh setup rclone           # Configure rclone remotes
+# Run dispatch — general utilities (src/lib/<name>.sh):
+./existential.sh run backup-config    # Configure rclone backup destination
+./existential.sh run backup-restore   # Interactive DB, SQLite, or volume restore
+./existential.sh run rclone           # Configure rclone remotes
+./existential.sh run check-versions   # Compare pinned image tags against latest; add --update to apply
 
-# Setup dispatch — service-specific (<category>/<slug>/exist.<action>.sh):
-./existential.sh setup                  # List every available setup action
-./existential.sh setup <slug>           # Run <slug>'s exist.initial.sh
-./existential.sh setup <slug> <action>  # Run <slug>'s exist.<action>.sh
+# Run dispatch — service-specific (<category>/<slug>/exist.<action>.sh):
+./existential.sh run                  # List every available run action
+./existential.sh run <slug>           # Run <slug>'s exist.initial.sh
+./existential.sh run <slug> <action>  # Run <slug>'s exist.<action>.sh
 # Examples:
-./existential.sh setup actual-budget
-./existential.sh setup ntfy
-./existential.sh setup decree gmail-sync
-./existential.sh setup decree gmail-labels
-./existential.sh setup decree gmail-transactions-cron
+./existential.sh run actual-budget
+./existential.sh run ntfy
+./existential.sh run decree gmail-sync
+./existential.sh run decree gmail-labels
+./existential.sh run decree gmail-transactions-cron
 
-# Backups (both DBs and Docker volumes run inside decree-backup on its own
-# cron — see services/decree/decree-backup/cron.example_/, edit each cron
-# file's TARGETS / VOLUMES frontmatter to add or remove targets):
-./existential.sh backup db      [nightly|weekly]  # Trigger db-backup now
-./existential.sh backup volumes [nightly|weekly]  # Trigger volume-backup now
-./existential.sh backup restore                   # Same as: setup backup-restore
+# Backups run inside per-service decree sidecars on their own cron schedule.
+# Copy cron templates from <service>/decree/cron.example/ → decree/cron/ to activate.
+# Edit each cron file's TARGETS / VOLUMES frontmatter to configure targets.
+./existential.sh backup db <service> [tier]      # Trigger db-backup on a sidecar now
+./existential.sh backup volumes <service> [tier] # Trigger volume-backup on a sidecar now
+./existential.sh backup restore                  # Same as: run backup-restore
 
 ./existential.sh test                    # Run all enabled-service exist.test.sh + src/test/*
-./existential.sh setup <slug> test       # Test one service (read-only validation)
+./existential.sh run <slug> test         # Test one service (read-only validation)
 ./existential.sh validate                # Conventions + drift checks
 ./existential.sh validate conventions    # Slugs synced across compose/piHole/Caddy/dashy
 ./existential.sh validate drift          # What re-rendering would change
+./existential.sh e2e                     # End-to-end: fresh clone → render → docker up → test → down (quests 1–6)
+./existential.sh e2e 3                   # E2E for quest 3 only
+./existential.sh e2e 1 3 5               # E2E for specific quests
 ```
 
 ### Manual service setup
 ```bash
-cp services/foo/.env.example services/foo/.env
+cp services/foo/.env.exist services/foo/.env
 # edit .env, then:
 docker compose up -d
 ```
@@ -314,7 +388,7 @@ docker compose up -d
 | `EXIST_64_CHAR_HEX_KEY` | Generates a unique 64-character hex key |
 | `EXIST_TIMESTAMP` | Current timestamp (`YYYYMMDD_HHMMSS`) |
 | `EXIST_UUID` | UUID |
-| `EXIST_*` | Value of matching variable from root `.env.exist` |
+| `EXIST_*` | Value of matching variable from root `.env.shared` |
 
 An `EXIST_CLI` prompt can opt into a fallback by adding a comment immediately
 above the line: `# DEFAULT_FROM: EXIST_FOO`. If the user enters blank,
@@ -325,7 +399,7 @@ used. Used today for `EXIST_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
 
 ## Env var naming convention
 
-**Top-level (`.env.exist.example`):**
+**Top-level (`.env.exist.shared`):**
 - Every key starts with `EXIST_`. The legacy `EXIST_DEFAULT_*` and
   `EXIST_ENABLE_*` prefixes are no longer accepted.
 - Service-enablement flags use `EXIST_IS_<CATEGORY>_<SLUG>=true|false`
@@ -333,11 +407,11 @@ used. Used today for `EXIST_PEER_HOST_IP` defaulting to `LOCAL_HOST_IP`.
 - Shared cross-service values live here and are referenced as `${EXIST_FOO}`
   in service compose files — no need to copy them into each service's `.env`.
 
-**Per-service (`<cat>/<slug>/.env.example`):**
+**Per-service (`<cat>/<slug>/.env.exist`):**
 - Every key starts with `<SLUG>_` (folder name uppercased; hyphens → underscores).
   `actual-budget` → `ACTUAL_BUDGET_`, `open-webui` → `OPEN_WEBUI_`.
 - Image-required names (`MYSQL_USER`, `GF_*`, `LLM_BINDING`, etc.) get mapped
-  in `docker-compose.yml.example`: `MYSQL_USER: ${MEALIE_MYSQL_USER}`.
+  in `docker-compose.exist.yml`: `MYSQL_USER: ${MEALIE_MYSQL_USER}`.
 - Files copied wholesale from an upstream project that uses `env_file:` (e.g.,
   Immich, LightRAG) can opt out with a top-of-file marker:
   `# convention-exempt: upstream-env`.
@@ -397,13 +471,13 @@ the service's `container_name`, lowercase-hyphenated):
   and reverse-proxies to `<container>:<port>`. Browsers see a cert from
   Caddy's internal CA — install the root once per device for green locks.
 - **Dashy** (`services/dashy/dashy-conf.yml`) links every navigable slug.
-- **`.env.exist`** holds `EXIST_LOCAL_HOST_IP` (this machine) and
+- **`.env.shared`** holds `EXIST_LOCAL_HOST_IP` (this machine) and
   `EXIST_PEER_HOST_IP` (the other machine; defaults to LOCAL).
 
 **Container-to-container traffic → `http://<container>:<port>`** (Docker's
 built-in service DNS on the `exist` network):
 
-- Service env vars in `*/docker-compose.yml.example` and `.env.example` use
+- Service env vars in `*/docker-compose.exist.yml` and `.env.exist` use
   this form (e.g., `OLLAMA_BASE_URL=http://ollama:11434`).
 - Automation routines (`automations/routines/*.sh`) and shared libs use this
   form for their default `${X_URL:-http://service:port}` fallbacks.
@@ -420,13 +494,13 @@ the three are in sync.
 
 ## Service Enablement
 
-Toggle services via `EXIST_IS_*=true/false` in the root `.env.exist`, then:
+Toggle services via `EXIST_IS_*=true/false` in `.env.shared`, then:
 
 ```bash
 ./existential.sh compose
 ```
 
-`src/generate-compose.py` runs in the `existential-adhoc` container. It reads
+`src/generate-compose.ts` runs in the `existential-adhoc` container via `tsx`. It reads
 `EXIST_IS_*`, discovers `docker-compose.yml` files at depth 2, adjusts relative
 paths from the repo root, and merges services/volumes/networks. The previous
 `docker-compose.yml` is archived as `docker-compose-<timestamp_ms>.yml` before writing.
@@ -447,31 +521,30 @@ paths from the repo root, and merges services/volumes/networks. The previous
 ## Decree (Automations)
 
 Quick reference:
-- Routines: `automations/routines/<name>.sh` + registered in `automations/config.yml`
-- Cron jobs (main decree): `automations/cron/<name>.md`
-- Cron jobs (decree-backup): `services/decree/decree-backup/cron/<name>.md`
+- Routines: `automations/routines/<name>.sh` + registered in each daemon's `config.yml`
+- Cron jobs (main decree): `services/decree/decree/<name>.md`
+- Cron jobs (service sidecars): `<category>/<slug>/decree/cron/<name>.md`
 - Webhook endpoints: `services/decree/webhook/config.yml`
 - Run commands via: `docker exec decree decree <command>`
-- DB-backup commands via: `docker exec decree-backup decree run db-backup`
+- Backup commands via: `docker exec <service>-decree decree run db-backup`
 
 ### Cron routine setup convention
 
-Both decree daemons have a paired `cron/` (active, gitignored) and
-`cron.example_/` (tracked templates) directory. The `.example_` suffix
-intentionally does **not** match `*.example`, so existential.sh never
-auto-renders these — they're manual.
+Every decree daemon has a paired `cron/` (active, gitignored) and `cron.example/`
+(tracked templates) directory. The `.example_` suffix intentionally does **not**
+match `*.exist.*`, so existential.sh never auto-renders these — they're manual.
 
 To activate a cron template:
 
 ```bash
-cp <dir>/cron.example_/<name>.md <dir>/cron/<name>.md
-docker compose -f services/decree/docker-compose.yml restart <daemon>
+cp <service>/decree/cron.example/<name>.md <service>/decree/cron/<name>.md
+docker compose restart <service>-decree
 ```
 
 The active `cron/` is mounted into the daemon read-only; on restart, decree
 parses the frontmatter (`cron:`, `routine:`, extra keys exposed as env vars
 to the routine) and schedules accordingly. The `clean-runs` routine prunes
-old run logs across both daemons (because both share `automations/runs/`).
+old run logs across all daemons (because all share `automations/runs/`).
 
 ---
 
@@ -482,7 +555,7 @@ without changing any state. See "Service test scripts" above for the convention.
 
 ```bash
 ./existential.sh test                  # All enabled services + general src/test/*
-./existential.sh setup <slug> test     # One service — read-only validation
+./existential.sh run <slug> test     # One service — read-only validation
 docker ps | grep <slug>                # Container running?
 docker logs <container_name>           # Recent logs
 ```
@@ -502,7 +575,7 @@ Update CLAUDE.md in the same task whenever you:
 - **Add or remove a script** in `src/` — update the src/ tree
 - **Add or remove a Decree routine or cron file** — no change needed here; those are
   covered by the `/decree` command which reads the live files
-- **Change a setup command** (e.g. new `./existential.sh setup <name>` subcommand) —
+- **Change a run command** (e.g. new `./existential.sh run <name>` subcommand or new quest) —
   update the Targeted commands section
 - **Add a new top-level directory** — add it to the directory structure overview
 - **Introduce a new convention** — add a dedicated section under the existing convention

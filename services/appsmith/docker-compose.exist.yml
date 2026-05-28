@@ -21,6 +21,28 @@ services:
   #   volumes:
   #     - appsmith_data:/appsmith-stacks
 
+  appsmith-decree:
+    container_name: appsmith-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - appsmith_data:/volumes/appsmith_data
+    tty: false
+
 volumes:
   appsmith_data:
     driver: local

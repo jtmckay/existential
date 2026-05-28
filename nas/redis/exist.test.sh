@@ -6,7 +6,7 @@
 # See CLAUDE.md "Service test scripts" for the convention.
 
 set -euo pipefail
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/lib" && pwd)/exist-test.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"
 exist_self_elevate
 exist_test_init "redis" EXIST_IS_NAS_REDIS
 skip_if_disabled
@@ -20,7 +20,7 @@ PASS="${EXIST_REDIS_PASSWORD:-}"
 if [ -z "$PASS" ]; then
     warn "redis password configured" \
          "EXIST_REDIS_PASSWORD is empty" \
-         "Set EXIST_REDIS_PASSWORD in .env.exist and re-run ./existential.sh"
+         "Set EXIST_REDIS_PASSWORD in .env.shared and re-run ./existential.sh"
     finish
 fi
 
@@ -32,7 +32,7 @@ if printf '%s' "$RESP" | grep -q '+PONG'; then
     ok "redis AUTH + PING"
 elif printf '%s' "$RESP" | grep -q '\-WRONGPASS\|\-ERR invalid password'; then
     fail "redis AUTH + PING" "redis rejected EXIST_REDIS_PASSWORD" \
-         "Re-mint EXIST_REDIS_PASSWORD in .env.exist; restart redis"
+         "Re-mint EXIST_REDIS_PASSWORD in .env.shared; restart redis"
 else
     fail "redis AUTH + PING" "unexpected response (got $(printf '%s' "$RESP" | head -c 60))" \
          "docker logs redis"

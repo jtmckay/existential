@@ -5,8 +5,8 @@
 # the comment when a service is decommissioned, paused, or never deployed —
 # users still get a landing page explaining what it is and where to find it.
 #
-# Slugs match the records in hosting/pihole/docker-compose.yml.example and the
-# reverse_proxy backends in hosting/caddy/Caddyfile.example. Keep all three in
+# Slugs match the records in hosting/pihole/docker-compose.exist.yml and the
+# reverse_proxy backends in hosting/caddy/Caddyfile.exist.Caddyfile. Keep all three in
 # sync — run `./existential.sh validate` to verify.
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays

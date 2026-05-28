@@ -3,13 +3,12 @@
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
 # than the tier's retention window.
 #
-# Triggered by cron files in services/decree/decree-backup/cron/. Decree
-# exposes their frontmatter keys (TIER, TARGETS) as env vars. To add or
-# remove a database, edit the cron file's `TARGETS:` block — there is no
-# separate registry to keep in sync.
+# Triggered by cron files in each service's decree/cron/ dir. Decree exposes
+# cron frontmatter keys (TIER, TARGETS) as env vars. Credential vars come from
+# the sidecar container's environment (set in docker-compose.exist.yml).
 #
 # Manual invocation:
-#   docker exec decree-backup decree run db-backup
+#   docker exec <service>-decree decree run db-backup
 #
 # $TARGETS format (one entry per line, whitespace-separated):
 #   <engine> <container> <USER_ENV_VAR> <PASS_ENV_VAR>
@@ -19,7 +18,6 @@
 set -euo pipefail
 
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
-MASTER_ENV="${MASTER_ENV:-/repo/.env}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Pre-check ─────────────────────────────────────────────────────────────────
@@ -31,8 +29,7 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v pg_dumpall >/dev/null || precheck_fail "db-backup" "pg_dumpall not found"
     command -v mysqldump  >/dev/null || precheck_fail "db-backup" "mysqldump not found"
     command -v mongodump  >/dev/null || precheck_fail "db-backup" "mongodump not found"
-    [ -f "$MASTER_ENV" ]    || precheck_fail "db-backup" "master .env not mounted at $MASTER_ENV"
-    [ -f "$RCLONE_CONFIG" ] || precheck_fail "db-backup" "rclone not configured (run ./existential.sh setup rclone)"
+    [ -f "$RCLONE_CONFIG" ] || precheck_fail "db-backup" "rclone not configured (run ./existential.sh run rclone)"
     precheck_pass "db-backup"
     exit 0
 fi
@@ -48,17 +45,11 @@ esac
 
 [ -n "${TARGETS:-}" ] || { echo "TARGETS is empty — set it in the cron frontmatter" >&2; exit 2; }
 
-# Source master .env so DB credential vars are available.
-set -a
-# shellcheck disable=SC1090
-. "$MASTER_ENV"
-set +a
-
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
-[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh setup backup" >&2; exit 1; }
+[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config-config" >&2; exit 1; }
 
 DATE=$(date -u +%Y%m%dT%H%M%SZ)
-TMPDIR=$(mktemp -d)
+TMPDIR=$(mktemp -d "${message_dir:-/work/.decree/runs}/tmp.XXXXXX")
 trap 'rm -rf "$TMPDIR"' EXIT
 
 rclone_cmd() { rclone --config "$RCLONE_CONFIG" "$@"; }

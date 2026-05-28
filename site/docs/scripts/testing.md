@@ -50,12 +50,12 @@ Verifies that saved Gmail credentials are still valid by refreshing the OAuth to
 Gmail: connected as you@gmail.com
 ```
 
-**No messages are read, sent, or modified.** The test uses the same read-only OAuth scope set up during `./existential.sh setup gmail`.
+**No messages are read, sent, or modified.** The test uses the same read-only OAuth scope set up during `./existential.sh run gmail`.
 
 **If it fails:** Your refresh token may be expired or revoked. Re-run the setup:
 
 ```bash
-./existential.sh setup gmail
+./existential.sh run gmail
 ```
 
 :::note Initial setup is manual
@@ -89,7 +89,7 @@ rclone: all 2 remote(s) reachable
 **If it fails:** The remote may be offline, credentials may be expired, or network connectivity may be down. Re-run setup for that remote:
 
 ```bash
-./existential.sh setup rclone
+./existential.sh run rclone
 ```
 
 :::note Initial setup is manual

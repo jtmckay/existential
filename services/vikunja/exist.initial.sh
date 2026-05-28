@@ -5,8 +5,8 @@
 # (set in services/vikunja/.env).
 #
 # Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_VIKUNJA=true and
-# the .exist.initialized sentinel is missing. Re-run manually with:
-#   ./existential.sh setup vikunja
+# the .existential.initialized sentinel is missing. Re-run manually with:
+#   ./existential.sh run vikunja
 #
 # Runs on the host (uses `docker exec`). Requires: docker, vikunja container
 # already started. If vikunja isn't running yet, the script prints what to do
@@ -47,7 +47,7 @@ if ! docker inspect vikunja --format '{{.State.Running}}' 2>/dev/null | grep -q 
     echo ""
     echo "  Start it first, then re-run this step:"
     echo "    docker compose up -d vikunja vikunja-db"
-    echo "    ./existential.sh setup vikunja"
+    echo "    ./existential.sh run vikunja"
     echo ""
     exit 0
 fi

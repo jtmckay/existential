@@ -12,7 +12,7 @@
 # exits non-zero so the calling `./existential.sh` knows setup is incomplete.
 #
 # Auto-run by `./existential.sh` on first init for the pihole service.
-# Re-run manually: ./existential.sh setup pihole
+# Re-run manually: ./existential.sh run pihole
 
 set -euo pipefail
 
@@ -26,15 +26,15 @@ fi
 
 # ── Load EXIST_LOCAL_HOST_IP ─────────────────────────────────────────────────
 
-if [ -f /repo/.env.exist ]; then
+if [ -f /repo/.env.shared ]; then
     set -a
     # shellcheck disable=SC1091
-    . /repo/.env.exist
+    . /repo/.env.shared
     set +a
 fi
 
 LOCAL_IP="${EXIST_LOCAL_HOST_IP:-}"
-[ -n "$LOCAL_IP" ] || { echo "EXIST_LOCAL_HOST_IP is empty — run ./existential.sh first to render .env.exist" >&2; exit 1; }
+[ -n "$LOCAL_IP" ] || { echo "EXIST_LOCAL_HOST_IP is empty — run ./existential.sh first to render .env.shared" >&2; exit 1; }
 
 hr() { printf '%0.s─' {1..56}; echo; }
 
@@ -73,7 +73,7 @@ if [[ "$ack" == "skip" ]]; then
     echo ""
     echo "  Skipped verification. Pihole .internal resolution won't work"
     echo "  until DNS is pointed at this machine — come back and re-run"
-    echo "  './existential.sh setup pihole' when you're ready."
+    echo "  './existential.sh run pihole' when you're ready."
     exit 0
 fi
 
@@ -94,7 +94,7 @@ else
     echo "    Remediation:"
     echo "    - docker ps | grep pihole       (is the container up?)"
     echo "    - docker logs pihole            (startup errors?)"
-    echo "    - check EXIST_IS_HOSTING_PIHOLE=true in .env.exist"
+    echo "    - check EXIST_IS_HOSTING_PIHOLE=true in .env.shared"
     exit 1
 fi
 

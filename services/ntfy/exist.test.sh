@@ -6,7 +6,7 @@
 # See CLAUDE.md "Service test scripts" for the convention.
 
 set -euo pipefail
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/lib" && pwd)/exist-test.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"
 exist_self_elevate
 exist_test_init "ntfy" EXIST_IS_SERVICES_NTFY
 skip_if_disabled
@@ -40,7 +40,7 @@ probe_caddy "ntfy /v1/health" ntfy /v1/health 200
 if [ -z "$NTFY_TOKEN" ]; then
     warn "ntfy authenticated publish" \
          "no NTFY_TOKEN / EXIST_NTFY_TOKEN set — auth not verified" \
-         "Run ./existential.sh setup ntfy to mint and save a bot token"
+         "Run ./existential.sh run ntfy to mint and save a bot token"
 else
     CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 \
         -H "Authorization: Bearer ${NTFY_TOKEN}" \
@@ -51,7 +51,7 @@ else
         200) ok "ntfy authenticated publish (topic=exist-test)" ;;
         401|403) fail "ntfy authenticated publish" \
                        "HTTP $CODE — token rejected" \
-                       "Token may be expired or revoked. Re-run ./existential.sh setup ntfy" ;;
+                       "Token may be expired or revoked. Re-run ./existential.sh run ntfy" ;;
         000) fail "ntfy authenticated publish" \
                   "no response" \
                   "docker logs ntfy" ;;

@@ -43,6 +43,30 @@ services:
     volumes:
       - mealie_pg_data:/var/lib/postgresql/data
 
+  mealie-decree:
+    container_name: mealie-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+      - MEALIE_POSTGRES_USER=${MEALIE_POSTGRES_USER}
+      - MEALIE_POSTGRES_PASSWORD=${MEALIE_POSTGRES_PASSWORD}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - mealie_data:/volumes/mealie_data
+    tty: false
+
 volumes:
   mealie_data:
     driver: local

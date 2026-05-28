@@ -3,14 +3,13 @@
 # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
 # older than the tier's retention window.
 #
-# Triggered by cron files in services/decree/decree-backup/cron/. Decree
-# exposes their frontmatter keys (TIER, VOLUMES) as env vars. To add or
-# remove a volume, edit the cron file's `VOLUMES:` block — and add a
-# matching mount line to the `decree-backup` service in
-# services/decree/docker-compose.yml.example so the container can see it.
+# Triggered by cron files in each service's decree/cron/ dir. Decree exposes
+# cron frontmatter keys (TIER, VOLUMES) as env vars. To add or remove a
+# volume, edit the cron file's `VOLUMES:` block — and add a matching mount
+# line to the service's sidecar in docker-compose.exist.yml.
 #
 # Manual invocation:
-#   docker exec decree-backup decree run volume-backup
+#   docker exec <service>-decree decree run volume-backup
 #
 # $VOLUMES format (one entry per line, whitespace-separated):
 #   <volume_name> <comma,separated,consumer,containers>
@@ -20,7 +19,6 @@
 set -euo pipefail
 
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
-MASTER_ENV="${MASTER_ENV:-/repo/.env}"
 VOLUMES_ROOT="${VOLUMES_ROOT:-/volumes}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -31,9 +29,8 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     source "${SCRIPT_DIR}/../lib/precheck.sh"
     command -v rclone >/dev/null || precheck_fail "volume-backup" "rclone not found"
     command -v tar    >/dev/null || precheck_fail "volume-backup" "tar not found"
-    [ -f "$MASTER_ENV" ]    || precheck_fail "volume-backup" "master .env not mounted at $MASTER_ENV"
-    [ -f "$RCLONE_CONFIG" ] || precheck_fail "volume-backup" "rclone not configured (run ./existential.sh setup rclone)"
-    [ -d "$VOLUMES_ROOT" ]  || precheck_fail "volume-backup" "$VOLUMES_ROOT not mounted — add volume mounts to services/decree/docker-compose.yml.example"
+    [ -f "$RCLONE_CONFIG" ] || precheck_fail "volume-backup" "rclone not configured (run ./existential.sh run rclone)"
+    [ -d "$VOLUMES_ROOT" ]  || precheck_fail "volume-backup" "$VOLUMES_ROOT not mounted — add volume mounts to the service sidecar in docker-compose.exist.yml"
     precheck_pass "volume-backup"
     exit 0
 fi
@@ -49,13 +46,8 @@ esac
 
 [ -n "${VOLUMES:-}" ] || { echo "VOLUMES is empty — set it in the cron frontmatter" >&2; exit 2; }
 
-set -a
-# shellcheck disable=SC1090
-. "$MASTER_ENV"
-set +a
-
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
-[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh setup backup" >&2; exit 1; }
+[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config-config" >&2; exit 1; }
 
 DATE=$(date -u +%Y%m%dT%H%M%SZ)
 rclone_cmd() { rclone --config "$RCLONE_CONFIG" "$@"; }
@@ -74,7 +66,7 @@ while read -r vol _consumers; do
 
     src="${VOLUMES_ROOT}/${vol}"
     if [ ! -d "$src" ]; then
-        echo "skip   $vol (not mounted at $src — add it to decree-backup compose)"
+        echo "skip   $vol (not mounted at $src — add a volume mount to the service sidecar in docker-compose.exist.yml)"
         skipped=$((skipped + 1))
         continue
     fi

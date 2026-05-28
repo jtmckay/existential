@@ -27,6 +27,28 @@ services:
     volumes:
       - open_webui_data:/app/backend/data
 
+  open-webui-decree:
+    container_name: open-webui-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - open_webui_data:/volumes/open_webui_data
+    tty: false
+
 volumes:
   open_webui_data:
     driver: local

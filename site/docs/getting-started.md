@@ -55,8 +55,8 @@ docker compose up -d
 Some services require additional OAuth or configuration steps:
 
 ```bash
-./existential.sh setup gmail    # Gmail OAuth
-./existential.sh setup rclone   # Remote file storage
+./existential.sh run gmail    # Gmail OAuth
+./existential.sh run rclone   # Remote file storage
 ```
 
 See [Integrations](./integrations/) for setup details, or [Scripts](./scripts) for the full CLI reference.

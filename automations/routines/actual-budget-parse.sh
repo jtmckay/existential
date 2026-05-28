@@ -39,7 +39,7 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v jq >/dev/null 2>&1 \
         || precheck_fail "actual-budget-parse" "jq not found"
     /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1 \
-        || precheck_fail "actual-budget-parse" "tsx not installed — run: ./existential.sh setup actual-budget"
+        || precheck_fail "actual-budget-parse" "tsx not installed — run: ./existential.sh run actual-budget"
     precheck_pass "actual-budget-parse"
     exit 0
 fi

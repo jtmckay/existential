@@ -142,7 +142,7 @@ Edit `TELEGRAM_RCLONE_DEST` if your bucket path differs. Decree picks up the new
 Follow the MinIO setup in [File Change → Process](./file-change-processing#minio-setup) to subscribe your `telegram` bucket to `ObjectCreated` events, and ensure your rclone `nextcloud` remote is configured:
 
 ```bash
-./existential.sh setup rclone
+./existential.sh run rclone
 ```
 
 ## Customization

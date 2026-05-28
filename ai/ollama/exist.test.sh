@@ -8,7 +8,7 @@
 # See CLAUDE.md "Service test scripts" for the convention.
 
 set -euo pipefail
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/lib" && pwd)/exist-test.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"
 exist_self_elevate
 exist_test_init "ollama" EXIST_IS_AI_OLLAMA
 skip_if_disabled

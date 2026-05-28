@@ -71,7 +71,7 @@ if [ "$file_action" = "created" ]; then
         echo "Signed URL: $PRE_SIGNED_URL"
     else
         _filename=$(basename "$_file_key")
-        _tmpfile=$(mktemp "/tmp/${_filename}.XXXXXX")
+        _tmpfile=$(mktemp "${message_dir:-/work/.decree/runs}/${_filename}.XXXXXX")
 
         echo "Downloading $rclone_path → $_tmpfile"
         rclone copyto "$rclone_path" "$_tmpfile" \

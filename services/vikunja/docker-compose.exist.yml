@@ -37,6 +37,30 @@ services:
       interval: 2s
       start_period: 30s
 
+  vikunja-decree:
+    container_name: vikunja-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+      - VIKUNJA_DATABASE_USER=${VIKUNJA_DATABASE_USER}
+      - VIKUNJA_DATABASE_PASSWORD=${VIKUNJA_DATABASE_PASSWORD}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - vikunja_data:/volumes/vikunja_data
+    tty: false
+
 volumes:
   vikunja_data:
     driver: local

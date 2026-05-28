@@ -39,11 +39,15 @@ run() {
     return 0
 }
 
-echo "=== General tests (src/test/) ==="
-for t in syntax gmail rclone; do
-    [ -f "${TEST_DIR}/test-${t}.sh" ] || continue
-    run "$t" "${TEST_DIR}/test-${t}.sh"
-done
+# In E2E_MODE skip general infra tests (syntax/gmail/rclone) — those aren't
+# meaningful inside the ephemeral e2e environment.
+if [ "${E2E_MODE:-}" != "1" ]; then
+    echo "=== General tests (src/test/) ==="
+    for t in syntax gmail rclone; do
+        [ -f "${TEST_DIR}/test-${t}.sh" ] || continue
+        run "$t" "${TEST_DIR}/test-${t}.sh"
+    done
+fi
 
 echo
 echo "=== Per-service tests (exist.test.sh) ==="

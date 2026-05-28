@@ -4,9 +4,9 @@
 # Walks through selecting a Gmail label, a parse script, and an Actual Budget
 # account, then writes automations/cron/gmail-transactions-<label>.md.
 #
-# Run via: ./existential.sh setup decree gmail-transactions-cron
-# Requires: `./existential.sh setup decree gmail-sync` + `./existential.sh setup
-#           decree gmail-labels` + `./existential.sh setup actual-budget` first.
+# Run via: ./existential.sh run decree gmail-transactions-cron
+# Requires: `./existential.sh run decree gmail-sync` + `./existential.sh run
+#           decree gmail-labels` + `./existential.sh run actual-budget` first.
 
 set -euo pipefail
 
@@ -33,8 +33,8 @@ echo "  Gmail → Actual Budget transaction cron setup"
 hr
 echo ""
 
-[ -f "$LABELS_FILE" ]   || die "Gmail labels not found. Run: ./existential.sh setup decree gmail-labels"
-[ -f "$ACCOUNTS_FILE" ] || die "Actual Budget accounts not found. Run: ./existential.sh setup actual-budget"
+[ -f "$LABELS_FILE" ]   || die "Gmail labels not found. Run: ./existential.sh run decree gmail-labels"
+[ -f "$ACCOUNTS_FILE" ] || die "Actual Budget accounts not found. Run: ./existential.sh run actual-budget"
 
 # ── Select Gmail label ────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ for l in custom:
 )
 
 if [ ${#LABEL_NAMES[@]} -eq 0 ]; then
-    die "No custom labels found in ${LABELS_FILE}. Add labels in Gmail then run: ./existential.sh setup decree gmail-labels"
+    die "No custom labels found in ${LABELS_FILE}. Add labels in Gmail then run: ./existential.sh run decree gmail-labels"
 fi
 
 for i in "${!LABEL_NAMES[@]}"; do

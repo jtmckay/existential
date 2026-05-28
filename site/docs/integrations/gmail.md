@@ -9,7 +9,7 @@ Grants Decree read-only access to your Gmail inbox via OAuth 2.0. Once configure
 ## Setup
 
 ```bash
-./existential.sh setup gmail
+./existential.sh run gmail
 ```
 
 The script will:

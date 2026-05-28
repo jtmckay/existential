@@ -146,7 +146,7 @@ for i in $(seq 0 $((_count - 1))); do
         _amount_cents=$(echo "$_pending_entry" | jq -r '.amount_cents')
         echo "Receipt for transaction ${_txn_id} (${_amount_cents} cents)..."
 
-        _tmpfile=$(mktemp "/tmp/receipt.XXXXXX.jpg")
+        _tmpfile=$(mktemp "${message_dir:-/work/.decree/runs}/receipt.XXXXXX.jpg")
         trap 'rm -f "$_tmpfile"' EXIT
         telegram_download_file "$_file_id" "$_tmpfile"
 

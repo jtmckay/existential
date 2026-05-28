@@ -95,7 +95,7 @@ Follow the MinIO setup in [File Change → Process](./file-change-processing#min
 Ensure your rclone config has a remote that can access the files MinIO is receiving events for:
 
 ```bash
-./existential.sh setup rclone
+./existential.sh run rclone
 ```
 
 The remote name must match `rclone_src` in `services/decree/webhook/config.yml` (default: `nextcloud`).

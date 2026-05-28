@@ -6,8 +6,8 @@
 # in decree routines.
 #
 # Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_ACTUAL_BUDGET=true
-# and the .exist.initialized sentinel is missing. Re-run manually with:
-#   ./existential.sh setup actual-budget
+# and the .existential.initialized sentinel is missing. Re-run manually with:
+#   ./existential.sh run actual-budget
 #
 # Runs on the host (uses `docker exec decree`). Requires: docker.
 

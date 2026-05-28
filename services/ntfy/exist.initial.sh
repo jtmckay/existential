@@ -5,8 +5,8 @@
 # running, then updates the root .env in place.
 #
 # Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_NTFY=true and the
-# .exist.initialized sentinel is missing. Re-run manually with:
-#   ./existential.sh setup ntfy
+# .existential.initialized sentinel is missing. Re-run manually with:
+#   ./existential.sh run ntfy
 #
 # Runs in the existential-adhoc container (needs curl + master .env mount).
 
@@ -153,7 +153,7 @@ else
     echo "  Warning: ${ROOT_ENV} not found — skipping root .env update."
 fi
 
-# services/decree/docker-compose.yml.example now reads EXIST_NTFY_* from the
+# services/decree/docker-compose.exist.yml now reads EXIST_NTFY_* from the
 # master .env directly; no per-service copy in services/decree/.env needed.
 
 _CONFIG="${DECREE_DIR:-/work/.decree}/config.yml"

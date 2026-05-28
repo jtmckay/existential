@@ -5,10 +5,10 @@
 # Used by the gmail-sync routine to resolve custom label names to IDs
 # without making an API call on every run.
 #
-# Run via: ./existential.sh setup decree gmail-labels
+# Run via: ./existential.sh run decree gmail-labels
 # Re-run any time you add a new label in Gmail that you want decree to read.
 #
-# Requires Gmail credentials (run `./existential.sh setup decree gmail-sync` first).
+# Requires Gmail credentials (run `./existential.sh run decree gmail-sync` first).
 
 set -euo pipefail
 
@@ -41,7 +41,7 @@ echo "  Gmail label sync"
 hr
 echo ""
 
-[ -f "$CREDENTIALS" ] || die "Gmail credentials not found at ${CREDENTIALS}. Run: ./existential.sh setup decree gmail-sync"
+[ -f "$CREDENTIALS" ] || die "Gmail credentials not found at ${CREDENTIALS}. Run: ./existential.sh run decree gmail-sync"
 
 # shellcheck source=/dev/null
 source "$CREDENTIALS"
@@ -88,5 +88,5 @@ echo "  Label cache is current. The gmail-sync routine will use this"
 echo "  file to resolve custom label names. Re-run this command if you"
 echo "  add new labels in Gmail:"
 echo ""
-echo "    ./existential.sh setup decree gmail-labels"
+echo "    ./existential.sh run decree gmail-labels"
 echo ""

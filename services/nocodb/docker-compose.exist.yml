@@ -38,6 +38,30 @@ services:
       - nocodb_data:/usr/app/data
       # - ./nc_data:/usr/app/data # Local volume for NocoDB data
 
+  nocodb-decree:
+    container_name: nocodb-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+      - NOCODB_POSTGRES_USER=${NOCODB_POSTGRES_USER}
+      - NOCODB_POSTGRES_PASSWORD=${NOCODB_POSTGRES_PASSWORD}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/routines:/work/.decree/routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - nocodb_data:/volumes/nocodb_data
+    tty: false
+
 volumes:
   nocodb_data:
     driver: local

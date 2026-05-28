@@ -7,7 +7,7 @@ set -euo pipefail
 CREDENTIALS="${SECRETS_DIR:-/secrets}/gmail/credentials.env"
 
 if [ ! -f "$CREDENTIALS" ]; then
-    echo "No credentials at ${CREDENTIALS} — run: ./existential.sh setup gmail" >&2
+    echo "No credentials at ${CREDENTIALS} — run: ./existential.sh run gmail" >&2
     exit 1
 fi
 

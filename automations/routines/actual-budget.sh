@@ -36,9 +36,9 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v node >/dev/null 2>&1 \
         || precheck_fail "actual-budget" "node not found"
     [ -f "/secrets/actual-budget/credentials.env" ] \
-        || precheck_fail "actual-budget" "credentials missing — run: ./existential.sh setup actual-budget"
+        || precheck_fail "actual-budget" "credentials missing — run: ./existential.sh run actual-budget"
     /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1 \
-        || precheck_fail "actual-budget" "tsx not installed — run: ./existential.sh setup actual-budget"
+        || precheck_fail "actual-budget" "tsx not installed — run: ./existential.sh run actual-budget"
     precheck_pass "actual-budget"
     exit 0
 fi

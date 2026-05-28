@@ -79,7 +79,7 @@ Run these steps in order. Each builds on the previous one.
 If you haven't already authorized Gmail access:
 
 ```bash
-./existential.sh setup gmail
+./existential.sh run gmail
 ```
 
 This grants Decree read-only Gmail access and automatically saves your label list to `/secrets/gmail/labels.json`. See [Gmail](../integrations/gmail) for full instructions.
@@ -87,13 +87,13 @@ This grants Decree read-only Gmail access and automatically saves your label lis
 If you've already set up Gmail but need to refresh the label cache (e.g. you added a new label):
 
 ```bash
-./existential.sh setup gmail-labels
+./existential.sh run gmail-labels
 ```
 
 ### Step 2 — Actual Budget credentials
 
 ```bash
-./existential.sh setup actual-budget
+./existential.sh run actual-budget
 ```
 
 Connect to your Actual Budget server, select a budget, and save credentials. At the end, the script prints all your accounts with their IDs and saves them to `/secrets/actual-budget/accounts.json` for use in the next step.
@@ -103,7 +103,7 @@ See [Actual Budget](../integrations/actual-budget) for full instructions.
 ### Step 3 — Create the cron
 
 ```bash
-./existential.sh setup gmail-transactions-cron
+./existential.sh run gmail-transactions-cron
 ```
 
 An interactive prompt will:
@@ -157,4 +157,4 @@ Each bank gets its own parse script. `actual-budget-parse` accepts any `parse_sc
 To add a new bank:
 
 1. Create `automations/lib/actual-budget/parse-<bank>.ts` following the same interface as `parse-chase.ts`
-2. Run `./existential.sh setup gmail-transactions-cron` again — it will discover the new script automatically
+2. Run `./existential.sh run gmail-transactions-cron` again — it will discover the new script automatically

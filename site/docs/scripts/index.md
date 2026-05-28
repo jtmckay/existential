@@ -13,7 +13,7 @@ Full reference for `existential.sh` and the `src/` script library.
 ./existential.sh --force          # Overwrite existing files too
 ./existential.sh examples         # Process .example files only
 ./existential.sh compose [file]   # Regenerate docker-compose.yml
-./existential.sh setup <name>     # Configure an integration: gmail, rclone
+./existential.sh run <name>     # Configure an integration: gmail, rclone
 ./existential.sh test [name]      # Run tests: all (default), syntax, gmail, rclone
 ```
 

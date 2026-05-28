@@ -15,7 +15,7 @@ Your Actual Budget server must be running and reachable from the Decree containe
 ## Setup
 
 ```bash
-./existential.sh setup actual-budget
+./existential.sh run actual-budget
 ```
 
 The script will:
@@ -33,7 +33,7 @@ The script will:
 
 After setup, account IDs are printed to the terminal and saved to `accounts.json`. You'll need an account ID when configuring any automation that imports transactions — it tells Decree which account to post to.
 
-If you add accounts later, re-run `./existential.sh setup actual-budget` to refresh credentials and the account list.
+If you add accounts later, re-run `./existential.sh run actual-budget` to refresh credentials and the account list.
 
 ## Next Steps
 

@@ -159,7 +159,7 @@ Repeat for each bucket. Each bucket subscription sends events independently to t
 The decree container uses `/secrets/rclone/rclone.conf` for all rclone operations. Add a MinIO remote if you haven't already:
 
 ```bash
-./existential.sh setup rclone
+./existential.sh run rclone
 ```
 
 Name the remote `minio` (or update `rclone_src` in `services/decree/webhook/config.yml` to match your remote name).

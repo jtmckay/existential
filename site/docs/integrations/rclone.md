@@ -9,7 +9,7 @@ Configures rclone for remote file storage access inside Decree. Supports any rcl
 ## Setup
 
 ```bash
-./existential.sh setup rclone
+./existential.sh run rclone
 ```
 
 Opens an interactive rclone config session inside the `decree-adhoc` container — no host rclone install needed. Add as many remotes as you need and choose `q` when done.

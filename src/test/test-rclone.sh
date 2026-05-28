@@ -6,7 +6,7 @@ set -euo pipefail
 RCLONE_CONFIG="${SECRETS_DIR:-/secrets}/rclone/rclone.conf"
 
 if [ ! -f "$RCLONE_CONFIG" ]; then
-    echo "No rclone config at ${RCLONE_CONFIG} — run: ./existential.sh setup rclone" >&2
+    echo "No rclone config at ${RCLONE_CONFIG} — run: ./existential.sh run rclone" >&2
     exit 1
 fi
 

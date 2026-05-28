@@ -9,7 +9,7 @@ Integrations are optional services that connect Existential to external platform
 All integration setup scripts run inside the `decree-adhoc` container, so nothing needs to be installed on your host machine.
 
 ```bash
-./existential.sh setup <name>
+./existential.sh run <name>
 ```
 
 | Integration | What it does |

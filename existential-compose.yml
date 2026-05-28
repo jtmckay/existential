@@ -2,8 +2,7 @@ services:
   existential-adhoc:
     container_name: existential-adhoc
     build:
-      context: ./services/decree
-      dockerfile: Dockerfile
+      context: ./automations
     restart: "no"
     environment:
       - IN_CONTAINER=1
@@ -12,10 +11,13 @@ services:
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN:-}
       - NTFY_URL=${EXIST_NTFY_URL:-}
     volumes:
-      - ./automations:/work/.decree:z
-      - ./services/decree/secrets:/secrets:z
+      - ./automations/lib:/work/.decree/lib:ro,z
+      - ./automations/routines:/work/.decree/routines:ro,z
+      - ./automations/runs:/work/.decree/runs:z
+      - ./automations/secrets:/secrets:z
       - ./src:/src:z
       - .:/repo:z
+
     networks:
       - exist
     tty: true

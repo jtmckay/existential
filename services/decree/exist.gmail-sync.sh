@@ -5,7 +5,7 @@
 # Requests the gmail.readonly scope — read-only access only.
 # Credentials are written to ${SECRETS_DIR}/gmail/credentials.env (gitignored).
 #
-# Run via: ./existential.sh setup decree gmail-sync
+# Run via: ./existential.sh run decree gmail-sync
 #
 # Runs in existential-adhoc with port 8803 exposed for the OAuth redirect.
 
