@@ -1,0 +1,32 @@
+name: Wake Word & Voice Triggers
+tagline: Train a custom wake word and wire it to Home Assistant and Tasker
+services: []
+guide: |
+  Train a fully on-device wake word with HAwake + openWakeWord. When the
+  word is detected on your phone, it fires an event to Home Assistant,
+  which triggers a Tasker task — no cloud, no always-on microphone upload.
+
+  Alternatively, use AutoVoice for a Tasker-native approach that skips
+  model training and uses Android's built-in speech recognition instead.
+
+  Wake word docs:    https://existential.company/docs/decree/hawake
+  HA + Tasker wiring: https://existential.company/docs/decree/hawake-homeassistant
+  AutoVoice (no training): https://existential.company/docs/decree/autovoice
+
+  Prerequisites:
+    - Home Assistant running (Quest 3 — Smart Home)
+    - Android phone with Tasker + TaskerHA installed
+
+  HAwake setup (custom wake word):
+    1. Train a model on a Linux host with Python 3.11:
+           pip install openwakeword
+       Follow the full training guide in the docs above.
+
+    2. Install the HAwake app on your phone and load the trained .onnx model.
+
+    3. Point HAwake at your Home Assistant instance. An automation in HA
+       forwards the hawake_wakeword event to Tasker via TaskerHA.
+
+  AutoVoice setup (no training required):
+    Install AutoVoice + Tasker on Android and follow the AutoVoice docs.
+    No Home Assistant integration needed unless you want HA as the event bus.

@@ -1,0 +1,19 @@
+name: Gmail Integration
+tagline: Connect Decree to your Gmail inbox for email-driven automations
+services: []
+copies:
+  - src: services/decree/decree/cron.example/gmail-sync.md
+    dst: services/decree/decree/cron/
+    label: "decree: gmail-sync.md"
+    requires: EXIST_IS_SERVICES_DECREE
+guide: |
+  Grants Decree read-only Gmail access via OAuth 2.0. Required by the
+  bank transaction import and receipt split automations.
+  Docs: https://existential.company/docs/integrations/gmail
+
+  Setup:
+    ./existential.sh run decree gmail-sync
+
+  This opens a browser OAuth flow and writes credentials to
+  automations/secrets/gmail/. The gmail-sync cron (copied above)
+  polls for new messages every 15 minutes once activated.

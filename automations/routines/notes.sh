@@ -1,6 +1,5 @@
-#!/bin/bash
-# master_routine.sh: Orchestrates the complete note processing pipeline.
-# This script MUST be run from its own directory (.decree/routines).
+#!/usr/bin/env bash
+# notes — Orchestrates the complete note processing pipeline.
 
 set -euo pipefail
 

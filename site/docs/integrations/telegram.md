@@ -55,7 +55,7 @@ The secrets directory is bind-mounted into the decree container at `/secrets/tel
 Telegram features are opt-in. Enable the routines you need in `automations/config.yml`:
 
 ```yaml
-routines:
+shared_routines:
   telegram-notify:
     enabled: true    # sends transaction alerts (requires actual-budget)
   telegram-receipt:

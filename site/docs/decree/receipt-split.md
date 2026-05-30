@@ -138,7 +138,7 @@ Follow the [Telegram integration guide](../integrations/telegram) to:
 In `automations/config.yml`:
 
 ```yaml
-routines:
+shared_routines:
   telegram-notify:
     enabled: true
   telegram-receipt:

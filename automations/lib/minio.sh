@@ -55,7 +55,7 @@ echo "[minio] Object: $MINIO_BUCKET/$MINIO_OBJECT_KEY"
 MINIO_LOCAL_FILE=""
 
 if [[ "$MINIO_EVENT_NAME" == *"ObjectCreated"* ]]; then
-    _minio_tmp_dir=$(mktemp -d)
+    _minio_tmp_dir=$(mktemp -d "${message_dir:-/work/.decree/runs}/tmp.XXXXXX")
     _minio_filename=$(basename "$MINIO_OBJECT_KEY")
     MINIO_LOCAL_FILE="$_minio_tmp_dir/$_minio_filename"
 

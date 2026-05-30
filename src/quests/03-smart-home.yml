@@ -1,0 +1,26 @@
+name: Smart Home
+tagline: Automate your home, get notified, and wire up routines
+services:
+  - var: EXIST_IS_SERVICES_HOMEASSISTANT
+    label: Home Assistant
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+  - var: EXIST_IS_SERVICES_NTFY
+    label: ntfy
+copies:
+  - src: services/decree/decree/cron.example/clean-runs.md
+    dst: services/decree/decree/cron/
+    label: "decree: clean-runs.md"
+    requires: EXIST_IS_SERVICES_DECREE
+  - src: services/decree/decree/cron.example/gmail-sync.md
+    dst: services/decree/decree/cron/
+    label: "decree: gmail-sync.md"
+    requires: EXIST_IS_SERVICES_DECREE
+  - src: services/decree/decree/cron.example/telegram-poll.md
+    dst: services/decree/decree/cron/
+    label: "decree: telegram-poll.md"
+    requires: EXIST_IS_SERVICES_DECREE
+  - src: services/decree/decree/cron.example/telegram-receipt-poll.md
+    dst: services/decree/decree/cron/
+    label: "decree: telegram-receipt-poll.md"
+    requires: EXIST_IS_SERVICES_DECREE

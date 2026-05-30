@@ -104,7 +104,7 @@ graveyard/    Archived/deprecated solutions
 `lowcoder` `mealie` `nocodb` `ntfy` `vikunja`
 
 ### nas/
-`collabora` `minio` `nextcloud` `redis` *(trueNAS is external — config note only)*
+`collabora` `minio` `nextcloud` `redis` *(NAS/NFS server is external — config note only)*
 
 ### hosting/
 `caddy` `cloudflare` *(certs only — no container)* `grafana` `loki` `pihole`
@@ -147,7 +147,8 @@ flow through compose exactly as they do for the service's own containers.
 ```
 <category>/<slug>/
 ├── decree/
-│   ├── config.yml          Enabled routines (tracked)
+│   ├── config.exist.yml    Routine registry + routine_source (template → config.yml)
+│   ├── config.yml          Rendered config (gitignored)
 │   ├── cron.example/      Cron templates (copy to cron/ to activate)
 │   ├── cron/               Active cron triggers (gitignored)
 │   ├── inbox/              Runtime state (gitignored)
@@ -157,8 +158,10 @@ flow through compose exactly as they do for the service's own containers.
 ```
 
 All decree daemons (main + sidecars) share `automations/routines/`, `automations/lib/`,
-and `automations/runs/` via read-only mounts, so code lives in one place and logs
-from all daemons land in the same audit trail (pruned uniformly by `clean-runs`).
+and `automations/runs/` via read-only mounts. The routines directory is mounted as
+`/work/.decree/shared_routines` and declared via `routine_source` in each `config.exist.yml`,
+so code lives in one place and logs from all daemons land in the same audit trail
+(pruned uniformly by `clean-runs`).
 
 Backup-eligible services with sidecars:
 
@@ -185,8 +188,13 @@ scripts live alongside their services as `exist.<name>.sh` (see next section).
 ```
 src/
 ├── generate-compose.ts             Merges enabled services → docker-compose.yml
-├── interactive_cli_replacer.sh     Legacy EXIST_CLI prompter (not currently sourced; existential.sh has an inline equivalent with DEFAULT_FROM support)
 ├── quest.sh                        Interactive onboarding wizard — invoked by `./existential.sh quest`
+├── templates.sh                    Render *.exist.* templates — EXIST_CLI (fzf prompts), placeholder substitution; runs inside existential-adhoc
+├── quests/                         Quest definitions — one *.yml per quest
+│   ├── 01-nas-storage.yml          Numbered quests (01–08): service selection + cron copies
+│   ├── 02-local-ai-lab.yml         Fields: name, tagline, services (var+label),
+│   ├── …                                   copies (src+dst+label+requires), guide
+│   └── auto-*.yml                  Automation quests: guide-only flows with doc links
 ├── lib/
 │   ├── backup-config.sh            Configure rclone backup destination (run via: ./existential.sh run backup-config)
 │   ├── backup-restore.sh           Interactive restore — DB dump, SQLite dump, or Docker volume
@@ -212,7 +220,7 @@ src/
 (`backup-config.sh`, `backup-restore.sh`, `rclone.sh`). See [[feedback_sourceable_utilities]].
 
 **`src/utils/`** holds scripts that are **sourced only** — never run directly
-(`generate_hex_key.sh`, `generate_password.sh`). Source them from `existential.sh`
+(`generate_hex_key.sh`, `generate_password.sh`). Source them from `templates.sh`
 rather than reimplementing the logic.
 
 **`src/test/`** holds all test infrastructure: `exist-test.sh` (shared helper sourced
@@ -331,10 +339,6 @@ as `exist.test.sh`.
 ```bash
 ./existential.sh --force        # Re-render existing files + re-run all initials
 ./existential.sh quest          # Pick what to build (interactive), then run full setup
-./existential.sh templates      # Only render *.exist.* template files
-./existential.sh initials       # Only run pending exist.initial.sh scripts
-./existential.sh compose        # Only regenerate docker-compose.yml and master .env
-
 # Run dispatch — general utilities (src/lib/<name>.sh):
 ./existential.sh run backup-config    # Configure rclone backup destination
 ./existential.sh run backup-restore   # Interactive DB, SQLite, or volume restore
@@ -355,16 +359,15 @@ as `exist.test.sh`.
 # Backups run inside per-service decree sidecars on their own cron schedule.
 # Copy cron templates from <service>/decree/cron.example/ → decree/cron/ to activate.
 # Edit each cron file's TARGETS / VOLUMES frontmatter to configure targets.
-./existential.sh backup db <service> [tier]      # Trigger db-backup on a sidecar now
-./existential.sh backup volumes <service> [tier] # Trigger volume-backup on a sidecar now
-./existential.sh backup restore                  # Same as: run backup-restore
+docker exec <svc>-decree decree run db-backup -- nightly     # Trigger db-backup now
+docker exec <svc>-decree decree run volume-backup -- nightly # Trigger volume-backup now
 
 ./existential.sh test                    # Run all enabled-service exist.test.sh + src/test/*
 ./existential.sh run <slug> test         # Test one service (read-only validation)
 ./existential.sh validate                # Conventions + drift checks
 ./existential.sh validate conventions    # Slugs synced across compose/piHole/Caddy/dashy
 ./existential.sh validate drift          # What re-rendering would change
-./existential.sh e2e                     # End-to-end: fresh clone → render → docker up → test → down (quests 1–6)
+./existential.sh e2e                     # End-to-end: fresh clone → render → docker up → test → down (quests 1–8)
 ./existential.sh e2e 3                   # E2E for quest 3 only
 ./existential.sh e2e 1 3 5               # E2E for specific quests
 ```
@@ -427,8 +430,8 @@ Run `./existential.sh validate conventions` to check both rules.
   plain local storage.
 - Conventional name: `<service>_<purpose>_data` (snake_case), matching the
   trailing segment of `device:`. E.g., `mealie_pg_data`, `vikunja_db_data`.
-- Service compose files reference TrueNAS via `${EXIST_TRUENAS_SERVER_ADDRESS}`
-  and `${EXIST_TRUENAS_CONTAINER_PATH}` directly — no per-service copy needed.
+- Service compose files reference the NFS server via `${EXIST_NFS_SERVER_ADDRESS}`
+  and `${EXIST_NFS_BASE_PATH}` directly — no per-service copy needed.
 - Validation runs against the generated master `docker-compose.yml`, not the
   per-service templates.
 
@@ -494,10 +497,11 @@ the three are in sync.
 
 ## Service Enablement
 
-Toggle services via `EXIST_IS_*=true/false` in `.env.shared`, then:
+Toggle services via `EXIST_IS_*=true/false` in `.env.shared`, then re-run setup:
 
 ```bash
-./existential.sh compose
+./existential.sh          # render templates + run initials + regenerate compose
+./existential.sh --force  # same, but re-renders already-existing files too
 ```
 
 `src/generate-compose.ts` runs in the `existential-adhoc` container via `tsx`. It reads

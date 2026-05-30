@@ -49,8 +49,8 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/nextcloud_data"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/nextcloud_data"
   # MariaDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
   # Backed up via automations/routines/db-backup.sh → rclone remote.
   nextcloud_sql_data:

@@ -1,0 +1,7 @@
+name: Network Access
+tagline: "DNS + reverse proxy — makes every service reachable at https://<slug>.internal"
+services:
+  - var: EXIST_IS_HOSTING_PIHOLE
+    label: Pihole
+  - var: EXIST_IS_HOSTING_CADDY
+    label: Caddy

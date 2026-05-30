@@ -1,0 +1,26 @@
+name: NAS Storage
+tagline: Wire up NFS mounts for persistent NAS-backed storage across services
+services: []
+guide: |
+  Many services (Nextcloud, MinIO, Home Assistant, Grafana, and others)
+  can store their data on a NAS over NFS instead of local disk. This gives
+  you redundancy, snapshots, and shared access across machines.
+
+  Any NFS-capable NAS works — TrueNAS is a common self-hosted choice.
+  Docs: https://existential.company/docs/storage
+
+  Setup:
+    1. On your NAS, create an NFS export (dataset/share) per service, or
+       one base path with subdirectories. Record the server IP and base path.
+
+    2. Set these two values in .env.shared (or re-run ./existential.sh
+       to be prompted):
+           EXIST_NFS_SERVER_ADDRESS=<your-nas-ip>
+           EXIST_NFS_BASE_PATH=<nfs-export-base-path>
+
+    3. Re-render templates to uncomment NFS volume blocks:
+           ./existential.sh --force
+
+  NFS volumes are automatically commented out when EXIST_NFS_SERVER_ADDRESS
+  is blank — affected services fall back to plain named local volumes.
+  You can skip this quest and add NFS later at any time.

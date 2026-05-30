@@ -1,0 +1,25 @@
+name: Telegram Image OCR
+tagline: Send a photo to your Telegram bot and get back the extracted text
+services: []
+guide: |
+  Photograph a receipt, document, or any text-bearing image and send it
+  to your Telegram bot. Decree downloads it, runs OCR via Ollama, and
+  saves the extracted text next to the original image in Nextcloud.
+  Docs: https://existential.company/docs/decree/image-ocr
+
+  Prerequisites:
+    - Telegram Bot connected (auto-telegram quest)
+    - Ollama running (Quest 2 — Local AI Lab)
+    - MinIO + Nextcloud running (Quest 5)
+
+  Setup:
+    1. The telegram-poll cron (from auto-telegram) already ingests photos
+       into MinIO. No additional cron needed.
+
+    2. Configure the file-processor to route images through ollama-ocr.
+       See automations/routines/file-processor.sh for the pattern.
+
+    3. Enable file-processor and minio-router in
+       services/decree/decree/config.yml:
+           file-processor: enabled: true
+           minio-router:   enabled: true

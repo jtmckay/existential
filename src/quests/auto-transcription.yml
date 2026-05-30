@@ -1,0 +1,28 @@
+name: Recording Transcription
+tagline: Automatically transcribe audio and video recordings dropped into Nextcloud
+services: []
+guide: |
+  Drop a recording into Nextcloud and Decree transcribes it with Whisper,
+  saving the transcript next to the original file — no manual steps.
+  Docs: https://existential.company/docs/decree/recording-transcription
+
+  Prerequisites:
+    - Nextcloud + MinIO running (Quest 5)
+    - Whisper running (Quest 2 — Local AI Lab)
+    - Decree running (any quest that enables it)
+
+  Setup:
+    1. In MinIO, enable bucket notifications for your Nextcloud bucket:
+           MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
+       (already set in nas/minio/docker-compose.exist.yml)
+
+    2. Configure the file-processor routine to handle audio/video files.
+       See automations/routines/file-processor.sh for the pattern.
+
+    3. Enable file-processor and minio-router in
+       services/decree/decree/config.yml:
+           file-processor: enabled: true
+           minio-router:   enabled: true
+
+  Recordings synced via Nextcloud mobile are processed automatically
+  within seconds of upload.

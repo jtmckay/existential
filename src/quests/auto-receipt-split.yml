@@ -1,0 +1,21 @@
+name: Receipt Split
+tagline: Reply to a transaction notification with a receipt photo to split it automatically
+services: []
+copies:
+  - src: services/decree/decree/cron.example/telegram-receipt-poll.md
+    dst: services/decree/decree/cron/
+    label: "decree: telegram-receipt-poll.md"
+    requires: EXIST_IS_SERVICES_DECREE
+guide: |
+  When a bank alert lands, Decree notifies you via Telegram. Reply with
+  a photo of your receipt and Decree automatically splits the transaction
+  into line items in Actual Budget — without leaving Telegram.
+  Docs: https://existential.company/docs/decree/receipt-split
+
+  Prerequisites:
+    - Bank Transaction Import set up (auto-budget-import quest)
+    - Telegram Bot connected (auto-telegram quest)
+
+  The telegram-receipt-poll cron (copied above) polls for receipt photo
+  replies every 30 minutes. It matches replies to outstanding transactions
+  and triggers the split via the actual-budget routine.

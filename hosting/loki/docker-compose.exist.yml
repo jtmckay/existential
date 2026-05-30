@@ -28,8 +28,8 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_TRUENAS_CONTAINER_PATH}/loki_data"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/loki_data"
 
 networks:
   exist:

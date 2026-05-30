@@ -124,7 +124,7 @@ Any Ollama-compatible vision model works. `llava` is a solid general-purpose cho
 Enable `telegram-ingest` in `automations/config.yml`:
 
 ```yaml
-routines:
+shared_routines:
   telegram-ingest:
     enabled: true
 ```

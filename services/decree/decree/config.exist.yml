@@ -1,3 +1,4 @@
+routine_source: /work/.decree/shared_routines
 commands:
   ai_router: opencode run {prompt}
   ai_interactive: opencode
@@ -10,7 +11,7 @@ hooks:
   afterAll: ""
   beforeEach: /work/.decree/lib/hooks/config-watch.sh
   afterEach: /work/.decree/lib/hooks/afterEach.sh
-routines:
+shared_routines:
   actual-budget:
     enabled: false
   actual-budget-parse:

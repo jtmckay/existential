@@ -1,0 +1,28 @@
+name: File Change Processing
+tagline: React to files being created or updated in MinIO S3 storage
+services: []
+guide: |
+  When a file lands in MinIO, Decree receives a webhook, matches the path
+  against registered processors, and fans out jobs — download, transform,
+  save. Transcription and image OCR are both built on this pipeline.
+  Docs: https://existential.company/docs/decree/file-change-processing
+
+  Prerequisites:
+    - MinIO running (Quest 5 — Media & Files)
+    - Decree running (any quest that enables it)
+
+  Setup:
+    1. MinIO webhook delivery is pre-configured in
+       nas/minio/docker-compose.exist.yml. Bring MinIO up and the webhook
+       endpoint on decree is ready at http://decree-webhook:48880/minio.
+
+    2. Register your processor in automations/routines/file-processor.sh
+       by adding a path pattern and the routine to invoke.
+
+    3. Enable file-processor and minio-router in
+       services/decree/decree/config.yml:
+           file-processor: enabled: true
+           minio-router:   enabled: true
+
+    4. Drop a file into the configured bucket path and watch
+       automations/runs/ for the resulting run log.

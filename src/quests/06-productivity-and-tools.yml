@@ -1,0 +1,70 @@
+name: Productivity & Tools
+tagline: Tasks, databases, and low-code apps
+services:
+  - var: EXIST_IS_SERVICES_VIKUNJA
+    label: Vikunja
+  - var: EXIST_IS_SERVICES_NOCODB
+    label: NocoDB
+  - var: EXIST_IS_SERVICES_APPSMITH
+    label: Appsmith
+  - var: EXIST_IS_SERVICES_LOWCODER
+    label: Lowcoder
+  - var: EXIST_IS_SERVICES_IT_TOOLS
+    label: IT Tools
+copies:
+  - src: services/vikunja/decree/cron.example/db-backup-nightly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja: db-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/vikunja/decree/cron.example/db-backup-weekly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja: db-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/vikunja/decree/cron.example/volume-backup-nightly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/vikunja/decree/cron.example/volume-backup-weekly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/nocodb/decree/cron.example/db-backup-nightly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb: db-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/nocodb/decree/cron.example/db-backup-weekly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb: db-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/nocodb/decree/cron.example/volume-backup-nightly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/nocodb/decree/cron.example/volume-backup-weekly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/appsmith/decree/cron.example/volume-backup-nightly.md
+    dst: services/appsmith/decree/cron/
+    label: "appsmith: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_APPSMITH
+  - src: services/appsmith/decree/cron.example/volume-backup-weekly.md
+    dst: services/appsmith/decree/cron/
+    label: "appsmith: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_APPSMITH
+  - src: services/lowcoder/decree/cron.example/db-backup-nightly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder: db-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_LOWCODER
+  - src: services/lowcoder/decree/cron.example/db-backup-weekly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder: db-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_LOWCODER
+  - src: services/lowcoder/decree/cron.example/volume-backup-nightly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_LOWCODER
+  - src: services/lowcoder/decree/cron.example/volume-backup-weekly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_LOWCODER

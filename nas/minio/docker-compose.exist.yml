@@ -27,8 +27,8 @@ volumes:
     driver: local
     driver_opts:
       type: "nfs"
-      o: "addr=${EXIST_TRUENAS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${MINIO_TRUENAS_PATH}"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${MINIO_NFS_PATH}"
 
 networks:
   exist:

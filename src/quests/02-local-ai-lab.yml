@@ -1,0 +1,34 @@
+name: Local AI Lab
+tagline: Chat with local LLMs, transcribe audio, connect tools to your AI
+services:
+  - var: EXIST_IS_AI_OLLAMA
+    label: Ollama
+  - var: EXIST_IS_AI_OPEN_WEBUI
+    label: Open WebUI
+  - var: EXIST_IS_AI_MCP
+    label: MCP
+  - var: EXIST_IS_AI_HERMES
+    label: Hermes
+  - var: EXIST_IS_AI_WHISPER
+    label: Whisper
+  - var: EXIST_IS_AI_LIGHTRAG
+    label: LightRAG
+  - var: EXIST_IS_AI_CHATTERBOX
+    label: Chatterbox
+copies:
+  - src: ai/hermes/decree/cron.example/volume-backup-nightly.md
+    dst: ai/hermes/decree/cron/
+    label: "hermes: volume-backup-nightly.md"
+    requires: EXIST_IS_AI_HERMES
+  - src: ai/hermes/decree/cron.example/volume-backup-weekly.md
+    dst: ai/hermes/decree/cron/
+    label: "hermes: volume-backup-weekly.md"
+    requires: EXIST_IS_AI_HERMES
+  - src: ai/lightrag/decree/cron.example/volume-backup-nightly.md
+    dst: ai/lightrag/decree/cron/
+    label: "lightrag: volume-backup-nightly.md"
+    requires: EXIST_IS_AI_LIGHTRAG
+  - src: ai/lightrag/decree/cron.example/volume-backup-weekly.md
+    dst: ai/lightrag/decree/cron/
+    label: "lightrag: volume-backup-weekly.md"
+    requires: EXIST_IS_AI_LIGHTRAG

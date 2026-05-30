@@ -1,0 +1,22 @@
+name: Homelab Infrastructure
+tagline: Monitoring, containers, and dashboards
+services:
+  - var: EXIST_IS_HOSTING_PORTAINER
+    label: Portainer
+  - var: EXIST_IS_HOSTING_GRAFANA
+    label: Grafana
+  - var: EXIST_IS_HOSTING_PROMETHEUS
+    label: Prometheus
+  - var: EXIST_IS_HOSTING_LOKI
+    label: Loki
+  - var: EXIST_IS_HOSTING_UPTIME_KUMA
+    label: Uptime Kuma
+  - var: EXIST_IS_SERVICES_DASHY
+    label: Dashy
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+copies:
+  - src: services/decree/decree/cron.example/clean-runs.md
+    dst: services/decree/decree/cron/
+    label: "decree: clean-runs.md"
+    requires: EXIST_IS_SERVICES_DECREE

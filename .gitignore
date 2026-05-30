@@ -49,7 +49,6 @@
 
 # Decree
 **/decree/webhook/config.yml
-automations/lib
 automations/runs
 automations/secrets/
 # Per-decree-daemon runtime state (main decree + all per-service sidecars)

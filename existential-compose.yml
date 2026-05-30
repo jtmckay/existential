@@ -12,7 +12,7 @@ services:
       - NTFY_URL=${EXIST_NTFY_URL:-}
     volumes:
       - ./automations/lib:/work/.decree/lib:ro,z
-      - ./automations/routines:/work/.decree/routines:ro,z
+      - ./automations/routines:/work/.decree/shared_routines:ro,z
       - ./automations/runs:/work/.decree/runs:z
       - ./automations/secrets:/secrets:z
       - ./src:/src:z

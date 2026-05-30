@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # Generate a random 24-character password
 # Uses a mix of uppercase, lowercase, numbers, and safe special characters
 # Compatible with Windows (Git Bash/WSL), Mac, and Linux

@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # Generate a random hexadecimal key of specified length
 # Uses only characters 0-9 and a-f (lowercase hex)
 # Compatible with Windows (Git Bash/WSL), Mac, and Linux
