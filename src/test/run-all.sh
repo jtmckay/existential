@@ -43,7 +43,7 @@ run() {
 # meaningful inside the ephemeral e2e environment.
 if [ "${E2E_MODE:-}" != "1" ]; then
     echo "=== General tests (src/test/) ==="
-    for t in syntax gmail rclone; do
+    for t in syntax existential gmail rclone; do
         [ -f "${TEST_DIR}/test-${t}.sh" ] || continue
         run "$t" "${TEST_DIR}/test-${t}.sh"
     done

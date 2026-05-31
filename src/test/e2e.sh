@@ -231,26 +231,35 @@ run_quest() {
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
     done
 
-    # 4. Render service templates (non-interactive — .env.shared already present)
-    log "Rendering templates..."
-    (cd "$WORK" && bash existential.sh templates)
+    # 4. Build the adhoc image for this e2e clone (uses $WORK/automations as context)
+    log "Building existential-adhoc image..."
+    docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" build existential-adhoc
 
-    # 5. Generate unified docker-compose.yml via the adhoc container
+    # 5. Render service templates (non-interactive — .env.shared already present)
+    log "Rendering templates..."
+    docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
+        --entrypoint "" \
+        -e REPO_DIR=/repo \
+        -e FORCE=false \
+        existential-adhoc \
+        bash /src/templates.sh
+
+    # 6. Generate unified docker-compose.yml via the adhoc container
     log "Generating docker-compose.yml..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         --entrypoint "" existential-adhoc \
-        tsx /src/generate-compose.ts /repo
+        tsx /src/generate-compose.ts /repo docker-compose.yml
 
     [ -f "$WORK/docker-compose.yml" ] || die "generate-compose.ts produced no docker-compose.yml"
 
-    # 6. Bring services up
+    # 7. Bring services up
     log "Starting services..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" up -d
 
-    # 7. Wait for all containers to reach running state
+    # 8. Wait for all containers to reach running state
     wait_running "$WORK" 300
 
-    # 8. Run per-service tests inside the adhoc container (same network as services)
+    # 9. Run per-service tests inside the adhoc container (same network as services)
     log "Running service tests..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         -e E2E_MODE=1 \
