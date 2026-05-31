@@ -20,12 +20,7 @@ source "$CREDENTIALS"
 
 _json_field() {
     local json="$1" key="$2"
-    if command -v jq >/dev/null 2>&1; then
-        printf '%s' "$json" | jq -r ".${key} // empty"
-    else
-        printf '%s' "$json" | python3 -c \
-            "import sys,json; d=json.load(sys.stdin); print(d.get('${key}',''))"
-    fi
+    printf '%s' "$json" | jq -r ".${key} // empty"
 }
 
 TOKEN_RESPONSE=$(curl -sf --request POST \

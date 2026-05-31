@@ -17,7 +17,7 @@ guide: |
        into MinIO. No additional cron needed.
 
     2. Configure the file-processor to route images through ollama-ocr.
-       See automations/routines/file-processor.sh for the pattern.
+       See automations/shared_routines/file-processor.sh for the pattern.
 
     3. Enable file-processor and minio-router in
        services/decree/decree/config.yml:

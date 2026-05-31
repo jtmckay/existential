@@ -171,22 +171,6 @@ services:
     networks:
       - exist
 
-volumes:
-  lowcoder_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_data"
-  lowcoder_assets:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_assets"
-  # MongoDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
-  lowcoder_mongo:
-
   lowcoder-decree:
     container_name: lowcoder-decree
     build:
@@ -204,13 +188,29 @@ volumes:
       - LOWCODER_MONGO_ROOT_PASSWORD=${LOWCODER_MONGO_ROOT_PASSWORD}
     volumes:
       - ./decree:/work/.decree:z
-      - ../../automations/routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
       - lowcoder_data:/volumes/lowcoder_data
       - lowcoder_assets:/volumes/lowcoder_assets
     tty: false
+
+volumes:
+  lowcoder_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_data"
+  lowcoder_assets:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_assets"
+  # MongoDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
+  lowcoder_mongo:
 
 networks:
   exist:

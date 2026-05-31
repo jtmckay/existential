@@ -28,7 +28,7 @@ probe_service "decree-webhook /healthz" decree-webhook "${WEBHOOK_PORT}" /health
 
 file_present "decree/config.yml"                 "/repo/services/decree/decree/config.yml"
 file_present "automations/runs/ present"         "/repo/automations/runs"
-file_present "automations/routines/ present"     "/repo/automations/routines"
+file_present "automations/shared_routines/ present"     "/repo/automations/shared_routines"
 file_present "automations/lib/ present"          "/repo/automations/lib"
 
 finish

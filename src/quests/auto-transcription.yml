@@ -17,7 +17,7 @@ guide: |
        (already set in nas/minio/docker-compose.exist.yml)
 
     2. Configure the file-processor routine to handle audio/video files.
-       See automations/routines/file-processor.sh for the pattern.
+       See automations/shared_routines/file-processor.sh for the pattern.
 
     3. Enable file-processor and minio-router in
        services/decree/decree/config.yml:

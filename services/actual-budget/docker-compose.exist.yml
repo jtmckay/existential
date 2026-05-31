@@ -29,7 +29,7 @@ services:
       - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
     volumes:
       - ./decree:/work/.decree:z
-      - ../../automations/routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z

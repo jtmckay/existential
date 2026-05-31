@@ -46,7 +46,7 @@ esac
 [ -n "${TARGETS:-}" ] || { echo "TARGETS is empty — set it in the cron frontmatter" >&2; exit 2; }
 
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
-[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config-config" >&2; exit 1; }
+[ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config" >&2; exit 1; }
 
 DATE=$(date -u +%Y%m%dT%H%M%SZ)
 TMPDIR=$(mktemp -d "${message_dir:-/work/.decree/runs}/tmp.XXXXXX")

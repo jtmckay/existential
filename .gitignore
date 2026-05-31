@@ -49,14 +49,14 @@
 
 # Decree
 **/decree/webhook/config.yml
-automations/runs
-automations/secrets/
+automations/runs/*
+automations/secrets/*
 # Per-decree-daemon runtime state (main decree + all per-service sidecars)
 **/decree/config.yml
 **/decree/config.hash
 **/decree/cron/
 **/decree/emails/
-**/decree/inbox/
+**/decree/inbox/*
 **/decree/outbox/
 **/decree/processed.md
 

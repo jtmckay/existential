@@ -28,7 +28,7 @@ volumes:
     driver_opts:
       type: "nfs"
       o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${MINIO_NFS_PATH}"
+      device: ":${EXIST_NFS_BASE_PATH}/minio_data"
 
 networks:
   exist:

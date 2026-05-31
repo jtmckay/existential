@@ -55,7 +55,7 @@ services:
       - NOCODB_POSTGRES_PASSWORD=${NOCODB_POSTGRES_PASSWORD}
     volumes:
       - ./decree:/work/.decree:z
-      - ../../automations/routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
@@ -70,7 +70,7 @@ volumes:
       o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
       device: ":${EXIST_NFS_BASE_PATH}/nocodb_data"
   # Postgres on local disk — NFS has unsafe fsync/lock semantics for DBs.
-  # Backed up via automations/routines/db-backup.sh → rclone remote.
+  # Backed up via automations/shared_routines/db-backup.sh → rclone remote.
   nocodb_pg_data:
 
 networks:

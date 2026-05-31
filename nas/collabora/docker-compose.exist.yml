@@ -4,6 +4,8 @@ services:
     container_name: collabora
     image: collabora/code:latest
     restart: unless-stopped
+    networks:
+      - exist
     environment:
       - username=${COLLABORA_USERNAME}
       - password=${COLLABORA_PASSWORD} 

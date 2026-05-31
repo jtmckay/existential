@@ -35,7 +35,7 @@ Decree relays `outbox/ → inbox/` automatically. Writing directly to inbox bypa
 
 ### This project's paths
 - Working directory: `automations/` (mounted at `/work/.decree` in the container)
-- Routines: `automations/routines/`
+- Routines: `automations/shared_routines/`
 - Hooks: `automations/hooks/`
 - Cron: `automations/cron/`
 - Config: `automations/config.yml`

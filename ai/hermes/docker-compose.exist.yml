@@ -1,0 +1,172 @@
+# Refs:
+#   Agent + Workspace: https://github.com/outsourc-e/hermes-workspace/blob/main/docker-compose.yml
+#
+# Hermes Agent + Workspace — Docker Compose Setup
+#
+# Requirements:
+#   - Docker & Docker Compose
+#   - At least one LLM provider key in .env (ANTHROPIC_API_KEY,
+#     OPENAI_API_KEY, OPENROUTER_API_KEY, GOOGLE_API_KEY, …) OR a
+#     reachable local server (Ollama, LM Studio, etc.)
+#
+# Services:
+#   hermes-agent     — AI agent gateway + dashboard (ports 48642, 49119)
+#   hermes-workspace — Feature-rich UI: swarms, terminal, kanban (port 49300)
+#
+# NFS-backed (via EXIST_NFS_*) — source-of-truth state:
+#   hermes_agent_data     — agent config, sessions, skills, memory. Shared
+#                           by both containers (mounted at /opt/data on the
+#                           agent, /home/workspace/.hermes on the workspace).
+#
+# Local-only volumes (intentionally not on the NAS):
+#   hermes_workspace_data — file-browser scratch. Mount a host path here if
+#                           you actually need persistent project files.
+#   hermes_agent_src      — agent Python source. After upgrading the agent
+#                           image, remove this volume before bringing
+#                           containers back up:
+#                             docker compose down
+#                             docker volume rm hermes_hermes_agent_src
+#                             docker compose pull && docker compose up -d
+#
+# Troubleshooting:
+#   - Check logs: docker compose logs hermes-agent
+#   - Agent must expose port 8642
+
+services:
+  # The Hermes Agent gateway + dashboard APIs.
+  # Gateway runs in the foreground on :8642. Dashboard runs as a background
+  # process on :9119 and is reachable only on the private Docker network.
+  hermes-agent:
+    container_name: hermes-agent
+    image: nousresearch/hermes-agent:latest
+    restart: unless-stopped
+    # The Hermes Agent image entrypoint defaults to the interactive CLI which exits
+    # immediately under `docker compose up -d`. We override here to start the
+    # gateway, which is the long-running API/health server the Workspace needs.
+    # See #360.
+    networks:
+      - exist
+    ports:
+      - "48642:8642"   # OpenAI-compatible API
+      - "49119:9119"   # Web dashboard
+    user: "1000:1000"
+    environment:
+      # Pass through whichever provider keys are set in .env. hermes-agent
+      # uses the one that matches the provider configured in
+      # ~/.hermes/config.yaml (or whatever `hermes setup` picked).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      HERMES_DASHBOARD: '1'
+      HERMES_DASHBOARD_HOST: 0.0.0.0
+      HERMES_DASHBOARD_PORT: '9119'
+      # HERMES_DASHBOARD_TUI: '1' # Enables chat through dashboard
+      # Authentication for the gateway when exposing off-loopback.
+      # In the default compose setup the gateway is reachable from the
+      # workspace container over the docker network on hermes-agent:8642,
+      # so an empty key works for localhost-only Docker installs. For any
+      # deployment that publishes 8642 on the host or a LAN IP, set a
+      # strong HERMES_API_KEY in .env.shared — the workspace passes it through
+      # as HERMES_API_TOKEN below. See #122.
+      API_SERVER_KEY: ${HERMES_API_KEY:-}
+      # Bind inside the container so the workspace can reach the gateway over
+      # Docker DNS. The host publish below remains loopback-only.
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_ENABLED: 'true'
+      # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
+      LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
+    command: ["gateway", "run"]
+    volumes:
+      - hermes_agent_data:/opt/data
+      - hermes_agent_src:/opt/hermes
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8642/health && curl -fsS http://localhost:9119/api/status || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # The Hermes Workspace Web UI
+  # Connects to hermes-agent over the exist Docker network.
+  hermes-workspace:
+    container_name: hermes-workspace
+    image: ghcr.io/outsourc-e/hermes-workspace:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "49300:3000"   # Web dashboard
+    user: "1000:1000"
+    environment:
+      HERMES_HOME: /home/workspace/.hermes
+      HERMES_WORKSPACE_DIR: /workspace
+      # Container-to-container — uses Docker's built-in service DNS on `exist`.
+      HERMES_API_URL: http://hermes-agent:8642
+      HERMES_DASHBOARD_URL: http://hermes-agent:9119
+      # Must match HERMES_API_KEY / API_SERVER_KEY on the hermes-agent side when that is set
+      HERMES_API_TOKEN: ${HERMES_API_KEY:-}
+      # Workspace session password. REQUIRED when HOST is non-loopback (the
+      # default for Docker images, so the container binds 0.0.0.0:3000).
+      # Pick a strong secret. See #122.
+      # HERMES_PASSWORD is preferred; CLAUDE_PASSWORD remains as a back-compat
+      # fallback for compose files that pre-date the rename.
+      HERMES_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD:-}}
+      # Enable the Secure flag on session cookies when terminated behind
+      # HTTPS (reverse proxy / Tailscale Funnel / Cloudflare Tunnel). See #123.
+      COOKIE_SECURE: ${HERMES_COOKIE_SECURE:-}
+      # Trust proxy-forwarded headers (x-forwarded-for / x-real-ip) for IP
+      # classification. Leave unset unless you deploy behind a trusted proxy
+      # that sanitizes these headers — otherwise a client can spoof its IP
+      # and bypass local-classification / rate limiting. See #125.
+      TRUST_PROXY: ${TRUST_PROXY:-}
+    volumes:
+      - hermes_agent_data:/home/workspace/.hermes
+      # /workspace is the file-browser scratch area. Local named volume —
+      # survives container restart but not removal. Not NFS-backed: files
+      # created here aren't the source of truth, mount a host path here if
+      # you need persistent project files in the workspace UI.
+      - hermes_workspace_data:/workspace
+    depends_on:
+      hermes-agent:
+        condition: service_healthy
+
+  hermes-decree:
+    container_name: hermes-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - hermes_agent_data:/volumes/hermes_agent_data
+    tty: false
+
+volumes:
+  hermes_agent_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/hermes_agent_data"
+  # Workspace file-browser scratch — local-only. Not the source of truth.
+  hermes_workspace_data:
+  # Python source cache — regen-able on image upgrade. Local-only.
+  hermes_agent_src:
+
+networks:
+  exist:
+    external: true

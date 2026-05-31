@@ -16,7 +16,7 @@ guide: |
        nas/minio/docker-compose.exist.yml. Bring MinIO up and the webhook
        endpoint on decree is ready at http://decree-webhook:48880/minio.
 
-    2. Register your processor in automations/routines/file-processor.sh
+    2. Register your processor in automations/shared_routines/file-processor.sh
        by adding a path pattern and the routine to invoke.
 
     3. Enable file-processor and minio-router in

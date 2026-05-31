@@ -22,7 +22,7 @@ services:
     volumes:
       - ./decree:/work/.decree:z
       - ../../automations/lib:/work/.decree/lib:ro,z
-      - ../../automations/routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:z
       - notes_data:/notes_data

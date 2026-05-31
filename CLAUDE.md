@@ -56,12 +56,12 @@ every other service. **Match existing patterns first; invent only when you must.
 3. **`src/` is for host-run scripts. `automations/` is for everything else.** Scripts in
    `src/` run directly on the host (or self-elevate into `existential-adhoc`). Scripts that
    run on a schedule, respond to webhooks, or are triggered by decree belong in
-   `automations/routines/` and are enabled through decree's config. Shared code used across
+   `automations/shared_routines/` and are enabled through decree's config. Shared code used across
    routines lives in `automations/lib/` — entirely separated from `src/`. If it runs in a
    container on a schedule, it is not a `src/` script.
 4. **Repeatable work is a decree routine.** If a script needs to run more than once — on a
    schedule, after a webhook, in response to a message — it lives in
-   `automations/routines/`. Not host cron, not a one-off `docker exec`, not a sibling
+   `automations/shared_routines/`. Not host cron, not a one-off `docker exec`, not a sibling
    `exist.<action>.sh`. One-shots stay as `exist.<action>.sh`; recurring work is decree's
    job.
 5. **Services set themselves up deterministically.** Each service ships an
@@ -157,7 +157,7 @@ flow through compose exactly as they do for the service's own containers.
 └── docker-compose.exist.yml  # includes the <slug>-decree sidecar
 ```
 
-All decree daemons (main + sidecars) share `automations/routines/`, `automations/lib/`,
+All decree daemons (main + sidecars) share `automations/shared_routines/`, `automations/lib/`,
 and `automations/runs/` via read-only mounts. The routines directory is mounted as
 `/work/.decree/shared_routines` and declared via `routine_source` in each `config.exist.yml`,
 so code lives in one place and logs from all daemons land in the same audit trail
@@ -482,7 +482,7 @@ built-in service DNS on the `exist` network):
 
 - Service env vars in `*/docker-compose.exist.yml` and `.env.exist` use
   this form (e.g., `OLLAMA_BASE_URL=http://ollama:11434`).
-- Automation routines (`automations/routines/*.sh`) and shared libs use this
+- Automation routines (`automations/shared_routines/*.sh`) and shared libs use this
   form for their default `${X_URL:-http://service:port}` fallbacks.
 - Faster (no Caddy hop), simpler (no TLS), and doesn't need Caddy CA trust
   inside the calling container — which would otherwise require per-image
@@ -525,12 +525,43 @@ paths from the repo root, and merges services/volumes/networks. The previous
 ## Decree (Automations)
 
 Quick reference:
-- Routines: `automations/routines/<name>.sh` + registered in each daemon's `config.yml`
+- Routines: `automations/shared_routines/<name>.sh` + registered in each daemon's `config.yml`
 - Cron jobs (main decree): `services/decree/decree/<name>.md`
 - Cron jobs (service sidecars): `<category>/<slug>/decree/cron/<name>.md`
 - Webhook endpoints: `services/decree/webhook/config.yml`
 - Run commands via: `docker exec decree decree <command>`
 - Backup commands via: `docker exec <service>-decree decree run db-backup`
+
+### Shared routine registration convention
+
+Decree auto-enables routines found in the local routines directory. Because all daemons
+use `shared_routines` (a shared source directory via `routine_source`), routines default
+to **disabled** unless explicitly listed in `shared_routines` in the config. The
+`config.exist.yml` template is the whitelist — only listed routines are visible to that
+daemon at all.
+
+When you add a routine to `automations/shared_routines/`, add it to every `config.exist.yml`
+that should have access to it. Set `enabled: true` for routines that should be on by
+default for that daemon's purpose, `enabled: false` for routines that are available but
+require the user to opt in. Any routine not listed is simply invisible to that daemon.
+
+```yaml
+# config.exist.yml (template — tracked)
+shared_routines:
+  volume-backup:
+    enabled: true   # on by default — this sidecar exists to run backups
+  new-routine:
+    enabled: false  # available but opt-in
+```
+
+Which configs to update depends on the routine's purpose:
+- **Backup routines** (`db-backup`, `volume-backup`) — add to every sidecar that owns
+  a volume or database.
+- **Notify / utility routines** — add to every daemon that might use them.
+- **Main-decree-only routines** (AI workflows, gmail, telegram, etc.) — add only to
+  `services/decree/decree/config.exist.yml`.
+
+The rendered `config.yml` (gitignored) is where a user overrides what the template set.
 
 ### Cron routine setup convention
 

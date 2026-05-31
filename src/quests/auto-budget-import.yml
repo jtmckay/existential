@@ -16,7 +16,7 @@ guide: |
        a filter to apply it automatically.
 
     2. Add or copy a parser for your bank in:
-           automations/routines/actual-budget-parse.sh
+           automations/shared_routines/actual-budget-parse.sh
 
     3. Configure Actual Budget credentials:
            ./existential.sh run decree gmail-labels

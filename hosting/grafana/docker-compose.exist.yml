@@ -16,6 +16,27 @@ services:
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
 
+  grafana-decree:
+    container_name: grafana-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+    tty: false
+
 volumes:
   grafana_data:
     driver: local

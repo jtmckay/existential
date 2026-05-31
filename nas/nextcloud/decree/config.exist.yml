@@ -9,5 +9,5 @@ hooks:
 shared_routines:
   db-backup:
     enabled: true
-  notify:
-    enabled: true
+  clean-runs:
+    enabled: false

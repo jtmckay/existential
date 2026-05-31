@@ -59,17 +59,11 @@ extract() {
             echo "*[PDF — pdftotext not available]*"
         fi
     elif [[ "$ext" == "excalidraw" ]]; then
-        if command -v python3 &>/dev/null; then
-            python3 -c "
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-for e in data.get('elements', []):
-    if e.get('type') == 'text':
-        print(e.get('text', ''))
-" "$file" 2>/dev/null || echo "*[Excalidraw parse failed]*"
+        if command -v jq &>/dev/null; then
+            jq -r '.elements[]? | select(.type == "text") | .text // ""' "$file" \
+                2>/dev/null || echo "*[Excalidraw parse failed]*"
         else
-            echo "*[Excalidraw — no parser available]*"
+            echo "*[Excalidraw — jq not available]*"
         fi
     else
         return
