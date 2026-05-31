@@ -2,16 +2,21 @@
 
 ## Processing Pipeline
 
-1. Migration files in `.decree/migrations/` are read in alphabetical order
-2. Each migration becomes an inbox message in `.decree/inbox/`
-3. Messages are normalized — missing fields are filled in and the routine is selected
-4. Lifecycle hooks run (`beforeEach`)
-5. The selected routine executes with parameters as environment variables
-6. On success: `afterEach` runs, the message is deleted from inbox, `run.json` is written
-7. On failure: retry strategy applies. If the log contains "usage limit" + "reset", Decree waits until the reset time (SIGINT-aware, exits 130) then retries from scratch
-8. After all retries: message is dead-lettered. If it was a migration, Decree stops immediately — subsequent migrations are not started
-9. Follow-up messages from routines are processed depth-first
-10. The inbox is fully drained before the next migration starts
+Messages enter the inbox from three sources:
+- **Cron** — decree fires a message on schedule from `cron/`
+- **Webhook** — decree-webhook drops a file into `inbox/` when an HTTP request arrives
+- **Outbox relay** — routines write follow-ups to `outbox/`; decree moves them to `inbox/`
+
+Processing steps:
+1. Messages in `inbox/` are processed in arrival order
+2. Each message is normalized — missing fields filled in, routine selected
+3. Lifecycle hooks run (`beforeEach`)
+4. The selected routine executes with parameters as environment variables
+5. On success: `afterEach` runs, message deleted from inbox, `run.json` written to `automations/runs/`
+6. On failure: retry strategy applies. If the log contains "usage limit" + "reset", Decree waits until the reset time then retries from scratch
+7. After all retries: message is dead-lettered
+8. Follow-up messages from routines (outbox) are processed depth-first
+9. The inbox is fully drained before moving on
 
 ## Standard Environment Variables
 

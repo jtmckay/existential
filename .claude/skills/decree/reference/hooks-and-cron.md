@@ -37,15 +37,26 @@ All hooks receive the standard variables plus:
 
 ## Cron Scheduling
 
-Cron-triggered messages are `.md` files in `.decree/cron/` with a `cron` frontmatter field:
+Each decree daemon has two paired directories:
+
+- **`cron.example/`** — tracked templates (copy to activate)
+- **`cron/`** — active triggers (gitignored, read-only mount into container)
+
+Cron files are `.md` files with a `cron` frontmatter field. Extra keys are passed
+as environment variables to the routine:
 
 ```markdown
 ---
-cron: "0 9 * * 1-5"
-routine: develop
+cron: "0 2 * * *"
+routine: volume-backup
+VOLUMES: "my_volume_name"
+TARGETS: "minio:9000"
 ---
-Run the weekday morning task.
 ```
+
+To activate: copy from `cron.example/` → `cron/`, then restart the decree container.
+Never edit `cron.example/` files directly — they are templates for users to copy and
+customise. The `.example_` suffix prevents `existential.sh` from auto-rendering them.
 
 ### Common Expressions
 
@@ -53,11 +64,10 @@ Run the weekday morning task.
 |-----------------|----------------------|
 | `* * * * *`     | Every minute         |
 | `0 * * * *`     | Every hour           |
-| `0 9 * * *`     | Daily at 9:00 AM     |
-| `0 9 * * 1-5`   | Weekdays at 9:00 AM  |
-| `0 0 * * 0`     | Weekly on Sunday     |
-| `0 0 1 * *`     | Monthly on the 1st   |
+| `0 2 * * *`     | Daily at 2:00 AM     |
+| `0 2 * * 0`     | Weekly on Sunday     |
+| `0 2 1 * *`     | Monthly on the 1st   |
 | `*/15 * * * *`  | Every 15 minutes     |
 
-`decree daemon` monitors `.decree/cron/` and `.decree/inbox/` continuously.
+`decree daemon` monitors `cron/` and `inbox/` continuously.
 `decree cron list` shows live schedule status (last run, next fire time).

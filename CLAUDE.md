@@ -116,10 +116,11 @@ shared code — no daemon-specific state.
 
 ```
 automations/
-├── routines/           Routine shell scripts (shared across all decree daemons)
+├── shared_routines/    Routine shell scripts (shared across all decree daemons)
 ├── lib/                Shared shell helpers (precheck.sh, hooks/, etc.)
 │   └── hooks/          Lifecycle hook scripts (config-watch.sh, afterEach.sh)
-└── runs/               Execution logs — one dir per message, all daemons write here
+├── runs/               Execution logs — one dir per message, all daemons write here
+└── secrets/            rclone config, API keys (gitignored — .gitkeep tracked)
 ```
 
 ### services/decree/decree/ — main decree daemon state

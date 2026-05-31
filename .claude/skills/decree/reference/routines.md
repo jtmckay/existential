@@ -66,35 +66,29 @@ Values come from message frontmatter fields of the same name.
 ## Nested Routines
 
 ```
-.decree/routines/
-├── develop.sh           # routine: develop
-├── deploy/
-│   ├── staging.sh       # routine: deploy/staging
-│   └── production.sh    # routine: deploy/production
+automations/shared_routines/
+├── db-backup.sh         # routine: db-backup
+├── volume-backup.sh     # routine: volume-backup
+├── file-processor.sh    # routine: file-processor
 ```
 
 ## Registry & Shared Routines
 
-Routines are registered in `config.yml`:
+In this repo all routines live in `automations/shared_routines/` (mounted as
+`/work/.decree/shared_routines`). They are registered per-daemon in `config.exist.yml`:
 
 ```yaml
-routine_source: "~/.decree/routines"    # shared routines directory
-max_retries: 3
-routines:
-  develop:
-    enabled: true
-  gmail-sync:
-    enabled: true
-    max_retries: 5        # overrides global default
-  actual-budget:
-    enabled: true
-    timeout_s: 60         # SIGTERM after 60s; treated as exit 1
+routine_source: "/work/.decree/shared_routines"
 shared_routines:
-  deploy:
+  db-backup:
     enabled: true
+  volume-backup:
+    enabled: true
+  notify:
+    enabled: false    # opt-in
 ```
 
-Directory layering (first match wins): project-local → shared library. Same applies to prompts.
+There are no daemon-local routines — the shared directory is the only source.
 
 Discovery runs automatically at `decree process`, `decree daemon`, and `decree init`.
 Hooks bypass the registry — they only need the script to exist on disk.
