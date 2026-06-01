@@ -12,7 +12,7 @@ guide: |
   Docs: https://existential.company/docs/decree/file-change-processing
 
   Prerequisites:
-    - MinIO running (Quest 5 — Media & Files)
+    - MinIO running (Quest 7 — Media & Files)
     - Decree running (any quest that enables it)
 
   Setup:

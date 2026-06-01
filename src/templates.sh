@@ -216,6 +216,12 @@ _process_one_template() {
     local src="$1" dst
     dst="$(_template_to_dst "$src")"
 
+    # .env files are user-owned once rendered — never overwrite, even with --force
+    local _dstbase; _dstbase="$(basename "$dst")"
+    if [[ -e "$dst" ]] && [[ "$_dstbase" == .env || "$_dstbase" == .env.* ]]; then
+        return 1
+    fi
+
     if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then return 1; fi
 
     if [[ -d "$src" ]]; then

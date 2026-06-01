@@ -12,7 +12,7 @@ guide: |
   Docs: https://existential.company/docs/decree/transaction-gmail-actual-budget
 
   Prerequisites:
-    - Actual Budget running (Quest 4)
+    - Actual Budget running (Quest 6)
     - Gmail integration set up (auto-gmail quest)
 
   Setup:

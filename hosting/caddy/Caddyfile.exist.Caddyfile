@@ -42,6 +42,12 @@ chatterbox.internal {
   reverse_proxy chatterbox:8000
 }
 
+comfyui.internal {
+  tls internal
+  import error_handling
+  reverse_proxy comfyui:8188
+}
+
 hermes-agent.internal {
   tls internal
   import error_handling

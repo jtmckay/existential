@@ -4,8 +4,12 @@
     "module": "CommonJS",
     "moduleResolution": "bundler",
     "strict": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "typeRoots": ["./automations/node_modules/@types"],
+    "paths": {
+      "js-yaml": ["./automations/node_modules/js-yaml/index.js"]
+    }
   },
-  "include": ["src/**/*.ts", "automations/**/*.ts"],
+  "include": ["src/**/*.ts", "automations/**/*.ts", "services/decree/src/**/*.ts"],
   "exclude": ["node_modules", "site"]
 }

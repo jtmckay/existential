@@ -97,7 +97,7 @@ graveyard/    Archived/deprecated solutions
 ```
 
 ### ai/
-`chatterbox` `hermes` `lightrag` `mcp` `ollama` `open-webui` `whisper`
+`chatterbox` `comfyui` `hermes` `lightrag` `mcp` `ollama` `open-webui` `whisper`
 
 ### services/
 `actual-budget` `appsmith` `dashy` `decree` `homeassistant` `immich` `it-tools` `logseq`
@@ -192,8 +192,8 @@ src/
 ├── quest.sh                        Interactive onboarding wizard — invoked by `./existential.sh quest`
 ├── templates.sh                    Render *.exist.* templates — EXIST_CLI (fzf prompts), placeholder substitution; runs inside existential-adhoc
 ├── quests/                         Quest definitions — one *.yml per quest
-│   ├── 01-nas-storage.yml          Numbered quests (01–08): service selection + cron copies
-│   ├── 02-local-ai-lab.yml         Fields: name, tagline, services (var+label),
+│   ├── 01-nas-storage.yml          Numbered quests (01–09): service selection + cron copies
+│   ├── 03-automation-and-observability.yml  Fields: name, tagline, services (var+label),
 │   ├── …                                   copies (src+dst+label+requires), guide
 │   └── auto-*.yml                  Automation quests: guide-only flows with doc links
 ├── lib/
@@ -266,6 +266,7 @@ Current inventory:
 | `services/decree/exist.gmail-sync.sh` | `./existential.sh run decree gmail-sync` |
 | `services/decree/exist.gmail-labels.sh` | `./existential.sh run decree gmail-labels` |
 | `services/decree/exist.gmail-transactions-cron.sh` | `./existential.sh run decree gmail-transactions-cron` |
+| `services/decree/exist.decree-ui.sh` | `./existential.sh run decree decree-ui` — generate Lowcoder control panel |
 
 **Init ordering:** `run_initials()` walks `SERVICE_CATEGORIES` in this order:
 `hosting → nas → ai → services`. Pihole's router walkthrough is in hosting,
@@ -356,6 +357,7 @@ as `exist.test.sh`.
 ./existential.sh run decree gmail-sync
 ./existential.sh run decree gmail-labels
 ./existential.sh run decree gmail-transactions-cron
+./existential.sh run decree decree-ui
 
 # Backups run inside per-service decree sidecars on their own cron schedule.
 # Copy cron templates from <service>/decree/cron.example/ → decree/cron/ to activate.

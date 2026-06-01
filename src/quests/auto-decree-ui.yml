@@ -1,0 +1,31 @@
+name: Decree Routine UI
+tagline: Generate a Lowcoder control panel to trigger decree routines from a browser
+services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+  - var: EXIST_IS_SERVICES_LOWCODER
+    label: Lowcoder
+guide: |
+  Decree is headless by design, but a Lowcoder app can serve as a control
+  panel — one button or form per routine, POSTing to decree-webhook.
+  Docs: https://existential.company/docs/decree/lowcoder-ui
+
+  Prerequisites:
+    - Decree running (Quest 3 — Automation and Observability)
+    - Lowcoder running (Quest 8 — Productivity & Tools)
+
+  Setup:
+    1. Define the routines you want to expose in
+       services/decree/webhook/config.yml. Each endpoint becomes a button
+       or form in the generated app. Endpoints with {param} path segments
+       get an input field; static endpoints get a trigger button.
+
+    2. Generate and import the Lowcoder app:
+           ./existential.sh run decree decree-ui
+
+       This reads webhook/config.yml, builds a Lowcoder app definition,
+       and imports it via the Lowcoder API at http://lowcoder-api-service.
+
+    3. Open https://lowcoder.internal and find the app in the list —
+       it is named "Decree Routines YYYYMMDD_HHMMSS" using the time it
+       was generated. Each run creates a new app; old ones are kept.

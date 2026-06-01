@@ -1,0 +1,39 @@
+name: Automation and Observability
+tagline: Decree for headless automation, Grafana + Loki + Prometheus for visibility
+e2e: true
+services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+  - var: EXIST_IS_HOSTING_GRAFANA
+    label: Grafana
+  - var: EXIST_IS_HOSTING_LOKI
+    label: Loki
+  - var: EXIST_IS_HOSTING_PROMETHEUS
+    label: Prometheus
+copies:
+  - src: services/decree/decree/cron.example/clean-runs.md
+    dst: services/decree/decree/cron/
+    label: "decree: clean-runs.md"
+    requires: EXIST_IS_SERVICES_DECREE
+guide: |
+  Decree is the automation engine that runs routines on a schedule, responds
+  to webhooks, processes your inbox, and connects services together.
+  Grafana + Loki + Prometheus give you dashboards, logs, and metrics so you
+  can see exactly what's happening across your homelab.
+
+  Docs: https://existential.company/docs/decree
+
+  Decree is headless — there is no click-through UI. Control it via:
+    - Scheduled cron files in services/decree/decree/cron/
+    - HTTP webhooks:  https://decree-webhook.internal (API, not a UI)
+    - Lowcoder control panel (auto-decree-ui quest)
+    - Telegram bot (auto-telegram quest)
+    - Manual trigger: docker exec decree decree run <routine-name>
+
+  Observe it via:
+    - Grafana:     https://grafana.internal
+    - Prometheus:  https://prometheus.internal
+
+  The clean-runs cron (copied above) prunes old run logs weekly.
+  Restart decree after copies to activate:
+    docker compose restart decree

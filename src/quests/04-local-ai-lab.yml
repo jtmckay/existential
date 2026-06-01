@@ -16,6 +16,8 @@ services:
     label: LightRAG
   - var: EXIST_IS_AI_CHATTERBOX
     label: Chatterbox
+  - var: EXIST_IS_AI_COMFYUI
+    label: ComfyUI
 copies:
   - src: ai/hermes/decree/cron.example/volume-backup-nightly.md
     dst: ai/hermes/decree/cron/

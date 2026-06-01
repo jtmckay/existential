@@ -14,4 +14,5 @@ The AI stack provides local model hosting, chat interfaces, transcription, and t
 | [LightRAG](./lightrag) | GraphRAG over an Obsidian vault, exposed as an MCP tool |
 | [Whisper](./whisper) | Speech-to-text transcription |
 | [Chatterbox](./chatterbox) | Text-to-speech |
+| [ComfyUI](./comfyui) | Node-based image generation |
 | [MCP](./mcp) | Playwright browser automation for agents |

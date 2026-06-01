@@ -23,8 +23,15 @@ die() { echo "Error: $*" >&2; exit 1; }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 
-docker inspect decree --format '{{.State.Running}}' 2>/dev/null | grep -q true \
-    || die "decree container is not running. Start it with: docker compose up -d"
+if ! docker inspect decree --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+    echo "  actual-budget credential setup requires decree to be running."
+    echo "  Start containers, then complete setup with:"
+    echo ""
+    echo "    docker compose up -d"
+    echo "    ./existential.sh run actual-budget"
+    echo ""
+    exit 0
+fi
 
 echo ""
 echo "  Actual Budget setup"

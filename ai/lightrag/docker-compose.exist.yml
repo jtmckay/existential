@@ -1,0 +1,54 @@
+services:
+  lightrag:
+    container_name: lightrag
+    image: ghcr.io/hkuds/lightrag:latest
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - "49621:9621"
+    user: "1000:1000"
+    environment:
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
+    volumes:
+      # Read-only mount of the Obsidian vault. Replace the host path before
+      # bringing the container up; LightRAG only reads at ingestion time.
+      - /path/to/obsidian/vault:/inputs:ro
+      # Writable derived store — graph, vectors, KV. Fully reproducible from the
+      # vault; treat as a cache. Wipe before changing the embedding model.
+      - lightrag_rag_storage_data:/app/rag_storage
+      - ./.env:/app/.env:ro
+
+  lightrag-decree:
+    container_name: lightrag-decree
+    build:
+      context: ../../automations
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      - lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
+    tty: false
+
+volumes:
+  lightrag_rag_storage_data:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
+      device: ":${EXIST_NFS_BASE_PATH}/lightrag_rag_storage_data"
+
+networks:
+  exist:
+    external: true

@@ -1,0 +1,42 @@
+services:
+  # Node-based image generation UI (Stable Diffusion / SDXL)
+  # Web UI at http://comfyui:8188 / https://comfyui.internal
+  comfyui:
+    container_name: comfyui
+    image: ghcr.io/ai-dock/comfyui:latest-cuda
+
+    # NVIDIA GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video,display
+      - DIRECT_ADDRESS=0.0.0.0
+      - DIRECT_ADDRESS_GET_WAN=false
+      - WEB_ENABLE_AUTH=false
+      - CF_TUNNEL_TOKEN=
+      - AUTO_UPDATE=false
+      - COMFYUI_ARGS=${COMFYUI_ARGS:---listen 0.0.0.0}
+
+    restart: unless-stopped
+    networks:
+      - exist
+    ports:
+      - 8188:8188
+
+    volumes:
+      - comfyui_data:/workspace
+
+volumes:
+  comfyui_data:
+    driver: local
+
+networks:
+  exist:
+    external: true

@@ -34,12 +34,12 @@ sections:
   - name: AI
     icon: fas fa-robot
     items:
-      - title: Hermes Dashboard
-        url: https://hermes-dashboard.internal
-        # url: https://existential.company/docs/ai/hermes
-        icon: hl-dashy
+      - title: Open WebUI
+        url: https://open-webui.internal
+        # url: https://existential.company/docs/ai/open-webui
+        icon: si-openai
         statusCheck: true
-        description: Hermes Agent dashboard
+        description: Chat UI routed through hermes-agent
 
       - title: Hermes Workspace
         url: https://hermes-workspace.internal
@@ -48,19 +48,12 @@ sections:
         statusCheck: true
         description: Hermes Workspace UI — swarms, terminal, kanban
 
-      - title: Open WebUI
-        url: https://open-webui.internal
-        # url: https://existential.company/docs/ai/open-webui
-        icon: si-openai
+      - title: ComfyUI
+        url: https://comfyui.internal
+        # url: https://existential.company/docs/ai/comfyui
+        icon: fas fa-image
         statusCheck: true
-        description: Chat UI routed through hermes-agent
-
-      - title: LibreChat
-        url: https://librechat.internal
-        # url: https://existential.company/docs/ai/librechat
-        icon: fas fa-comments
-        statusCheck: true
-        description: Multi-provider chat with RAG
+        description: Node-based image generation workflows
 
       - title: LightRAG
         url: https://lightrag.internal
@@ -139,6 +132,13 @@ sections:
         statusCheck: true
         description: Internal-tools platform
 
+      - title: Home Assistant
+        url: https://homeassistant.internal
+        # url: https://existential.company/docs/services/homeassistant
+        icon: hl-home-assistant
+        statusCheck: true
+        description: Smart home automation
+
   # ── hosting ───────────────────────────────────────────────────────────────
   - name: Infrastructure
     icon: fas fa-server
@@ -177,6 +177,13 @@ sections:
         icon: hl-uptime-kuma
         statusCheck: true
         description: Service availability monitor
+
+      - title: Hermes Dashboard
+        url: https://hermes-dashboard.internal
+        # url: https://existential.company/docs/ai/hermes
+        icon: hl-dashy
+        statusCheck: true
+        description: Hermes Agent routing and ops dashboard
 
   # ── nas ───────────────────────────────────────────────────────────────────
   - name: Storage

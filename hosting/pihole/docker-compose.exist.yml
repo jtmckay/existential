@@ -53,6 +53,10 @@ services:
         ${EXIST_LOCAL_HOST_IP} chatterbox.internal
         # ${EXIST_PEER_HOST_IP} chatterbox.internal
 
+        # comfyui         →  Caddy: comfyui:8188            (ai/comfyui)
+        ${EXIST_LOCAL_HOST_IP} comfyui.internal
+        # ${EXIST_PEER_HOST_IP} comfyui.internal
+
         # hermes-agent    →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
         ${EXIST_LOCAL_HOST_IP} hermes-agent.internal
         # ${EXIST_PEER_HOST_IP} hermes-agent.internal

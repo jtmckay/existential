@@ -15,13 +15,14 @@ guide: |
     1. On your NAS, create an NFS export (dataset/share) per service, or
        one base path with subdirectories. Record the server IP and base path.
 
-    2. Set these two values in .env.shared (or re-run ./existential.sh
-       to be prompted):
+    2. Edit .env.shared and set:
            EXIST_NFS_SERVER_ADDRESS=<your-nas-ip>
            EXIST_NFS_BASE_PATH=<nfs-export-base-path>
 
-    3. Re-render templates to uncomment NFS volume blocks:
+    3. Re-render templates (required to uncomment NFS volume blocks):
            ./existential.sh --force
+       Note: --force overwrites existing docker-compose.yml files.
+       Your .env files are never touched.
 
   NFS volumes are automatically commented out when EXIST_NFS_SERVER_ADDRESS
   is blank — affected services fall back to plain named local volumes.

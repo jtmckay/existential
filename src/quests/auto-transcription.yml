@@ -15,8 +15,8 @@ guide: |
   Docs: https://existential.company/docs/decree/recording-transcription
 
   Prerequisites:
-    - Nextcloud + MinIO running (Quest 5)
-    - Whisper running (Quest 2 — Local AI Lab)
+    - Nextcloud + MinIO running (Quest 7)
+    - Whisper running (Quest 4 — Local AI Lab)
     - Decree running (any quest that enables it)
 
   Setup:

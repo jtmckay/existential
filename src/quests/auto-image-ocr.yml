@@ -17,8 +17,8 @@ guide: |
 
   Prerequisites:
     - Telegram Bot connected (auto-telegram quest)
-    - Ollama running (Quest 2 — Local AI Lab)
-    - MinIO + Nextcloud running (Quest 5)
+    - Ollama running (Quest 4 — Local AI Lab)
+    - MinIO + Nextcloud running (Quest 7)
 
   Setup:
     1. The telegram-poll cron (from auto-telegram) already ingests photos
