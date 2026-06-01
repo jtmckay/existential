@@ -255,7 +255,8 @@ Actions:
                       every enabled service's exist.test.sh. 'syntax|gmail|rclone'
                       run those individually. Anything else is a service slug.
   validate [name]     On-demand checks: all (default), conventions, drift.
-  e2e [quest...]      End-to-end: fresh clone → render → docker up → test → down.
+  e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
+  e2e --all           Run all e2e-testable quests without prompting.
 
 Options:
   --force             Re-render existing files / re-run already-initialized

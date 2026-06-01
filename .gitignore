@@ -35,6 +35,8 @@
 
 # Chatterbox
 **/chatterbox/config.yaml
+**/chatterbox/logs
+**/chatterbox/outputs
 
 # Caddy
 **/Caddyfile
@@ -70,12 +72,12 @@ automations/secrets/*
 **/immich/library
 **/immich/postgres
 
-# LibreChat
-**/data-node
-**/logs
-**/meili_data_v1.12
-**/uploads
-**/librechat.yaml
+# LibreChat (graveyard)
+**/librechat/data-node
+**/librechat/logs
+**/librechat/meili_data_v1.12
+**/librechat/uploads
+**/librechat/librechat.yaml
 
 # Nextcloud
 **/nextcloud/servername.conf

@@ -1,6 +1,10 @@
 name: Bank Transaction Import
 tagline: Automatically import bank alert emails into Actual Budget
-services: []
+services:
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 guide: |
   A cron job polls a Gmail label every 15 minutes, parses bank alert
   emails with a bank-specific parser, and posts transactions to Actual

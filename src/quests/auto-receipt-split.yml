@@ -1,6 +1,10 @@
 name: Receipt Split
 tagline: Reply to a transaction notification with a receipt photo to split it automatically
-services: []
+services:
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 copies:
   - src: services/decree/decree/cron.example/telegram-receipt-poll.md
     dst: services/decree/decree/cron/

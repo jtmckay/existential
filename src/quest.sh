@@ -45,13 +45,21 @@ while IFS= read -r f; do _quest_files+=("$f"); done < <(find "$QUESTS_DIR" -name
 
 _fzf_out=$(
     for _f in "${_quest_files[@]}"; do
-        printf '%s\t%-32s  %s\n' "$_f" "$(yq '.name' "$_f")" "$(yq '.tagline' "$_f")"
+        _e2e=$(yq '.e2e // "null"' "$_f" | tr -d '"')
+        case "$_e2e" in
+            true)  _badge="  \033[32m● auto\033[0m"   ;;
+            false) _badge="  \033[33m○ manual\033[0m" ;;
+            *)     _badge=""                            ;;
+        esac
+        printf '%s\t%-32s  %s%b\n' "$_f" "$(yq '.name' "$_f")" "$(yq '.tagline' "$_f")" "$_badge"
     done | fzf --multi \
+               --ansi \
                --delimiter=$'\t' \
                --with-nth=2 \
                --layout=reverse \
                --header="  Pick quests — what do you want to build?
-  ↑↓ navigate   Space toggle   Enter confirm" \
+  ↑↓ navigate   Space toggle   Enter confirm
+  \033[32m● auto\033[0m = fully automatable   \033[33m○ manual\033[0m = requires setup steps" \
                --prompt="Quest ❯ " \
                --no-info \
                --bind 'space:toggle+down'

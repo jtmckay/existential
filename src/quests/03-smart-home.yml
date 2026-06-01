@@ -1,5 +1,6 @@
 name: Smart Home
 tagline: Automate your home, get notified, and wire up routines
+e2e: true
 services:
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant

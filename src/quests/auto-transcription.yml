@@ -1,6 +1,14 @@
 name: Recording Transcription
 tagline: Automatically transcribe audio and video recordings dropped into Nextcloud
-services: []
+services:
+  - var: EXIST_IS_AI_WHISPER
+    label: Whisper
+  - var: EXIST_IS_NAS_MINIO
+    label: MinIO
+  - var: EXIST_IS_NAS_NEXTCLOUD
+    label: Nextcloud
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 guide: |
   Drop a recording into Nextcloud and Decree transcribes it with Whisper,
   saving the transcript next to the original file — no manual steps.

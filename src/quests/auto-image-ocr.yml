@@ -1,6 +1,14 @@
 name: Telegram Image OCR
 tagline: Send a photo to your Telegram bot and get back the extracted text
-services: []
+services:
+  - var: EXIST_IS_AI_OLLAMA
+    label: Ollama
+  - var: EXIST_IS_NAS_MINIO
+    label: MinIO
+  - var: EXIST_IS_NAS_NEXTCLOUD
+    label: Nextcloud
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 guide: |
   Photograph a receipt, document, or any text-bearing image and send it
   to your Telegram bot. Decree downloads it, runs OCR via Ollama, and

@@ -1,5 +1,7 @@
 name: Network Access
 tagline: "DNS + reverse proxy — makes every service reachable at https://<slug>.internal"
+e2e: false
+e2e_skip: Requires router DNS config and TLS certificate infrastructure
 services:
   - var: EXIST_IS_HOSTING_PIHOLE
     label: Pihole

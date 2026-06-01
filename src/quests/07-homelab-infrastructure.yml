@@ -1,5 +1,6 @@
 name: Homelab Infrastructure
 tagline: Monitoring, containers, and dashboards
+e2e: true
 services:
   - var: EXIST_IS_HOSTING_PORTAINER
     label: Portainer

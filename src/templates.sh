@@ -62,8 +62,9 @@ _find_service_dirs() {
 
 _comment_out_nfs_volumes() {
     local file="$1"
-    local tmp; tmp=$(mktemp "${REPO_DIR}/.tmp.XXXXXX")
-    trap 'rm -f "$tmp"' RETURN
+    local tmp=""
+    tmp=$(mktemp "${REPO_DIR}/.tmp.XXXXXX")
+    trap 'trap - RETURN; [[ -n "$tmp" ]] && rm -f "$tmp"' RETURN
 
     mapfile -t _lines < "$file"
     local -a _out=()

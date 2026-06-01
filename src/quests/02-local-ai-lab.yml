@@ -1,5 +1,6 @@
 name: Local AI Lab
 tagline: Chat with local LLMs, transcribe audio, connect tools to your AI
+e2e: true
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama

@@ -1,5 +1,7 @@
 name: NAS Storage
 tagline: Wire up NFS mounts for persistent NAS-backed storage across services
+e2e: false
+e2e_skip: Requires an external NAS/NFS server
 services: []
 guide: |
   Many services (Nextcloud, MinIO, Home Assistant, Grafana, and others)

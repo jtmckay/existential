@@ -1,6 +1,8 @@
 name: Gmail Integration
 tagline: Connect Decree to your Gmail inbox for email-driven automations
-services: []
+services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 copies:
   - src: services/decree/decree/cron.example/gmail-sync.md
     dst: services/decree/decree/cron/

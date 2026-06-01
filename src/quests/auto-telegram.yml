@@ -1,6 +1,8 @@
 name: Telegram Bot
 tagline: Connect a Telegram bot to Decree for notifications and image ingestion
-services: []
+services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 copies:
   - src: services/decree/decree/cron.example/telegram-poll.md
     dst: services/decree/decree/cron/

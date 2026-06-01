@@ -1,85 +1,53 @@
 #!/usr/bin/env bash
 # e2e.sh — end-to-end test harness.
 #
-# For each quest (1–6), creates a clean git-archive copy of the repo,
+# For each selected quest, creates a clean git-archive copy of the repo,
 # enables the quest's services, renders templates, generates a unified
 # docker-compose, brings it up, runs exist.test.sh for every enabled
 # service inside the existential-adhoc container (which shares the
 # same Docker network as the services), then tears everything down.
 #
-# Quests 7 (Network Access) and 8 (NAS Storage) are excluded — they
-# require external infrastructure (DNS, TLS, TrueNAS) that can't be
-# spun up in a self-contained environment.
+# Quests with e2e: false in their YAML require external infrastructure
+# (NAS/NFS, DNS, TLS) and are excluded — shown greyed out in the picker.
 #
 # Usage (via existential.sh):
-#   ./existential.sh e2e              # all quests 1–6
-#   ./existential.sh e2e 3            # quest 3 only
-#   ./existential.sh e2e 1 3 5        # specific quests
+#   ./existential.sh e2e          # interactive fzf picker (all testable pre-checked)
+#   ./existential.sh e2e --all    # non-interactive: run all testable quests
 #
 # Requirements:
 #   - Docker + Docker Compose v2 on the host
-#   - No conflicting containers already running (container_name values
-#     are fixed — the pre-flight check catches this and tells you what to stop)
+#   - No conflicting containers already running (the pre-flight check catches this)
 
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FIXTURES="${REPO_DIR}/src/test/fixtures"
+QUEST_DIR="${REPO_DIR}/src/quests"
 E2E_PROJECT="exist-e2e"
 E2E_NETWORK="${E2E_PROJECT}_exist"
 
-# ── Quest service vars (mirrors quest.sh quest_vars()) ────────────────────────
+# ── Quest helpers ─────────────────────────────────────────────────────────────
 
+# List EXIST_IS_* vars for a quest YAML file.
 quest_vars() {
-    case "$1" in
-        1) echo "EXIST_IS_AI_OLLAMA EXIST_IS_AI_OPEN_WEBUI EXIST_IS_AI_MCP \
-                 EXIST_IS_AI_HERMES EXIST_IS_AI_WHISPER EXIST_IS_AI_LIGHTRAG \
-                 EXIST_IS_AI_CHATTERBOX" ;;
-        2) echo "EXIST_IS_SERVICES_HOMEASSISTANT EXIST_IS_SERVICES_DECREE \
-                 EXIST_IS_SERVICES_NTFY" ;;
-        3) echo "EXIST_IS_SERVICES_ACTUAL_BUDGET EXIST_IS_SERVICES_MEALIE" ;;
-        4) echo "EXIST_IS_SERVICES_IMMICH EXIST_IS_NAS_NEXTCLOUD \
-                 EXIST_IS_NAS_MINIO EXIST_IS_NAS_COLLABORA" ;;
-        5) echo "EXIST_IS_SERVICES_VIKUNJA EXIST_IS_SERVICES_NOCODB \
-                 EXIST_IS_SERVICES_APPSMITH EXIST_IS_SERVICES_LOWCODER \
-                 EXIST_IS_SERVICES_IT_TOOLS" ;;
-        6) echo "EXIST_IS_HOSTING_PORTAINER EXIST_IS_HOSTING_GRAFANA \
-                 EXIST_IS_HOSTING_PROMETHEUS EXIST_IS_HOSTING_LOKI \
-                 EXIST_IS_HOSTING_UPTIME_KUMA EXIST_IS_SERVICES_DASHY \
-                 EXIST_IS_SERVICES_DECREE" ;;
-    esac
+    grep '^\s*- var:' "$1" | awk '{print $3}'
 }
 
-# Maps EXIST_IS_* var → relative service path (mirrors quest.sh var_path())
+# Derive service path from EXIST_IS_* var — no lookup table needed.
+# EXIST_IS_AI_OPEN_WEBUI        → ai/open-webui
+# EXIST_IS_SERVICES_ACTUAL_BUDGET → services/actual-budget
 var_to_path() {
-    case "$1" in
-        EXIST_IS_AI_CHATTERBOX)           echo "ai/chatterbox" ;;
-        EXIST_IS_AI_HERMES)               echo "ai/hermes" ;;
-        EXIST_IS_AI_LIGHTRAG)             echo "ai/lightrag" ;;
-        EXIST_IS_AI_MCP)                  echo "ai/mcp" ;;
-        EXIST_IS_AI_OLLAMA)               echo "ai/ollama" ;;
-        EXIST_IS_AI_OPEN_WEBUI)           echo "ai/open-webui" ;;
-        EXIST_IS_AI_WHISPER)              echo "ai/whisper" ;;
-        EXIST_IS_SERVICES_HOMEASSISTANT)  echo "services/homeassistant" ;;
-        EXIST_IS_SERVICES_DECREE)         echo "services/decree" ;;
-        EXIST_IS_SERVICES_NTFY)           echo "services/ntfy" ;;
-        EXIST_IS_SERVICES_ACTUAL_BUDGET)  echo "services/actual-budget" ;;
-        EXIST_IS_SERVICES_MEALIE)         echo "services/mealie" ;;
-        EXIST_IS_SERVICES_IMMICH)         echo "services/immich" ;;
-        EXIST_IS_NAS_NEXTCLOUD)           echo "nas/nextcloud" ;;
-        EXIST_IS_NAS_MINIO)               echo "nas/minio" ;;
-        EXIST_IS_NAS_COLLABORA)           echo "nas/collabora" ;;
-        EXIST_IS_SERVICES_VIKUNJA)        echo "services/vikunja" ;;
-        EXIST_IS_SERVICES_NOCODB)         echo "services/nocodb" ;;
-        EXIST_IS_SERVICES_APPSMITH)       echo "services/appsmith" ;;
-        EXIST_IS_SERVICES_LOWCODER)       echo "services/lowcoder" ;;
-        EXIST_IS_SERVICES_IT_TOOLS)       echo "services/it-tools" ;;
-        EXIST_IS_HOSTING_PORTAINER)       echo "hosting/portainer" ;;
-        EXIST_IS_HOSTING_GRAFANA)         echo "hosting/grafana" ;;
-        EXIST_IS_HOSTING_PROMETHEUS)      echo "hosting/prometheus" ;;
-        EXIST_IS_HOSTING_LOKI)            echo "hosting/loki" ;;
-        EXIST_IS_HOSTING_UPTIME_KUMA)     echo "hosting/uptime-kuma" ;;
-        EXIST_IS_SERVICES_DASHY)          echo "services/dashy" ;;
-    esac
+    local v="${1#EXIST_IS_}"
+    local cat="${v%%_*}"
+    local slug="${v#*_}"
+    local path="${cat}/${slug//_/-}"
+    echo "${path,,}"
+}
+
+# Return all numbered quest YAMLs with e2e: true.
+automatable_quests() {
+    for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
+        grep -q '^e2e:[[:space:]]*true' "$yaml" && echo "$yaml"
+    done
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -89,18 +57,28 @@ die()  { printf '\n[e2e] FATAL: %s\n' "$*" >&2; exit 1; }
 hr()   { printf '[e2e] '; printf '%0.s─' {1..54}; echo; }
 
 wait_running() {
-    local work="$1" timeout="${2:-300}"
+    local work="$1" timeout="${2:-30}"
     local deadline=$(( $(date +%s) + timeout ))
-    log "Waiting for containers (up to ${timeout}s)..."
+    log "Waiting for containers to stabilize (up to ${timeout}s)..."
     while [ "$(date +%s)" -lt "$deadline" ]; do
-        local total running
+        local total running in_progress
         total=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
                     ps -q 2>/dev/null | wc -l | tr -d ' ')
         running=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
                     ps -q --status running 2>/dev/null | wc -l | tr -d ' ')
-        [ "$total" -gt 0 ] && [ "$total" -eq "$running" ] && { echo; return 0; }
+        # "created" and "restarting" are transitional — wait them out
+        in_progress=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
+                    ps -q --status created --status restarting 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$total" -gt 0 ] && [ "$in_progress" -eq 0 ]; then
+            echo
+            if [ "$total" -ne "$running" ]; then
+                log "$(( total - running )) container(s) not running — proceeding to tests"
+                docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps || true
+            fi
+            return 0
+        fi
         printf '.'
-        sleep 5
+        sleep 2
     done
     echo
     log "Timeout — current container state:"
@@ -109,21 +87,16 @@ wait_running() {
 }
 
 # ── Pre-flight collision detection ────────────────────────────────────────────
-#
-# container_name values in this repo are fixed identifiers — if any matching
-# container already exists (running or stopped), docker compose will refuse to
-# start it and the test will fail in a confusing way. Check first.
 
 preflight_check() {
-    local quests="$1"
+    local -a yaml_files=("$@")
     local errors=0
 
-    # Collect every container_name from compose files for the quests being tested
+    # Collect every container_name from compose files for the selected quests
     declare -a wanted=()
-    for quest in $quests; do
-        for var in $(quest_vars "$quest"); do
-            local path
-            path=$(var_to_path "$var") || continue
+    for yaml in "${yaml_files[@]}"; do
+        for var in $(quest_vars "$yaml"); do
+            local path; path=$(var_to_path "$var")
             local compose="${REPO_DIR}/${path}/docker-compose.exist.yml"
             [ -f "$compose" ] || continue
             while IFS= read -r name; do
@@ -131,13 +104,15 @@ preflight_check() {
             done < <(grep -E '^\s+container_name:' "$compose" 2>/dev/null | awk '{print $NF}')
         done
     done
-
-    # Also check for the existential-adhoc container itself
     wanted+=("existential-adhoc")
 
-    # Snapshot of all existing containers (any state)
     local existing
     existing=$(docker ps -a --format '{{.Names}}' 2>/dev/null || true)
+
+    local stale_network=0
+    if docker network inspect "$E2E_NETWORK" >/dev/null 2>&1; then
+        stale_network=1; errors=$(( errors + 1 ))
+    fi
 
     declare -a collisions=()
     for name in "${wanted[@]}"; do
@@ -149,49 +124,41 @@ preflight_check() {
         fi
     done
 
-    # Check for a leftover e2e network from a previous failed run
-    local stale_network=0
-    if docker network inspect "$E2E_NETWORK" >/dev/null 2>&1; then
-        stale_network=1
-        errors=$(( errors + 1 ))
-    fi
-
     if [ "$errors" -eq 0 ]; then
         log "Pre-flight OK"
         return 0
     fi
 
     echo ""
-    echo "[e2e] ✗ PRE-FLIGHT FAILED — the following must be resolved before running e2e tests."
+    echo "[e2e] ✗ PRE-FLIGHT FAILED — conflicting containers or stale network found."
+    echo ""
+    if [ "${#collisions[@]}" -gt 0 ]; then
+        echo "[e2e]   Containers:"
+        for c in "${collisions[@]}"; do echo "[e2e]     $c"; done
+        echo ""
+    fi
+    [ "$stale_network" -eq 1 ] && { echo "[e2e]   Network:  ${E2E_NETWORK} (stale)"; echo ""; }
+    echo "[e2e]   If these are your real stack containers, stop them first:"
+    echo "[e2e]     docker compose down"
     echo ""
 
-    if [ "${#collisions[@]}" -gt 0 ]; then
-        echo "[e2e]   Conflicting containers (already exist on this host):"
-        for c in "${collisions[@]}"; do
-            echo "[e2e]     $c"
-        done
-        echo ""
-        echo "[e2e]   These container_name values are fixed in the compose files — Docker"
-        echo "[e2e]   will refuse to create them if they already exist."
-        echo ""
-        echo "[e2e]   If your real stack is running:"
-        echo "[e2e]     docker compose down"
-        echo ""
-        echo "[e2e]   To remove specific containers:"
-        local names_only=()
-        for c in "${collisions[@]}"; do names_only+=("${c% (*)}"); done
-        echo "[e2e]     docker rm -f ${names_only[*]}"
-        echo ""
-        echo "[e2e]   To see everything currently running:"
-        echo "[e2e]     docker ps -a --format 'table {{.Names}}\t{{.Status}}'"
+    local names_only=()
+    for c in "${collisions[@]}"; do names_only+=("${c% (*)}"); done
+
+    if [ -t 0 ]; then
+        echo "[e2e]   Press Enter to remove the above and continue (Ctrl-C to abort)."
+        echo "[e2e]   Note: only containers are removed — named and NFS volumes are untouched."
+        printf '[e2e] > '
+        read -r _
+        [ "${#names_only[@]}" -gt 0 ] && docker rm -f "${names_only[@]}" >/dev/null
+        docker network rm "$E2E_NETWORK" >/dev/null 2>&1 || true
+        log "Pre-flight OK (cleaned up)"
+        return 0
     fi
 
-    if [ "$stale_network" -eq 1 ]; then
-        echo "[e2e]   Stale network '${E2E_NETWORK}' from a previous failed run:"
-        echo "[e2e]     docker network rm ${E2E_NETWORK}"
-        echo ""
-    fi
-
+    echo "[e2e]   To remove:"
+    [ "${#names_only[@]}" -gt 0 ] && echo "[e2e]     docker rm -f ${names_only[*]}"
+    [ "$stale_network" -eq 1 ]    && echo "[e2e]     docker network rm ${E2E_NETWORK}"
     return 1
 }
 
@@ -211,12 +178,15 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 run_quest() {
-    local quest="$1"
+    local yaml="$1"
+    local quest_name; quest_name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+
     hr
-    log "Quest ${quest} — start"
+    log "${quest_name} — start"
     hr
 
-    WORK=$(mktemp -d "$REPO_DIR/.tmp-e2e-XXXXX")
+    WORK="${REPO_DIR}/.tmp-e2e-$(date '+%Y-%m-%d_%H-%M')-$$"
+    mkdir -p "$WORK"
 
     # 1. Fresh clone from git archive (tracked files only, no secrets)
     log "Creating fresh clone..."
@@ -226,16 +196,12 @@ run_quest() {
     cp "$FIXTURES/env.shared" "$WORK/.env.shared"
 
     # 3. Enable this quest's services
-    log "Enabling quest ${quest} services..."
-    for var in $(quest_vars "$quest"); do
+    log "Enabling services..."
+    for var in $(quest_vars "$yaml"); do
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
     done
 
-    # 4. Build the adhoc image for this e2e clone (uses $WORK/automations as context)
-    log "Building existential-adhoc image..."
-    docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" build existential-adhoc
-
-    # 5. Render service templates (non-interactive — .env.shared already present)
+    # 4. Render service templates (non-interactive — .env.shared already present)
     log "Rendering templates..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         --entrypoint "" \
@@ -244,7 +210,7 @@ run_quest() {
         existential-adhoc \
         bash /src/templates.sh
 
-    # 6. Generate unified docker-compose.yml via the adhoc container
+    # 5. Generate unified docker-compose.yml
     log "Generating docker-compose.yml..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         --entrypoint "" existential-adhoc \
@@ -252,50 +218,112 @@ run_quest() {
 
     [ -f "$WORK/docker-compose.yml" ] || die "generate-compose.ts produced no docker-compose.yml"
 
-    # 7. Bring services up
+    # 6. Bring services up
     log "Starting services..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" up -d
 
-    # 8. Wait for all containers to reach running state
-    wait_running "$WORK" 300
+    # 7. Wait for containers to stabilize
+    wait_running "$WORK"
 
-    # 9. Run per-service tests inside the adhoc container (same network as services)
-    log "Running service tests..."
+    # 8. Run per-service tests
+    log "Running service tests for ${quest_name}:"
+    for var in $(quest_vars "$yaml"); do
+        local svc_path; svc_path=$(var_to_path "$var")
+        [ -f "$WORK/${svc_path}/exist.test.sh" ] && log "  • ${svc_path}/exist.test.sh"
+    done
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         -e E2E_MODE=1 \
         --entrypoint "" existential-adhoc \
         bash /src/test/run-all.sh
 
-    log "Quest ${quest} — PASSED"
+    log "${quest_name} — PASSED"
     cleanup
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-QUESTS="${*:-1 2 3 4 5 6}"
+# Build adhoc image once — used for template rendering, compose gen, and tests.
+log "Building existential-adhoc image..."
+docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build existential-adhoc
 
-for q in $QUESTS; do
-    [[ "$q" =~ ^[1-6]$ ]] || die "Quest ${q} is not e2e-testable (only quests 1–6)"
+# Quest selection
+declare -a SELECTED_YAMLS=()
+
+if [ "${1:-}" = "--all" ] || [ ! -t 0 ]; then
+    # Non-interactive: run every automatable quest
+    mapfile -t SELECTED_YAMLS < <(automatable_quests)
+    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No automatable quests found."
+elif command -v fzf >/dev/null 2>&1; then
+    # fzf on host — draw picker directly (fzf uses /dev/tty for UI, safe in <(...))
+    _excl_header="Excluded (require manual setup):"
+    for _y in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
+        grep -q '^e2e:[[:space:]]*false' "$_y" || continue
+        _n=$(grep '^name:' "$_y" | sed 's/^name:[[:space:]]*//')
+        _excl_header+=$'\n'"  ✗ ${_n}"
+    done
+    _excl_header+=$'\n─────────────────────────────────────────────────────\nSpace/Tab to toggle  ·  Enter to confirm'
+    mapfile -t SELECTED_YAMLS < <(
+        automatable_quests | while IFS= read -r _y; do
+            _n=$(grep '^name:' "$_y" | sed 's/^name:[[:space:]]*//')
+            printf '%s\t%s\n' "$_y" "$_n"
+        done | fzf --multi --no-sort \
+                   --with-nth=2 \
+                   --prompt="  e2e ❯ " \
+                   --bind 'start:select-all' \
+                   --header-first \
+                   --header="$_excl_header" \
+            | cut -f1
+    )
+    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No quests selected."
+else
+    # No fzf — numbered prompt
+    declare -a _all=()
+    mapfile -t _all < <(automatable_quests)
+    [ "${#_all[@]}" -gt 0 ] || die "No automatable quests found."
+    echo ""
+    for _i in "${!_all[@]}"; do
+        _n=$(grep '^name:' "${_all[$_i]}" | sed 's/^name:[[:space:]]*//')
+        printf '[e2e]   %d) %s\n' "$(( _i + 1 ))" "$_n"
+    done
+    echo ""
+    printf '[e2e] Run which? Enter numbers (e.g. 1 3) or blank for all: '
+    read -r _choice
+    if [ -z "$_choice" ]; then
+        SELECTED_YAMLS=("${_all[@]}")
+    else
+        for _n in $_choice; do
+            _idx=$(( _n - 1 ))
+            [ "$_idx" -ge 0 ] && [ "$_idx" -lt "${#_all[@]}" ] && SELECTED_YAMLS+=("${_all[$_idx]}")
+        done
+    fi
+    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No quests selected."
+fi
+
+log "Selected quests:"
+for yaml in "${SELECTED_YAMLS[@]}"; do
+    name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+    log "  • ${name}"
 done
 
-preflight_check "$QUESTS"
+preflight_check "${SELECTED_YAMLS[@]}"
 
-PASS=(); FAIL=()
+declare -a PASS=() FAIL=()
 
-for q in $QUESTS; do
-    if run_quest "$q"; then
-        PASS+=("$q")
+for yaml in "${SELECTED_YAMLS[@]}"; do
+    name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+    if run_quest "$yaml"; then
+        PASS+=("$name")
     else
-        FAIL+=("$q")
-        log "Quest ${q} — FAILED"
+        FAIL+=("$name")
+        log "${name} — FAILED"
         cleanup
     fi
 done
 
 hr
 log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed"
-[ "${#PASS[@]}" -gt 0 ] && log "  Passed: quests ${PASS[*]}"
-[ "${#FAIL[@]}" -gt 0 ] && log "  Failed: quests ${FAIL[*]}"
+[ "${#PASS[@]}" -gt 0 ] && log "  Passed: ${PASS[*]}"
+[ "${#FAIL[@]}" -gt 0 ] && log "  Failed: ${FAIL[*]}"
 hr
 
 [ "${#FAIL[@]}" -eq 0 ]

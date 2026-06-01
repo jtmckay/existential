@@ -1,6 +1,10 @@
 name: File Change Processing
 tagline: React to files being created or updated in MinIO S3 storage
-services: []
+services:
+  - var: EXIST_IS_NAS_MINIO
+    label: MinIO
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
 guide: |
   When a file lands in MinIO, Decree receives a webhook, matches the path
   against registered processors, and fans out jobs — download, transform,

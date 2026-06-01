@@ -1,5 +1,6 @@
 name: Productivity & Tools
 tagline: Tasks, databases, and low-code apps
+e2e: true
 services:
   - var: EXIST_IS_SERVICES_VIKUNJA
     label: Vikunja
