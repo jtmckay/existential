@@ -172,6 +172,7 @@ cleanup() {
         docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" down -v \
             --remove-orphans 2>/dev/null || true
     fi
+    docker network rm "$E2E_NETWORK" 2>/dev/null || true
     [ -n "$WORK" ] && [ -d "$WORK" ] && rm -rf "$WORK"
     WORK=""
 }
@@ -227,12 +228,17 @@ run_quest() {
 
     # 8. Run per-service tests
     log "Running service tests for ${quest_name}:"
+    local e2e_paths=""
     for var in $(quest_vars "$yaml"); do
         local svc_path; svc_path=$(var_to_path "$var")
-        [ -f "$WORK/${svc_path}/exist.test.sh" ] && log "  • ${svc_path}/exist.test.sh"
+        if [ -f "$WORK/${svc_path}/exist.test.sh" ]; then
+            log "  • ${svc_path}/exist.test.sh"
+            e2e_paths="${e2e_paths:+${e2e_paths}:}${svc_path}"
+        fi
     done
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         -e E2E_MODE=1 \
+        -e "E2E_SERVICE_PATHS=${e2e_paths}" \
         --entrypoint "" existential-adhoc \
         bash /src/test/run-all.sh
 

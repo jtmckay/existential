@@ -117,7 +117,7 @@ replace_placeholders() {
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
-            sed -i "s|${key}|${value}|g" "$file"
+            sed -i "s|\\\${${key}[^}]*}|${value}|g; s|${key}|${value}|g" "$file"
         done < "${REPO_DIR}/.env.shared"
     fi
 

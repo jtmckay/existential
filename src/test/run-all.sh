@@ -49,24 +49,17 @@ if [ "${E2E_MODE:-}" != "1" ]; then
     done
 fi
 
-# Derive the EXIST_IS_* enablement var from a relative test path.
-# e.g.  ai/chatterbox/exist.test.sh → EXIST_IS_AI_CHATTERBOX
-path_to_var() {
-    local rel="${1%/exist.test.sh}"   # ai/chatterbox
-    local cat="${rel%%/*}"            # ai
-    local slug="${rel#*/}"            # chatterbox
-    echo "EXIST_IS_${cat^^}_${slug^^}" | tr '-' '_'
-}
-
-echo
-echo "=== Per-service tests (exist.test.sh) ==="
+# In E2E mode, e2e.sh passes E2E_SERVICE_PATHS (colon-separated service paths
+# like "services/decree:hosting/grafana") so we only run those tests.
+if [ "${E2E_MODE:-}" != "1" ]; then
+    echo
+    echo "=== Per-service tests (exist.test.sh) ==="
+fi
 while IFS= read -r script; do
     rel="${script#"${REPO}/"}"
-    # In E2E mode only run tests for services that are actually enabled,
-    # avoiding the noise of "skipped — disabled" from every other service.
     if [ "${E2E_MODE:-}" = "1" ]; then
-        var=$(path_to_var "$rel")
-        [ "${!var:-}" = "true" ] || continue
+        svc_path="${rel%/exist.test.sh}"
+        echo ":${E2E_SERVICE_PATHS:-}:" | grep -qF ":${svc_path}:" || continue
     fi
     run "$rel" "$script"
 done < <(find "${REPO}/ai" "${REPO}/services" "${REPO}/nas" "${REPO}/hosting" \
