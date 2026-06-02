@@ -40,7 +40,7 @@ function loadEnv(filePath: string): Record<string, string> {
 
 // ── Service discovery ──────────────────────────────────────────────────────────
 
-const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automations', 'node_modules']);
+const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automations', 'node_modules', 'volumes']);
 
 function serviceEnvKey(relPath: string): string {
   return 'EXIST_IS_' + relPath.toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -198,12 +198,44 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
   process.stderr.write(`Written: ${envPath}\n`);
 }
 
+// ── NFS → bind-mount conversion ────────────────────────────────────────────────
+
+// When NFS is not configured, replace NFS volumes with bind mounts pointing at
+// <hostRepoRoot>/volumes/<name>.  The directory is also created under repoRoot
+// (the adhoc-internal path) so Docker has a real directory to mount.
+function convertNfsVolumes(
+  merged: Record<string, unknown>,
+  repoRoot: string,
+  hostRepoRoot: string,
+): void {
+  const vols = merged['volumes'] as Record<string, unknown> | undefined;
+  if (!vols) return;
+
+  for (const [volName, volConfig] of Object.entries(vols)) {
+    const cfg = volConfig as Record<string, unknown> | null;
+    const driverOpts = cfg?.['driver_opts'] as Record<string, string> | undefined;
+    if (driverOpts?.['type'] !== 'nfs') continue;
+
+    const adHocDir = path.join(repoRoot, 'volumes', volName);
+    fs.mkdirSync(adHocDir, { recursive: true });
+
+    vols[volName] = {
+      driver: 'local',
+      driver_opts: {
+        type: 'none',
+        o: 'bind',
+        device: path.join(hostRepoRoot, 'volumes', volName),
+      },
+    };
+  }
+}
+
 // ── Entry point ────────────────────────────────────────────────────────────────
 
 function main(): void {
-  const [,, repoRoot, outputName = 'docker-compose.yml'] = process.argv;
+  const [,, repoRoot, outputName = 'docker-compose.yml', hostRepoRoot] = process.argv;
   if (!repoRoot) {
-    process.stderr.write('Usage: generate-compose.ts <repo_root> [output-filename]\n');
+    process.stderr.write('Usage: generate-compose.ts <repo_root> [output-filename] [host-repo-root]\n');
     process.exit(1);
   }
 
@@ -220,6 +252,10 @@ function main(): void {
 
   const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
   const merged = merge(repoRoot, enabled, networkExternal);
+
+  if (hostRepoRoot && !env['EXIST_NFS_SERVER_ADDRESS']?.trim()) {
+    convertNfsVolumes(merged, repoRoot, hostRepoRoot);
+  }
 
   mergeEnv(repoRoot, enabled);
 

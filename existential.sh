@@ -305,7 +305,7 @@ case "$action" in
         run_initials
         echo ""
         echo "Generating docker-compose.yml..."
-        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml
+        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         echo ""
         echo "Done! Next step:  docker compose up -d"
         ;;
@@ -317,7 +317,7 @@ case "$action" in
         run_initials
         echo ""
         echo "Generating docker-compose.yml..."
-        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml
+        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         echo ""
         echo "Done! Next step:  docker compose up -d"
         ;;

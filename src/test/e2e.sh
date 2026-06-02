@@ -212,10 +212,13 @@ run_quest() {
         bash /src/templates.sh
 
     # 5. Generate unified docker-compose.yml
+    # Pass $WORK as the host-side repo root so generate-compose.ts can write
+    # absolute bind-mount paths that resolve correctly when docker compose up
+    # runs on the host (not inside the adhoc container).
     log "Generating docker-compose.yml..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
         --entrypoint "" existential-adhoc \
-        tsx /src/generate-compose.ts /repo docker-compose.yml
+        tsx /src/generate-compose.ts /repo docker-compose.yml "$WORK"
 
     [ -f "$WORK/docker-compose.yml" ] || die "generate-compose.ts produced no docker-compose.yml"
 

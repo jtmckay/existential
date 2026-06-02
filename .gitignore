@@ -120,3 +120,6 @@ node_modules/
 
 # Windmill
 **/windmill/local
+
+# Persistent volume data — subdirectories tracked, content ignored
+volumes/*/

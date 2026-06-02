@@ -91,6 +91,7 @@ nas/          Storage layer
 hosting/      Infrastructure
 automations/  Decree automation engine (working directory)
 src/          Setup and utility scripts
+volumes/      Persistent volume directories (bind mounts when NFS not configured)
 decree/       Decree source code (cloned, read-only reference)
 site/         Docusaurus documentation
 graveyard/    Archived/deprecated solutions
@@ -426,17 +427,63 @@ Run `./existential.sh validate conventions` to check both rules.
 
 ---
 
-## NFS volume convention
+## Volume convention
 
-- A volume that declares `driver_opts: type: nfs` must also set `o:` (with
-  `addr=…`) and `device:` — half-configured volumes silently fall back to
-  plain local storage.
-- Conventional name: `<service>_<purpose>_data` (snake_case), matching the
-  trailing segment of `device:`. E.g., `mealie_pg_data`, `vikunja_db_data`.
-- Service compose files reference the NFS server via `${EXIST_NFS_SERVER_ADDRESS}`
-  and `${EXIST_NFS_BASE_PATH}` directly — no per-service copy needed.
-- Validation runs against the generated master `docker-compose.yml`, not the
-  per-service templates.
+### Why `volumes/` exists
+
+Docker named volumes are opaque: data lives in `/var/lib/docker/volumes/` with no hint
+of what it contains, whether it matters, or whether anyone is backing it up. Worse, a
+named volume is always initialised from the image's own directory on first mount —
+preserving the image's internal UID — so a service that runs as uid 1000 on an NFS share
+may silently fail on a plain named volume because the image initialised it as uid 10000.
+
+The `volumes/` directory solves both problems:
+
+- **Visibility.** Data lives at a predictable, inspectable path on the filesystem —
+  `volumes/mealie_data/`, `volumes/hermes_agent_data/`, etc. — not buried in Docker's
+  volume store.
+- **Correct ownership.** A bind mount inherits the permissions of the host directory,
+  which is created by the current user. No UID mismatch, no silent fallback.
+- **Honest defaults.** When NFS is not configured, a service that declares a persistent
+  volume gets a bind mount to `volumes/<name>/`, not a named volume that looks backed up
+  but isn't. The presence of the directory in the repo signals "this data matters".
+- **Uniform paths.** `volumes/<name>/` mirrors the NFS share naming exactly. Switching
+  between NFS and local storage is a config change, not a data migration.
+- **e2e parity.** The test harness gets the same bind-mount behaviour as a real install,
+  so a passing e2e test actually reflects what a user without NFS would experience.
+
+**"Why is there a `volumes/` directory in a code repo?"** Because the alternative is
+invisible state. A `volumes/mealie_data/` directory makes it obvious that Mealie writes
+persistent data that needs to survive container restarts and be included in backups.
+Named volumes hide this. If you are confused by the directory, check whether the
+corresponding service is enabled — if it isn't, the directory is empty and inert.
+
+### Two classes of volume
+
+**Persistent** (survives container removal, backed up by decree sidecars):
+- Declared in the service template with `driver_opts: type: nfs`.
+- With NFS (`EXIST_NFS_SERVER_ADDRESS` set): Docker mounts the NFS share directly.
+- Without NFS (`EXIST_NFS_SERVER_ADDRESS` empty): `generate-compose.ts` converts these
+  automatically to bind mounts pointing at `volumes/<name>/` in the repo root.
+- A subdirectory `volumes/<name>/` with a committed `.gitkeep` must exist; actual data
+  is gitignored. The same path is what decree sidecars mount for backups.
+- Conventional name: `<service>_<purpose>_data` (snake_case), matching the trailing
+  segment of `device:`. E.g., `mealie_data`, `hermes_agent_data`.
+- Service compose files reference the NFS server via `${EXIST_NFS_SERVER_ADDRESS}` and
+  `${EXIST_NFS_BASE_PATH}` directly — no per-service copy needed.
+
+**Ephemeral** (cache, regen-able source, scratch — not backed up):
+- Declared as plain named volumes (no `driver_opts`) in service compose templates.
+- Live in Docker's volume store; recreated on `docker compose down -v`.
+- Examples: `hermes_agent_src` (Python source, regen-able on image upgrade),
+  `hermes_workspace_data` (file-browser scratch).
+
+### Adding a persistent volume to a new service
+
+1. Declare it in the service compose template with `driver_opts: type: nfs` (copy the
+   pattern from any existing service).
+2. `mkdir volumes/<name> && touch volumes/<name>/.gitkeep` and commit both.
+3. Validation runs against the generated master `docker-compose.yml`, not the templates.
 
 ---
 
