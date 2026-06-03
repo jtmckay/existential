@@ -163,6 +163,18 @@ preflight_check() {
         fi
     done
 
+    # Stale e2e volumes (exist-e2e_*) are always safe to remove — they are ephemeral
+    # artifacts from prior runs. If a previous run crashed before down -v completed,
+    # the volume persists but its device path points to a deleted temp dir, causing
+    # "exists but doesn't match config" on the next run.
+    local stale_vols
+    stale_vols=$(docker volume ls --filter "label=com.docker.compose.project=${E2E_PROJECT}" -q 2>/dev/null || true)
+    if [ -n "$stale_vols" ]; then
+        log "Removing stale e2e volumes: $(echo "$stale_vols" | tr '\n' ' ')"
+        # shellcheck disable=SC2086
+        docker volume rm $stale_vols 2>/dev/null || true
+    fi
+
     if [ "$errors" -eq 0 ]; then
         log "Pre-flight OK"
         return 0
