@@ -9,28 +9,53 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
+copies:
+  - src: automations/lib/file-processors.example/whisper-transcribe.sh
+    dst: automations/lib/file-processors/
+    label: "file-processors: whisper-transcribe.sh (transcribes mp3/mp4/wav)"
+    requires: EXIST_IS_SERVICES_DECREE
 guide: |
   Drop a recording into Nextcloud and Decree transcribes it with Whisper,
   saving the transcript next to the original file — no manual steps.
-  Docs: https://existential.company/docs/decree/recording-transcription
 
-  Prerequisites:
-    - Nextcloud + MinIO running (Quest 7)
-    - Whisper running (Quest 4 — Local AI Lab)
-    - Decree running (any quest that enables it)
+  The pipeline:
+    File synced to Nextcloud → MinIO S3 event
+      → POST http://decree-webhook:48880/minio  (pre-configured in MinIO compose)
+      → minio-router matches PATTERN against the rclone path
+      → whisper-transcribe.sh: PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
+      → IS_PRE_SIGNED=true — MinIO generates a signed URL; Whisper streams from it
+      → transcript saved to same rclone path + ".transcription.txt" suffix
+
+  Processor convention (whisper-transcribe.sh):
+    PATTERN       matches .mp3 .mp4 .wav (case-insensitive)
+    IS_PRE_SIGNED true — file is never downloaded locally; Whisper gets the URL
+    FILE_SUFFIX   transcript filename suffix (default: .transcription.txt)
+    OUTPUT_RCLONE rclone remote to write the transcript (default: nextcloud)
+    WHISPER_MODEL override the Whisper model (default: whatever Whisper is configured with)
 
   Setup:
-    1. In MinIO, enable bucket notifications for your Nextcloud bucket:
-           MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       (already set in nas/minio/docker-compose.exist.yml)
+    1. Enable the routines in services/decree/decree/config.yml:
+         file-processor:
+           enabled: true
+         minio-router:
+           enabled: true
 
-    2. Configure the file-processor routine to handle audio/video files.
-       See automations/shared_routines/file-processor.sh for the pattern.
+    2. The quest copies whisper-transcribe.sh into automations/lib/file-processors/.
+       Processor scripts are bind-mounted live into decree — no restart needed for them.
 
-    3. Enable file-processor and minio-router in
-       services/decree/decree/config.yml:
-           file-processor: enabled: true
-           minio-router:   enabled: true
+    3. Restart decree to pick up config changes:
+         docker compose restart decree
 
-  Recordings synced via Nextcloud mobile are processed automatically
-  within seconds of upload.
+    4. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
+         MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
+         MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
+
+    5. In MinIO, subscribe your bucket to the webhook:
+         docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
+           --event put,delete
+
+    6. Drop a recording into Nextcloud. The transcript appears in the same folder
+       within seconds, named <filename>.mp3.transcription.txt.
+
+  Logs for each run land in automations/runs/ and are queryable in Grafana
+  via the Decree Overview dashboard.

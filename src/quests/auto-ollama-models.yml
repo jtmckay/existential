@@ -1,0 +1,66 @@
+name: Ollama Model Setup
+tagline: Pull the models used by LightRAG, Hermes, and Open WebUI
+services:
+  - var: EXIST_IS_AI_OLLAMA
+    label: Ollama
+  - var: EXIST_IS_AI_LIGHTRAG
+    label: LightRAG
+  - var: EXIST_IS_AI_HERMES
+    label: Hermes
+  - var: EXIST_IS_AI_OPEN_WEBUI
+    label: Open WebUI
+copies:
+  - src: ai/ollama/decree/migrations.example/01-pull-gemma4-26b.md
+    dst: ai/ollama/decree/migrations/
+    label: "ollama: pull gemma4:26b — primary LLM (Hermes + LightRAG queries)"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: ai/ollama/decree/migrations.example/02-create-gemma4-26b-ctx65536.md
+    dst: ai/ollama/decree/migrations/
+    label: "ollama: set gemma4:26b context window to 65536 tokens"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: ai/ollama/decree/migrations.example/03-pull-qwen2-5-7b.md
+    dst: ai/ollama/decree/migrations/
+    label: "ollama: pull qwen2.5:7b — LightRAG entity/relationship extraction"
+    requires: EXIST_IS_AI_LIGHTRAG
+  - src: ai/ollama/decree/migrations.example/04-pull-bge-m3.md
+    dst: ai/ollama/decree/migrations/
+    label: "ollama: pull bge-m3 — LightRAG embeddings (1024-dim)"
+    requires: EXIST_IS_AI_LIGHTRAG
+  - src: ai/ollama/decree/migrations.example/05-pull-llava.md
+    dst: ai/ollama/decree/migrations/
+    label: "ollama: pull llava — vision model for OCR and image chat"
+    requires: EXIST_IS_AI_OLLAMA
+guide: |
+  Copies migration files into ai/ollama/decree/migrations/. After
+  docker compose up -d, ollama-decree waits for Ollama to be healthy,
+  then pulls each selected model in order — no manual steps.
+
+  Model roles:
+
+    gemma4:26b       Primary reasoning LLM.
+                     Hermes uses it for all agent tasks.
+                     LightRAG uses it for graph query synthesis.
+                     Context window is extended to 65536 tokens (migration 02)
+                     so Hermes's large system prompt and LightRAG graph context
+                     fit without truncation.
+
+    qwen2.5:7b       Extraction LLM for LightRAG ingestion.
+                     Faster and cheaper than gemma4 for the high-volume
+                     entity/relationship extraction pass.
+
+    bge-m3           Embedding model for LightRAG's vector store.
+                     Produces 1024-dim vectors (EMBEDDING_DIM in lightrag .env).
+                     WARNING: do not change after first ingestion —
+                     mismatched dimensions will corrupt the vector index.
+
+    llava            Vision model for image OCR (ollama-ocr file processor)
+                     and image chat in Open WebUI.
+
+  Pull times (first run, depending on connection speed):
+    gemma4:26b  ~16 GB   15–30 min
+    qwen2.5:7b  ~4.7 GB  5–10 min
+    bge-m3      ~1.2 GB  1–3 min
+    llava       ~4.7 GB  5–10 min
+
+  To pull a model manually instead:
+    ./existential.sh run ollama pull-models

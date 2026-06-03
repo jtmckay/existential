@@ -18,9 +18,10 @@ skip_if_disabled
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 MODEL="${OLLAMA_MODEL:-gemma4:26b}"
 
-# Hermes system prompt is ~18k tokens — anything below this and it won't fit
-MIN_CTX_FAIL=20000
-MIN_CTX_WARN=32768
+# LightRAG graph synthesis + Hermes system prompt can exceed 32k tokens.
+# 32k is the hard floor; 64k is the recommended target (see Modelfile).
+MIN_CTX_FAIL=32768
+MIN_CTX_WARN=65536
 
 # ── 1. Reachability ───────────────────────────────────────────────────────────
 
@@ -78,11 +79,11 @@ if [ "$NUM_CTX" -eq 0 ]; then
 elif [ "$NUM_CTX" -lt "$MIN_CTX_FAIL" ]; then
     fail "num_ctx >= ${MIN_CTX_FAIL}" \
          "num_ctx=${NUM_CTX} — hermes system prompt (~18k tokens) will be truncated" \
-         "Edit ai/ollama/Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; ollama create ${MODEL} -f ai/ollama/Modelfile; ollama stop ${MODEL}"
+         "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
 elif [ "$NUM_CTX" -lt "$MIN_CTX_WARN" ]; then
     warn "num_ctx >= ${MIN_CTX_WARN}" \
-         "num_ctx=${NUM_CTX} leaves little room after ~18k system prompt" \
-         "Bump num_ctx to ${MIN_CTX_WARN} in ai/ollama/Modelfile"
+         "num_ctx=${NUM_CTX} — LightRAG graph synthesis may exceed this" \
+         "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
 else
     ok "num_ctx=${NUM_CTX} (>= ${MIN_CTX_WARN})"
 fi

@@ -1,14 +1,16 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:stable
+    image: ghcr.io/home-assistant/home-assistant:2026.5.4
     restart: unless-stopped
     networks:
       - exist
     volumes:
       - homeassistant_config:/config
-    ports:
-      - 8123:8123
+    # ports disabled — access via https://homeassistant.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 8123:8123
     environment:
       TZ: ${HOMEASSISTANT_TZ}
     # privileged: true  # uncomment if you need access to host hardware (e.g. USB zigbee/z-wave sticks)

@@ -2,7 +2,7 @@ services:
   # UI interface at http://localhost:9980/
   collabora:
     container_name: collabora
-    image: collabora/code:latest
+    image: collabora/code:25.04.10.3.1
     restart: unless-stopped
     networks:
       - exist
@@ -14,8 +14,10 @@ services:
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true
       - extra_params=--o:ssl.enable=false --o:ssl.termination=true
-    ports:
-      - 9980:9980
+    # ports disabled — access via https://collabora.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 9980:9980
 
 networks:
   exist:

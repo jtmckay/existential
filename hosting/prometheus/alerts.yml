@@ -1,0 +1,78 @@
+groups:
+  - name: existential
+    rules:
+      # ── Container health ──────────────────────────────────────────────────
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~".+"}) or (time() - container_last_seen) > 60
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} is not running"
+          description: "Container {{ $labels.name }} has been down for more than 2 minutes."
+
+      # ── Host resources ────────────────────────────────────────────────────
+      - alert: HostDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk space low (< 15% free)"
+          description: "Root filesystem has {{ $value | humanizePercentage }} free."
+
+      - alert: HostDiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host disk space critical (< 5% free)"
+          description: "Root filesystem has {{ $value | humanizePercentage }} free."
+
+      - alert: HostMemoryHigh
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory usage above 90%"
+          description: "Host memory is {{ $value | humanizePercentage }} used."
+
+      - alert: HostCpuHigh
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host CPU usage above 90% for 10 minutes"
+          description: "CPU is {{ $value | humanize }}% used."
+
+      # ── Service health (via decree health check crons) ────────────────────
+      - alert: ServiceHealthCheckFailing
+        expr: decree_run_success{instance=~"health-.+"} == 0
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.instance }} health check failing"
+          description: "The decree health probe for {{ $labels.instance }} has been failing for 20 minutes. Check Loki for recent run logs."
+
+      # ── Backup health (via pushgateway) ───────────────────────────────────
+      - alert: BackupNotRun
+        expr: (time() - push_time_seconds{job=~"db-backup|volume-backup"}) > 86400 * 2
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup job {{ $labels.job }} has not reported in 48h"
+          description: "Last seen {{ $value | humanizeDuration }} ago. Check decree cron config."
+
+      - alert: BackupFailed
+        expr: backup_last_success == 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backup job {{ $labels.job }} reported failure"
+          description: "Check decree run logs in automations/runs/."

@@ -1,12 +1,18 @@
 services:
   lightrag:
     container_name: lightrag
-    image: ghcr.io/hkuds/lightrag:latest
+    image: ghcr.io/hkuds/lightrag:v1.5.0rc3
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     networks:
       - exist
-    ports:
-      - "49621:9621"
+    # ports disabled — access via https://lightrag.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "49621:9621"
     user: "1000:1000"
     environment:
       LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
@@ -29,11 +35,13 @@ services:
       - exist
     environment:
       - DECREE_DAEMON=true
+      - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
     volumes:
       - ./decree:/work/.decree:z
+      - ./exist.test.sh:/work/.decree/exist.test.sh:ro,z
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z

@@ -7,3 +7,47 @@ services:
     label: Pihole
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy
+guide: |
+  After `docker compose up -d`, two manual steps complete the network setup.
+
+  ── Step 1: Point your router's DNS at pihole ─────────────────────────────
+
+  Every device on your network needs to use pihole as its DNS resolver so
+  that `<slug>.internal` names resolve to your homelab host.
+
+  1. Log into your router's admin UI (usually http://192.168.1.1).
+  2. Find the DNS settings (often under DHCP or LAN).
+  3. Set the primary DNS server to: ${EXIST_LOCAL_HOST_IP}
+     (set in .env.shared as EXIST_LOCAL_HOST_IP)
+  4. Save and apply. Devices will pick up the new resolver on their next
+     DHCP lease renewal (or reconnect to Wi-Fi to force it).
+
+  Verify pihole is resolving correctly from any device:
+    nslookup dashy.internal <your-pihole-ip>
+
+  If you have a second machine running homelab services, also add an entry
+  for EXIST_PEER_HOST_IP in hosting/pihole/docker-compose.exist.yml
+  (the commented PEER alternative lines).
+
+  ── Step 2: Trust Caddy's internal CA ────────────────────────────────────
+
+  Caddy fronts every service with TLS using its own certificate authority.
+  Install the root cert once per device for a green padlock everywhere.
+
+  On the machine running the stack (exports the cert):
+    docker cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
+
+  On each device that needs to trust it:
+    macOS:   Open Keychain Access → import caddy-root.crt → set to Always Trust
+    iOS:     AirDrop the .crt → Settings → General → VPN & Device Management → trust it
+    Windows: Run: certutil -addstore -f "ROOT" caddy-root.crt
+    Android: Settings → Security → Install from storage
+
+  ── Optional: Public domain (real HTTPS with Let's Encrypt) ──────────────
+
+  To also expose services at https://<slug>.yourdomain.com:
+    ./existential.sh run caddy public-domain
+
+  This generates a Caddyfile.public with ACME-enabled blocks for every
+  active service. Requires a domain you control with a wildcard DNS record
+  pointing at your public IP.

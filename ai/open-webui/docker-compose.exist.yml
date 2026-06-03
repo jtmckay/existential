@@ -1,12 +1,18 @@
 services:
   open-webui:
     container_name: open-webui
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.9.6
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     networks:
       - exist
-    ports:
-      - "11488:8080"
+    # ports disabled — access via https://open-webui.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "11488:8080"
     environment:
       UID: "1000"
       GID: "1000"
@@ -14,11 +20,14 @@ services:
       WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
       WEBUI_SECRET_KEY: ${OPEN_WEBUI_SECRET_KEY}
-      # Connect to hermes-agent's OpenAI-compatible gateway over the exist
-      # Docker network — Caddy's only there for browser-facing .internal traffic.
-      OPENAI_API_BASE_URL: http://hermes-agent:8642/v1
-      OPENAI_API_KEY: ${OPEN_WEBUI_HERMES_API_KEY:-}
-      # Disable direct Ollama integration — hermes-agent is the backend
+      # Two OpenAI-compatible backends, semicolon-separated:
+      #   1. hermes-agent — full agentic gateway (default for chat)
+      #   2. lightrag — knowledge graph RAG; appears as a separate model in the
+      #      picker. Use /hybrid, /local, /global prefixes in messages to control
+      #      query mode (e.g. "/hybrid what is X?"). Default mode is hybrid.
+      OPENAI_API_BASE_URLS: "http://hermes-agent:8642/v1;http://lightrag:9621/v1"
+      OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-};${OPEN_WEBUI_LIGHTRAG_API_KEY:-}"
+      # Disable direct Ollama integration — hermes-agent is the primary backend
       ENABLE_OLLAMA_API: "false"
       # Point STT at the existing whisper service instead of running a second instance
       AUDIO_STT_ENGINE: openai
@@ -37,11 +46,13 @@ services:
       - exist
     environment:
       - DECREE_DAEMON=true
+      - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
     volumes:
       - ./decree:/work/.decree:z
+      - ./exist.test.sh:/work/.decree/exist.test.sh:ro,z
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z

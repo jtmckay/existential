@@ -1,5 +1,5 @@
 routine_source: /work/.decree/shared_routines
-max_retries: 3
+max_attempts: 3
 max_log_size: 2097152
 hooks:
   beforeAll: ""

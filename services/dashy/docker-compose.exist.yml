@@ -1,12 +1,14 @@
 services:
   dashy:
     container_name: dashy
-    image: "lissy93/dashy:latest"
+    image: "lissy93/dashy:4.2.0"
     restart: unless-stopped
     volumes:
       - ./dashy-conf.yml:/app/user-data/conf.yml:Z
-    ports:
-      - 44280:8080
+    # ports disabled — access via https://dashy.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 44280:8080
     networks:
       - exist
     environment:

@@ -8,6 +8,8 @@ services:
     # NVIDIA GPU
     deploy:
       resources:
+        limits:
+          memory: 16G   # Adjust for your VRAM + CPU RAM needs
         reservations:
           devices:
             - driver: nvidia
@@ -27,8 +29,10 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    ports:
-      - 8188:8188
+    # ports disabled — access via https://comfyui.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 8188:8188
 
     volumes:
       - comfyui_data:/workspace

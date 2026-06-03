@@ -23,18 +23,18 @@
 services:
   pihole:
     container_name: pihole
-    image: pihole/pihole:latest
+    image: pihole/pihole:v6.4.2
     restart: unless-stopped
     networks:
       - exist
     ports:
-      # DNS Ports
+      # DNS ports — must stay exposed (cannot route through Caddy)
       - "53:53/tcp"
       - "53:53/udp"
-      # Default HTTP Port
-      - "42480:80/tcp"
-      # Default HTTPs Port. FTL will generate a self-signed certificate
-      - "42443:443/tcp"
+      # Web UI — access via https://pihole.internal (Caddy + pihole required)
+      # Uncomment to expose directly:
+      #   - "42480:80/tcp"
+      #   - "42443:443/tcp"
       # Uncomment the line below if you are using Pi-hole as your DHCP server
       #- "67:67/udp"
       # Uncomment the line below if you are using Pi-hole as your NTP server

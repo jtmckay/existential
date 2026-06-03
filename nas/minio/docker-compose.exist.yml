@@ -3,13 +3,15 @@ services:
   # UI interface at http://localhost:49001
   minio:
     container_name: minio
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
     restart: unless-stopped
     networks:
       - exist
-    ports:
-      - "49000:9000"
-      - "49001:9001"
+    # ports disabled — access via https://minio.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "49000:9000"
+    #     - "49001:9001"
     volumes:
       - minio_data:/data # Path to the mounted NFS share on the Proxmox host
     environment:

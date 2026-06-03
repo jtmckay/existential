@@ -1,0 +1,104 @@
+name: Automated Backups
+tagline: Nightly database and volume backups via per-service Decree sidecars
+services:
+  - var: EXIST_IS_SERVICES_MEALIE
+    label: Mealie
+  - var: EXIST_IS_SERVICES_NOCODB
+    label: NocoDB
+  - var: EXIST_IS_SERVICES_VIKUNJA
+    label: Vikunja
+  - var: EXIST_IS_SERVICES_LOWCODER
+    label: Lowcoder
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget
+  - var: EXIST_IS_SERVICES_APPSMITH
+    label: Appsmith
+  - var: EXIST_IS_NAS_NEXTCLOUD
+    label: Nextcloud
+  - var: EXIST_IS_AI_HERMES
+    label: Hermes
+  - var: EXIST_IS_AI_LIGHTRAG
+    label: LightRAG
+  - var: EXIST_IS_HOSTING_PORTAINER
+    label: Portainer
+copies:
+  - src: services/mealie/decree/cron.example/db-backup-nightly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie-decree: db-backup nightly"
+    requires: EXIST_IS_SERVICES_MEALIE
+  - src: services/mealie/decree/cron.example/volume-backup-nightly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_MEALIE
+  - src: services/nocodb/decree/cron.example/db-backup-nightly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb-decree: db-backup nightly"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/nocodb/decree/cron.example/volume-backup-nightly.md
+    dst: services/nocodb/decree/cron/
+    label: "nocodb-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_NOCODB
+  - src: services/vikunja/decree/cron.example/db-backup-nightly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja-decree: db-backup nightly"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/vikunja/decree/cron.example/volume-backup-nightly.md
+    dst: services/vikunja/decree/cron/
+    label: "vikunja-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+  - src: services/lowcoder/decree/cron.example/db-backup-nightly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder-decree: db-backup nightly"
+    requires: EXIST_IS_SERVICES_LOWCODER
+  - src: services/lowcoder/decree/cron.example/volume-backup-nightly.md
+    dst: services/lowcoder/decree/cron/
+    label: "lowcoder-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_LOWCODER
+  - src: services/actual-budget/decree/cron.example/volume-backup-nightly.md
+    dst: services/actual-budget/decree/cron/
+    label: "actual-budget-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
+  - src: services/appsmith/decree/cron.example/volume-backup-nightly.md
+    dst: services/appsmith/decree/cron/
+    label: "appsmith-decree: volume-backup nightly"
+    requires: EXIST_IS_SERVICES_APPSMITH
+  - src: nas/nextcloud/decree/cron.example/db-backup-nightly.md
+    dst: nas/nextcloud/decree/cron/
+    label: "nextcloud-decree: db-backup nightly"
+    requires: EXIST_IS_NAS_NEXTCLOUD
+  - src: ai/hermes/decree/cron.example/volume-backup-nightly.md
+    dst: ai/hermes/decree/cron/
+    label: "hermes-decree: volume-backup nightly"
+    requires: EXIST_IS_AI_HERMES
+  - src: ai/lightrag/decree/cron.example/volume-backup-nightly.md
+    dst: ai/lightrag/decree/cron/
+    label: "lightrag-decree: volume-backup nightly"
+    requires: EXIST_IS_AI_LIGHTRAG
+  - src: hosting/portainer/decree/cron.example/volume-backup-nightly.md
+    dst: hosting/portainer/decree/cron/
+    label: "portainer-decree: volume-backup nightly"
+    requires: EXIST_IS_HOSTING_PORTAINER
+guide: |
+  Activates nightly backup crons for every enabled service that has one.
+  Each backup runs inside that service's Decree sidecar, which has access to
+  the service's volumes and DB credentials without needing the master .env.
+
+  Backups are sent to the rclone remote configured in EXIST_BACKUP_RCLONE_REMOTE.
+  Run backup-config if not yet set up:
+    ./existential.sh run backup-config
+
+  What gets backed up (nightly, kept for 7 days):
+    - Databases (postgres/mariadb/mongo): pg_dump / mysqldump / mongodump → rclone
+    - Volumes: tar.gz → rclone
+
+  Weekly backups (kept 28 days) are in each service's cron.example/ — copy
+  the *-weekly.md files if you want longer-lived snapshots:
+    cp <service>/decree/cron.example/db-backup-weekly.md \
+       <service>/decree/cron/
+
+  Manual trigger (for any service):
+    docker exec <service>-decree decree run db-backup
+    docker exec <service>-decree decree run volume-backup
+
+  Restore:
+    ./existential.sh run backup-restore

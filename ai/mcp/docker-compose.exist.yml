@@ -3,12 +3,18 @@ services:
     container_name: mcp-playwright
     image: node:22-bullseye
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     networks:
       - exist
     working_dir: /app
     command: ["npx", "@playwright/mcp@latest", "--port", "8931", "--headless"]
-    ports:
-      - "8931:8931"
+    # ports disabled — access via https://mcp-playwright.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "8931:8931"
     environment:
       # optional: tweak browser config via env if you want
       PLAYWRIGHT_MCP_PORT: "8931"

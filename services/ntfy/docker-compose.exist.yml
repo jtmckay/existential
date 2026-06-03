@@ -1,12 +1,14 @@
 services:
   ntfy:
     container_name: ntfy
-    image: binwiederhier/ntfy:v2.14
+    image: binwiederhier/ntfy:v2.23.0
     restart: unless-stopped
     networks:
       - exist
-    ports:
-      - 44680:80
+    # ports disabled — access via https://ntfy.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 44680:80
     command:
       - serve
     environment:

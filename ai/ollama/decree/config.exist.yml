@@ -1,0 +1,13 @@
+routine_source: /work/.decree/shared_routines
+max_attempts: 3
+max_log_size: 2097152
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/lib/hooks/config-watch.sh
+  afterEach: /work/.decree/lib/hooks/afterEach.sh
+shared_routines:
+  ollama-pull:
+    enabled: true
+  notify:
+    enabled: true

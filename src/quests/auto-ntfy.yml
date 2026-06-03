@@ -1,0 +1,42 @@
+name: Notifications (ntfy)
+tagline: Connect Decree and other services to your ntfy notification channel
+services:
+  - var: EXIST_IS_SERVICES_NTFY
+    label: ntfy
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+guide: |
+  ntfy provides push notifications to any device. Decree and other services
+  send alerts through it. After `docker compose up -d`:
+
+  ── Step 1: Create a bot user and access token ────────────────────────────
+
+  1. Open https://ntfy.internal in your browser.
+  2. Sign in as admin (credentials set during ./existential.sh).
+  3. Create a bot account: Settings → Users → Add user
+       username: decree-bot   (or any name)
+       role:     user
+  4. Sign in as the bot user.
+  5. Generate an access token: Account → Access tokens → Create
+  6. Copy the token.
+
+  ── Step 2: Save the token to your stack ─────────────────────────────────
+
+  Run the interactive token-save script:
+    ./existential.sh run ntfy setup
+
+  This writes EXIST_NTFY_URL and EXIST_NTFY_TOKEN to your .env.shared and
+  enables the notify routine in Decree's config.yml.
+
+  ── Step 3: Test a notification ──────────────────────────────────────────
+
+    curl -H "Authorization: Bearer <token>" \
+         -d "Hello from existential" \
+         http://ntfy.internal/exist
+
+  Install the ntfy app on your phone and subscribe to the "exist" topic
+  for push notifications from your homelab.
+
+  Telegram fallback:
+    If ntfy is unreachable, Decree falls back to Telegram if configured.
+    See the auto-telegram quest.

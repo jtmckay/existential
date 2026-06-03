@@ -1,0 +1,24 @@
+name: Vikunja Default User
+tagline: Create the default Vikunja user automatically after startup
+services:
+  - var: EXIST_IS_SERVICES_VIKUNJA
+    label: Vikunja
+copies:
+  - src: services/vikunja/decree/migrations.example/01-create-default-user.md
+    dst: services/vikunja/decree/migrations/
+    label: "vikunja: create default user from VIKUNJA_DEFAULT_* env vars"
+    requires: EXIST_IS_SERVICES_VIKUNJA
+guide: |
+  After docker compose up -d, vikunja-decree waits for Vikunja to pass its
+  health check, then creates the default user via the HTTP registration API.
+
+  Credentials come from services/vikunja/.env (set during ./existential.sh):
+    VIKUNJA_DEFAULT_USERNAME
+    VIKUNJA_DEFAULT_PASSWORD
+    VIKUNJA_DEFAULT_EMAIL
+
+  The migration is idempotent — it checks whether the credentials already
+  work before attempting registration. Re-running is safe.
+
+  After the migration runs, log in at https://vikunja.internal with the
+  credentials above.

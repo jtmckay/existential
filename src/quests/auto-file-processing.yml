@@ -5,28 +5,60 @@ services:
     label: MinIO
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
+copies:
+  - src: automations/lib/file-processors.example/example.sh
+    dst: automations/lib/file-processors/
+    label: "file-processors: example.sh (copy and rename to add a processor)"
+    requires: EXIST_IS_SERVICES_DECREE
 guide: |
-  When a file lands in MinIO, Decree receives a webhook, matches the path
-  against registered processors, and fans out jobs — download, transform,
-  save. Transcription and image OCR are both built on this pipeline.
-  Docs: https://existential.company/docs/decree/file-change-processing
+  When a file lands in MinIO, the webhook triggers minio-router, which reads
+  every script in automations/lib/file-processors/, tests each PATTERN against
+  the file's rclone path, and fans out one file-processor job per match.
 
-  Prerequisites:
-    - MinIO running (Quest 7 — Media & Files)
-    - Decree running (any quest that enables it)
+  The pipeline:
+    MinIO upload
+      → POST http://decree-webhook:48880/minio  (pre-configured in MinIO compose)
+      → minio-router reads lib/file-processors/*.sh, matches PATTERN
+      → enqueues file-processor for each match
+      → file-processor downloads the file (or gets a pre-signed URL)
+      → runs the matching processor script
+
+  Processor convention — each script in automations/lib/file-processors/ declares:
+
+    PATTERN="<bash-extended-regex>"
+      Matched against the full rclone path: "<rclone_src>:<bucket>/<object-key>"
+      Example: "nextcloud:.*\\.mp3$"
+
+    IS_PRE_SIGNED=true|false
+      true  — skip local download; minio-router generates a signed URL instead.
+              Good for large files (audio, video) passed by URL to an API.
+      false — download to a temp file at FILE_PATH; processor reads from disk.
+
+  Env vars available inside every processor script:
+    FILE_SOURCE    full rclone path       e.g. "nextcloud:uploads/doc.pdf"
+    FILE_KEY       path after "remote:"   e.g. "uploads/doc.pdf"
+    FILE_ACTION    "created" or "removed"
+    FILE_PATH      local temp path        (empty when IS_PRE_SIGNED=true)
+    PRE_SIGNED_URL signed URL             (empty when IS_PRE_SIGNED=false)
+
+  All patterns are non-exclusive — multiple processors can match one file.
+  Temp files are deleted automatically after the processor exits.
 
   Setup:
-    1. MinIO webhook delivery is pre-configured in
-       nas/minio/docker-compose.exist.yml. Bring MinIO up and the webhook
-       endpoint on decree is ready at http://decree-webhook:48880/minio.
+    1. Enable the routines in services/decree/decree/config.yml:
+         file-processor:
+           enabled: true
+         minio-router:
+           enabled: true
 
-    2. Register your processor in automations/shared_routines/file-processor.sh
-       by adding a path pattern and the routine to invoke.
+    2. Copy a processor from automations/lib/file-processors.example/ to
+       automations/lib/file-processors/ (the quest does this for example.sh).
+       Rename and edit PATTERN + logic for your use case.
 
-    3. Enable file-processor and minio-router in
-       services/decree/decree/config.yml:
-           file-processor: enabled: true
-           minio-router:   enabled: true
+    3. Restart decree to pick up config changes:
+         docker compose restart decree
+       (processor scripts are bind-mounted live — no restart needed for those)
 
-    4. Drop a file into the configured bucket path and watch
-       automations/runs/ for the resulting run log.
+    4. Drop a file into MinIO and watch automations/runs/ for the run log.
+
+  Transcription and OCR have their own auto quests with ready-made processors.

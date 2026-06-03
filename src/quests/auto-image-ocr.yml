@@ -1,5 +1,5 @@
-name: Telegram Image OCR
-tagline: Send a photo to your Telegram bot and get back the extracted text
+name: Image OCR
+tagline: Extract text from images dropped into Nextcloud or sent via Telegram
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama
@@ -9,25 +9,61 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
+copies:
+  - src: automations/lib/file-processors.example/ollama-ocr.sh
+    dst: automations/lib/file-processors/
+    label: "file-processors: ollama-ocr.sh (OCR for jpg/png/webp/heic and more)"
+    requires: EXIST_IS_SERVICES_DECREE
 guide: |
-  Photograph a receipt, document, or any text-bearing image and send it
-  to your Telegram bot. Decree downloads it, runs OCR via Ollama, and
-  saves the extracted text next to the original image in Nextcloud.
-  Docs: https://existential.company/docs/decree/image-ocr
+  Drop an image into Nextcloud (or send one to your Telegram bot) and Decree
+  runs OCR via an Ollama vision model, saving the extracted text next to the
+  original file.
 
-  Prerequisites:
-    - Telegram Bot connected (auto-telegram quest)
-    - Ollama running (Quest 4 — Local AI Lab)
-    - MinIO + Nextcloud running (Quest 7)
+  The pipeline:
+    Image synced to Nextcloud → MinIO S3 event
+      → POST http://decree-webhook:48880/minio  (pre-configured in MinIO compose)
+      → minio-router matches PATTERN against the rclone path
+      → ollama-ocr.sh: PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
+      → IS_PRE_SIGNED=false — image downloaded locally, base64-encoded, sent to Ollama
+      → OCR text saved to same rclone path + ".ocr.txt" suffix
+
+  Processor convention (ollama-ocr.sh):
+    PATTERN       matches common image formats
+    IS_PRE_SIGNED false — file is downloaded to a temp path; Ollama reads base64
+    FILE_SUFFIX   output filename suffix (default: .ocr.txt)
+    OUTPUT_RCLONE rclone remote to write the text (default: nextcloud)
+    OCR_MODEL     Ollama vision model to use (default: llava)
+    OLLAMA_URL    Ollama API base URL (default: http://ollama:11434)
+    PROMPT        optional system prompt to guide extraction (default: auto)
 
   Setup:
-    1. The telegram-poll cron (from auto-telegram) already ingests photos
-       into MinIO. No additional cron needed.
+    1. Enable the routines in services/decree/decree/config.yml:
+         file-processor:
+           enabled: true
+         minio-router:
+           enabled: true
 
-    2. Configure the file-processor to route images through ollama-ocr.
-       See automations/shared_routines/file-processor.sh for the pattern.
+    2. Make sure the llava model (or your chosen OCR_MODEL) is pulled in Ollama:
+         docker exec ollama ollama pull llava
 
-    3. Enable file-processor and minio-router in
-       services/decree/decree/config.yml:
-           file-processor: enabled: true
-           minio-router:   enabled: true
+    3. The quest copies ollama-ocr.sh into automations/lib/file-processors/.
+       Processor scripts are bind-mounted live into decree — no restart needed for them.
+
+    4. Restart decree to pick up config changes:
+         docker compose restart decree
+
+    5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
+         MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
+         MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
+
+    6. In MinIO, subscribe your bucket to the webhook:
+         docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
+           --event put,delete
+
+  Telegram OCR flow:
+    If the auto-telegram quest is active, photos sent to your Telegram bot are
+    already ingested into MinIO by telegram-poll. The ollama-ocr processor picks
+    them up automatically — no extra steps.
+
+  Logs for each run land in automations/runs/ and are queryable in Grafana
+  via the Decree Overview dashboard.

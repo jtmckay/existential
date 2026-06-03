@@ -76,7 +76,15 @@ while read -r vol _consumers; do
     target="${REMOTE}/${TIER}/volumes/${vol}/${vol}-${DATE}.tar.gz"
     echo "tar    $vol → $target"
     if tar czf - -C "$src" . 2>/dev/null | rclone_cmd rcat "$target"; then
-        dumped=$((dumped + 1))
+        # Verify the uploaded file is non-empty
+        uploaded_size=$(rclone_cmd size "$target" --json 2>/dev/null | grep -o '"bytes":[0-9]*' | cut -d: -f2 || echo 0)
+        if [ "${uploaded_size:-0}" -lt 100 ]; then
+            echo "  warn: uploaded file appears empty or too small (${uploaded_size} bytes) — backup may be corrupt" >&2
+            failed=$((failed + 1))
+        else
+            echo "  → ${target} (${uploaded_size} bytes)"
+            dumped=$((dumped + 1))
+        fi
     else
         echo "  failed" >&2
         failed=$((failed + 1))
@@ -86,8 +94,12 @@ done <<< "$VOLUMES"
 # ── Retention ────────────────────────────────────────────────────────────────
 
 echo "prune  ${REMOTE}/${TIER}/volumes/ (older than ${RETENTION_DAYS}d)"
-rclone_cmd delete --min-age "${RETENTION_DAYS}d" "${REMOTE}/${TIER}/volumes/" 2>/dev/null || true
-rclone_cmd rmdirs --leave-root "${REMOTE}/${TIER}/volumes/" 2>/dev/null || true
+if ! rclone_cmd delete --min-age "${RETENTION_DAYS}d" "${REMOTE}/${TIER}/volumes/"; then
+    echo "  warn: retention cleanup (delete) failed — old backups may accumulate" >&2
+fi
+if ! rclone_cmd rmdirs --leave-root "${REMOTE}/${TIER}/volumes/"; then
+    echo "  warn: retention cleanup (rmdirs) failed" >&2
+fi
 
 echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
 [ "$failed" -eq 0 ]

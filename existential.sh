@@ -15,8 +15,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=false
 
-# Order matters for run_initials: hosting first (pihole router config runs
-# before services that reference .internal hostnames).
+# Order matters for run_initials: hosting first so host-level setup (daemon
+# config, password files) completes before service-level scripts run.
 SERVICE_CATEGORIES=(hosting nas ai services)
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
@@ -98,30 +98,51 @@ _has_any_enabled() {
     grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
 }
 
+# ── Access warning ─────────────────────────────────────────────────────────────
+
+_warn_if_no_gateway() {
+    _load_env_shared
+    local caddy_on pihole_on
+    caddy_on=$(grep '^EXIST_IS_HOSTING_CADDY=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
+    pihole_on=$(grep '^EXIST_IS_HOSTING_PIHOLE=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
+    if [[ "${caddy_on:-false}" != "true" || "${pihole_on:-false}" != "true" ]]; then
+        echo ""
+        echo "  ⚠  Port bindings are commented out by default."
+        echo "     Services are only reachable via https://<slug>.internal"
+        echo "     which requires Caddy (TLS routing) and pihole (DNS)."
+        echo ""
+        echo "     To access services without them, uncomment the 'ports:' block"
+        echo "     in each service's docker-compose.exist.yml and re-run:"
+        echo "       ./existential.sh --force"
+        echo ""
+    fi
+}
+
 # ── Service init scripts (exist.initial.sh) ───────────────────────────────────
+# Runs on every `./existential.sh` call for each enabled service that ships
+# exist.initial.sh. Scripts must be idempotent — they check for existing state
+# and skip work that has already been done. No sentinel files.
+#
+# Only pre-startup, non-interactive work belongs here (creating files,
+# applying system config). Post-startup automated work lives in decree
+# migrations; interactive steps are documented as quest guides.
 
 run_initials() {
     _load_env_shared
-    local ran=0 skipped=0
+    local ran=0
 
     while IFS= read -r svc_dir; do
         service_is_enabled "$svc_dir" || continue
 
         local init_script="${svc_dir}/exist.initial.sh"
-        local sentinel="${svc_dir}/.existential.initialized"
         local rel="${svc_dir#"$SCRIPT_DIR"/}"
 
         [[ -f "$init_script" ]] || continue
-        if [[ -f "$sentinel" ]] && [[ "$FORCE" != "true" ]]; then
-            (( skipped++ ))
-            continue
-        fi
 
         echo ""
         echo "Initializing ${rel}..."
         if bash "$init_script"; then
-            touch "$sentinel"
-            echo "  ✓ ${rel} initialized"
+            echo "  ✓ ${rel}"
             (( ran++ ))
         else
             local rc=$?
@@ -131,10 +152,7 @@ run_initials() {
         fi
     done < <(_find_service_dirs)
 
-    if [[ $ran -gt 0 || $skipped -gt 0 ]]; then
-        echo ""
-        echo "Initialized ${ran} service(s), skipped ${skipped} already-initialized"
-    fi
+    [[ $ran -gt 0 ]] && echo ""
 }
 
 # ── Run dispatch ──────────────────────────────────────────────────────────────
@@ -242,8 +260,8 @@ usage() {
 Usage: $0 [--force] <action> [args]
 
 Actions:
-  (default)           Render *.exist.* templates, run exist.initial.sh for newly
-                      enabled services, then generate docker-compose.yml.
+  (default)           Render *.exist.* templates, run exist.initial.sh for all
+                      enabled services (idempotent), then generate docker-compose.yml.
                       Auto-launches quest picker if no services are enabled.
   quest               Interactive onboarding wizard — pick what to build, then
                       run full setup. Re-run anytime to add more services.
@@ -259,8 +277,7 @@ Actions:
   e2e --all           Run all e2e-testable quests without prompting.
 
 Options:
-  --force             Re-render existing files / re-run already-initialized
-                      services (bypasses the .existential.initialized sentinel).
+  --force             Re-render existing files even if they already exist.
 EOF
 }
 
@@ -305,8 +322,9 @@ case "$action" in
         run_initials
         echo ""
         echo "Generating docker-compose.yml..."
+        $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
-        echo ""
+        _warn_if_no_gateway
         echo "Done! Next step:  docker compose up -d"
         ;;
     quest)
@@ -317,8 +335,9 @@ case "$action" in
         run_initials
         echo ""
         echo "Generating docker-compose.yml..."
+        $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
-        echo ""
+        _warn_if_no_gateway
         echo "Done! Next step:  docker compose up -d"
         ;;
     run)

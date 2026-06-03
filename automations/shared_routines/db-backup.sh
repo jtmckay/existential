@@ -130,8 +130,12 @@ done <<< "$TARGETS"
 # ── Retention ────────────────────────────────────────────────────────────────
 
 echo "prune  ${REMOTE}/${TIER}/ (older than ${RETENTION_DAYS}d)"
-rclone_cmd delete --min-age "${RETENTION_DAYS}d" "${REMOTE}/${TIER}/" 2>/dev/null || true
-rclone_cmd rmdirs --leave-root "${REMOTE}/${TIER}/" 2>/dev/null || true
+if ! rclone_cmd delete --min-age "${RETENTION_DAYS}d" "${REMOTE}/${TIER}/"; then
+    echo "  warn: retention cleanup (delete) failed — old backups may accumulate" >&2
+fi
+if ! rclone_cmd rmdirs --leave-root "${REMOTE}/${TIER}/"; then
+    echo "  warn: retention cleanup (rmdirs) failed" >&2
+fi
 
 echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
 [ "$failed" -eq 0 ]

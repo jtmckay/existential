@@ -51,6 +51,7 @@
 
 # Decree
 **/decree/webhook/config.yml
+automations/lib/file-processors/*
 automations/runs/*
 automations/secrets/*
 # Per-decree-daemon runtime state (main decree + all per-service sidecars)
@@ -89,7 +90,7 @@ automations/secrets/*
 
 # Ollama
 **/ollama/entrypoint.sh
-**/ollama/Modelfile
+**/ollama/decree/migrations/*
 
 # Pi-Hole
 **/piHole/etc-pihole

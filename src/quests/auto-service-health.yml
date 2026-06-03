@@ -1,0 +1,46 @@
+name: Service Health Monitoring
+tagline: HTTP health probes for your services, visible in Grafana and alerting via ntfy
+services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+  - var: EXIST_IS_HOSTING_PROMETHEUS
+    label: Prometheus
+  - var: EXIST_IS_HOSTING_GRAFANA
+    label: Grafana
+guide: |
+  Adds per-service health check crons to the main Decree daemon. Each cron
+  probes a service URL every 15 minutes. Results flow automatically to:
+
+    - Prometheus: decree_run_success{instance="health-<service>"} gauge
+    - Loki:       structured run logs (routine, exit_code, duration)
+    - Grafana:    queryable in the Decree Overview dashboard
+    - Alerting:   ServiceHealthCheckFailing fires after 20 min of failures
+                  → ntfy notification via hosting/prometheus/alerts.yml
+
+  Setup — for each service you want to monitor:
+
+    1. Copy the cron template:
+         cp services/decree/decree/cron.example/health-checks.md \
+            services/decree/decree/cron/health-check-<slug>.md
+
+    2. Edit the copy and set:
+         SERVICE_NAME: <slug>          # becomes the Prometheus instance label
+         SERVICE_URL:  http://<container>:<port>/<health-path>
+
+    3. Restart decree:
+         docker compose restart decree
+
+  Example health endpoints per service:
+    http://ollama:11434/api/tags              ollama
+    http://mealie:9000/api/app/about          mealie
+    http://nocodb:8080/api/v1/health          nocodb
+    http://grafana:3000/api/health            grafana
+    http://prometheus:9090/-/healthy          prometheus
+    http://loki:3100/ready                   loki
+    http://ntfy:80/v1/health                ntfy
+    http://hermes-agent:8642/health           hermes
+    http://lightrag:9621/health              lightrag
+    http://open-webui:8080/health            open-webui
+
+  In Grafana, filter the Decree Overview dashboard by routine=service-health
+  to see a panel per monitored service.

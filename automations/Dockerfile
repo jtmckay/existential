@@ -1,5 +1,5 @@
 FROM rust:slim-bookworm AS builder
-RUN cargo install decree --version 0.4.1
+RUN cargo install decree --version 0.4.2
 
 FROM debian:bookworm-slim
 ENV NODE_VERSION=24.16.0
@@ -32,3 +32,6 @@ COPY package.json /opt/decree/package.json
 RUN cd /opt/decree && npm install --no-fund --no-audit
 ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

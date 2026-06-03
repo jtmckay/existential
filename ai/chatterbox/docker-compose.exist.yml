@@ -4,12 +4,14 @@ services:
   # API docs at http://localhost:8004/docs
   chatterbox:
     container_name: chatterbox
-    image: ghcr.io/devnen/chatterbox-tts-server:main
+    image: ghcr.io/devnen/chatterbox-tts-server:v2.0.0
     restart: unless-stopped
     networks:
       - exist
-    ports:
-      - ${CHATTERBOX_PORT:-48004}:8000
+    # ports disabled — access via https://chatterbox.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - ${CHATTERBOX_PORT:-48004}:8000
 
     # AMD GPU
     # privileged: true
@@ -19,6 +21,8 @@ services:
     # NVIDIA GPU
     deploy:
       resources:
+        limits:
+          memory: 6G
         reservations:
           devices:
             - driver: nvidia

@@ -33,6 +33,9 @@ ntfy_title="${ntfy_title:-}"
 ntfy_priority="${ntfy_priority:-}"
 ntfy_tags="${ntfy_tags:-}"
 
+telegram_bot_token="${TELEGRAM_BOT_TOKEN:-}"
+telegram_chat_id="${TELEGRAM_CHAT_ID:-}"
+
 # Strip YAML frontmatter and leading/trailing whitespace
 body=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$message_file" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
 
@@ -58,6 +61,23 @@ if [ -n "$ntfy_tags" ]; then
     args+=(-H "Tags: $ntfy_tags")
 fi
 
-curl "${args[@]}" "${ntfy_url}/${ntfy_topic}"
-echo ""
-echo "Notification sent to ${ntfy_topic}"
+if curl "${args[@]}" "${ntfy_url}/${ntfy_topic}"; then
+    echo ""
+    echo "Notification sent to ${ntfy_topic}"
+elif [[ -n "$telegram_bot_token" && -n "$telegram_chat_id" ]]; then
+    echo "ntfy unreachable — falling back to Telegram" >&2
+    telegram_text="${ntfy_title:+[${ntfy_title}] }${body}"
+    if curl -fsSL \
+        -d "chat_id=${telegram_chat_id}" \
+        --data-urlencode "text=${telegram_text}" \
+        "https://api.telegram.org/bot${telegram_bot_token}/sendMessage" \
+        >/dev/null; then
+        echo "Notification sent via Telegram fallback"
+    else
+        echo "Telegram fallback also failed" >&2
+        exit 1
+    fi
+else
+    echo "ntfy unreachable and no Telegram fallback configured (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)" >&2
+    exit 1
+fi

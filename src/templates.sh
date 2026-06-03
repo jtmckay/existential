@@ -7,6 +7,8 @@ REPO_DIR="${REPO_DIR:-/repo}"
 FORCE="${FORCE:-false}"
 SERVICE_CATEGORIES=(hosting nas ai services)
 
+command -v fzf >/dev/null 2>&1 || { echo "Error: fzf not found — ensure it is installed in the existential-adhoc container" >&2; exit 1; }
+
 . /src/utils/generate_password.sh
 . /src/utils/generate_hex_key.sh
 
@@ -85,7 +87,7 @@ _comment_out_nfs_volumes() {
             done
             local _has_truenas=0
             for _bl in "${_block[@]}"; do
-                [[ "$_bl" == *EXIST_NFS_* ]] && { _has_truenas=1; break; }
+                [[ "$_bl" == *EXIST_NFS_* || "$_bl" =~ type:[[:space:]]*\"?nfs\"? ]] && { _has_truenas=1; break; }
             done
             if (( _has_truenas )); then
                 if [[ ${#_out[@]} -gt 0 && "${_out[-1]}" =~ ^[[:space:]]+driver[[:space:]]*: ]]; then
@@ -117,7 +119,11 @@ replace_placeholders() {
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
-            sed -i "s|\\\${${key}[^}]*}|${value}|g; s|${key}|${value}|g" "$file"
+            # Escape sed replacement metacharacters: \ first, then & and |
+            local _escaped="${value//\\/\\\\}"
+            _escaped="${_escaped//&/\\&}"
+            _escaped="${_escaped//|/\\|}"
+            sed -i "s|\\\${${key}[^}]*}|${_escaped}|g; s|${key}|${_escaped}|g" "$file"
         done < "${REPO_DIR}/.env.shared"
     fi
 

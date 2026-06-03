@@ -2,7 +2,7 @@
 # Fires after every message attempt (success or failure).
 # Pushes metrics to Prometheus Pushgateway and a summary log to Loki.
 
-PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://pushgateway:9091}"
+PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://prometheus-pushgateway:9091}"
 LOKI_URL="${LOKI_URL:-http://loki:3100}"
 
 # Read routine and trigger from message frontmatter (reliable vs. parsing message_id)

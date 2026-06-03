@@ -386,6 +386,22 @@ function main(): number {
   // (10) NFS-declared volumes in master compose are fully configured
   errors.push(...checkNfsVolumes());
 
+  // (11) Quest files: e2e: false must have e2e_skip explaining why
+  const questsDir = path.join(REPO_ROOT, 'src/quests');
+  if (fs.existsSync(questsDir)) {
+    for (const f of fs.readdirSync(questsDir).filter(n => /^\d.*\.yml$/.test(n))) {
+      const content = fs.readFileSync(path.join(questsDir, f), 'utf8');
+      const lines = content.split('\n');
+      const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
+      const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));
+      if (hasE2eFalse && !hasE2eSkip) {
+        errors.push(
+          `src/quests/${f}: has 'e2e: false' but no 'e2e_skip:' explanation — add one`,
+        );
+      }
+    }
+  }
+
   // ── Report ──────────────────────────────────────────────────────────────────
   console.log(`Services declared:    ${services.size}`);
   console.log(`piHole records:       ${pihole.size}`);

@@ -1,2 +1,0 @@
-FROM gemma4:26b
-PARAMETER num_ctx 32768

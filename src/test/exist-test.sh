@@ -72,6 +72,8 @@ load_env_exist() {
 }
 
 skip_if_disabled() {
+    # In a sidecar the service is always enabled — the sidecar wouldn't exist otherwise.
+    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
     load_env_exist
     local val="${!_ENABLE_VAR:-false}"
     if [ "$val" != "true" ]; then
@@ -225,12 +227,16 @@ probe_pihole() {
 # a single hostname. Caller pairs this with their own http_probe for the
 # direct leg.
 probe_caddy() {
+    # Skip Caddy routing checks inside a decree sidecar — the sidecar only needs
+    # to confirm the service itself is up, not the full routing stack.
+    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" expect="${4:-200}" timeout="${5:-5}"
     _probe_caddy_paths exact "$name" "$host" "$path" "$expect" "$timeout"
 }
 
 # probe_caddy_any NAME HOST [PATH=/] [PATTERN=^200$] [TIMEOUT=5]
 probe_caddy_any() {
+    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" pattern="${4:-^200$}" timeout="${5:-5}"
     _probe_caddy_paths regex "$name" "$host" "$path" "$pattern" "$timeout"
 }

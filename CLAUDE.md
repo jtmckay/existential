@@ -64,10 +64,10 @@ every other service. **Match existing patterns first; invent only when you must.
    `automations/shared_routines/`. Not host cron, not a one-off `docker exec`, not a sibling
    `exist.<action>.sh`. One-shots stay as `exist.<action>.sh`; recurring work is decree's
    job.
-5. **Services set themselves up deterministically.** Each service ships an
-   `exist.initial.sh` that brings it from "fresh container" to "ready to use". Re-running
-   should be a no-op (sentinel-gated). Prompts only when there's truly no deterministic
-   answer.
+5. **Services set themselves up deterministically.** Pre-startup filesystem work
+   lives in `exist.initial.sh` (idempotent, runs every `./existential.sh`).
+   Post-startup automated setup lives in decree migrations (run once after
+   `exist.test.sh` passes). Interactive/manual steps are documented as quest guides.
 6. **Services validate themselves.** Each service ships an `exist.test.sh` that confirms
    it is fully operational and prints copy-pasteable remediation for anything broken. See
    "Service test scripts" below.
@@ -108,7 +108,7 @@ graveyard/    Archived/deprecated solutions
 `collabora` `minio` `nextcloud` `redis` *(NAS/NFS server is external — config note only)*
 
 ### hosting/
-`caddy` `cloudflare` *(certs only — no container)* `grafana` `loki` `pihole`
+`caddy` `cloudflare` *(certs only — no container)* `docker-daemon` *(daemon.json — no container)* `grafana` `loki` `pihole`
 `portainer` `prometheus` `uptime-kuma`
 
 ### automations/ (shared decree code)
@@ -165,23 +165,24 @@ and `automations/runs/` via read-only mounts. The routines directory is mounted 
 so code lives in one place and logs from all daemons land in the same audit trail
 (pruned uniformly by `clean-runs`).
 
-Backup-eligible services with sidecars:
+Services with decree sidecars:
 
-| Service | Sidecar | Backups |
-|---|---|---|
-| `services/mealie` | `mealie-decree` | DB (postgres) + volume |
-| `services/nocodb` | `nocodb-decree` | DB (postgres) + volume |
-| `services/vikunja` | `vikunja-decree` | DB (postgres) + volume |
-| `services/lowcoder` | `lowcoder-decree` | DB (mongo) + volumes |
-| `nas/nextcloud` | `nextcloud-decree` | DB (mariadb) |
-| `services/actual-budget` | `actual-budget-decree` | volume |
-| `services/appsmith` | `appsmith-decree` | volume |
-| `ai/hermes` | `hermes-decree` | volume |
-| `ai/lightrag` | `lightrag-decree` | volume |
-| `ai/open-webui` | `open-webui-decree` | — |
-| `hosting/grafana` | `grafana-decree` | — |
-| `hosting/portainer` | `portainer-decree` | volume |
-| `hosting/uptime-kuma` | `uptime-kuma-decree` | — |
+| Service | Sidecar | Migrations | Backups |
+|---|---|---|---|
+| `ai/ollama` | `ollama-decree` | pull models + apply Modelfiles | — |
+| `services/vikunja` | `vikunja-decree` | create default user | DB (postgres) + volume |
+| `services/mealie` | `mealie-decree` | — | DB (postgres) + volume |
+| `services/nocodb` | `nocodb-decree` | — | DB (postgres) + volume |
+| `services/lowcoder` | `lowcoder-decree` | — | DB (mongo) + volumes |
+| `nas/nextcloud` | `nextcloud-decree` | — | DB (mariadb) |
+| `services/actual-budget` | `actual-budget-decree` | — | volume |
+| `services/appsmith` | `appsmith-decree` | — | volume |
+| `ai/hermes` | `hermes-decree` | — | volume |
+| `ai/lightrag` | `lightrag-decree` | — | volume |
+| `ai/open-webui` | `open-webui-decree` | — | — |
+| `hosting/grafana` | `grafana-decree` | — | — |
+| `hosting/portainer` | `portainer-decree` | — | volume |
+| `hosting/uptime-kuma` | `uptime-kuma-decree` | — | — |
 
 ### src/
 Holds **general-purpose** infra and utility code only. Service-specific setup
@@ -230,27 +231,63 @@ by every `exist.test.sh`) and the general test scripts (`run-all.sh`, `test-*.sh
 `validate-conventions.ts`, `check-drift.ts`) that cover things not owned by any one
 service. Per-service tests live in their own `<cat>/<slug>/exist.test.sh`.
 
-### Service setup scripts (`exist.<name>.sh`)
+### Service lifecycle scripts
 
-Each service owns its setup, test, and on-demand action code in its own directory:
+Three tiers cover everything from first-run to steady-state:
+
+```
+./existential.sh run:
+  1. Template rendering   src/templates.sh renders *.exist.* → live files
+  2. exist.initial.sh     Pre-startup, idempotent, runs every time.
+                          Creates files, applies system config, sets permissions.
+                          Scripts check for existing state and skip completed work.
+
+docker compose up -d      (user runs this)
+
+On sidecar startup (decree sidecar, after test passes):
+  3. exist.test.sh        Sidecar retries until this passes (service is healthy).
+  4. decree process       Runs pending migrations from <service>/decree/migrations/.
+                          Each migration runs exactly once (tracked in processed.md).
+
+On demand:
+  5. exist.<action>.sh    Interactive or manual steps: ./existential.sh run <slug> <action>
+                          Documented as quest guides so users know when and why to run them.
+  6. exist.test.sh        Read-only validation: ./existential.sh run <slug> test
+```
+
+**When to write each:**
+
+| Script | Write when… |
+|---|---|
+| `exist.initial.sh` | Files, dirs, or system config must exist before the container starts. Must be idempotent — check before acting, never rely on a sentinel. |
+| Decree migration `migrations/<name>.md` | Post-startup automated setup: API calls, user creation, DB seeds. Runs once after `exist.test.sh` passes. |
+| `exist.<action>.sh` | Interactive or manual on-demand operations a user triggers explicitly. Document in a quest guide. |
+| `exist.test.sh` | Always. Every service ships one. Used by both `./existential.sh test` and the sidecar health gate. |
+
+Each service owns these scripts in its own directory:
 
 ```
 <category>/<slug>/
 ├── docker-compose.exist.yml  # template → renders to docker-compose.yml
 ├── .env.exist                # template → renders to .env
-├── exist.initial.sh          # auto-run on first init — sentinel-gated
-├── exist.test.sh             # validate the service is fully operational (read-only)
-├── exist.<action>.sh         # optional sibling scripts for refresh/cron/etc.
-└── .existential.initialized  # sentinel (gitignored) — touched after success
+├── exist.initial.sh          # pre-startup, idempotent (no sentinel)
+├── exist.test.sh             # read-only validation; also the sidecar health gate
+├── exist.<action>.sh         # optional on-demand scripts
+└── decree/
+    └── migrations/           # post-startup one-time setup (decree runs after test passes)
 ```
 
-- **`exist.initial.sh`** runs once on first init: `./existential.sh` checks each
-  enabled service, runs it if `.existential.initialized` is missing, then touches the
-  sentinel on success. Re-run manually with `./existential.sh run <slug>` or
-  force everything with `./existential.sh --force`.
-- **`exist.test.sh`** — see "Service test scripts" below.
-- **`exist.<action>.sh`** are on-demand sibling scripts: `./existential.sh run
-  <slug> <action>` runs them. Examples below.
+- **`exist.initial.sh`** runs on every `./existential.sh` call for enabled services.
+  Scripts must be idempotent: check whether the work is already done and return early
+  if so. No sentinel files. Failures abort the run.
+- **Decree migrations** live in `<service>/decree/migrations/*.md`. The service sidecar
+  waits for `exist.test.sh` to pass, then runs `decree process` which executes any
+  migration not yet in `processed.md`. Migrations run exactly once per install.
+- **`exist.test.sh`** — see "Service test scripts" below. In sidecar context
+  (`DECREE_SIDECAR=true`), `skip_if_disabled` and `probe_caddy` are no-ops so the
+  test focuses on the service itself, not the full routing stack.
+- **`exist.<action>.sh`** are on-demand scripts: `./existential.sh run <slug> <action>`
+  runs them. Document them in quest guides so users know when and why.
 - **Runtime:** each script decides whether it runs on host or self-elevates
   into the `existential-adhoc` container. Adhoc-needing scripts include a
   small `if [[ -z "$IN_CONTAINER" ]]; then exec docker compose run …` block
@@ -260,19 +297,21 @@ Current inventory:
 
 | Path | Trigger |
 |---|---|
-| `hosting/pihole/exist.initial.sh` | `./existential.sh run pihole` — router DNS walkthrough, runs FIRST |
-| `hosting/caddy/exist.initial.sh` | `./existential.sh run caddy` — optional public-domain (EXIST_PUBLIC_DOMAIN) |
-| `services/actual-budget/exist.initial.sh` | `./existential.sh run actual-budget` |
-| `services/ntfy/exist.initial.sh` | `./existential.sh run ntfy` |
+| `hosting/portainer/exist.initial.sh` | auto — every run, generates password file with mode 600 |
+| `hosting/docker-daemon/exist.initial.sh` | auto — every run, applies log rotation daemon.json if not yet applied |
+| `hosting/caddy/exist.public-domain.sh` | `./existential.sh run caddy public-domain` — optional public-domain setup |
+| `services/actual-budget/exist.setup.sh` | `./existential.sh run actual-budget setup` — connect to budget server, save credentials |
+| `services/ntfy/exist.setup.sh` | `./existential.sh run ntfy setup` — save ntfy access token |
+| `ai/ollama/exist.pull-models.sh` | `./existential.sh run ollama pull-models` — manual model pull (automated via ollama-decree migrations) |
+| `services/vikunja/decree/migrations/01-create-default-user.md` | auto — sidecar runs once after vikunja is healthy |
 | `services/decree/exist.gmail-sync.sh` | `./existential.sh run decree gmail-sync` |
 | `services/decree/exist.gmail-labels.sh` | `./existential.sh run decree gmail-labels` |
 | `services/decree/exist.gmail-transactions-cron.sh` | `./existential.sh run decree gmail-transactions-cron` |
 | `services/decree/exist.decree-ui.sh` | `./existential.sh run decree decree-ui` — generate Lowcoder control panel |
 
 **Init ordering:** `run_initials()` walks `SERVICE_CATEGORIES` in this order:
-`hosting → nas → ai → services`. Pihole's router walkthrough is in hosting,
-so it runs before service-specific initials that might rely on `.internal`
-hostname resolution.
+`hosting → nas → ai → services`. Hosting-level setup (portainer password, docker-daemon
+config) completes before service-level scripts run.
 
 ### Service test scripts (`exist.test.sh`)
 
@@ -333,10 +372,13 @@ as `exist.test.sh`.
    template files (e.g. `docker-compose.exist.yml` → `docker-compose.yml`). `automations/`
    is processed when `EXIST_IS_SERVICES_DECREE=true`. Disabled services are **skipped**
    so their secret/template files never land on disk.
-4. For each enabled service with `exist.initial.sh` and no `.existential.initialized`
-   sentinel, run the script and touch the sentinel on success.
+4. For each enabled service with `exist.initial.sh`, run it (idempotent — scripts
+   check for existing state and skip completed work). No sentinels.
 5. Merge enabled services into a unified `docker-compose.yml` (and write the
    master `.env`) via the existential-adhoc container.
+6. After `docker compose up -d`, each service's decree sidecar (where present) waits
+   for `exist.test.sh` to pass, then runs `decree process` to execute any pending
+   migrations in `<service>/decree/migrations/`.
 
 ### Targeted commands
 ```bash
@@ -349,12 +391,14 @@ as `exist.test.sh`.
 ./existential.sh run check-versions   # Compare pinned image tags against latest; add --update to apply
 
 # Run dispatch — service-specific (<category>/<slug>/exist.<action>.sh):
-./existential.sh run                  # List every available run action
-./existential.sh run <slug>           # Run <slug>'s exist.initial.sh
-./existential.sh run <slug> <action>  # Run <slug>'s exist.<action>.sh
+./existential.sh run                       # List every available run action
+./existential.sh run <slug>                # Run <slug>'s exist.initial.sh
+./existential.sh run <slug> <action>       # Run <slug>'s exist.<action>.sh
 # Examples:
-./existential.sh run actual-budget
-./existential.sh run ntfy
+./existential.sh run actual-budget setup   # Connect to budget server, save credentials
+./existential.sh run ntfy setup            # Save ntfy access token
+./existential.sh run ollama pull-models    # Pull configured Ollama models
+./existential.sh run caddy public-domain   # Set up optional public domain with real HTTPS
 ./existential.sh run decree gmail-sync
 ./existential.sh run decree gmail-labels
 ./existential.sh run decree gmail-transactions-cron
@@ -655,7 +699,8 @@ this thing working?".
 
 Update CLAUDE.md in the same task whenever you:
 - **Add a service** — add it to the correct category in the directory structure section,
-  and ship both `exist.initial.sh` and `exist.test.sh` with it
+  and ship `exist.test.sh` with it. Add `exist.initial.sh` only if pre-startup filesystem
+  setup is needed; add a decree migration if post-startup automated setup is needed.
 - **Remove a service** — remove it from that section
 - **Add or remove a script** in `src/` — update the src/ tree
 - **Add or remove a Decree routine or cron file** — no change needed here; those are

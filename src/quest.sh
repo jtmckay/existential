@@ -27,6 +27,8 @@ env_set() {
 }
 
 [ -f "$EXIST_ENV" ] || die "${EXIST_ENV} not found — run ./existential.sh first"
+command -v fzf >/dev/null 2>&1 || die "fzf not found — ensure it is installed in the existential-adhoc container"
+command -v yq  >/dev/null 2>&1 || die "yq not found — ensure it is installed in the existential-adhoc container"
 
 # Derive filesystem path from EXIST_IS_* variable name.
 # EXIST_IS_AI_OPEN_WEBUI → ai/open-webui
