@@ -36,28 +36,6 @@ services:
     volumes:
       - open_webui_data:/app/backend/data
 
-  open-webui-decree:
-    container_name: open-webui-decree
-    image: existential/decree:local  # shared image, built by existential-adhoc
-    pull_policy: never
-    restart: unless-stopped
-    networks:
-      - exist
-    environment:
-      - DECREE_DAEMON=true
-      - DECREE_SIDECAR=true
-      - DECREE_INTERVAL=2
-      - IN_CONTAINER=1
-      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
-    volumes:
-      - ./decree:/work/.decree:z
-      - ./exist.test.sh:/work/.decree/exist.test.sh:ro,z
-      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ../../automations/lib:/work/.decree/lib:ro,z
-      - ../../automations/runs:/work/.decree/runs:z
-      - ../../automations/secrets:/secrets:ro,z
-      - open_webui_data:/volumes/open_webui_data
-    tty: false
 
 volumes:
   open_webui_data:

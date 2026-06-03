@@ -179,10 +179,6 @@ Services with decree sidecars:
 | `services/appsmith` | `appsmith-decree` | — | volume |
 | `ai/hermes` | `hermes-decree` | — | volume |
 | `ai/lightrag` | `lightrag-decree` | — | volume |
-| `ai/open-webui` | `open-webui-decree` | — | — |
-| `hosting/grafana` | `grafana-decree` | — | — |
-| `hosting/portainer` | `portainer-decree` | — | volume |
-| `hosting/uptime-kuma` | `uptime-kuma-decree` | — | — |
 
 ### src/
 Holds **general-purpose** infra and utility code only. Service-specific setup
@@ -298,7 +294,6 @@ Current inventory:
 
 | Path | Trigger |
 |---|---|
-| `hosting/portainer/exist.initial.sh` | auto — every run, generates password file with mode 600 |
 | `hosting/caddy/exist.public-domain.sh` | `./existential.sh run caddy public-domain` — optional public-domain setup |
 | `hosting/docker-daemon/exist.log-rotation.sh` | `./existential.sh run docker-daemon log-rotation` — apply Docker log rotation (daemon.json + reload) |
 | `services/actual-budget/exist.setup.sh` | `./existential.sh run actual-budget setup` — connect to budget server, save credentials |

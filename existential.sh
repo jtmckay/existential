@@ -143,7 +143,7 @@ run_initials() {
         echo "Initializing ${rel}..."
         if bash "$init_script"; then
             echo "  ✓ ${rel}"
-            (( ran++ ))
+            (( ++ran ))
         else
             local rc=$?
             echo "  ✗ ${rel}: exist.initial.sh failed (exit ${rc})" >&2
@@ -321,12 +321,12 @@ case "$action" in
             run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
             _reload_env_shared
         fi
-        run_initials
         echo ""
         echo "Generating docker-compose.yml..."
         $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         _warn_if_no_gateway
+        run_initials
         echo "Done! Next step:  docker compose up -d"
         ;;
     quest)
@@ -334,12 +334,12 @@ case "$action" in
         run_adhoc env REPO_DIR=/repo bash /src/quest.sh "$@"
         run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
         _reload_env_shared
-        run_initials
         echo ""
         echo "Generating docker-compose.yml..."
         $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         _warn_if_no_gateway
+        run_initials
         echo "Done! Next step:  docker compose up -d"
         ;;
     run)
