@@ -1,0 +1,11 @@
+# pnpm settings (pnpm 11 reads config here, not the package.json "pnpm" field).
+#
+# allowBuilds — the ONLY dependencies permitted to run install/build scripts;
+# every other package's lifecycle scripts are blocked, and an unreviewed build
+# script fails the install (strictDepBuilds defaults to true). This closes the
+# install-script supply-chain hole that `npm install` left wide open.
+#   better-sqlite3 = native binding for @actual-app/api
+#   esbuild        = native binary for tsx
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

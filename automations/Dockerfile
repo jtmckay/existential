@@ -28,8 +28,17 @@ RUN apt-get update \
     && rm /tmp/node.tar.xz \
     && npm install -g npm@11.16.0 \
     && rm -rf /var/lib/apt/lists/*
-COPY package.json /opt/decree/package.json
-RUN cd /opt/decree && npm install --no-fund --no-audit
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /opt/decree/
+# Reproducible, integrity-checked install via pnpm (version pinned by package.json's
+# packageManager field, provisioned by corepack). The committed pnpm-lock.yaml pins the
+# full tree; --frozen-lockfile fails the build if package.json drifts from it. pnpm runs
+# NO dependency build scripts except the allowlist in package.json's
+# pnpm.onlyBuiltDependencies (better-sqlite3, esbuild) — closing the install-script
+# supply-chain hole that `npm install` left open. node-linker=hoisted (.npmrc) keeps the
+# flat node_modules layout that NODE_PATH below relies on.
+RUN cd /opt/decree \
+    && corepack enable \
+    && pnpm install --frozen-lockfile --prod
 ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
