@@ -36,6 +36,23 @@ ntfy_tags="${ntfy_tags:-}"
 telegram_bot_token="${TELEGRAM_BOT_TOKEN:-}"
 telegram_chat_id="${TELEGRAM_CHAT_ID:-}"
 
+# Where to record notifications that could not be delivered by any channel.
+# Lives under the shared runs dir so it's pruned by clean-runs and visible
+# alongside the run logs. ${message_dir} is set by the decree runtime.
+runs_dir="${message_dir:-/work/.decree/runs}"
+failure_log="${runs_dir}/notify-failures.log"
+
+# Append an undelivered notification to the failure log so it can be reviewed.
+log_notify_failure() {
+    local reason="$1"
+    {
+        printf '[%s] undelivered (%s) topic=%s title=%s\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$reason" "$ntfy_topic" "${ntfy_title:-}"
+        printf '%s\n---\n' "$body"
+    } >> "$failure_log" 2>/dev/null \
+        || echo "warn: could not write notify failure log at ${failure_log}" >&2
+}
+
 # Strip YAML frontmatter and leading/trailing whitespace
 body=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$message_file" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
 
@@ -75,9 +92,11 @@ elif [[ -n "$telegram_bot_token" && -n "$telegram_chat_id" ]]; then
         echo "Notification sent via Telegram fallback"
     else
         echo "Telegram fallback also failed" >&2
+        log_notify_failure "ntfy+telegram unreachable"
         exit 1
     fi
 else
     echo "ntfy unreachable and no Telegram fallback configured (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)" >&2
+    log_notify_failure "ntfy unreachable, no telegram fallback"
     exit 1
 fi
