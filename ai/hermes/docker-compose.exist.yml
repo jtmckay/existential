@@ -55,8 +55,17 @@ services:
     #   ports:
     #     - "48642:8642"   # OpenAI-compatible API
     #     - "49119:9119"   # Web dashboard
-    user: "1000:1000"
+    # No user: override. The image uses s6-overlay: init runs as root, the
+    # cont-init remaps the internal "hermes" user to HERMES_UID:HERMES_GID,
+    # chowns /opt/data to that uid, then s6-applyuidgid drops to uid 1000 before
+    # starting the gateway. Setting user: "1000:1000" breaks s6-applyuidgid (needs
+    # CAP_SETGID to call setgroups) and crashes the container before the gateway
+    # ever starts. The gateway itself runs unprivileged (uid 1000 = host user).
     environment:
+      # Remap the internal hermes user to the host user so the gateway runs as
+      # uid 1000 and writes files owned by uid 1000 into the bind-mount volume.
+      HERMES_UID: "1000"
+      HERMES_GID: "1000"
       # Pass through whichever provider keys are set in .env. hermes-agent
       # uses the one that matches the provider configured in
       # ~/.hermes/config.yaml (or whatever `hermes setup` picked).
