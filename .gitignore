@@ -2,6 +2,7 @@
 **/.env.local
 **/.env.generated
 /.env.shared
+/.claude/worktrees
 
 # Temp files created by existential.sh and e2e tests (always inside the repo)
 /.tmp.*

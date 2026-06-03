@@ -19,6 +19,7 @@ services:
   actual-budget-decree:
     container_name: actual-budget-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     networks:
       - exist

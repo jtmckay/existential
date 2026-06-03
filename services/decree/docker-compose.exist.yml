@@ -2,6 +2,7 @@ services:
   decree:
     container_name: decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     networks:
       - exist
@@ -37,6 +38,7 @@ services:
     # /opt/decree/node_modules (NODE_PATH), so we mount server.js + config and
     # run node directly (entrypoint override skips the decree-daemon bootstrap).
     image: existential/decree:local
+    pull_policy: never
     entrypoint: ["node", "/app/server.js"]
     user: "1000:1000"
     restart: unless-stopped

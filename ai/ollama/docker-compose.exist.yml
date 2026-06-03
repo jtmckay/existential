@@ -39,6 +39,7 @@ services:
   ollama-decree:
     container_name: ollama-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     depends_on:
       - ollama

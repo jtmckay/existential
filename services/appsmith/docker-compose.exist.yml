@@ -25,6 +25,7 @@ services:
   appsmith-decree:
     container_name: appsmith-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     networks:
       - exist

@@ -7,6 +7,7 @@ services:
     # every <slug>-decree sidecar can reference it via `image:` instead of each
     # re-building automations/Dockerfile into its own per-project image.
     image: existential/decree:local
+    pull_policy: never
     restart: "no"
     # adhoc runs ephemeral one-shots (--entrypoint ""), never the decree daemon,
     # so the image's daemon HEALTHCHECK (PID 1 == decree) never applies here.

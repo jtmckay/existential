@@ -25,6 +25,7 @@ services:
   portainer-decree:
     container_name: portainer-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     networks:
       - exist

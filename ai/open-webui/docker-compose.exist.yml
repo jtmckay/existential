@@ -39,6 +39,7 @@ services:
   open-webui-decree:
     container_name: open-webui-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
     restart: unless-stopped
     networks:
       - exist
