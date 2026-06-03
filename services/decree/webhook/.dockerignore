@@ -1,6 +1,0 @@
-node_modules
-npm-debug.log
-config.yml
-config.yml.example
-Dockerfile
-.dockerignore

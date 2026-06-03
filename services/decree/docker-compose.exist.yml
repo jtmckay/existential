@@ -1,9 +1,7 @@
 services:
   decree:
     container_name: decree
-    build:
-      context: ../../automations
-      dockerfile: Dockerfile
+    image: existential/decree:local  # shared image, built by existential-adhoc
     restart: unless-stopped
     networks:
       - exist
@@ -34,9 +32,13 @@ services:
 
   decree-webhook:
     container_name: decree-webhook
-    build:
-      context: ./webhook
-      dockerfile: Dockerfile
+    # Runs on the shared decree image — it's just an express app. Its deps
+    # (express, express-rate-limit, js-yaml) are baked into the image's
+    # /opt/decree/node_modules (NODE_PATH), so we mount server.js + config and
+    # run node directly (entrypoint override skips the decree-daemon bootstrap).
+    image: existential/decree:local
+    entrypoint: ["node", "/app/server.js"]
+    user: "1000:1000"
     restart: unless-stopped
     depends_on:
       - decree
@@ -56,13 +58,15 @@ services:
       #- DECREE_WEBHOOK_RATE_FAIL_MAX=10
     volumes:
       - ./decree/inbox:/inbox:z
+      - ./webhook/server.js:/app/server.js:ro
       - ./webhook/config.yml:/app/config.yml:ro
     healthcheck:
+      # decree image ships curl, not wget
       test:
         [
           "CMD",
-          "wget",
-          "-qO-",
+          "curl",
+          "-fsS",
           "http://127.0.0.1:${DECREE_WEBHOOK_PORT}/healthz",
         ]
       interval: 30s

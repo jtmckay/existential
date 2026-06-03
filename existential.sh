@@ -38,7 +38,7 @@ fi
 
 # Build the adhoc image if not present; all interactive setup runs inside it.
 ensure_adhoc_built() {
-    if ! $DOCKER_CMD image inspect existential-adhoc &>/dev/null 2>&1; then
+    if ! $DOCKER_CMD image inspect existential/decree:local &>/dev/null 2>&1; then
         echo "Building existential-adhoc (first run)..."
         $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" build existential-adhoc
     fi

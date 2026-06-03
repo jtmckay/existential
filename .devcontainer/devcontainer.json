@@ -1,9 +1,10 @@
 {
   "name": "existential",
-  "build": {
-    "context": "../automations",
-    "dockerfile": "Dockerfile"
-  },
+  // Reuse the shared decree image instead of building a separate vsc-* copy of
+  // the same automations/Dockerfile. It must already exist locally — run
+  // `./existential.sh` (or `docker compose -f existential-compose.yml build
+  // existential-adhoc`) once before "Reopen in Container".
+  "image": "existential/decree:local",
   "workspaceMount": "source=${localWorkspaceFolder},target=/repo,type=bind,consistency=cached",
   "workspaceFolder": "/repo",
   // Symlink the pre-installed node_modules into the workspace so the VS Code

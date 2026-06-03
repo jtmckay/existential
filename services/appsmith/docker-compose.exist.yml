@@ -24,9 +24,7 @@ services:
 
   appsmith-decree:
     container_name: appsmith-decree
-    build:
-      context: ../../automations
-      dockerfile: Dockerfile
+    image: existential/decree:local  # shared image, built by existential-adhoc
     restart: unless-stopped
     networks:
       - exist

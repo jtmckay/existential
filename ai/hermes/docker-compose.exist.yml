@@ -147,9 +147,7 @@ services:
 
   hermes-decree:
     container_name: hermes-decree
-    build:
-      context: ../../automations
-      dockerfile: Dockerfile
+    image: existential/decree:local  # shared image, built by existential-adhoc
     restart: unless-stopped
     networks:
       - exist

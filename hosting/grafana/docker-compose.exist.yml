@@ -23,9 +23,7 @@ services:
 
   grafana-decree:
     container_name: grafana-decree
-    build:
-      context: ../../automations
-      dockerfile: Dockerfile
+    image: existential/decree:local  # shared image, built by existential-adhoc
     restart: unless-stopped
     networks:
       - exist

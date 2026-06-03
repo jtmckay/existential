@@ -34,6 +34,10 @@ ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+# Daemon services mount their project at /work/.decree and don't set DECREE_DIR,
+# so `decree daemon` must run from /work to detect the project. Without this the
+# daemon dies with "not inside a decree project".
+WORKDIR /work
 # Liveness for the no-network decree daemon (main + every *-decree sidecar).
 # After entrypoint.sh `exec decree daemon`, PID 1's comm is "decree". A stale
 # or mis-built image (no ENTRYPOINT → base CMD "bash") fails this check, and a

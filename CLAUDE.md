@@ -384,9 +384,14 @@ correctly; the host gate proves every container is actually up and not flapping.
 #### Daemon healthcheck convention
 
 Containers with an HTTP surface declare a `healthcheck` in their compose file (see
-`decree-webhook`). Containers built from `automations/Dockerfile` (the main `decree`
-daemon and every `*-decree` sidecar) inherit a single `HEALTHCHECK` baked into that
-image: `grep -q decree /proc/1/comm`. After `entrypoint.sh` does `exec decree daemon`,
+`decree-webhook`). The decree image is built **once** from `automations/Dockerfile` —
+`existential-adhoc` (in `existential-compose.yml`) is the canonical builder and tags it
+`existential/decree:local`; the main `decree` daemon and every `*-decree` sidecar
+reference that tag via `image:` instead of each re-building it (which used to spawn one
+1GB image per service per compose project). They differ only by their compose
+`volumes:`/env. The shared image sets `WORKDIR /work` so `decree daemon` finds the
+project mounted at `/work/.decree`, and bakes a single `HEALTHCHECK`:
+`grep -q decree /proc/1/comm`. After `entrypoint.sh` does `exec decree daemon`,
 PID 1's comm is `decree`; a mis-built image (no ENTRYPOINT → base `CMD bash`) or a dead
 daemon fails the check and shows `(unhealthy)`. The `start-period` is long (330s) so a
 sidecar running its migration health-wait loop as `bash` reads `starting`, not
