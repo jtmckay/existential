@@ -113,7 +113,11 @@ _probe_code() {
     local url="$1" timeout="$2"; shift 2
     local code attempts=0 max="${EXIST_PROBE_RETRIES:-8}"
     while :; do
-        code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null || echo "000")
+        # curl -w prints "000" to stdout on connection failure (and exits non-zero,
+        # which $() swallows) — so no "|| echo 000" fallback, which would yield
+        # "000000". Normalize an empty capture (curl produced nothing) to "000".
+        code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null)
+        code=${code:-000}
         case "$code" in 000|503) ;; *) break ;; esac
         attempts=$((attempts + 1))
         [ "$attempts" -ge "$max" ] && break
