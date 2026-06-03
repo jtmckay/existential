@@ -304,6 +304,7 @@ Current inventory:
 | `services/actual-budget/exist.setup.sh` | `./existential.sh run actual-budget setup` — connect to budget server, save credentials |
 | `services/ntfy/exist.setup.sh` | `./existential.sh run ntfy setup` — save ntfy access token |
 | `ai/ollama/exist.pull-models.sh` | `./existential.sh run ollama pull-models` — manual model pull (automated via ollama-decree migrations) |
+| `ai/ollama/exist.benchmark.sh` | `./existential.sh run ollama benchmark [model]` — decode-speed (tok/s) benchmark across increasing context sizes |
 | `services/vikunja/decree/migrations/01-create-default-user.md` | auto — sidecar runs once after vikunja is healthy |
 | `services/decree/exist.gmail-sync.sh` | `./existential.sh run decree gmail-sync` |
 | `services/decree/exist.gmail-labels.sh` | `./existential.sh run decree gmail-labels` |
@@ -440,6 +441,7 @@ sidecar running its migration health-wait loop as `bash` reads `starting`, not
 ./existential.sh run actual-budget setup   # Connect to budget server, save credentials
 ./existential.sh run ntfy setup            # Save ntfy access token
 ./existential.sh run ollama pull-models    # Pull configured Ollama models
+./existential.sh run ollama benchmark      # Benchmark decode tok/s across context sizes (optional model arg)
 ./existential.sh run caddy public-domain   # Set up optional public domain with real HTTPS
 ./existential.sh run decree gmail-sync
 ./existential.sh run decree gmail-labels
