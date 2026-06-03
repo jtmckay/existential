@@ -4,6 +4,9 @@ services:
     container_name: grafana
     image: grafana/grafana:11.2.0
     restart: unless-stopped
+    # grafana runs as uid 472 internally; run as the host user instead so it can
+    # write the bind-mounted grafana_data (host-owned) when NFS isn't configured.
+    user: "1000:1000"
     networks:
       - exist
     # ports disabled — access via https://grafana.internal (Caddy + pihole required)

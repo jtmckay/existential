@@ -10,7 +10,7 @@ check_script() {
     if ! bash -n "$script" 2>/dev/null; then
         echo "SYNTAX ERROR: $script"
         bash -n "$script" 2>&1 | sed 's/^/  /'
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 }
 

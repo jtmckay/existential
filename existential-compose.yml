@@ -4,6 +4,10 @@ services:
     build:
       context: ./automations
     restart: "no"
+    # adhoc runs ephemeral one-shots (--entrypoint ""), never the decree daemon,
+    # so the image's daemon HEALTHCHECK (PID 1 == decree) never applies here.
+    healthcheck:
+      disable: true
     environment:
       - IN_CONTAINER=1
       - DECREE_DIR=/work/.decree

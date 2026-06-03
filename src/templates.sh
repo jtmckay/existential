@@ -60,53 +60,6 @@ _find_service_dirs() {
     done | sort
 }
 
-# ── NFS volume handling ───────────────────────────────────────────────────────
-
-_comment_out_nfs_volumes() {
-    local file="$1"
-    local tmp=""
-    tmp=$(mktemp "${REPO_DIR}/.tmp.XXXXXX")
-    trap 'trap - RETURN; [[ -n "$tmp" ]] && rm -f "$tmp"' RETURN
-
-    mapfile -t _lines < "$file"
-    local -a _out=()
-    local _i=0 _n=${#_lines[@]}
-
-    while (( _i < _n )); do
-        local _line="${_lines[$_i]}"
-        if [[ "$_line" =~ ^([[:space:]]+)driver_opts[[:space:]]*: ]]; then
-            local _base_indent=${#BASH_REMATCH[1]}
-            local -a _block=("$_line")
-            local _j=$(( _i + 1 ))
-            while (( _j < _n )); do
-                local _bl="${_lines[$_j]}"
-                [[ -z "${_bl//[[:space:]]/}" ]] && break
-                local _leading="${_bl%%[![:space:]]*}"
-                (( ${#_leading} > _base_indent )) || break
-                _block+=("$_bl"); (( _j++ ))
-            done
-            local _has_truenas=0
-            for _bl in "${_block[@]}"; do
-                [[ "$_bl" == *EXIST_NFS_* || "$_bl" =~ type:[[:space:]]*\"?nfs\"? ]] && { _has_truenas=1; break; }
-            done
-            if (( _has_truenas )); then
-                if [[ ${#_out[@]} -gt 0 && "${_out[-1]}" =~ ^[[:space:]]+driver[[:space:]]*: ]]; then
-                    _out[-1]="#${_out[-1]}"
-                fi
-                for _bl in "${_block[@]}"; do _out+=("#$_bl"); done
-            else
-                _out+=("${_block[@]}")
-            fi
-            _i=$_j
-        else
-            _out+=("$_line"); (( _i++ ))
-        fi
-    done
-
-    printf '%s\n' "${_out[@]}" > "$tmp"
-    mv "$tmp" "$file"
-}
-
 # ── Placeholder replacement ───────────────────────────────────────────────────
 
 replace_placeholders() {
@@ -236,14 +189,9 @@ _process_one_template() {
     else
         cp "$src" "$dst"
         replace_placeholders "$dst"
-        if [[ "$dst" == */docker-compose.yml ]] && grep -q 'EXIST_NFS_SERVER_ADDRESS' "$dst" 2>/dev/null; then
-            local nfs_addr=""
-            nfs_addr=$(grep '^EXIST_NFS_SERVER_ADDRESS=' "${REPO_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
-            if [[ -z "$nfs_addr" || "$nfs_addr" == "EXIST_CLI" ]]; then
-                _comment_out_nfs_volumes "$dst"
-                echo "  note: NFS server not configured — NFS volumes commented out in ${dst#"$REPO_DIR/"}"
-            fi
-        fi
+        # NFS-vs-bind for persistent volumes is decided by generate-compose.ts
+        # (convertNfsVolumes): bind mount to volumes/<name>/ when NFS is unset,
+        # NFS named volume when it's configured. Templates leave driver_opts intact.
     fi
 
     echo "  created: ${dst#"$REPO_DIR/"}"

@@ -26,14 +26,14 @@ run() {
     if output=$(bash "$script" 2>&1); then
         echo "$output"
         if echo "$output" | grep -q 'skipped — '; then
-            ((SKIP++))
+            SKIP=$((SKIP + 1))
         else
-            ((PASS++))
+            PASS=$((PASS + 1))
         fi
     else
         rc=$?
         echo "$output"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
         FAIL_NAMES+=("$label")
     fi
     return 0

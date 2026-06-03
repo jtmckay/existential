@@ -11,8 +11,10 @@
 # (NAS/NFS, DNS, TLS) and are excluded — shown greyed out in the picker.
 #
 # Usage (via existential.sh):
-#   ./existential.sh e2e          # interactive fzf picker (all testable pre-checked)
-#   ./existential.sh e2e --all    # non-interactive: run all testable quests
+#   ./existential.sh e2e                 # interactive fzf picker (all testable pre-checked)
+#   ./existential.sh e2e --all           # non-interactive: run all testable quests
+#   ./existential.sh e2e automation      # run quests whose name/filename matches a pattern
+#   ./existential.sh e2e ai finance      # multiple patterns — each selects matching quest(s)
 #
 # Requirements:
 #   - Docker + Docker Compose v2 on the host
@@ -47,6 +49,43 @@ var_to_path() {
 automatable_quests() {
     for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
         grep -q '^e2e:[[:space:]]*true' "$yaml" && echo "$yaml"
+    done
+}
+
+# Resolve name patterns (e.g. "automation" or "ai finance") to automatable
+# quest YAML paths. Each pattern is matched case-insensitively against the
+# quest's `name:` field and its filename. A pattern that matches only a
+# non-e2e quest (one needing manual NAS/DNS/TLS setup) reports why it's
+# skipped; a pattern that matches nothing is warned about. Output may contain
+# duplicates — the caller dedupes while preserving order.
+quest_name() { grep '^name:' "$1" | sed 's/^name:[[:space:]]*//'; }
+
+quests_by_names() {
+    local -a all=()
+    mapfile -t all < <(automatable_quests)
+    local pat yaml found hit
+    for pat in "$@"; do
+        found=""
+        for yaml in "${all[@]}"; do
+            if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
+            || grep -qi -- "$pat" <<<"$(basename "$yaml" .yml)"; then
+                echo "$yaml"; found=1
+            fi
+        done
+        [ -n "$found" ] && continue
+        # No e2e-able match — was it a non-e2e quest, or just a typo?
+        hit=""
+        for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
+            if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
+            || grep -qi -- "$pat" <<<"$(basename "$yaml" .yml)"; then
+                hit=$(quest_name "$yaml"); break
+            fi
+        done
+        if [ -n "$hit" ]; then
+            log "'${pat}' matched \"${hit}\" but that quest isn't e2e-able (needs manual setup) — skipped" >&2
+        else
+            log "No quest matched '${pat}' — skipped" >&2
+        fi
     done
 }
 
@@ -222,14 +261,27 @@ run_quest() {
 
     [ -f "$WORK/docker-compose.yml" ] || die "generate-compose.ts produced no docker-compose.yml"
 
-    # 6. Bring services up
+    # 6. Bring services up. --build is mandatory: docker compose reuses cached
+    #    images and never rebuilds on a Dockerfile change, so without it e2e can
+    #    silently test a stale image of the committed code (this is exactly how a
+    #    crash-looping decree daemon once slipped through as a PASS).
     log "Starting services..."
-    docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" up -d
+    docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" up -d --build
 
-    # 7. Wait for containers to stabilize
-    wait_running "$WORK"
+    # 7. Wait for containers to settle out of created/restarting transients.
+    #    Best-effort — the container-health gate below is the actual verdict.
+    wait_running "$WORK" || true
 
-    # 8. Run per-service tests
+    # 8. Container-state gate — fails the quest if anything is restart-looping,
+    #    exited, or unhealthy. This is the only place with docker visibility, so
+    #    it's where daemon liveness (decree + sidecars, no HTTP surface) is checked.
+    if ! bash "${REPO_DIR}/src/test/container-health.sh" \
+            "$WORK/docker-compose.yml" "$E2E_PROJECT"; then
+        log "${quest_name} — container health gate FAILED"
+        return 1
+    fi
+
+    # 9. Run per-service tests
     log "Running service tests for ${quest_name}:"
     local e2e_paths=""
     for var in $(quest_vars "$yaml"); do
@@ -239,14 +291,18 @@ run_quest() {
             e2e_paths="${e2e_paths:+${e2e_paths}:}${svc_path}"
         fi
     done
-    docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
-        -e E2E_MODE=1 \
-        -e "E2E_SERVICE_PATHS=${e2e_paths}" \
-        --entrypoint "" existential-adhoc \
-        bash /src/test/run-all.sh
+    if ! docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
+            -e E2E_MODE=1 \
+            -e "E2E_SERVICE_PATHS=${e2e_paths}" \
+            --entrypoint "" existential-adhoc \
+            bash /src/test/run-all.sh; then
+        log "${quest_name} — service tests FAILED"
+        return 1
+    fi
 
     log "${quest_name} — PASSED"
     cleanup
+    return 0
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -258,8 +314,18 @@ docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build 
 # Quest selection
 declare -a SELECTED_YAMLS=()
 
-if [ "${1:-}" = "--all" ] || [ ! -t 0 ]; then
-    # Non-interactive: run every automatable quest
+if [ "${1:-}" = "--all" ]; then
+    # Explicitly run every automatable quest
+    mapfile -t SELECTED_YAMLS < <(automatable_quests)
+    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No automatable quests found."
+elif [ "$#" -gt 0 ]; then
+    # Name patterns (e2e automation, e2e ai finance) select specific quests in
+    # any context — checked before the TTY branches so it works non-interactively
+    # too. Dedupe while preserving order (a pattern may match several quests).
+    mapfile -t SELECTED_YAMLS < <(quests_by_names "$@" | awk '!seen[$0]++')
+    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No e2e-able quests matched: $*"
+elif [ ! -t 0 ]; then
+    # Non-interactive with no selection: run every automatable quest
     mapfile -t SELECTED_YAMLS < <(automatable_quests)
     [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No automatable quests found."
 elif command -v fzf >/dev/null 2>&1; then

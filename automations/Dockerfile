@@ -34,4 +34,13 @@ ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+# Liveness for the no-network decree daemon (main + every *-decree sidecar).
+# After entrypoint.sh `exec decree daemon`, PID 1's comm is "decree". A stale
+# or mis-built image (no ENTRYPOINT → base CMD "bash") fails this check, and a
+# dead daemon stops being PID 1 — both surface as (unhealthy) in `docker ps`.
+# start-period is generous because sidecars spend up to DECREE_MIGRATE_TIMEOUT
+# (default 300s) running the health-wait loop as bash before exec-ing the daemon;
+# during that window the check fails but stays "starting", not "unhealthy".
+HEALTHCHECK --interval=30s --timeout=5s --start-period=330s --retries=3 \
+    CMD grep -q decree /proc/1/comm || exit 1
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -207,8 +207,9 @@ src/
 │   ├── generate_hex_key.sh         `generate_hex_key N` / `generate_32_char_hex` / `generate_64_char_hex` — sourced only
 │   └── generate_password.sh        `generate_24_char_password` — sourced only
 └── test/
-    ├── e2e.sh                      End-to-end harness — fresh clone per quest, docker up, test, down
+    ├── e2e.sh                      End-to-end harness — fresh clone per quest, docker up --build, gate, test, down
     ├── exist-test.sh               Shared helpers for per-service exist.test.sh (probes, output, skip-if-disabled)
+    ├── container-health.sh         Host-side container-state gate — fails on restart-loops/exited/unhealthy (runs where docker is visible, NOT in adhoc)
     ├── run-all.sh                  Test suite orchestrator — runs src/test/* + every enabled exist.test.sh
     ├── test-syntax.sh              Lint every script (src/ + every exist.*.sh)
     ├── test-gmail.sh               Validate Gmail credentials (routine-scoped, not service-scoped)
@@ -298,8 +299,8 @@ Current inventory:
 | Path | Trigger |
 |---|---|
 | `hosting/portainer/exist.initial.sh` | auto — every run, generates password file with mode 600 |
-| `hosting/docker-daemon/exist.initial.sh` | auto — every run, applies log rotation daemon.json if not yet applied |
 | `hosting/caddy/exist.public-domain.sh` | `./existential.sh run caddy public-domain` — optional public-domain setup |
+| `hosting/docker-daemon/exist.log-rotation.sh` | `./existential.sh run docker-daemon log-rotation` — apply Docker log rotation (daemon.json + reload) |
 | `services/actual-budget/exist.setup.sh` | `./existential.sh run actual-budget setup` — connect to budget server, save credentials |
 | `services/ntfy/exist.setup.sh` | `./existential.sh run ntfy setup` — save ntfy access token |
 | `ai/ollama/exist.pull-models.sh` | `./existential.sh run ollama pull-models` — manual model pull (automated via ollama-decree migrations) |
@@ -310,8 +311,8 @@ Current inventory:
 | `services/decree/exist.decree-ui.sh` | `./existential.sh run decree decree-ui` — generate Lowcoder control panel |
 
 **Init ordering:** `run_initials()` walks `SERVICE_CATEGORIES` in this order:
-`hosting → nas → ai → services`. Hosting-level setup (portainer password, docker-daemon
-config) completes before service-level scripts run.
+`hosting → nas → ai → services`. Hosting-level setup (e.g. portainer password)
+completes before service-level scripts run.
 
 ### Service test scripts (`exist.test.sh`)
 
@@ -355,6 +356,42 @@ Triggered via:
 Tests for general infra (not tied to a single service — e.g., rclone, syntax linting)
 stay in `src/test/`. Tests for a specific service belong in that service's directory
 as `exist.test.sh`.
+
+#### Container-state gate (host-side)
+
+`exist.test.sh` self-elevates into `existential-adhoc`, which has **no docker
+socket** — it can only reach services over the network. So a per-service test
+**cannot** see a container that is crash-looping, exited, or `(unhealthy)`, and it
+is blind to daemons with no network surface (the main `decree` daemon and every
+`*-decree` sidecar are `bash` daemons — there is nothing to HTTP-probe).
+
+That gap is covered by `src/test/container-health.sh`, which runs on the **host**
+(the only place docker is visible). For every container in a compose project it
+asserts `status == running`, no active restart-loop (RestartCount stable across a
+short resample), and `Health.Status != unhealthy` — dumping logs and exiting
+non-zero on any failure. It is wired into both entry points:
+
+- **`./existential.sh test`** runs it against the live `docker-compose.yml` before
+  the adhoc `run-all.sh`.
+- **`src/test/e2e.sh`** runs it after `docker compose up -d --build` and **fails the
+  quest** if it trips. (e2e always builds with `--build` — compose reuses cached
+  images and never rebuilds on a Dockerfile change, so without it e2e can silently
+  test a stale image of the committed code.)
+
+The two layers are complementary: `exist.test.sh` proves a service answers
+correctly; the host gate proves every container is actually up and not flapping.
+
+#### Daemon healthcheck convention
+
+Containers with an HTTP surface declare a `healthcheck` in their compose file (see
+`decree-webhook`). Containers built from `automations/Dockerfile` (the main `decree`
+daemon and every `*-decree` sidecar) inherit a single `HEALTHCHECK` baked into that
+image: `grep -q decree /proc/1/comm`. After `entrypoint.sh` does `exec decree daemon`,
+PID 1's comm is `decree`; a mis-built image (no ENTRYPOINT → base `CMD bash`) or a dead
+daemon fails the check and shows `(unhealthy)`. The `start-period` is long (330s) so a
+sidecar running its migration health-wait loop as `bash` reads `starting`, not
+`unhealthy`, until it exec's the daemon. `existential-adhoc` disables this healthcheck
+(`healthcheck: disable: true`) since it runs ephemeral one-shots, never the daemon.
 
 ---
 
@@ -415,9 +452,9 @@ docker exec <svc>-decree decree run volume-backup -- nightly # Trigger volume-ba
 ./existential.sh validate                # Conventions + drift checks
 ./existential.sh validate conventions    # Slugs synced across compose/piHole/Caddy/dashy
 ./existential.sh validate drift          # What re-rendering would change
-./existential.sh e2e                     # End-to-end: fresh clone → render → docker up → test → down (quests 1–8)
-./existential.sh e2e 3                   # E2E for quest 3 only
-./existential.sh e2e 1 3 5               # E2E for specific quests
+./existential.sh e2e                     # End-to-end: fresh clone → render → docker up → test → down (all e2e-able quests)
+./existential.sh e2e automation          # E2E for quests matching a name/filename pattern
+./existential.sh e2e ai finance          # E2E for specific quests (one pattern each)
 ```
 
 ### Manual service setup

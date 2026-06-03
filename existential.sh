@@ -275,6 +275,8 @@ Actions:
   validate [name]     On-demand checks: all (default), conventions, drift.
   e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
   e2e --all           Run all e2e-testable quests without prompting.
+  e2e <pattern>...    Run e2e-testable quests matching name/filename pattern(s),
+                      e.g. 'e2e automation' or 'e2e ai finance'.
 
 Options:
   --force             Re-render existing files even if they already exist.
@@ -345,7 +347,15 @@ case "$action" in
         ;;
     test)
         case "${1:-all}" in
-            all)                 run_adhoc bash /src/test/run-all.sh ;;
+            all)
+                _rc=0
+                # Host-side container-state gate first (adhoc has no docker socket,
+                # so this is the only place daemon crash-loops are visible).
+                DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/container-health.sh" \
+                    "${SCRIPT_DIR}/docker-compose.yml" || _rc=1
+                run_adhoc bash /src/test/run-all.sh || _rc=1
+                exit "$_rc"
+                ;;
             syntax|gmail|rclone) run_adhoc bash "/src/test/test-${1}.sh" ;;
             *)                   _run_service_action "${1}" "test" ;;
         esac

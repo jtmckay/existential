@@ -103,13 +103,32 @@ warn() {
 
 # ── Probes ───────────────────────────────────────────────────────────────────
 
+# Fetch the HTTP status code for URL, retrying while the service is still
+# starting — 000 (not accepting connections yet) or 503 (up but not ready,
+# e.g. Loki replaying its WAL). Real errors (404/500/…) return immediately.
+# Container liveness is already proven by the host container-health gate before
+# tests run, so a lingering 000/503 here means "warming up", not "down".
+# Budget: EXIST_PROBE_RETRIES (default 8) attempts, 2s apart (~16s for slow starts).
+_probe_code() {
+    local url="$1" timeout="$2"; shift 2
+    local code attempts=0 max="${EXIST_PROBE_RETRIES:-8}"
+    while :; do
+        code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null || echo "000")
+        case "$code" in 000|503) ;; *) break ;; esac
+        attempts=$((attempts + 1))
+        [ "$attempts" -ge "$max" ] && break
+        sleep 2
+    done
+    echo "$code"
+}
+
 # http_probe NAME URL [EXPECT_STATUS=200] [TIMEOUT=5] [CURL_ARGS...]
 # Extra curl args (-H, -k, etc.) come after timeout.
 http_probe() {
     local name="$1" url="$2" expect="${3:-200}" timeout="${4:-5}"
     shift 4 2>/dev/null || shift $#
     local code
-    code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null || echo "000")
+    code=$(_probe_code "$url" "$timeout" "$@")
     if [ "$code" = "$expect" ]; then
         ok "$name"
     elif [ "$code" = "000" ]; then
@@ -128,7 +147,7 @@ http_probe_any() {
     local name="$1" url="$2" pattern="$3" timeout="${4:-5}"
     shift 4 2>/dev/null || shift $#
     local code
-    code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null || echo "000")
+    code=$(_probe_code "$url" "$timeout" "$@")
     if [[ "$code" =~ $pattern ]]; then
         ok "$name"
     elif [ "$code" = "000" ]; then

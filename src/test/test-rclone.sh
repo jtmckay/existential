@@ -23,7 +23,7 @@ for remote in "${remotes[@]}"; do
         echo "  OK: ${remote}"
     else
         echo "  FAIL: ${remote} (unreachable)"
-        ((FAIL++))
+        FAIL=$((FAIL + 1))
     fi
 done
 
