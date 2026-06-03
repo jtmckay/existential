@@ -99,7 +99,7 @@ services:
   # Connects to hermes-agent over the exist Docker network.
   hermes-workspace:
     container_name: hermes-workspace
-    image: ghcr.io/outsourc-e/hermes-workspace:v2.3.0
+    image: ghcr.io/outsourc-e/hermes-workspace:v2.1.3
     restart: unless-stopped
     deploy:
       resources:

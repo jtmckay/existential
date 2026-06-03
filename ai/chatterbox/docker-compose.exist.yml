@@ -4,7 +4,7 @@ services:
   # API docs at http://localhost:8004/docs
   chatterbox:
     container_name: chatterbox
-    image: ghcr.io/devnen/chatterbox-tts-server:v2.0.0
+    image: ghcr.io/devnen/chatterbox-tts-server:2.0.0
     restart: unless-stopped
     networks:
       - exist
