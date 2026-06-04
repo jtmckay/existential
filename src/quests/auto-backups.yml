@@ -1,5 +1,6 @@
 name: Automated Backups
 tagline: Nightly database and volume backups via per-service Decree sidecars
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_MEALIE
     label: Mealie

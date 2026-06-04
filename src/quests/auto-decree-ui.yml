@@ -1,5 +1,6 @@
 name: Decree Routine UI
 tagline: Generate a Lowcoder control panel to trigger decree routines from a browser
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree

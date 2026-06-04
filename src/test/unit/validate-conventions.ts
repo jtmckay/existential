@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const PIHOLE   = path.join(REPO_ROOT, 'hosting/pihole/docker-compose.exist.yml');
 const CADDY    = path.join(REPO_ROOT, 'hosting/caddy/Caddyfile.exist.Caddyfile');
 const DASHY    = path.join(REPO_ROOT, 'services/dashy/dashy-conf.exist.yml');

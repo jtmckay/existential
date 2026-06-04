@@ -1,5 +1,6 @@
 name: Weekly Version Updates
 tagline: Get notified when image updates are available for your services
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree

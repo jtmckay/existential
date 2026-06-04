@@ -1,5 +1,6 @@
 name: Receipt Split
 tagline: Reply to a transaction notification with a receipt photo to split it automatically
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
     label: Actual Budget

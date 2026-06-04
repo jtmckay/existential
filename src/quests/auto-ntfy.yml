@@ -1,5 +1,6 @@
 name: Notifications (ntfy)
 tagline: Connect Decree and other services to your ntfy notification channel
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_NTFY
     label: ntfy

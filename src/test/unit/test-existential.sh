@@ -18,8 +18,22 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# Inside existential-adhoc the full repo is mounted at /repo; on the host,
+# navigate up from src/test/unit/ to the repo root.
+if [[ -n "${IN_CONTAINER:-}" ]]; then
+    REPO="/repo"
+else
+    REPO="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+fi
 EXISTENTIAL="${REPO}/existential.sh"
+
+# Export docker/podman stubs so CLI subprocess invocations (bash "$EXISTENTIAL"
+# --help, etc.) don't hit the real runtime-detection block. The stubs are also
+# re-declared inside _source_existential's subshell, which is harmless.
+docker()             { :; }
+podman()             { :; }
+distrobox-host-exec() { return 1; }
+export -f docker podman distrobox-host-exec 2>/dev/null || true
 
 # ── Temp fixture dir ──────────────────────────────────────────────────────────
 

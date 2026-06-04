@@ -49,6 +49,7 @@ run_adhoc() {
     local tty_flags=()
     [[ -t 0 && -t 1 ]] && tty_flags=(-it)
     $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm "${tty_flags[@]}" \
+        --user "$(id -u):$(id -g)" \
         --entrypoint "" existential-adhoc "$@"
 }
 
@@ -152,7 +153,7 @@ run_initials() {
         fi
     done < <(_find_service_dirs)
 
-    [[ $ran -gt 0 ]] && echo ""
+    if [[ $ran -gt 0 ]]; then echo ""; fi
 }
 
 # ── Run dispatch ──────────────────────────────────────────────────────────────
@@ -323,11 +324,12 @@ case "$action" in
         fi
         echo ""
         echo "Generating docker-compose.yml..."
-        $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         _warn_if_no_gateway
         run_initials
         echo "Done! Next step:  docker compose up -d"
+        echo ""
+        echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
         ;;
     quest)
         ensure_adhoc_built
@@ -336,7 +338,6 @@ case "$action" in
         _reload_env_shared
         echo ""
         echo "Generating docker-compose.yml..."
-        $DOCKER_CMD network create exist 2>/dev/null || true
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
         _warn_if_no_gateway
         run_initials
@@ -351,12 +352,16 @@ case "$action" in
                 _rc=0
                 # Host-side container-state gate first (adhoc has no docker socket,
                 # so this is the only place daemon crash-loops are visible).
-                DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/container-health.sh" \
+                DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/integration/container-health.sh" \
                     "${SCRIPT_DIR}/docker-compose.yml" || _rc=1
-                run_adhoc bash /src/test/run-all.sh || _rc=1
+                run_adhoc bash /src/test/run-all.sh all || _rc=1
                 exit "$_rc"
                 ;;
-            syntax|gmail|rclone) run_adhoc bash "/src/test/test-${1}.sh" ;;
+            unit)        run_adhoc bash /src/test/run-all.sh unit ;;
+            integration) run_adhoc bash /src/test/run-all.sh integration ;;
+            services)    run_adhoc bash /src/test/run-all.sh services ;;
+            syntax|existential|templates|compose) run_adhoc bash "/src/test/unit/test-${1}.sh" ;;
+            gmail|rclone)                          run_adhoc bash "/src/test/integration/test-${1}.sh" ;;
             *)                   _run_service_action "${1}" "test" ;;
         esac
         ;;
@@ -365,19 +370,19 @@ case "$action" in
             all)
                 _rc=0
                 echo "=== Conventions ==="
-                run_adhoc tsx /src/test/validate-conventions.ts || _rc=1
+                run_adhoc tsx /src/test/unit/validate-conventions.ts || _rc=1
                 echo ""
                 echo "=== Drift (template vs rendered) ==="
-                run_adhoc tsx /src/test/check-drift.ts || _rc=1
+                run_adhoc tsx /src/test/unit/check-drift.ts || _rc=1
                 exit $_rc
                 ;;
-            conventions) run_adhoc tsx /src/test/validate-conventions.ts ;;
-            drift)       run_adhoc tsx /src/test/check-drift.ts ;;
+            conventions) run_adhoc tsx /src/test/unit/validate-conventions.ts ;;
+            drift)       run_adhoc tsx /src/test/unit/check-drift.ts ;;
             *)           echo "Unknown validation: ${1:-}. Available: all, conventions, drift" >&2; exit 1 ;;
         esac
         ;;
     e2e)
-        bash "${SCRIPT_DIR}/src/test/e2e.sh" "$@"
+        bash "${SCRIPT_DIR}/src/test/e2e/e2e.sh" "$@"
         ;;
     --help|-h|help)
         usage

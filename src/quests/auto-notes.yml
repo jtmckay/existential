@@ -1,5 +1,6 @@
 name: Notes Sync
 tagline: Compile and sync your Logseq notes from Nextcloud to Dropbox every 10 minutes
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree

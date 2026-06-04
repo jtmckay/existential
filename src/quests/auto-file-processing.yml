@@ -1,5 +1,6 @@
 name: File Change Processing
 tagline: React to files being created or updated in MinIO S3 storage
+e2e: false
 services:
   - var: EXIST_IS_NAS_MINIO
     label: MinIO

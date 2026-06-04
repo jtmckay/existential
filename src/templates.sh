@@ -7,8 +7,6 @@ REPO_DIR="${REPO_DIR:-/repo}"
 FORCE="${FORCE:-false}"
 SERVICE_CATEGORIES=(hosting nas ai services)
 
-command -v fzf >/dev/null 2>&1 || { echo "Error: fzf not found — ensure it is installed in the existential-adhoc container" >&2; exit 1; }
-
 . /src/utils/generate_password.sh
 . /src/utils/generate_hex_key.sh
 
@@ -62,73 +60,83 @@ _find_service_dirs() {
 
 # ── Placeholder replacement ───────────────────────────────────────────────────
 
-replace_placeholders() {
-    local file="$1"
+# Render a template entirely in memory: read the source, resolve every placeholder
+# (EXIST_* references, generated secrets, interactive EXIST_CLI prompts) in a string
+# variable, and print the finished content to stdout. Nothing is written to disk
+# here — the caller writes the destination once, after this returns. Interactive
+# prompts go to the terminal (stderr); only the resolved file lands on stdout.
+render_template() {
+    local src="$1" dst="$2"
+    local content; content="$(cat "$src")"
+    local line_num val
 
     # EXIST_* — substitute values already written to .env.shared.
-    # Skip when $file IS .env.shared (would replace key names with their own values).
-    if [[ -f "${REPO_DIR}/.env.shared" ]] && \
-       [[ "$(realpath "$file" 2>/dev/null)" != "$(realpath "${REPO_DIR}/.env.shared" 2>/dev/null)" ]]; then
+    # Skip when rendering .env.shared itself (would replace keys with their own values).
+    if [[ -f "${REPO_DIR}/.env.shared" && "$dst" != "${REPO_DIR}/.env.shared" ]]; then
+        local key value _escaped
+        local -a sed_args=()
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
             # Escape sed replacement metacharacters: \ first, then & and |
-            local _escaped="${value//\\/\\\\}"
+            _escaped="${value//\\/\\\\}"
             _escaped="${_escaped//&/\\&}"
             _escaped="${_escaped//|/\\|}"
-            sed -i "s|\\\${${key}[^}]*}|${_escaped}|g; s|${key}|${_escaped}|g" "$file"
+            sed_args+=(-e "s|\\\${${key}[^}]*}|${_escaped}|g" -e "s|${key}|${_escaped}|g")
         done < "${REPO_DIR}/.env.shared"
+        if [[ ${#sed_args[@]} -gt 0 ]]; then
+            content="$(sed "${sed_args[@]}" <<<"$content")"
+        fi
     fi
 
     # Auto-generated — one replacement at a time so each occurrence gets a unique value
-    local line_num val
-    while grep -q "EXIST_24_CHAR_PASSWORD" "$file" 2>/dev/null; do
-        line_num=$(grep -n "EXIST_24_CHAR_PASSWORD" "$file" | head -1 | cut -d: -f1)
+    while grep -q "EXIST_24_CHAR_PASSWORD" <<<"$content"; do
+        line_num=$(grep -n "EXIST_24_CHAR_PASSWORD" <<<"$content" | head -1 | cut -d: -f1)
         val=$(gen_password 24)
-        sed -i "${line_num}s|EXIST_24_CHAR_PASSWORD|${val}|" "$file"
+        content="$(sed "${line_num}s|EXIST_24_CHAR_PASSWORD|${val}|" <<<"$content")"
     done
-    while grep -q "EXIST_32_CHAR_HEX_KEY" "$file" 2>/dev/null; do
-        line_num=$(grep -n "EXIST_32_CHAR_HEX_KEY" "$file" | head -1 | cut -d: -f1)
+    while grep -q "EXIST_32_CHAR_HEX_KEY" <<<"$content"; do
+        line_num=$(grep -n "EXIST_32_CHAR_HEX_KEY" <<<"$content" | head -1 | cut -d: -f1)
         val=$(gen_hex 32)
-        sed -i "${line_num}s|EXIST_32_CHAR_HEX_KEY|${val}|" "$file"
+        content="$(sed "${line_num}s|EXIST_32_CHAR_HEX_KEY|${val}|" <<<"$content")"
     done
-    while grep -q "EXIST_64_CHAR_HEX_KEY" "$file" 2>/dev/null; do
-        line_num=$(grep -n "EXIST_64_CHAR_HEX_KEY" "$file" | head -1 | cut -d: -f1)
+    while grep -q "EXIST_64_CHAR_HEX_KEY" <<<"$content"; do
+        line_num=$(grep -n "EXIST_64_CHAR_HEX_KEY" <<<"$content" | head -1 | cut -d: -f1)
         val=$(gen_hex 64)
-        sed -i "${line_num}s|EXIST_64_CHAR_HEX_KEY|${val}|" "$file"
+        content="$(sed "${line_num}s|EXIST_64_CHAR_HEX_KEY|${val}|" <<<"$content")"
     done
-    while grep -q "EXIST_TIMESTAMP" "$file" 2>/dev/null; do
-        line_num=$(grep -n "EXIST_TIMESTAMP" "$file" | head -1 | cut -d: -f1)
-        sed -i "${line_num}s|EXIST_TIMESTAMP|$(date +%Y%m%d_%H%M%S)|" "$file"
+    while grep -q "EXIST_TIMESTAMP" <<<"$content"; do
+        line_num=$(grep -n "EXIST_TIMESTAMP" <<<"$content" | head -1 | cut -d: -f1)
+        content="$(sed "${line_num}s|EXIST_TIMESTAMP|$(date +%Y%m%d_%H%M%S)|" <<<"$content")"
     done
-    while grep -q "EXIST_UUID" "$file" 2>/dev/null; do
-        line_num=$(grep -n "EXIST_UUID" "$file" | head -1 | cut -d: -f1)
+    while grep -q "EXIST_UUID" <<<"$content"; do
+        line_num=$(grep -n "EXIST_UUID" <<<"$content" | head -1 | cut -d: -f1)
         val=$(gen_uuid)
-        sed -i "${line_num}s|EXIST_UUID|${val}|" "$file"
+        content="$(sed "${line_num}s|EXIST_UUID|${val}|" <<<"$content")"
     done
 
-    # EXIST_CLI — fzf text prompt.
-    # Shows the contiguous comment block directly above the field as the fzf header.
+    # EXIST_CLI — read text prompt.
+    # Shows the contiguous comment block directly above the field as context.
     # If that block contains `# DEFAULT_FROM: EXIST_FOO`, the value of EXIST_FOO
-    # (already written earlier in the same file) is used as the pre-filled default.
-    while grep -q "EXIST_CLI" "$file" 2>/dev/null; do
+    # (already resolved above) is used as the default when the user enters nothing.
+    while grep -q "EXIST_CLI" <<<"$content"; do
         local match line_content key_name block_start prev_line context
-        local default_from default_val escaped val
-        match=$(grep -n "EXIST_CLI" "$file" | head -1)
+        local default_from default_val escaped
+        match=$(grep -n "EXIST_CLI" <<<"$content" | head -1)
         line_num="${match%%:*}"
         line_content="${match#*:}"
         key_name="${line_content%%=*}"
 
         block_start=$(( line_num - 1 ))
         while (( block_start >= 1 )); do
-            prev_line=$(sed -n "${block_start}p" "$file")
+            prev_line=$(sed -n "${block_start}p" <<<"$content")
             [[ "$prev_line" =~ ^[[:space:]]*# ]] || break
-            (( block_start-- ))
+            block_start=$(( block_start - 1 ))
         done
-        (( block_start++ ))
+        block_start=$(( block_start + 1 ))
 
         if (( block_start < line_num )); then
-            context=$(sed -n "${block_start},$((line_num - 1))p" "$file")
+            context=$(sed -n "${block_start},$((line_num - 1))p" <<<"$content")
         else
             context=""
         fi
@@ -137,20 +145,28 @@ replace_placeholders() {
             sed -n 's/^# *DEFAULT_FROM: *\([A-Z_][A-Z0-9_]*\) *$/\1/p' | head -1)
         default_val=""
         if [[ -n "$default_from" ]]; then
-            default_val=$(grep -E "^${default_from}=" "$file" | head -1 | cut -d= -f2-)
+            default_val=$(grep -E "^${default_from}=" <<<"$content" | head -1 | cut -d= -f2-)
         fi
 
-        val=$(printf '\n' | fzf \
-            --disabled --print-query --no-info \
-            --layout=reverse --height=8 \
-            --header="${context}" \
-            --prompt="  ${key_name}: " \
-            --query="${default_val}" 2>/dev/null | head -1) || val="${default_val}"
+        # Prompt on the controlling terminal with a plain read (echoes, never leaves
+        # the TTY in raw mode). Prompt + context go to stderr so they don't pollute
+        # the rendered content this function prints to stdout.
+        printf '\n' >&2
+        if [[ -n "$context" ]]; then printf '%s\n' "$context" >&2; fi
+        if [[ -t 0 ]]; then
+            read -rp "  ${key_name} [${default_val}]: " val || val="${default_val}"
+        else
+            val="${default_val}"
+        fi
+        if [[ -z "$val" ]]; then val="${default_val}"; fi
 
         escaped="${val//\\/\\\\}"
+        escaped="${escaped//&/\\&}"
         escaped="${escaped//|/\\|}"
-        sed -i "${line_num}s|EXIST_CLI|${escaped}|" "$file"
+        content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
     done
+
+    printf '%s\n' "$content"
 }
 
 # ── Template processing ───────────────────────────────────────────────────────
@@ -185,10 +201,18 @@ _process_one_template() {
 
     if [[ -d "$src" ]]; then
         cp -r "$src" "$dst"
-        while IFS= read -r f; do replace_placeholders "$f"; done < <(find "$dst" -type f 2>/dev/null)
+        local f rendered
+        while IFS= read -r f; do
+            rendered="$(render_template "$f" "$f")"
+            printf '%s\n' "$rendered" > "$f"
+        done < <(find "$dst" -type f 2>/dev/null)
     else
-        cp "$src" "$dst"
-        replace_placeholders "$dst"
+        # Resolve every placeholder in memory, then write the destination once.
+        # If the user aborts mid-prompt, render_template never returns, so the
+        # destination is never written and can't hold a literal EXIST_CLI token.
+        local rendered
+        rendered="$(render_template "$src" "$dst")"
+        printf '%s\n' "$rendered" > "$dst"
         # NFS-vs-bind for persistent volumes is decided by generate-compose.ts
         # (convertNfsVolumes): bind mount to volumes/<name>/ when NFS is unset,
         # NFS named volume when it's configured. Templates leave driver_opts intact.
@@ -219,24 +243,32 @@ _process_templates_in() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+# Guarded so the file can be sourced (e.g. by src/test/unit/test-templates.sh) to load
+# the functions without rendering anything. Runs only when executed directly.
 
-if [[ -f "${REPO_DIR}/.env.exist.shared" ]]; then
-    if _process_one_template "${REPO_DIR}/.env.exist.shared"; then
-        _STATS_CREATED=$(( _STATS_CREATED + 1 ))
-        _reload_env_shared
-    else
-        _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
+_main() {
+    if [[ -f "${REPO_DIR}/.env.exist.shared" ]]; then
+        if _process_one_template "${REPO_DIR}/.env.exist.shared"; then
+            _STATS_CREATED=$(( _STATS_CREATED + 1 ))
+            _reload_env_shared
+        else
+            _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
+        fi
     fi
-fi
-_load_env_shared
+    _load_env_shared
 
-while IFS= read -r svc_dir; do
-    if service_is_enabled "$svc_dir"; then
-        _process_templates_in "$svc_dir"
+    while IFS= read -r svc_dir; do
+        if service_is_enabled "$svc_dir"; then
+            _process_templates_in "$svc_dir"
+        fi
+    done < <(_find_service_dirs)
+
+    echo "Created ${_STATS_CREATED} file(s), skipped ${_STATS_SKIPPED} existing"
+    if [[ "$_STATS_SKIPPED" -gt 0 ]]; then
+        echo "  (use --force to regenerate existing files)"
     fi
-done < <(_find_service_dirs)
+}
 
-echo "Created ${_STATS_CREATED} file(s), skipped ${_STATS_SKIPPED} existing"
-if [[ "$_STATS_SKIPPED" -gt 0 ]]; then
-    echo "  (use --force to regenerate existing files)"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    _main
 fi

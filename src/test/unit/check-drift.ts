@@ -16,7 +16,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const SKIP_DIRS = new Set(['graveyard', 'node_modules', '.git', 'site']);
 const PLACEHOLDER_RE = /EXIST_[A-Z0-9_]+/;
 const ENV_KEY_RE = /^([A-Z_][A-Z0-9_]*)=/;

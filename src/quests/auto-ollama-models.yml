@@ -1,5 +1,6 @@
 name: Ollama Model Setup
 tagline: Pull the models used by LightRAG, Hermes, and Open WebUI
+e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama

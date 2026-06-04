@@ -1,5 +1,6 @@
 name: Vikunja Default User
 tagline: Create the default Vikunja user automatically after startup
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_VIKUNJA
     label: Vikunja

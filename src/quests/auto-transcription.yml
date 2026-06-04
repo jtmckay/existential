@@ -1,5 +1,6 @@
 name: Recording Transcription
 tagline: Automatically transcribe audio and video recordings dropped into Nextcloud
+e2e: false
 services:
   - var: EXIST_IS_AI_WHISPER
     label: Whisper

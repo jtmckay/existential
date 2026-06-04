@@ -1,5 +1,6 @@
 name: Image OCR
 tagline: Extract text from images dropped into Nextcloud or sent via Telegram
+e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama

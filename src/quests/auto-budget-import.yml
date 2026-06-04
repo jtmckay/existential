@@ -1,5 +1,6 @@
 name: Bank Transaction Import
 tagline: Automatically import bank alert emails into Actual Budget
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
     label: Actual Budget

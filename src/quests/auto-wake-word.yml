@@ -1,5 +1,6 @@
 name: Wake Word & Voice Triggers
 tagline: Train a custom wake word and wire it to Home Assistant and Tasker
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant

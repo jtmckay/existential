@@ -21,7 +21,7 @@
 #   - No conflicting containers already running (the pre-flight check catches this)
 
 set -euo pipefail
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FIXTURES="${REPO_DIR}/src/test/fixtures"
 QUEST_DIR="${REPO_DIR}/src/quests"
 E2E_PROJECT="exist-e2e"
@@ -167,15 +167,21 @@ preflight_check() {
     # artifacts from prior runs. If a previous run crashed before down -v completed,
     # the volume persists but its device path points to a deleted temp dir, causing
     # "exists but doesn't match config" on the next run.
+    # NOTE: must be detected here but removed AFTER any stale containers are gone,
+    # because docker volume rm fails if stopped containers still reference the volume.
     local stale_vols
     stale_vols=$(docker volume ls --filter "label=com.docker.compose.project=${E2E_PROJECT}" -q 2>/dev/null || true)
-    if [ -n "$stale_vols" ]; then
-        log "Removing stale e2e volumes: $(echo "$stale_vols" | tr '\n' ' ')"
-        # shellcheck disable=SC2086
-        docker volume rm $stale_vols 2>/dev/null || true
-    fi
+
+    _remove_stale_volumes() {
+        if [ -n "$stale_vols" ]; then
+            log "Removing stale e2e volumes: $(echo "$stale_vols" | tr '\n' ' ')"
+            # shellcheck disable=SC2086
+            docker volume rm $stale_vols 2>/dev/null || true
+        fi
+    }
 
     if [ "$errors" -eq 0 ]; then
+        _remove_stale_volumes
         log "Pre-flight OK"
         return 0
     fi
@@ -203,6 +209,7 @@ preflight_check() {
         read -r _
         [ "${#names_only[@]}" -gt 0 ] && docker rm -f "${names_only[@]}" >/dev/null
         docker network rm "$E2E_NETWORK" >/dev/null 2>&1 || true
+        _remove_stale_volumes
         log "Pre-flight OK (cleaned up)"
         return 0
     fi
@@ -287,7 +294,7 @@ run_quest() {
     # 8. Container-state gate — fails the quest if anything is restart-looping,
     #    exited, or unhealthy. This is the only place with docker visibility, so
     #    it's where daemon liveness (decree + sidecars, no HTTP surface) is checked.
-    if ! bash "${REPO_DIR}/src/test/container-health.sh" \
+    if ! bash "${REPO_DIR}/src/test/integration/container-health.sh" \
             "$WORK/docker-compose.yml" "$E2E_PROJECT"; then
         log "${quest_name} — container health gate FAILED"
         return 1

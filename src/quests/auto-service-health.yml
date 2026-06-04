@@ -1,5 +1,6 @@
 name: Service Health Monitoring
 tagline: HTTP health probes for your services, visible in Grafana and alerting via ntfy
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree

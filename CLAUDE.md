@@ -203,15 +203,21 @@ src/
 │   ├── generate_hex_key.sh         `generate_hex_key N` / `generate_32_char_hex` / `generate_64_char_hex` — sourced only
 │   └── generate_password.sh        `generate_24_char_password` — sourced only
 └── test/
-    ├── e2e.sh                      End-to-end harness — fresh clone per quest, docker up --build, gate, test, down
+    ├── run-all.sh                  Test suite orchestrator — runs unit/ + integration/ + every enabled exist.test.sh
     ├── exist-test.sh               Shared helpers for per-service exist.test.sh (probes, output, skip-if-disabled)
-    ├── container-health.sh         Host-side container-state gate — fails on restart-loops/exited/unhealthy (runs where docker is visible, NOT in adhoc)
-    ├── run-all.sh                  Test suite orchestrator — runs src/test/* + every enabled exist.test.sh
-    ├── test-syntax.sh              Lint every script (src/ + every exist.*.sh)
-    ├── test-gmail.sh               Validate Gmail credentials (routine-scoped, not service-scoped)
-    ├── test-rclone.sh              Test rclone remote connectivity
-    ├── validate-conventions.ts     Convention checks (slug sync across compose/piHole/Caddy/dashy)
-    ├── check-drift.ts              Template vs rendered drift report
+    ├── unit/                       No live services needed (run on host or in adhoc without a stack)
+    │   ├── test-existential.sh     Unit tests for existential.sh pure-bash helpers + CLI (sources with Docker stubbed)
+    │   ├── test-syntax.sh          Lint every script (src/ + every exist.*.sh)
+    │   ├── test-templates.sh       Unit tests for templates.sh render_template (placeholders, EXIST_CLI, generators)
+    │   ├── test-compose.sh         Unit tests for generate-compose.ts (merge, path adjust, NFS→bind) — runs tsx in adhoc
+    │   ├── validate-conventions.ts Convention checks (slug sync across compose/piHole/Caddy/dashy)
+    │   └── check-drift.ts          Template vs rendered drift report
+    ├── integration/                Require a live environment (credentials, running containers)
+    │   ├── test-gmail.sh           Validate Gmail credentials (routine-scoped, not service-scoped)
+    │   ├── test-rclone.sh          Test rclone remote connectivity
+    │   └── container-health.sh     Host-side container-state gate — fails on restart-loops/exited/unhealthy (runs where docker is visible, NOT in adhoc)
+    ├── e2e/                        Full stack: fresh clone → docker up --build → service tests → down
+    │   └── e2e.sh                  End-to-end harness — fresh clone per quest, docker up --build, gate, test, down
     └── fixtures/
         └── env.shared              Pre-filled .env.shared for e2e runs (committed, no real secrets)
 ```
@@ -223,10 +229,11 @@ src/
 (`generate_hex_key.sh`, `generate_password.sh`). Source them from `templates.sh`
 rather than reimplementing the logic.
 
-**`src/test/`** holds all test infrastructure: `exist-test.sh` (shared helper sourced
-by every `exist.test.sh`) and the general test scripts (`run-all.sh`, `test-*.sh`,
-`validate-conventions.ts`, `check-drift.ts`) that cover things not owned by any one
-service. Per-service tests live in their own `<cat>/<slug>/exist.test.sh`.
+**`src/test/`** holds all test infrastructure. `exist-test.sh` is a shared helper
+sourced by every per-service `exist.test.sh`. Tests are split into three tiers:
+`unit/` (no live services — run on host or in adhoc), `integration/` (need live
+credentials or running containers), and `e2e/` (full stack harness). Per-service
+tests live in their own `<cat>/<slug>/exist.test.sh`.
 
 ### Service lifecycle scripts
 
@@ -361,7 +368,7 @@ socket** — it can only reach services over the network. So a per-service test
 is blind to daemons with no network surface (the main `decree` daemon and every
 `*-decree` sidecar are `bash` daemons — there is nothing to HTTP-probe).
 
-That gap is covered by `src/test/container-health.sh`, which runs on the **host**
+That gap is covered by `src/test/integration/container-health.sh`, which runs on the **host**
 (the only place docker is visible). For every container in a compose project it
 asserts `status == running`, no active restart-loop (RestartCount stable across a
 short resample), and `Health.Status != unhealthy` — dumping logs and exiting
@@ -369,7 +376,7 @@ non-zero on any failure. It is wired into both entry points:
 
 - **`./existential.sh test`** runs it against the live `docker-compose.yml` before
   the adhoc `run-all.sh`.
-- **`src/test/e2e.sh`** runs it after `docker compose up -d --build` and **fails the
+- **`src/test/e2e/e2e.sh`** runs it after `docker compose up -d --build` and **fails the
   quest** if it trips. (e2e always builds with `--build` — compose reuses cached
   images and never rebuilds on a Dockerfile change, so without it e2e can silently
   test a stale image of the committed code.)
@@ -449,7 +456,10 @@ sidecar running its migration health-wait loop as `bash` reads `starting`, not
 docker exec <svc>-decree decree run db-backup -- nightly     # Trigger db-backup now
 docker exec <svc>-decree decree run volume-backup -- nightly # Trigger volume-backup now
 
-./existential.sh test                    # Run all enabled-service exist.test.sh + src/test/*
+./existential.sh test                    # Run all: unit + integration + per-service exist.test.sh
+./existential.sh test unit               # Unit tests only (no live services needed)
+./existential.sh test integration        # Integration tests only (live credentials/containers)
+./existential.sh test services           # Per-service exist.test.sh only
 ./existential.sh run <slug> test         # Test one service (read-only validation)
 ./existential.sh validate                # Conventions + drift checks
 ./existential.sh validate conventions    # Slugs synced across compose/piHole/Caddy/dashy
@@ -722,7 +732,9 @@ Every service ships an `exist.test.sh` that validates the service is fully opera
 without changing any state. See "Service test scripts" above for the convention.
 
 ```bash
-./existential.sh test                  # All enabled services + general src/test/*
+./existential.sh test                  # All: unit + integration + per-service tests
+./existential.sh test unit             # Unit tests only (no live services)
+./existential.sh test services         # Per-service exist.test.sh only
 ./existential.sh run <slug> test     # One service — read-only validation
 docker ps | grep <slug>                # Container running?
 docker logs <container_name>           # Recent logs

@@ -1,5 +1,6 @@
 name: Gmail Integration
 tagline: Connect Decree to your Gmail inbox for email-driven automations
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
