@@ -2,6 +2,7 @@ services:
   nocodb-postgres:
     container_name: nocodb-postgres
     image: postgres:16.6
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist
@@ -22,6 +23,7 @@ services:
   nocodb:
     container_name: nocodb
     image: "nocodb/nocodb:2026.05.3"
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist
@@ -44,6 +46,7 @@ services:
     container_name: nocodb-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist

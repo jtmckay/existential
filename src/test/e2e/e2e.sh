@@ -15,6 +15,7 @@
 #   ./existential.sh e2e --all           # non-interactive: run all testable quests
 #   ./existential.sh e2e automation      # run quests whose name/filename matches a pattern
 #   ./existential.sh e2e ai finance      # multiple patterns — each selects matching quest(s)
+#   ./existential.sh e2e down            # tear down leftover artifacts from a crashed run
 #
 # Requirements:
 #   - Docker + Docker Compose v2 on the host
@@ -125,6 +126,73 @@ wait_running() {
     return 1
 }
 
+# ── Teardown of leftover artifacts ──────────────────────────────────────────────
+# `./existential.sh e2e down` — find every container, network, volume, and temp
+# work dir belonging to a previous e2e run (compose project "exist-e2e") and spin
+# it down. The normal per-quest cleanup() handles the happy path; this is the
+# recovery hatch for a run that crashed before its trap fired and left artifacts
+# behind. Everything is keyed off the compose project label, so it never touches
+# the real stack.
+e2e_down() {
+    local found=0
+
+    # Containers carry com.docker.compose.project=exist-e2e (set by `-p`).
+    local -a ids=()
+    mapfile -t ids < <(docker ps -aq --filter "label=com.docker.compose.project=${E2E_PROJECT}" 2>/dev/null)
+    if [ "${#ids[@]}" -gt 0 ]; then
+        found=1
+        local id name
+        for id in "${ids[@]}"; do
+            name=$(docker inspect --format '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')
+            log "Spinning down ${name:-$id}..."
+            docker stop "$id" >/dev/null 2>&1 || true
+            docker rm "$id"   >/dev/null 2>&1 || true
+        done
+    fi
+
+    # Networks created for the project (plus the conventional name as a fallback).
+    local -a nets=()
+    mapfile -t nets < <(docker network ls --filter "label=com.docker.compose.project=${E2E_PROJECT}" --format '{{.Name}}' 2>/dev/null)
+    docker network inspect "$E2E_NETWORK" >/dev/null 2>&1 && nets+=("$E2E_NETWORK")
+    if [ "${#nets[@]}" -gt 0 ]; then
+        found=1
+        local net
+        for net in $(printf '%s\n' "${nets[@]}" | sort -u); do
+            log "Removing network ${net}..."
+            docker network rm "$net" >/dev/null 2>&1 || true
+        done
+    fi
+
+    # Ephemeral e2e volumes — safe to drop (containers are already gone above).
+    local -a vols=()
+    mapfile -t vols < <(docker volume ls -q --filter "label=com.docker.compose.project=${E2E_PROJECT}" 2>/dev/null)
+    if [ "${#vols[@]}" -gt 0 ]; then
+        found=1
+        log "Removing volumes: ${vols[*]}"
+        docker volume rm "${vols[@]}" >/dev/null 2>&1 || true
+    fi
+
+    # Leftover git-archive work dirs in the repo root.
+    local -a workdirs=()
+    mapfile -t workdirs < <(find "$REPO_DIR" -maxdepth 1 -type d -name '.tmp-e2e-*' 2>/dev/null)
+    if [ "${#workdirs[@]}" -gt 0 ]; then
+        found=1
+        local d
+        for d in "${workdirs[@]}"; do
+            log "Removing work dir ${d##*/}..."
+            docker run --rm -u 0 -v "${d}:/cleanup" alpine \
+                sh -c 'rm -rf /cleanup/*' 2>/dev/null || true
+            rm -rf "$d" 2>/dev/null || true
+        done
+    fi
+
+    if [ "$found" -eq 0 ]; then
+        log "No leftover e2e artifacts found — nothing to do."
+    else
+        log "e2e teardown complete."
+    fi
+}
+
 # ── Pre-flight collision detection ────────────────────────────────────────────
 
 preflight_check() {
@@ -231,7 +299,13 @@ cleanup() {
             --remove-orphans 2>/dev/null || true
     fi
     docker network rm "$E2E_NETWORK" 2>/dev/null || true
-    [ -n "$WORK" ] && [ -d "$WORK" ] && rm -rf "$WORK"
+    if [ -n "$WORK" ] && [ -d "$WORK" ]; then
+        # Containers write files owned by their internal UIDs (not the host user).
+        # Use a root container to remove those files before the host rm -rf.
+        docker run --rm -u 0 -v "${WORK}:/cleanup" alpine \
+            sh -c 'rm -rf /cleanup/*' 2>/dev/null || true
+        rm -rf "$WORK" 2>/dev/null || true
+    fi
     WORK=""
 }
 trap cleanup EXIT INT TERM
@@ -325,6 +399,13 @@ run_quest() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
+# `e2e down` — spin down leftover artifacts from a crashed run, then exit.
+# Must come before the build/selection logic so it never starts anything.
+if [ "${1:-}" = "down" ]; then
+    e2e_down
+    exit 0
+fi
 
 # Build adhoc image once — used for template rendering, compose gen, and tests.
 log "Building existential-adhoc image..."

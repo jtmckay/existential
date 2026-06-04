@@ -278,6 +278,8 @@ Actions:
   e2e --all           Run all e2e-testable quests without prompting.
   e2e <pattern>...    Run e2e-testable quests matching name/filename pattern(s),
                       e.g. 'e2e automation' or 'e2e ai finance'.
+  e2e down            Spin down leftover e2e containers/networks/volumes/work dirs
+                      from a crashed run (recovery hatch — never touches the real stack).
 
 Options:
   --force             Re-render existing files even if they already exist.

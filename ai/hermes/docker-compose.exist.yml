@@ -93,7 +93,9 @@ services:
       API_SERVER_ENABLED: 'true'
       # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
       LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
-    command: ["gateway", "run"]
+    # --insecure skips the OAuth auth gate (no auth providers registered in this
+    # homelab setup — dashboard would otherwise refuse to bind to 0.0.0.0).
+    command: ["gateway", "run", "--insecure"]
     volumes:
       - hermes_agent_data:/opt/data
       - hermes_agent_src:/opt/hermes
@@ -158,6 +160,7 @@ services:
     container_name: hermes-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist

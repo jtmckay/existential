@@ -34,6 +34,7 @@ services:
   nextcloud-db:
     container_name: nextcloud-db
     image: mariadb:10.6
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist
@@ -50,6 +51,7 @@ services:
     container_name: nextcloud-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist

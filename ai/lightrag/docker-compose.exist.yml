@@ -29,6 +29,7 @@ services:
     container_name: lightrag-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist

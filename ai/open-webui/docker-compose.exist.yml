@@ -2,6 +2,7 @@ services:
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:v0.9.6
+    user: "1000:1000"
     restart: unless-stopped
     deploy:
       resources:
@@ -33,6 +34,17 @@ services:
       AUDIO_STT_ENGINE: openai
       AUDIO_STT_OPENAI_API_BASE_URL: http://whisper:8000/v1
       AUDIO_STT_OPENAI_API_KEY: "none"
+    # The image's default healthcheck fails during the all-MiniLM-L6-v2 embedding
+    # model download (several minutes on first boot). Override with a long
+    # start_period so the container stays "starting" (not "unhealthy") while
+    # the model downloads. The interval/retries keep ticking once the grace
+    # period expires; a running server answers /health quickly after that.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
     volumes:
       - open_webui_data:/app/backend/data
 

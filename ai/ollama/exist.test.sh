@@ -34,6 +34,9 @@ if [ -z "$TAGS" ]; then
 fi
 ok "ollama reachable at ${OLLAMA_URL}"
 
+# In e2e, models are not pre-pulled — skip model-dependent checks.
+[ "${E2E_MODE:-}" = "1" ] && finish
+
 # Routing coverage — same /api/tags reached via caddy. Separates "ollama
 # down" from "caddy/pihole routing broken".
 probe_caddy "ollama /api/tags" ollama /api/tags 200

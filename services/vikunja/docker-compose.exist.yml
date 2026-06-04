@@ -2,6 +2,7 @@ services:
   vikunja:
     container_name: vikunja
     image: vikunja/vikunja:2.3.0
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist
@@ -26,6 +27,7 @@ services:
   vikunja-db:
     container_name: vikunja-db
     image: postgres:17
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist
@@ -43,6 +45,7 @@ services:
     container_name: vikunja-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       - exist

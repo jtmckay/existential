@@ -6,7 +6,9 @@ services:
     networks:
       exist:
         # ipv4_address: 10.0.0.5 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' caddy`
-    privileged: true
+    # Least privilege: Caddy only needs to bind 80/443, not full host privilege.
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80" # Standard HTTP port for local development
       - "443:443" # Standard HTTPS port for local development

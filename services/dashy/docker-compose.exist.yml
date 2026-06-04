@@ -2,6 +2,7 @@ services:
   dashy:
     container_name: dashy
     image: "lissy93/dashy:4.2.0"
+    user: "1000:1000"
     restart: unless-stopped
     volumes:
       - ./dashy-conf.yml:/app/user-data/conf.yml:Z
