@@ -205,9 +205,10 @@ _process_one_template() {
         rendered="$(render_template "$src" "$dst")"
         printf '%s\n' "$rendered" > "$dst"
         _secure_if_secret "$dst"
-        # NFS-vs-bind for persistent volumes is decided by generate-compose.ts
-        # (convertNfsVolumes): bind mount to volumes/<name>/ when NFS is unset,
-        # NFS named volume when it's configured. Templates leave driver_opts intact.
+        # Every volume becomes a host bind mount in generate-compose.ts
+        # (materializeBindMounts): ${EXIST_NFS_HOST_MOUNT}/<name> for NFS-marked
+        # volumes when a host mount is set, else volumes/<name>/. The top-level
+        # volumes: block here is just the declaration source it reads.
     fi
 
     echo "  created: ${dst#"$REPO_DIR/"}"

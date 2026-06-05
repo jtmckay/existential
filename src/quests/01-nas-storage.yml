@@ -1,29 +1,40 @@
 name: NAS Storage
-tagline: Wire up NFS mounts for persistent NAS-backed storage across services
+tagline: Mount NFS on the host so persistent data bind-mounts from your NAS
 e2e: false
 e2e_skip: Requires an external NAS/NFS server
 services: []
 guide: |
-  Many services (Nextcloud, MinIO, Home Assistant, Grafana, and others)
-  can store their data on a NAS over NFS instead of local disk. This gives
-  you redundancy, snapshots, and shared access across machines.
+  Existential never uses Docker-managed volumes. Every service's persistent
+  data is a host bind mount: by default under <repo>/volumes/<name>, or on a
+  NAS if you mount the NFS export on the host first. This gives you visible,
+  host-owned, inspectable data plus (with a NAS) redundancy and snapshots.
 
   Any NFS-capable NAS works — TrueNAS is a common self-hosted choice.
   Docs: https://existential.company/docs/storage
 
   Setup:
-    1. On your NAS, create an NFS export (dataset/share) per service, or
-       one base path with subdirectories. Record the server IP and base path.
+    1. On your NAS, create an NFS export (dataset/share) with one subdirectory
+       per persistent volume (mealie_data, vikunja_data, …) under a base path.
+       Record the server IP and base path.
 
-    2. Edit .env.shared and set:
-           EXIST_NFS_SERVER_ADDRESS=<your-nas-ip>
-           EXIST_NFS_BASE_PATH=<nfs-export-base-path>
+    2. Mount that export on THIS host (Docker no longer mounts NFS itself).
+       One-off:
+           sudo mkdir -p /mnt/nas
+           sudo mount -t nfs <nas-ip>:<base-path> /mnt/nas
+       Persist it via /etc/fstab or autofs so it survives reboots, e.g.:
+           <nas-ip>:<base-path>  /mnt/nas  nfs  rw,soft,nfsvers=4  0  0
 
-    3. Re-render templates (required to uncomment NFS volume blocks):
+    3. Edit .env.shared and set:
+           EXIST_NFS_HOST_MOUNT=/mnt/nas             # the host mountpoint above
+           EXIST_NFS_SERVER_ADDRESS=<your-nas-ip>    # documentation only
+           EXIST_NFS_BASE_PATH=<nfs-export-base-path># documentation only
+
+    4. Re-render so the generated compose binds persistent volumes to the mount:
            ./existential.sh --force
        Note: --force overwrites existing docker-compose.yml files.
        Your .env files are never touched.
 
-  NFS volumes are automatically commented out when EXIST_NFS_SERVER_ADDRESS
-  is blank — affected services fall back to plain named local volumes.
-  You can skip this quest and add NFS later at any time.
+  If EXIST_NFS_HOST_MOUNT is blank, all data stays under <repo>/volumes/.
+  Setting EXIST_NFS_SERVER_ADDRESS without EXIST_NFS_HOST_MOUNT is a hard
+  error (it refuses to silently write NFS data to local disk). You can skip
+  this quest and add NFS later at any time.

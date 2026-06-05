@@ -4,9 +4,10 @@
 # Black-box: builds throwaway fixture repos under a temp dir, runs the real
 # generate-compose.ts via tsx against them, and asserts the merged
 # docker-compose.yml / master .env. Covers service discovery, relative-path
-# adjustment, named/absolute volumes left alone, NFS→bind conversion (and the
-# opt-out when an NFS server is configured), the network mode, the empty case,
-# and archiving of an existing compose file.
+# adjustment, materialisation of every volume into a host bind mount (named and
+# NFS alike) with the top-level `volumes:` section dropped, NFS volumes binding
+# to the host mount when one is set, the hard error when an NFS server is set
+# without a host mount, the network mode, the empty case, and archiving.
 #
 # Needs tsx + js-yaml — only present inside existential-adhoc. Skips cleanly
 # elsewhere. Read-only re: the real repo. Invoked by ./existential.sh test.
@@ -58,7 +59,7 @@ YAML
     echo "$d"
 }
 
-# ── Enabled service: merge + path adjustment + NFS→bind ───────────────────────
+# ── Enabled service: merge + path adjustment + bind materialisation ───────────
 
 repo="$(new_repo)"
 printf 'EXIST_IS_SERVICES_FOO=true\n' > "$repo/.env.shared"
@@ -70,24 +71,41 @@ assert_file "writes master .env" "$repo/.env"
 compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
 assert_contains "merged service present" "foo:" "$compose"
 assert_contains "relative bind rewritten under service dir" "./services/foo/data:/data" "$compose"
-assert_contains "named volume left unchanged" "named_vol:/cache" "$compose"
 assert_contains "absolute path left unchanged" "/abs/host:/abs" "$compose"
-assert_contains "NFS volume converted to bind (o: bind)" "o: bind" "$compose"
-assert_contains "NFS bind device points at host repo" "device: /host/realrepo/volumes/foo_nfs" "$compose"
-assert_not_contains "converted volume no longer NFS" "type: nfs" "$compose"
+# Named & NFS volumes both materialise as local host bind mounts (no host mount set).
+assert_contains "named volume materialised as local bind" "/host/realrepo/volumes/named_vol:/cache" "$compose"
+assert_contains "nfs volume materialised as local bind (no host mount)" "/host/realrepo/volumes/foo_nfs:/srv" "$compose"
+assert_not_contains "no NFS driver_opts survive" "type: nfs" "$compose"
+assert_not_contains "no bind driver_opts survive" "o: bind" "$compose"
+# Top-level volumes section is dropped entirely (no Docker-managed volumes).
+assert_not_contains "top-level named_vol declaration removed" "named_vol: {}" "$compose"
 assert_contains "default network is a bridge" "driver: bridge" "$compose"
+# The local bind directory is created (as the host user) so Docker doesn't make it as root.
+assert_dir() { if [[ -d "$2" ]]; then _ok "$1"; else _fail "$1" "no such dir: $2"; fi; }
+assert_dir "local bind dir created for named volume" "$repo/volumes/named_vol"
+assert_dir "local bind dir created for nfs volume" "$repo/volumes/foo_nfs"
 
 envout="$(cat "$repo/.env" 2>/dev/null || true)"
 assert_contains "master .env carries the do-not-edit header" "DO NOT EDIT" "$envout"
 
-# ── NFS kept when an NFS server is configured ─────────────────────────────────
+# ── NFS volume binds to the host mount when one is configured ──────────────────
+
+repo="$(new_repo)"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_SERVER_ADDRESS=1.2.3.4\nEXIST_NFS_HOST_MOUNT=/mnt/nas\n' > "$repo/.env.shared"
+tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
+assert_contains "nfs volume binds to host mount" "/mnt/nas/foo_nfs:/srv" "$compose"
+assert_contains "non-nfs volume still binds locally" "/host/realrepo/volumes/named_vol:/cache" "$compose"
+assert_not_contains "no Docker-managed volumes remain" "type: nfs" "$compose"
+
+# ── NFS server set without a host mount is a hard error ───────────────────────
 
 repo="$(new_repo)"
 printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_SERVER_ADDRESS=1.2.3.4\n' > "$repo/.env.shared"
-tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
-compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
-assert_contains "NFS volume kept when NFS server set" "type: nfs" "$compose"
-assert_not_contains "NFS volume not converted to bind when NFS server set" "o: bind" "$compose"
+rc=0
+err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || rc=$?
+assert_contains "errors when NFS server set without host mount" "EXIST_NFS_HOST_MOUNT" "$err"
+[[ "$rc" -ne 0 ]] && _ok "NFS-without-host-mount exits non-zero" || _fail "NFS-without-host-mount exits non-zero" "got rc=$rc"
 
 # ── External network mode ─────────────────────────────────────────────────────
 

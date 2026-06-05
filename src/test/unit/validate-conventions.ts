@@ -12,7 +12,8 @@
  *   6. Every dashy item points at a slug that has a piHole record.
  *   7. Every key in a service's .env.exist starts with <SLUG>_.
  *   8. Every key in .env.exist.shared starts with EXIST_, no legacy prefixes.
- *   9. Every NFS-declared volume in the master docker-compose.yml is fully configured.
+ *   9. The master docker-compose.yml uses only host bind mounts — no top-level `volumes:`
+ *      section and no bare named-volume references (`docker volume ls` stays empty).
  *  10. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  */
@@ -243,7 +244,11 @@ function checkTopLevelEnvKeys(): string[] {
   return errors;
 }
 
-function checkNfsVolumes(): string[] {
+// The generated master compose must use only host bind mounts: generate-compose.ts
+// materialises every declared volume into a bind and deletes the top-level `volumes:`
+// section, so `docker volume ls` stays empty. This is the opposite of that guarantee — it
+// trips if a Docker-managed (named) volume ever survives into the generated compose.
+function checkBindMounts(): string[] {
   const errors: string[] = [];
   if (!fs.existsSync(MASTER_COMPOSE)) return errors;
 
@@ -254,19 +259,31 @@ function checkNfsVolumes(): string[] {
     return [`docker-compose.yml: failed to parse — ${e}`];
   }
 
-  const volumes = (data['volumes'] ?? {}) as Record<string, unknown>;
-  for (const [name, spec] of Object.entries(volumes)) {
-    if (typeof spec !== 'object' || spec === null) continue;
-    const opts = (spec as Record<string, unknown>)['driver_opts'];
-    if (typeof opts !== 'object' || opts === null) continue;
-    const o = opts as Record<string, unknown>;
-    if (String(o['type'] ?? '').toLowerCase() !== 'nfs') continue;
+  const topVolumes = Object.keys((data['volumes'] ?? {}) as Record<string, unknown>);
+  if (topVolumes.length) {
+    errors.push(
+      `docker-compose.yml: top-level \`volumes:\` must be empty — every volume is a host ` +
+      `bind mount (found: ${topVolumes.join(', ')})`,
+    );
+  }
 
-    if (!String(o['o'] ?? '').includes('addr=')) {
-      errors.push(`docker-compose.yml: volume '${name}' has type: nfs but \`o:\` is missing \`addr=…\` — would fall back to a local volume`);
-    }
-    if (!o['device']) {
-      errors.push(`docker-compose.yml: volume '${name}' has type: nfs but \`device:\` is empty`);
+  const services = (data['services'] ?? {}) as Record<string, Record<string, unknown>>;
+  for (const [svcName, svc] of Object.entries(services)) {
+    const list = (svc ?? {})['volumes'];
+    if (!Array.isArray(list)) continue;
+    for (const entry of list) {
+      if (typeof entry !== 'string') continue;
+      const src = entry.split(':')[0];
+      // A host bind source starts with /, ./ (or ../) or ${…}. A bare name with no
+      // separator is a Docker-managed named volume — forbidden.
+      const isBareNamed = src.length > 0 && !src.startsWith('/') &&
+        !src.startsWith('.') && !src.startsWith('$') && !src.includes('/');
+      if (isBareNamed) {
+        errors.push(
+          `docker-compose.yml: service '${svcName}' mounts named volume '${src}' — must be a ` +
+          `host bind mount (/…, ./… or \${…})`,
+        );
+      }
     }
   }
   return errors;
@@ -437,8 +454,8 @@ function main(): number {
   // (9) .env.exist.shared keys start with EXIST_, no legacy prefixes
   errors.push(...checkTopLevelEnvKeys());
 
-  // (10) NFS-declared volumes in master compose are fully configured
-  errors.push(...checkNfsVolumes());
+  // (10) Master compose uses only host bind mounts — no Docker-managed volumes
+  errors.push(...checkBindMounts());
 
   // (12) No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());

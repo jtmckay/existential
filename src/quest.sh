@@ -404,32 +404,29 @@ done
 
 if [[ "${#_quest_missing_vars[@]}" -gt 0 ]]; then
     echo ""
-    _SKIP_SVCS="__SKIP_SVCS__"
     _svc_enable_out=$(
         {
             for _v in $(printf '%s\n' "${!_quest_missing_vars[@]}" | sort); do
                 printf '%s\t  %s\n' "$_v" "${_quest_missing_labels[$_v]}"
             done
-            printf '%s\t  Skip enabling services\n' "$_SKIP_SVCS"
         } | fzf --multi \
                 --ansi \
                 --delimiter=$'\t' \
                 --with-nth=2 \
                 --layout=reverse \
-                --header="  These services are needed by your selected quests — enable them now?
-  Space to toggle, Enter to confirm
-  Select 'Skip' or press Enter with nothing selected to proceed without enabling" \
+                --header="  These services are needed by your selected quests — all pre-selected, deselect to skip
+  ↑↓ navigate   Space toggle   Enter confirm" \
                 --prompt="Enable ❯ " \
                 --no-info \
+                --bind 'start:select-all' \
                 --bind 'space:toggle+down'
     ) || _svc_enable_out=""
 
     _new_count=0
-    if [[ -n "$_svc_enable_out" ]] && ! echo "$_svc_enable_out" | grep -qF "$_SKIP_SVCS"; then
+    if [[ -n "$_svc_enable_out" ]]; then
         while IFS= read -r _line; do
             [[ -z "$_line" ]] && continue
             _v="${_line%%	*}"
-            [[ "$_v" == "$_SKIP_SVCS" ]] && continue
             [[ "$(env_get "$_v")" == "true" ]] && continue
             env_set "$_v" "true"
             _newly_enabled=$(( _newly_enabled + 1 ))

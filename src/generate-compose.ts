@@ -89,6 +89,9 @@ function adjustVolume(vol: VolumeEntry, servicePrefix: string): VolumeEntry {
   const parts = vol.split(':');
   const src = parts[0];
 
+  // Env-var-rooted path (e.g. ${EXIST_NFS_HOST_MOUNT}/foo) — resolved by Docker, leave as-is.
+  if (src.startsWith('$')) return vol;
+
   // Absolute path or named volume (no leading dot or slash, and no directory separator)
   if (src.startsWith('/') || (!src.startsWith('.') && !src.includes('/') && src !== '.')) {
     return vol;
@@ -202,36 +205,60 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
   process.stderr.write(`Written: ${envPath}\n`);
 }
 
-// ── NFS → bind-mount conversion ────────────────────────────────────────────────
+// ── Volumes → host bind mounts ──────────────────────────────────────────────────
 
-// When NFS is not configured, replace NFS volumes with bind mounts pointing at
-// <hostRepoRoot>/volumes/<name>.  The directory is also created under repoRoot
-// (the adhoc-internal path) so Docker has a real directory to mount.
-function convertNfsVolumes(
+// We never use Docker-managed (opaque) volumes. Every top-level volume declared by a
+// service is materialised as a host bind mount, then the top-level `volumes:` section is
+// dropped entirely — so `docker volume ls` stays empty and all data lives in a visible,
+// host-owned directory or on a host-mounted NFS share.
+//
+//   • Persistent NFS volumes (driver_opts.type: nfs) bind to ${EXIST_NFS_HOST_MOUNT}/<name>
+//     when an NFS host mount is configured — the share is mounted on the *host*
+//     (fstab/autofs); Docker no longer mounts NFS itself, so driver_opts is read only as a
+//     persistence marker.
+//   • Everything else — DBs, caches, and NFS volumes with no host mount — binds to
+//     <hostRepoRoot>/volumes/<name>. That directory is created here (in the adhoc
+//     container, as the host user) so Docker doesn't auto-create it as root.
+function materializeBindMounts(
   merged: Record<string, unknown>,
   repoRoot: string,
   hostRepoRoot: string,
+  nfsHostMount: string,
 ): void {
   const vols = merged['volumes'] as Record<string, unknown> | undefined;
   if (!vols) return;
 
+  // Map each declared volume name → its host bind source path.
+  const source: Record<string, string> = {};
   for (const [volName, volConfig] of Object.entries(vols)) {
     const cfg = volConfig as Record<string, unknown> | null;
     const driverOpts = cfg?.['driver_opts'] as Record<string, string> | undefined;
-    if (driverOpts?.['type'] !== 'nfs') continue;
+    const isNfs = driverOpts?.['type'] === 'nfs';
 
-    const adHocDir = path.join(repoRoot, 'volumes', volName);
-    fs.mkdirSync(adHocDir, { recursive: true });
-
-    vols[volName] = {
-      driver: 'local',
-      driver_opts: {
-        type: 'none',
-        o: 'bind',
-        device: path.join(hostRepoRoot, 'volumes', volName),
-      },
-    };
+    if (isNfs && nfsHostMount) {
+      source[volName] = path.posix.join(nfsHostMount, volName);
+    } else {
+      fs.mkdirSync(path.join(repoRoot, 'volumes', volName), { recursive: true });
+      source[volName] = path.posix.join(hostRepoRoot, 'volumes', volName);
+    }
   }
+
+  // Rewrite every service's named-volume references into bind mounts.
+  const services = (merged['services'] ?? {}) as Record<string, Record<string, unknown>>;
+  for (const svc of Object.values(services)) {
+    const list = svc['volumes'];
+    if (!Array.isArray(list)) continue;
+    svc['volumes'] = list.map((entry: unknown) => {
+      if (typeof entry !== 'string') return entry;
+      const idx = entry.indexOf(':');
+      if (idx === -1) return entry;
+      const src = entry.slice(0, idx);
+      return (src in source) ? source[src] + entry.slice(idx) : entry;
+    });
+  }
+
+  // Drop the top-level section — no Docker-managed volumes remain.
+  delete merged['volumes'];
 }
 
 // ── Archive rotation ───────────────────────────────────────────────────────────
@@ -276,8 +303,19 @@ function main(): void {
   const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
   const merged = merge(repoRoot, enabled, networkExternal);
 
-  if (hostRepoRoot && !env['EXIST_NFS_SERVER_ADDRESS']?.trim()) {
-    convertNfsVolumes(merged, repoRoot, hostRepoRoot);
+  const nfsHostMount = (env['EXIST_NFS_HOST_MOUNT'] ?? '').trim();
+  if ((env['EXIST_NFS_SERVER_ADDRESS'] ?? '').trim() && !nfsHostMount) {
+    process.stderr.write(
+      'ERROR: EXIST_NFS_SERVER_ADDRESS is set but EXIST_NFS_HOST_MOUNT is empty.\n' +
+      '  Persistent data is bind-mounted from a host path — the NFS share must be mounted\n' +
+      '  on the host (fstab/autofs), then set EXIST_NFS_HOST_MOUNT to that mountpoint\n' +
+      '  (e.g. /mnt/nas). See the NAS Storage quest. Refusing to silently fall back to\n' +
+      '  local disk for data you expect on NFS.\n',
+    );
+    process.exit(1);
+  }
+  if (hostRepoRoot) {
+    materializeBindMounts(merged, repoRoot, hostRepoRoot, nfsHostMount);
   }
 
   mergeEnv(repoRoot, enabled);

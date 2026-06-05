@@ -192,12 +192,26 @@ from root `.env.shared`. An `EXIST_CLI` line can fall back to another var with a
 - `./existential.sh validate conventions` checks both.
 
 ### Volumes
-Docker named volumes are opaque and re-init from the image (wrong UID on NFS). `volumes/`
-gives visible, inspectable, correctly-owned bind mounts.
-- **Persistent** (backed up by sidecars): declared with `driver_opts: type: nfs`. With NFS
-  set → mounted directly; without → `generate-compose.ts` converts to bind mounts at
-  `volumes/<name>/`. Needs a committed `volumes/<name>/.gitkeep`. Name: `<service>_<purpose>_data`.
-- **Ephemeral** (cache/scratch): plain named volumes, recreated on `down -v`.
+**We never use Docker-managed volumes** — they're opaque and re-init from the image (wrong
+UID on NFS). Every volume is a **host bind mount**: visible, inspectable, correctly-owned.
+`generate-compose.ts` (`materializeBindMounts`) turns every volume a service declares into a
+bind mount and **deletes the top-level `volumes:` section**, so the generated
+`docker-compose.yml` has no `volumes:` block and `docker volume ls` stays empty. `validate
+conventions` enforces this (no top-level volumes, no bare named refs).
+
+Service compose templates still *declare* a top-level `volumes:` block — it's the
+declaration source `materializeBindMounts` reads, not runtime config. The
+`driver_opts: type: nfs` marker just flags a volume as NFS-eligible. Where each one binds:
+- **NFS-marked** (`driver_opts: type: nfs`, backed up by sidecars): binds to
+  `${EXIST_NFS_HOST_MOUNT}/<name>` when an NFS host mount is set; otherwise to local
+  `volumes/<name>/`. The NFS export is mounted on the **host** (fstab/autofs) — Docker no
+  longer mounts NFS itself. `EXIST_NFS_SERVER_ADDRESS` set without `EXIST_NFS_HOST_MOUNT`
+  is a hard error (won't silently fall back to local). Name: `<service>_<purpose>_data`.
+- **Everything else** (DBs deliberately off NFS, caches/scratch): binds to local
+  `volumes/<name>/`.
+
+`generate-compose.ts` creates each local `volumes/<name>/` dir at render time (as the host
+user, so Docker doesn't make it root-owned); commit a `volumes/<name>/.gitkeep` to track it.
 
 ### Container user & privileges
 Least privilege is the default. An app container runs as the **host** user
