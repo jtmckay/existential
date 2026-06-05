@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# pre-commit — block secrets from ever entering this PUBLIC repo.
+#
+# Open-source: every push is immediately and permanently public, so a secret
+# committed once is exposed forever even if "removed" later. This hook is the
+# cheap, irreversible-failure-closing control the audit (H-3) called for.
+#
+# Installed automatically by ./existential.sh (sets core.hooksPath=.githooks).
+# Bypass for a known-safe commit with:  git commit --no-verify
+set -euo pipefail
+
+fail=0
+note() { echo "  ✗ $*" >&2; fail=1; }
+
+# Staged files (added/copied/modified), NUL-safe.
+mapfile -d '' -t staged < <(git diff --cached --name-only --diff-filter=ACM -z)
+[ "${#staged[@]}" -gt 0 ] || exit 0
+
+# ── 1. Rendered secret files that must never be tracked ───────────────────────
+# These are gitignored; reaching here means someone `git add -f`'d one.
+for f in "${staged[@]}"; do
+    base="${f##*/}"
+    case "$base" in
+        .env|.env.shared|.env.local|.env.generated)
+            note "rendered secret file staged: $f (only .env.exist* templates belong in git)" ;;
+        cloudflare-key.pem|cloudflare.pem|*_password.txt)
+            note "rendered credential file staged: $f" ;;
+    esac
+    case "$f" in
+        */secrets/*)
+            [ "$base" = ".gitkeep" ] || note "file under a secrets/ dir staged: $f" ;;
+    esac
+done
+
+# ── 2. Secret-shaped content in staged changes ────────────────────────────────
+# High-signal patterns only, to avoid false positives. *.exist.* placeholder
+# templates are exempt from the private-key check (they ship dummy PEMs by design).
+secret_re='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AIza[0-9A-Za-z_-]{30,}'
+key_re='-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+
+for f in "${staged[@]}"; do
+    # added lines only (leading '+', not the '+++' header)
+    added="$(git diff --cached -U0 -- "$f" | sed -n 's/^+//p' | grep -v '^++ ' || true)"
+    [ -n "$added" ] || continue
+    if grep -nEq "$secret_re" <<<"$added"; then
+        note "possible API key/token in staged change: $f"
+    fi
+    if [[ "$f" != *.exist.* && "$f" != *.example ]] && grep -nFq "BEGIN" <<<"$added" \
+        && grep -nEq "$key_re" <<<"$added"; then
+        note "private key material in staged change: $f"
+    fi
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo "" >&2
+    echo "Commit blocked: potential secret detected (this repo is public)." >&2
+    echo "Fix the above, or if it is a verified-safe placeholder: git commit --no-verify" >&2
+    exit 1
+fi
+exit 0

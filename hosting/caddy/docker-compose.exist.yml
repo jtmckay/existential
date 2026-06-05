@@ -1,7 +1,7 @@
 services:
   caddy:
     container_name: caddy
-    image: caddy:latest
+    image: caddy:2.11.4
     restart: unless-stopped
     networks:
       exist:

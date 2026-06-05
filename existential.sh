@@ -15,9 +15,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=false
 
-# Order matters for run_initials: hosting first so host-level setup (daemon
-# config, password files) completes before service-level scripts run.
-SERVICE_CATEGORIES=(hosting nas ai services)
+# Shared service-enablement + env helpers (SERVICE_CATEGORIES, _load_env_shared,
+# service_is_enabled, _find_service_dirs, _enable_var_for) — single source of
+# truth, also sourced by src/templates.sh. Guarded so test-existential.sh, which
+# sources only the top half of this file via a process substitution (where
+# SCRIPT_DIR is not the real path), doesn't abort here; that harness sources the
+# lib itself after overriding SCRIPT_DIR.
+if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
+    # shellcheck source=src/utils/service-common.sh
+    . "${SCRIPT_DIR}/src/utils/service-common.sh"
+fi
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
 
@@ -35,6 +42,20 @@ else
     echo "Install Docker: https://docs.docker.com/engine/install/" >&2
     exit 1
 fi
+
+# Point git at the repo's committed hooks (.githooks/pre-commit blocks secrets
+# from entering this public repo — see src/test/no-tracked-secrets.sh). Idempotent;
+# no-op outside a git checkout. Local config, so it never fights a user override.
+ensure_git_hooks() {
+    git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree &>/dev/null || return 0
+    [[ -d "${SCRIPT_DIR}/.githooks" ]] || return 0
+    local cur
+    cur="$(git -C "$SCRIPT_DIR" config --local --get core.hooksPath 2>/dev/null || true)"
+    if [[ "$cur" != ".githooks" ]]; then
+        git -C "$SCRIPT_DIR" config --local core.hooksPath ".githooks" \
+            && echo "Installed git pre-commit secret guard (core.hooksPath=.githooks)."
+    fi
+}
 
 # Build the adhoc image if not present; all interactive setup runs inside it.
 ensure_adhoc_built() {
@@ -54,45 +75,13 @@ run_adhoc() {
 }
 
 # ── Service enablement ────────────────────────────────────────────────────────
-
-_env_shared_loaded=0
-_load_env_shared() {
-    [[ "$_env_shared_loaded" == "1" ]] && return 0
-    if [[ -f "${SCRIPT_DIR}/.env.shared" ]]; then
-        set -a
-        # shellcheck disable=SC1091
-        . "${SCRIPT_DIR}/.env.shared"
-        set +a
-        _env_shared_loaded=1
-    fi
-}
-_reload_env_shared() { _env_shared_loaded=0; _load_env_shared; }
-
-_enable_var_for() {
-    local rel="${1#"$SCRIPT_DIR"/}"
-    local cat="${rel%%/*}"
-    local slug="${rel#*/}"; slug="${slug%%/*}"
-    local var="EXIST_IS_${cat^^}_${slug^^}"
-    echo "${var//-/_}"
-}
-
-service_is_enabled() {
-    _load_env_shared
-    local var; var="$(_enable_var_for "$1")"
-    [[ "${!var:-false}" == "true" ]]
-}
+# SERVICE_CATEGORIES, _load_env_shared, _reload_env_shared, _enable_var_for,
+# service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
+# (sourced near the top). The helpers below are specific to this entry point.
 
 decree_is_enabled() {
     _load_env_shared
     [[ "${EXIST_IS_SERVICES_DECREE:-false}" == "true" ]]
-}
-
-_find_service_dirs() {
-    local cat
-    for cat in "${SERVICE_CATEGORIES[@]}"; do
-        [[ -d "${SCRIPT_DIR}/${cat}" ]] || continue
-        find "${SCRIPT_DIR}/${cat}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
-    done | sort
 }
 
 _has_any_enabled() {
@@ -271,8 +260,9 @@ Actions:
                       service's exist.initial.sh.
   run <slug> <act>    Run <category>/<slug>/exist.<act>.sh.
   test [name]         Run tests. 'all' (default) runs general infra tests +
-                      every enabled service's exist.test.sh. 'syntax|gmail|rclone'
-                      run those individually. Anything else is a service slug.
+                      every enabled service's exist.test.sh. 'secrets' asserts no
+                      rendered secrets are tracked; 'syntax|gmail|rclone' run those
+                      individually. Anything else is a service slug.
   validate [name]     On-demand checks: all (default), conventions, drift.
   e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
   e2e --all           Run all e2e-testable quests without prompting.
@@ -305,6 +295,7 @@ case "$action" in
         _is_first_run=false
         [[ ! -f "${SCRIPT_DIR}/.env.shared" ]] && _is_first_run=true
 
+        ensure_git_hooks
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
         _reload_env_shared
@@ -334,6 +325,7 @@ case "$action" in
         echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
         ;;
     quest)
+        ensure_git_hooks
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/quest.sh "$@"
         run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
@@ -352,13 +344,17 @@ case "$action" in
         case "${1:-all}" in
             all)
                 _rc=0
-                # Host-side container-state gate first (adhoc has no docker socket,
+                # Host-side secret guard first (needs git, which adhoc lacks) — a
+                # public repo must never track rendered secrets. See H-3.
+                bash "${SCRIPT_DIR}/src/test/no-tracked-secrets.sh" || _rc=1
+                # Host-side container-state gate next (adhoc has no docker socket,
                 # so this is the only place daemon crash-loops are visible).
                 DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/integration/container-health.sh" \
                     "${SCRIPT_DIR}/docker-compose.yml" || _rc=1
                 run_adhoc bash /src/test/run-all.sh all || _rc=1
                 exit "$_rc"
                 ;;
+            secrets)     bash "${SCRIPT_DIR}/src/test/no-tracked-secrets.sh" ;;
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
             integration) run_adhoc bash /src/test/run-all.sh integration ;;
             services)    run_adhoc bash /src/test/run-all.sh services ;;
@@ -372,14 +368,14 @@ case "$action" in
             all)
                 _rc=0
                 echo "=== Conventions ==="
-                run_adhoc tsx /src/test/unit/validate-conventions.ts || _rc=1
+                run_adhoc tsx /src/test/unit/validate-conventions.ts /repo || _rc=1
                 echo ""
                 echo "=== Drift (template vs rendered) ==="
-                run_adhoc tsx /src/test/unit/check-drift.ts || _rc=1
+                run_adhoc tsx /src/test/unit/check-drift.ts /repo || _rc=1
                 exit $_rc
                 ;;
-            conventions) run_adhoc tsx /src/test/unit/validate-conventions.ts ;;
-            drift)       run_adhoc tsx /src/test/unit/check-drift.ts ;;
+            conventions) run_adhoc tsx /src/test/unit/validate-conventions.ts /repo ;;
+            drift)       run_adhoc tsx /src/test/unit/check-drift.ts /repo ;;
             *)           echo "Unknown validation: ${1:-}. Available: all, conventions, drift" >&2; exit 1 ;;
         esac
         ;;

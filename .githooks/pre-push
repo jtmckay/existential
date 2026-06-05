@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# pre-push — run the unit suite + convention checks before code leaves the machine.
+#
+# Heavier than pre-commit (spins up the adhoc container, needs Docker), so it runs
+# here — once per push — instead of on every commit. pre-commit stays lean (the
+# secret guard, the one irreversible failure on a public repo). Installed via
+# core.hooksPath=.githooks (see existential.sh). Bypass with: git push --no-verify
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "pre-push: unit tests + convention checks (skip with: git push --no-verify)"
+
+if ! ./existential.sh test unit; then
+    echo "" >&2
+    echo "pre-push blocked: unit tests failed (fix, or 'git push --no-verify')." >&2
+    exit 1
+fi
+
+# Soft gate: only hard-fails on real convention errors. Warnings (and an unrendered
+# docker-compose.yml) exit 0, so this won't block a docs- or script-only push.
+if ! ./existential.sh validate conventions; then
+    echo "" >&2
+    echo "pre-push blocked: convention checks failed (fix, or 'git push --no-verify')." >&2
+    exit 1
+fi
+
+echo "pre-push: checks passed."

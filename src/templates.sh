@@ -5,10 +5,15 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/repo}"
 FORCE="${FORCE:-false}"
-SERVICE_CATEGORIES=(hosting nas ai services)
+
+# Shared service-enablement + env helpers read $SCRIPT_DIR as the repo root;
+# here that is REPO_DIR. Provides SERVICE_CATEGORIES, _load_env_shared,
+# _reload_env_shared, _enable_var_for, service_is_enabled, _find_service_dirs.
+SCRIPT_DIR="${REPO_DIR}"
 
 . /src/utils/generate_password.sh
 . /src/utils/generate_hex_key.sh
+. /src/utils/service-common.sh
 
 # ── Generators ────────────────────────────────────────────────────────────────
 
@@ -18,44 +23,6 @@ gen_uuid()     {
     if command -v uuidgen &>/dev/null; then uuidgen | tr '[:upper:]' '[:lower:]'
     else cat /proc/sys/kernel/random/uuid
     fi
-}
-
-# ── Env loading ───────────────────────────────────────────────────────────────
-
-_env_shared_loaded=0
-
-_load_env_shared() {
-    [[ "$_env_shared_loaded" == "1" ]] && return 0
-    if [[ -f "${REPO_DIR}/.env.shared" ]]; then
-        set -a; . "${REPO_DIR}/.env.shared"; set +a
-        _env_shared_loaded=1
-    fi
-}
-
-_reload_env_shared() { _env_shared_loaded=0; _load_env_shared; }
-
-# ── Service enablement ────────────────────────────────────────────────────────
-
-_enable_var_for() {
-    local rel="${1#"$REPO_DIR"/}"
-    local cat="${rel%%/*}"
-    local slug="${rel#*/}"; slug="${slug%%/*}"
-    local var="EXIST_IS_${cat^^}_${slug^^}"
-    echo "${var//-/_}"
-}
-
-service_is_enabled() {
-    _load_env_shared
-    local var; var="$(_enable_var_for "$1")"
-    [[ "${!var:-false}" == "true" ]]
-}
-
-_find_service_dirs() {
-    local cat
-    for cat in "${SERVICE_CATEGORIES[@]}"; do
-        [[ -d "${REPO_DIR}/${cat}" ]] || continue
-        find "${REPO_DIR}/${cat}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
-    done | sort
 }
 
 # ── Placeholder replacement ───────────────────────────────────────────────────
@@ -73,17 +40,30 @@ render_template() {
     # EXIST_* — substitute values already written to .env.shared.
     # Skip when rendering .env.shared itself (would replace keys with their own values).
     if [[ -f "${REPO_DIR}/.env.shared" && "$dst" != "${REPO_DIR}/.env.shared" ]]; then
-        local key value _escaped
-        local -a sed_args=()
+        local key value _escaped k
+        local -a _keys=()
+        local -A _vals=()
         while IFS='=' read -r key value || [[ -n "$key" ]]; do
             [[ "$key" =~ ^EXIST_ ]] || continue
             [[ -n "$key" && -n "$value" ]] || continue
-            # Escape sed replacement metacharacters: \ first, then & and |
-            _escaped="${value//\\/\\\\}"
-            _escaped="${_escaped//&/\\&}"
-            _escaped="${_escaped//|/\\|}"
-            sed_args+=(-e "s|\\\${${key}[^}]*}|${_escaped}|g" -e "s|${key}|${_escaped}|g")
+            _keys+=("$key")
+            _vals["$key"]="$value"
         done < "${REPO_DIR}/.env.shared"
+
+        # Build the substitutions longest-key-first so a shorter key (EXIST_FOO)
+        # can't rewrite the prefix of a longer one (EXIST_FOOBAR). The bare-token
+        # form is anchored on a trailing word boundary (\b) for the same reason and
+        # so a key name embedded in unrelated text can't be silently replaced with
+        # a secret value.
+        local -a sed_args=()
+        if [[ ${#_keys[@]} -gt 0 ]]; then
+            while IFS= read -r k; do
+                _escaped="${_vals[$k]//\\/\\\\}"
+                _escaped="${_escaped//&/\\&}"
+                _escaped="${_escaped//|/\\|}"
+                sed_args+=(-e "s|\\\${${k}[^}]*}|${_escaped}|g" -e "s|${k}\\b|${_escaped}|g")
+            done < <(printf '%s\n' "${_keys[@]}" | awk '{ print length, $0 }' | sort -rn | cut -d' ' -f2-)
+        fi
         if [[ ${#sed_args[@]} -gt 0 ]]; then
             content="$(sed "${sed_args[@]}" <<<"$content")"
         fi
@@ -187,6 +167,16 @@ _template_to_dst() {
 _STATS_CREATED=0
 _STATS_SKIPPED=0
 
+# Rendered files that hold secrets (DB passwords, API keys, private keys) must
+# not be world/group-readable. chmod 600 anything that looks like a credential
+# file so a fresh render never leaves secrets at the default umask (664/644).
+_secure_if_secret() {
+    local f="$1" base; base="$(basename "$f")"
+    case "$base" in
+        .env|.env.*|*.pem|*_password*.txt) chmod 600 "$f" 2>/dev/null || true ;;
+    esac
+}
+
 _process_one_template() {
     local src="$1" dst
     dst="$(_template_to_dst "$src")"
@@ -205,6 +195,7 @@ _process_one_template() {
         while IFS= read -r f; do
             rendered="$(render_template "$f" "$f")"
             printf '%s\n' "$rendered" > "$f"
+            _secure_if_secret "$f"
         done < <(find "$dst" -type f 2>/dev/null)
     else
         # Resolve every placeholder in memory, then write the destination once.
@@ -213,6 +204,7 @@ _process_one_template() {
         local rendered
         rendered="$(render_template "$src" "$dst")"
         printf '%s\n' "$rendered" > "$dst"
+        _secure_if_secret "$dst"
         # NFS-vs-bind for persistent volumes is decided by generate-compose.ts
         # (convertNfsVolumes): bind mount to volumes/<name>/ when NFS is unset,
         # NFS named volume when it's configured. Templates leave driver_opts intact.

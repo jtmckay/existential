@@ -126,6 +126,29 @@ wait_running() {
     return 1
 }
 
+# Remove leftover .tmp-e2e-* work dirs from a previously crashed run. They may
+# contain root-owned volume data (containers run as root), so reclaim with a
+# throwaway root container first, then rm the dir on the host. Returns the count
+# removed via the global _SWEPT so callers can report "found something".
+_SWEPT=0
+sweep_leftover_workdirs() {
+    _SWEPT=0
+    local -a stale=()
+    mapfile -t stale < <(find "$REPO_DIR" -maxdepth 1 -type d -name '.tmp-e2e-*' 2>/dev/null)
+    [ "${#stale[@]}" -gt 0 ] || return 0
+    local d
+    for d in "${stale[@]}"; do
+        log "Reclaiming leftover work dir ${d##*/}..."
+        docker run --rm -u 0 -v "${d}:/cleanup" alpine \
+            sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null' 2>/dev/null || true
+        if rm -rf "$d" 2>/dev/null; then
+            _SWEPT=$(( _SWEPT + 1 ))
+        else
+            log "  warn: could not fully remove ${d##*/} — stale root-owned files may remain"
+        fi
+    done
+}
+
 # ── Teardown of leftover artifacts ──────────────────────────────────────────────
 # `./existential.sh e2e down` — find every container, network, volume, and temp
 # work dir belonging to a previous e2e run (compose project "exist-e2e") and spin
@@ -173,18 +196,8 @@ e2e_down() {
     fi
 
     # Leftover git-archive work dirs in the repo root.
-    local -a workdirs=()
-    mapfile -t workdirs < <(find "$REPO_DIR" -maxdepth 1 -type d -name '.tmp-e2e-*' 2>/dev/null)
-    if [ "${#workdirs[@]}" -gt 0 ]; then
-        found=1
-        local d
-        for d in "${workdirs[@]}"; do
-            log "Removing work dir ${d##*/}..."
-            docker run --rm -u 0 -v "${d}:/cleanup" alpine \
-                sh -c 'rm -rf /cleanup/*' 2>/dev/null || true
-            rm -rf "$d" 2>/dev/null || true
-        done
-    fi
+    sweep_leftover_workdirs
+    [ "$_SWEPT" -gt 0 ] && found=1
 
     if [ "$found" -eq 0 ]; then
         log "No leftover e2e artifacts found — nothing to do."
@@ -406,6 +419,10 @@ if [ "${1:-}" = "down" ]; then
     e2e_down
     exit 0
 fi
+
+# Always start from a clean slate: a previous run that crashed before its trap
+# fired can leave root-owned .tmp-e2e-* dirs behind (they accumulate otherwise).
+sweep_leftover_workdirs
 
 # Build adhoc image once — used for template rendering, compose gen, and tests.
 log "Building existential-adhoc image..."

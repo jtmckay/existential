@@ -16,8 +16,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
-const SKIP_DIRS = new Set(['graveyard', 'node_modules', '.git', 'site']);
+// In the adhoc container /src and /repo are separate mounts, so __dirname-relative
+// resolution lands on "/" (and findTemplates would then walk the whole container
+// filesystem). Take the repo root explicitly — argv[2] or $REPO_DIR, same as the
+// other validators — and fall back to __dirname-relative for host runs.
+const REPO_ROOT = path.resolve(
+  process.argv[2] ?? process.env.REPO_DIR ?? path.join(__dirname, '..', '..', '..'),
+);
+// Dirs that never hold templates — including runtime/data dirs that can be large
+// or root-owned (secrets/, runs/, volumes/). The walk also tolerates EACCES as a
+// backstop, but skipping these up front is faster and clearer.
+const SKIP_DIRS = new Set([
+  'graveyard', 'node_modules', '.git', 'site', 'secrets', 'runs', 'volumes',
+]);
 const PLACEHOLDER_RE = /EXIST_[A-Z0-9_]+/;
 const ENV_KEY_RE = /^([A-Z_][A-Z0-9_]*)=/;
 const YAML_KEY_RE = /^\s*([\w.-]+):\s*\S/;
@@ -213,7 +224,17 @@ function findTemplates(root: string): string[] {
   const results: string[] = [];
 
   function walk(dir: string): void {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (err) {
+      // Runtime state dirs can be root-owned/unreadable by the adhoc user (uid
+      // 1000) — e.g. automations/secrets/gmail (0700). They never hold templates,
+      // so skip rather than crash. Surface anything unexpected.
+      if ((err as NodeJS.ErrnoException).code === 'EACCES') return;
+      throw err;
+    }
+    for (const entry of entries) {
       if (SKIP_DIRS.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {

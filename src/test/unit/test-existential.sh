@@ -147,6 +147,14 @@ _source_existential() {
         # it now so the helpers see the fake tree we built for this test.
         SCRIPT_DIR="$fake_repo"
 
+        # The shared service-enablement helpers live in src/utils/service-common.sh.
+        # existential.sh sources them guarded by [[ -f "$SCRIPT_DIR/..." ]], which
+        # is false during the process-substitution source above (SCRIPT_DIR was the
+        # /dev/fd path then), so load them here from the real repo. They read
+        # $SCRIPT_DIR (now the fake tree) at call time.
+        # shellcheck source=../../utils/service-common.sh
+        . "${REPO}/src/utils/service-common.sh"
+
         # Now the functions are defined.  Run the expression the caller provided.
         eval "$expr"
     )

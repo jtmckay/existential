@@ -60,13 +60,24 @@ Plus: `automations/` (shared decree code), `src/` (setup/utility scripts), `volu
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
+  Includes `service-common.sh` (shared `SERVICE_CATEGORIES` + `_load_env_shared` /
+  `service_is_enabled` / `_find_service_dirs` / `_enable_var_for`; the single source of
+  truth used by both `existential.sh` and `src/templates.sh`, keyed off `$SCRIPT_DIR`).
 - `src/test/` splits into `unit/` (no live services), `integration/` (live creds/containers),
   `e2e/` (full-stack harness). Per-service tests live with the service as `exist.test.sh`.
+  `src/test/no-tracked-secrets.sh` runs on the **host** (needs git, absent from adhoc) via
+  `./existential.sh test secrets`, and is part of `test` (all) — it asserts this public repo
+  tracks no rendered secrets, backstopping the `.githooks/pre-commit` guard.
+- `.githooks/` (auto-installed via `core.hooksPath=.githooks` on `default`/`quest`):
+  `pre-commit` blocks secrets from entering the public repo (lean/fast — the one
+  irreversible failure); `pre-push` runs `test unit` + `validate conventions` (heavier,
+  needs Docker — gated once per push, not per commit). Bypass either with `--no-verify`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
 - **`.sh` exec bit:** default `644`. `existential.sh` and the decree daemon `bash <script>`
   everything they dispatch, so the bit is redundant there. Keep `+x` (`755`) only on scripts
-  executed **by path**: `existential.sh` itself, decree hooks (`lib/hooks/*`, wired as
-  `beforeEach`/`afterEach` paths), and `lib/notes/*` (run by path from `notes.sh`).
+  executed **by path**: `existential.sh` itself, `.githooks/*` (git runs hooks directly),
+  decree hooks (`lib/hooks/*`, wired as `beforeEach`/`afterEach` paths), and `lib/notes/*`
+  (run by path from `notes.sh`).
 
 ---
 

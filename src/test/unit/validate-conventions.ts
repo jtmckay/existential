@@ -19,7 +19,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+// In the adhoc container /src and /repo are separate mounts, so __dirname-relative
+// resolution lands on "/" — every path below would then point at a nonexistent
+// file and the check would pass vacuously. Take the repo root explicitly (argv[2]
+// or $REPO_DIR, same as the other validators); fall back to __dirname for host runs.
+const REPO_ROOT = path.resolve(
+  process.argv[2] ?? process.env.REPO_DIR ?? path.join(__dirname, '..', '..', '..'),
+);
 const PIHOLE   = path.join(REPO_ROOT, 'hosting/pihole/docker-compose.exist.yml');
 const CADDY    = path.join(REPO_ROOT, 'hosting/caddy/Caddyfile.exist.Caddyfile');
 const DASHY    = path.join(REPO_ROOT, 'services/dashy/dashy-conf.exist.yml');

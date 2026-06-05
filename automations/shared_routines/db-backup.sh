@@ -75,7 +75,9 @@ dump_postgres() {
 dump_mariadb() {
     local container="$1" user="$2" password="$3"
     local out="$TMPDIR/${container}-${DATE}.sql.gz"
-    mysqldump -h "$container" -u "$user" -p"$password" --all-databases --single-transaction --quick | gzip > "$out"
+    # Pass the password via MYSQL_PWD, not -p"$password", so it never appears in
+    # the container's process list (matches PGPASSWORD usage in dump_postgres).
+    MYSQL_PWD="$password" mysqldump -h "$container" -u "$user" --all-databases --single-transaction --quick | gzip > "$out"
     echo "$out"
 }
 

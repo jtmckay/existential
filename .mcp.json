@@ -11,7 +11,7 @@
         "/home/taylor/GitHub/existential:/repo:z",
         "--network",
         "existential_exist",
-        "existential-existential-adhoc",
+        "existential/decree:local",
         "npx",
         "-y",
         "@likec4/mcp"

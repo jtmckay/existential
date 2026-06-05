@@ -22,8 +22,12 @@ services:
     volumes:
       - ./loki-promtail-config.yaml:/etc/promtail/config.yml:ro
       - ../../automations/runs:/runs:ro
+      # promtail scrapes the on-disk json logs directly (static_configs in
+      # loki-promtail-config.yaml) — there is no docker_sd_configs, so the
+      # daemon socket is not needed. Mounting /var/run/docker.sock would grant
+      # promtail full Docker API access (= host root), so it is deliberately
+      # omitted.
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki

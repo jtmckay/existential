@@ -56,6 +56,7 @@ gen_hex()      { printf 'HX%02d_%s' "$(_next hx)" "${1:-32}"; }
 gen_uuid()     { printf 'uuid-%04d' "$(_next uuid)"; }
 
 cat > "$TMP/.env.shared" <<'EOF'
+EXIST_USER=bob
 EXIST_USERNAME=alice
 EXIST_NTFY_URL=http://ntfy:80
 EXIST_AMP=a&b
@@ -79,6 +80,16 @@ printf 'USER=EXIST_USERNAME\nNTFY=${EXIST_NTFY_URL}\n' > "$TMP/t_subst"
 out="$(render "$TMP/t_subst")"
 assert_contains "bare EXIST_USERNAME substituted from .env.shared" "USER=alice" "$out"
 assert_contains '${EXIST_NTFY_URL} substituted' "NTFY=http://ntfy:80" "$out"
+
+# ── Regression (M-4): a shorter key must not clobber a longer one ──────────────
+# EXIST_USER (bob) is a prefix of EXIST_USERNAME (alice). Longest-first ordering
+# + a trailing word boundary must keep EXIST_USERNAME → alice, never "bobNAME".
+printf 'A=${EXIST_USERNAME}\nB=EXIST_USERNAME\nC=${EXIST_USER}\n' > "$TMP/t_prefix"
+out="$(render "$TMP/t_prefix")"
+assert_contains "longer key \${EXIST_USERNAME} wins over prefix EXIST_USER" "A=alice" "$out"
+assert_contains "bare longer key EXIST_USERNAME wins over prefix EXIST_USER" "B=alice" "$out"
+assert_contains "shorter key \${EXIST_USER} still resolves" "C=bob" "$out"
+assert_not_contains "prefix key did not corrupt the longer one" "bobNAME" "$out"
 
 # ── Generated secrets, unique per occurrence ──────────────────────────────────
 

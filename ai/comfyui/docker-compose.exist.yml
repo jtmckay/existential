@@ -3,7 +3,8 @@ services:
   # Web UI at http://comfyui:8188 / https://comfyui.internal
   comfyui:
     container_name: comfyui
-    image: ghcr.io/ai-dock/comfyui:latest-cuda
+    # Pinned (was :latest-cuda) for reproducibility. Bump via ./existential.sh run check-versions.
+    image: ghcr.io/ai-dock/comfyui:v2-cuda-12.1.1-base-22.04-v0.2.7
 
     # NVIDIA GPU
     deploy:

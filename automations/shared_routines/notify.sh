@@ -33,6 +33,13 @@ ntfy_title="${ntfy_title:-}"
 ntfy_priority="${ntfy_priority:-}"
 ntfy_tags="${ntfy_tags:-}"
 
+# These three become HTTP headers below. Frontmatter is attacker-influenceable
+# (email/webhook → inbox), so strip CR/LF to prevent header injection.
+strip_crlf() { printf '%s' "${1//[$'\r\n']/}"; }
+ntfy_title="$(strip_crlf "$ntfy_title")"
+ntfy_priority="$(strip_crlf "$ntfy_priority")"
+ntfy_tags="$(strip_crlf "$ntfy_tags")"
+
 telegram_bot_token="${TELEGRAM_BOT_TOKEN:-}"
 telegram_chat_id="${TELEGRAM_CHAT_ID:-}"
 
