@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     # loki runs as uid 10001 internally; run as the host user instead so it can
     # write the bind-mounted loki_data (host-owned) when NFS isn't configured.
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
     volumes:

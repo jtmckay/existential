@@ -55,7 +55,7 @@ services:
   immich-redis:
     container_name: immich-redis
     image: docker.io/valkey/valkey:8
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist
@@ -65,7 +65,7 @@ services:
   immich-postgres:
     container_name: immich-postgres
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist

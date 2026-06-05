@@ -13,7 +13,7 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - "49621:9621"
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     environment:
       LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
     volumes:
@@ -29,7 +29,7 @@ services:
     container_name: lightrag-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist

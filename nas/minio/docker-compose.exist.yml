@@ -4,7 +4,7 @@ services:
   minio:
     container_name: minio
     image: minio/minio:RELEASE.2025-10-15T17-29-55Z
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist

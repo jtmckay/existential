@@ -46,6 +46,18 @@ clean="$(mkfix)"; mkdir -p "$clean/ai/foo"
 printf 'services:\n  foo:\n    container_name: foo\n' > "$clean/ai/foo/docker-compose.exist.yml"
 expect_pass "conventions: accepts a clean tree" tsx "$CONV" "$clean"
 
+baduser="$(mkfix)"; mkdir -p "$baduser/ai/foo"
+printf 'services:\n  foo:\n    container_name: foo\n    user: "1000:1000"\n' > "$baduser/ai/foo/docker-compose.exist.yml"
+expect_fail "conventions: rejects hardcoded user: 1000:1000" tsx "$CONV" "$baduser"
+
+baduidenv="$(mkfix)"; mkdir -p "$baduidenv/ai/foo"
+printf 'services:\n  foo:\n    container_name: foo\n    environment:\n      HERMES_UID: "1000"\n' > "$baduidenv/ai/foo/docker-compose.exist.yml"
+expect_fail "conventions: rejects hardcoded uid/gid env" tsx "$CONV" "$baduidenv"
+
+cleanuid="$(mkfix)"; mkdir -p "$cleanuid/ai/foo"
+printf 'services:\n  foo:\n    container_name: foo\n    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"\n' > "$cleanuid/ai/foo/docker-compose.exist.yml"
+expect_pass "conventions: accepts the EXIST_PUID user form" tsx "$CONV" "$cleanuid"
+
 # ── check-drift.ts ────────────────────────────────────────────────────────────
 drifted="$(mkfix)"
 printf 'alpha\nbeta\n'  > "$drifted/x.exist.txt"

@@ -74,6 +74,18 @@ run_adhoc() {
         --entrypoint "" existential-adhoc "$@"
 }
 
+# Record the host's uid/gid in .env.shared so compose can run every container as
+# the host user (EXIST_PUID/EXIST_PGID, referenced as ${EXIST_PUID:-1000} in service
+# compose files). This keeps bind-mount files owned by — and deletable by — whoever
+# runs the stack, on any host, not just the 1000:1000 default. Set-if-missing so a
+# manual override in .env.shared is respected; mergeEnv carries them into the master .env.
+_ensure_host_ids() {
+    local f="${SCRIPT_DIR}/.env.shared"
+    [[ -f "$f" ]] || return 0
+    grep -q '^EXIST_PUID=' "$f" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$f"
+    grep -q '^EXIST_PGID=' "$f" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$f"
+}
+
 # ── Service enablement ────────────────────────────────────────────────────────
 # SERVICE_CATEGORIES, _load_env_shared, _reload_env_shared, _enable_var_for,
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
@@ -318,6 +330,7 @@ case "$action" in
             run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
             _reload_env_shared
         fi
+        _ensure_host_ids
         echo ""
         echo "Generating docker-compose.yml..."
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
@@ -333,6 +346,7 @@ case "$action" in
         run_adhoc env REPO_DIR=/repo bash /src/quest.sh "$@"
         run_adhoc env REPO_DIR=/repo FORCE="$FORCE" bash /src/templates.sh
         _reload_env_shared
+        _ensure_host_ids
         echo ""
         echo "Generating docker-compose.yml..."
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"

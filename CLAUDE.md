@@ -200,21 +200,30 @@ gives visible, inspectable, correctly-owned bind mounts.
 - **Ephemeral** (cache/scratch): plain named volumes, recreated on `down -v`.
 
 ### Container user & privileges
-Least privilege is the default. An app container gets `user: "1000:1000"` (matches the host
-user, so bind-mount files stay deletable without root) **unless it structurally needs root** —
-in which case say why in a comment next to the omission (see hermes-agent's s6 note).
-**Pick the right mechanism, not always `user:`:** images with an s6/`PUID`-style init (it starts
-as root then drops) break under `user:` — set their `PUID`/`PGID` env to `1000` instead (lowcoder
-does this). Use plain `user:` only for images that tolerate an arbitrary uid. Root is
-expected for: privileged-port binders that can't take a cap (use `cap_add` over `privileged:
-true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`), pihole (NET_ADMIN), portainer
-(docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images managed by an
-internal supervisor (appsmith, lowcoder, nextcloud), and images caching into `/root` (whisper, mcp).
-The `*-decree` backup sidecars run as `user: "1000:1000"` like everything else — the volume data
-they tar is `1000`-owned by the `volumes/` convention, so they need no extra privilege. **DB/cache
-images** (postgres, mariadb, mongo, redis) also run `user: "1000:1000"`, but the data volume
-must be owned by `1000` first — pinning `user:` on a dir already initialized under the image's
-old service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0"`.
+Least privilege is the default. An app container runs as the **host** user
+(`user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"`), so bind-mount files stay deletable
+without root **unless it structurally needs root** — in which case say why in a comment next
+to the omission (see hermes-agent's s6 note). **Never hardcode the literal `1000:1000`** —
+always the `${EXIST_PUID:-1000}:${EXIST_PGID:-1000}` form (enforced by `validate
+conventions`). `EXIST_PUID`/`EXIST_PGID` are auto-detected from the host (`id -u`/`id -g`) by
+`existential.sh`'s `_ensure_host_ids`, written into `.env.shared`, and default to `1000` when
+absent — so the stack works for a user who isn't `1000:1000` (LDAP, a second account, a
+server) without any config.
+
+**Pick the right mechanism, not always `user:`:** images with an s6/`PUID`-style init (it
+starts as root then drops) break under `user:` — set their `PUID`/`PGID` (or `UID`/`GID`,
+`HERMES_UID`/`GID`, …) **env** to `${EXIST_PUID:-1000}`/`${EXIST_PGID:-1000}` instead
+(lowcoder, open-webui, hermes-agent do this). Use plain `user:` only for images that tolerate
+an arbitrary uid. Root is expected for: privileged-port binders that can't take a cap (use
+`cap_add` over `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`),
+pihole (NET_ADMIN), portainer (docker.sock), GPU/supervisor images (ollama, comfyui),
+multi-process app images managed by an internal supervisor (appsmith, lowcoder, nextcloud),
+and images caching into `/root` (whisper, mcp). The `*-decree` backup sidecars run as the
+host user like everything else — the volume data they tar is host-owned by the `volumes/`
+convention, so they need no extra privilege. **DB/cache images** (postgres, mariadb, mongo,
+redis) also run as the host user, but the data volume must be owned by that uid first —
+pinning `user:` on a dir already initialized under the image's old service uid breaks startup
+until the volume is `chown`-ed. Never use `user: "0:0"`.
 
 ### Container naming
 Every container is prefixed with the service slug (folder name): `loki`, `loki-promtail` ✓;

@@ -340,6 +340,11 @@ run_quest() {
 
     # 2. Pre-fill .env.shared from fixture (bypasses EXIST_CLI prompts)
     cp "$FIXTURES/env.shared" "$WORK/.env.shared"
+    # Run containers as the host user (the e2e host may not be 1000). existential.sh's
+    # _ensure_host_ids does this for real runs; e2e renders directly, so inject here too
+    # — otherwise the host-owned bind-mount dirs in $WORK wouldn't match the container uid.
+    grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
+    grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
     # 3. Enable this quest's services
     log "Enabling services..."

@@ -57,15 +57,16 @@ services:
     #     - "49119:9119"   # Web dashboard
     # No user: override. The image uses s6-overlay: init runs as root, the
     # cont-init remaps the internal "hermes" user to HERMES_UID:HERMES_GID,
-    # chowns /opt/data to that uid, then s6-applyuidgid drops to uid 1000 before
-    # starting the gateway. Setting user: "1000:1000" breaks s6-applyuidgid (needs
+    # chowns /opt/data to that uid, then s6-applyuidgid drops to that uid before
+    # starting the gateway. Pinning user: here breaks s6-applyuidgid (needs
     # CAP_SETGID to call setgroups) and crashes the container before the gateway
-    # ever starts. The gateway itself runs unprivileged (uid 1000 = host user).
+    # ever starts. The gateway itself runs unprivileged as the host uid.
     environment:
       # Remap the internal hermes user to the host user so the gateway runs as
-      # uid 1000 and writes files owned by uid 1000 into the bind-mount volume.
-      HERMES_UID: "1000"
-      HERMES_GID: "1000"
+      # the host uid/gid and writes bind-mount files owned by the host user.
+      # EXIST_PUID/EXIST_PGID are auto-detected from the host (default 1000).
+      HERMES_UID: "${EXIST_PUID:-1000}"
+      HERMES_GID: "${EXIST_PGID:-1000}"
       # Pass through whichever provider keys are set in .env. hermes-agent
       # uses the one that matches the provider configured in
       # ~/.hermes/config.yaml (or whatever `hermes setup` picked).
@@ -122,7 +123,7 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - "49300:3000"
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     environment:
       HERMES_HOME: /home/workspace/.hermes
       HERMES_WORKSPACE_DIR: /workspace
@@ -160,7 +161,7 @@ services:
     container_name: hermes-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist

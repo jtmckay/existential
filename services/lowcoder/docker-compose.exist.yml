@@ -6,7 +6,7 @@ services:
   lowcoder-mongodb:
     container_name: lowcoder-mongodb
     image: "mongo:7.0"
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: lowcoder
@@ -34,7 +34,7 @@ services:
   lowcoder-redis:
     container_name: lowcoder-redis
     image: redis:7-alpine
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     healthcheck: # https://stackoverflow.com/a/71504657
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
@@ -56,8 +56,8 @@ services:
     #   - "8080:8080"
     environment:
       LOWCODER_PUBLIC_URL: "https://lowcoder.internal"
-      LOWCODER_PUID: "1000"
-      LOWCODER_PGID: "1000"
+      LOWCODER_PUID: "${EXIST_PUID:-1000}"
+      LOWCODER_PGID: "${EXIST_PGID:-1000}"
       LOWCODER_MONGODB_URL: "mongodb://${LOWCODER_MONGO_ROOT_USERNAME}:${LOWCODER_MONGO_ROOT_PASSWORD}@lowcoder-mongodb/lowcoder?authSource=admin"
       LOWCODER_REDIS_URL: "redis://lowcoder-redis:6379"
       LOWCODER_NODE_SERVICE_URL: "http://lowcoder-node-service:6060"
@@ -123,8 +123,8 @@ services:
     # ports:
     #   - "6060:6060"
     environment:
-      LOWCODER_PUID: "1000"
-      LOWCODER_PGID: "1000"
+      LOWCODER_PUID: "${EXIST_PUID:-1000}"
+      LOWCODER_PGID: "${EXIST_PGID:-1000}"
       LOWCODER_API_SERVICE_URL: "http://lowcoder-api-service:8080"
     restart: unless-stopped
     depends_on:
@@ -148,8 +148,8 @@ services:
     ports:
       - 43000:3000
     environment:
-      LOWCODER_PUID: "1000"
-      LOWCODER_PGID: "1000"
+      LOWCODER_PUID: "${EXIST_PUID:-1000}"
+      LOWCODER_PGID: "${EXIST_PGID:-1000}"
       LOWCODER_MAX_REQUEST_SIZE: 20m
       LOWCODER_MAX_QUERY_TIMEOUT: 120
       LOWCODER_API_SERVICE_URL: "http://lowcoder-api-service:8080"
@@ -177,7 +177,7 @@ services:
     container_name: lowcoder-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist

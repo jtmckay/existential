@@ -13,6 +13,8 @@
  *   7. Every key in a service's .env.exist starts with <SLUG>_.
  *   8. Every key in .env.exist.shared starts with EXIST_, no legacy prefixes.
  *   9. Every NFS-declared volume in the master docker-compose.yml is fully configured.
+ *  10. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
+ *      the host user via the `${EXIST_PUID:-1000}` convention.
  */
 
 import * as fs from 'fs';
@@ -270,6 +272,52 @@ function checkNfsVolumes(): string[] {
   return errors;
 }
 
+// A container must run as the host user via the ${EXIST_PUID:-1000} convention, never a
+// hardcoded numeric uid/gid — that only works on a 1000:1000 host. Flag literal `user:`
+// values and literal uid/gid *env* values (PUID/PGID/UID/GID and prefixed forms like
+// HERMES_UID, LOWCODER_PUID). The resolved ${EXIST_…} form starts with `$`, so it never
+// matches the numeric patterns below.
+const USER_LITERAL_RE   = /^\s*user:\s*["']?\d+:\d+["']?\s*(?:#.*)?$/;
+const UID_ENV_KEY_RE     = /^\s*([A-Za-z_][A-Za-z0-9_]*):\s*["']?(\d+)["']?\s*(?:#.*)?$/;
+const UID_ENV_NAME_RE    = /(?:PUID|PGID|UID|GID)$/;
+
+function checkHardcodedUids(): string[] {
+  const errors: string[] = [];
+  for (const cat of CATEGORY_DIRS) {
+    const catPath = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catPath)) continue;
+
+    for (const entry of fs.readdirSync(catPath, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const composePath = path.join(catPath, entry.name, 'docker-compose.exist.yml');
+      if (!fs.existsSync(composePath)) continue;
+
+      const rel = path.relative(REPO_ROOT, composePath);
+      const lines = fs.readFileSync(composePath, 'utf8').split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i];
+        if (raw.trimStart().startsWith('#')) continue;
+        if (USER_LITERAL_RE.test(raw)) {
+          errors.push(
+            `${rel}:${i + 1}: hardcoded \`user:\` uid/gid — use ` +
+            `\`user: "\${EXIST_PUID:-1000}:\${EXIST_PGID:-1000}"\` so it runs as the host user`,
+          );
+          continue;
+        }
+        const km = UID_ENV_KEY_RE.exec(raw);
+        if (km && UID_ENV_NAME_RE.test(km[1])) {
+          const isGid = /GID$/.test(km[1]);
+          const repl = isGid ? '${EXIST_PGID:-1000}' : '${EXIST_PUID:-1000}';
+          errors.push(
+            `${rel}:${i + 1}: env '${km[1]}' is a hardcoded uid/gid — use "${repl}"`,
+          );
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function main(): number {
@@ -391,6 +439,9 @@ function main(): number {
 
   // (10) NFS-declared volumes in master compose are fully configured
   errors.push(...checkNfsVolumes());
+
+  // (12) No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
+  errors.push(...checkHardcodedUids());
 
   // (11) Quest files: e2e: false must have e2e_skip explaining why
   const questsDir = path.join(REPO_ROOT, 'src/quests');

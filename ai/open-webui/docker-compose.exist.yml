@@ -2,7 +2,7 @@ services:
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:v0.9.6
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     deploy:
       resources:
@@ -15,8 +15,8 @@ services:
     #   ports:
     #     - "11488:8080"
     environment:
-      UID: "1000"
-      GID: "1000"
+      UID: "${EXIST_PUID:-1000}"
+      GID: "${EXIST_PGID:-1000}"
       WEBUI_ADMIN_NAME: ${OPEN_WEBUI_ADMIN_NAME}
       WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}

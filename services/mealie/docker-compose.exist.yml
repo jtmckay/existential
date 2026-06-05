@@ -2,7 +2,7 @@ services:
   mealie:
     container_name: mealie
     image: ghcr.io/mealie-recipes/mealie:v3.19.2
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist
@@ -37,7 +37,7 @@ services:
   mealie-postgres:
     container_name: mealie-postgres
     image: postgres:17
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist
@@ -51,7 +51,7 @@ services:
     container_name: mealie-decree
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
-    user: "1000:1000"
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:
       - exist
