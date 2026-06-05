@@ -67,7 +67,11 @@ ensure_adhoc_built() {
 
 # Run a command inside the adhoc container (TTY-aware).
 run_adhoc() {
-    local tty_flags=()
+    # `docker compose run` allocates a pseudo-TTY by default (keyed off stdout),
+    # which fails with "the input device is not a TTY" when stdin isn't one — e.g.
+    # a git-push pre-push hook: stdout is the terminal, stdin is git's pipe. Default
+    # to -T (no TTY) and only opt into -it when BOTH ends are real TTYs.
+    local tty_flags=(-T)
     [[ -t 0 && -t 1 ]] && tty_flags=(-it)
     $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm "${tty_flags[@]}" \
         --user "$(id -u):$(id -g)" \
