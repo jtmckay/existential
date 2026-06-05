@@ -117,6 +117,10 @@ archived="$(find "$repo" -maxdepth 1 -name 'docker-compose-*.yml' -type f 2>/dev
 if [[ -n "$archived" ]]; then _ok "previous compose archived on regeneration"
 else _fail "previous compose archived on regeneration" "no docker-compose-*.yml found"; fi
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

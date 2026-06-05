@@ -144,7 +144,7 @@ function templateToDst(tmpl: string): string {
   const dir = path.dirname(tmpl);
 
   if (fname.includes('.exist.')) {
-    const [before, , after] = fname.split(/\.exist\.(.*)/s);
+    const [before, after] = fname.split(/\.exist\.(.*)/s);
     // Palindrome (e.g. Caddyfile.exist.Caddyfile → Caddyfile)
     if (before.toLowerCase() === after.toLowerCase()) return path.join(dir, before);
     return path.join(dir, `${before}.${after}`);

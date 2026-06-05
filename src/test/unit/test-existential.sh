@@ -479,6 +479,10 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
     fi
 )
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

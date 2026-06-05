@@ -350,6 +350,7 @@ run_quest() {
     # 4. Render service templates (non-interactive — .env.shared already present)
     log "Rendering templates..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
+        --user "$(id -u):$(id -g)" \
         --entrypoint "" \
         -e REPO_DIR=/repo \
         -e FORCE=false \
@@ -362,6 +363,7 @@ run_quest() {
     # runs on the host (not inside the adhoc container).
     log "Generating docker-compose.yml..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
+        --user "$(id -u):$(id -g)" \
         --entrypoint "" existential-adhoc \
         tsx /src/generate-compose.ts /repo docker-compose.yml "$WORK"
 
@@ -398,6 +400,7 @@ run_quest() {
         fi
     done
     if ! docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
+            --user "$(id -u):$(id -g)" \
             -e E2E_MODE=1 \
             -e "E2E_SERVICE_PATHS=${e2e_paths}" \
             --entrypoint "" existential-adhoc \

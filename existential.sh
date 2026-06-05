@@ -261,8 +261,11 @@ Actions:
   run <slug> <act>    Run <category>/<slug>/exist.<act>.sh.
   test [name]         Run tests. 'all' (default) runs general infra tests +
                       every enabled service's exist.test.sh. 'secrets' asserts no
-                      rendered secrets are tracked; 'syntax|gmail|rclone' run those
-                      individually. Anything else is a service slug.
+                      rendered secrets are tracked; 'guards'/'harness' prove the
+                      secret guards / test plumbing trip on bad input; 'selfcheck'
+                      proves each unit suite fails on a forced assertion;
+                      'syntax|gmail|rclone' run those individually. Anything else
+                      is a service slug.
   validate [name]     On-demand checks: all (default), conventions, drift.
   e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
   e2e --all           Run all e2e-testable quests without prompting.
@@ -344,7 +347,14 @@ case "$action" in
         case "${1:-all}" in
             all)
                 _rc=0
-                # Host-side secret guard first (needs git, which adhoc lacks) — a
+                # Host-side guard self-test first (needs git): proves the secret
+                # guards actually trip on planted secrets — a guard that silently
+                # stopped working otherwise looks identical to a clean pass.
+                bash "${SCRIPT_DIR}/src/test/guard-selftest.sh" || _rc=1
+                # Harness self-test: proves the test plumbing (run-all aggregation,
+                # container-health gate) actually surfaces failures, not just passes.
+                bash "${SCRIPT_DIR}/src/test/harness-selftest.sh" || _rc=1
+                # Host-side secret guard next (needs git, which adhoc lacks) — a
                 # public repo must never track rendered secrets. See H-3.
                 bash "${SCRIPT_DIR}/src/test/no-tracked-secrets.sh" || _rc=1
                 # Host-side container-state gate next (adhoc has no docker socket,
@@ -355,6 +365,9 @@ case "$action" in
                 exit "$_rc"
                 ;;
             secrets)     bash "${SCRIPT_DIR}/src/test/no-tracked-secrets.sh" ;;
+            guards)      bash "${SCRIPT_DIR}/src/test/guard-selftest.sh" ;;
+            harness)     bash "${SCRIPT_DIR}/src/test/harness-selftest.sh" ;;
+            selfcheck)   run_adhoc bash /src/test/run-all.sh selfcheck ;;
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
             integration) run_adhoc bash /src/test/run-all.sh integration ;;
             services)    run_adhoc bash /src/test/run-all.sh services ;;

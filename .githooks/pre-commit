@@ -46,7 +46,7 @@ for f in "${staged[@]}"; do
         note "possible API key/token in staged change: $f"
     fi
     if [[ "$f" != *.exist.* && "$f" != *.example ]] && grep -nFq "BEGIN" <<<"$added" \
-        && grep -nEq "$key_re" <<<"$added"; then
+        && grep -nEq -e "$key_re" <<<"$added"; then
         note "private key material in staged change: $f"
     fi
 done

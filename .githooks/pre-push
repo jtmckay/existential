@@ -10,11 +10,37 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-echo "pre-push: unit tests + convention checks (skip with: git push --no-verify)"
+echo "pre-push: self-tests + unit tests + convention checks (skip with: git push --no-verify)"
+
+# Cheap, host-side, no Docker — run first so a disarmed secret guard fails fast,
+# before the heavier adhoc-container unit tier. push == publication, so this is
+# exactly when proof that the secret guards still trip matters most.
+if ! ./existential.sh test guards; then
+    echo "" >&2
+    echo "pre-push blocked: secret-guard self-test failed (a guard may be disarmed)." >&2
+    echo "Fix it — do not bypass this on a public repo unless you are certain." >&2
+    exit 1
+fi
+
+# Prove the test plumbing itself surfaces failures (run-all aggregation +
+# container-health gate). Also host-side and Docker-free.
+if ! ./existential.sh test harness; then
+    echo "" >&2
+    echo "pre-push blocked: harness self-test failed (test plumbing may swallow failures)." >&2
+    exit 1
+fi
 
 if ! ./existential.sh test unit; then
     echo "" >&2
     echo "pre-push blocked: unit tests failed (fix, or 'git push --no-verify')." >&2
+    exit 1
+fi
+
+# Per-suite opposite: each unit suite must fail when one of its assertions fails
+# (adhoc, like 'test unit'). Catches a suite whose FAIL→exit path got broken.
+if ! ./existential.sh test selfcheck; then
+    echo "" >&2
+    echo "pre-push blocked: a unit suite does not surface assertion failures." >&2
     exit 1
 fi
 

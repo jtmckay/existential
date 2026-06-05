@@ -140,6 +140,10 @@ out="$(render_template "$TMP/t_self" "$TMP/.env.shared" </dev/null)"
 assert_contains ".env.shared render keeps its own key name" "EXIST_USERNAME=" "$out"
 assert_not_contains ".env.shared render does not inject key's value" "alice=" "$out"
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

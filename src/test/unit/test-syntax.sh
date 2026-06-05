@@ -23,6 +23,10 @@ while IFS= read -r -d '' script; do
 done < <(find /repo/ai /repo/services /repo/hosting /repo/nas \
               -maxdepth 2 -name 'exist.*.sh' -type f -print0 2>/dev/null | sort -z)
 
+# Self-check canary: TEST_SELFCHECK=1 forces a failure so this suite's own
+# FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && FAIL=$((FAIL + 1))
+
 if [ "$FAIL" -gt 0 ]; then
     echo "$FAIL script(s) have syntax errors" >&2
     exit 1

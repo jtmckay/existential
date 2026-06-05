@@ -53,6 +53,36 @@ run() {
     fi
 }
 
+# ── Self-check: every unit suite must FAIL when an assertion fails ──────────────
+# Runs each suite with TEST_SELFCHECK=1, which trips a deliberate canary failure
+# inside the suite. A suite that still exits 0 has a broken FAIL→exit path and is
+# manufacturing false confidence — the exact rot this whole effort targets.
+if [[ "$TIER" == "selfcheck" ]]; then
+    echo "=== Suite self-check (a forced assertion must fail each suite) ==="
+    sc_fail=0
+    for script in "${TEST_DIR}/unit/test-"*.sh; do
+        [ -f "$script" ] || continue
+        t=$(basename "$script" .sh); t="${t#test-}"
+        rc=0
+        out=$(TEST_SELFCHECK=1 bash "$script" 2>&1) || rc=$?   # || rc=$? so set -e doesn't abort the loop
+        if printf '%s\n' "$out" | grep -q 'skipped — '; then
+            printf '  - %s (skipped — not exercised in this environment)\n' "$t"
+        elif [ "$rc" -ne 0 ]; then
+            printf '%s✓%s %s — fails as expected under a forced assertion\n' "$GREEN" "$RESET" "$t"
+        else
+            printf '%s✗%s %s — SWALLOWED a forced assertion (exited 0)\n' "$RED" "$RESET" "$t"
+            sc_fail=$((sc_fail + 1))
+        fi
+    done
+    echo ""
+    if [ "$sc_fail" -ne 0 ]; then
+        echo "=== Self-check FAILED: ${sc_fail} suite(s) do not surface assertion failures ==="
+        exit 1
+    fi
+    echo "=== Self-check passed: every unit suite surfaces a failed assertion ==="
+    exit 0
+fi
+
 # ── Unit tests ─────────────────────────────────────────────────────────────────
 
 if [[ "$TIER" == "unit" || "$TIER" == "all" ]] && [ "${E2E_MODE:-}" != "1" ]; then

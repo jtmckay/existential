@@ -65,13 +65,27 @@ Plus: `automations/` (shared decree code), `src/` (setup/utility scripts), `volu
   truth used by both `existential.sh` and `src/templates.sh`, keyed off `$SCRIPT_DIR`).
 - `src/test/` splits into `unit/` (no live services), `integration/` (live creds/containers),
   `e2e/` (full-stack harness). Per-service tests live with the service as `exist.test.sh`.
-  `src/test/no-tracked-secrets.sh` runs on the **host** (needs git, absent from adhoc) via
-  `./existential.sh test secrets`, and is part of `test` (all) — it asserts this public repo
-  tracks no rendered secrets, backstopping the `.githooks/pre-commit` guard.
+  **Every test mechanism has an opposite** — a test silently swallowing a failure is worse
+  than no test. The opposites (all on the **host**, need git/bash, no adhoc; part of `test`
+  (all) and run early in `pre-push`):
+  - `no-tracked-secrets.sh` (`test secrets`) — asserts this public repo tracks no rendered secrets.
+  - `guard-selftest.sh` (`test guards`) — plants secret-shaped fixtures in throwaway repos and
+    asserts `pre-commit` **and** `no-tracked-secrets.sh` actually trip (incl. the `*.exist.*` /
+    `*.example` exemptions). New secret-guard logic ⇒ add a fixture here.
+  - `harness-selftest.sh` (`test harness`) — proves the *plumbing* surfaces failures: `run-all.sh`
+    fails+names a failing suite, and `container-health.sh` (driven by a fake `docker`) trips on a
+    bad container.
+  - `test selfcheck` (adhoc) — runs every `unit/test-*.sh` with `TEST_SELFCHECK=1`, which fires a
+    one-line canary (`[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail …`) each suite carries just before
+    its tally; asserts each suite then exits non-zero. **Every unit suite must carry that canary.**
+  - `unit/test-validators.sh` — opposite-tests the TS validators: builds violating fixture trees,
+    asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
 - `.githooks/` (auto-installed via `core.hooksPath=.githooks` on `default`/`quest`):
   `pre-commit` blocks secrets from entering the public repo (lean/fast — the one
-  irreversible failure); `pre-push` runs `test unit` + `validate conventions` (heavier,
-  needs Docker — gated once per push, not per commit). Bypass either with `--no-verify`.
+  irreversible failure); `pre-push` runs the host-side opposites first (`test guards`, `test
+  harness` — cheap, no Docker, fail fast) then `test unit`, `test selfcheck`, and `validate
+  conventions` (heavier, needs Docker — gated once per push, not per commit). Bypass either
+  with `--no-verify`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
 - **`.sh` exec bit:** default `644`. `existential.sh` and the decree daemon `bash <script>`
   everything they dispatch, so the bit is redundant there. Keep `+x` (`755`) only on scripts
@@ -195,8 +209,9 @@ does this). Use plain `user:` only for images that tolerate an arbitrary uid. Ro
 expected for: privileged-port binders that can't take a cap (use `cap_add` over `privileged:
 true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`), pihole (NET_ADMIN), portainer
 (docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images managed by an
-internal supervisor (appsmith, lowcoder, nextcloud), images caching into `/root` (whisper, mcp), and the
-`*-decree` backup sidecars (must read arbitrarily-owned volume data to tar it). **DB/cache
+internal supervisor (appsmith, lowcoder, nextcloud), and images caching into `/root` (whisper, mcp).
+The `*-decree` backup sidecars run as `user: "1000:1000"` like everything else — the volume data
+they tar is `1000`-owned by the `volumes/` convention, so they need no extra privilege. **DB/cache
 images** (postgres, mariadb, mongo, redis) also run `user: "1000:1000"`, but the data volume
 must be owned by `1000` first — pinning `user:` on a dir already initialized under the image's
 old service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0"`.
