@@ -41,6 +41,19 @@ RUN cd /opt/decree \
     && pnpm install --frozen-lockfile --prod
 ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
+# entrypoint.sh installs the chosen AI CLI at runtime via `npm i -g` (DECREE_AI=
+# opencode|claude). The container runs as the dynamic host user (EXIST_PUID — any
+# uid), but the image's default HOME (/root) and global prefix (/usr/local) are
+# root-owned, so npm's cache and install both fail with EACCES. Point HOME, the
+# npm cache, and the npm global prefix at a world-writable dir (0777, since the
+# uid:gid is not known at build time) and put its bin on PATH. Placed after the
+# build's root-run npm/pnpm steps so only the runtime install uses these paths.
+ENV HOME=/home/decree \
+    NPM_CONFIG_CACHE=/home/decree/.npm \
+    NPM_CONFIG_PREFIX=/home/decree/.npm-global
+ENV PATH=/home/decree/.npm-global/bin:$PATH
+RUN mkdir -p /home/decree/.npm /home/decree/.npm-global \
+    && chmod -R 0777 /home/decree
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 # Daemon services mount their project at /work/.decree and don't set DECREE_DIR,

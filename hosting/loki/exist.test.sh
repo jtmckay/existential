@@ -15,7 +15,11 @@ skip_if_disabled
 # (30 × 2s ≈ 60s) so a freshly-started loki isn't a false failure.
 EXIST_PROBE_RETRIES=30 http_probe "loki:3100 /ready"      "http://loki:3100/ready"      200
 
-# promtail metrics endpoint on :9080. /ready confirms it has shipped recently.
-http_probe "loki-promtail:9080 /ready" "http://loki-promtail:9080/ready" 200
+# promtail readiness on :9080. /ready emits a transient 500 (then 200) during cold
+# start, and isn't reachable at all (000) until its HTTP server binds — both are
+# "warming up", so retry on 000/500/503 with a loki-sized budget rather than failing
+# the instant we catch the startup window.
+EXIST_PROBE_RETRIES=30 EXIST_PROBE_RETRY_CODES="000 500 503" \
+    http_probe "loki-promtail:9080 /ready" "http://loki-promtail:9080/ready" 200
 
 finish

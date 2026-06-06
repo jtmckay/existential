@@ -107,18 +107,23 @@ warn() {
 # starting — 000 (not accepting connections yet) or 503 (up but not ready,
 # e.g. Loki replaying its WAL). Real errors (404/500/…) return immediately.
 # Container liveness is already proven by the host container-health gate before
-# tests run, so a lingering 000/503 here means "warming up", not "down".
+# tests run, so a lingering warming-up code here means "warming up", not "down".
 # Budget: EXIST_PROBE_RETRIES (default 8) attempts, 2s apart (~16s for slow starts).
+# Warming-up codes: EXIST_PROBE_RETRY_CODES (default "000 503"). A probe whose
+# readiness endpoint signals not-ready differently can widen the set, e.g.
+# promtail's /ready emits a transient 500 on cold start: EXIST_PROBE_RETRY_CODES="000 500 503".
 _probe_code() {
     local url="$1" timeout="$2"; shift 2
     local code attempts=0 max="${EXIST_PROBE_RETRIES:-8}"
+    local retry_codes=" ${EXIST_PROBE_RETRY_CODES:-000 503} "
     while :; do
         # curl -w prints "000" to stdout on connection failure (and exits non-zero,
         # which $() swallows) — so no "|| echo 000" fallback, which would yield
         # "000000". Normalize an empty capture (curl produced nothing) to "000".
         code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time "$timeout" "$@" "$url" 2>/dev/null)
         code=${code:-000}
-        case "$code" in 000|503) ;; *) break ;; esac
+        # Stop as soon as we see a code outside the warming-up set.
+        case "$retry_codes" in *" $code "*) ;; *) break ;; esac
         attempts=$((attempts + 1))
         [ "$attempts" -ge "$max" ] && break
         sleep 2

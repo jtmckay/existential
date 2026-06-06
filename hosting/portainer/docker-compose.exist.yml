@@ -2,27 +2,26 @@ services:
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:2.42.0
+    # Root + docker.sock: portainer manages the Docker daemon. The image is
+    # distroless (no shell), so the admin password can't be written at startup —
+    # templates.sh renders portainer_password.txt; we mount it read-only and point
+    # --admin-password-file at it (default /portainer entrypoint, no shell needed).
     # ports disabled — access via https://portainer.internal (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 49443:9443
-    environment:
-      - PORTAINER_ADMIN_PASSWORD=${PORTAINER_ADMIN_PASSWORD}
     volumes:
-      # For Docker
-      # - /var/run/docker.sock:/var/run/docker.sock
-      # For Podman
-      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:z
+      # Docker (default). For rootless Podman instead, swap for:
+      #   - /run/user/${EXIST_PUID:-1000}/podman/podman.sock:/var/run/docker.sock:z
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer_password.txt:/run/portainer/admin_password:ro
       - portainer_data:/data
     security_opt:
       - label=disable
     networks:
       - exist
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      printf '%s' "$$PORTAINER_ADMIN_PASSWORD" > /tmp/pw.txt &&
-      exec /portainer -H unix:///var/run/docker.sock --admin-password-file /tmp/pw.txt
+    command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password
 
 
 volumes:
