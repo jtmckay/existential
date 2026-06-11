@@ -14,7 +14,7 @@ services:
     #     - "49000:9000"
     #     - "49001:9001"
     volumes:
-      - minio_data:/data # Path to the mounted NFS share on the Proxmox host
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/minio_data:/data # Path to the mounted NFS share on the Proxmox host
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -24,14 +24,6 @@ services:
       - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
       - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${MINIO_DECREE_WEBHOOK_AUTH_TOKEN}
     command: server /data --console-address :9001
-
-volumes:
-  minio_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/minio_data"
 
 networks:
   exist:

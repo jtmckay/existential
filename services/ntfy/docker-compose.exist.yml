@@ -15,7 +15,8 @@ services:
     environment:
       - TZ=${NTFY_TZ} # optional: set desired timezone
     volumes:
-      - ntfy_cache:/var/lib/ntfy
+      # Message + attachment cache (transient, TTL'd) — tier-3, not backed up.
+      - ./ntfy_cache:/var/lib/ntfy
       - ./ntfy-config:/etc/ntfy:ro
     healthcheck: # optional: remember to adapt the host:port to your environment
       test:
@@ -27,9 +28,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-volumes:
-  ntfy_cache:
 
 networks:
   exist:

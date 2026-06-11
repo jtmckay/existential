@@ -43,10 +43,7 @@ services:
       - ./reference_audio:/app/reference_audio:Z
       - ./outputs:/app/outputs:Z
       - ./logs:/app/logs:Z
-      - chatterbox_hf_cache:/app/hf_cache
-
-volumes:
-  chatterbox_hf_cache:
+      - ./hf_cache:/app/hf_cache   # HuggingFace model cache — tier-3, re-downloadable
 
 networks:
   exist:

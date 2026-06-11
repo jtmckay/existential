@@ -43,11 +43,10 @@ services:
       LOG_LEVEL: INFO
 
     volumes:
-      # Explicit host bind mounts. The consolidate step (adjustVolume) only rewrites
-      # the relative path to repo root → ./volumes/<name>; no named-volume block,
-      # no materializeBindMounts pass. Dirs tracked via volumes/<name>/.gitkeep.
-      - ../../volumes/whisperx_cache_data:/root/.cache # HuggingFace + torch model cache
-      - ../../volumes/whisperx_db_data:/data/db        # SQLite tasks + speaker embeddings
+      - ./cache:/root/.cache                             # HF + torch model cache — tier-3, re-downloadable
+      # SQLite tasks + speaker-embedding DB — tier-2 local (NFS breaks WAL locking).
+      # TODO: backup sidecar → volumes/whisperx_db_data_backup (no sidecar yet).
+      - ../../volumes_local/whisperx_db_data:/data/db
 
 networks:
   exist:

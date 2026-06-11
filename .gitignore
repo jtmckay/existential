@@ -122,5 +122,20 @@ node_modules/
 # Windmill
 **/windmill/local
 
-# Persistent volume data — subdirectories tracked, content ignored
+# Persistent volume data — subdirectories tracked (.gitkeep), content ignored.
+# Tier-1 NFS data + tier-2 backup archives (<name>_backup) live here.
 volumes/*/
+# Tier-2 live databases — local only, never NFS. Same convention.
+volumes_local/*/
+
+# Tier-3 service-dir scratch (gitignored content; .gitkeep force-added)
+**/comfyui_data
+**/hf_cache
+**/whisperx/cache
+**/hermes_agent_src
+**/hermes_workspace_data
+**/model-cache
+**/caddy_config
+**/ntfy_cache
+**/dropbox_data
+**/etc-pihole

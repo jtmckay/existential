@@ -244,10 +244,13 @@ function checkTopLevelEnvKeys(): string[] {
   return errors;
 }
 
-// The generated master compose must use only host bind mounts: generate-compose.ts
-// materialises every declared volume into a bind and deletes the top-level `volumes:`
-// section, so `docker volume ls` stays empty. This is the opposite of that guarantee — it
-// trips if a Docker-managed (named) volume ever survives into the generated compose.
+// The generated master compose must use only host bind mounts. Service templates
+// declare volumes directly as bind paths in one of three tiers — tier-1 NFS user data
+// (${EXIST_NFS_HOST_MOUNT:-./volumes}/<name>), tier-2 local databases
+// (../../volumes_local/<name>), or tier-3 service-dir scratch (./<dir>) — so there's no
+// top-level `volumes:` section and `docker volume ls` stays empty. This is the opposite
+// of that guarantee — it trips if a Docker-managed (named) volume survives into the
+// generated compose.
 function checkBindMounts(): string[] {
   const errors: string[] = [];
   if (!fs.existsSync(MASTER_COMPOSE)) return errors;

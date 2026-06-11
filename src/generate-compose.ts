@@ -205,61 +205,19 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
   process.stderr.write(`Written: ${envPath}\n`);
 }
 
-// ── Volumes → host bind mounts ──────────────────────────────────────────────────
-
-// We never use Docker-managed (opaque) volumes. Every top-level volume declared by a
-// service is materialised as a host bind mount, then the top-level `volumes:` section is
-// dropped entirely — so `docker volume ls` stays empty and all data lives in a visible,
-// host-owned directory or on a host-mounted NFS share.
+// ── Volumes ──────────────────────────────────────────────────────────────────
 //
-//   • Persistent NFS volumes (driver_opts.type: nfs) bind to ${EXIST_NFS_HOST_MOUNT}/<name>
-//     when an NFS host mount is configured — the share is mounted on the *host*
-//     (fstab/autofs); Docker no longer mounts NFS itself, so driver_opts is read only as a
-//     persistence marker.
-//   • Everything else — DBs, caches, and NFS volumes with no host mount — binds to
-//     <hostRepoRoot>/volumes/<name>. That directory is created here (in the adhoc
-//     container, as the host user) so Docker doesn't auto-create it as root.
-function materializeBindMounts(
-  merged: Record<string, unknown>,
-  repoRoot: string,
-  hostRepoRoot: string,
-  nfsHostMount: string,
-): void {
-  const vols = merged['volumes'] as Record<string, unknown> | undefined;
-  if (!vols) return;
-
-  // Map each declared volume name → its host bind source path.
-  const source: Record<string, string> = {};
-  for (const [volName, volConfig] of Object.entries(vols)) {
-    const cfg = volConfig as Record<string, unknown> | null;
-    const driverOpts = cfg?.['driver_opts'] as Record<string, string> | undefined;
-    const isNfs = driverOpts?.['type'] === 'nfs';
-
-    if (isNfs && nfsHostMount) {
-      source[volName] = path.posix.join(nfsHostMount, volName);
-    } else {
-      fs.mkdirSync(path.join(repoRoot, 'volumes', volName), { recursive: true });
-      source[volName] = path.posix.join(hostRepoRoot, 'volumes', volName);
-    }
-  }
-
-  // Rewrite every service's named-volume references into bind mounts.
-  const services = (merged['services'] ?? {}) as Record<string, Record<string, unknown>>;
-  for (const svc of Object.values(services)) {
-    const list = svc['volumes'];
-    if (!Array.isArray(list)) continue;
-    svc['volumes'] = list.map((entry: unknown) => {
-      if (typeof entry !== 'string') return entry;
-      const idx = entry.indexOf(':');
-      if (idx === -1) return entry;
-      const src = entry.slice(0, idx);
-      return (src in source) ? source[src] + entry.slice(idx) : entry;
-    });
-  }
-
-  // Drop the top-level section — no Docker-managed volumes remain.
-  delete merged['volumes'];
-}
+// We never use Docker-managed (opaque) volumes. Service templates declare volumes
+// directly as host bind mounts — no top-level `volumes:` block to materialise:
+//   • local data (DBs, caches):  ../../volumes/<name>  →  adjustVolume rewrites it
+//     to ./volumes/<name> (repo-root relative), same as any other bind mount.
+//   • NFS-backed data:           ${EXIST_NFS_HOST_MOUNT:-./volumes}/<name> — when a
+//     host NFS mount is set, templates.sh substitutes it in; otherwise Docker's
+//     :-./volumes fallback keeps the data local. The share is mounted on the *host*
+//     (fstab/autofs); Docker no longer mounts NFS itself.
+// Each volumes/<name>/ dir is tracked with a .gitkeep so the bind target exists on
+// a fresh clone without Docker root-creating it. The consolidate step does nothing
+// special for volumes beyond the generic adjustVolume path fix.
 
 // ── Archive rotation ───────────────────────────────────────────────────────────
 
@@ -283,7 +241,7 @@ function pruneArchives(repoRoot: string, keep: number): void {
 // ── Entry point ────────────────────────────────────────────────────────────────
 
 function main(): void {
-  const [,, repoRoot, outputName = 'docker-compose.yml', hostRepoRoot] = process.argv;
+  const [,, repoRoot, outputName = 'docker-compose.yml'] = process.argv;
   if (!repoRoot) {
     process.stderr.write('Usage: generate-compose.ts <repo_root> [output-filename] [host-repo-root]\n');
     process.exit(1);
@@ -313,9 +271,6 @@ function main(): void {
       '  local disk for data you expect on NFS.\n',
     );
     process.exit(1);
-  }
-  if (hostRepoRoot) {
-    materializeBindMounts(merged, repoRoot, hostRepoRoot, nfsHostMount);
   }
 
   mergeEnv(repoRoot, enabled);

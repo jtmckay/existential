@@ -5,7 +5,7 @@ services:
     image: grafana/grafana:11.2.0
     restart: unless-stopped
     # grafana runs as uid 472 internally; run as the host user instead so it can
-    # write the bind-mounted grafana_data (host-owned) when NFS isn't configured.
+    # write the host-owned bind-mounted grafana_data (tier-2 local, never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
@@ -18,17 +18,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
-      - grafana_data:/var/lib/grafana
+      # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
+      # TODO: backup sidecar → volumes/grafana_data_backup (no sidecar yet).
+      - ../../volumes_local/grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
-
-
-volumes:
-  grafana_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/grafana_data"
 
 networks:
   exist:

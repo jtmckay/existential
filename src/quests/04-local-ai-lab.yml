@@ -38,7 +38,7 @@ guide: |
   ComfyUI runs at https://comfyui.internal after containers are up.
   It ships with no models — download one via the ComfyUI Manager node
   in the UI, or place .safetensors files directly in:
-    volumes/comfyui_data/models/checkpoints/
+    ai/comfyui/comfyui_data/models/checkpoints/
 
   Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 

@@ -30,7 +30,9 @@ services:
 
     command: ["ollama", "serve"]
     volumes:
-      - ollama_data:/root/.ollama
+      # Downloaded models — re-pullable, tier-3 (not backed up). The ollama-decree
+      # sidecar runs model routines, not a backup of this dir.
+      - ./ollama_data:/root/.ollama
 
   ollama-decree:
     container_name: ollama-decree
@@ -56,9 +58,6 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
     tty: false
-
-volumes:
-  ollama_data:
 
 networks:
   exist:

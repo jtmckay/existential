@@ -15,8 +15,11 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
       - ./error.html:/var/www/html/error.html:ro,Z
-      - caddy_data:/data
-      - caddy_config:/config
+      # Internal CA root + ACME state — tier-2 local, worth keeping.
+      # TODO: backup sidecar → volumes/caddy_data_backup (no sidecar yet).
+      - ../../volumes_local/caddy_data:/data
+      # Autosaved JSON config (regenerated from the Caddyfile) — tier-3 throwaway.
+      - ./caddy_config:/config
       - ../cloudflare/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
@@ -25,10 +28,6 @@ services:
       # the value comes from .env.shared via the generated master .env. Empty
       # unless set — harmless for the default co-located Caddyfile.
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
-
-volumes:
-  caddy_data:
-  caddy_config:
 
 networks:
   exist:

@@ -36,11 +36,8 @@ services:
     #     - 8188:8188
 
     volumes:
-      - comfyui_data:/workspace
-
-volumes:
-  comfyui_data:
-    driver: local
+      # GPU workspace: models + custom nodes + outputs. Re-downloadable — tier-3, not backed up.
+      - ./comfyui_data:/workspace
 
 networks:
   exist:

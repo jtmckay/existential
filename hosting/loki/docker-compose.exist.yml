@@ -4,13 +4,15 @@ services:
     image: grafana/loki:3.2.0
     restart: unless-stopped
     # loki runs as uid 10001 internally; run as the host user instead so it can
-    # write the bind-mounted loki_data (host-owned) when NFS isn't configured.
+    # write the host-owned bind-mounted loki_data (tier-2 local, never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
+      # boltdb-shipper index + chunks — must be local; NFS locking is unreliable.
+      # TODO: opt-in backup sidecar → volumes/loki_data_backup.
+      - ../../volumes_local/loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
   loki-promtail:
@@ -31,14 +33,6 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-
-volumes:
-  loki_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/loki_data"
 
 networks:
   exist:

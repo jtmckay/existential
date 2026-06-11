@@ -6,7 +6,9 @@ services:
     networks:
       - exist
     volumes:
-      - homeassistant_config:/config
+      # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
+      # TODO: backup sidecar → volumes/homeassistant_config_backup (no sidecar yet).
+      - ../../volumes_local/homeassistant_config:/config
     # ports disabled — access via https://homeassistant.internal (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -14,14 +16,6 @@ services:
     environment:
       TZ: ${HOMEASSISTANT_TZ}
     # privileged: true  # uncomment if you need access to host hardware (e.g. USB zigbee/z-wave sticks)
-
-volumes:
-  homeassistant_config:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/homeassistant_config"
 
 networks:
   exist:

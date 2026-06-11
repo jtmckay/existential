@@ -7,7 +7,7 @@ services:
     networks:
       - exist
     volumes:
-      - mealie_data:/app/data/
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/mealie_data:/app/data/
     # ports disabled — access via https://mealie.internal (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -45,7 +45,8 @@ services:
       POSTGRES_PASSWORD: ${MEALIE_POSTGRES_PASSWORD}
       POSTGRES_USER: ${MEALIE_POSTGRES_USER}
     volumes:
-      - mealie_pg_data:/var/lib/postgresql/data
+      # Postgres — tier-2 local. TODO: pg_dump → volumes/mealie_pg_data_backup.
+      - ../../volumes_local/mealie_pg_data:/var/lib/postgresql/data
 
   mealie-decree:
     container_name: mealie-decree
@@ -70,19 +71,8 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
-      - mealie_data:/volumes/mealie_data
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/mealie_data:/volumes/mealie_data
     tty: false
-
-volumes:
-  mealie_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/mealie_data"
-  # Postgres on local disk — NFS has unsafe fsync/lock semantics for DBs.
-  # Backed up via automations/shared_routines/db-backup.sh → rclone remote.
-  mealie_pg_data:
 
 networks:
   exist:

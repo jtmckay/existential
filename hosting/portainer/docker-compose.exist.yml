@@ -15,22 +15,15 @@ services:
       #   - /run/user/${EXIST_PUID:-1000}/podman/podman.sock:/var/run/docker.sock:z
       - /var/run/docker.sock:/var/run/docker.sock
       - ./portainer_password.txt:/run/portainer/admin_password:ro
-      - portainer_data:/data
+      # bbolt (portainer.db) — must be local; NFS breaks flock/mmap.
+      # TODO: backup sidecar → volumes/portainer_data_backup (no sidecar yet).
+      - ../../volumes_local/portainer_data:/data
     security_opt:
       - label=disable
     networks:
       - exist
     restart: unless-stopped
     command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password
-
-
-volumes:
-  portainer_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/portainer_data"
 
 networks:
   exist:

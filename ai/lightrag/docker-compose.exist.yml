@@ -20,9 +20,10 @@ services:
       # Read-only mount of the Obsidian vault. Replace the host path before
       # bringing the container up; LightRAG only reads at ingestion time.
       - /path/to/obsidian/vault:/inputs:ro
-      # Writable derived store — graph, vectors, KV. Fully reproducible from the
-      # vault; treat as a cache. Wipe before changing the embedding model.
-      - lightrag_rag_storage_data:/app/rag_storage
+      # Writable derived store — graph, vectors, KV. Many small files + locking, so
+      # tier-2 local (never NFS). Reproducible from the vault, but kept + backed up to
+      # avoid re-embedding. Wipe before changing the embedding model.
+      - ../../volumes_local/lightrag_rag_storage_data:/app/rag_storage
       - ./.env:/app/.env:ro
 
   lightrag-decree:
@@ -46,16 +47,9 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
-      - lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
+      # TODO: live-store tar isn't crash-consistent — snapshot → volumes/lightrag_rag_storage_data_backup.
+      - ../../volumes_local/lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
     tty: false
-
-volumes:
-  lightrag_rag_storage_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/lightrag_rag_storage_data"
 
 networks:
   exist:

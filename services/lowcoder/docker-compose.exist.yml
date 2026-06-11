@@ -13,7 +13,9 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${LOWCODER_MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${LOWCODER_MONGO_ROOT_PASSWORD}
     volumes:
-      - lowcoder_mongo:/data/db
+      # MongoDB — tier-2 local (NFS corrupts WiredTiger).
+      # TODO: mongodump → volumes/lowcoder_mongo_backup (no sidecar mount for it yet).
+      - ../../volumes_local/lowcoder_mongo:/data/db
     healthcheck: # https://github.com/rodrigobdz/docker-compose-healthchecks?tab=readme-ov-file#mongo
       test:
         [
@@ -106,8 +108,8 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - lowcoder_data:/lowcoder-stacks
-      - lowcoder_assets:/lowcoder/assets
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_data:/lowcoder-stacks
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/lowcoder/assets
     healthcheck: #https://stackoverflow.com/questions/71101967/how-should-i-use-grep-in-docker-compose-healthcheck
       test: curl -sS http://lowcoder-api-service:8080  | grep -c "Lowcoder API is up and runnig" > /dev/null
       interval: 3s
@@ -163,7 +165,7 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - lowcoder_assets:/lowcoder/assets
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/lowcoder/assets
     healthcheck:
       test: curl --fail http://lowcoder-frontend:3000 || exit 1
       interval: 5s
@@ -196,25 +198,9 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
-      - lowcoder_data:/volumes/lowcoder_data
-      - lowcoder_assets:/volumes/lowcoder_assets
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_data:/volumes/lowcoder_data
+      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/volumes/lowcoder_assets
     tty: false
-
-volumes:
-  lowcoder_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_data"
-  lowcoder_assets:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/lowcoder_assets"
-  # MongoDB on local disk — NFS has unsafe fsync/lock semantics for DBs.
-  lowcoder_mongo:
 
 networks:
   exist:

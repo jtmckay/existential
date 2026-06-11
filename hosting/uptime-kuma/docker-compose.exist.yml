@@ -14,16 +14,9 @@ services:
       - ADMIN_USERNAME=${UPTIME_KUMA_ADMIN_USERNAME}
       - ADMIN_PASSWORD=${UPTIME_KUMA_ADMIN_PASSWORD}
     volumes:
-      - uptime_kuma_data:/app/data
-
-
-volumes:
-  uptime_kuma_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/uptime_kuma_data"
+      # SQLite — must be local; NFS breaks WAL locking.
+      # TODO: backup sidecar → volumes/uptime_kuma_data_backup (no sidecar yet).
+      - ../../volumes_local/uptime_kuma_data:/app/data
 
 networks:
   exist:

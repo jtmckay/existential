@@ -48,16 +48,9 @@ services:
       retries: 3
       start_period: 300s
     volumes:
-      - open_webui_data:/app/backend/data
-
-
-volumes:
-  open_webui_data:
-    driver: local
-    driver_opts:
-      type: "nfs"
-      o: "addr=${EXIST_NFS_SERVER_ADDRESS},nolock,soft,rw,nfsvers=4"
-      device: ":${EXIST_NFS_BASE_PATH}/open_webui_data"
+      # SQLite (webui.db) + Chroma vector store — must be local; NFS breaks both.
+      # TODO: backup sidecar → volumes/open_webui_data_backup (no sidecar yet).
+      - ../../volumes_local/open_webui_data:/app/backend/data
 
 networks:
   exist:
