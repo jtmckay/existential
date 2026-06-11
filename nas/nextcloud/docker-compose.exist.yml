@@ -3,7 +3,7 @@ services:
   # UI interface at http://localhost:8421/
   nextcloud:
     container_name: nextcloud
-    image: nextcloud:33.0.4
+    image: nextcloud:34.0.0
     restart: unless-stopped
     networks:
       - exist

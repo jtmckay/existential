@@ -30,9 +30,11 @@ services:
       OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-};${OPEN_WEBUI_LIGHTRAG_API_KEY:-}"
       # Disable direct Ollama integration — hermes-agent is the primary backend
       ENABLE_OLLAMA_API: "false"
-      # Point STT at the existing whisper service instead of running a second instance
+      # Point STT at the WhisperX service (OpenAI-compatible /v1 endpoint) instead
+      # of running a second STT instance. Voice input is single-speaker, so it uses
+      # the plain transcription path — diarization is for the automations pipeline.
       AUDIO_STT_ENGINE: openai
-      AUDIO_STT_OPENAI_API_BASE_URL: http://whisper:8000/v1
+      AUDIO_STT_OPENAI_API_BASE_URL: http://whisperx:8000/v1
       AUDIO_STT_OPENAI_API_KEY: "none"
     # The image's default healthcheck fails during the all-MiniLM-L6-v2 embedding
     # model download (several minutes on first boot). Override with a long

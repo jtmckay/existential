@@ -90,10 +90,10 @@ mcp-playwright.internal {
   reverse_proxy mcp-playwright:8931
 }
 
-whisper.internal {
+whisperx.internal {
   tls internal
   import error_handling
-  reverse_proxy whisper:8000
+  reverse_proxy whisperx:8000
 }
 
 # ── services ────────────────────────────────────────────────────────────────

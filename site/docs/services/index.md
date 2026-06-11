@@ -26,7 +26,7 @@ sidebar_position: 1
 
 - [Ollama](../ai/ollama) — General AI model hosting
 - [Chatterbox](../ai/chatterbox) — Text-to-speech (TTS)
-- [Whisper](../ai/whisper) — Speech-to-text transcription
+- [WhisperX](../ai/whisperx) — Speech-to-text transcription + speaker diarization
 
 ## Monitoring & Management
 

@@ -47,134 +47,39 @@ services:
       # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
       FTLCONF_dns_listeningMode: 'ALL'
       # A records — see "DNS convention" header for the LOCAL/PEER pattern.
+      # If caddy is on another machine, use EXIST_PEER_HOST_IP instead of EXIST_LOCAL_HOST_IP
       FTLCONF_dns_hosts: |
-        # ── ai ────────────────────────────────────────────────────────────────
-        # chatterbox      →  Caddy: chatterbox:8000          (ai/chatterbox)
-        ${EXIST_LOCAL_HOST_IP} chatterbox.internal
-        # ${EXIST_PEER_HOST_IP} chatterbox.internal
-
-        # comfyui         →  Caddy: comfyui:8188            (ai/comfyui)
-        ${EXIST_LOCAL_HOST_IP} comfyui.internal
-        # ${EXIST_PEER_HOST_IP} comfyui.internal
-
-        # hermes-agent    →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
-        ${EXIST_LOCAL_HOST_IP} hermes-agent.internal
-        # ${EXIST_PEER_HOST_IP} hermes-agent.internal
-
-        # hermes-dashboard →  Caddy: hermes-agent:9119       (ai/hermes — web dashboard)
-        ${EXIST_LOCAL_HOST_IP} hermes-dashboard.internal
-        # ${EXIST_PEER_HOST_IP} hermes-dashboard.internal
-
-        # hermes-workspace →  Caddy: hermes-workspace:3000   (ai/hermes — workspace UI)
-        ${EXIST_LOCAL_HOST_IP} hermes-workspace.internal
-        # ${EXIST_PEER_HOST_IP} hermes-workspace.internal
-
-        # lightrag         →  Caddy: lightrag:9621           (ai/lightrag — REST + MCP)
-        ${EXIST_LOCAL_HOST_IP} lightrag.internal
-        # ${EXIST_PEER_HOST_IP} lightrag.internal
-
-        # ollama           →  Caddy: ollama:11434            (ai/ollama)
-        ${EXIST_LOCAL_HOST_IP} ollama.internal
-        # ${EXIST_PEER_HOST_IP} ollama.internal
-
-        # open-webui       →  Caddy: open-webui:8080         (ai/open-webui)
-        ${EXIST_LOCAL_HOST_IP} open-webui.internal
-        # ${EXIST_PEER_HOST_IP} open-webui.internal
-
-        # mcp-playwright   →  Caddy: mcp-playwright:8931     (ai/mcp)
-        ${EXIST_LOCAL_HOST_IP} mcp-playwright.internal
-        # ${EXIST_PEER_HOST_IP} mcp-playwright.internal
-
-        # whisper          →  Caddy: whisper:8000            (ai/whisper)
-        ${EXIST_LOCAL_HOST_IP} whisper.internal
-        # ${EXIST_PEER_HOST_IP} whisper.internal
-
-        # ── services ──────────────────────────────────────────────────────────
-        # actual-budget    →  Caddy: actual-budget:5006      (services/actual-budget)
-        ${EXIST_LOCAL_HOST_IP} actual-budget.internal
-        # ${EXIST_PEER_HOST_IP} actual-budget.internal
-
-        # appsmith         →  Caddy: appsmith:80             (services/appsmith)
-        ${EXIST_LOCAL_HOST_IP} appsmith.internal
-        # ${EXIST_PEER_HOST_IP} appsmith.internal
-
-        # dashy            →  Caddy: dashy:8080              (services/dashy — main dashboard)
-        ${EXIST_LOCAL_HOST_IP} dashy.internal
-        # ${EXIST_PEER_HOST_IP} dashy.internal
-
-        # decree-webhook   →  Caddy: decree-webhook:${DECREE_WEBHOOK_PORT}  (services/decree — inbound webhooks)
-        ${EXIST_LOCAL_HOST_IP} decree-webhook.internal
-        # ${EXIST_PEER_HOST_IP} decree-webhook.internal
-
-        # homeassistant    →  Caddy: homeassistant:8123      (services/homeassistant)
-        ${EXIST_LOCAL_HOST_IP} homeassistant.internal
-        # ${EXIST_PEER_HOST_IP} homeassistant.internal
-
-        # immich           →  Caddy: immich-server:2283      (services/immich)
-        ${EXIST_LOCAL_HOST_IP} immich.internal
-        # ${EXIST_PEER_HOST_IP} immich.internal
-
-        # it-tools         →  Caddy: it-tools:80             (services/it-tools)
-        ${EXIST_LOCAL_HOST_IP} it-tools.internal
-        # ${EXIST_PEER_HOST_IP} it-tools.internal
-
-        # lowcoder         →  Caddy: lowcoder-frontend:3000  (services/lowcoder)
-        ${EXIST_LOCAL_HOST_IP} lowcoder.internal
-        # ${EXIST_PEER_HOST_IP} lowcoder.internal
-
-        # mealie           →  Caddy: mealie:9000             (services/mealie)
-        ${EXIST_LOCAL_HOST_IP} mealie.internal
-        # ${EXIST_PEER_HOST_IP} mealie.internal
-
-        # ntfy             →  Caddy: ntfy:80                 (services/ntfy)
-        ${EXIST_LOCAL_HOST_IP} ntfy.internal
-        # ${EXIST_PEER_HOST_IP} ntfy.internal
-
-        # nocodb           →  Caddy: nocodb:8080             (services/nocodb)
-        ${EXIST_LOCAL_HOST_IP} nocodb.internal
-        # ${EXIST_PEER_HOST_IP} nocodb.internal
-
-        # vikunja          →  Caddy: vikunja:3456            (services/vikunja)
-        ${EXIST_LOCAL_HOST_IP} vikunja.internal
-        # ${EXIST_PEER_HOST_IP} vikunja.internal
-
-        # ── hosting ───────────────────────────────────────────────────────────
-        # grafana          →  Caddy: grafana:3000            (hosting/grafana)
-        ${EXIST_LOCAL_HOST_IP} grafana.internal
-        # ${EXIST_PEER_HOST_IP} grafana.internal
-
-        # pihole           →  Caddy: pihole:80               (hosting/pihole — admin UI)
-        ${EXIST_LOCAL_HOST_IP} pihole.internal
-        # ${EXIST_PEER_HOST_IP} pihole.internal
-
-        # portainer        →  Caddy: portainer:9443 (https)  (hosting/portainer)
-        ${EXIST_LOCAL_HOST_IP} portainer.internal
-        # ${EXIST_PEER_HOST_IP} portainer.internal
-
-        # prometheus       →  Caddy: prometheus:9090         (hosting/prometheus)
-        ${EXIST_LOCAL_HOST_IP} prometheus.internal
-        # ${EXIST_PEER_HOST_IP} prometheus.internal
-
-        # uptime-kuma      →  Caddy: uptime-kuma:3001        (hosting/uptime-kuma)
-        ${EXIST_LOCAL_HOST_IP} uptime-kuma.internal
-        # ${EXIST_PEER_HOST_IP} uptime-kuma.internal
-
-        # ── nas ───────────────────────────────────────────────────────────────
-        # collabora        →  Caddy: collabora:9980          (nas/collabora)
-        ${EXIST_LOCAL_HOST_IP} collabora.internal
-        # ${EXIST_PEER_HOST_IP} collabora.internal
-
-        # minio            →  Caddy: minio:9001              (nas/minio — console)
-        ${EXIST_LOCAL_HOST_IP} minio.internal
-        # ${EXIST_PEER_HOST_IP} minio.internal
-
-        # minio-api        →  Caddy: minio:9000              (nas/minio — S3 API)
-        ${EXIST_LOCAL_HOST_IP} minio-api.internal
-        # ${EXIST_PEER_HOST_IP} minio-api.internal
-
-        # nextcloud        →  Caddy: nextcloud:80            (nas/nextcloud)
-        ${EXIST_LOCAL_HOST_IP} nextcloud.internal
-        # ${EXIST_PEER_HOST_IP} nextcloud.internal
+        ${EXIST_LOCAL_HOST_IP} chatterbox.internal # →  Caddy: chatterbox:8000          (ai/chatterbox)
+        ${EXIST_LOCAL_HOST_IP} comfyui.internal # →  Caddy: comfyui:8188            (ai/comfyui)
+        ${EXIST_LOCAL_HOST_IP} hermes-agent.internal # →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
+        ${EXIST_LOCAL_HOST_IP} hermes-dashboard.internal # →  Caddy: hermes-agent:9119       (ai/hermes — web dashboard)
+        ${EXIST_LOCAL_HOST_IP} hermes-workspace.internal # →  Caddy: hermes-workspace:3000   (ai/hermes — workspace UI)
+        ${EXIST_LOCAL_HOST_IP} lightrag.internal # →  Caddy: lightrag:9621           (ai/lightrag — REST + MCP)
+        ${EXIST_LOCAL_HOST_IP} ollama.internal # →  Caddy: ollama:11434            (ai/ollama)
+        ${EXIST_LOCAL_HOST_IP} open-webui.internal # →  Caddy: open-webui:8080         (ai/open-webui)
+        ${EXIST_LOCAL_HOST_IP} mcp-playwright.internal # →  Caddy: mcp-playwright:8931     (ai/mcp)
+        ${EXIST_LOCAL_HOST_IP} whisperx.internal # →  Caddy: whisperx:8000          (ai/whisperx)
+        ${EXIST_LOCAL_HOST_IP} actual-budget.internal # →  Caddy: actual-budget:5006      (services/actual-budget)
+        ${EXIST_LOCAL_HOST_IP} appsmith.internal # →  Caddy: appsmith:80             (services/appsmith)
+        ${EXIST_LOCAL_HOST_IP} dashy.internal # →  Caddy: dashy:8080              (services/dashy — main dashboard)
+        ${EXIST_LOCAL_HOST_IP} decree-webhook.internal # →  Caddy: decree-webhook:${DECREE_WEBHOOK_PORT}  (services/decree — inbound webhooks)
+        ${EXIST_LOCAL_HOST_IP} homeassistant.internal # →  Caddy: homeassistant:8123      (services/homeassistant)
+        ${EXIST_LOCAL_HOST_IP} immich.internal # →  Caddy: immich-server:2283      (services/immich)
+        ${EXIST_LOCAL_HOST_IP} it-tools.internal # →  Caddy: it-tools:80             (services/it-tools)
+        ${EXIST_LOCAL_HOST_IP} lowcoder.internal # →  Caddy: lowcoder-frontend:3000  (services/lowcoder)
+        ${EXIST_LOCAL_HOST_IP} mealie.internal # →  Caddy: mealie:9000             (services/mealie)
+        ${EXIST_LOCAL_HOST_IP} ntfy.internal # →  Caddy: ntfy:80                 (services/ntfy)
+        ${EXIST_LOCAL_HOST_IP} nocodb.internal # →  Caddy: nocodb:8080             (services/nocodb)
+        ${EXIST_LOCAL_HOST_IP} vikunja.internal # →  Caddy: vikunja:3456            (services/vikunja)
+        ${EXIST_LOCAL_HOST_IP} grafana.internal # →  Caddy: grafana:3000            (hosting/grafana)
+        ${EXIST_LOCAL_HOST_IP} pihole.internal # →  Caddy: pihole:80               (hosting/pihole — admin UI)
+        ${EXIST_LOCAL_HOST_IP} portainer.internal # →  Caddy: portainer:9443 (https)  (hosting/portainer)
+        ${EXIST_LOCAL_HOST_IP} prometheus.internal # →  Caddy: prometheus:9090         (hosting/prometheus)
+        ${EXIST_LOCAL_HOST_IP} uptime-kuma.internal # →  Caddy: uptime-kuma:3001        (hosting/uptime-kuma)
+        ${EXIST_LOCAL_HOST_IP} collabora.internal # →  Caddy: collabora:9980          (nas/collabora)
+        ${EXIST_LOCAL_HOST_IP} minio.internal # →  Caddy: minio:9001              (nas/minio — console)
+        ${EXIST_LOCAL_HOST_IP} minio-api.internal # →  Caddy: minio:9000              (nas/minio — S3 API)
+        ${EXIST_LOCAL_HOST_IP} nextcloud.internal # →  Caddy: nextcloud:80            (nas/nextcloud)
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - './etc-pihole:/etc/pihole:Z'

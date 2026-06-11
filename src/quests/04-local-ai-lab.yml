@@ -10,8 +10,8 @@ services:
     label: MCP
   - var: EXIST_IS_AI_HERMES
     label: Hermes
-  - var: EXIST_IS_AI_WHISPER
-    label: Whisper
+  - var: EXIST_IS_AI_WHISPERX
+    label: WhisperX
   - var: EXIST_IS_AI_LIGHTRAG
     label: LightRAG
   - var: EXIST_IS_AI_CHATTERBOX

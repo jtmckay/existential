@@ -3,7 +3,7 @@ services:
   # Status check at http://ollama:11434/api/tags
   ollama:
     container_name: ollama
-    image: ollama/ollama:0.30.0
+    image: ollama/ollama:0.30.7
 
     # AMD GPU
     # privileged: true # needed for GPU

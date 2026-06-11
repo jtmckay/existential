@@ -1,7 +1,7 @@
 services:
   lightrag:
     container_name: lightrag
-    image: ghcr.io/hkuds/lightrag:v1.5.0rc3
+    image: ghcr.io/hkuds/lightrag:v1.5.1
     restart: unless-stopped
     deploy:
       resources:

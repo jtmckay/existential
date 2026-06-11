@@ -86,7 +86,7 @@ declare -a CHECKS=(
     "portainer	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
     "uptime-kuma	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
     "vikunja	vikunja/vikunja	github	go-vikunja/vikunja	bare"
-    "whisper	fedirz/faster-whisper-server	github	fedirz/faster-whisper-server	-cpu"
+    "whisperx	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
 )
 
 # ── Compare ───────────────────────────────────────────────────────────────────

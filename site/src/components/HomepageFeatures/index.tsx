@@ -35,7 +35,7 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         With all your data available, create routines to automate tasks, leverage
-        local AI (Ollama, Whisper, Chatterbox), and get notified only when necessary.
+        local AI (Ollama, WhisperX, Chatterbox), and get notified only when necessary.
       </>
     ),
   },

@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Recording → Transcription
 
-Automatically transcribe any audio or video recording dropped into Nextcloud. The moment a file lands in MinIO, Decree generates a pre-signed URL, streams the audio directly to Whisper, and saves the transcript next to the original file — no manual steps, no intermediate storage.
+Automatically transcribe any audio or video recording dropped into Nextcloud. The moment a file lands in MinIO, Decree generates a pre-signed URL, hands it to WhisperX, and saves a **speaker-labelled** transcript next to the original file — no manual steps, no intermediate storage.
 
 ```mermaid
 flowchart LR
@@ -22,15 +22,15 @@ flowchart LR
         webhook["decree-webhook\n/minio endpoint"]
         router["minio-router\nmatch .mp3 / .mp4 / .wav"]
         processor["file-processor\nrclone link → PRE_SIGNED_URL"]
-        transcriber["whisper-transcribe\nstreamS3File → POST /transcriptions"]
+        transcriber["whisperx-transcribe\nPOST /speech-to-text-url → poll /task"]
         webhook --> router
         router -->|"outbox message\nis_pre_signed: true"| processor
         processor --> transcriber
     end
 
-    transcriber -->|"audio stream\nmultipart form"| whisper["🎙 Whisper\ntranscription API"]
-    whisper -->|"transcription text"| transcriber
-    transcriber -->|"rclone rcat\n.transcription.txt"| nc
+    transcriber -->|"pre-signed URL\n+ diarization"| whisper["🎙 WhisperX\ntranscribe + align + diarize"]
+    whisper -->|"speaker-labelled segments"| transcriber
+    transcriber -->|"rclone rcat\n.transcript.txt"| nc
 ```
 
 ## How It Works
@@ -45,7 +45,7 @@ When the file lands in MinIO, it POSTs an `s3:ObjectCreated` event to the Decree
 
 ### 3. minio-router matches the file
 
-`minio-router` scans every processor script in `automations/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisper-transcribe` processor declares:
+`minio-router` scans every processor script in `automations/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
 
 ```bash
 PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
@@ -58,14 +58,14 @@ It matches `.mp3`, `.mp4`, and `.wav` case-insensitively. Because `IS_PRE_SIGNED
 
 Instead of downloading the file, `file-processor` calls `rclone link` to generate a pre-signed URL for the audio file and exports it as `PRE_SIGNED_URL`. No audio data touches the Decree container's disk.
 
-### 5. whisper-transcribe streams to Whisper
+### 5. whisperx-transcribe submits to WhisperX
 
-`whisper-transcribe.sh` invokes `whisper-transcribe.ts`, which:
+`whisperx-transcribe.sh` invokes `whisperx-transcribe.ts`, which:
 
-1. Calls `streamS3File(PRE_SIGNED_URL)` — does a HEAD for metadata, then fetches the audio as a blob
-2. Wraps it in a `File` with the correct content-type
-3. POSTs it to `http://whisper:8000/v1/audio/transcriptions` as multipart form data
-4. Writes the returned transcription text to stdout
+1. POSTs the `PRE_SIGNED_URL` to `http://whisperx:8000/speech-to-text-url` — WhisperX fetches the audio itself and runs the full transcribe → align → diarize pipeline
+2. Polls `GET /task/{id}` until the task reports `completed` (diarized runs take longer than plain transcription)
+3. Collapses the result's speaker-tagged segments into `[SPEAKER_00] …` lines
+4. Writes the speaker-labelled transcript to stdout
 
 ### 6. Transcript saved next to the original
 

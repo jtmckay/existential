@@ -5,6 +5,7 @@ sidebar_position: 6
 # Cloudflare
 
 - Source: https://cloudflare.com (managed service)
+- License: N/A — proprietary managed SaaS; no self-hosted software is bundled
 - Alternatives: Let's Encrypt + self-hosted DNS, Bunny DNS, Route 53
 
 DNS and domain management for external access.

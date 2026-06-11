@@ -51,7 +51,7 @@ Use existing apps like normal; perhaps switch to more friendly alternatives that
 
 - [Ollama](https://existential.company/docs/ai/ollama) (general AI)
 - [Chatterbox](https://existential.company/docs/ai/chatterbox) (TTS)
-- [Whisper](https://existential.company/docs/ai/whisper) (STT transcription)
+- [WhisperX](https://existential.company/docs/ai/whisperx) (STT transcription + speaker diarization)
 
 ### Monitoring/managing containers
 

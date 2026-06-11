@@ -232,7 +232,7 @@ an arbitrary uid. Root is expected for: privileged-port binders that can't take 
 `cap_add` over `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`),
 pihole (NET_ADMIN), portainer (docker.sock), GPU/supervisor images (ollama, comfyui),
 multi-process app images managed by an internal supervisor (appsmith, lowcoder, nextcloud),
-and images caching into `/root` (whisper, mcp). The `*-decree` backup sidecars run as the
+and images caching into `/root` (whisperx, mcp). The `*-decree` backup sidecars run as the
 host user like everything else — the volume data they tar is host-owned by the `volumes/`
 convention, so they need no extra privilege. **DB/cache images** (postgres, mariadb, mongo,
 redis) also run as the host user, but the data volume must be owned by that uid first —

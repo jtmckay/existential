@@ -231,32 +231,32 @@ _run_service_action() {
 }
 
 _run_general_utility() {
-    local name="$1"
+    local name="$1"; shift
     case "$name" in
-        backup-config)  run_adhoc bash "/src/lib/backup-config.sh" ;;
-        backup-restore) bash "${SCRIPT_DIR}/src/lib/backup-restore.sh" ;;
-        *)              run_adhoc bash "/src/lib/${name}.sh" ;;
+        backup-config)  run_adhoc bash "/src/lib/backup-config.sh" "$@" ;;
+        backup-restore) bash "${SCRIPT_DIR}/src/lib/backup-restore.sh" "$@" ;;
+        *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
 }
 
 run_setup() {
-    local first="${1:-}" second="${2:-}"
+    local first="${1:-}"
 
     if [[ -z "$first" ]]; then
         _list_setup_actions
         return 0
     fi
 
-    if [[ -n "$second" ]]; then
-        _run_service_action "$first" "$second"
+    # General utilities (src/lib/<name>.sh) take precedence and receive any
+    # remaining args verbatim as flags (e.g. `run check-versions --update`).
+    if [[ -f "${SCRIPT_DIR}/src/lib/${first}.sh" ]]; then
+        shift
+        _run_general_utility "$first" "$@"
         return $?
     fi
 
-    if [[ -f "${SCRIPT_DIR}/src/lib/${first}.sh" ]]; then
-        _run_general_utility "$first"
-    else
-        _run_service_action "$first" "initial"
-    fi
+    # Otherwise it's a service action: `run <slug> [action]` (action → initial).
+    _run_service_action "$first" "${2:-initial}"
 }
 
 # ── Usage ─────────────────────────────────────────────────────────────────────

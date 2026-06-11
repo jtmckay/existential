@@ -1,7 +1,7 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:2026.5.4
+    image: ghcr.io/home-assistant/home-assistant:2026.6.2
     restart: unless-stopped
     networks:
       - exist

@@ -6,7 +6,7 @@ sidebar_position: 3
 
 - Source: https://github.com/NousResearch/hermes-agent
 - Workspace: https://github.com/outsourc-e/hermes-workspace
-- License: Apache 2.0
+- License: [MIT](https://opensource.org/licenses/MIT) (both hermes-agent and hermes-workspace)
 
 AI agent gateway with an OpenAI-compatible API, a kanban/terminal workspace UI, and a live dashboard.
 

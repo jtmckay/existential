@@ -20,6 +20,11 @@ services:
       - ../cloudflare/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
+      # Only used by Caddyfile.peer-example (Caddy on a different host than the
+      # services). Caddy expands {$EXIST_PEER_HOST_IP} from this container env;
+      # the value comes from .env.shared via the generated master .env. Empty
+      # unless set — harmless for the default co-located Caddyfile.
+      - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
 
 volumes:
   caddy_data:

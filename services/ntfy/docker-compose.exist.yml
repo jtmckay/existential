@@ -1,7 +1,7 @@
 services:
   ntfy:
     container_name: ntfy
-    image: binwiederhier/ntfy:v2.23.0
+    image: binwiederhier/ntfy:v2.24.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:

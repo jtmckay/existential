@@ -1,0 +1,54 @@
+services:
+  # STT — speech to text with speaker diarization (WhisperX)
+  # API + Swagger UI at https://whisperx.internal/docs
+  whisperx:
+    container_name: whisperx
+    image: ghcr.io/pavelzbornik/whisperx-fastapi:0.8.0
+    # Runs as the image's root user: it's a CUDA image that caches HuggingFace
+    # models into /root/.cache (same exception as the old whisper / mcp images).
+    restart: unless-stopped
+
+    # NVIDIA GPU — large-v3 in int8 (~3 GB VRAM) leaves room alongside ollama.
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    networks:
+      - exist
+    # ports disabled — access via https://whisperx.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 48000:8000
+
+    environment:
+      # ML config — int8 is required on shared/limited VRAM; large-v3 is the
+      # most accurate model that still fits the 6 GB 3060 alongside other GPU apps.
+      WHISPER_MODEL: large-v3
+      DEVICE: cuda
+      COMPUTE_TYPE: int8
+      DEFAULT_LANG: en
+      # Diarization (pyannote) needs a HuggingFace token with the
+      # pyannote/speaker-diarization-3.1 + segmentation-3.0 model terms accepted.
+      HF_TOKEN: ${WHISPERX_HF_TOKEN}
+      # SQLite holds task results + the speaker-embedding database (persisted volume).
+      DB_URL: sqlite:////data/db/records.db
+      ENVIRONMENT: production
+      DEV: "false"
+      LOG_LEVEL: INFO
+
+    volumes:
+      # Explicit host bind mounts. The consolidate step (adjustVolume) only rewrites
+      # the relative path to repo root → ./volumes/<name>; no named-volume block,
+      # no materializeBindMounts pass. Dirs tracked via volumes/<name>/.gitkeep.
+      - ../../volumes/whisperx_cache_data:/root/.cache # HuggingFace + torch model cache
+      - ../../volumes/whisperx_db_data:/data/db        # SQLite tasks + speaker embeddings
+
+networks:
+  exist:
+    external: true

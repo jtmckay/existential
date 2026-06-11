@@ -9,7 +9,7 @@ sidebar_position: 5
 - Alternatives: LibreChat
 - UI: `http://localhost:11488`
 
-Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible endpoint and [Whisper](./whisper) for speech-to-text.
+Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible endpoint and [WhisperX](./whisperx) for speech-to-text.
 
 ## Recommended Workflow
 
@@ -27,7 +27,7 @@ Configure opencode to point at the Hermes gateway (`http://localhost:48642/v1`) 
 
 - **Multi-Model Support**: Any OpenAI-compatible backend
 - **Chat Interface**: Responsive UI with conversation history
-- **Speech-to-Text**: Integrated via Whisper
+- **Speech-to-Text**: Integrated via WhisperX (OpenAI-compatible `/v1` endpoint)
 - **User Authentication**: Multi-user with admin account
 - **Custom Prompts**: Save and reuse system prompts
 - **File Upload**: Document and image support
@@ -38,7 +38,7 @@ Configure opencode to point at the Hermes gateway (`http://localhost:48642/v1`) 
 |---|---|
 | `OPENAI_API_BASE_URL` | `http://hermes-agent:8642/v1` |
 | `OPENAI_API_KEY` | `HERMES_API_KEY` from `.env.exist` |
-| `AUDIO_STT_OPENAI_API_BASE_URL` | `http://whisper:8000/v1` |
+| `AUDIO_STT_OPENAI_API_BASE_URL` | `http://whisperx:8000/v1` |
 
 ## Admin Account
 
