@@ -17,7 +17,9 @@ skip_if_disabled
 http_probe_any "caddy:80 responds"   "http://caddy:80/"  "^(200|301|302|308|404|421)$"
 tcp_probe       "caddy:443 listening" caddy 443
 
-file_present "Caddyfile present"        "/repo/hosting/caddy/Caddyfile"
-file_present "cloudflare cert present"  "/repo/hosting/cloudflare/cloudflare.pem"
+file_present "Caddyfile present"         "/repo/hosting/caddy/Caddyfile"
+# Stable *.internal cert minted by exist.initial.sh — the pair the Caddyfile pins.
+file_present "internal cert present"     "/repo/hosting/caddy/certs/internal.pem"
+file_present "internal cert key present" "/repo/hosting/caddy/certs/internal-key.pem"
 
 finish
