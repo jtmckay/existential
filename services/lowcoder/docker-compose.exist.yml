@@ -38,6 +38,10 @@ services:
     image: redis:7-alpine
     platform: linux/amd64 # Forces the x86 version (use linux/arm64 if you are on ARM but pulling x86)
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # Disable RDB persistence — Redis is a session/query cache here, not a
+    # primary store. Without this, bgsave tries to write to /data which is
+    # owned by the image's built-in redis uid, not the host uid.
+    command: ["redis-server", "--save", ""]
     restart: unless-stopped
     healthcheck: # https://stackoverflow.com/a/71504657
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]

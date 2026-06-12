@@ -177,15 +177,23 @@ render_template() {
         # Prompt on the controlling terminal. We use /dev/tty directly so the
         # prompt works even inside $() command substitution (where [[ -t 0 ]] is
         # unreliable under docker compose run -it). /dev/tty is the process's
-        # controlling terminal; if none exists (non-interactive, -T container,
-        # tests with stdin from /dev/null) the redirect fails and we fall through.
-        printf '\n' >&2
-        if [[ -n "$context" ]]; then printf '%s\n' "$context" >&2; fi
-        if { true >/dev/tty; } 2>/dev/null; then
-            printf '  %s [%s]: ' "${key_name}" "${default_val}" >/dev/tty
-            IFS= read -r val </dev/tty || val="${default_val}"
-        elif [[ -t 0 ]]; then
-            read -rp "  ${key_name} [${default_val}]: " val || val="${default_val}"
+        # controlling terminal; if none exists (non-interactive, -T container) the
+        # redirect fails and we fall through.
+        # Guard: if stdin is explicitly /dev/null (/proc/$BASHPID/fd/0 resolves to
+        # it), the caller signalled non-interactive mode. /dev/tty is still
+        # accessible in test contexts and would otherwise bypass </dev/null and block.
+        local _stdin_fd; _stdin_fd=$(readlink "/proc/$BASHPID/fd/0" 2>/dev/null || true)
+        if [[ "$_stdin_fd" != "/dev/null" ]]; then
+            printf '\n' >&2
+            if [[ -n "$context" ]]; then printf '%s\n' "$context" >&2; fi
+            if { true >/dev/tty; } 2>/dev/null; then
+                printf '  %s [%s]: ' "${key_name}" "${default_val}" >/dev/tty
+                IFS= read -r val </dev/tty || val="${default_val}"
+            elif [[ -t 0 ]]; then
+                read -rp "  ${key_name} [${default_val}]: " val || val="${default_val}"
+            else
+                val="${default_val}"
+            fi
         else
             val="${default_val}"
         fi

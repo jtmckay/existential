@@ -75,11 +75,25 @@ function findEnabledServices(repoRoot: string, env: Record<string, string>): str
 
 type VolumeEntry = string | Record<string, unknown>;
 
-function adjustVolume(vol: VolumeEntry, servicePrefix: string): VolumeEntry {
+interface VolumeContext {
+  servicePrefix: string;
+  topLevelVolumes: Record<string, unknown>;
+  hostRepoRoot: string;
+  nfsHostMount: string;
+  repoRoot: string;
+}
+
+function isNfsVolume(vol: unknown): boolean {
+  if (!vol || typeof vol !== 'object') return false;
+  const opts = (vol as Record<string, unknown>)['driver_opts'] as Record<string, unknown> | undefined;
+  return !!(opts && opts['type'] === 'nfs');
+}
+
+function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
   if (typeof vol === 'object' && vol !== null) {
     const src = vol['source'] as string | undefined;
     if (src && !src.startsWith('/')) {
-      return { ...vol, source: path.normalize(path.join(servicePrefix, src)) };
+      return { ...vol, source: path.normalize(path.join(ctx.servicePrefix, src)) };
     }
     return vol;
   }
@@ -89,15 +103,29 @@ function adjustVolume(vol: VolumeEntry, servicePrefix: string): VolumeEntry {
   const parts = vol.split(':');
   const src = parts[0];
 
-  // Env-var-rooted path (e.g. ${EXIST_NFS_HOST_MOUNT}/foo) — resolved by Docker, leave as-is.
+  // Env-var-rooted path — resolved by Docker, leave as-is.
   if (src.startsWith('$')) return vol;
 
-  // Absolute path or named volume (no leading dot or slash, and no directory separator)
-  if (src.startsWith('/') || (!src.startsWith('.') && !src.includes('/') && src !== '.')) {
-    return vol;
+  // Absolute path — leave unchanged.
+  if (src.startsWith('/')) return vol;
+
+  // Named volume (no leading dot, no path separator) — materialise as a host bind mount.
+  if (!src.startsWith('.') && !src.includes('/')) {
+    const name = src;
+    const nfs = isNfsVolume(ctx.topLevelVolumes[name]);
+    let hostPath: string;
+    if (nfs && ctx.nfsHostMount) {
+      hostPath = `${ctx.nfsHostMount}/${name}`;
+    } else {
+      hostPath = `${ctx.hostRepoRoot}/volumes/${name}`;
+      fs.mkdirSync(path.join(ctx.repoRoot, 'volumes', name), { recursive: true });
+    }
+    parts[0] = hostPath;
+    return parts.join(':');
   }
 
-  parts[0] = './' + path.normalize(path.join(servicePrefix, src));
+  // Relative path — rewrite under service prefix.
+  parts[0] = './' + path.normalize(path.join(ctx.servicePrefix, src));
   return parts.join(':');
 }
 
@@ -129,25 +157,42 @@ function adjustEnvFile(
   return ef.map(f => (typeof f === 'string' && !f.startsWith('/')) ? path.join(servicePrefix, f) : f);
 }
 
-function adjustServicePaths(svc: Record<string, unknown>, servicePrefix: string): Record<string, unknown> {
+function adjustServicePaths(svc: Record<string, unknown>, ctx: VolumeContext): Record<string, unknown> {
   const out = { ...svc };
   if (Array.isArray(out['volumes'])) {
-    out['volumes'] = (out['volumes'] as VolumeEntry[]).map(v => adjustVolume(v, servicePrefix));
+    out['volumes'] = (out['volumes'] as VolumeEntry[]).map(v => adjustVolume(v, ctx));
   }
   if ('build' in out) {
-    out['build'] = adjustBuild(out['build'] as string | Record<string, unknown>, servicePrefix);
+    out['build'] = adjustBuild(out['build'] as string | Record<string, unknown>, ctx.servicePrefix);
   }
   if ('env_file' in out) {
-    out['env_file'] = adjustEnvFile(out['env_file'] as string | string[], servicePrefix);
+    out['env_file'] = adjustEnvFile(out['env_file'] as string | string[], ctx.servicePrefix);
   }
   return out;
 }
 
 // ── Merge ──────────────────────────────────────────────────────────────────────
 
-function merge(repoRoot: string, enabled: string[], networkExternal = false): Record<string, unknown> {
+function merge(
+  repoRoot: string,
+  hostRepoRoot: string,
+  enabled: string[],
+  nfsHostMount: string,
+  networkExternal = false,
+): Record<string, unknown> {
+  // First pass: collect all top-level volume definitions (needed to detect NFS).
+  const topLevelVolumes: Record<string, unknown> = {};
+  for (const relPath of enabled) {
+    const composePath = path.join(repoRoot, relPath, 'docker-compose.yml');
+    if (!fs.existsSync(composePath)) continue;
+    const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
+    for (const [name, vol] of Object.entries((config['volumes'] ?? {}) as Record<string, unknown>)) {
+      if (!(name in topLevelVolumes)) topLevelVolumes[name] = vol;
+    }
+  }
+
+  // Second pass: merge services, materialising named volumes as host bind mounts.
   const services: Record<string, unknown> = {};
-  const volumes: Record<string, unknown> = {};
   const networks: Record<string, unknown> = {};
 
   for (const relPath of enabled) {
@@ -158,23 +203,22 @@ function merge(repoRoot: string, enabled: string[], networkExternal = false): Re
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
+    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot };
+
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
-      services[name] = adjustServicePaths(svc ?? {}, relPath);
-    }
-    for (const [name, vol] of Object.entries((config['volumes'] ?? {}) as Record<string, unknown>)) {
-      if (!(name in volumes)) volumes[name] = vol;  // first definition wins
+      services[name] = adjustServicePaths(svc ?? {}, ctx);
     }
     for (const [name, net] of Object.entries((config['networks'] ?? {}) as Record<string, unknown>)) {
       if (!(name in networks)) networks[name] = net;
     }
   }
 
-  // Always use the configured exist network definition, ignoring per-service declarations
+  // Always use the configured exist network definition, ignoring per-service declarations.
   networks['exist'] = networkExternal ? { external: true } : { driver: 'bridge' };
 
   const result: Record<string, unknown> = {};
   if (Object.keys(services).length) result['services'] = services;
-  if (Object.keys(volumes).length) result['volumes'] = volumes;
+  // Never emit a top-level volumes: block — all volumes are host bind mounts.
   result['networks'] = networks;
   return result;
 }
@@ -207,17 +251,13 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
 
 // ── Volumes ──────────────────────────────────────────────────────────────────
 //
-// We never use Docker-managed (opaque) volumes. Service templates declare volumes
-// directly as host bind mounts — no top-level `volumes:` block to materialise:
-//   • local data (DBs, caches):  ../../volumes/<name>  →  adjustVolume rewrites it
-//     to ./volumes/<name> (repo-root relative), same as any other bind mount.
-//   • NFS-backed data:           ${EXIST_NFS_HOST_MOUNT:-./volumes}/<name> — when a
-//     host NFS mount is set, templates.sh substitutes it in; otherwise Docker's
-//     :-./volumes fallback keeps the data local. The share is mounted on the *host*
-//     (fstab/autofs); Docker no longer mounts NFS itself.
-// Each volumes/<name>/ dir is tracked with a .gitkeep so the bind target exists on
-// a fresh clone without Docker root-creating it. The consolidate step does nothing
-// special for volumes beyond the generic adjustVolume path fix.
+// We never use Docker-managed (opaque) volumes. Every volume becomes a host bind
+// mount. Named volumes and NFS volumes declared in a top-level `volumes:` block are
+// materialised by adjustVolume:
+//   • non-NFS named volume:  → <hostRepoRoot>/volumes/<name>  (dir created locally)
+//   • NFS named volume + no host mount: same local fallback
+//   • NFS named volume + EXIST_NFS_HOST_MOUNT set: → <hostMount>/<name>
+// The top-level `volumes:` block is never emitted in the output.
 
 // ── Archive rotation ───────────────────────────────────────────────────────────
 
@@ -241,7 +281,7 @@ function pruneArchives(repoRoot: string, keep: number): void {
 // ── Entry point ────────────────────────────────────────────────────────────────
 
 function main(): void {
-  const [,, repoRoot, outputName = 'docker-compose.yml'] = process.argv;
+  const [,, repoRoot, outputName = 'docker-compose.yml', hostRepoRoot = repoRoot] = process.argv;
   if (!repoRoot) {
     process.stderr.write('Usage: generate-compose.ts <repo_root> [output-filename] [host-repo-root]\n');
     process.exit(1);
@@ -258,9 +298,6 @@ function main(): void {
 
   process.stderr.write(`Enabled (${enabled.length}): ${enabled.join(', ')}\n`);
 
-  const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
-  const merged = merge(repoRoot, enabled, networkExternal);
-
   const nfsHostMount = (env['EXIST_NFS_HOST_MOUNT'] ?? '').trim();
   if ((env['EXIST_NFS_SERVER_ADDRESS'] ?? '').trim() && !nfsHostMount) {
     process.stderr.write(
@@ -272,6 +309,9 @@ function main(): void {
     );
     process.exit(1);
   }
+
+  const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
+  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal);
 
   mergeEnv(repoRoot, enabled);
 

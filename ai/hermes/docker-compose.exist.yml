@@ -95,6 +95,13 @@ services:
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by both hermes-agent and hermes-workspace. Tier-2 local (never NFS).
       - ../../volumes_local/hermes_agent_data:/opt/data
+      # Build tree cache: pre-populated by exist.initial.sh so stage2-hook.sh
+      # finds .venv at uid 1000 and skips the 5-min chown on every restart.
+      # Run ./existential.sh run before docker compose up -d on a fresh clone.
+      - ./hermes_install/.venv:/opt/hermes/.venv
+      - ./hermes_install/ui-tui:/opt/hermes/ui-tui
+      - ./hermes_install/gateway:/opt/hermes/gateway
+      - ./hermes_install/node_modules:/opt/hermes/node_modules
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:8642/health && curl -fsS http://localhost:9119/api/status || exit 1']
       interval: 10s
@@ -106,7 +113,7 @@ services:
   # Connects to hermes-agent over the exist Docker network.
   hermes-workspace:
     container_name: hermes-workspace
-    image: ghcr.io/outsourc-e/hermes-workspace:main-65767e6
+    image: ghcr.io/outsourc-e/hermes-workspace:v2.1.3
     restart: unless-stopped
     deploy:
       resources:

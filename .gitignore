@@ -134,6 +134,7 @@ volumes_local/*/
 **/whisperx/cache
 **/hermes_agent_src
 **/hermes_workspace_data
+**/hermes_install
 **/model-cache
 **/caddy_config
 **/ntfy_cache
