@@ -58,6 +58,17 @@ cleanuid="$(mkfix)"; mkdir -p "$cleanuid/ai/foo"
 printf 'services:\n  foo:\n    container_name: foo\n    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"\n' > "$cleanuid/ai/foo/docker-compose.exist.yml"
 expect_pass "conventions: accepts the EXIST_PUID user form" tsx "$CONV" "$cleanuid"
 
+# ── decree config.exist.yml — commands block ─────────────────────────────────
+baddecree="$(mkfix)"; mkdir -p "$baddecree/ai/foo/decree"
+printf 'routine_source: /work/.decree/shared_routines\nmax_attempts: 3\n' \
+  > "$baddecree/ai/foo/decree/config.exist.yml"
+expect_fail "conventions: rejects decree config missing commands block" tsx "$CONV" "$baddecree"
+
+cleandecree="$(mkfix)"; mkdir -p "$cleandecree/ai/foo/decree"
+printf 'routine_source: /work/.decree/shared_routines\ncommands:\n  ai_router: opencode run {prompt}\n  ai_interactive: opencode\nmax_attempts: 3\n' \
+  > "$cleandecree/ai/foo/decree/config.exist.yml"
+expect_pass "conventions: accepts decree config with commands block" tsx "$CONV" "$cleandecree"
+
 # ── check-drift.ts ────────────────────────────────────────────────────────────
 drifted="$(mkfix)"
 printf 'alpha\nbeta\n'  > "$drifted/x.exist.txt"

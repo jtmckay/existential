@@ -66,7 +66,8 @@ services:
       - MEALIE_POSTGRES_PASSWORD=${MEALIE_POSTGRES_PASSWORD}
     volumes:
       - ./decree:/work/.decree:z
-      - ./exist.test.sh:/work/.decree/exist.test.sh:ro,z
+      - ./exist.test.sh:/work/exist.test.sh:ro,z
+      - ../../src/test/exist-test.sh:/src/test/exist-test.sh:ro,z
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z

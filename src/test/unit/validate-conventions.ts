@@ -15,6 +15,8 @@
  *      section and no bare named-volume references (`docker volume ls` stays empty).
  *  9. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
  *      the host user via the `${EXIST_PUID:-1000}` convention.
+ * 10. Every `<cat>/<slug>/decree/config.exist.yml` has the required top-level `commands:`
+ *      block (decree requires it — no serde default — and missing it crashes all sidecars).
  */
 
 import * as fs from 'fs';
@@ -335,6 +337,53 @@ function checkHardcodedUids(): string[] {
   return errors;
 }
 
+// ── Decree config check ────────────────────────────────────────────────────────
+// Every <cat>/<slug>/decree/config.exist.yml is a decree daemon config.
+// decree 0.4.2 requires a top-level `commands:` block — it is the only field in
+// AppConfig without a serde default, so a missing block fails all sidecars on startup.
+
+function checkDecreeConfigs(): string[] {
+  const errors: string[] = [];
+  for (const cat of CATEGORY_DIRS) {
+    const catPath = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catPath)) continue;
+    for (const entry of fs.readdirSync(catPath, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const configPath = path.join(catPath, entry.name, 'decree', 'config.exist.yml');
+      if (!fs.existsSync(configPath)) continue;
+      const rel = path.relative(REPO_ROOT, configPath);
+      let parsed: unknown;
+      try {
+        parsed = yaml.load(fs.readFileSync(configPath, 'utf8'));
+      } catch (e) {
+        errors.push(`${rel}: failed to parse YAML — ${e}`);
+        continue;
+      }
+      if (!parsed || typeof parsed !== 'object') {
+        errors.push(`${rel}: empty or invalid config`);
+        continue;
+      }
+      const cfg = parsed as Record<string, unknown>;
+      const cmds = cfg['commands'];
+      if (!cmds || typeof cmds !== 'object') {
+        errors.push(
+          `${rel}: missing required 'commands:' block — ` +
+          `decree requires it (add 'commands:\\n  ai_router: opencode run {prompt}\\n  ai_interactive: opencode')`,
+        );
+        continue;
+      }
+      const c = cmds as Record<string, unknown>;
+      if (typeof c['ai_router'] !== 'string' || !c['ai_router']) {
+        errors.push(`${rel}: 'commands.ai_router' must be a non-empty string`);
+      }
+      if (typeof c['ai_interactive'] !== 'string' || !c['ai_interactive']) {
+        errors.push(`${rel}: 'commands.ai_interactive' must be a non-empty string`);
+      }
+    }
+  }
+  return errors;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function main(): number {
@@ -453,6 +502,9 @@ function main(): number {
 
   // No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());
+
+  // (10) Every decree/config.exist.yml has the required `commands:` block
+  errors.push(...checkDecreeConfigs());
 
   // Quest files: e2e: false must have e2e_skip explaining why
   const questsDir = path.join(REPO_ROOT, 'src/quests');

@@ -77,12 +77,6 @@ firecrawl.internal {
   reverse_proxy firecrawl:3002
 }
 
-lightrag.internal {
-  import internal_tls
-  import error_handling
-  reverse_proxy lightrag:9621
-}
-
 ollama.internal {
   import internal_tls
   import error_handling

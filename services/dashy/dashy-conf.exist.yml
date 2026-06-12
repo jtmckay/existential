@@ -41,13 +41,6 @@ sections:
         statusCheck: true
         description: Chat UI routed through hermes-agent
 
-      - title: Hermes
-        url: https://hermes.internal
-        # url: https://existential.company/docs/ai/hermes
-        icon: fas fa-frog
-        statusCheck: true
-        description: Hermes Agent routing and ops dashboard
-
       - title: ComfyUI
         url: https://comfyui.internal
         # url: https://existential.company/docs/ai/comfyui
@@ -55,19 +48,6 @@ sections:
         statusCheck: true
         description: Node-based image generation workflows
 
-      - title: Firecrawl
-        url: https://firecrawl.internal
-        # url: https://existential.company/docs/ai/firecrawl
-        icon: fas fa-spider
-        statusCheck: true
-        description: Web scraping and crawling API
-
-      - title: LightRAG
-        url: https://lightrag.internal
-        # url: https://existential.company/docs/ai/lightrag
-        icon: fas fa-diagram-project
-        statusCheck: true
-        description: GraphRAG over the Obsidian vault
 
   # ── services ──────────────────────────────────────────────────────────────
   - name: Productivity

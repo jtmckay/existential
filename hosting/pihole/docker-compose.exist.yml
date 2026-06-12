@@ -54,7 +54,6 @@ services:
         ${EXIST_LOCAL_HOST_IP} firecrawl.internal # →  Caddy: firecrawl:3002          (ai/firecrawl — web scraping API)
         ${EXIST_LOCAL_HOST_IP} hermes-agent.internal # →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
         ${EXIST_LOCAL_HOST_IP} hermes.internal # →  Caddy: hermes-agent:9119       (ai/hermes — web dashboard)
-        ${EXIST_LOCAL_HOST_IP} lightrag.internal # →  Caddy: lightrag:9621           (ai/lightrag — REST + MCP)
         ${EXIST_LOCAL_HOST_IP} ollama.internal # →  Caddy: ollama:11434            (ai/ollama)
         ${EXIST_LOCAL_HOST_IP} open-webui.internal # →  Caddy: open-webui:8080         (ai/open-webui)
         ${EXIST_LOCAL_HOST_IP} mcp-playwright.internal # →  Caddy: mcp-playwright:8931     (ai/mcp)

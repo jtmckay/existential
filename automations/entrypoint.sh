@@ -66,23 +66,26 @@ DECREE_DAEMON="${DECREE_DAEMON:-true}"
 
 # ── Sidecar startup: wait for service health, then run migrations ─────────────
 #
-# When DECREE_SIDECAR=true and exist.test.sh is mounted, the sidecar waits for
-# the service to pass its health check before running `decree process`
-# (migrations). This ensures migrations never run against a service that is
-# still starting up.
+# When DECREE_SIDECAR=true and exist.test.sh is mounted at /work/exist.test.sh,
+# the sidecar waits for the service to pass its health check before running
+# `decree process` (migrations). This ensures migrations never run against a
+# service that is still starting up.
+#
+# The test script is mounted at /work/exist.test.sh (not inside /work/.decree/)
+# to avoid overlapping with the decree state-dir bind mount.
 #
 # The loop retries for up to DECREE_MIGRATE_TIMEOUT seconds (default 300).
 # If the timeout is reached, the sidecar logs a warning and starts the daemon
 # anyway — missing a migration on first boot is recoverable; blocking forever
 # is not.
 
-if [[ "$DECREE_DAEMON" == "true" && -f "/work/.decree/exist.test.sh" ]]; then
+if [[ "$DECREE_DAEMON" == "true" && -f "/work/exist.test.sh" ]]; then
   _timeout="${DECREE_MIGRATE_TIMEOUT:-300}"
   _interval=10
   _elapsed=0
 
   echo "[decree] Waiting for service health check to pass..."
-  until bash /work/.decree/exist.test.sh >/dev/null 2>&1; do
+  until bash /work/exist.test.sh >/dev/null 2>&1; do
     _elapsed=$((_elapsed + _interval))
     if [[ $_elapsed -ge $_timeout ]]; then
       echo "[decree] Health check timed out after ${_timeout}s — starting daemon without migrations" >&2
