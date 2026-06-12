@@ -66,6 +66,12 @@ hermes-workspace.internal {
   reverse_proxy hermes-workspace:3000
 }
 
+firecrawl.internal {
+  tls internal
+  import error_handling
+  reverse_proxy firecrawl:3002
+}
+
 lightrag.internal {
   tls internal
   import error_handling

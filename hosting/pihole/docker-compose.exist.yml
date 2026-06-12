@@ -51,6 +51,7 @@ services:
       FTLCONF_dns_hosts: |
         ${EXIST_LOCAL_HOST_IP} chatterbox.internal # →  Caddy: chatterbox:8000          (ai/chatterbox)
         ${EXIST_LOCAL_HOST_IP} comfyui.internal # →  Caddy: comfyui:8188            (ai/comfyui)
+        ${EXIST_LOCAL_HOST_IP} firecrawl.internal # →  Caddy: firecrawl:3002          (ai/firecrawl — web scraping API)
         ${EXIST_LOCAL_HOST_IP} hermes-agent.internal # →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
         ${EXIST_LOCAL_HOST_IP} hermes-dashboard.internal # →  Caddy: hermes-agent:9119       (ai/hermes — web dashboard)
         ${EXIST_LOCAL_HOST_IP} hermes-workspace.internal # →  Caddy: hermes-workspace:3000   (ai/hermes — workspace UI)

@@ -19,7 +19,7 @@ services:
       # optional: tweak browser config via env if you want
       PLAYWRIGHT_MCP_PORT: "8931"
       PLAYWRIGHT_MCP_HOST: "0.0.0.0"
-      PLAYWRIGHT_MCP_ALLOWED_HOSTS: "hermes-agent,mcp-playwright,localhost"
+      PLAYWRIGHT_MCP_ALLOWED_HOSTS: '*'
     volumes:
       - ./playwright-data:/root/.cache/ms-playwright:Z
 

@@ -55,6 +55,13 @@ sections:
         statusCheck: true
         description: Node-based image generation workflows
 
+      - title: Firecrawl
+        url: https://firecrawl.internal
+        # url: https://existential.company/docs/ai/firecrawl
+        icon: fas fa-spider
+        statusCheck: true
+        description: Web scraping and crawling API
+
       - title: LightRAG
         url: https://lightrag.internal
         # url: https://existential.company/docs/ai/lightrag

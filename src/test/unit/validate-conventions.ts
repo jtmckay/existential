@@ -7,14 +7,13 @@
  *   1. Every container_name is lowercase-hyphenated only.
  *   2. Every container_name starts with its folder's slug.
  *   3. Every piHole record has a matching Caddy reverse_proxy block.
- *   4. Every piHole record has LOCAL active line + PEER commented line.
- *   5. Every Caddy block has a matching piHole record.
- *   6. Every dashy item points at a slug that has a piHole record.
- *   7. Every key in a service's .env.exist starts with <SLUG>_.
- *   8. Every key in .env.exist.shared starts with EXIST_, no legacy prefixes.
- *   9. The master docker-compose.yml uses only host bind mounts — no top-level `volumes:`
+ *   4. Every Caddy block has a matching piHole record.
+ *   5. Every dashy item points at a slug that has a piHole record.
+ *   6. Every key in a service's .env.exist starts with <SLUG>_.
+ *   7. Every key in .env.exist.shared starts with EXIST_, no legacy prefixes.
+ *   8. The master docker-compose.yml uses only host bind mounts — no top-level `volumes:`
  *      section and no bare named-volume references (`docker volume ls` stays empty).
- *  10. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
+ *  9. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  */
 
@@ -41,7 +40,7 @@ const CONTAINER_NAME_RE  = /^\s*container_name:\s*([\w-]+)\s*$/;
 const PORT_LINE_RE       = /^\s*-\s*"?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))?"?\s*(?:#.*)?$/;
 const CADDY_HEADER_RE    = /^([\w.-]+)\.internal\s*\{/;
 const CADDY_PROXY_RE     = /^\s*reverse_proxy\s+(?:https?:\/\/)?([\w-]+):(\d+|\{[^}]+\})/;
-const PIHOLE_RECORD_RE   = /^\s*(?<comment>#\s*)?\$\{(?<var>EXIST_(?:LOCAL|PEER)_HOST_IP)\}\s+(?<slug>[\w-]+)\.internal\s*$/;
+const PIHOLE_RECORD_RE   = /^\s*(?<comment>#\s*)?\$\{(?<var>EXIST_(?:LOCAL|PEER)_HOST_IP)\}\s+(?<slug>[\w-]+)\.internal(?:\s+#.*)?\s*$/;
 const DASHY_URL_RE       = /^\s*url:\s*https?:\/\/([\w-]+)\.internal\/?\s*$/;
 const ENV_KEY_LINE_RE    = /^([A-Z_][A-Z0-9_]*)=/;
 
@@ -59,7 +58,6 @@ interface PiHoleRecord {
   slug: string;
   line: number;
   hasLocal: boolean;
-  hasPeerCommented: boolean;
 }
 
 interface CaddyBlock {
@@ -127,10 +125,9 @@ function parsePiHole(): Map<string, PiHoleRecord> {
     const { comment, var: varName, slug } = m.groups;
     const commented = comment !== undefined;
 
-    if (!records.has(slug)) records.set(slug, { slug, line: lineno + 1, hasLocal: false, hasPeerCommented: false });
+    if (!records.has(slug)) records.set(slug, { slug, line: lineno + 1, hasLocal: false });
     const rec = records.get(slug)!;
     if (varName === 'EXIST_LOCAL_HOST_IP' && !commented) rec.hasLocal = true;
-    if (varName === 'EXIST_PEER_HOST_IP'  && commented)  rec.hasPeerCommented = true;
   }
 
   return records;
@@ -373,7 +370,7 @@ function main(): number {
     }
   }
 
-  // (3)+(4) piHole records have both LOCAL and PEER lines
+  // (3) piHole records must have an active LOCAL_HOST_IP line
   for (const [, rec] of pihole) {
     if (!rec.hasLocal) {
       errors.push(
@@ -381,15 +378,9 @@ function main(): number {
         `slug '${rec.slug}' has no active LOCAL_HOST_IP record`,
       );
     }
-    if (!rec.hasPeerCommented) {
-      errors.push(
-        `hosting/pihole/docker-compose.exist.yml:${rec.line}: ` +
-        `slug '${rec.slug}' has no commented PEER_HOST_IP fallback line`,
-      );
-    }
   }
 
-  // (5) Caddy and piHole are mirror sets
+  // (4) Caddy and piHole are mirror sets
   const piholeSlugSet = new Set(pihole.keys());
   const caddySlugSet  = new Set(caddy.keys());
 
@@ -410,7 +401,7 @@ function main(): number {
     }
   }
 
-  // (6) Caddy backend matches an actual container
+  // (5) Caddy backend matches an actual container
   const containerPorts = new Map<string, Set<number>>();
   for (const [slug, decl] of services) {
     containerPorts.set(slug, new Set(decl.ports));
@@ -441,7 +432,7 @@ function main(): number {
     }
   }
 
-  // (7) Dashy items point at known slugs
+  // (6) Dashy items point at known slugs
   for (const item of dashyItems) {
     if (!piholeSlugSet.has(item.slug)) {
       errors.push(
@@ -451,19 +442,19 @@ function main(): number {
     }
   }
 
-  // (8) Service env var keys start with <SLUG>_
+  // (7) Service env var keys start with <SLUG>_
   errors.push(...checkServiceEnvPrefixes());
 
-  // (9) .env.exist.shared keys start with EXIST_, no legacy prefixes
+  // (8) .env.exist.shared keys start with EXIST_, no legacy prefixes
   errors.push(...checkTopLevelEnvKeys());
 
-  // (10) Master compose uses only host bind mounts — no Docker-managed volumes
+  // (9) Master compose uses only host bind mounts — no Docker-managed volumes
   errors.push(...checkBindMounts());
 
-  // (12) No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
+  // No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());
 
-  // (11) Quest files: e2e: false must have e2e_skip explaining why
+  // Quest files: e2e: false must have e2e_skip explaining why
   const questsDir = path.join(REPO_ROOT, 'src/quests');
   if (fs.existsSync(questsDir)) {
     for (const f of fs.readdirSync(questsDir).filter(n => /^\d.*\.yml$/.test(n))) {

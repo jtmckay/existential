@@ -27,6 +27,7 @@ if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
 fi
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
+export COMPOSE_IGNORE_ORPHANS=1
 
 # ── Container runtime ─────────────────────────────────────────────────────────
 

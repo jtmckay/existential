@@ -1,0 +1,171 @@
+# Refs:
+#   Self-hosted guide: https://github.com/mendableai/firecrawl
+#   Upstream compose:  https://github.com/mendableai/firecrawl/blob/main/docker-compose.yaml
+#
+# Firecrawl — open-source web scraping and crawling API
+#
+# Services:
+#   firecrawl             — REST API + job harness (port 3002)
+#   firecrawl-mcp         — MCP server, streamable HTTP at http://firecrawl-mcp:3003/mcp
+#   firecrawl-playwright  — Headless browser microservice (port 3000, internal)
+#   firecrawl-redis       — Rate limiting and job-state cache
+#   firecrawl-rabbitmq    — Message queue for crawl jobs
+#   firecrawl-postgres    — Crawl result and job history persistence (nuq-postgres)
+#
+# Volumes:
+#   firecrawl_postgres_data  (tier-2 local) — postgres data; not NFS-safe (WAL/flock)
+#
+# Access: http://firecrawl:3002 on the exist network
+#   API key: FIRECRAWL_API_KEY from .env (USE_DB_AUTHENTICATION=false)
+#
+# Note: GHCR images publish no semantic version tags. Versions are pinned by manifest digest.
+
+services:
+  # Headless Chromium microservice. Firecrawl-api delegates JS-heavy pages here.
+  # Needs root — Chromium sandbox requires CAP_SYS_ADMIN inside the container.
+  firecrawl-playwright:
+    container_name: firecrawl-playwright
+    image: ghcr.io/firecrawl/playwright-service:latest@sha256:443030bed5c8162c85998276f76bf7f8a95545dfeb088581f41f91506cfa1017
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    networks:
+      - exist
+    environment:
+      PORT: 3000
+      PROXY_SERVER: ${FIRECRAWL_PROXY_SERVER:-}
+      PROXY_USERNAME: ${FIRECRAWL_PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${FIRECRAWL_PROXY_PASSWORD:-}
+      BLOCK_MEDIA: ${FIRECRAWL_BLOCK_MEDIA:-true}
+      MAX_CONCURRENT_PAGES: ${FIRECRAWL_CRAWL_CONCURRENT_REQUESTS:-10}
+    tmpfs:
+      - /tmp/.cache:noexec,nosuid,size=1g
+
+  firecrawl:
+    container_name: firecrawl
+    image: ghcr.io/firecrawl/firecrawl:latest@sha256:e4f9725dbb267f501830e6651e5f61af9e5a5b18d835eada2db7811b24c49c81
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    networks:
+      - exist
+    # ports disabled — access via http://firecrawl:3002 on the exist network
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "43002:3002"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: 3002
+      ENV: local
+      # Internal service URLs — Docker DNS on the exist network
+      REDIS_URL: redis://firecrawl-redis:6379
+      REDIS_RATE_LIMIT_URL: redis://firecrawl-redis:6379
+      PLAYWRIGHT_MICROSERVICE_URL: http://firecrawl-playwright:3000/scrape
+      NUQ_RABBITMQ_URL: amqp://firecrawl-rabbitmq:5672
+      # Postgres — must match firecrawl-postgres below
+      POSTGRES_USER: "${FIRECRAWL_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${FIRECRAWL_POSTGRES_PASSWORD}"
+      POSTGRES_DB: firecrawl
+      POSTGRES_HOST: firecrawl-postgres
+      POSTGRES_PORT: 5432
+      # Auth — USE_DB_AUTHENTICATION=false means TEST_API_KEY is the only key accepted
+      USE_DB_AUTHENTICATION: "false"
+      TEST_API_KEY: ${FIRECRAWL_API_KEY}
+      BULL_AUTH_KEY: ${FIRECRAWL_BULL_AUTH_KEY:-}
+      # Throughput tuning
+      NUM_WORKERS_PER_QUEUE: ${FIRECRAWL_NUM_WORKERS_PER_QUEUE:-8}
+      CRAWL_CONCURRENT_REQUESTS: ${FIRECRAWL_CRAWL_CONCURRENT_REQUESTS:-10}
+      MAX_CONCURRENT_JOBS: ${FIRECRAWL_MAX_CONCURRENT_JOBS:-5}
+      BROWSER_POOL_SIZE: ${FIRECRAWL_BROWSER_POOL_SIZE:-5}
+      # Optional AI provider keys (enable /extract and /map LLM features)
+      OPENAI_API_KEY: ${FIRECRAWL_OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${FIRECRAWL_OPENAI_BASE_URL:-}
+      OLLAMA_BASE_URL: ${FIRECRAWL_OLLAMA_BASE_URL:-}
+    # Harness launches the API + internal workers as a single process group
+    command: ["node", "dist/src/harness.js", "--start-docker"]
+    depends_on:
+      firecrawl-redis:
+        condition: service_started
+      firecrawl-playwright:
+        condition: service_started
+      firecrawl-rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "require(\"http\").get(\"http://localhost:3002/\", r => process.exit(r.statusCode < 500 ? 0 : 1)).on(\"error\", () => process.exit(1))"']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  firecrawl-redis:
+    container_name: firecrawl-redis
+    image: redis:8.6.4-alpine3.23
+    restart: unless-stopped
+    networks:
+      - exist
+    command: redis-server --bind 0.0.0.0
+
+  firecrawl-rabbitmq:
+    container_name: firecrawl-rabbitmq
+    image: rabbitmq:4.3.1-management
+    restart: unless-stopped
+    networks:
+      - exist
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # MCP server that wraps the firecrawl REST API in MCP protocol.
+  # Hermes connects here (streamable HTTP at /mcp), not to the REST API directly.
+  firecrawl-mcp:
+    container_name: firecrawl-mcp
+    image: node:22-bullseye
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      FIRECRAWL_API_URL: http://firecrawl:3002
+      FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
+      # Native streamable-HTTP transport (stateless) — no stdio bridge needed.
+      HTTP_STREAMABLE_SERVER: "true"
+      HOST: "0.0.0.0"
+      PORT: 3003
+    command: ["npx", "-y", "firecrawl-mcp@3.20.4"]
+    depends_on:
+      firecrawl:
+        condition: service_healthy
+
+  # Custom postgres image with firecrawl schema pre-applied (nuq-postgres).
+  # Built locally from Dockerfile.nuq-postgres + nuq.sql — the upstream GHCR
+  # image (ghcr.io/firecrawl/nuq-postgres) is ARM-only and fails on x86_64.
+  # No user: override — postgres init runs as the internal postgres uid;
+  # data volume must be owned by that uid or startup fails.
+  firecrawl-postgres:
+    container_name: firecrawl-postgres
+    build:
+      context: .
+      dockerfile: Dockerfile.nuq-postgres
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      POSTGRES_USER: "${FIRECRAWL_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${FIRECRAWL_POSTGRES_PASSWORD}"
+      POSTGRES_DB: firecrawl
+      # Subdirectory so .gitkeep at the bind-mount root doesn't block initdb.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      # Crawl results and job history — tier-2 local (WAL/flock; never NFS).
+      - ../../volumes_local/firecrawl_postgres_data:/var/lib/postgresql/data
+      # TODO: backup sidecar — pg_dump → volumes/firecrawl_postgres_data_backup/
+
+networks:
+  exist:
+    external: true

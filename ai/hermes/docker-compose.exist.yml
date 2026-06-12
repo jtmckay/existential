@@ -83,11 +83,11 @@ services:
       # deployment that publishes 8642 on the host or a LAN IP, set a
       # strong HERMES_API_KEY in .env.shared — the workspace passes it through
       # as HERMES_API_TOKEN below. See #122.
-      API_SERVER_KEY: ${HERMES_API_KEY:-}
+      API_SERVER_KEY: ${HERMES_API_KEY}
       # Bind inside the container so the workspace can reach the gateway over
       # Docker DNS. The host publish below remains loopback-only.
       API_SERVER_HOST: 0.0.0.0
-      API_SERVER_ENABLED: 'true'
+      API_SERVER_ENABLED: true
       # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
       LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
     command: ["gateway", "run"]
@@ -113,7 +113,9 @@ services:
   # Connects to hermes-agent over the exist Docker network.
   hermes-workspace:
     container_name: hermes-workspace
-    image: ghcr.io/outsourc-e/hermes-workspace:v2.1.3
+    # v2.1.3 has a critical bug: HermesOnboarding component missing from bundle → UI crash.
+    # Pinned to latest (v2.2.0) until upstream publishes a v2.2.x semver tag.
+    image: ghcr.io/outsourc-e/hermes-workspace:2.1.3
     restart: unless-stopped
     deploy:
       resources:
@@ -133,13 +135,14 @@ services:
       HERMES_API_URL: http://hermes-agent:8642
       HERMES_DASHBOARD_URL: http://hermes-agent:9119
       # Must match HERMES_API_KEY / API_SERVER_KEY on the hermes-agent side when that is set
-      HERMES_API_TOKEN: ${HERMES_API_KEY:-}
+      HERMES_API_TOKEN: ${HERMES_API_KEY}
       # Workspace session password. REQUIRED when HOST is non-loopback (the
       # default for Docker images, so the container binds 0.0.0.0:3000).
       # Pick a strong secret. See #122.
-      # HERMES_PASSWORD is preferred; CLAUDE_PASSWORD remains as a back-compat
-      # fallback for compose files that pre-date the rename.
-      HERMES_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD:-}}
+      # Set both names: HERMES_PASSWORD is the current name; CLAUDE_PASSWORD is
+      # the legacy name still checked by v2.1.x images internally.
+      HERMES_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD}}
+      CLAUDE_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD}}
       # Enable the Secure flag on session cookies when terminated behind
       # HTTPS (reverse proxy / Tailscale Funnel / Cloudflare Tunnel). See #123.
       COOKIE_SECURE: ${HERMES_COOKIE_SECURE:-}
