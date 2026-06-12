@@ -2,7 +2,7 @@ services:
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:v0.9.6
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # open-webui starts as root then drops to UID/GID — user: breaks its startup script
     restart: unless-stopped
     deploy:
       resources:

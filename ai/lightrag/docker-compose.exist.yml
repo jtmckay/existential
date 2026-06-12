@@ -1,7 +1,7 @@
 services:
   lightrag:
     container_name: lightrag
-    image: ghcr.io/hkuds/lightrag:v1.5.1
+    image: ghcr.io/hkuds/lightrag:v1.5.2
     restart: unless-stopped
     deploy:
       resources:
@@ -14,17 +14,19 @@ services:
     #   ports:
     #     - "49621:9621"
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    environment:
-      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:-}
+    env_file:
+      - ./.env
     volumes:
-      # Read-only mount of the Obsidian vault. Replace the host path before
-      # bringing the container up; LightRAG only reads at ingestion time.
-      - /path/to/obsidian/vault:/inputs:ro
+      # LightRAG reads config from /app/.env on disk (env_file: alone is not enough —
+      # without this mount, LOG_FILE and other settings are ignored and it crashes on
+      # PermissionError writing to /app/lightrag.log as a non-root user).
+      - ./.env:/app/.env:ro
+      # Read-only mount of the Obsidian notes. rclone syncs here via lightrag-decree.
+      - ${LIGHTRAG_NOTES_PATH}:/inputs:ro
       # Writable derived store — graph, vectors, KV. Many small files + locking, so
       # tier-2 local (never NFS). Reproducible from the vault, but kept + backed up to
       # avoid re-embedding. Wipe before changing the embedding model.
       - ../../volumes_local/lightrag_rag_storage_data:/app/rag_storage
-      - ./.env:/app/.env:ro
 
   lightrag-decree:
     container_name: lightrag-decree
@@ -49,6 +51,7 @@ services:
       - ../../automations/secrets:/secrets:ro,z
       # TODO: live-store tar isn't crash-consistent — snapshot → volumes/lightrag_rag_storage_data_backup.
       - ../../volumes_local/lightrag_rag_storage_data:/volumes/lightrag_rag_storage_data
+      - ${LIGHTRAG_NOTES_PATH}:/notes
     tty: false
 
 networks:

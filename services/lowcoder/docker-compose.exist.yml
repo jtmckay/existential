@@ -36,6 +36,7 @@ services:
   lowcoder-redis:
     container_name: lowcoder-redis
     image: redis:7-alpine
+    platform: linux/amd64 # Forces the x86 version (use linux/arm64 if you are on ARM but pulling x86)
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     healthcheck: # https://stackoverflow.com/a/71504657
@@ -97,9 +98,9 @@ services:
       # Email used as sender in lost password email
       LOWCODER_EMAIL_NOTIFICATIONS_SENDER: info@localhost
       # Lowcoder superuser details
-      LOWCODER_SUPERUSER_USERNAME: ${LOWCODER_USERNAME}
+      LOWCODER_SUPERUSER_USERNAME: "${EXIST_USERNAME}"
       # If left blank, a password will be generated and written into api-service log
-      LOWCODER_SUPERUSER_PASSWORD: ${LOWCODER_PASSWORD}
+      LOWCODER_SUPERUSER_PASSWORD: "${EXIST_PASSWORD}"
     depends_on:
       lowcoder-mongodb:
         condition: service_healthy

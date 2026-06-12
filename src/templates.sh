@@ -69,6 +69,35 @@ render_template() {
         fi
     fi
 
+    # Service-local .env — substitute ${VAR} references from the rendered .env
+    # in the same service directory. Only the ${VAR} form is used (not bare-word)
+    # to avoid accidentally matching YAML keys or other prose.
+    # .env.exist sorts before docker-compose.exist.yml, so .env is already written
+    # by the time the compose template is processed in the same directory.
+    local _svc_env; _svc_env="$(dirname "$src")/.env"
+    if [[ -f "$_svc_env" && "$dst" != "$_svc_env" ]]; then
+        local _sk _sv _sescaped _sk2
+        local -a _skeys=() _ssed_args=()
+        local -A _svals=()
+        while IFS='=' read -r _sk _sv || [[ -n "$_sk" ]]; do
+            [[ "$_sk" =~ ^[[:space:]]*# ]] && continue
+            [[ -n "$_sk" ]] || continue
+            _skeys+=("$_sk")
+            _svals["$_sk"]="${_sv:-}"
+        done < "$_svc_env"
+        if [[ ${#_skeys[@]} -gt 0 ]]; then
+            while IFS= read -r _sk2; do
+                _sescaped="${_svals[$_sk2]//\\/\\\\}"
+                _sescaped="${_sescaped//&/\\&}"
+                _sescaped="${_sescaped//|/\\|}"
+                _ssed_args+=(-e "s|\\\${${_sk2}[^}]*}|${_sescaped}|g")
+            done < <(printf '%s\n' "${_skeys[@]}" | awk '{ print length, $0 }' | sort -rn | cut -d' ' -f2-)
+        fi
+        if [[ ${#_ssed_args[@]} -gt 0 ]]; then
+            content="$(sed "${_ssed_args[@]}" <<<"$content")"
+        fi
+    fi
+
     # Auto-generated — one replacement at a time so each occurrence gets a unique value
     while grep -q "EXIST_24_CHAR_PASSWORD" <<<"$content"; do
         line_num=$(grep -n "EXIST_24_CHAR_PASSWORD" <<<"$content" | head -1 | cut -d: -f1)
@@ -128,12 +157,34 @@ render_template() {
             default_val=$(grep -E "^${default_from}=" <<<"$content" | head -1 | cut -d= -f2-)
         fi
 
-        # Prompt on the controlling terminal with a plain read (echoes, never leaves
-        # the TTY in raw mode). Prompt + context go to stderr so they don't pollute
-        # the rendered content this function prints to stdout.
+        # When re-rendering an existing file (--force), recover the current value
+        # from the destination by extracting what was previously substituted at
+        # this line position. Matches both key=VALUE and bare-token (e.g. YAML
+        # volume) contexts. Current value takes priority over DEFAULT_FROM.
+        if [[ -e "$dst" ]]; then
+            local _tpl_line _before_cli _after_cli _dst_line _stripped _current_val
+            _tpl_line=$(sed -n "${line_num}p" <<<"$content")
+            _before_cli="${_tpl_line%%EXIST_CLI*}"
+            _after_cli="${_tpl_line#*EXIST_CLI}"
+            _dst_line=$(sed -n "${line_num}p" "$dst" 2>/dev/null || true)
+            if [[ -n "$_dst_line" && "$_dst_line" == "${_before_cli}"*"${_after_cli}" ]]; then
+                _stripped="${_dst_line#"$_before_cli"}"
+                _current_val="${_stripped%"$_after_cli"}"
+                if [[ -n "$_current_val" ]]; then default_val="$_current_val"; fi
+            fi
+        fi
+
+        # Prompt on the controlling terminal. We use /dev/tty directly so the
+        # prompt works even inside $() command substitution (where [[ -t 0 ]] is
+        # unreliable under docker compose run -it). /dev/tty is the process's
+        # controlling terminal; if none exists (non-interactive, -T container,
+        # tests with stdin from /dev/null) the redirect fails and we fall through.
         printf '\n' >&2
         if [[ -n "$context" ]]; then printf '%s\n' "$context" >&2; fi
-        if [[ -t 0 ]]; then
+        if { true >/dev/tty; } 2>/dev/null; then
+            printf '  %s [%s]: ' "${key_name}" "${default_val}" >/dev/tty
+            IFS= read -r val </dev/tty || val="${default_val}"
+        elif [[ -t 0 ]]; then
             read -rp "  ${key_name} [${default_val}]: " val || val="${default_val}"
         else
             val="${default_val}"

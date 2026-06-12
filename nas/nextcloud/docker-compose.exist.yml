@@ -3,7 +3,7 @@ services:
   # UI interface at http://localhost:8421/
   nextcloud:
     container_name: nextcloud
-    image: nextcloud:34.0.0-apache
+    image: nextcloud:34.0.0
     restart: unless-stopped
     networks:
       - exist
@@ -34,7 +34,7 @@ services:
       - MYSQL_HOST=nextcloud-db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}
+      - REDIS_HOST_PASSWORD=${EXIST_REDIS_PASSWORD}
 
   # Database for Nextcloud
   nextcloud-db:

@@ -21,12 +21,6 @@
 # Local-only volumes (intentionally not on the NAS):
 #   hermes_workspace_data — file-browser scratch. Mount a host path here if
 #                           you actually need persistent project files.
-#   hermes_agent_src      — agent Python source. After upgrading the agent
-#                           image, remove this volume before bringing
-#                           containers back up:
-#                             docker compose down
-#                             docker volume rm hermes_hermes_agent_src
-#                             docker compose pull && docker compose up -d
 #
 # Troubleshooting:
 #   - Check logs: docker compose logs hermes-agent
@@ -79,6 +73,8 @@ services:
       HERMES_DASHBOARD: '1'
       HERMES_DASHBOARD_HOST: 0.0.0.0
       HERMES_DASHBOARD_PORT: '9119'
+      # Skip the OAuth gate — no providers configured; homelab is behind Caddy.
+      HERMES_DASHBOARD_INSECURE: '1'
       # HERMES_DASHBOARD_TUI: '1' # Enables chat through dashboard
       # Authentication for the gateway when exposing off-loopback.
       # In the default compose setup the gateway is reachable from the
@@ -94,15 +90,11 @@ services:
       API_SERVER_ENABLED: 'true'
       # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
       LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
-    # --insecure skips the OAuth auth gate (no auth providers registered in this
-    # homelab setup — dashboard would otherwise refuse to bind to 0.0.0.0).
-    command: ["gateway", "run", "--insecure"]
+    command: ["gateway", "run"]
     volumes:
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by both hermes-agent and hermes-workspace. Tier-2 local (never NFS).
       - ../../volumes_local/hermes_agent_data:/opt/data
-      # Cloned hermes source — re-cloneable, tier-3 (not backed up).
-      - ./hermes_agent_src:/opt/hermes
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:8642/health && curl -fsS http://localhost:9119/api/status || exit 1']
       interval: 10s
@@ -114,7 +106,7 @@ services:
   # Connects to hermes-agent over the exist Docker network.
   hermes-workspace:
     container_name: hermes-workspace
-    image: ghcr.io/outsourc-e/hermes-workspace:v2.3.0
+    image: ghcr.io/outsourc-e/hermes-workspace:main-65767e6
     restart: unless-stopped
     deploy:
       resources:

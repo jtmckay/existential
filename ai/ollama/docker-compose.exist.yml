@@ -28,7 +28,7 @@ services:
     #   ports:
     #     - 11434:11434
 
-    command: ["ollama", "serve"]
+    command: ["serve"]
     volumes:
       # Downloaded models — re-pullable, tier-3 (not backed up). The ollama-decree
       # sidecar runs model routines, not a backup of this dir.

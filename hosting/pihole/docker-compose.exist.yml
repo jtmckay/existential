@@ -23,7 +23,7 @@
 services:
   pihole:
     container_name: pihole
-    image: pihole/pihole:v6.4.2
+    image: pihole/pihole:2026.05.0
     restart: unless-stopped
     networks:
       - exist

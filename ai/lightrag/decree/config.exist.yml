@@ -11,3 +11,5 @@ shared_routines:
     enabled: true
   notify:
     enabled: true
+  lightrag-sync-notes:
+    enabled: false
