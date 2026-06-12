@@ -41,12 +41,12 @@ sections:
         statusCheck: true
         description: Chat UI routed through hermes-agent
 
-      - title: Hermes Workspace
-        url: https://hermes-workspace.internal
+      - title: Hermes
+        url: https://hermes.internal
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true
-        description: Hermes Workspace UI — swarms, terminal, kanban
+        description: Hermes Agent routing and ops dashboard
 
       - title: ComfyUI
         url: https://comfyui.internal
@@ -184,13 +184,6 @@ sections:
         icon: hl-uptime-kuma
         statusCheck: true
         description: Service availability monitor
-
-      - title: Hermes Dashboard
-        url: https://hermes-dashboard.internal
-        # url: https://existential.company/docs/ai/hermes
-        icon: hl-dashy
-        statusCheck: true
-        description: Hermes Agent routing and ops dashboard
 
   # ── nas ───────────────────────────────────────────────────────────────────
   - name: Storage

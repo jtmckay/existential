@@ -160,7 +160,6 @@ declare -a CHECKS=(
     "collabora	nas/collabora/docker-compose.exist.yml	collabora/code	hub_clean	collabora/code	bare"
     "dashy	services/dashy/docker-compose.exist.yml	lissy93/dashy	github	Lissy93/Dashy	bare"
     "hermes-agent	ai/hermes/docker-compose.exist.yml	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
-    "hermes-workspace	ai/hermes/docker-compose.exist.yml	ghcr.io/outsourc-e/hermes-workspace	github	outsourc-e/hermes-workspace	v"
     "home-assistant	services/homeassistant/docker-compose.exist.yml	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lightrag	ai/lightrag/docker-compose.exist.yml	ghcr.io/hkuds/lightrag	github	HKUDS/LightRAG	v"

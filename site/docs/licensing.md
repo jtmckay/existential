@@ -51,7 +51,7 @@ across the network.
 |---|---|---|---|---|
 | Chatterbox | [chatterbox-tts](https://github.com/devnen/Chatterbox-TTS-Server) (Resemble AI) | MIT | 🟢 | Model and server both MIT. |
 | ComfyUI | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | GPL-3.0 | 🟢 | GPL has no SaaS clause — safe to host. |
-| Hermes | [hermes-agent](https://github.com/NousResearch/hermes-agent) + [hermes-workspace](https://github.com/outsourc-e/hermes-workspace) | MIT | 🟢 | Both components MIT. Custom existential service. |
+| Hermes | [hermes-agent](https://github.com/NousResearch/hermes-agent) | MIT | 🟢 | Custom existential service. |
 | LightRAG | [LightRAG](https://github.com/HKUDS/LightRAG) | MIT | 🟢 | |
 | MCP | custom (Node base) | Your code | 🟢 | First-party. |
 | Ollama | [ollama](https://github.com/ollama/ollama) | MIT | 🟢 | |

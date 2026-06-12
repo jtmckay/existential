@@ -17,7 +17,7 @@ Each tool in the stack has a distinct role:
 
 | Tool | Use for |
 |---|---|
-| [Hermes Workspace](./hermes) | Managing skills, profiles, and agent configuration |
+| [Hermes dashboard](./hermes) | Managing sessions, skills, and agent configuration |
 | Open WebUI | Day-to-day conversations |
 | opencode | Coding assistant — connect via Hermes gateway as the OpenAI API endpoint |
 

@@ -20,7 +20,9 @@ services:
       - ../../volumes_local/caddy_data:/data
       # Autosaved JSON config (regenerated from the Caddyfile) — tier-3 throwaway.
       - ./caddy_config:/config
-      - ../cloudflare/:/etc/caddy/certs/:ro,Z
+      # TLS certs: the stable *.internal pair minted by exist.initial.sh and any
+      # user-supplied cloudflare origin pair. Only *.exist.pem templates are tracked.
+      - ./certs/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
       # Only used by Caddyfile.peer-example (Caddy on a different host than the

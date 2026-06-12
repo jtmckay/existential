@@ -1,7 +1,7 @@
 # Refs:
-#   Agent + Workspace: https://github.com/outsourc-e/hermes-workspace/blob/main/docker-compose.yml
+#   Agent: https://github.com/NousResearch/hermes-agent
 #
-# Hermes Agent + Workspace — Docker Compose Setup
+# Hermes Agent — Docker Compose Setup
 #
 # Requirements:
 #   - Docker & Docker Compose
@@ -11,16 +11,9 @@
 #
 # Services:
 #   hermes-agent     — AI agent gateway + dashboard (ports 48642, 49119)
-#   hermes-workspace — Feature-rich UI: swarms, terminal, kanban (port 49300)
 #
 # NFS-backed (via EXIST_NFS_*) — source-of-truth state:
-#   hermes_agent_data     — agent config, sessions, skills, memory. Shared
-#                           by both containers (mounted at /opt/data on the
-#                           agent, /home/workspace/.hermes on the workspace).
-#
-# Local-only volumes (intentionally not on the NAS):
-#   hermes_workspace_data — file-browser scratch. Mount a host path here if
-#                           you actually need persistent project files.
+#   hermes_agent_data     — agent config, sessions, skills, memory.
 #
 # Troubleshooting:
 #   - Check logs: docker compose logs hermes-agent
@@ -40,8 +33,7 @@ services:
           memory: 4G
     # The Hermes Agent image entrypoint defaults to the interactive CLI which exits
     # immediately under `docker compose up -d`. We override here to start the
-    # gateway, which is the long-running API/health server the Workspace needs.
-    # See #360.
+    # gateway, which is the long-running API/health server. See #360.
     networks:
       - exist
     # ports disabled — access via https://hermes-agent.internal (Caddy + pihole required)
@@ -77,14 +69,12 @@ services:
       HERMES_DASHBOARD_INSECURE: '1'
       # HERMES_DASHBOARD_TUI: '1' # Enables chat through dashboard
       # Authentication for the gateway when exposing off-loopback.
-      # In the default compose setup the gateway is reachable from the
-      # workspace container over the docker network on hermes-agent:8642,
-      # so an empty key works for localhost-only Docker installs. For any
-      # deployment that publishes 8642 on the host or a LAN IP, set a
-      # strong HERMES_API_KEY in .env.shared — the workspace passes it through
-      # as HERMES_API_TOKEN below. See #122.
+      # In the default compose setup the gateway is reachable over the docker
+      # network on hermes-agent:8642, so an empty key works for localhost-only
+      # Docker installs. For any deployment that publishes 8642 on the host or a
+      # LAN IP, set a strong HERMES_API_KEY in .env.shared. See #122.
       API_SERVER_KEY: ${HERMES_API_KEY}
-      # Bind inside the container so the workspace can reach the gateway over
+      # Bind inside the container so other services can reach the gateway over
       # Docker DNS. The host publish below remains loopback-only.
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_ENABLED: true
@@ -93,7 +83,7 @@ services:
     command: ["gateway", "run"]
     volumes:
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
-      # written by both hermes-agent and hermes-workspace. Tier-2 local (never NFS).
+      # written by hermes-agent. Tier-2 local (never NFS).
       - ../../volumes_local/hermes_agent_data:/opt/data
       # Build tree cache: pre-populated by exist.initial.sh so stage2-hook.sh
       # finds .venv at uid 1000 and skips the 5-min chown on every restart.
@@ -108,59 +98,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-
-  # The Hermes Workspace Web UI
-  # Connects to hermes-agent over the exist Docker network.
-  hermes-workspace:
-    container_name: hermes-workspace
-    # v2.1.3 has a critical bug: HermesOnboarding component missing from bundle → UI crash.
-    # Pinned to latest (v2.2.0) until upstream publishes a v2.2.x semver tag.
-    image: ghcr.io/outsourc-e/hermes-workspace:2.1.3
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    networks:
-      - exist
-    # ports disabled — access via https://hermes-workspace.internal (Caddy + pihole required)
-    # Uncomment to expose directly:
-    #   ports:
-    #     - "49300:3000"
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    environment:
-      HERMES_HOME: /home/workspace/.hermes
-      HERMES_WORKSPACE_DIR: /workspace
-      # Container-to-container — uses Docker's built-in service DNS on `exist`.
-      HERMES_API_URL: http://hermes-agent:8642
-      HERMES_DASHBOARD_URL: http://hermes-agent:9119
-      # Must match HERMES_API_KEY / API_SERVER_KEY on the hermes-agent side when that is set
-      HERMES_API_TOKEN: ${HERMES_API_KEY}
-      # Workspace session password. REQUIRED when HOST is non-loopback (the
-      # default for Docker images, so the container binds 0.0.0.0:3000).
-      # Pick a strong secret. See #122.
-      # Set both names: HERMES_PASSWORD is the current name; CLAUDE_PASSWORD is
-      # the legacy name still checked by v2.1.x images internally.
-      HERMES_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD}}
-      CLAUDE_PASSWORD: ${HERMES_PASSWORD:-${CLAUDE_PASSWORD}}
-      # Enable the Secure flag on session cookies when terminated behind
-      # HTTPS (reverse proxy / Tailscale Funnel / Cloudflare Tunnel). See #123.
-      COOKIE_SECURE: ${HERMES_COOKIE_SECURE:-}
-      # Trust proxy-forwarded headers (x-forwarded-for / x-real-ip) for IP
-      # classification. Leave unset unless you deploy behind a trusted proxy
-      # that sanitizes these headers — otherwise a client can spoof its IP
-      # and bypass local-classification / rate limiting. See #125.
-      TRUST_PROXY: ${TRUST_PROXY:-}
-    volumes:
-      # Same tier-2 agent home as hermes-agent (shared .hermes).
-      - ../../volumes_local/hermes_agent_data:/home/workspace/.hermes
-      # /workspace is the file-browser scratch area — not the source of truth, so
-      # tier-3 (gitignored, not backed up). Point a host path here if you want
-      # persistent project files in the workspace UI.
-      - ./hermes_workspace_data:/workspace
-    depends_on:
-      hermes-agent:
-        condition: service_healthy
 
   hermes-decree:
     container_name: hermes-decree

@@ -30,4 +30,4 @@ Set up services you want exposed to the internet:
 1. Go to the dashboard → ellipses for your domain → Configure SSL/TLS
 2. Under SSL/TLS → Origin server → Create Certificate
 3. Use defaults & 15 years
-4. Save the cert to `./cloudflare.pem` and key to `./cloudflare-key.pem`
+4. Save the cert to `hosting/caddy/certs/cloudflare.pem` and key to `hosting/caddy/certs/cloudflare-key.pem` (templates: `cloudflare.pem.example` / `cloudflare-key.pem.example` there)

@@ -272,7 +272,9 @@ Every container is prefixed with the service slug (folder name): `loki`, `loki-p
 ### Networking
 - **Browser / cross-machine → `https://<slug>.internal`**: piHole holds a record per slug
   (active line → `EXIST_LOCAL_HOST_IP`, commented PEER alternative); Caddy fronts each slug
-  (`tls internal`, reverse-proxies `<container>:<port>`); Dashy links navigable slugs.
+  (stable pinned `*.internal` cert via `import internal_tls` — **not** `tls internal`; minted
+  once by caddy's `exist.initial.sh` into `hosting/caddy/certs/`, so trust survives reboots and
+  `caddy_data` wipes), reverse-proxies `<container>:<port>`; Dashy links navigable slugs.
 - **Container-to-container → `http://<container>:<port>`** (Docker service DNS). Use this in
   service env vars and routine fallbacks (`${X_URL:-http://service:port}`) — faster, no TLS,
   no CA trust needed.

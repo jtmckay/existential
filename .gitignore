@@ -41,10 +41,18 @@
 # Caddy
 **/Caddyfile
 
-# Cloudflare
-**/cloudflare/other
+# Caddy TLS certs (hosting/caddy/certs/) — only the *.exist.pem templates are tracked.
+# Cloudflare origin pair (user-supplied):
 **/cloudflare-key.pem
 **/cloudflare.pem
+# Stable *.internal cert + CA, minted by caddy/exist.initial.sh (keys are secret;
+# certs are host-local generated artifacts — none are committed):
+**/internal-ca-key.pem
+**/internal-ca.pem
+**/internal-key.pem
+**/internal.pem
+**/internal.csr
+**/internal-ca.srl
 
 # Dashy
 **/dashy-conf.yml
@@ -133,7 +141,6 @@ volumes_local/*/
 **/hf_cache
 **/whisperx/cache
 **/hermes_agent_src
-**/hermes_workspace_data
 **/hermes_install
 **/model-cache
 **/caddy_config

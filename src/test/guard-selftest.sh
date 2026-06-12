@@ -99,6 +99,7 @@ hook_rc "README.md"                   "# hello";   check "clean README"         
 echo "[guard-selftest] no-tracked-secrets.sh"
 scanner_rc "server.pem"               "$FAKE_PEM"; check "tracked private key in server.pem"      block
 scanner_rc "cloudflare-key.exist.pem" "$FAKE_PEM"; check "tracked private key in *.exist.pem"      allow
+scanner_rc "cloudflare-key.pem.example" "$FAKE_PEM"; check "tracked private key in *.example"       allow
 scanner_rc "notes.txt"                "k=$FAKE_AWS"; check "tracked AWS-shaped key"                block
 scanner_rc ".env"                     "X=1";       check "tracked rendered .env"                   block
 scanner_rc "ai/foo/secrets/cred"      "abc";       check "tracked file under secrets/"             block

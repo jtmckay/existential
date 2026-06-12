@@ -26,7 +26,7 @@ while IFS= read -r f; do
     [ -n "$f" ] || continue
     base="${f##*/}"
     case "$base" in
-        .env|.env.shared|.env.local|.env.generated|cloudflare-key.pem|cloudflare.pem|*_password.txt)
+        .env|.env.shared|.env.local|.env.generated|cloudflare-key.pem|cloudflare.pem|internal-key.pem|internal-ca-key.pem|*_password.txt)
             flag "tracked rendered secret: $f" ;;
     esac
     case "$f" in

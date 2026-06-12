@@ -70,7 +70,6 @@ declare -a CHECKS=(
     "collabora	collabora/code	hub_clean	collabora/code	bare"
     "dashy	lissy93/dashy	github	Lissy93/Dashy	bare"
     "hermes-agent	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
-    "hermes-workspace	ghcr.io/outsourc-e/hermes-workspace	github	outsourc-e/hermes-workspace	v"
     "home-assistant	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lightrag	ghcr.io/hkuds/lightrag	github	HKUDS/LightRAG	v"

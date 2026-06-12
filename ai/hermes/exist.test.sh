@@ -41,10 +41,9 @@ fi
 # blocks. Separates "agent is down" from "caddy/pihole routing is broken".
 probe_caddy "hermes-agent /health" hermes-agent /health 200
 
-# hermes-workspace + hermes-dashboard are also fronted by caddy. We don't
-# know their exact health-endpoint contracts, so accept any non-error status
-# at root — this only probes routing, not correctness.
-probe_service_any "hermes-workspace root" hermes-workspace 3000 / "^(200|301|302|401|403|404)$"
+# hermes-dashboard is also fronted by caddy. We don't know its exact
+# health-endpoint contract, so accept any non-error status at root — this
+# only probes routing, not correctness.
 probe_caddy_any   "hermes-dashboard root" hermes-dashboard / "^(200|301|302|401|403|404)$"
 
 # ── 2. API key ────────────────────────────────────────────────────────────────

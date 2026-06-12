@@ -182,7 +182,7 @@ http_probe_any() {
 # HOSTNAME is the bare front-of-hostname — used both as the Docker DNS name
 # and as the `.internal` / public subdomain (i.e. `<HOSTNAME>.internal`).
 # For multi-container services pass each container in turn (e.g. hermes-agent,
-# hermes-workspace).
+# hermes-dashboard).
 #
 # The caddy probe uses `curl --connect-to <host>:443:caddy:443` so it tests
 # caddy's routing without depending on this adhoc container's resolver chain.
