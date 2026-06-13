@@ -14,8 +14,11 @@ if [[ "${IN_CONTAINER:-}" == "1" ]]; then
     exit 1
 fi
 
-# shellcheck source=.env
-source "${SCRIPT_DIR}/.env"
+echo "[openviking] You will need your OPENVIKING_API_KEY to continue."
+echo "             Find it in ai/openviking/.env (OPENVIKING_API_KEY=...)."
+echo ""
+read -rsp "  Bearer token: " OPENVIKING_API_KEY
+echo ""
 
 echo "[openviking] Registering openviking MCP server in hermes-agent..."
 docker exec \

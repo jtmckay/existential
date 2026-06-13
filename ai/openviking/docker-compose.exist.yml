@@ -29,7 +29,7 @@
 services:
   openviking:
     container_name: openviking
-    image: ghcr.io/volcengine/openviking:latest
+    image: ghcr.io/volcengine/openviking:v0.3.24
     restart: unless-stopped
     deploy:
       resources:
