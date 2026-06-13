@@ -65,11 +65,16 @@ automations/secrets/*
 # Per-decree-daemon runtime state (main decree + all per-service sidecars)
 **/decree/config.yml
 **/decree/config.hash
-**/decree/cron/
+**/decree/cron/*
 **/decree/emails/
 **/decree/inbox/*
 **/decree/outbox/
 **/decree/processed.md
+# Sidecar nested bind-mount points — dirs tracked (.gitkeep force-added), content ignored.
+# These must exist before first `docker compose up` so Docker doesn't auto-create them as root.
+**/decree/shared_routines/*
+**/decree/lib/*
+**/decree/runs/*
 
 # Hermes
 **/hermes/data

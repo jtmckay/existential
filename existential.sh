@@ -119,8 +119,9 @@ _warn_if_no_gateway() {
         echo "     which requires Caddy (TLS routing) and pihole (DNS)."
         echo ""
         echo "     To access services without them, uncomment the 'ports:' block"
-        echo "     in each service's docker-compose.exist.yml and re-run:"
-        echo "       ./existential.sh --force"
+        echo "     in each service's docker-compose.yml (after the initial render),"
+        echo "     then re-run:"
+        echo "       ./existential.sh && docker compose up -d"
         echo ""
     fi
 }

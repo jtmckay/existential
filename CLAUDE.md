@@ -302,6 +302,25 @@ mounted read-only; frontmatter (`cron:`, `routine:`, extra keys → env vars) pa
 
 ---
 
+## Docker Compose Workflow
+
+**The root `docker-compose.yml` is always generated — never edit it directly.** It is
+rebuilt by `./existential.sh` from every enabled service's `docker-compose.exist.yml`.
+
+The only correct flow for any compose change is:
+1. Edit the service's `docker-compose.exist.yml` (tracked template).
+2. If `<service>/docker-compose.yml` already exists (rendered, gitignored), apply the
+   same change there too — `./existential.sh` without `--force` won't re-render it, so
+   `generate-compose.ts` would read the stale copy.
+3. Run `./existential.sh` from the repo root (no `--force` — that re-prompts `EXIST_*`
+   placeholders and is only needed when adding new secrets/vars to a template).
+4. Run `docker compose up -d` from the repo root.
+
+**Never `cd` into a service directory and run `docker compose` there.** All compose
+commands run from the repo root against the generated `docker-compose.yml`.
+
+---
+
 ## Keeping This File Current
 
 Update in the same task when you change something described here: a convention (add a
