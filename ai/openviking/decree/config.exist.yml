@@ -1,0 +1,20 @@
+routine_source: /work/.decree/shared_routines
+commands:
+  ai_router: opencode run {prompt}
+  ai_interactive: opencode
+max_attempts: 3
+max_log_size: 2097152
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/lib/hooks/config-watch.sh
+  afterEach: /work/.decree/lib/hooks/afterEach.sh
+shared_routines:
+  openviking-sync:
+    enabled: true
+  openviking-watch-dirs:
+    enabled: true
+  volume-backup:
+    enabled: true
+  notify:
+    enabled: true

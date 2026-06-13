@@ -6,20 +6,23 @@ services:
     label: Ollama
   - var: EXIST_IS_AI_OPEN_WEBUI
     label: Open WebUI
-  - var: EXIST_IS_AI_MCP
-    label: MCP
   - var: EXIST_IS_AI_HERMES
     label: Hermes
+  - var: EXIST_IS_AI_MCP
+    label: MCP (Playwright)
+  - var: EXIST_IS_AI_FIRECRAWL
+    label: Firecrawl
+  - var: EXIST_IS_AI_OPENVIKING
+    label: OpenViking
   - var: EXIST_IS_AI_WHISPERX
     label: WhisperX
-  - var: EXIST_IS_AI_LIGHTRAG
-    label: LightRAG
   - var: EXIST_IS_AI_CHATTERBOX
     label: Chatterbox
   - var: EXIST_IS_AI_COMFYUI
     label: ComfyUI
 guide: |
-  After `docker compose up -d`, pull Ollama models and set up ComfyUI:
+  After `docker compose up -d`, complete the one-time setup steps below for
+  each service you enabled.
 
   ── Ollama: pull models ────────────────────────────────────────────────────
 
@@ -33,6 +36,20 @@ guide: |
     docker exec ollama ollama pull <model>
     docker exec ollama ollama list
 
+  ── Hermes: select model ───────────────────────────────────────────────────
+
+  Run the interactive model picker (requires a running container + TTY):
+    ./existential.sh run hermes setup
+
+  ── MCP servers: register in Hermes ───────────────────────────────────────
+
+  Register each enabled MCP server so Hermes can use it as a tool:
+    ./existential.sh run mcp mcp           # Playwright — browser automation
+    ./existential.sh run firecrawl mcp     # Firecrawl  — web scraping
+    ./existential.sh run openviking mcp    # OpenViking — context database
+
+  Re-running any of these is safe; Hermes overwrites the existing entry.
+
   ── ComfyUI: download checkpoints ─────────────────────────────────────────
 
   ComfyUI runs at https://comfyui.internal after containers are up.
@@ -41,6 +58,18 @@ guide: |
     ai/comfyui/comfyui_data/models/checkpoints/
 
   Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
+
+  ── OpenViking: watch directories + notes sync ────────────────────────────
+
+  The copies section below activates the migration that registers /app/notes
+  and /app/resources as watched directories on first boot.
+
+  To sync notes from an rclone remote, set SYNC_REMOTE and SYNC_DEST in the
+  cron frontmatter, then activate:
+    cp ai/openviking/decree/cron.example/openviking-sync-notes.md \
+       ai/openviking/decree/cron/
+  Each cron file is independent — add more to sync additional sources on
+  different schedules without touching the routine.
 
 copies:
   - src: ai/hermes/decree/cron.example/volume-backup-nightly.md
@@ -51,11 +80,15 @@ copies:
     dst: ai/hermes/decree/cron/
     label: "hermes: volume-backup-weekly.md"
     requires: EXIST_IS_AI_HERMES
-  - src: ai/lightrag/decree/cron.example/volume-backup-nightly.md
-    dst: ai/lightrag/decree/cron/
-    label: "lightrag: volume-backup-nightly.md"
-    requires: EXIST_IS_AI_LIGHTRAG
-  - src: ai/lightrag/decree/cron.example/volume-backup-weekly.md
-    dst: ai/lightrag/decree/cron/
-    label: "lightrag: volume-backup-weekly.md"
-    requires: EXIST_IS_AI_LIGHTRAG
+  - src: ai/openviking/decree/migrations.example/01-watch-notes.md
+    dst: ai/openviking/decree/migrations/
+    label: "openviking: 01-watch-notes.md (register watched dirs on first boot)"
+    requires: EXIST_IS_AI_OPENVIKING
+  - src: ai/openviking/decree/cron.example/volume-backup-nightly.md
+    dst: ai/openviking/decree/cron/
+    label: "openviking: volume-backup-nightly.md"
+    requires: EXIST_IS_AI_OPENVIKING
+  - src: ai/openviking/decree/cron.example/volume-backup-weekly.md
+    dst: ai/openviking/decree/cron/
+    label: "openviking: volume-backup-weekly.md"
+    requires: EXIST_IS_AI_OPENVIKING

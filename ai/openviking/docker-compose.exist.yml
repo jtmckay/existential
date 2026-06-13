@@ -1,0 +1,96 @@
+# Refs:
+#   Upstream: https://github.com/volcengine/OpenViking
+#
+# OpenViking — open-source context database for AI agents
+#
+# Provides a viking:// filesystem for memory, resources, and skills.
+# Hermes connects to it as an MCP server; the decree sidecar syncs notes
+# from an rclone remote and stores scraped content from firecrawl/playwright.
+#
+# Services:
+#   openviking       — REST API + MCP server + Web Studio (port 1933)
+#   openviking-decree — backup sidecar + notes-sync cron
+#
+# Volumes:
+#   openviking_data  (tier-2 local) — vector store + workspace; embedded DB, never NFS.
+#   notes/           (tier-3 ephemeral) — rclone-synced notes; re-syncable, not backed up.
+#   resources/       (tier-3 ephemeral) — scraped content from hermes/firecrawl; not backed up.
+#
+# Access:  https://openviking.internal
+# MCP:     http://openviking:1933/mcp  (internal Docker DNS, bearer token required)
+#
+# Setup:
+#   1. ./existential.sh run            — renders templates, writes ov.conf
+#   2. docker compose up -d            — starts openviking
+#   3. ./existential.sh run openviking mcp  — registers openviking in hermes
+#   4. Copy decree/migrations.example/01-watch-notes.md → decree/migrations/
+#      to register /app/notes + /app/resources as watched directories on first boot.
+
+services:
+  openviking:
+    container_name: openviking
+    image: ghcr.io/volcengine/openviking:latest
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    networks:
+      - exist
+    # ports disabled — access via https://openviking.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "41933:1933"
+    environment:
+      OPENVIKING_CONFIG_FILE: /app/.openviking/ov.conf
+      # Caddy public URL — required so MCP upload tokens resolve correctly behind the proxy.
+      OPENVIKING_PUBLIC_BASE_URL: https://openviking.internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:1933/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    volumes:
+      # Vector store, graph, and session state — embedded DBs; must be local (never NFS).
+      - ../../volumes_local/openviking_data:/app/.openviking
+      # Notes from rclone sync (tier-3 ephemeral — rclone is the source of truth).
+      # Decree sidecar writes here; openviking reads as a watched resource.
+      - ./notes:/app/notes:ro
+      # Scraped content written by hermes/firecrawl/playwright routines (tier-3 ephemeral).
+      - ./resources:/app/resources:ro
+
+  openviking-decree:
+    container_name: openviking-decree
+    image: existential/decree:local
+    pull_policy: never
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_SIDECAR=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
+      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY}
+    volumes:
+      - ./decree:/work/.decree:z
+      - ./exist.test.sh:/work/exist.test.sh:ro,z
+      - ../../src/test/exist-test.sh:/src/test/exist-test.sh:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      # Notes — decree rclones here; openviking reads from the same bind mount at /app/notes.
+      - ./notes:/notes:z
+      # Scraped resources — decree/hermes writes here; openviking reads from /app/resources.
+      - ./resources:/resources:z
+      # TODO: backup sidecar — tar openviking_data → volumes/openviking_data_backup (no sidecar yet)
+      - ../../volumes_local/openviking_data:/volumes/openviking_data
+    tty: false
+
+networks:
+  exist:
+    external: true

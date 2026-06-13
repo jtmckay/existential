@@ -48,6 +48,13 @@ sections:
         statusCheck: true
         description: Node-based image generation workflows
 
+      - title: OpenViking
+        url: https://openviking.internal
+        # url: https://existential.company/docs/ai/openviking
+        icon: fas fa-database
+        statusCheck: true
+        description: Context database — notes, scraped resources, agent memory
+
 
   # ── services ──────────────────────────────────────────────────────────────
   - name: Productivity
