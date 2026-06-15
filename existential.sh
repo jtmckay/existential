@@ -31,13 +31,16 @@ export COMPOSE_IGNORE_ORPHANS=1
 
 # ── Container runtime ─────────────────────────────────────────────────────────
 
-if docker --version &>/dev/null 2>&1; then
-    DOCKER_CMD=docker
-elif podman --version &>/dev/null 2>&1; then
+ROOTLESS_PODMAN=false
+if podman --version &>/dev/null 2>&1; then
     DOCKER_CMD=podman
+    podman info 2>/dev/null | grep -q 'rootless: true' && ROOTLESS_PODMAN=true
 elif distrobox-host-exec podman --version &>/dev/null 2>&1; then
     podman() { distrobox-host-exec podman "$@"; }
     DOCKER_CMD=podman
+    podman info 2>/dev/null | grep -q 'rootless: true' && ROOTLESS_PODMAN=true
+elif docker --version &>/dev/null 2>&1; then
+    DOCKER_CMD=docker
 else
     echo "Error: neither docker nor podman found." >&2
     echo "Install Docker: https://docs.docker.com/engine/install/" >&2
@@ -74,8 +77,15 @@ run_adhoc() {
     # to -T (no TTY) and only opt into -it when BOTH ends are real TTYs.
     local tty_flags=(-T)
     [[ -t 0 && -t 1 ]] && tty_flags=(-it)
+    # Rootless Podman user-namespace fix: --user uid:gid maps the process to a
+    # sub-uid range, not the host user, so bind-mount writes fail. In rootless
+    # Podman, container root (UID 0) already maps to the host user, so omitting
+    # --user lets writes succeed. Docker Engine has no namespace remapping and
+    # needs --user to produce host-owned files.
+    local user_flags=(--user "$(id -u):$(id -g)")
+    $ROOTLESS_PODMAN && user_flags=()
     $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm "${tty_flags[@]}" \
-        --user "$(id -u):$(id -g)" \
+        "${user_flags[@]}" \
         --entrypoint "" existential-adhoc "$@"
 }
 
