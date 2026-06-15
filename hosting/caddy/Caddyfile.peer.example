@@ -96,6 +96,12 @@ open-webui.internal {
   reverse_proxy {$EXIST_PEER_HOST_IP}:11488
 }
 
+openviking.internal {
+  import internal_tls
+  import error_handling
+  reverse_proxy {$EXIST_PEER_HOST_IP}:41933
+}
+
 mcp-playwright.internal {
   import internal_tls
   import error_handling
