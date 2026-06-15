@@ -17,12 +17,12 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
 fi
 
 # Check if output directory has content before syncing
-count=$(find /dropbox_data -maxdepth 1 -type f | wc -l)
+count=$(find /data/dropbox -maxdepth 1 -type f 2>/dev/null | wc -l)
 if [ "$count" -gt 0 ]; then
     rclone sync --config /secrets/rclone/rclone.conf \
         --exclude ".sync_*" \
         --exclude ".compile-*" \
-        /dropbox_data "dropbox:${DROPBOX_DEST_DIR}"
+        /data/dropbox "dropbox:${DROPBOX_DEST_DIR}"
 else
     echo "Output volume is empty, skipping sync."
 fi

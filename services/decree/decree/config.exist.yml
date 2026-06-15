@@ -16,6 +16,8 @@ shared_routines:
     enabled: false
   actual-budget-parse:
     enabled: false
+  check-disabled-runs:
+    enabled: true
   clean-runs:
     enabled: true
   develop:

@@ -66,6 +66,7 @@ automations/secrets/*
 **/decree/config.yml
 **/decree/config.hash
 **/decree/cron/*
+**/decree/data/*
 **/decree/emails/
 **/decree/inbox/*
 **/decree/outbox/
@@ -150,5 +151,4 @@ volumes_local/*/
 **/model-cache
 **/caddy_config
 **/ntfy_cache
-**/dropbox_data
 **/etc-pihole

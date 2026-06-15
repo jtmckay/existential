@@ -67,7 +67,7 @@ else
     docker exec -e NTFY_PASSWORD="$BOT_PASS" ntfy ntfy user add bot
     echo "  bot created."
 fi
-ntfy_exec user access bot "exist*" rw 2>/dev/null || true
+ntfy_exec access bot "exist*" rw
 echo "  bot access rule (exist*:rw) applied."
 
 # ── Bot access token ─────────────────────────────────────────────────────────

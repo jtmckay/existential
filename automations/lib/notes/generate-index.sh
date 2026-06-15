@@ -17,7 +17,7 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
 fi
 
 # --- Configuration ---
-OUTPUT_DIR="${OUTPUT_DIR:-/dropbox_data}"
+OUTPUT_DIR="${OUTPUT_DIR:-/data/dropbox}"
 INDEX="${OUTPUT_DIR}/index.md"
 MANIFEST="${OUTPUT_DIR}/.compile-manifest"
 

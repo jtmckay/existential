@@ -18,8 +18,8 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
 fi
 
 # --- Configuration ---
-NOTES_DIR="${NOTES_DIR:-/notes_data}"
-OUTPUT_DIR="${OUTPUT_DIR:-/dropbox_data}"
+NOTES_DIR="${NOTES_DIR:-/data/notes}"
+OUTPUT_DIR="${OUTPUT_DIR:-/data/dropbox}"
 HASH_FILE="${OUTPUT_DIR}/.compile-hash"
 MANIFEST="${OUTPUT_DIR}/.compile-manifest"
 

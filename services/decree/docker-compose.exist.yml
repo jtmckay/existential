@@ -27,12 +27,10 @@ services:
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:z
-      # Generated user notes — tier-1 NFS (backup-worthy user data).
-      # TODO: no backup sidecar yet (decree main isn't a *-decree sidecar).
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/notes_data:/notes_data
-      # Local mirror of Dropbox — Dropbox is the source of truth, so tier-3
-      # (gitignored, reproducible by re-sync, not backed up).
-      - ./dropbox_data:/dropbox_data:z
+      # Notes data — tier-3. Subdirs created on first use by the scripts.
+      #   /data/notes   — Nextcloud sync cache (source of truth: Nextcloud)
+      #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
+      - ./data:/data:z
       - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
     tty: false
 

@@ -1,43 +1,26 @@
 #!/usr/bin/env bash
 # notes — Orchestrates the complete note processing pipeline.
+#
+# Container paths (all absolute):
+#   /data/notes     — Nextcloud sync cache (tier-3 bind: services/decree/data/notes/)
+#   /data/dropbox   — compiled output for Dropbox (tier-3 bind: services/decree/data/dropbox/)
+#   /work/.decree/lib/notes/ — pipeline scripts (automations/lib/notes/)
 
 set -euo pipefail
-
-# --- Path Resolution ---
-# SCRIPT_DIR is the directory where notes.sh resides.
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# Define paths to the required components using relative paths from SCRIPT_DIR.
-LIB_NOTES_DIR="${SCRIPT_DIR}/../lib/notes"
-PULL_NEXTCLOUD_SCRIPT="${LIB_NOTES_DIR}/pull-nextcloud.sh"
-COMPILE_NOTES_SCRIPT="${LIB_NOTES_DIR}/compile-notes.sh"
-GENERATE_INDEX_SCRIPT="${LIB_NOTES_DIR}/generate-index.sh"
-PUSH_DROPBOX_SCRIPT="${LIB_NOTES_DIR}/push-dropbox.sh"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     # shellcheck source=../lib/precheck.sh
     source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+    DECREE_PRE_CHECK=true bash /work/.decree/lib/notes/pull-nextcloud.sh || exit 1
     precheck_pass "notes"
     exit 0
 fi
 
-# --- Execution ---
-echo "--- Starting master note routine execution (${SCRIPT_DIR}) ---"
+echo "--- Starting notes pipeline ---"
 
-# 1. Sync Nextcloud
-echo "Running NextCloud sync..."
-"${PULL_NEXTCLOUD_SCRIPT}"
+bash /work/.decree/lib/notes/pull-nextcloud.sh
+bash /work/.decree/lib/notes/compile-notes.sh
+bash /work/.decree/lib/notes/generate-index.sh
+bash /work/.decree/lib/notes/push-dropbox.sh
 
-# 2. Compile Notes
-echo "Compiling notes..."
-"${COMPILE_NOTES_SCRIPT}"
-
-# 3. Generate Index
-echo "Generating index..."
-"${GENERATE_INDEX_SCRIPT}"
-
-# 4. Sync Dropbox
-echo "Syncing Dropbox..."
-"${PUSH_DROPBOX_SCRIPT}"
-
-echo "--- Master note routine execution finished successfully ---"
+echo "--- Notes pipeline finished ---"
