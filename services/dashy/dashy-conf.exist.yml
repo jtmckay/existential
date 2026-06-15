@@ -48,6 +48,13 @@ sections:
         statusCheck: true
         description: Node-based image generation workflows
 
+      - title: Hermes
+        url: https://hermes.internal
+        # url: https://existential.company/docs/ai/hermes
+        icon: fas fa-frog
+        statusCheck: true
+        description: Hermes Agent routing and ops dashboard
+
       - title: OpenViking
         url: https://openviking.internal
         # url: https://existential.company/docs/ai/openviking
@@ -60,12 +67,19 @@ sections:
   - name: Productivity
     icon: fas fa-list-check
     items:
-      - title: Vikunja
-        url: https://vikunja.internal
-        # url: https://existential.company/docs/services/vikunja
-        icon: si-vikunja
+      - title: Actual Budget
+        url: https://actual-budget.internal
+        # url: https://existential.company/docs/services/actual-budget
+        icon: fas fa-money-bill-wave
         statusCheck: true
-        description: Task management
+        description: Personal finance
+
+      - title: Immich
+        url: https://immich.internal
+        # url: https://existential.company/docs/services/immich
+        icon: si-immich
+        statusCheck: true
+        description: Photo library
 
       - title: Mealie
         url: https://mealie.internal
@@ -73,13 +87,6 @@ sections:
         icon: fas fa-utensils
         statusCheck: true
         description: Recipe management
-
-      - title: Actual Budget
-        url: https://actual-budget.internal
-        # url: https://existential.company/docs/services/actual-budget
-        icon: fas fa-money-bill-wave
-        statusCheck: true
-        description: Personal finance
 
       - title: NocoDB
         url: https://nocodb.internal
@@ -95,36 +102,29 @@ sections:
         statusCheck: true
         description: Push notifications
 
-      - title: Immich
-        url: https://immich.internal
-        # url: https://existential.company/docs/services/immich
-        icon: si-immich
+      - title: Vikunja
+        url: https://vikunja.internal
+        # url: https://existential.company/docs/services/vikunja
+        icon: si-vikunja
         statusCheck: true
-        description: Photo library
+        description: Task management
 
   - name: Tools
     icon: fas fa-toolbox
     items:
-      - title: IT Tools
-        url: https://it-tools.internal
-        # url: https://existential.company/docs/services/it-tools
-        icon: hl-it-tools
-        statusCheck: true
-        description: Developer utility toolkit
-
-      - title: Lowcoder
-        url: https://lowcoder.internal
-        # url: https://existential.company/docs/services/lowcoder
-        icon: fas fa-file-code
-        statusCheck: true
-        description: Low-code app builder
-
       - title: Appsmith
         url: https://appsmith.internal
         # url: https://existential.company/docs/services/appsmith
         icon: si-appsmith
         statusCheck: true
         description: Internal-tools platform
+
+      - title: IT Tools
+        url: https://it-tools.internal
+        # url: https://existential.company/docs/services/it-tools
+        icon: hl-it-tools
+        statusCheck: true
+        description: Developer utility toolkit
 
       - title: Home Assistant
         url: https://homeassistant.internal
@@ -133,37 +133,29 @@ sections:
         statusCheck: true
         description: Smart home automation
 
-  # ── hosting ───────────────────────────────────────────────────────────────
-  - name: Infrastructure
+      - title: Lowcoder
+        url: https://lowcoder.internal
+        # url: https://existential.company/docs/services/lowcoder
+        icon: fas fa-file-code
+        statusCheck: true
+        description: Low-code app builder
+
+  - name: Monitoring
     icon: fas fa-server
     items:
+      - title: Grafana
+        url: https://grafana.internal/d/decree-overview/decree-overview?orgId=1&refresh=1m
+        # url: https://existential.company/docs/hosting/grafana
+        icon: hl-grafana
+        statusCheck: true
+        description: Dashboards
+
       - title: Portainer
         url: https://portainer.internal
         # url: https://existential.company/docs/hosting/portainer
         icon: hl-portainer
         statusCheck: true
         description: Container management
-
-      - title: Pi-hole
-        url: https://pihole.internal
-        # url: https://existential.company/docs/hosting/pihole
-        icon: si-pihole
-        statusCheck: true
-        description: DNS + ad-blocking
-
-      - title: Grafana
-        url: https://grafana.internal
-        # url: https://existential.company/docs/hosting/grafana
-        icon: hl-grafana
-        statusCheck: true
-        description: Dashboards
-
-      - title: Prometheus
-        url: https://prometheus.internal
-        # url: https://existential.company/docs/hosting/prometheus
-        icon: hl-prometheus
-        statusCheck: true
-        description: Metrics scraper
 
       - title: Uptime Kuma
         url: https://uptime-kuma.internal
@@ -172,8 +164,7 @@ sections:
         statusCheck: true
         description: Service availability monitor
 
-  # ── nas ───────────────────────────────────────────────────────────────────
-  - name: Storage
+  - name: Hosting
     icon: fas fa-hard-drive
     items:
       - title: Nextcloud
@@ -190,9 +181,9 @@ sections:
         statusCheck: true
         description: S3-compatible object store (web console)
 
-      - title: Collabora
-        url: https://collabora.internal
-        # url: https://existential.company/docs/nas/collabora
-        icon: si-collaboraonline
+      - title: Pi-hole
+        url: https://pihole.internal
+        # url: https://existential.company/docs/hosting/pihole
+        icon: si-pihole
         statusCheck: true
-        description: Office document editing (Nextcloud companion)
+        description: DNS + ad-blocking
