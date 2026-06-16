@@ -47,6 +47,11 @@ if ! command -v opencode &>/dev/null; then
     npm i -g opencode-ai
 fi
 
+if ! command -v python &>/dev/null; then
+    echo "[code-server] Symlinking python -> python3..."
+    ln -s "$(command -v python3)" /home/decree/.npm-global/bin/python
+fi
+
 WORKSPACE_OPENCODE_JSON="/workspace/opencode.json"
 REFERENCE_OPENCODE_JSON="/opencode.exist.json"
 if [[ ! -f "$WORKSPACE_OPENCODE_JSON" ]]; then

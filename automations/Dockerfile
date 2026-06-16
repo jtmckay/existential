@@ -8,6 +8,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf \
         postgresql-client default-mysql-client sqlite3 gnupg ca-certificates \
+        git python3 \
     && curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.deb -o /tmp/rclone.deb \
     && dpkg -i /tmp/rclone.deb \
     && rm /tmp/rclone.deb \
