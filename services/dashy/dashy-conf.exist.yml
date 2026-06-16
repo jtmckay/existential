@@ -49,7 +49,7 @@ sections:
         description: Node-based image generation workflows
 
       - title: Hermes
-        url: https://hermes.internal
+        url: https://hermes-agent-dashboard.internal
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true

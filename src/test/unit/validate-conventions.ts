@@ -17,6 +17,11 @@
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  * 10. Every `<cat>/<slug>/decree/config.exist.yml` has the required top-level `commands:`
  *      block (decree requires it — no serde default — and missing it crashes all sidecars).
+ * 11. Every Caddy slug must equal the backendContainer name, or start with
+ *      `{backendContainer}-`. A slug shorter/different than the container it proxies
+ *      (e.g. `hermes.internal` → `hermes-agent`) is a convention violation — it implies
+ *      a container that doesn't exist. When a container needs two URLs (two ports), the
+ *      primary slug is the container name and any alias starts with `{container}-`.
  */
 
 import * as fs from 'fs';
@@ -477,6 +482,29 @@ function main(): number {
         `the compose file only publishes [${[...ports].sort().join(', ')}] ` +
         `(${path.relative(REPO_ROOT, decl.file)}:${decl.line}). ` +
         `OK if the container exposes more than it publishes.`,
+      );
+    }
+  }
+
+  // (11) When a container already has an exact-match slug (slug === containerName),
+  // any OTHER Caddy slug routing to that same container must start with
+  // `{containerName}-`. This prevents a short alias like `hermes.internal`
+  // → `hermes-agent` from implying a "hermes" container that doesn't exist,
+  // while still allowing `immich.internal` → `immich-server` (no exact-match
+  // `immich-server.internal` exists, so the rule doesn't apply).
+  const exactMatchContainers = new Set<string>();
+  for (const [slug, block] of caddy) {
+    if (slug === block.backendContainer) exactMatchContainers.add(slug);
+  }
+  for (const [slug, block] of caddy) {
+    const c = block.backendContainer;
+    if (slug === c) continue;
+    if (exactMatchContainers.has(c) && !slug.startsWith(c + '-')) {
+      errors.push(
+        `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
+        `'${slug}.internal' proxies to '${c}', but '${c}.internal' already exists — ` +
+        `aliases for the same container must start with '${c}-' ` +
+        `(e.g. '${c}-dashboard.internal')`,
       );
     }
   }

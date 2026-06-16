@@ -72,10 +72,16 @@ hermes-agent.internal {
   reverse_proxy {$EXIST_PEER_HOST_IP}:48642
 }
 
-hermes.internal {
+hermes-agent-dashboard.internal {
   import internal_tls
   import error_handling
   reverse_proxy {$EXIST_PEER_HOST_IP}:49119
+}
+
+honcho.internal {
+  import internal_tls
+  import error_handling
+  reverse_proxy {$EXIST_PEER_HOST_IP}:48001
 }
 
 lightrag.internal {

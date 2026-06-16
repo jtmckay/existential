@@ -19,9 +19,9 @@ copies:
     dst: ai/ollama/decree/migrations/
     label: "ollama: set gemma4:26b context window to 65536 tokens"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/03-pull-qwen2-5-7b.md
+  - src: ai/ollama/decree/migrations.example/03-pull-qwen3-8b.md
     dst: ai/ollama/decree/migrations/
-    label: "ollama: pull qwen2.5:7b — LightRAG entity/relationship extraction"
+    label: "ollama: pull qwen3:8b — LightRAG extraction + Honcho memory"
     requires: EXIST_IS_AI_LIGHTRAG
   - src: ai/ollama/decree/migrations.example/04-pull-bge-m3.md
     dst: ai/ollama/decree/migrations/
@@ -45,9 +45,10 @@ guide: |
                      so Hermes's large system prompt and LightRAG graph context
                      fit without truncation.
 
-    qwen2.5:7b       Extraction LLM for LightRAG ingestion.
-                     Faster and cheaper than gemma4 for the high-volume
-                     entity/relationship extraction pass.
+    qwen3:8b         Extraction LLM for LightRAG ingestion and Honcho memory.
+                     LightRAG uses it for the high-volume entity/relationship
+                     extraction pass. Honcho uses it for the deriver (user
+                     representation), dialectic reasoning, and session summaries.
 
     bge-m3           Embedding model for LightRAG's vector store.
                      Produces 1024-dim vectors (EMBEDDING_DIM in lightrag .env).
@@ -59,7 +60,7 @@ guide: |
 
   Pull times (first run, depending on connection speed):
     gemma4:26b  ~16 GB   15–30 min
-    qwen2.5:7b  ~4.7 GB  5–10 min
+    qwen3:8b    ~5.2 GB  5–10 min
     bge-m3      ~1.2 GB  1–3 min
     llava       ~4.7 GB  5–10 min
 

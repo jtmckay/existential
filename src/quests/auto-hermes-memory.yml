@@ -1,0 +1,46 @@
+name: Hermes Memory Setup
+tagline: Connect Honcho as Hermes's cross-session memory backend
+e2e: false
+services:
+  - var: EXIST_IS_AI_HERMES
+    label: Hermes
+  - var: EXIST_IS_AI_HONCHO
+    label: Honcho
+guide: |
+  Wires Honcho into Hermes as an external memory provider. Once connected,
+  Hermes persists facts, preferences, and context across sessions using
+  Honcho's vector-backed storage (pgvector + Ollama embeddings).
+
+  Requires both hermes-agent and honcho to be running and healthy.
+
+  ── 1. Confirm both containers are healthy ────────────────────────────────
+
+    docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'hermes|honcho'
+
+  Both should show "healthy" or "Up". Honcho depends on honcho-postgres —
+  wait for both to be healthy before proceeding.
+
+  ── 2. Run the memory setup wizard ───────────────────────────────────────
+
+    docker exec -it hermes-agent hermes memory setup honcho
+
+  When prompted:
+    Backend type:  local
+    Honcho URL:    http://honcho:8000
+    JWT secret:    (leave blank)
+
+  Hermes writes the provider config and switches to Honcho immediately.
+
+  ── 3. Verify ─────────────────────────────────────────────────────────────
+
+    docker exec -it hermes-agent hermes memory status
+
+  Should show the Honcho provider active with the URL above.
+
+  ── Notes ─────────────────────────────────────────────────────────────────
+
+  - Only one external provider can be active at a time.
+  - Built-in memory (MEMORY.md / USER.md) stays active alongside Honcho.
+  - To switch off: docker exec -it hermes-agent hermes memory off
+  - Honcho's model roles (from ai/honcho/config.toml):
+      deriver / dialectic / summaries → qwen3:8b via Ollama

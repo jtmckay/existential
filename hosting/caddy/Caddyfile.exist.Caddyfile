@@ -65,7 +65,7 @@ hermes-agent.internal {
   reverse_proxy hermes-agent:8642
 }
 
-hermes.internal {
+hermes-agent-dashboard.internal {
   import internal_tls
   import error_handling
   reverse_proxy hermes-agent:9119

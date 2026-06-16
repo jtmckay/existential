@@ -21,13 +21,8 @@ services:
       WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
       WEBUI_SECRET_KEY: ${OPEN_WEBUI_SECRET_KEY}
-      # Two OpenAI-compatible backends, semicolon-separated:
-      #   1. hermes-agent — full agentic gateway (default for chat)
-      #   2. lightrag — knowledge graph RAG; appears as a separate model in the
-      #      picker. Use /hybrid, /local, /global prefixes in messages to control
-      #      query mode (e.g. "/hybrid what is X?"). Default mode is hybrid.
-      OPENAI_API_BASE_URLS: "http://hermes-agent:8642/v1;http://lightrag:9621/v1"
-      OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-};${OPEN_WEBUI_LIGHTRAG_API_KEY:-}"
+      OPENAI_API_BASE_URLS: "http://hermes-agent:8642/v1"
+      OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-}"
       # Disable direct Ollama integration — hermes-agent is the primary backend
       ENABLE_OLLAMA_API: "false"
       # Point STT at the WhisperX service (OpenAI-compatible /v1 endpoint) instead

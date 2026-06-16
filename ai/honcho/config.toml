@@ -1,0 +1,101 @@
+# Honcho configuration — existential homelab stack.
+# DB credentials come from DB_CONNECTION_URI env var (set in docker-compose).
+# All LLM calls route through Ollama on the exist network.
+
+[app]
+LOG_LEVEL = "INFO"
+EMBED_MESSAGES = true
+
+[auth]
+USE_AUTH = false
+
+# Embeddings via Ollama bge-m3 (1024-dimensional vectors)
+[embedding]
+VECTOR_DIMENSIONS = 1024
+
+[embedding.model_config]
+transport = "openai"
+model = "bge-m3"
+
+[embedding.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+# Deriver: background worker that builds the user representation
+[deriver]
+ENABLED = true
+
+[deriver.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[deriver.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+# Dialectic reasoning levels — all use gemma4:26b via Ollama
+[dialectic.levels.minimal.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dialectic.levels.minimal.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+[dialectic.levels.low.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dialectic.levels.low.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+[dialectic.levels.medium.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dialectic.levels.medium.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+[dialectic.levels.high.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dialectic.levels.high.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+[dialectic.levels.max.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dialectic.levels.max.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+# Session summaries
+[summary.model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[summary.model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+# Dream: background reflection on accumulated sessions
+[dream.deduction_model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dream.deduction_model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"
+
+[dream.induction_model_config]
+transport = "openai"
+model = "qwen3:8b"
+
+[dream.induction_model_config.overrides]
+base_url = "http://ollama:11434/v1"
+api_key = "ollama"

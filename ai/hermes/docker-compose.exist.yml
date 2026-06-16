@@ -41,6 +41,7 @@ services:
     #   ports:
     #     - "48642:8642"   # OpenAI-compatible API
     #     - "49119:9119"   # Web dashboard
+    #     - "43827:43827"   # Spotify callback (temporary: requires binding to 0.0.0.0 manually - somehow)
     # No user: override. The image uses s6-overlay: init runs as root, the
     # cont-init remaps the internal "hermes" user to HERMES_UID:HERMES_GID,
     # chowns /opt/data to that uid, then s6-applyuidgid drops to that uid before
@@ -80,6 +81,9 @@ services:
       API_SERVER_ENABLED: true
       # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
       LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
+      # Honcho self-hosted memory — picked up by the honcho plugin as baseUrl fallback.
+      # Run `docker exec -it hermes-agent hermes memory setup honcho` once to activate.
+      HONCHO_BASE_URL: "http://honcho:8000"
     command: ["gateway", "run"]
     volumes:
       # Agent home (.hermes): config, credentials, session state, likely SQLite,

@@ -1,0 +1,76 @@
+name: Hermes Spotify Integration
+tagline: Connect Spotify playback and library control to your Hermes agent
+e2e: false
+services:
+  - var: EXIST_IS_AI_HERMES
+    label: Hermes
+guide: |
+  Connects Spotify to Hermes using PKCE OAuth — no client secret needed.
+  Gives Hermes 7 tools: playback, devices, queue, search, playlists, albums,
+  and library. Free accounts get read-only tools; Premium is required for
+  playback control.
+
+  Full reference: https://hermes.internal/docs/user-guide/features/spotify
+  (or search "spotify" in the Hermes docs)
+
+  ── 1. Register a Spotify developer app ───────────────────────────────────
+
+  Open https://developer.spotify.com/dashboard → Create app.
+
+  Fill in:
+    App name:        anything (e.g. hermes-agent)
+    App description: anything
+    Redirect URI:    http://127.0.0.1:43827/spotify/callback
+    Which API/SDKs:  check "Web API"
+
+  Click Save, then Settings → copy the Client ID.
+
+  ── 2. Enable the Spotify toolset ─────────────────────────────────────────
+
+  Inside the container, open the toolset picker:
+    docker exec -it hermes-agent hermes tools
+
+  Scroll to "Spotify", press space to enable it, then s to save.
+
+  ── 3. One-time container patch (loopback binding workaround) ─────────────
+
+  Hermes binds its OAuth callback server to 127.0.0.1 inside the container,
+  which Docker's port mapping can't reach. Patch it to bind on all interfaces:
+
+    docker exec hermes-agent sed -i \
+      's/server = _ReuseHTTPServer((host, port)/server = _ReuseHTTPServer(("", port)/' \
+      /opt/hermes/hermes_cli/auth.py
+
+  This edit lives only in the container layer and is gone after a rebuild.
+  The auth tokens it writes are on the persistent volume, so you only need
+  to do this once.
+
+  ── 4. Open an SSH tunnel on your local machine ───────────────────────────
+
+  On the machine with a browser (not the server):
+
+    ssh -N -L 43827:127.0.0.1:43827 <your-server-ip>
+
+  Keep this terminal open for the next step.
+
+  ── 5. Run the auth wizard ────────────────────────────────────────────────
+
+    docker exec -it hermes-agent hermes auth spotify
+
+  When prompted for the Client ID, paste what you copied in step 1.
+  Hermes will print an authorization URL — open it in your browser.
+  Spotify redirects to http://127.0.0.1:43827/... which the SSH tunnel
+  delivers back to Hermes. Tokens are saved; the tunnel can be closed.
+
+  ── Verify ────────────────────────────────────────────────────────────────
+
+    docker exec -it hermes-agent hermes auth status spotify
+
+  Then try it:
+    docker exec -it hermes-agent hermes
+    > what am I listening to
+    > play some miles davis
+
+  ── Sign out ──────────────────────────────────────────────────────────────
+
+    docker exec -it hermes-agent hermes auth logout spotify

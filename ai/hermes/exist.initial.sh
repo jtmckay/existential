@@ -67,3 +67,30 @@ _ensure_hermes_install() {
 }
 
 _ensure_hermes_install
+
+# Install honcho-ai into the cached venv so the honcho memory plugin is importable.
+# Runs after _ensure_hermes_install so the venv is guaranteed to exist.
+_ensure_honcho_ai() {
+    local venv="${SCRIPT_DIR}/hermes_install/.venv"
+    if [[ ! -d "${venv}" ]]; then
+        echo "[hermes] .venv not yet extracted — honcho-ai will be installed on next run." >&2
+        return 0
+    fi
+    if "${venv}/bin/python" -c "import honcho" 2>/dev/null; then
+        echo "[hermes] honcho-ai already installed."
+        return 0
+    fi
+    local image
+    image=$(grep -m1 'image:.*hermes-agent' "${SCRIPT_DIR}/docker-compose.yml" \
+            | sed 's/[[:space:]]*image:[[:space:]]*//')
+    echo "[hermes] Installing honcho-ai==2.1.2 into venv..."
+    docker run --rm \
+        -v "${venv}:/opt/hermes/.venv" \
+        -e UV_LINK_MODE=copy \
+        --entrypoint uv \
+        "${image}" \
+        pip install "honcho-ai==2.1.2" --python /opt/hermes/.venv/bin/python
+    echo "[hermes] honcho-ai installed."
+}
+
+_ensure_honcho_ai

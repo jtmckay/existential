@@ -1,0 +1,74 @@
+# Refs:
+#   Self-hosted guide: https://docs.honcho.dev/v3/guides/integrations/hermes#running-honcho-locally-with-hermes
+#   GitHub: https://github.com/plastic-labs/honcho
+#
+# Honcho — AI-native cross-session memory backend for Hermes
+#
+# Services:
+#   honcho           — FastAPI memory server (port 8000)
+#   honcho-postgres  — PostgreSQL + pgvector for vector storage
+#
+# Volumes:
+#   honcho_postgres_data  (tier-2 local) — postgres+pgvector data; not NFS-safe
+#
+# Access: http://honcho:8000 on the exist network (internal API only)
+#   API docs: https://honcho.internal/docs (after piHole + Caddy entry added)
+#
+# Activation: after both containers are healthy, run once:
+#   docker exec -it hermes-agent hermes memory setup honcho
+#   → choose "local", URL: http://honcho:8000, leave JWT blank
+
+services:
+  honcho:
+    container_name: honcho
+    image: ghcr.io/plastic-labs/honcho:latest@sha256:4143c868f94796ad504ba529be3e08ac4bbe32a7a2a0a2c0a361f2ba9135e613
+    restart: unless-stopped
+    networks:
+      - exist
+    # Runs as uid 100 (app) — no bind-mount writes; postgres handles persistence
+    # ports disabled — access via http://honcho:8000 on the exist network
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "48001:8000"   # Honcho API (also add to Caddyfile.peer.example)
+    environment:
+      DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_POSTGRES_PASSWORD}@honcho-postgres:5432/honcho"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+    depends_on:
+      honcho-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8000/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  honcho-postgres:
+    container_name: honcho-postgres
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    networks:
+      - exist
+    # No user: override — postgres init runs as the internal postgres uid;
+    # data volume must be owned by that uid or startup fails.
+    environment:
+      POSTGRES_USER: honcho
+      POSTGRES_PASSWORD: "${HONCHO_POSTGRES_PASSWORD}"
+      POSTGRES_DB: honcho
+      # Subdirectory so .gitkeep at the bind-mount root doesn't block initdb.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      # Postgres + pgvector data — tier-2 local (WAL/flock; never NFS).
+      - ../../volumes_local/honcho_postgres_data:/var/lib/postgresql/data
+      # TODO: backup sidecar — pg_dump → volumes/honcho_postgres_data_backup/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+networks:
+  exist:
+    external: true
