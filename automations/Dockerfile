@@ -54,6 +54,11 @@ ENV HOME=/home/decree \
 ENV PATH=/home/decree/.npm-global/bin:$PATH
 RUN mkdir -p /home/decree/.npm /home/decree/.npm-global \
     && chmod -R 0777 /home/decree
+# /etc/profile unconditionally overwrites PATH for non-root login shells
+# (code-server's integrated terminal launches one), dropping the npm-global
+# dir set above. profile.d runs after that reset, so re-prepend it there too.
+RUN printf 'PATH=/home/decree/.npm-global/bin:/opt/decree/node_modules/.bin:$PATH\nexport PATH\n' \
+    > /etc/profile.d/npm-global.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 # Daemon services mount their project at /work/.decree and don't set DECREE_DIR,

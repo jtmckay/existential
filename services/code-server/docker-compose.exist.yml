@@ -1,0 +1,41 @@
+# Refs:
+#   code-server: https://github.com/coder/code-server
+#
+# code-server — VS Code in the browser, backed by the decree base image.
+#
+# Services:
+#   code-server   — VS Code web IDE (port 8080)
+#
+# Volumes:
+#   workspace (repo top-level) — primary working directory, shared with
+#   hermes-agent (see ai/hermes/docker-compose.exist.yml) so both see the same tree.
+
+services:
+  code-server:
+    container_name: code-server
+    image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    entrypoint: ["/entrypoint.sh"]
+    networks:
+      - exist
+    # ports disabled — access via https://code-server.internal (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "42080:8080"
+    environment:
+      - IN_CONTAINER=1
+      - PASSWORD=${CODE_SERVER_PASSWORD}
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./opencode.json:/opencode.exist.json:ro
+      # code-server standalone install — tier-3 local cache, not backed up
+      - ./code_server_data:/code-server-data
+      # Repo top-level workspace — shared with hermes-agent's /opt/data/workspace
+      # so both containers operate on the same files.
+      - ../../workspace:/workspace
+
+networks:
+  exist:
+    external: true

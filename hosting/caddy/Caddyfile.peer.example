@@ -133,6 +133,12 @@ appsmith.internal {
   reverse_proxy {$EXIST_PEER_HOST_IP}:44080
 }
 
+code-server.internal {
+  import internal_tls
+  import error_handling
+  reverse_proxy {$EXIST_PEER_HOST_IP}:42080
+}
+
 dashy.internal {
   import internal_tls
   import error_handling

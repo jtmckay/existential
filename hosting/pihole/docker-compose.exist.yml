@@ -61,6 +61,7 @@ services:
         ${EXIST_LOCAL_HOST_IP} whisperx.internal # →  Caddy: whisperx:8000          (ai/whisperx)
         ${EXIST_LOCAL_HOST_IP} actual-budget.internal # →  Caddy: actual-budget:5006      (services/actual-budget)
         ${EXIST_LOCAL_HOST_IP} appsmith.internal # →  Caddy: appsmith:80             (services/appsmith)
+        ${EXIST_LOCAL_HOST_IP} code-server.internal # →  Caddy: code-server:8080        (services/code-server)
         ${EXIST_LOCAL_HOST_IP} dashy.internal # →  Caddy: dashy:8080              (services/dashy — main dashboard)
         ${EXIST_LOCAL_HOST_IP} decree-webhook.internal # →  Caddy: decree-webhook:${DECREE_WEBHOOK_PORT}  (services/decree — inbound webhooks)
         ${EXIST_LOCAL_HOST_IP} homeassistant.internal # →  Caddy: homeassistant:8123      (services/homeassistant)

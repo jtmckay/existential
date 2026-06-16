@@ -108,6 +108,7 @@ whisperx.internal {
 }
 
 # ── services ────────────────────────────────────────────────────────────────
+
 actual-budget.internal {
   import internal_tls
   import error_handling
@@ -118,6 +119,12 @@ appsmith.internal {
   import internal_tls
   import error_handling
   reverse_proxy appsmith:80
+}
+
+code-server.internal {
+  import internal_tls
+  import error_handling
+  reverse_proxy code-server:8080
 }
 
 dashy.internal {

@@ -31,9 +31,12 @@ services:
       resources:
         limits:
           memory: 4G
-    # The Hermes Agent image entrypoint defaults to the interactive CLI which exits
-    # immediately under `docker compose up -d`. We override here to start the
-    # gateway, which is the long-running API/health server. See #360.
+    # entrypoint.sh installs decree (cargo) and claude-code (npm) into the
+    # persistent data volume on first start, chowns them to HERMES_UID:HERMES_GID,
+    # then chains to /init (s6-overlay) which remaps the user and starts the gateway.
+    entrypoint: ["/entrypoint.sh"]
+    # gateway run is the CMD passed through s6 → runs the long-running API server.
+    # (The image's default interactive CLI exits immediately under `docker compose up -d`.)
     networks:
       - exist
     # ports disabled — access via https://hermes-agent.internal (Caddy + pihole required)
@@ -86,9 +89,15 @@ services:
       HONCHO_BASE_URL: "http://honcho:8000"
     command: ["gateway", "run"]
     volumes:
+      # entrypoint.sh: installs decree + claude-code on first start, chains to /init.
+      - ./entrypoint.sh:/entrypoint.sh:ro
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by hermes-agent. Tier-2 local (never NFS).
       - ../../volumes_local/hermes_agent_data:/opt/data
+      # Repo top-level workspace, shadowing hermes_agent_data's own workspace/
+      # subdir — shared with code-server's /workspace so both containers (and
+      # Claude Code running inside hermes-agent) operate on the same files.
+      - ../../workspace:/opt/data/workspace
       # Build tree cache: pre-populated by exist.initial.sh so stage2-hook.sh
       # finds .venv at uid 1000 and skips the 5-min chown on every restart.
       # Run ./existential.sh run before docker compose up -d on a fresh clone.

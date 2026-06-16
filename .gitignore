@@ -54,6 +54,10 @@
 **/internal.csr
 **/internal-ca.srl
 
+# Code-server
+**/opencode.json
+workspace
+
 # Dashy
 **/dashy-conf.yml
 
@@ -143,6 +147,7 @@ volumes/*/
 volumes_local/*/
 
 # Tier-3 service-dir scratch (gitignored content; .gitkeep force-added)
+**/code_server_data
 **/comfyui_data
 **/hf_cache
 **/whisperx/cache
