@@ -34,6 +34,26 @@ services:
       # SMTP_FROM_EMAIL=
       # SMTP_USER=
       # SMTP_PASSWORD=
+      # =====================================
+      # Authelia OIDC (Phase 2)
+      # Redirect URI registered in Authelia: https://mealie.<domain>/login
+      # Local login remains enabled as a fallback (OIDC_AUTO_REDIRECT=false).
+      # TLS skip-verify not available in Mealie's OIDC client; Mealie uses the
+      # system CA bundle. Mount the internal CA and trust it system-wide via
+      # SSL_CERT_FILE, or use the internal Docker name for token exchange only.
+      # VERIFY: Mealie performs server-side discovery against OIDC_CONFIGURATION_URL,
+      # which uses the internal CA cert. If TLS fails, mount the CA:
+      #   - ../../hosting/caddy/certs/internal-ca.pem:/usr/local/share/ca-certificates/internal-ca.crt:ro
+      # and set REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/internal-ca.crt
+      OIDC_AUTH_ENABLED: ${MEALIE_OIDC_AUTH_ENABLED}
+      OIDC_SIGNUP_ENABLED: ${MEALIE_OIDC_SIGNUP_ENABLED}
+      OIDC_CONFIGURATION_URL: ${MEALIE_OIDC_CONFIGURATION_URL}
+      OIDC_CLIENT_ID: ${MEALIE_OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${MEALIE_OIDC_CLIENT_SECRET}
+      OIDC_PROVIDER_NAME: ${MEALIE_OIDC_PROVIDER_NAME}
+      OIDC_AUTO_REDIRECT: ${MEALIE_OIDC_AUTO_REDIRECT}
+      OIDC_ADMIN_GROUP: ${MEALIE_OIDC_ADMIN_GROUP}
+      OIDC_USER_GROUP: ${MEALIE_OIDC_USER_GROUP}
   mealie-postgres:
     container_name: mealie-postgres
     image: postgres:17

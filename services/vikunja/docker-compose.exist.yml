@@ -18,6 +18,22 @@ services:
       VIKUNJA_DATABASE_USER: ${VIKUNJA_DATABASE_USER}
       VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
       VIKUNJA_SERVICE_ENABLEREGISTRATION: ${VIKUNJA_SERVICE_ENABLEREGISTRATION}
+
+      # --- Authelia OIDC (Phase 2) ---
+      # Provider key 'AUTHELIA' (uppercase) maps to redirect URI path segment 'authelia' (lowercase).
+      # Redirect URI registered in Authelia: https://vikunja.<domain>/auth/openid/authelia
+      # Local login remains enabled as a fallback.
+      # TLS: Vikunja (Go) performs server-side OIDC discovery against AUTHURL; it uses
+      # the system CA bundle. Workaround: mount internal-ca.pem and set SSL_CERT_FILE.
+      # VERIFY: if TLS verification fails on OIDC discovery, add:
+      #   - ../../hosting/caddy/certs/internal-ca.pem:/etc/ssl/certs/internal-ca.pem:ro
+      # and set: SSL_CERT_FILE=/etc/ssl/certs/internal-ca.pem
+      VIKUNJA_AUTH_OPENID_ENABLED: ${VIKUNJA_AUTH_OPENID_ENABLED}
+      VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME}
+      VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL}
+      VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_CLIENTID: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_CLIENTID}
+      VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_CLIENTSECRET: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_CLIENTSECRET}
+      VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE}
     volumes:
       - ${EXIST_NFS_HOST_MOUNT:-./volumes}/vikunja_data:/app/vikunja/files
     depends_on:

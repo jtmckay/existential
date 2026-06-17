@@ -154,6 +154,7 @@ image_exists() {
 declare -a CHECKS=(
     "actual-budget	services/actual-budget/docker-compose.exist.yml	actualbudget/actual-server	github	actualbudget/actual	bare"
     "appsmith	services/appsmith/docker-compose.exist.yml	appsmith/appsmith-ce	hub	appsmith/appsmith-ce	v"
+    "authelia	hosting/authelia/docker-compose.exist.yml	authelia/authelia	github	authelia/authelia	v"
     "caddy	hosting/caddy/docker-compose.exist.yml	caddy	hub_clean	library/caddy	bare"
     "chatterbox	ai/chatterbox/docker-compose.exist.yml	ghcr.io/devnen/chatterbox-tts-server	github	devnen/chatterbox-tts-server	v"
     "comfyui	ai/comfyui/docker-compose.exist.yml	ghcr.io/ai-dock/comfyui	skip		"

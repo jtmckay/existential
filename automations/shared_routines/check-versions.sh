@@ -65,6 +65,7 @@ latest_hub_clean() {
 declare -a CHECKS=(
     "actual-budget	actualbudget/actual-server	github	actualbudget/actual	bare"
     "appsmith	appsmith/appsmith-ce	hub	appsmith/appsmith-ce	v"
+    "authelia	authelia/authelia	github	authelia/authelia	v"
     "caddy	caddy	hub_clean	library/caddy	bare"
     "chatterbox	ghcr.io/devnen/chatterbox-tts-server	github	devnen/chatterbox-tts-server	v"
     "collabora	collabora/code	hub_clean	collabora/code	bare"
