@@ -5,20 +5,15 @@
 # DNSStubListener=no
 #
 # ── DNS convention ────────────────────────────────────────────────────────────
-# Every container that publishes a web UI or HTTP endpoint gets a `<slug>.internal`
-# A-record. The slug is the lowercase-hyphenated form of the service folder /
-# container name. piHole points the slug at one of two hosts:
+# piHole resolves the ENTIRE base domain (EXIST_DOMAIN, default x.internal) and
+# every subdomain to EXIST_LOCAL_HOST_IP with a single wildcard record below —
+# there are no per-slug A-records. Adding a service never touches this file; the
+# slug just needs a reverse_proxy block in hosting/caddy/Caddyfile, which is the
+# single source of truth for what `<slug>.<domain>` actually exists.
 #
-#   EXIST_LOCAL_HOST_IP — this machine (active line)
-#   EXIST_PEER_HOST_IP  — another machine on the LAN (commented line)
-#
-# To migrate a service between machines, comment the active line and uncomment
-# the other one. Both lines are intentionally kept side-by-side so the option
-# is visible at a glance.
-#
-# Each slug must have a matching reverse_proxy block in hosting/caddy/Caddyfile.
-# The trailing comment on each record points at that backend so the coupling
-# stays visible.
+# The wildcard always points at the host running Caddy (EXIST_LOCAL_HOST_IP). In
+# peer mode that front-door Caddy forwards onward to EXIST_PEER_HOST_IP — see
+# hosting/caddy/Caddyfile.frontdoor-lan.example (or -public.example).
 
 services:
   pihole:
@@ -31,7 +26,7 @@ services:
       # DNS ports — must stay exposed (cannot route through Caddy)
       - "53:53/tcp"
       - "53:53/udp"
-      # Web UI — access via https://pihole.internal (Caddy + pihole required)
+      # Web UI — access via https://pihole.<domain> (Caddy + pihole required)
       # Uncomment to expose directly:
       #   - "42480:80/tcp"
       #   - "42443:443/tcp"
@@ -46,41 +41,25 @@ services:
       FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
       # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
       FTLCONF_dns_listeningMode: 'ALL'
-      # A records — see "DNS convention" header for the LOCAL/PEER pattern.
-      # If caddy is on another machine, use EXIST_PEER_HOST_IP instead of EXIST_LOCAL_HOST_IP
-      FTLCONF_dns_hosts: |
-        ${EXIST_LOCAL_HOST_IP} chatterbox.internal # →  Caddy: chatterbox:8000          (ai/chatterbox)
-        ${EXIST_LOCAL_HOST_IP} comfyui.internal # →  Caddy: comfyui:8188            (ai/comfyui)
-        ${EXIST_LOCAL_HOST_IP} firecrawl.internal # →  Caddy: firecrawl:3002          (ai/firecrawl — web scraping API)
-        ${EXIST_LOCAL_HOST_IP} hermes-agent.internal # →  Caddy: hermes-agent:8642        (ai/hermes — OpenAI-compatible API)
-        ${EXIST_LOCAL_HOST_IP} hermes-agent-dashboard.internal # →  Caddy: hermes-agent:9119       (ai/hermes — web dashboard)
-        ${EXIST_LOCAL_HOST_IP} ollama.internal # →  Caddy: ollama:11434            (ai/ollama)
-        ${EXIST_LOCAL_HOST_IP} open-webui.internal # →  Caddy: open-webui:8080         (ai/open-webui)
-        ${EXIST_LOCAL_HOST_IP} openviking.internal # →  Caddy: openviking:1933         (ai/openviking — context database)
-        ${EXIST_LOCAL_HOST_IP} mcp-playwright.internal # →  Caddy: mcp-playwright:8931     (ai/mcp)
-        ${EXIST_LOCAL_HOST_IP} whisperx.internal # →  Caddy: whisperx:8000          (ai/whisperx)
-        ${EXIST_LOCAL_HOST_IP} actual-budget.internal # →  Caddy: actual-budget:5006      (services/actual-budget)
-        ${EXIST_LOCAL_HOST_IP} appsmith.internal # →  Caddy: appsmith:80             (services/appsmith)
-        ${EXIST_LOCAL_HOST_IP} code-server.internal # →  Caddy: code-server:8080        (services/code-server)
-        ${EXIST_LOCAL_HOST_IP} dashy.internal # →  Caddy: dashy:8080              (services/dashy — main dashboard)
-        ${EXIST_LOCAL_HOST_IP} decree-webhook.internal # →  Caddy: decree-webhook:${DECREE_WEBHOOK_PORT}  (services/decree — inbound webhooks)
-        ${EXIST_LOCAL_HOST_IP} homeassistant.internal # →  Caddy: homeassistant:8123      (services/homeassistant)
-        ${EXIST_LOCAL_HOST_IP} immich.internal # →  Caddy: immich-server:2283      (services/immich)
-        ${EXIST_LOCAL_HOST_IP} it-tools.internal # →  Caddy: it-tools:80             (services/it-tools)
-        ${EXIST_LOCAL_HOST_IP} lowcoder.internal # →  Caddy: lowcoder-frontend:3000  (services/lowcoder)
-        ${EXIST_LOCAL_HOST_IP} mealie.internal # →  Caddy: mealie:9000             (services/mealie)
-        ${EXIST_LOCAL_HOST_IP} ntfy.internal # →  Caddy: ntfy:80                 (services/ntfy)
-        ${EXIST_LOCAL_HOST_IP} nocodb.internal # →  Caddy: nocodb:8080             (services/nocodb)
-        ${EXIST_LOCAL_HOST_IP} vikunja.internal # →  Caddy: vikunja:3456            (services/vikunja)
-        ${EXIST_LOCAL_HOST_IP} grafana.internal # →  Caddy: grafana:3000            (hosting/grafana)
-        ${EXIST_LOCAL_HOST_IP} pihole.internal # →  Caddy: pihole:80               (hosting/pihole — admin UI)
-        ${EXIST_LOCAL_HOST_IP} portainer.internal # →  Caddy: portainer:9443 (https)  (hosting/portainer)
-        ${EXIST_LOCAL_HOST_IP} prometheus.internal # →  Caddy: prometheus:9090         (hosting/prometheus)
-        ${EXIST_LOCAL_HOST_IP} uptime-kuma.internal # →  Caddy: uptime-kuma:3001        (hosting/uptime-kuma)
-        ${EXIST_LOCAL_HOST_IP} collabora.internal # →  Caddy: collabora:9980          (nas/collabora)
-        ${EXIST_LOCAL_HOST_IP} minio.internal # →  Caddy: minio:9001              (nas/minio — console)
-        ${EXIST_LOCAL_HOST_IP} minio-api.internal # →  Caddy: minio:9000              (nas/minio — S3 API)
-        ${EXIST_LOCAL_HOST_IP} nextcloud.internal # →  Caddy: nextcloud:80            (nas/nextcloud)
+      # Wildcard DNS masks: each `address=/<domain>/<ip>` line resolves that domain
+      # AND every `<slug>.<domain>` subdomain to one host — see the "DNS convention"
+      # header above. The first line is this stack; add more lines to point another
+      # domain (e.g. a second stack on the LAN, or a real domain) at a different host.
+      # A leading `#` is a dnsmasq comment, so commented lines are safely ignored.
+      FTLCONF_misc_dnsmasq_lines: |
+        address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}
+        # address=/y.internal/192.168.1.60
+      # Per-host OVERRIDES (optional). dns_hosts are exact `<ip> <fqdn>` records, the
+      # same format the old per-slug list used. dnsmasq resolves the MOST SPECIFIC
+      # match, so an exact record here WINS over the wildcard above for that one name
+      # (verified: a `2.2.2.2 special.<domain>` record beats `address=/<domain>/...`).
+      # The wildcard still covers every other subdomain — you only list exceptions.
+      # We don't use dns_hosts for everything because it has NO wildcard: it'd be one
+      # line per slug (exactly the per-slug maintenance the wildcard removes).
+      # Leave commented unless a specific subdomain must point somewhere else:
+      # FTLCONF_dns_hosts: |
+      #   ${EXIST_PEER_HOST_IP} immich.${EXIST_DOMAIN}      # this one service lives on the peer host
+      #   192.168.1.99 grafana.${EXIST_DOMAIN}              # pin grafana at a fixed box
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - './etc-pihole:/etc/pihole:Z'

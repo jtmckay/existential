@@ -1,6 +1,6 @@
 services:
   # Node-based image generation UI (Stable Diffusion / SDXL)
-  # Web UI at http://comfyui:8188 / https://comfyui.internal
+  # Web UI at http://comfyui:8188 / https://comfyui.<domain>
   comfyui:
     container_name: comfyui
     # Pinned (was :latest-cuda) for reproducibility. Bump via ./existential.sh run check-versions.
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://comfyui.internal (Caddy + pihole required)
+    # ports disabled — access via https://comfyui.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 8188:8188

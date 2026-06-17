@@ -62,7 +62,7 @@ services:
     # ports:
     #   - "8080:8080"
     environment:
-      LOWCODER_PUBLIC_URL: "https://lowcoder.internal"
+      LOWCODER_PUBLIC_URL: "https://lowcoder.${EXIST_DOMAIN}"
       LOWCODER_PUID: "${EXIST_PUID:-1000}"
       LOWCODER_PGID: "${EXIST_PGID:-1000}"
       LOWCODER_MONGODB_URL: "mongodb://${LOWCODER_MONGO_ROOT_USERNAME}:${LOWCODER_MONGO_ROOT_PASSWORD}@lowcoder-mongodb/lowcoder?authSource=admin"

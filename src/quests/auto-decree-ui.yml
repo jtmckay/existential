@@ -27,6 +27,6 @@ guide: |
        This reads webhook/config.yml, builds a Lowcoder app definition,
        and imports it via the Lowcoder API at http://lowcoder-api-service.
 
-    3. Open https://lowcoder.internal and find the app in the list —
+    3. Open https://lowcoder.x.internal and find the app in the list —
        it is named "Decree Routines YYYYMMDD_HHMMSS" using the time it
        was generated. Each run creates a new app; old ones are kept.

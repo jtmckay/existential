@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://nextcloud.internal (Caddy + pihole required)
+    # ports disabled — access via https://nextcloud.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "48421:80"

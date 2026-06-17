@@ -12,7 +12,7 @@ exist_self_elevate
 exist_test_init "lowcoder" EXIST_IS_SERVICES_LOWCODER
 skip_if_disabled
 
-# Caddy routes lowcoder.internal -> lowcoder-frontend:3000.
+# Caddy routes lowcoder.<domain> -> lowcoder-frontend:3000.
 http_probe_any "lowcoder-frontend UI (direct)" \
                "http://lowcoder-frontend:3000/" "^(200|301|302|307)$"
 probe_caddy_any "lowcoder-frontend UI" lowcoder / "^(200|301|302|307)$"

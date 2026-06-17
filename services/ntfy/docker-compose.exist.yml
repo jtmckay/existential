@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://ntfy.internal (Caddy + pihole required)
+    # ports disabled — access via https://ntfy.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 44680:80

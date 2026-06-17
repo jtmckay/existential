@@ -174,23 +174,23 @@ http_probe_any() {
 # attributes to the right layer:
 #
 #   1. Container DNS    : http://<HOSTNAME>:<PORT><PATH>
-#   2. piHole DNS       : dig @pihole <HOSTNAME>.internal           (if pihole enabled)
-#   3. LAN via caddy    : https://<HOSTNAME>.internal<PATH>         (if caddy enabled)
+#   2. piHole DNS       : dig @pihole <HOSTNAME>.<EXIST_DOMAIN>      (if pihole enabled)
+#   3. LAN via caddy    : https://<HOSTNAME>.<EXIST_DOMAIN><PATH>    (if caddy enabled)
 #   4. Public via caddy : https://<HOSTNAME>.<EXIST_PUBLIC_DOMAIN><PATH>
 #                                                                   (if EXIST_PUBLIC_DOMAIN set)
 #
 # HOSTNAME is the bare front-of-hostname — used both as the Docker DNS name
-# and as the `.internal` / public subdomain (i.e. `<HOSTNAME>.internal`).
+# and as the `<EXIST_DOMAIN>` / public subdomain (i.e. `<HOSTNAME>.<EXIST_DOMAIN>`).
 # For multi-container services pass each container in turn (e.g. hermes-agent,
 # hermes-dashboard).
 #
 # The caddy probe uses `curl --connect-to <host>:443:caddy:443` so it tests
 # caddy's routing without depending on this adhoc container's resolver chain.
-# The piHole probe (layer 2) is the separate, explicit check that piHole has
-# the right A-record — so "pihole down/misconfigured" is distinguishable from
-# "caddy misrouting" is distinguishable from "container down".
+# The piHole probe (layer 2) is the separate, explicit check that piHole's
+# wildcard record resolves — so "pihole down/misconfigured" is distinguishable
+# from "caddy misrouting" is distinguishable from "container down".
 #
-# TLS uses -k: caddy's .internal CA isn't trusted inside adhoc, and a public
+# TLS uses -k: caddy's local CA isn't trusted inside adhoc, and a public
 # ACME cert may not yet be issued — both are separate concerns from routing.
 probe_service() {
     local name="$1" hostname="$2" port="$3" path="${4:-/}" expect="${5:-200}" timeout="${6:-5}"
@@ -207,10 +207,10 @@ probe_service_any() {
 # probe_pihole NAME HOST [TIMEOUT=3]
 #
 # Surfaces pihole-layer issues separately from caddy / container issues.
-# Queries pihole directly (`dig @pihole +short <HOST>.internal`) and checks
-# the answer matches EXIST_LOCAL_HOST_IP — so a missing record, the wrong
-# LOCAL/PEER line being active, or pihole itself being down all surface as
-# distinct, actionable failures.
+# Queries pihole directly (`dig @pihole +short <HOST>.<EXIST_DOMAIN>`) and checks
+# the answer matches EXIST_LOCAL_HOST_IP — so the wildcard record being absent or
+# pihole itself being down surface as distinct, actionable failures. Any subdomain
+# resolves via the single wildcard record, so the specific HOST is just a probe.
 #
 # Skips cleanly when pihole isn't enabled on this host (EXIST_IS_HOSTING_PIHOLE
 # is not true) — then there's nothing local to probe.
@@ -219,8 +219,11 @@ probe_pihole() {
     load_env_exist
     [ "${EXIST_IS_HOSTING_PIHOLE:-false}" = "true" ] || return 0
 
+    local dom="${EXIST_DOMAIN:-x.internal}"
+    local fqdn="${host}.${dom}"
+
     if ! command -v dig >/dev/null 2>&1; then
-        warn "${name} via ${host}.internal (pihole DNS)" \
+        warn "${name} via ${fqdn} (pihole DNS)" \
              "dig not installed in this container — DNS layer not verified" \
              "Rebuild existential-adhoc: docker compose -f existential-compose.yml build existential-adhoc"
         return 0
@@ -228,30 +231,30 @@ probe_pihole() {
 
     local expected="${EXIST_LOCAL_HOST_IP:-}"
     local answer
-    answer=$(dig @pihole +short +time="$timeout" +tries=1 "${host}.internal" 2>/dev/null | head -1 || true)
+    answer=$(dig @pihole +short +time="$timeout" +tries=1 "${fqdn}" 2>/dev/null | head -1 || true)
 
     if [ -z "$answer" ]; then
-        fail "${name} via ${host}.internal (pihole DNS)" \
-             "pihole returned no A-record for ${host}.internal" \
-             "Add a record to hosting/pihole/docker-compose.yml FTLCONF_dns_hosts pointing ${host}.internal at \${EXIST_LOCAL_HOST_IP}, then: docker compose -f hosting/pihole/docker-compose.yml restart pihole"
+        fail "${name} via ${fqdn} (pihole DNS)" \
+             "pihole returned no A-record for ${fqdn}" \
+             "Check the wildcard record (FTLCONF_misc_dnsmasq_lines: address=/\${EXIST_DOMAIN}/\${EXIST_LOCAL_HOST_IP}) in hosting/pihole/docker-compose.yml, then: docker compose up -d"
     elif [ -z "$expected" ]; then
-        warn "${name} via ${host}.internal (pihole DNS)" \
+        warn "${name} via ${fqdn} (pihole DNS)" \
              "pihole answered ${answer} but EXIST_LOCAL_HOST_IP is empty — can't compare" \
              "Set EXIST_LOCAL_HOST_IP in .env.shared and re-run ./existential.sh"
     elif [ "$answer" = "$expected" ]; then
-        ok "${name} via ${host}.internal (pihole DNS)"
+        ok "${name} via ${fqdn} (pihole DNS)"
     else
-        fail "${name} via ${host}.internal (pihole DNS)" \
+        fail "${name} via ${fqdn} (pihole DNS)" \
              "pihole answered ${answer}, expected ${expected}" \
-             "The LOCAL/PEER record for ${host}.internal in hosting/pihole/docker-compose.yml may be on the wrong line — flip the active record to point at LOCAL_HOST_IP, then restart pihole."
+             "The wildcard record points the whole \${EXIST_DOMAIN} at \${EXIST_LOCAL_HOST_IP}; verify both in .env.shared, then restart the stack."
     fi
 }
 
 # probe_caddy NAME HOST [PATH=/] [EXPECT=200] [TIMEOUT=5]
-# Probes the caddy-fronted paths for HOST — piHole DNS, .internal via caddy,
+# Probes the caddy-fronted paths for HOST — piHole DNS, <EXIST_DOMAIN> via caddy,
 # and (if EXIST_PUBLIC_DOMAIN is set) public via caddy. Use when the direct
 # container name differs from the caddy block name (e.g. caddy routes
-# librechat.internal -> librechat-client:80), so direct + caddy can't share
+# librechat.<domain> -> librechat-client:80), so direct + caddy can't share
 # a single hostname. Caller pairs this with their own http_probe for the
 # direct leg.
 probe_caddy() {
@@ -281,7 +284,7 @@ _probe_service_impl() {
                    "http://${hostname}:${port}${path}" "$expect" "$timeout"
     fi
 
-    # 2 + 3. .internal + public via caddy
+    # 2 + 3. <EXIST_DOMAIN> + public via caddy
     _probe_caddy_paths "$mode" "$name" "$hostname" "$path" "$expect" "$timeout"
 }
 
@@ -290,12 +293,13 @@ _probe_caddy_paths() {
     load_env_exist
     [ "${EXIST_IS_HOSTING_CADDY:-false}" = "true" ] || return 0
 
-    # Pihole layer — confirms <host>.internal resolves to the right IP. Skipped
+    # Pihole layer — confirms <host>.<domain> resolves to the right IP. Skipped
     # internally if pihole isn't enabled on this host.
     probe_pihole "$name" "$host"
 
-    _probe_via_caddy "$mode" "${name} via ${host}.internal" \
-                     "${host}.internal" "$path" "$expect" "$timeout"
+    local dom="${EXIST_DOMAIN:-x.internal}"
+    _probe_via_caddy "$mode" "${name} via ${host}.${dom}" \
+                     "${host}.${dom}" "$path" "$expect" "$timeout"
 
     # Public domain — real DNS (not pihole), so no pihole probe for this leg.
     if [ -n "${EXIST_PUBLIC_DOMAIN:-}" ]; then

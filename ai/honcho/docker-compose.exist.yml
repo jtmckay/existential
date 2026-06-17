@@ -12,7 +12,7 @@
 #   honcho_postgres_data  (tier-2 local) — postgres+pgvector data; not NFS-safe
 #
 # Access: http://honcho:8000 on the exist network (internal API only)
-#   API docs: https://honcho.internal/docs (after piHole + Caddy entry added)
+#   API docs: https://honcho.<domain>/docs (after a Caddy reverse_proxy block is added)
 #
 # Activation: after both containers are healthy, run once:
 #   docker exec -it hermes-agent hermes memory setup honcho

@@ -10,7 +10,7 @@ exist_test_init "immich" EXIST_IS_SERVICES_IMMICH
 skip_if_disabled
 
 # immich-server's /api/server/ping returns {"res":"pong"} when healthy.
-# Caddy routes immich.internal -> immich-server:2283.
+# Caddy routes immich.<domain> -> immich-server:2283.
 http_probe "immich-server /api/server/ping (direct)" \
            "http://immich-server:2283/api/server/ping" 200
 probe_caddy "immich-server /api/server/ping" immich /api/server/ping 200

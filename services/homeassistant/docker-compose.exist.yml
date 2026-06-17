@@ -9,7 +9,7 @@ services:
       # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
       # TODO: backup sidecar → volumes/homeassistant_config_backup (no sidecar yet).
       - ../../volumes_local/homeassistant_config:/config
-    # ports disabled — access via https://homeassistant.internal (Caddy + pihole required)
+    # ports disabled — access via https://homeassistant.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 8123:8123

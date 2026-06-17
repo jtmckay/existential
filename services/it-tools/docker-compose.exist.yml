@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://it-tools.internal (Caddy + pihole required)
+    # ports disabled — access via https://it-tools.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - '43491:80'

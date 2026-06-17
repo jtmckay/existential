@@ -10,7 +10,7 @@ services:
           memory: 1G
     networks:
       - exist
-    # ports disabled — access via https://open-webui.internal (Caddy + pihole required)
+    # ports disabled — access via https://open-webui.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "11488:8080"

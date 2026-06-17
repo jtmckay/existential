@@ -1,5 +1,5 @@
 # ./ntfy-config/server.yml
-base-url: "https://ntfy.internal"
+base-url: "https://ntfy.EXIST_DOMAIN"
 listen-http: ":80"
 enable-login: true
 enable-signup: false

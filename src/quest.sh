@@ -216,15 +216,15 @@ hr
 echo "  Getting started — accessing your services"
 hr
 echo ""
-echo "  Every service runs at https://<slug>.internal."
+echo "  Every service runs at https://<slug>.<domain> (EXIST_DOMAIN, default x.internal)."
 echo "  You need DNS to reach them from a browser."
 echo ""
 echo "  Option A  Enable Pihole (Hosting group) and point your router's"
 echo "            upstream DNS at this machine's IP. Every device on your"
-echo "            network will resolve *.internal automatically."
+echo "            network will resolve *.<domain> automatically."
 echo ""
 echo "  Option B  No Pihole — wildcard record on this machine only:"
-echo "              dnsmasq:  address=/.internal/<this-machine-ip>"
+echo "              dnsmasq:  address=/<domain>/<this-machine-ip>"
 echo ""
 
 # ── Phase 1: Service picker ───────────────────────────────────────────────────
@@ -536,7 +536,7 @@ if [[ "$_has_pihole" -eq 1 || "$_has_caddy" -eq 1 ]]; then
     echo "  Accessing services"
     hr
     echo ""
-    echo "  Each enabled service is reachable at https://<slug>.internal."
+    echo "  Each enabled service is reachable at https://<slug>.<domain> (EXIST_DOMAIN)."
     echo ""
     if [[ "$_has_pihole" -eq 1 ]]; then
         echo "  Pihole handles DNS — point your router at it so slugs resolve:"
@@ -546,7 +546,7 @@ if [[ "$_has_pihole" -eq 1 || "$_has_caddy" -eq 1 ]]; then
     if [[ "$_has_caddy" -eq 1 ]]; then
         echo "  Caddy handles TLS with a local CA. Install its root cert once"
         echo "  per device for green padlocks:"
-        echo "    https://caddy.internal/caddy-root.crt  (after first run)"
+        echo "    https://caddy.<domain>/caddy-root.crt  (after first run)"
         echo ""
     fi
 fi

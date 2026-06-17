@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# caddy — pre-startup init: stable local TLS cert for *.internal
+# caddy — pre-startup init: stable local TLS cert for *.<EXIST_DOMAIN>
 #
 # `tls internal` works but Caddy auto-rotates its leaf certs (~12h) and the CA
 # lives in the caddy_data volume — if that volume is wiped or doesn't persist,
@@ -12,7 +12,9 @@
 #
 # Idempotent, no sentinel: if the leaf key already exists we do nothing. To
 # rotate (e.g. after 825 days), delete internal-key.pem and re-run
-# ./existential.sh run — the CA is untouched, so devices stay trusted.
+# ./existential.sh run — the CA is untouched, so devices stay trusted. An
+# advanced user pointing EXIST_DOMAIN at a real domain can simply drop their own
+# valid cert in as internal.pem/internal-key.pem; the skip below leaves it alone.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,15 +24,21 @@ if [[ "${IN_CONTAINER:-}" == "1" ]]; then
     exit 0
 fi
 
+# Base domain for the wildcard cert (matches Caddy's <slug>.<domain> blocks).
+ENV_SHARED="$SCRIPT_DIR/../../.env.shared"
+EXIST_DOMAIN="$(grep -E '^EXIST_DOMAIN=' "$ENV_SHARED" 2>/dev/null | head -1 | cut -d= -f2-)"
+EXIST_DOMAIN="${EXIST_DOMAIN:-x.internal}"
+
 CERT_DIR="$SCRIPT_DIR/certs"                # mounted at /etc/caddy/certs/
 CA_KEY="$CERT_DIR/internal-ca-key.pem"
 CA_CRT="$CERT_DIR/internal-ca.pem"          # ← install THIS on each device, once
 LEAF_KEY="$CERT_DIR/internal-key.pem"
 LEAF_CRT="$CERT_DIR/internal.pem"
 
-# Already minted — leave the existing cert (and any device trust) alone.
+# Already minted (or user-supplied) — leave the existing cert (and any device
+# trust) alone.
 if [[ -f "$LEAF_KEY" && -f "$LEAF_CRT" && -f "$CA_CRT" ]]; then
-    echo "[caddy] Internal *.internal cert present — skipping."
+    echo "[caddy] Internal *.${EXIST_DOMAIN} cert present — skipping."
     exit 0
 fi
 
@@ -39,11 +47,11 @@ if ! command -v openssl >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "[caddy] Minting stable *.internal cert into hosting/caddy/certs/ ..."
+echo "[caddy] Minting stable *.${EXIST_DOMAIN} cert into hosting/caddy/certs/ ..."
 
 cnf="$(mktemp)"
 trap 'rm -f "$cnf" "$CERT_DIR/internal.csr"' EXIT
-cat > "$cnf" <<'EOF'
+cat > "$cnf" <<EOF
 [req]
 distinguished_name = req
 [v3]
@@ -52,8 +60,8 @@ basicConstraints = CA:FALSE
 keyUsage         = digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 [alt]
-DNS.1 = *.internal
-DNS.2 = internal
+DNS.1 = *.${EXIST_DOMAIN}
+DNS.2 = ${EXIST_DOMAIN}
 EOF
 
 # CA: 10 years. This is what you install on devices; it long-outlives the leaf.
@@ -66,7 +74,7 @@ fi
 # Leaf: 825 days — the max iOS/macOS accept for a server cert even from a
 # privately-installed CA. Re-mint before it expires (CA stays put).
 openssl genrsa -out "$LEAF_KEY" 2048
-openssl req -new -key "$LEAF_KEY" -subj "/CN=*.internal" -out "$CERT_DIR/internal.csr"
+openssl req -new -key "$LEAF_KEY" -subj "/CN=*.${EXIST_DOMAIN}" -out "$CERT_DIR/internal.csr"
 openssl x509 -req -in "$CERT_DIR/internal.csr" -CA "$CA_CRT" -CAkey "$CA_KEY" \
     -CAcreateserial -days 825 -sha256 \
     -extfile "$cnf" -extensions v3 -out "$LEAF_CRT"

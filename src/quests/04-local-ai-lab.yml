@@ -52,7 +52,7 @@ guide: |
 
   ── ComfyUI: download checkpoints ─────────────────────────────────────────
 
-  ComfyUI runs at https://comfyui.internal after containers are up.
+  ComfyUI runs at https://comfyui.x.internal after containers are up.
   It ships with no models — download one via the ComfyUI Manager node
   in the UI, or place .safetensors files directly in:
     ai/comfyui/comfyui_data/models/checkpoints/

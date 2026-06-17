@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # exist.test.sh — validate that caddy is operational.
 #
-# Caddy fronts every <slug>.internal route. We can't probe a specific .internal
-# host from inside adhoc without DNS pointing at caddy, so we check that caddy
-# itself accepts TCP on :80/:443 and responds with *some* HTTP status to a bare
-# request. A 308 to HTTPS (or 421 misdirected) is healthy — proves caddy is up.
+# Caddy serves HTTPS on :443 and redirects plain HTTP on :80 up to HTTPS. We check
+# :443 is up and that :80 returns a redirect (never plain content). Each service's
+# own exist.test.sh checks its actual <slug>.<domain> routing.
 #
 # See CLAUDE.md "Service test scripts" for the convention.
 
@@ -14,11 +13,11 @@ exist_self_elevate
 exist_test_init "caddy" EXIST_IS_HOSTING_CADDY
 skip_if_disabled
 
-http_probe_any "caddy:80 responds"   "http://caddy:80/"  "^(200|301|302|308|404|421)$"
-tcp_probe       "caddy:443 listening" caddy 443
+tcp_probe "caddy:443 listening" caddy 443
+http_probe_any "caddy:80 redirects to HTTPS" "http://caddy:80/" "^(301|302|308)$"
 
 file_present "Caddyfile present"         "/repo/hosting/caddy/Caddyfile"
-# Stable *.internal cert minted by exist.initial.sh — the pair the Caddyfile pins.
+# Stable *.<domain> cert minted by exist.initial.sh — the pair the Caddyfile pins.
 file_present "internal cert present"     "/repo/hosting/caddy/certs/internal.pem"
 file_present "internal cert key present" "/repo/hosting/caddy/certs/internal-key.pem"
 

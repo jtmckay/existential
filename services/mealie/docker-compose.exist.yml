@@ -8,7 +8,7 @@ services:
       - exist
     volumes:
       - ${EXIST_NFS_HOST_MOUNT:-./volumes}/mealie_data:/app/data/
-    # ports disabled — access via https://mealie.internal (Caddy + pihole required)
+    # ports disabled — access via https://mealie.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 49009:9000

@@ -9,12 +9,12 @@ services:
     environment:
       - username=${COLLABORA_USERNAME}
       - password=${COLLABORA_PASSWORD} 
-      - domain=${COLLABORA_NEXTCLOUD_DOMAIN} # nextcloud.internal
-      - server_name=${COLLABORA_DOMAIN} # collabora.internal
+      - domain=${COLLABORA_NEXTCLOUD_DOMAIN} # nextcloud.<EXIST_DOMAIN>
+      - server_name=${COLLABORA_DOMAIN} # collabora.<EXIST_DOMAIN>
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true
       - extra_params=--o:ssl.enable=false --o:ssl.termination=true
-    # ports disabled — access via https://collabora.internal (Caddy + pihole required)
+    # ports disabled — access via https://collabora.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 9980:9980

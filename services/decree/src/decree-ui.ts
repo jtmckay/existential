@@ -34,6 +34,10 @@ const lcEnv = readEnvFile(`${REPO}/services/lowcoder/.env`);
 const LC_EMAIL = process.env.LOWCODER_USERNAME ?? lcEnv.LOWCODER_USERNAME ?? "";
 const LC_PASSWORD = process.env.LOWCODER_PASSWORD ?? lcEnv.LOWCODER_PASSWORD ?? "";
 
+// Base domain for the `<slug>.<domain>` hostnames embedded in the generated app.
+const sharedEnv = readEnvFile(`${REPO}/.env.shared`);
+const DOMAIN = process.env.EXIST_DOMAIN ?? sharedEnv.EXIST_DOMAIN ?? "x.internal";
+
 if (!LC_EMAIL || !LC_PASSWORD) {
   console.error("LOWCODER_USERNAME / LOWCODER_PASSWORD not found in services/lowcoder/.env");
   process.exit(1);
@@ -58,7 +62,7 @@ const webhookConfig = yaml.load(
 
 const SHARED_SECRET = webhookConfig.secret ?? "";
 // Browser-side URL — resolves via pihole DNS through Caddy (no port needed).
-const WEBHOOK_BASE = "https://decree-webhook.internal";
+const WEBHOOK_BASE = `https://decree-webhook.${DOMAIN}`;
 
 // ── App name ──────────────────────────────────────────────────────────────────
 
@@ -221,7 +225,7 @@ async function main() {
   const appId = createData?.applicationInfoView?.applicationId;
 
   console.log(`\nCreated: ${APP_NAME}`);
-  if (appId) console.log(`  https://lowcoder.internal/apps/${appId}/view`);
+  if (appId) console.log(`  https://lowcoder.${DOMAIN}/apps/${appId}/view`);
   console.log(`  Or open Lowcoder and find it in the app list.`);
 }
 

@@ -37,7 +37,7 @@ else
          "Check hermes-agent logs for startup errors"
 fi
 
-# Routing coverage — same /health, but reached via caddy's .internal / public
+# Routing coverage — same /health, but reached via caddy's <domain> / public
 # blocks. Separates "agent is down" from "caddy/pihole routing is broken".
 probe_caddy "hermes-agent /health" hermes-agent /health 200
 

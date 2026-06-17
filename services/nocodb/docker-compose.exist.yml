@@ -35,7 +35,7 @@ services:
       NC_DB: "pg://nocodb-postgres:5432?u=${NOCODB_POSTGRES_USER}&p=${NOCODB_POSTGRES_PASSWORD}&d=nocodb"
       NC_ADMIN_EMAIL: ${NOCODB_ADMIN_EMAIL}
       NC_ADMIN_PASSWORD: ${NOCODB_ADMIN_PASSWORD}
-    # ports disabled — access via https://nocodb.internal (Caddy + pihole required)
+    # ports disabled — access via https://nocodb.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 48080:8080

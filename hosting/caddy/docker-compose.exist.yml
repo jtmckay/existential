@@ -10,8 +10,10 @@ services:
     cap_add:
       - NET_BIND_SERVICE
     ports:
-      - "80:80" # Standard HTTP port for local development
-      - "443:443" # Standard HTTPS port for local development
+      # :443 is HTTPS; :80 redirects http→https (and serves the Let's Encrypt
+      # challenge when EXIST_PUBLIC_DOMAIN is set). Keep both.
+      - "80:80"
+      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
       - ./error.html:/var/www/html/error.html:ro,Z
@@ -20,16 +22,17 @@ services:
       - ../../volumes_local/caddy_data:/data
       # Autosaved JSON config (regenerated from the Caddyfile) — tier-3 throwaway.
       - ./caddy_config:/config
-      # TLS certs: the stable *.internal pair minted by exist.initial.sh and any
+      # TLS certs: the stable *.<domain> pair minted by exist.initial.sh and any
       # user-supplied cloudflare origin pair. Only *.exist.pem templates are tracked.
       - ./certs/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
-      # Only used by Caddyfile.peer-example (Caddy on a different host than the
-      # services). Caddy expands {$EXIST_PEER_HOST_IP} from this container env;
-      # the value comes from .env.shared via the generated master .env. Empty
-      # unless set — harmless for the default co-located Caddyfile.
+      # CADDY_DOMAIN (from this service's .env.exist, defaults to EXIST_DOMAIN) is
+      # read by the Caddyfile as {$CADDY_DOMAIN}. PEER/PUBLIC are only used by the
+      # front-door swap-in Caddyfiles. Values come from the generated master .env.
+      - CADDY_DOMAIN=${CADDY_DOMAIN}
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
+      - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
 
 networks:
   exist:

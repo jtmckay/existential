@@ -1,0 +1,44 @@
+# Front door for an INTERNET-facing setup: real DNS for *.<your-public-domain>
+# points at this box. It adds real HTTPS, sends http → https, and forwards each
+# request to your services box's Caddy. (LAN-only? Use the -lan variant.)
+#
+# Setup:
+#   1. Point real DNS: <public-domain> and *.<public-domain> → this box's public IP.
+#      Forward :443 and :80 to it.
+#   2. In .env.shared: EXIST_PUBLIC_DOMAIN = your public domain, EXIST_DOMAIN = your
+#      internal domain, EXIST_PEER_HOST_IP = services box LAN IP.
+#   3. Add a cert (see below), then:
+#        cp hosting/caddy/Caddyfile.frontdoor-public.example hosting/caddy/Caddyfile
+#        docker compose up -d
+
+(error_handling) {
+  handle_errors {
+    root * /var/www/html
+    file_server
+    rewrite * /error.html
+  }
+}
+
+*.{$EXIST_PUBLIC_DOMAIN} {
+  import error_handling
+
+  # Cert — pick one:
+  #   Default: drop your own wildcard cert + key into hosting/caddy/certs/.
+  tls /etc/caddy/certs/public.pem /etc/caddy/certs/public-key.pem
+  #   Or let Caddy get + renew it for you (needs a Caddy build with your DNS
+  #   provider plugin + an API token):
+  # tls {
+  #   dns <provider> {env.YOUR_DNS_API_TOKEN}
+  # }
+
+  # Forward to the services box, swapping the public host for the internal one its
+  # Caddy serves (app.<public-domain> → app.<CADDY_DOMAIN>). The "2" is the position
+  # of the subdomain label — bump it if your public domain has more dots.
+  reverse_proxy https://{$EXIST_PEER_HOST_IP} {
+    header_up Host {http.request.host.labels.2}.{$CADDY_DOMAIN}
+    transport http {
+      tls
+      tls_insecure_skip_verify
+    }
+  }
+}

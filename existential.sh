@@ -125,7 +125,7 @@ _warn_if_no_gateway() {
     if [[ "${caddy_on:-false}" != "true" || "${pihole_on:-false}" != "true" ]]; then
         echo ""
         echo "  ⚠  Port bindings are commented out by default."
-        echo "     Services are only reachable via https://<slug>.internal"
+        echo "     Services are only reachable via https://<slug>.<domain>"
         echo "     which requires Caddy (TLS routing) and pihole (DNS)."
         echo ""
         echo "     To access services without them, uncomment the 'ports:' block"

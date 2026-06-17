@@ -58,6 +58,59 @@ cleanuid="$(mkfix)"; mkdir -p "$cleanuid/ai/foo"
 printf 'services:\n  foo:\n    container_name: foo\n    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"\n' > "$cleanuid/ai/foo/docker-compose.exist.yml"
 expect_pass "conventions: accepts the EXIST_PUID user form" tsx "$CONV" "$cleanuid"
 
+# ── networking: piHole wildcard + Caddy-as-source-of-truth ───────────────────
+# piHole present but missing the single wildcard DNS record → fail.
+badph="$(mkfix)"; mkdir -p "$badph/hosting/pihole"
+cat > "$badph/hosting/pihole/docker-compose.exist.yml" <<'EOF'
+services:
+  pihole:
+    container_name: pihole
+    environment:
+      FTLCONF_dns_listeningMode: 'ALL'
+EOF
+expect_fail "conventions: rejects piHole missing the wildcard DNS record" tsx "$CONV" "$badph"
+
+# .env.exist.shared present but EXIST_DOMAIN undefined → fail.
+baddom="$(mkfix)"
+printf 'EXIST_LOCAL_HOST_IP=1.2.3.4\n' > "$baddom/.env.exist.shared"
+expect_fail "conventions: rejects .env.shared missing EXIST_DOMAIN" tsx "$CONV" "$baddom"
+
+# Dashy links a slug that has no Caddy block (Caddy is the source of truth) → fail.
+baddash="$(mkfix)"; mkdir -p "$baddash/services/dashy" "$baddash/hosting/caddy"
+cat > "$baddash/services/dashy/dashy-conf.exist.yml" <<'EOF'
+sections:
+  - items:
+      - title: Ghost
+        url: https://ghost.EXIST_DOMAIN
+EOF
+printf '# no reverse_proxy blocks\n' > "$baddash/hosting/caddy/Caddyfile.exist.Caddyfile"
+expect_fail "conventions: rejects Dashy item with no Caddy block" tsx "$CONV" "$baddash"
+
+# A clean networking tree (wildcard record + EXIST_DOMAIN + matching Caddy/Dashy).
+cleannet="$(mkfix)"
+mkdir -p "$cleannet/hosting/pihole" "$cleannet/hosting/caddy" "$cleannet/services/dashy" "$cleannet/ai/foo"
+printf 'EXIST_DOMAIN=x.internal\nEXIST_LOCAL_HOST_IP=1.2.3.4\n' > "$cleannet/.env.exist.shared"
+cat > "$cleannet/hosting/pihole/docker-compose.exist.yml" <<'EOF'
+services:
+  pihole:
+    container_name: pihole
+    environment:
+      FTLCONF_misc_dnsmasq_lines: 'address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}'
+EOF
+printf 'services:\n  foo:\n    container_name: foo\n' > "$cleannet/ai/foo/docker-compose.exist.yml"
+cat > "$cleannet/hosting/caddy/Caddyfile.exist.Caddyfile" <<'EOF'
+foo.{$CADDY_DOMAIN} {
+  reverse_proxy foo:8080
+}
+EOF
+cat > "$cleannet/services/dashy/dashy-conf.exist.yml" <<'EOF'
+sections:
+  - items:
+      - title: Foo
+        url: https://foo.EXIST_DOMAIN
+EOF
+expect_pass "conventions: accepts a clean networking tree" tsx "$CONV" "$cleannet"
+
 # ── decree config.exist.yml — commands block ─────────────────────────────────
 baddecree="$(mkfix)"; mkdir -p "$baddecree/ai/foo/decree"
 printf 'routine_source: /work/.decree/shared_routines\nmax_attempts: 3\n' \

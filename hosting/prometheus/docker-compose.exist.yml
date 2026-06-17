@@ -10,7 +10,7 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
-    # ports disabled — access via https://prometheus.internal (Caddy + pihole required)
+    # ports disabled — access via https://prometheus.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 49090:9090

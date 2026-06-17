@@ -1,13 +1,14 @@
-# Dashy dashboard config — `.internal` convention.
+# Dashy dashboard config — `<slug>.<EXIST_DOMAIN>` convention.
 #
 # Each item has TWO adjacent blocks: the active one points at the live service
-# (https://<slug>.internal), the commented one points at the public docs page. Flip
+# (https://<slug>.<domain>), the commented one points at the public docs page. Flip
 # the comment when a service is decommissioned, paused, or never deployed —
 # users still get a landing page explaining what it is and where to find it.
 #
-# Slugs match the records in hosting/pihole/docker-compose.exist.yml and the
-# reverse_proxy backends in hosting/caddy/Caddyfile.exist.Caddyfile. Keep all three in
-# sync — run `./existential.sh validate` to verify.
+# Slugs must match a reverse_proxy backend in
+# hosting/caddy/Caddyfile.exist.Caddyfile (the source of truth for what exists —
+# piHole resolves the whole domain with one wildcard record). Run
+# `./existential.sh validate` to verify.
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
 # a red dot when unreachable. That covers runtime health; the comment-flip
@@ -35,28 +36,28 @@ sections:
     icon: fas fa-robot
     items:
       - title: Open WebUI
-        url: https://open-webui.internal
+        url: https://open-webui.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/open-webui
         icon: si-openai
         statusCheck: true
         description: Chat UI routed through hermes-agent
 
       - title: ComfyUI
-        url: https://comfyui.internal
+        url: https://comfyui.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/comfyui
         icon: fas fa-image
         statusCheck: true
         description: Node-based image generation workflows
 
       - title: Hermes
-        url: https://hermes-agent-dashboard.internal
+        url: https://hermes-agent-dashboard.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true
         description: Hermes Agent routing and ops dashboard
 
       - title: OpenViking
-        url: https://openviking.internal
+        url: https://openviking.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/openviking
         icon: fas fa-database
         statusCheck: true
@@ -68,42 +69,42 @@ sections:
     icon: fas fa-list-check
     items:
       - title: Actual Budget
-        url: https://actual-budget.internal
+        url: https://actual-budget.EXIST_DOMAIN
         # url: https://existential.company/docs/services/actual-budget
         icon: fas fa-money-bill-wave
         statusCheck: true
         description: Personal finance
 
       - title: Immich
-        url: https://immich.internal
+        url: https://immich.EXIST_DOMAIN
         # url: https://existential.company/docs/services/immich
         icon: si-immich
         statusCheck: true
         description: Photo library
 
       - title: Mealie
-        url: https://mealie.internal
+        url: https://mealie.EXIST_DOMAIN
         # url: https://existential.company/docs/services/mealie
         icon: fas fa-utensils
         statusCheck: true
         description: Recipe management
 
       - title: NocoDB
-        url: https://nocodb.internal
+        url: https://nocodb.EXIST_DOMAIN
         # url: https://existential.company/docs/services/nocodb
         icon: fas fa-database
         statusCheck: true
         description: Airtable-style database UI
 
       - title: Ntfy
-        url: https://ntfy.internal
+        url: https://ntfy.EXIST_DOMAIN
         # url: https://existential.company/docs/services/ntfy
         icon: si-ntfy
         statusCheck: true
         description: Push notifications
 
       - title: Vikunja
-        url: https://vikunja.internal
+        url: https://vikunja.EXIST_DOMAIN
         # url: https://existential.company/docs/services/vikunja
         icon: si-vikunja
         statusCheck: true
@@ -113,28 +114,28 @@ sections:
     icon: fas fa-toolbox
     items:
       - title: Appsmith
-        url: https://appsmith.internal
+        url: https://appsmith.EXIST_DOMAIN
         # url: https://existential.company/docs/services/appsmith
         icon: si-appsmith
         statusCheck: true
         description: Internal-tools platform
 
       - title: IT Tools
-        url: https://it-tools.internal
+        url: https://it-tools.EXIST_DOMAIN
         # url: https://existential.company/docs/services/it-tools
         icon: hl-it-tools
         statusCheck: true
         description: Developer utility toolkit
 
       - title: Home Assistant
-        url: https://homeassistant.internal
+        url: https://homeassistant.EXIST_DOMAIN
         # url: https://existential.company/docs/services/homeassistant
         icon: hl-home-assistant
         statusCheck: true
         description: Smart home automation
 
       - title: Lowcoder
-        url: https://lowcoder.internal
+        url: https://lowcoder.EXIST_DOMAIN
         # url: https://existential.company/docs/services/lowcoder
         icon: fas fa-file-code
         statusCheck: true
@@ -144,21 +145,21 @@ sections:
     icon: fas fa-server
     items:
       - title: Grafana
-        url: https://grafana.internal/d/decree-overview/decree-overview?orgId=1&refresh=1m
+        url: https://grafana.EXIST_DOMAIN/d/decree-overview/decree-overview?orgId=1&refresh=1m
         # url: https://existential.company/docs/hosting/grafana
         icon: hl-grafana
         statusCheck: true
         description: Dashboards
 
       - title: Portainer
-        url: https://portainer.internal
+        url: https://portainer.EXIST_DOMAIN
         # url: https://existential.company/docs/hosting/portainer
         icon: hl-portainer
         statusCheck: true
         description: Container management
 
       - title: Uptime Kuma
-        url: https://uptime-kuma.internal
+        url: https://uptime-kuma.EXIST_DOMAIN
         # url: https://existential.company/docs/hosting/uptime-kuma
         icon: hl-uptime-kuma
         statusCheck: true
@@ -168,21 +169,21 @@ sections:
     icon: fas fa-hard-drive
     items:
       - title: Nextcloud
-        url: https://nextcloud.internal
+        url: https://nextcloud.EXIST_DOMAIN
         # url: https://existential.company/docs/nas/nextcloud
         icon: si-nextcloud
         statusCheck: true
         description: File sync + collaboration
 
       - title: MinIO Console
-        url: https://minio.internal
+        url: https://minio.EXIST_DOMAIN
         # url: https://existential.company/docs/nas/minio
         icon: si-minio
         statusCheck: true
         description: S3-compatible object store (web console)
 
       - title: Pi-hole
-        url: https://pihole.internal
+        url: https://pihole.EXIST_DOMAIN
         # url: https://existential.company/docs/hosting/pihole
         icon: si-pihole
         statusCheck: true

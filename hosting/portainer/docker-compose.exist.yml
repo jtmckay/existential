@@ -6,7 +6,7 @@ services:
     # distroless (no shell), so the admin password can't be written at startup —
     # templates.sh renders portainer_password.txt; we mount it read-only and point
     # --admin-password-file at it (default /portainer entrypoint, no shell needed).
-    # ports disabled — access via https://portainer.internal (Caddy + pihole required)
+    # ports disabled — access via https://portainer.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 49443:9443

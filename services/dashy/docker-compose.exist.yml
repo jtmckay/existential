@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./dashy-conf.yml:/app/user-data/conf.yml:Z
-    # ports disabled — access via https://dashy.internal (Caddy + pihole required)
+    # ports disabled — access via https://dashy.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 44280:8080

@@ -20,7 +20,7 @@ services:
     entrypoint: ["/entrypoint.sh"]
     networks:
       - exist
-    # ports disabled — access via https://code-server.internal (Caddy + pihole required)
+    # ports disabled — access via https://code-server.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "42080:8080"

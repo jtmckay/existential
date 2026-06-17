@@ -11,7 +11,7 @@ services:
       - exist
     working_dir: /app
     command: ["npx", "@playwright/mcp@latest", "--port", "8931", "--headless"]
-    # ports disabled — access via https://mcp-playwright.internal (Caddy + pihole required)
+    # ports disabled — access via https://mcp-playwright.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "8931:8931"

@@ -21,5 +21,5 @@ guide: |
   The migration is idempotent — it checks whether the credentials already
   work before attempting registration. Re-running is safe.
 
-  After the migration runs, log in at https://vikunja.internal with the
+  After the migration runs, log in at https://vikunja.x.internal with the
   credentials above.

@@ -39,7 +39,7 @@ services:
     # (The image's default interactive CLI exits immediately under `docker compose up -d`.)
     networks:
       - exist
-    # ports disabled — access via https://hermes-agent.internal (Caddy + pihole required)
+    # ports disabled — access via https://hermes-agent.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "48642:8642"   # OpenAI-compatible API

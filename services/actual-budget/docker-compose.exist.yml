@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://actual-budget.internal (Caddy + pihole required)
+    # ports disabled — access via https://actual-budget.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - '45006:5006'

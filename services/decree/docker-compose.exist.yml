@@ -49,7 +49,7 @@ services:
       - decree
     networks:
       - exist
-    # ports disabled — access via https://decree-webhook.internal (Caddy + pihole required)
+    # ports disabled — access via https://decree-webhook.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "${DECREE_WEBHOOK_PORT}:${DECREE_WEBHOOK_PORT}"

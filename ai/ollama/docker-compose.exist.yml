@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://ollama.internal (Caddy + pihole required)
+    # ports disabled — access via https://ollama.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 11434:11434

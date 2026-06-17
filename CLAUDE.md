@@ -270,17 +270,37 @@ Every container is prefixed with the service slug (folder name): `loki`, `loki-p
 `docker ps` should make ownership obvious. Validated by `validate conventions`.
 
 ### Networking
-- **Browser / cross-machine → `https://<slug>.internal`**: piHole holds a record per slug
-  (active line → `EXIST_LOCAL_HOST_IP`, commented PEER alternative); Caddy fronts each slug
-  (stable pinned `*.internal` cert via `import internal_tls` — **not** `tls internal`; minted
-  once by caddy's `exist.initial.sh` into `hosting/caddy/certs/`, so trust survives reboots and
-  `caddy_data` wipes), reverse-proxies `<container>:<port>`; Dashy links navigable slugs.
+The hostname suffix is `EXIST_DOMAIN` (default `x.internal`), a configurable variable so a
+second stack can coexist on the same LAN (e.g. `y.internal`) and an advanced user can point it
+at a real domain with valid certs. **Caddy's `Caddyfile.exist.Caddyfile` is the single source
+of truth for which `<slug>.<domain>` hostnames exist** — `validate conventions` keys off it.
+
+- **Browser / cross-machine → `https://<slug>.<domain>`**: piHole resolves the *whole* domain
+  with **one wildcard record** (`FTLCONF_misc_dnsmasq_lines: address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}`)
+  — no per-slug DNS entries. Caddy fronts each slug (stable pinned `*.<domain>` cert via
+  `import internal_tls` — **not** `tls internal`; minted once by caddy's `exist.initial.sh` into
+  `hosting/caddy/certs/`, so trust survives reboots and `caddy_data` wipes), reverse-proxies
+  `<container>:<port>`; Dashy links navigable slugs.
 - **Container-to-container → `http://<container>:<port>`** (Docker service DNS). Use this in
   service env vars and routine fallbacks (`${X_URL:-http://service:port}`) — faster, no TLS,
   no CA trust needed.
 
-A new service slug appears in three convention files (piHole, Caddy, Dashy if navigable);
-cross-service env refs stay on Docker DNS. `validate conventions` verifies sync.
+Adding a service only touches **Caddy** (and Dashy if navigable) — piHole's wildcard already
+covers it. `validate conventions` verifies Dashy/Caddy stay in sync and the wildcard record exists.
+
+**`EXIST_DOMAIN` placeholder form by file type** (matters because `templates.sh` substitutes
+bare `EXIST_*` tokens at render time):
+- compose `*.exist.yml` → `${EXIST_DOMAIN}` (not render-substituted; docker resolves from root `.env`).
+- rendered non-compose (`Caddyfile.exist.Caddyfile`, `dashy-conf.exist.yml`, ntfy `server.exist.yml`,
+  service `.env.exist`) → bare `EXIST_DOMAIN` (render-substituted).
+- `.example` swap-ins (`Caddyfile.frontdoor.example`) → `{$EXIST_DOMAIN}` (Caddy expands from its
+  container env). Never put `{$EXIST_DOMAIN}` in a rendered file — the bare-token sed would corrupt it.
+
+**Peer mode (Caddy + piHole on a separate front-door host):** the front-door runs a tiny static
+`Caddyfile.frontdoor.example` (copied to the live `Caddyfile`) that wildcard-forwards every
+`<slug>.<domain>` to `EXIST_PEER_HOST_IP`, where a *second* Caddy runs the normal rendered
+Caddyfile and routes to containers over Docker DNS. No per-slug peer config, no host-port
+deconfliction — the front-door never changes as services are added.
 
 ---
 

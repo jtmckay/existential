@@ -12,7 +12,7 @@ guide: |
 
   ── Step 1: Create a bot user and access token ────────────────────────────
 
-  1. Open https://ntfy.internal in your browser.
+  1. Open https://ntfy.x.internal in your browser.
   2. Sign in as admin (credentials set during ./existential.sh).
   3. Create a bot account: Settings → Users → Add user
        username: decree-bot   (or any name)
@@ -33,7 +33,7 @@ guide: |
 
     curl -H "Authorization: Bearer <token>" \
          -d "Hello from existential" \
-         http://ntfy.internal/exist
+         http://ntfy.x.internal/exist
 
   Install the ntfy app on your phone and subscribe to the "exist" topic
   for push notifications from your homelab.

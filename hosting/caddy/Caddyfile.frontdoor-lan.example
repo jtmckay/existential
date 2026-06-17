@@ -1,0 +1,45 @@
+# Front door for a SPLIT setup on your LAN: Caddy + piHole on one box, your
+# services on another. (Internet-facing? Use Caddyfile.frontdoor-public.example.)
+#
+# piHole points every *.<your-domain> at this box. This Caddy adds HTTPS and
+# forwards each request to the services box's Caddy, which hands it to the right
+# container. Services come and go without ever editing this file.
+#
+# Setup:
+#   1. Services box: run the stack as usual (its Caddy serves :443).
+#   2. This box: enable caddy + pihole, then `./existential.sh run` (creates the
+#      cert in hosting/caddy/certs/ — run it on both boxes).
+#   3. In .env.shared: EXIST_PEER_HOST_IP = services box LAN IP, EXIST_DOMAIN = your domain.
+#   4. Use this file and restart:
+#        cp hosting/caddy/Caddyfile.frontdoor-lan.example hosting/caddy/Caddyfile
+#        docker compose up -d
+#
+# Cert: self-signed by default — install the CA on your devices once (see
+# Caddyfile.exist.Caddyfile). To use your own real cert instead, drop the cert + key
+# into hosting/caddy/certs/ as internal.pem / internal-key.pem.
+
+(error_handling) {
+  handle_errors {
+    root * /var/www/html
+    file_server
+    rewrite * /error.html
+  }
+}
+
+(internal_tls) {
+  tls /etc/caddy/certs/internal.pem /etc/caddy/certs/internal-key.pem
+}
+
+# Send every *.<domain> to the services box's Caddy. It serves the same domain and
+# cert, so we skip re-checking the cert on this internal hop.
+*.{$CADDY_DOMAIN} {
+  import internal_tls
+  import error_handling
+  reverse_proxy https://{$EXIST_PEER_HOST_IP} {
+    header_up Host {host}
+    transport http {
+      tls
+      tls_insecure_skip_verify
+    }
+  }
+}

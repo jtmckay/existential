@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # code-server entrypoint — installs code-server into the persistent cache
 # volume on first start, then launches it bound on :8080 behind password auth
-# ($PASSWORD, set by Caddy-fronted https://code-server.internal). A bare
+# ($PASSWORD, set by Caddy-fronted https://code-server.<domain>). A bare
 # shell in this container can read/write the whole workspace and run the
 # installed AI CLIs, so it's not just an editor — auth is load-bearing.
 set -euo pipefail

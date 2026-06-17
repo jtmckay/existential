@@ -45,10 +45,15 @@ const CATEGORY_DIRS = ['ai', 'services', 'hosting', 'nas'];
 
 const CONTAINER_NAME_RE  = /^\s*container_name:\s*([\w-]+)\s*$/;
 const PORT_LINE_RE       = /^\s*-\s*"?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))?"?\s*(?:#.*)?$/;
-const CADDY_HEADER_RE    = /^([\w.-]+)\.internal\s*\{/;
+// Caddy hostnames use Caddy's env form `<slug>.{$CADDY_DOMAIN}` (resolved at runtime
+// from the container env, NOT rendered). The validator reads the file, so it matches
+// the literal token. (Dashy uses the bare EXIST_DOMAIN form — see DASHY_URL_RE.)
+const CADDY_HEADER_RE    = /^([\w-]+)\.\{\$CADDY_DOMAIN\}\s*\{/;
 const CADDY_PROXY_RE     = /^\s*reverse_proxy\s+(?:https?:\/\/)?([\w-]+):(\d+|\{[^}]+\})/;
-const PIHOLE_RECORD_RE   = /^\s*(?<comment>#\s*)?\$\{(?<var>EXIST_(?:LOCAL|PEER)_HOST_IP)\}\s+(?<slug>[\w-]+)\.internal(?:\s+#.*)?\s*$/;
-const DASHY_URL_RE       = /^\s*url:\s*https?:\/\/([\w-]+)\.internal\/?\s*$/;
+// piHole no longer enumerates slugs — a single wildcard record points the whole
+// EXIST_DOMAIN at the Caddy host. This is the line we assert exists.
+const PIHOLE_WILDCARD_RE = /address=\/\$\{EXIST_DOMAIN\}\/\$\{EXIST_LOCAL_HOST_IP\}/;
+const DASHY_URL_RE       = /^\s*url:\s*https?:\/\/([\w-]+)\.EXIST_DOMAIN\/?\s*$/;
 const ENV_KEY_LINE_RE    = /^([A-Z_][A-Z0-9_]*)=/;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -59,12 +64,6 @@ interface ServiceDecl {
   line: number;
   folderSlug: string;
   ports: number[];
-}
-
-interface PiHoleRecord {
-  slug: string;
-  line: number;
-  hasLocal: boolean;
 }
 
 interface CaddyBlock {
@@ -121,23 +120,32 @@ function parseServiceComposes(): Map<string, ServiceDecl> {
   return services;
 }
 
-function parsePiHole(): Map<string, PiHoleRecord> {
-  const records = new Map<string, PiHoleRecord>();
-  if (!fs.existsSync(PIHOLE)) return records;
+function checkPiholeWildcard(): string[] {
+  const errors: string[] = [];
 
-  const lines = fs.readFileSync(PIHOLE, 'utf8').split('\n');
-  for (let lineno = 0; lineno < lines.length; lineno++) {
-    const m = PIHOLE_RECORD_RE.exec(lines[lineno]);
-    if (!m?.groups) continue;
-    const { comment, var: varName, slug } = m.groups;
-    const commented = comment !== undefined;
-
-    if (!records.has(slug)) records.set(slug, { slug, line: lineno + 1, hasLocal: false });
-    const rec = records.get(slug)!;
-    if (varName === 'EXIST_LOCAL_HOST_IP' && !commented) rec.hasLocal = true;
+  if (fs.existsSync(PIHOLE)) {
+    const body = fs.readFileSync(PIHOLE, 'utf8');
+    if (!PIHOLE_WILDCARD_RE.test(body)) {
+      errors.push(
+        `hosting/pihole/docker-compose.exist.yml: ` +
+        `missing the wildcard DNS record ` +
+        `'address=/\${EXIST_DOMAIN}/\${EXIST_LOCAL_HOST_IP}' ` +
+        `(FTLCONF_misc_dnsmasq_lines) — without it no '<slug>.<domain>' resolves`,
+      );
+    }
   }
 
-  return records;
+  if (fs.existsSync(ENV_SHARED)) {
+    const hasDomain = envFileKeys(ENV_SHARED).some(([, k]) => k === 'EXIST_DOMAIN');
+    if (!hasDomain) {
+      errors.push(
+        `.env.exist.shared: EXIST_DOMAIN is not defined — ` +
+        `every '<slug>.<domain>' hostname depends on it`,
+      );
+    }
+  }
+
+  return errors;
 }
 
 function parseCaddy(): Map<string, CaddyBlock> {
@@ -393,7 +401,6 @@ function checkDecreeConfigs(): string[] {
 
 function main(): number {
   const services  = parseServiceComposes();
-  const pihole    = parsePiHole();
   const caddy     = parseCaddy();
   const dashyItems = parseDashy();
 
@@ -424,36 +431,12 @@ function main(): number {
     }
   }
 
-  // (3) piHole records must have an active LOCAL_HOST_IP line
-  for (const [, rec] of pihole) {
-    if (!rec.hasLocal) {
-      errors.push(
-        `hosting/pihole/docker-compose.exist.yml:${rec.line}: ` +
-        `slug '${rec.slug}' has no active LOCAL_HOST_IP record`,
-      );
-    }
-  }
+  // (3) piHole carries the single wildcard record + EXIST_DOMAIN is defined.
+  // Caddy is the source of truth for which slugs exist (checks 5/6/11); piHole
+  // resolves the whole domain in one line, so there is nothing per-slug to mirror.
+  errors.push(...checkPiholeWildcard());
 
-  // (4) Caddy and piHole are mirror sets
-  const piholeSlugSet = new Set(pihole.keys());
-  const caddySlugSet  = new Set(caddy.keys());
-
-  for (const slug of piholeSlugSet) {
-    if (!caddySlugSet.has(slug)) {
-      errors.push(
-        `hosting/pihole/docker-compose.exist.yml: ` +
-        `slug '${slug}.internal' has a DNS record but no Caddy reverse_proxy block`,
-      );
-    }
-  }
-  for (const slug of caddySlugSet) {
-    if (!piholeSlugSet.has(slug)) {
-      errors.push(
-        `hosting/caddy/Caddyfile.exist.Caddyfile: ` +
-        `slug '${slug}.internal' has a Caddy block but no piHole record`,
-      );
-    }
-  }
+  const caddySlugSet = new Set(caddy.keys());
 
   // (5) Caddy backend matches an actual container
   const containerPorts = new Map<string, Set<number>>();
@@ -466,7 +449,7 @@ function main(): number {
     if (!decl) {
       errors.push(
         `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
-        `'${slug}.internal' proxies to '${block.backendContainer}' — ` +
+        `'${slug}.<domain>' proxies to '${block.backendContainer}' — ` +
         `no service compose declares that container_name`,
       );
       continue;
@@ -478,7 +461,7 @@ function main(): number {
     if (ports.size > 0 && !ports.has(portInt)) {
       warnings.push(
         `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
-        `'${slug}.internal' → ${block.backendContainer}:${portInt}, but ` +
+        `'${slug}.<domain>' → ${block.backendContainer}:${portInt}, but ` +
         `the compose file only publishes [${[...ports].sort().join(', ')}] ` +
         `(${path.relative(REPO_ROOT, decl.file)}:${decl.line}). ` +
         `OK if the container exposes more than it publishes.`,
@@ -502,19 +485,19 @@ function main(): number {
     if (exactMatchContainers.has(c) && !slug.startsWith(c + '-')) {
       errors.push(
         `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
-        `'${slug}.internal' proxies to '${c}', but '${c}.internal' already exists — ` +
+        `'${slug}.<domain>' proxies to '${c}', but '${c}.<domain>' already exists — ` +
         `aliases for the same container must start with '${c}-' ` +
-        `(e.g. '${c}-dashboard.internal')`,
+        `(e.g. '${c}-dashboard.<domain>')`,
       );
     }
   }
 
-  // (6) Dashy items point at known slugs
+  // (6) Dashy items point at slugs Caddy actually fronts (Caddy = source of truth)
   for (const item of dashyItems) {
-    if (!piholeSlugSet.has(item.slug)) {
+    if (!caddySlugSet.has(item.slug)) {
       errors.push(
         `services/dashy/dashy-conf.exist.yml:${item.line}: ` +
-        `item references '${item.slug}.internal' but no piHole record exists`,
+        `item references '${item.slug}.<domain>' but no Caddy reverse_proxy block exists`,
       );
     }
   }
@@ -552,7 +535,6 @@ function main(): number {
 
   // ── Report ──────────────────────────────────────────────────────────────────
   console.log(`Services declared:    ${services.size}`);
-  console.log(`piHole records:       ${pihole.size}`);
   console.log(`Caddy blocks:         ${caddy.size}`);
   console.log(`Dashy items:          ${dashyItems.length}`);
   console.log();

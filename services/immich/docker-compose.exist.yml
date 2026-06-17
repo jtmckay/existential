@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://immich-server.internal (Caddy + pihole required)
+    # ports disabled — access via https://immich-server.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "2283:2283"

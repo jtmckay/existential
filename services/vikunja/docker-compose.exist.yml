@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     networks:
       - exist
-    # ports disabled — access via https://vikunja.internal (Caddy + pihole required)
+    # ports disabled — access via https://vikunja.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 43456:3456

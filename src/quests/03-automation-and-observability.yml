@@ -25,14 +25,14 @@ guide: |
 
   Decree is headless — there is no click-through UI. Control it via:
     - Scheduled cron files in services/decree/decree/cron/
-    - HTTP webhooks:  https://decree-webhook.internal (API, not a UI)
+    - HTTP webhooks:  https://decree-webhook.x.internal (API, not a UI)
     - Lowcoder control panel (auto-decree-ui quest)
     - Telegram bot (auto-telegram quest)
     - Manual trigger: docker exec decree decree run <routine-name>
 
   Observe it via:
-    - Grafana:     https://grafana.internal
-    - Prometheus:  https://prometheus.internal
+    - Grafana:     https://grafana.x.internal
+    - Prometheus:  https://prometheus.x.internal
 
   The clean-runs cron (copied above) prunes old run logs weekly.
   Restart decree after copies to activate:

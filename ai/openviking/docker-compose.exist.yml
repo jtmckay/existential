@@ -16,7 +16,7 @@
 #   notes/           (tier-3 ephemeral) — rclone-synced notes; re-syncable, not backed up.
 #   resources/       (tier-3 ephemeral) — scraped content from hermes/firecrawl; not backed up.
 #
-# Access:  https://openviking.internal
+# Access:  https://openviking.<domain>  (EXIST_DOMAIN)
 # MCP:     http://openviking:1933/mcp  (internal Docker DNS, bearer token required)
 #
 # Setup:
@@ -37,14 +37,14 @@ services:
           memory: 2G
     networks:
       - exist
-    # ports disabled — access via https://openviking.internal (Caddy + pihole required)
+    # ports disabled — access via https://openviking.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "41933:1933"
     environment:
       OPENVIKING_CONFIG_FILE: /app/.openviking/ov.conf
       # Caddy public URL — required so MCP upload tokens resolve correctly behind the proxy.
-      OPENVIKING_PUBLIC_BASE_URL: https://openviking.internal
+      OPENVIKING_PUBLIC_BASE_URL: https://openviking.${EXIST_DOMAIN}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:1933/health || exit 1"]
       interval: 30s
