@@ -53,16 +53,31 @@
   tls /etc/caddy/certs/internal.pem /etc/caddy/certs/internal-key.pem
 }
 
+# Authelia forward-auth gate. A protected vhost `import authelia_protect` — the
+# request is bounced to the Authelia portal (authelia.<domain>) and only forwarded
+# once authenticated; Authelia injects the Remote-* identity headers. OMIT this for
+# services with mobile/desktop/API/token clients (they can't follow the redirect):
+# ntfy, immich, nextcloud, homeassistant, minio-api, decree-webhook, hermes, etc.
+# Requires the authelia service (EXIST_IS_HOSTING_AUTHELIA=true).
+(authelia_protect) {
+  forward_auth authelia:9091 {
+    uri /api/authz/forward-auth
+    copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+  }
+}
+
 # ── ai ──────────────────────────────────────────────────────────────────────
 chatterbox.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy chatterbox:8000
 }
 
 comfyui.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy comfyui:8188
 }
 
@@ -81,6 +96,7 @@ hermes-agent-dashboard.{$CADDY_DOMAIN} {
 firecrawl.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy firecrawl:3002
 }
 
@@ -99,18 +115,21 @@ open-webui.{$CADDY_DOMAIN} {
 openviking.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy openviking:1933
 }
 
 mcp-playwright.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy mcp-playwright:8931
 }
 
 whisperx.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy whisperx:8000
 }
 
@@ -131,12 +150,14 @@ appsmith.{$CADDY_DOMAIN} {
 code-server.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy code-server:8080
 }
 
 dashy.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy dashy:8080
 }
 
@@ -161,6 +182,7 @@ immich.{$CADDY_DOMAIN} {
 it-tools.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy it-tools:80
 }
 
@@ -195,6 +217,14 @@ vikunja.{$CADDY_DOMAIN} {
 }
 
 # ── hosting ─────────────────────────────────────────────────────────────────
+# Authelia SSO portal — the login page protected vhosts redirect to. Never gate
+# this one (it IS the gate).
+authelia.{$CADDY_DOMAIN} {
+  import internal_tls
+  import error_handling
+  reverse_proxy authelia:9091
+}
+
 grafana.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
@@ -204,6 +234,7 @@ grafana.{$CADDY_DOMAIN} {
 pihole.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy pihole:80
 }
 
@@ -212,6 +243,7 @@ pihole.{$CADDY_DOMAIN} {
 portainer.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy https://portainer:9443 {
     transport http {
       tls
@@ -223,6 +255,7 @@ portainer.{$CADDY_DOMAIN} {
 prometheus.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy prometheus:9090
 }
 
@@ -243,6 +276,7 @@ collabora.{$CADDY_DOMAIN} {
 minio.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
+  import authelia_protect
   reverse_proxy minio:9001
 }
 

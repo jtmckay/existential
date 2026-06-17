@@ -1,0 +1,60 @@
+# Authelia configuration — rendered from configuration.exist.yml (bare EXIST_DOMAIN
+# tokens are substituted at render time). Secrets are NOT here — they come from the
+# AUTHELIA_* env vars in docker-compose.exist.yml / .env.exist.
+#
+# Schema: Authelia 4.38+ (session.cookies list, access_control, identity_validation).
+
+theme: dark
+
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+log:
+  level: info
+
+totp:
+  issuer: EXIST_DOMAIN
+
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2
+
+# Default-deny. Only requests forwarded by Caddy's `import authelia_protect` reach
+# Authelia, so unprotected vhosts are unaffected by these rules. code-server and
+# portainer require 2FA (RCE / host-root surfaces); everything else is one-factor.
+access_control:
+  default_policy: deny
+  rules:
+    - domain:
+        - 'code-server.EXIST_DOMAIN'
+        - 'portainer.EXIST_DOMAIN'
+      policy: two_factor
+    - domain: '*.EXIST_DOMAIN'
+      policy: one_factor
+
+session:
+  name: authelia_session
+  # In-memory sessions (no redis) — lost on Authelia restart (re-login only).
+  # Phase 2: add a `redis:` block for persistence (see AUTHELIA_PLAN.md).
+  cookies:
+    - domain: EXIST_DOMAIN
+      authelia_url: 'https://authelia.EXIST_DOMAIN'
+      default_redirection_url: 'https://dashy.EXIST_DOMAIN'
+
+regulation:
+  max_retries: 4
+  find_time: '2m'
+  ban_time: '5m'
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# Filesystem notifier — 2FA registration / password-reset messages are written to
+# this file (no SMTP dependency). Read it with: docker exec authelia cat /data/notification.txt
+# Phase 2: switch to an `smtp:` notifier for real email delivery.
+notifier:
+  filesystem:
+    filename: /data/notification.txt

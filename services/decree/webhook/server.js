@@ -171,6 +171,8 @@ function main() {
   }
 
   const app = express();
+  // Trust exactly one proxy hop (Caddy) so req.ip reflects the real client from X-Forwarded-For, making rate limits per-client
+  app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true }));
