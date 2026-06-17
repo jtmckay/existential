@@ -18,8 +18,13 @@ generate_24_char_password() {
         local rand_seed
         if [ -r /dev/urandom ]; then
             rand_seed=$(od -An -N4 -tu4 < /dev/urandom | tr -d ' ')
+        elif command -v openssl >/dev/null 2>&1; then
+            # Use openssl for entropy when /dev/urandom is unavailable
+            rand_seed=$(openssl rand -hex 4 | od -An -tx4 | tr -d ' ' | head -c 8)
+            rand_seed=$((0x$rand_seed))
         else
-            rand_seed=$(($(date +%s%N 2>/dev/null || date +%s) + RANDOM + $$))
+            echo "Error: No cryptographic entropy source available (/dev/urandom and openssl both absent)" >&2
+            return 1
         fi
 
         local char_index=$((rand_seed % charset_len))

@@ -152,8 +152,10 @@ services:
   lowcoder-frontend:
     image: lowcoderorg/lowcoder-ce-frontend:2.7.6
     container_name: lowcoder-frontend
-    ports:
-      - 43000:3000
+    # ports disabled — access via https://lowcoder.<domain> (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - 43000:3000
     environment:
       LOWCODER_PUID: "${EXIST_PUID:-1000}"
       LOWCODER_PGID: "${EXIST_PGID:-1000}"

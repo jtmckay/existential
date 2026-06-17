@@ -28,8 +28,8 @@ generate_hex_key() {
             rand_seed=$(openssl rand -hex 4 | od -An -tx4 | tr -d ' ' | head -c 8)
             rand_seed=$((0x$rand_seed))
         else
-            # Fallback to time-based randomness
-            rand_seed=$(($(date +%s%N 2>/dev/null || date +%s) + RANDOM + i + $$))
+            echo "Error: No cryptographic entropy source available (/dev/urandom and openssl both absent)" >&2
+            return 1
         fi
         
         local char_index=$((rand_seed % charset_len))

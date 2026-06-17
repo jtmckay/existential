@@ -19,7 +19,8 @@ services:
       # TODO: backup sidecar → volumes/portainer_data_backup (no sidecar yet).
       - ../../volumes_local/portainer_data:/data
     security_opt:
-      - label=disable
+      - no-new-privileges:true
+      - label=disable  # distroless image needs SELinux relabel disabled for the bind-mounted socket/password file
     networks:
       - exist
     restart: unless-stopped

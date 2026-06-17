@@ -4,7 +4,7 @@ server:
   use_ngrok: false
   use_auth: false
   auth_username: user
-  auth_password: password
+  auth_password: EXIST_24_CHAR_PASSWORD
   log_file_path: logs/tts_server.log
   log_file_max_size_mb: 10
   log_file_backup_count: 5
