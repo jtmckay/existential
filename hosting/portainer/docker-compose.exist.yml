@@ -2,29 +2,79 @@ services:
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:2.42.0
-    # Root + docker.sock: portainer manages the Docker daemon. The image is
-    # distroless (no shell), so the admin password can't be written at startup —
-    # templates.sh renders portainer_password.txt; we mount it read-only and point
-    # --admin-password-file at it (default /portainer entrypoint, no shell needed).
-    # ports disabled — access via https://portainer.<domain> (Caddy + pihole required)
+    # SEC-04 hardening: portainer no longer mounts the raw docker.sock. It talks to
+    # a docker-socket-proxy (below) over TCP, which exposes only the API groups
+    # portainer needs and keeps the socket file out of this web-facing container.
+    # The image is distroless (no shell), so the admin password can't be written at
+    # startup — templates.sh renders portainer_password.txt; we mount it read-only
+    # and point --admin-password-file at it (default /portainer entrypoint, no shell).
+    # ports disabled — access via https://portainer.<domain> (Caddy + pihole required;
+    # gated behind Authelia 2FA — see hosting/caddy/Caddyfile.exist.Caddyfile).
     # Uncomment to expose directly:
     #   ports:
     #     - 49443:9443
     volumes:
-      # Docker (default). For rootless Podman instead, swap for:
-      #   - /run/user/${EXIST_PUID:-1000}/podman/podman.sock:/var/run/docker.sock:z
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./portainer_password.txt:/run/portainer/admin_password:ro
       # bbolt (portainer.db) — must be local; NFS breaks flock/mmap.
       # TODO: backup sidecar → volumes/portainer_data_backup (no sidecar yet).
       - ../../volumes_local/portainer_data:/data
     security_opt:
       - no-new-privileges:true
-      - label=disable  # distroless image needs SELinux relabel disabled for the bind-mounted socket/password file
+      - label=disable  # distroless image can't SELinux-relabel the bind-mounted password file / data dir
     networks:
       - exist
     restart: unless-stopped
-    command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password
+    depends_on:
+      - portainer-socket-proxy
+    # Talk to the daemon through the proxy, not a mounted socket.
+    command: -H tcp://portainer-socket-proxy:2375 --admin-password-file /run/portainer/admin_password
+
+  # Constrained gateway to the Docker daemon (SEC-04). This is the ONLY container
+  # that touches the socket — read-only — and it allows only the API groups below.
+  # Compromising web-facing portainer no longer yields the raw socket; it yields
+  # exactly this allowlist. For rootless Podman, point the socket volume at
+  # /run/user/${EXIST_PUID:-1000}/podman/podman.sock instead.
+  portainer-socket-proxy:
+    container_name: portainer-socket-proxy
+    image: tecnativa/docker-socket-proxy:0.3.0
+    # No user: override — structurally needs root to read /var/run/docker.sock
+    # (same documented exception as pihole). It publishes no ports and is reachable
+    # only by portainer over the exist network at tcp://portainer-socket-proxy:2375.
+    restart: unless-stopped
+    networks:
+      - exist
+    environment:
+      # 1 = allow, 0 = deny. Enabled: what portainer needs to manage containers.
+      # For a READ-ONLY (much safer) portainer, set POST=0 and EXEC=0 below — an
+      # attacker who takes over portainer then cannot create/escape containers.
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      VOLUMES: 1
+      SERVICES: 1
+      TASKS: 1
+      NODES: 1
+      SYSTEM: 1
+      INFO: 1
+      VERSION: 1
+      EVENTS: 1
+      PING: 1
+      POST: 1   # write ops (create/start/stop). Set 0 for read-only portainer.
+      EXEC: 1   # container console. Set 0 to disable in-browser exec.
+      # Denied — portainer doesn't need these and they widen the blast radius.
+      AUTH: 0
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      PLUGINS: 0
+      SECRETS: 0
+      SESSION: 0
+      SWARM: 0
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 networks:
   exist:

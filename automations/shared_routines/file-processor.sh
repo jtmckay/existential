@@ -44,6 +44,25 @@ if [ -z "$processor" ]; then
     exit 1
 fi
 
+# SEC-12: `processor` and `rclone_path` arrive via message frontmatter, which can
+# originate from untrusted input (minio-router enqueues these from S3 events whose
+# object keys an attacker may control). Validate before use.
+#
+# `processor` is interpolated into the script path below — constrain it to a bare
+# slug so it can never traverse out of lib/file-processors/ (no `/`, no `..`, no
+# command substitution survives this).
+if ! [[ "$processor" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Invalid processor name '$processor' (allowed: letters, digits, . _ -)." >&2
+    exit 1
+fi
+# Reject control characters in the rclone path. It is always quoted when passed to
+# rclone (no command injection), but a newline here is a strong injection signal.
+# (tr|wc, not grep — grep treats a newline as a line separator and would miss it.)
+if [ "$(printf '%s' "$rclone_path" | LC_ALL=C tr -cd '[:cntrl:]' | wc -c)" -gt 0 ]; then
+    echo "Invalid rclone_path (contains control characters)." >&2
+    exit 1
+fi
+
 _processor_script="$(dirname "${BASH_SOURCE[0]}")/../lib/file-processors/${processor}.sh"
 if [ ! -f "$_processor_script" ]; then
     echo "Processor not found: $_processor_script"
@@ -83,5 +102,15 @@ if [ "$file_action" = "created" ]; then
     fi
 fi
 
-echo "Running processor: $processor (action: $file_action)"
-bash "$_processor_script"
+# SEC-12: processors parse untrusted file bytes (and OCR/transcribe call out to
+# long-running services). Bound execution so a malformed/malicious file can't hang
+# the routine indefinitely. The default is generous so legitimate large
+# transcriptions still finish; override FILE_PROCESSOR_TIMEOUT (seconds) via env or
+# frontmatter for cheap processors, or set it to 0 to disable the bound.
+_timeout="${FILE_PROCESSOR_TIMEOUT:-1800}"
+echo "Running processor: $processor (action: $file_action, timeout: ${_timeout}s)"
+if [ "$_timeout" = "0" ]; then
+    bash "$_processor_script"
+else
+    timeout --signal=TERM "$_timeout" bash "$_processor_script"
+fi

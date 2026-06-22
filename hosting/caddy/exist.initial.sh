@@ -34,11 +34,39 @@ CA_KEY="$CERT_DIR/internal-ca-key.pem"
 CA_CRT="$CERT_DIR/internal-ca.pem"          # ← install THIS on each device, once
 LEAF_KEY="$CERT_DIR/internal-key.pem"
 LEAF_CRT="$CERT_DIR/internal.pem"
+CA_BUNDLE="$CERT_DIR/ca-bundle.pem"         # system roots + internal CA, for OIDC apps
+
+# Emit a combined CA bundle: the host's public root store + our internal CA. OIDC
+# apps (mealie, vikunja) do server-side discovery/token exchange against
+# https://authelia.<domain>, served with the internal CA — but they also make
+# public-internet TLS calls (recipe scraping, etc.). Pointing their SSL_CERT_FILE at
+# the internal CA *alone* would break public TLS, so they need this superset bundle.
+# Idempotent: regenerate only if missing or older than its inputs. Caddy owns the
+# internal CA, so it owns this artifact too (see AUTHELIA_PHASE2.md §2).
+emit_ca_bundle() {
+    local host=""
+    for f in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/cert.pem; do
+        [[ -f "$f" ]] && { host="$f"; break; }
+    done
+    if [[ -z "$host" ]]; then
+        echo "[caddy] No system CA bundle found on host — skipping ca-bundle.pem. OIDC apps that" >&2
+        echo "[caddy] must trust the internal CA will need it; see AUTHELIA_PHASE2.md §2." >&2
+        return 0
+    fi
+    [[ -f "$CA_CRT" ]] || return 0
+    if [[ -f "$CA_BUNDLE" && "$CA_BUNDLE" -nt "$CA_CRT" && "$CA_BUNDLE" -nt "$host" ]]; then
+        return 0  # up to date
+    fi
+    cat "$host" "$CA_CRT" > "$CA_BUNDLE"
+    chmod 644 "$CA_BUNDLE"
+    echo "[caddy] Wrote combined CA bundle (system roots + internal CA) → $CA_BUNDLE"
+}
 
 # Already minted (or user-supplied) — leave the existing cert (and any device
-# trust) alone.
+# trust) alone, but still (re)emit the combined CA bundle in case it's missing/stale.
 if [[ -f "$LEAF_KEY" && -f "$LEAF_CRT" && -f "$CA_CRT" ]]; then
     echo "[caddy] Internal *.${EXIST_DOMAIN} cert present — skipping."
+    emit_ca_bundle
     exit 0
 fi
 
@@ -81,6 +109,8 @@ openssl x509 -req -in "$CERT_DIR/internal.csr" -CA "$CA_CRT" -CAkey "$CA_KEY" \
 
 chmod 600 "$CA_KEY" "$LEAF_KEY"
 chmod 644 "$CA_CRT" "$LEAF_CRT"
+
+emit_ca_bundle
 
 echo "[caddy] Done. Install the CA on each device (phone for ntfy, laptops):"
 echo "[caddy]     $CA_CRT"

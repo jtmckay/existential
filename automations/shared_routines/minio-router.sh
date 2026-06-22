@@ -50,6 +50,20 @@ if [ -z "$_event_name" ] || [ -z "$_key" ]; then
     exit 1
 fi
 
+# SEC-12: the S3 Key is attacker-influenceable — anyone who can drop a file into a
+# watched bucket controls it. It is interpolated into the file-processor outbox
+# frontmatter below, and decree turns frontmatter keys into routine env vars. A Key
+# containing a newline could therefore inject extra frontmatter (e.g. override
+# `processor:` to point at another script, or smuggle env vars into the routine).
+# Reject any key with control characters / newlines — legitimate object keys never
+# contain them.
+# (count control bytes — grep treats a newline as a line separator and would miss
+#  the most dangerous char here, so use tr|wc which counts every control byte.)
+if [ "$(printf '%s' "$_key" | LC_ALL=C tr -cd '[:cntrl:]' | wc -c)" -gt 0 ]; then
+    echo "Rejecting object key with control characters (possible frontmatter injection)." >&2
+    exit 1
+fi
+
 _bucket="${_key%%/*}"
 _object_key="${_key#*/}"
 _prefix="${rclone_prefix:+${rclone_prefix%/}/}"

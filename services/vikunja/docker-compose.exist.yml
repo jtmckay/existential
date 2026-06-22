@@ -23,11 +23,14 @@ services:
       # Provider key 'AUTHELIA' (uppercase) maps to redirect URI path segment 'authelia' (lowercase).
       # Redirect URI registered in Authelia: https://vikunja.<domain>/auth/openid/authelia
       # Local login remains enabled as a fallback.
-      # TLS: Vikunja (Go) performs server-side OIDC discovery against AUTHURL; it uses
-      # the system CA bundle. Workaround: mount internal-ca.pem and set SSL_CERT_FILE.
-      # VERIFY: if TLS verification fails on OIDC discovery, add:
-      #   - ../../hosting/caddy/certs/internal-ca.pem:/etc/ssl/certs/internal-ca.pem:ro
-      # and set: SSL_CERT_FILE=/etc/ssl/certs/internal-ca.pem
+      #
+      # Internal-CA trust: Vikunja (Go) does server-side OIDC discovery against AUTHURL
+      # (https://authelia.<domain>, internal CA). Go's crypto/x509 honors SSL_CERT_FILE,
+      # but it REPLACES the trust store — so point it at the COMBINED bundle caddy emits
+      # (system roots + internal CA), not the internal CA alone (which would break
+      # Vikunja's other outbound TLS). To enable OIDC, uncomment the env line below AND
+      # the ca-bundle volume mount in the volumes: block:
+      # SSL_CERT_FILE: /etc/ssl/certs/ca-bundle.pem
       VIKUNJA_AUTH_OPENID_ENABLED: ${VIKUNJA_AUTH_OPENID_ENABLED}
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME}
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL}
@@ -36,6 +39,8 @@ services:
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE}
     volumes:
       - ${EXIST_NFS_HOST_MOUNT:-./volumes}/vikunja_data:/app/vikunja/files
+      # OIDC internal-CA trust — uncomment together with SSL_CERT_FILE above.
+      # - ../../hosting/caddy/certs/ca-bundle.pem:/etc/ssl/certs/ca-bundle.pem:ro
     depends_on:
       vikunja-db:
         condition: service_healthy

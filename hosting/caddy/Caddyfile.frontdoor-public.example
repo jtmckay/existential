@@ -1,13 +1,28 @@
 # Front door for an INTERNET-facing setup: real DNS for *.<your-public-domain>
 # points at this box. It adds real HTTPS, sends http → https, and forwards each
-# request to your services box's Caddy. (LAN-only? Use the -lan variant.)
+# allowlisted request to your services box's Caddy. (LAN-only? Use the -lan variant.)
+#
+# ── SEC-07: DEFAULT-DENY ALLOWLIST ────────────────────────────────────────────
+# This is NOT a wildcard. Out of the box it exposes NOTHING — the catch-all at the
+# bottom 404s every host. You expose a service by UNCOMMENTING its block below.
+# This makes internet exposure an explicit, per-service decision: setting a public
+# domain to reach ONE app can never accidentally publish your Docker daemon.
+#
+# NEVER expose these publicly (host control / raw APIs / no interactive auth):
+#   portainer, code-server, prometheus, grafana, pihole, minio (console),
+#   minio-api, decree-webhook, comfyui, whisperx, it-tools, ollama, firecrawl,
+#   openviking, hermes-agent(-dashboard), homeassistant, dashy, chatterbox,
+#   mcp-playwright, authelia-protected admin tooling in general.
+# Reasonable candidates (still review each!): apps with strong own auth / OIDC and
+# a real need for off-LAN/mobile access — immich, nextcloud, ntfy, mealie, vikunja,
+# actual-budget, open-webui.
 #
 # Setup:
 #   1. Point real DNS: <public-domain> and *.<public-domain> → this box's public IP.
 #      Forward :443 and :80 to it.
 #   2. In .env.shared: EXIST_PUBLIC_DOMAIN = your public domain, EXIST_DOMAIN = your
 #      internal domain, EXIST_PEER_HOST_IP = services box LAN IP.
-#   3. Add a cert (see below), then:
+#   3. Add a cert (see public_tls below), uncomment the slugs you want public, then:
 #        cp hosting/caddy/Caddyfile.frontdoor-public.example hosting/caddy/Caddyfile
 #        docker compose up -d
 
@@ -19,26 +34,70 @@
   }
 }
 
-*.{$EXIST_PUBLIC_DOMAIN} {
-  import error_handling
-
-  # Cert — pick one:
+# Public TLS — pick one (used by every block below, incl. the default-deny catch-all).
+(public_tls) {
   #   Default: drop your own wildcard cert + key into hosting/caddy/certs/.
   tls /etc/caddy/certs/public.pem /etc/caddy/certs/public-key.pem
-  #   Or let Caddy get + renew it for you (needs a Caddy build with your DNS
-  #   provider plugin + an API token):
+  #   Or let Caddy get + renew it (needs a Caddy build with your DNS provider
+  #   plugin + an API token):
   # tls {
   #   dns <provider> {env.YOUR_DNS_API_TOKEN}
   # }
+}
 
-  # Forward to the services box, swapping the public host for the internal one its
-  # Caddy serves (app.<public-domain> → app.<CADDY_DOMAIN>). The "2" is the position
-  # of the subdomain label — bump it if your public domain has more dots.
+# Forward an allowlisted public host to the services box's Caddy, rewriting the
+# Host to the internal name it serves. Pass the internal slug as the argument, e.g.
+# `import to_services immich` → Host: immich.<CADDY_DOMAIN>. Hardcoding the slug
+# (vs. label math) avoids the "count the dots" footgun when the public domain has
+# extra labels.
+(to_services) {
   reverse_proxy https://{$EXIST_PEER_HOST_IP} {
-    header_up Host {http.request.host.labels.2}.{$CADDY_DOMAIN}
+    header_up Host {args[0]}.{$CADDY_DOMAIN}
     transport http {
       tls
       tls_insecure_skip_verify
     }
   }
+}
+
+# ── Allowlisted public services — UNCOMMENT the ones you want reachable ────────
+# Each maps <slug>.<public-domain> → <slug>.<internal-domain> on the services box.
+#
+# immich.{$EXIST_PUBLIC_DOMAIN} {
+#   import error_handling
+#   import public_tls
+#   import to_services immich
+# }
+#
+# nextcloud.{$EXIST_PUBLIC_DOMAIN} {
+#   import error_handling
+#   import public_tls
+#   import to_services nextcloud
+# }
+#
+# ntfy.{$EXIST_PUBLIC_DOMAIN} {
+#   import error_handling
+#   import public_tls
+#   import to_services ntfy
+# }
+#
+# mealie.{$EXIST_PUBLIC_DOMAIN} {
+#   import error_handling
+#   import public_tls
+#   import to_services mealie
+# }
+#
+# vikunja.{$EXIST_PUBLIC_DOMAIN} {
+#   import error_handling
+#   import public_tls
+#   import to_services vikunja
+# }
+
+# ── DEFAULT DENY — every host not explicitly allowlisted above gets 404 ────────
+# Caddy matches the most specific host first, so the blocks above win; anything
+# else (including every admin/raw-API service) falls through to here.
+*.{$EXIST_PUBLIC_DOMAIN} {
+  import error_handling
+  import public_tls
+  respond "Not found" 404
 }

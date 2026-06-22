@@ -59,6 +59,9 @@
 **/internal.pem
 **/internal.csr
 **/internal-ca.srl
+# Combined CA bundle (system roots + internal CA) emitted by caddy/exist.initial.sh
+# for OIDC apps that must trust the internal CA without losing public TLS:
+**/ca-bundle.pem
 
 # Code-server
 **/opencode.json
