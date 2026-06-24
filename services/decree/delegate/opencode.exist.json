@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "internal/hermes-agent",
+  "permission": {
+    "bash": {
+      "*": "allow"
+    },
+    "edit": {
+      "*": "allow"
+    }
+  },
+  "provider": {
+    "internal": {
+      "models": {
+        "hermes-agent": {
+          "_launch": true,
+          "name": "hermes-agent"
+        }
+      },
+      "name": "hermes-agent",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://hermes-agent:8642/v1",
+        "apiKey": "EXIST_HERMES_API_KEY"
+      }
+    }
+  }
+}

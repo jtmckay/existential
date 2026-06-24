@@ -89,6 +89,17 @@ automations/secrets/*
 **/decree/shared_routines/*
 **/decree/lib/*
 **/decree/runs/*
+# decree-delegate sidecar runtime state (services/decree/delegate/ — its own .decree
+# dir; the **/decree/ patterns above don't match this path). Keep inbox/outbox dirs
+# (.gitkeep force-added) but ignore their content + rendered config.
+services/decree/delegate/config.yml
+services/decree/delegate/config.hash
+services/decree/delegate/processed.md
+services/decree/delegate/router.md
+services/decree/delegate/inbox/*
+services/decree/delegate/outbox/*
+services/decree/delegate/runs/*
+services/decree/delegate/data/*
 
 # Hermes
 **/hermes/data

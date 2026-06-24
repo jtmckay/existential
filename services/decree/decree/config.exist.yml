@@ -20,6 +20,10 @@ shared_routines:
     enabled: true
   clean-runs:
     enabled: true
+  # Hands LLM work to the secret-free decree-delegate sidecar (SEC-10). Runs in this
+  # (secret-holding) daemon; the actual AI step runs secret-free in the sidecar.
+  delegate:
+    enabled: true
   develop:
     enabled: false
   file-processor:

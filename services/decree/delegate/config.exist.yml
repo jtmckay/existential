@@ -1,0 +1,31 @@
+# decree-delegate — the SECRET-FREE opencode daemon.
+#
+# Same decree image and config shape as the main daemon (services/decree/decree/),
+# but this one mounts NO /secrets. It exists to run LLM routines that have been
+# handed off via the `delegate` routine, so an AI step over untrusted input can never
+# reach credentials (SEC-10). Its opencode model is hermes (see opencode.exist.json),
+# which transitively provides the MCP tools (openviking, firecrawl, playwright) and
+# honcho memory — this container holds none of those keys.
+#
+# Enable here ONLY routines that are pure-LLM / secret-free. Anything that needs a
+# secret (notify→ntfy token, gmail, rclone, db dumps) must NOT run here — emit it as a
+# follow-up via $OUTBOX_DIR (pointed at MAIN decree's inbox by the compose env) so it
+# runs in the secret-holding daemon. `delegate` itself is intentionally NOT enabled
+# here — delegation is always initiated by the main daemon.
+routine_source: /work/.decree/shared_routines
+commands:
+  ai_router: opencode run {prompt}
+  ai_interactive: opencode
+max_attempts: 3
+max_depth: 100
+max_log_size: 2097152
+default_routine: develop
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/lib/hooks/config-watch.sh
+  afterEach: /work/.decree/lib/hooks/afterEach.sh
+shared_routines:
+  # Pure-LLM routine — safe to run secret-free. This is the canonical delegate target.
+  develop:
+    enabled: true

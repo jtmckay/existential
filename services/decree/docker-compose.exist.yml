@@ -19,6 +19,9 @@ services:
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
       - DROPBOX_DEST_DIR=${DECREE_DROPBOX_DEST_DIR}
       - IN_CONTAINER=1
+      # Where the `delegate` routine drops rewritten messages for the secret-free
+      # opencode sidecar (decree-delegate) to process. See that service below.
+      - DELEGATE_INBOX=/delegate-inbox
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
     volumes:
@@ -27,6 +30,9 @@ services:
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:z
+      # decree-delegate's inbox — the `delegate` routine writes here to hand LLM work
+      # to the secret-free sidecar. (This daemon holds /secrets; the sidecar does not.)
+      - ./delegate/inbox:/delegate-inbox:z
       # Notes data — tier-3. Subdirs created on first use by the scripts.
       #   /data/notes   — Nextcloud sync cache (source of truth: Nextcloud)
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
@@ -77,6 +83,48 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+
+  # ── Secret-free LLM sidecar (SEC-10) ───────────────────────────────────────
+  # A second decree daemon that runs opencode for any routine handed to it by the
+  # `delegate` routine. It deliberately mounts NO /secrets, so prompt-injection in
+  # untrusted content (emails, dropped files, messages) can't exfiltrate credentials.
+  # Its opencode model is hermes (opencode.json) — hermes already connects to
+  # openviking / firecrawl / playwright as MCP servers and to honcho for memory, so
+  # this container gets that full tool support WITHOUT holding any of those keys.
+  decree-delegate:
+    container_name: decree-delegate
+    image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    depends_on:
+      - decree
+    networks:
+      - exist
+    security_opt:
+      - no-new-privileges:true  # extra confinement: it runs an agent over untrusted input
+    environment:
+      - DECREE_AI=opencode
+      - DECREE_DAEMON=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      # Follow-ups a delegated routine emits via $OUTBOX_DIR are routed to MAIN
+      # decree's inbox — so any step that needs a secret (e.g. notify → ntfy token)
+      # runs in the secret-holding daemon, never here. A follow-up that is itself
+      # `routine: delegate` then side-passes back to this sidecar from main.
+      - OUTBOX_DIR=/main-inbox
+    volumes:
+      - ./delegate:/work/.decree:z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      # MAIN decree's inbox — results/follow-ups flow back here (see OUTBOX_DIR above).
+      - ./decree/inbox:/main-inbox:z
+      # opencode config (model = hermes, which brings the MCP tools + honcho memory).
+      - ./delegate/opencode.json:/home/decree/.config/opencode/opencode.json:ro
+      # NOTE: there is deliberately NO ../../automations/secrets mount here. That
+      # omission is the entire point of this sidecar — do not add it.
+    tty: false
 
 networks:
   exist:
