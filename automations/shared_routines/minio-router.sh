@@ -56,10 +56,10 @@ fi
 # containing a newline could therefore inject extra frontmatter (e.g. override
 # `processor:` to point at another script, or smuggle env vars into the routine).
 # Reject any key with control characters / newlines — legitimate object keys never
-# contain them.
-# (count control bytes — grep treats a newline as a line separator and would miss
-#  the most dangerous char here, so use tr|wc which counts every control byte.)
-if [ "$(printf '%s' "$_key" | LC_ALL=C tr -cd '[:cntrl:]' | wc -c)" -gt 0 ]; then
+# contain them. (has_control_chars uses tr|wc, not grep — grep treats a newline as a
+# line separator and would miss the most dangerous char here.)
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/validate.sh"
+if has_control_chars "$_key"; then
     echo "Rejecting object key with control characters (possible frontmatter injection)." >&2
     exit 1
 fi

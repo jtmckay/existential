@@ -32,11 +32,10 @@ services:
       AUDIO_STT_OPENAI_API_BASE_URL: http://whisperx:8000/v1
       AUDIO_STT_OPENAI_API_KEY: "none"
 
-      # --- Authelia OIDC (Phase 2) ---
-      # open-webui is Node-based; NODE_EXTRA_CA_CERTS trusts the internal CA for
-      # server-side OIDC discovery + token exchange against https://authelia.<domain>.
-      # Redirect URI registered in Authelia: https://open-webui.<domain>/oauth/oidc/callback
-      # Local login remains enabled as a fallback (ENABLE_OAUTH_SIGNUP adds OIDC path only).
+      # Authelia OIDC. Disable with OPEN_WEBUI_ENABLE_OAUTH_SIGNUP=false (.env.exist);
+      # local login stays as a fallback. Redirect URI in Authelia:
+      # https://open-webui.<domain>/oauth/oidc/callback
+      # Node trusts the internal CA via NODE_EXTRA_CA_CERTS (appends to system roots).
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/internal-ca.pem
       ENABLE_OAUTH_SIGNUP: ${OPEN_WEBUI_ENABLE_OAUTH_SIGNUP}
       OAUTH_CLIENT_ID: ${OPEN_WEBUI_OAUTH_CLIENT_ID}
@@ -59,8 +58,7 @@ services:
       # SQLite (webui.db) + Chroma vector store — must be local; NFS breaks both.
       # TODO: backup sidecar → volumes/open_webui_data_backup (no sidecar yet).
       - ../../volumes_local/open_webui_data:/app/backend/data
-      # Internal CA trust: the stack's self-signed CA (minted by caddy/exist.initial.sh).
-      # Required so Node can verify TLS on https://authelia.<domain> during OIDC discovery.
+      # Internal CA (minted by caddy/exist.initial.sh) — lets Node verify authelia's TLS.
       - ../../hosting/caddy/certs/internal-ca.pem:/etc/ssl/certs/internal-ca.pem:ro
 
 networks:

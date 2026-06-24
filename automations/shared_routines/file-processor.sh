@@ -57,8 +57,9 @@ if ! [[ "$processor" =~ ^[A-Za-z0-9._-]+$ ]]; then
 fi
 # Reject control characters in the rclone path. It is always quoted when passed to
 # rclone (no command injection), but a newline here is a strong injection signal.
-# (tr|wc, not grep — grep treats a newline as a line separator and would miss it.)
-if [ "$(printf '%s' "$rclone_path" | LC_ALL=C tr -cd '[:cntrl:]' | wc -c)" -gt 0 ]; then
+# (has_control_chars uses tr|wc, not grep, which would miss a newline.)
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/validate.sh"
+if has_control_chars "$rclone_path"; then
     echo "Invalid rclone_path (contains control characters)." >&2
     exit 1
 fi

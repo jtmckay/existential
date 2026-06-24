@@ -18,12 +18,9 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
 
-      # --- Authelia OIDC (Phase 2) ---
-      # Local admin login remains enabled as a fallback (no auto-redirect disabled).
-      # TLS skip-verify is used because the container doesn't trust the stack's
-      # internal CA by default (LAN-only tradeoff — acceptable for a homelab).
-      # To use the CA instead: mount hosting/caddy/certs/internal-ca.pem ro and
-      # set GF_AUTH_GENERIC_OAUTH_TLS_CLIENT_CA=/etc/grafana/internal-ca.pem.
+      # Authelia OIDC. Disable with GRAFANA_OAUTH_ENABLED=false (.env.exist); local
+      # admin login stays as a fallback. TLS_CLIENT_CA verifies authelia's cert via the
+      # internal CA mounted below (scoped to this connection, not Grafana's global trust).
       - GF_AUTH_GENERIC_OAUTH_ENABLED=${GRAFANA_OAUTH_ENABLED}
       - GF_AUTH_GENERIC_OAUTH_NAME=${GRAFANA_OAUTH_NAME}
       - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=${GRAFANA_OAUTH_CLIENT_ID}
@@ -35,12 +32,14 @@ services:
       - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=${GRAFANA_OAUTH_ROLE_ATTRIBUTE_PATH}
       - GF_AUTH_GENERIC_OAUTH_USE_PKCE=${GRAFANA_OAUTH_USE_PKCE}
       - GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=${GRAFANA_OAUTH_ALLOW_SIGN_UP}
-      - GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE=${GRAFANA_OAUTH_TLS_SKIP_VERIFY_INSECURE}
+      - GF_AUTH_GENERIC_OAUTH_TLS_CLIENT_CA=/etc/grafana/internal-ca.pem
     volumes:
       # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
       # TODO: backup sidecar → volumes/grafana_data_backup (no sidecar yet).
       - ../../volumes_local/grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
+      # Internal CA (minted by caddy/exist.initial.sh) — verifies authelia's OIDC TLS.
+      - ../../hosting/caddy/certs/internal-ca.pem:/etc/grafana/internal-ca.pem:ro
 
 networks:
   exist:

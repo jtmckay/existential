@@ -35,10 +35,27 @@ while IFS= read -r f; do
 done < <(git ls-files)
 
 # ── Secret-shaped content in any tracked file (excl. graveyard + placeholders) ─
-secret_re='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AIza[0-9A-Za-z_-]{30,}'
+# Known vendor token shapes (high-signal prefixes) + JWTs. SEC-03: broadened beyond
+# the original AWS/GitHub/Slack/OpenAI/Google set to cover more GitHub token kinds
+# (gho_/ghs_/ghr_/ghu_, github_pat_), Slack app tokens (xapp-), Stripe (sk_/rk_live|test),
+# npm tokens, and JSON Web Tokens (eyJ…​.eyJ…​.…).
+secret_re='AKIA[0-9A-Z]{16}|gh[opsru]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|xapp-[0-9]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|(sk|rk)_(live|test)_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|npm_[A-Za-z0-9]{36}|eyJ[A-Za-z0-9_=-]{8,}\.eyJ[A-Za-z0-9_=-]{8,}\.[A-Za-z0-9_=-]{8,}'
 if matches="$(git grep -nIE "$secret_re" -- . ':(exclude)graveyard/*' 2>/dev/null)"; then
     if [ -n "$matches" ]; then
         flag "API-key-shaped string in tracked content:"
+        echo "$matches" >&2
+    fi
+fi
+
+# ── Generic keyword-anchored secret assignments (SEC-03) ──────────────────────
+# Catches DB passwords / bearer tokens / client secrets that match no vendor prefix:
+# a secret-ish key, then a quoted value ≥20 chars. Placeholder templates
+# (*.exist.* / *.example) are exempt — they legitimately hold EXIST_* placeholders
+# in exactly this shape (same exemption the private-key check uses).
+assign_re='(secret|token|passwd|password|api[_-]?key|access[_-]?key|client[_-]?secret|bearer)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9+/_-]{20,}["'"'"']'
+if matches="$(git grep -nIiE "$assign_re" -- . ':(exclude)graveyard/*' ':(exclude)*.exist.*' ':(exclude)*.example' 2>/dev/null)"; then
+    if [ -n "$matches" ]; then
+        flag "high-entropy secret-shaped assignment in tracked content:"
         echo "$matches" >&2
     fi
 fi

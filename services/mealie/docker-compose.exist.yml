@@ -8,8 +8,8 @@ services:
       - exist
     volumes:
       - ${EXIST_NFS_HOST_MOUNT:-./volumes}/mealie_data:/app/data/
-      # OIDC internal-CA trust — uncomment together with SSL_CERT_FILE below.
-      # - ../../hosting/caddy/certs/ca-bundle.pem:/etc/ssl/certs/ca-bundle.pem:ro
+      # CA bundle (system roots + internal CA, from caddy) for OIDC — see SSL_CERT_FILE.
+      - ../../hosting/caddy/certs/ca-bundle.pem:/etc/ssl/certs/ca-bundle.pem:ro
     # ports disabled — access via https://mealie.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -36,20 +36,11 @@ services:
       # SMTP_FROM_EMAIL=
       # SMTP_USER=
       # SMTP_PASSWORD=
-      # =====================================
-      # Authelia OIDC (Phase 2)
-      # Redirect URI registered in Authelia: https://mealie.<domain>/login
-      # Local login remains enabled as a fallback (OIDC_AUTO_REDIRECT=false).
-      #
-      # Internal-CA trust: Mealie's OIDC client (authlib + httpx) does server-side
-      # discovery + token exchange against https://authelia.<domain>, served with the
-      # stack's internal CA. httpx honors SSL_CERT_FILE — NOT REQUESTS_CA_BUNDLE (that
-      # only affects the `requests` lib used for recipe scraping, which stays on
-      # certifi/public roots). Point SSL_CERT_FILE at the COMBINED bundle caddy emits
-      # (system roots + internal CA) so public TLS (recipe imports) keeps working;
-      # the internal CA alone would break it. To enable OIDC, uncomment the env line
-      # below AND the ca-bundle volume mount above:
-      # SSL_CERT_FILE: /etc/ssl/certs/ca-bundle.pem
+      # Authelia OIDC. Disable with MEALIE_OIDC_AUTH_ENABLED=false (.env.exist); local
+      # login stays as a fallback. Redirect URI in Authelia: https://mealie.<domain>/login
+      # SSL_CERT_FILE points httpx at the combined CA bundle (mounted above) so OIDC
+      # trusts the internal CA while public recipe-scraping TLS keeps working.
+      SSL_CERT_FILE: /etc/ssl/certs/ca-bundle.pem
       OIDC_AUTH_ENABLED: ${MEALIE_OIDC_AUTH_ENABLED}
       OIDC_SIGNUP_ENABLED: ${MEALIE_OIDC_SIGNUP_ENABLED}
       OIDC_CONFIGURATION_URL: ${MEALIE_OIDC_CONFIGURATION_URL}

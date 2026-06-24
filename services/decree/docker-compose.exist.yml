@@ -110,14 +110,20 @@ services:
       - IN_CONTAINER=1
       # Follow-ups a delegated routine emits via $OUTBOX_DIR are routed to MAIN
       # decree's inbox — so any step that needs a secret (e.g. notify → ntfy token)
-      # runs in the secret-holding daemon, never here. A follow-up that is itself
-      # `routine: delegate` then side-passes back to this sidecar from main.
+      # runs in the secret-holding daemon, never here. Those main routines are
+      # deterministic (they parse/route; they do NOT feed attacker text to an LLM),
+      # so a delegated message triggering one is a safe, automatable hand-off. A
+      # follow-up that is itself `routine: delegate` side-passes back to this sidecar.
       - OUTBOX_DIR=/main-inbox
     volumes:
       - ./delegate:/work/.decree:z
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ../../automations/runs:/work/.decree/runs:z
+      # Private runs dir (./delegate/runs, inside the ./delegate mount above) —
+      # deliberately NOT the shared ../../automations/runs. The secret-free sidecar
+      # must not be able to READ other daemons' run logs, which can carry secrets in
+      # URLs / error dumps (SEC-10). Ship these logs to Loki/Grafana out-of-band if
+      # you want them in the unified audit trail.
       # MAIN decree's inbox — results/follow-ups flow back here (see OUTBOX_DIR above).
       - ./decree/inbox:/main-inbox:z
       # opencode config (model = hermes, which brings the MCP tools + honcho memory).

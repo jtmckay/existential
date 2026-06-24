@@ -17,7 +17,11 @@
 #   - The sidecar runs the target routine secret-free. Any follow-up it emits via
 #     $OUTBOX_DIR is routed (by the sidecar's env) back to THIS daemon's inbox, so a
 #     step that needs a secret (e.g. notify → ntfy token) runs here, not there — and
-#     if that follow-up is itself `routine: delegate`, it side-passes again.
+#     if that follow-up is itself `routine: delegate`, it side-passes again. Those
+#     main routines are deterministic parse/route bash (no LLM over attacker text),
+#     so the secret-free side triggering one is a safe, automatable hand-off.
+#   - The sidecar's run logs are private to it (not the shared automations/runs), so
+#     it can't read other daemons' logs; ship them to Loki/Grafana for one trail.
 #
 # Example inbox message (.decree/inbox/summarize-it.md):
 #

@@ -17,6 +17,15 @@
 # Cert: self-signed by default — install the CA on your devices once (see
 # Caddyfile.exist.Caddyfile). To use your own real cert instead, drop the cert + key
 # into hosting/caddy/certs/ as internal.pem / internal-key.pem.
+#
+# SEC-09 — verifying the internal hop (recommended): the block below VERIFIES the
+# services box's cert instead of blindly trusting it, so a LAN MITM between this box
+# and the services box is detected. This requires the two boxes to share one internal
+# CA. Simplest path: copy the services box's hosting/caddy/certs/ to THIS box BEFORE
+# `./existential.sh run` (it's idempotent — sees the cert and skips minting a second
+# CA). Then both serve the same *.<domain> leaf and this box trusts it.
+# Can't share the CA? Replace the `tls_trusted_ca_certs` + `tls_server_name` lines
+# below with a single `tls_insecure_skip_verify` — the hop is then unauthenticated.
 
 (error_handling) {
   handle_errors {
@@ -30,8 +39,10 @@
   tls /etc/caddy/certs/internal.pem /etc/caddy/certs/internal-key.pem
 }
 
-# Send every *.<domain> to the services box's Caddy. It serves the same domain and
-# cert, so we skip re-checking the cert on this internal hop.
+# Send every *.<domain> to the services box's Caddy. The upstream is dialed by IP, so
+# we pin its internal CA and override the server name to the request host
+# (<slug>.<domain>) — which the services box's *.<domain> wildcard cert covers — so
+# the cert actually verifies on this hop (SEC-09).
 *.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
@@ -39,7 +50,8 @@
     header_up Host {host}
     transport http {
       tls
-      tls_insecure_skip_verify
+      tls_trusted_ca_certs /etc/caddy/certs/internal-ca.pem
+      tls_server_name {http.request.host}
     }
   }
 }

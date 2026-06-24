@@ -19,18 +19,12 @@ services:
       VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
       VIKUNJA_SERVICE_ENABLEREGISTRATION: ${VIKUNJA_SERVICE_ENABLEREGISTRATION}
 
-      # --- Authelia OIDC (Phase 2) ---
-      # Provider key 'AUTHELIA' (uppercase) maps to redirect URI path segment 'authelia' (lowercase).
-      # Redirect URI registered in Authelia: https://vikunja.<domain>/auth/openid/authelia
-      # Local login remains enabled as a fallback.
-      #
-      # Internal-CA trust: Vikunja (Go) does server-side OIDC discovery against AUTHURL
-      # (https://authelia.<domain>, internal CA). Go's crypto/x509 honors SSL_CERT_FILE,
-      # but it REPLACES the trust store — so point it at the COMBINED bundle caddy emits
-      # (system roots + internal CA), not the internal CA alone (which would break
-      # Vikunja's other outbound TLS). To enable OIDC, uncomment the env line below AND
-      # the ca-bundle volume mount in the volumes: block:
-      # SSL_CERT_FILE: /etc/ssl/certs/ca-bundle.pem
+      # Authelia OIDC. Disable with VIKUNJA_AUTH_OPENID_ENABLED=false (.env.exist);
+      # local login stays as a fallback. Provider key AUTHELIA → redirect URI path
+      # 'authelia': https://vikunja.<domain>/auth/openid/authelia
+      # SSL_CERT_FILE points Go at the combined CA bundle (mounted below) so OIDC
+      # trusts the internal CA without breaking Vikunja's other outbound TLS.
+      SSL_CERT_FILE: /etc/ssl/certs/ca-bundle.pem
       VIKUNJA_AUTH_OPENID_ENABLED: ${VIKUNJA_AUTH_OPENID_ENABLED}
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_NAME}
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_AUTHURL}
@@ -39,8 +33,8 @@ services:
       VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE: ${VIKUNJA_AUTH_OPENID_PROVIDERS_AUTHELIA_SCOPE}
     volumes:
       - ${EXIST_NFS_HOST_MOUNT:-./volumes}/vikunja_data:/app/vikunja/files
-      # OIDC internal-CA trust — uncomment together with SSL_CERT_FILE above.
-      # - ../../hosting/caddy/certs/ca-bundle.pem:/etc/ssl/certs/ca-bundle.pem:ro
+      # CA bundle (system roots + internal CA, from caddy) for OIDC — see SSL_CERT_FILE.
+      - ../../hosting/caddy/certs/ca-bundle.pem:/etc/ssl/certs/ca-bundle.pem:ro
     depends_on:
       vikunja-db:
         condition: service_healthy

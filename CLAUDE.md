@@ -108,8 +108,27 @@ Each backup-eligible service ships a `decree/` subdir + a `<slug>-decree` sideca
 mounts **only its own volumes** and receives **only its own DB creds** (no master `.env`).
 All daemons share `automations/`'s `shared_routines/`, `lib/`, `runs/` via read-only mounts
 (routines at `/work/.decree/shared_routines`), so logs from every daemon land in one audit
-trail. Sidecar `decree/` dirs mirror the main daemon (`config.exist.yml` + `routine_source`,
-`cron.example/`, gitignored runtime dirs).
+trail — **except `decree-delegate`**, whose `runs/` is private (it must not read other
+daemons' logs; see below). Sidecar `decree/` dirs mirror the main daemon (`config.exist.yml`
++ `routine_source`, `cron.example/`, gitignored runtime dirs).
+
+**`delegate` pattern — secret-free LLM (SEC-10).** When a routine needs to call an LLM over
+untrusted input, it must NOT run the AI in the secret-holding main daemon. Instead it is
+**delegated** to `decree-delegate` (in `services/decree/`), a second decree daemon that
+mounts **no `/secrets`** and runs opencode with **hermes** as its model — so the MCP tools
+(openviking/firecrawl/playwright) and honcho memory come *through hermes*, which holds those
+keys, not the sidecar. Mechanism: send `routine: delegate` + `delegate: <target>`; the
+`delegate` routine (in main) rewrites `routine:` to the target, drops the `delegate:` line,
+and atomically writes the message into the sidecar's inbox (`./delegate/inbox`, mounted at
+main's `/delegate-inbox`). The sidecar runs the target secret-free; follow-ups it emits via
+`$OUTBOX_DIR` (set to `/main-inbox` = main's inbox) flow back to the secret-holding daemon, so
+any step needing a secret runs in main (and re-delegates if itself `routine: delegate`) —
+acceptable because main's routines are deterministic parse/route bash, never an LLM over the
+sidecar's output. The sidecar's `runs/` is **private** (`delegate/runs`, not the shared
+`automations/runs`) so it can't read other daemons' logs; ship them to Loki/Grafana for one
+trail. The sidecar's `delegate/` dir mirrors the main daemon (`config.exist.yml` enabling
+only pure-LLM routines, gitignored runtime dirs) plus a rendered `opencode.json` mounted at the daemon
+user's `~/.config/opencode/`. Full write-up: `services/decree/SECURITY.md`.
 
 ---
 

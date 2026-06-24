@@ -39,6 +39,11 @@ FAKE_PEM_BEGIN="-----BEGIN RSA PRIVATE ""KEY-----"
 FAKE_PEM_END="-----END RSA PRIVATE ""KEY-----"
 FAKE_PEM="$(printf '%s\nMIIBfakefakefakefakefakefakefakefake\n%s\n' "$FAKE_PEM_BEGIN" "$FAKE_PEM_END")"
 FAKE_AWS="AKIA""IOSFODNN7EXAMPLE"   # canonical AWS docs example key (AKIA + 16)
+# SEC-03 additions — same split-literal trick so the scanner can't flag THIS file.
+FAKE_JWT="eyJ""hbGciOiJIUzI1NiJ9.eyJ""zdWIiOiJmYWtldGVzdCJ9.c2lnbmF0dXJlZmFrZXBhZA"  # JWT shape
+FAKE_GHPAT="github_pat_""11ABCDEFG0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"            # fine-grained GH PAT
+ASSIGN_KW="api_key"; ASSIGN_VAL="Ab12Cd34Ef56Gh78Ij90KlMn"   # generic secret assignment, built in parts
+FAKE_ASSIGN="$ASSIGN_KW: \"$ASSIGN_VAL\""                     # → api_key: "<24 opaque chars>"
 
 TMPS=()
 cleanup() { local d; for d in "${TMPS[@]:-}"; do [ -n "${d:-}" ] && rm -rf "$d"; done; return 0; }
@@ -91,6 +96,10 @@ hook_rc "server.pem"                  "$FAKE_PEM"; check "private key in server.
 hook_rc "cloudflare-key.exist.pem"    "$FAKE_PEM"; check "private key in *.exist.pem (placeholder)" allow
 hook_rc "deploy.example"              "$FAKE_PEM"; check "private key in *.example (placeholder)"    allow
 hook_rc "config.yml"                  "key=$FAKE_AWS"; check "AWS key in config.yml"        block
+hook_rc "token.txt"                   "$FAKE_JWT"; check "JWT in token.txt"                 block
+hook_rc "ci.yml"                      "t=$FAKE_GHPAT"; check "github_pat in ci.yml"         block
+hook_rc "settings.json"               "$FAKE_ASSIGN"; check "secret assignment in settings.json" block
+hook_rc "settings.exist.json"         "$FAKE_ASSIGN"; check "secret assignment in *.exist.* (placeholder)" allow
 hook_rc ".env"                        "X=1";       check "rendered .env staged"             block
 hook_rc "ai/foo/secrets/token"        "abc";       check "file under secrets/ staged"       block
 hook_rc "ai/foo/secrets/.gitkeep"     "";          check "secrets/.gitkeep staged"          allow
@@ -101,6 +110,10 @@ scanner_rc "server.pem"               "$FAKE_PEM"; check "tracked private key in
 scanner_rc "cloudflare-key.exist.pem" "$FAKE_PEM"; check "tracked private key in *.exist.pem"      allow
 scanner_rc "cloudflare-key.pem.example" "$FAKE_PEM"; check "tracked private key in *.example"       allow
 scanner_rc "notes.txt"                "k=$FAKE_AWS"; check "tracked AWS-shaped key"                block
+scanner_rc "token.txt"                "$FAKE_JWT"; check "tracked JWT"                             block
+scanner_rc "ci.yml"                   "t=$FAKE_GHPAT"; check "tracked github_pat"                  block
+scanner_rc "settings.json"            "$FAKE_ASSIGN"; check "tracked secret assignment"           block
+scanner_rc "settings.exist.json"      "$FAKE_ASSIGN"; check "tracked secret assignment in *.exist.*" allow
 scanner_rc ".env"                     "X=1";       check "tracked rendered .env"                   block
 scanner_rc "ai/foo/secrets/cred"      "abc";       check "tracked file under secrets/"             block
 scanner_rc "README.md"                "# hello";   check "clean tracked repo"                      allow

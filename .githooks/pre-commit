@@ -34,9 +34,12 @@ done
 
 # ── 2. Secret-shaped content in staged changes ────────────────────────────────
 # High-signal patterns only, to avoid false positives. *.exist.* placeholder
-# templates are exempt from the private-key check (they ship dummy PEMs by design).
-secret_re='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AIza[0-9A-Za-z_-]{30,}'
+# templates are exempt from the private-key + generic-assignment checks (they ship
+# dummy PEMs and EXIST_* placeholders by design). Kept in sync with
+# src/test/no-tracked-secrets.sh (SEC-03 broadened both together).
+secret_re='AKIA[0-9A-Z]{16}|gh[opsru]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|xapp-[0-9]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|(sk|rk)_(live|test)_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|npm_[A-Za-z0-9]{36}|eyJ[A-Za-z0-9_=-]{8,}\.eyJ[A-Za-z0-9_=-]{8,}\.[A-Za-z0-9_=-]{8,}'
 key_re='-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+assign_re='(secret|token|passwd|password|api[_-]?key|access[_-]?key|client[_-]?secret|bearer)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9+/_-]{20,}["'"'"']'
 
 for f in "${staged[@]}"; do
     # added lines only (leading '+', not the '+++' header)
@@ -45,9 +48,13 @@ for f in "${staged[@]}"; do
     if grep -nEq "$secret_re" <<<"$added"; then
         note "possible API key/token in staged change: $f"
     fi
-    if [[ "$f" != *.exist.* && "$f" != *.example ]] && grep -nFq "BEGIN" <<<"$added" \
-        && grep -nEq -e "$key_re" <<<"$added"; then
-        note "private key material in staged change: $f"
+    if [[ "$f" != *.exist.* && "$f" != *.example ]]; then
+        if grep -nFq "BEGIN" <<<"$added" && grep -nEq -e "$key_re" <<<"$added"; then
+            note "private key material in staged change: $f"
+        fi
+        if grep -nEqi "$assign_re" <<<"$added"; then
+            note "possible secret-shaped assignment in staged change: $f"
+        fi
     fi
 done
 

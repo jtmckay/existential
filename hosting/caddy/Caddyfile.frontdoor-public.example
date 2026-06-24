@@ -50,12 +50,22 @@
 # `import to_services immich` → Host: immich.<CADDY_DOMAIN>. Hardcoding the slug
 # (vs. label math) avoids the "count the dots" footgun when the public domain has
 # extra labels.
+#
+# SEC-09 — the upstream hop to the services box is VERIFIED, not skipped: we pin the
+# services box's internal CA and set the TLS server name to <slug>.<internal-domain>,
+# which its *.<internal-domain> wildcard cert covers (the upstream is dialed by IP,
+# whose name the cert wouldn't otherwise match). This requires the services box's
+# internal CA on THIS box — copy its hosting/caddy/certs/internal-ca.pem here before
+# `./existential.sh run`. (This box still serves clients a real PUBLIC cert via
+# public_tls; the internal CA is only for trusting the back-end hop.) Can't supply
+# it? Replace the two tls_ lines below with `tls_insecure_skip_verify` (unverified hop).
 (to_services) {
   reverse_proxy https://{$EXIST_PEER_HOST_IP} {
     header_up Host {args[0]}.{$CADDY_DOMAIN}
     transport http {
       tls
-      tls_insecure_skip_verify
+      tls_trusted_ca_certs /etc/caddy/certs/internal-ca.pem
+      tls_server_name {args[0]}.{$CADDY_DOMAIN}
     }
   }
 }
