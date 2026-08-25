@@ -4,7 +4,6 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
-import HomepageTenets from '@site/src/components/HomepageTenets';
 import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
@@ -23,6 +22,14 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
+        <p className={styles.heroLede}>
+          Your notes, tasks, money, photos and recordings all land in one place —
+          and then mostly take care of themselves.
+        </p>
+        <p className={styles.heroHonesty}>
+          It's not one app. It's one system made of many, set up once so you can
+          stop thinking about any of them.
+        </p>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
@@ -49,7 +56,6 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <HomepageFeatures />
-        <HomepageTenets />
       </main>
     </Layout>
   );

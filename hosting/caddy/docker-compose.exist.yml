@@ -27,10 +27,11 @@ services:
       - ./certs/:/etc/caddy/certs/:ro,Z
     environment:
       - CADDY_INGRESS_NETWORKS=exist
-      # CADDY_DOMAIN (from this service's .env.exist, defaults to EXIST_DOMAIN) is
-      # read by the Caddyfile as {$CADDY_DOMAIN}. PEER/PUBLIC are only used by the
-      # front-door swap-in Caddyfiles. Values come from the generated master .env.
-      - CADDY_DOMAIN=${CADDY_DOMAIN}
+      # Resolved at container start from the stack-wide EXIST_DOMAIN, so changing
+      # the domain needs no re-render. Set CADDY_DOMAIN in caddy's .env to override
+      # for this service only. The Caddyfile reads it as {$CADDY_DOMAIN}.
+      # PEER/PUBLIC are only used by the front-door swap-in Caddyfiles.
+      - CADDY_DOMAIN=${CADDY_DOMAIN:-$EXIST_DOMAIN}
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
       - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
 

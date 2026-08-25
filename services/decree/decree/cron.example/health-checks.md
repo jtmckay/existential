@@ -25,5 +25,4 @@ Example service URLs (container:port/health-path):
   http://ntfy:80/v1/health               - ntfy
   http://uptime-kuma:3001               - uptime-kuma (any 200)
   http://hermes-agent:8642/health         - hermes
-  http://lightrag:9621/health             - lightrag
   http://open-webui:8080/health           - open-webui

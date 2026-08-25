@@ -9,10 +9,9 @@ sidebar_position: 1
 - [ActualBudget](./actual-budget) — Budget
 - [Home Assistant](./homeassistant) — Home automation
 - [Immich](./immich) — Images and Videos
-- [Logseq](./logseq) — Notes
+- [Obsidian](./obsidian) — Notes and tasks (recommended)
 - [Mealie](./mealie) — Recipes / meal planning
 - [Ntfy](./ntfy) — Notifications
-- [Vikunja](./vikunja) — Tasks
 
 ## Advanced Custom Interfaces
 
@@ -33,3 +32,4 @@ sidebar_position: 1
 - [Portainer](../hosting/portainer) — Remote Docker container management
 - [Uptime-Kuma](../hosting/uptime-kuma) — Service availability monitoring
 - [IT-Tools](./it-tools) — Developer utilities
+- [code-server](./code-server) — VS Code in the browser

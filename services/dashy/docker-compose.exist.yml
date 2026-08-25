@@ -5,7 +5,13 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     volumes:
-      - ./dashy-conf.yml:/app/user-data/conf.yml:Z
+      # Read-only on purpose. dashy-conf.yml is regenerated on every
+      # ./existential.sh run (see _ALWAYS_RENDER in src/templates.sh), so Dashy's
+      # "save config to disk" must not write here — those edits would be silently
+      # overwritten. appConfig.preventWriteToDisk hides the button; :ro is the
+      # backstop. To make edits durable, claim the file by setting EXIST_KEEP to
+      # true in its header, then edit it on the host.
+      - ./dashy-conf.yml:/app/user-data/conf.yml:ro,Z
     # ports disabled — access via https://dashy.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:

@@ -1,0 +1,9 @@
+# Allowlist, not denylist. The Dockerfile copies only go.mod, go.sum and
+# main.go, but everything else in this directory is still uploaded to the
+# daemon as build context — and config.yml holds the webhook bearer secrets.
+# Denying by default means a secret cannot reach a build layer, a remote
+# builder or an image-history dump even if a COPY is added carelessly later.
+*
+!go.mod
+!go.sum
+!main.go

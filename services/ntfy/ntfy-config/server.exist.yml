@@ -1,5 +1,7 @@
 # ./ntfy-config/server.yml
-base-url: "https://ntfy.EXIST_DOMAIN"
+# base-url is set via NTFY_BASE_URL in docker-compose.exist.yml (env wins over
+# this file), so it follows EXIST_DOMAIN without re-rendering.
+# base-url: "https://ntfy.example.com"
 listen-http: ":80"
 enable-login: true
 enable-signup: false

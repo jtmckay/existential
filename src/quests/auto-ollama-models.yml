@@ -1,11 +1,13 @@
 name: Ollama Model Setup
-tagline: Pull the models used by LightRAG, Hermes, and Open WebUI
+tagline: Pull the models used by Hermes, Honcho, OpenViking, and Open WebUI
 e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama
-  - var: EXIST_IS_AI_LIGHTRAG
-    label: LightRAG
+  - var: EXIST_IS_AI_HONCHO
+    label: Honcho
+  - var: EXIST_IS_AI_OPENVIKING
+    label: OpenViking
   - var: EXIST_IS_AI_HERMES
     label: Hermes
   - var: EXIST_IS_AI_OPEN_WEBUI
@@ -13,7 +15,7 @@ services:
 copies:
   - src: ai/ollama/decree/migrations.example/01-pull-gemma4-26b.md
     dst: ai/ollama/decree/migrations/
-    label: "ollama: pull gemma4:26b — primary LLM (Hermes + LightRAG queries)"
+    label: "ollama: pull gemma4:26b — primary LLM (Hermes agent tasks)"
     requires: EXIST_IS_AI_OLLAMA
   - src: ai/ollama/decree/migrations.example/02-create-gemma4-26b-ctx65536.md
     dst: ai/ollama/decree/migrations/
@@ -21,12 +23,12 @@ copies:
     requires: EXIST_IS_AI_OLLAMA
   - src: ai/ollama/decree/migrations.example/03-pull-qwen3-8b.md
     dst: ai/ollama/decree/migrations/
-    label: "ollama: pull qwen3:8b — LightRAG extraction + Honcho memory"
-    requires: EXIST_IS_AI_LIGHTRAG
+    label: "ollama: pull qwen3:8b — Honcho memory (deriver + summaries)"
+    requires: EXIST_IS_AI_HONCHO
   - src: ai/ollama/decree/migrations.example/04-pull-bge-m3.md
     dst: ai/ollama/decree/migrations/
-    label: "ollama: pull bge-m3 — LightRAG embeddings (1024-dim)"
-    requires: EXIST_IS_AI_LIGHTRAG
+    label: "ollama: pull bge-m3 — OpenViking embeddings (1024-dim)"
+    requires: EXIST_IS_AI_OPENVIKING
   - src: ai/ollama/decree/migrations.example/05-pull-llava.md
     dst: ai/ollama/decree/migrations/
     label: "ollama: pull llava — vision model for OCR and image chat"
@@ -40,18 +42,15 @@ guide: |
 
     gemma4:26b       Primary reasoning LLM.
                      Hermes uses it for all agent tasks.
-                     LightRAG uses it for graph query synthesis.
                      Context window is extended to 65536 tokens (migration 02)
-                     so Hermes's large system prompt and LightRAG graph context
-                     fit without truncation.
+                     so Hermes's large system prompt fits without truncation.
 
-    qwen3:8b         Extraction LLM for LightRAG ingestion and Honcho memory.
-                     LightRAG uses it for the high-volume entity/relationship
-                     extraction pass. Honcho uses it for the deriver (user
-                     representation), dialectic reasoning, and session summaries.
+    qwen3:8b         Extraction LLM for Honcho memory. Used for the deriver
+                     (user representation), dialectic reasoning, and session
+                     summaries.
 
-    bge-m3           Embedding model for LightRAG's vector store.
-                     Produces 1024-dim vectors (EMBEDDING_DIM in lightrag .env).
+    bge-m3           Embedding model for OpenViking's vector store.
+                     Produces 1024-dim vectors (OPENVIKING_EMBEDDING_DIM).
                      WARNING: do not change after first ingestion —
                      mismatched dimensions will corrupt the vector index.
 

@@ -57,7 +57,6 @@ path_to_var() {
 slug_to_name() {
     case "$1" in
         open-webui)     echo "Open WebUI" ;;
-        lightrag)       echo "LightRAG" ;;
         nocodb)         echo "NocoDB" ;;
         homeassistant)  echo "Home Assistant" ;;
         actual-budget)  echo "Actual Budget" ;;
@@ -71,7 +70,7 @@ slug_to_name() {
     esac
 }
 
-declare -a _HOME_SVCS=(actual-budget homeassistant immich mealie vikunja)
+declare -a _HOME_SVCS=(actual-budget homeassistant immich mealie)
 
 # ai/ollama → "ai", services/mealie → "home", services/dashy → "misc", etc.
 service_group() {

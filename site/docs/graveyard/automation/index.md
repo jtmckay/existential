@@ -18,6 +18,6 @@ sidebar_position: 1
 
 ## Workflow / UI Builders
 
-- [Lowcoder](./lowcoder) — as needed, for "external" apps (prettier)
-- [Appsmith](./appsmith) — RIP, for "internal" apps (more functional)
+- [Lowcoder](../../services/lowcoder) — active stack (opt-in), for "external" apps (prettier)
+- [Appsmith](../../services/appsmith) — active stack (opt-in), for "internal" apps (more functional)
 - Retool — RIP licensing

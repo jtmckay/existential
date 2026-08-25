@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Compares pinned container image tags against latest available versions.
 #
+# Covers two kinds of pin:
+#   * compose `image:` lines in *.exist.yml — tag only
+#   * Dockerfile `FROM` lines — tag + sha256 digest, updated together
+# An image with no semver tags (distroless) uses check type `digest`, which
+# reports whether the pinned digest still matches the tag it claims.
+#
 # Usage (via existential.sh):
 #   ./existential.sh run check-versions            — show version table
 #   ./existential.sh run check-versions --update   — apply updates to .exist.yml files
@@ -93,20 +99,23 @@ latest_hub_release() {
         | sort | tail -1
 }
 
-# image_exists <image_prefix> <tag>
-# Checks whether <image_prefix>:<tag> is actually pullable from the registry the
-# image comes from (GHCR for ghcr.io/* prefixes, else Docker Hub). This catches a
-# tag that exists upstream on GitHub but was never published to the pull registry
-# — minio's RELEASE.* tags read as "up to date" yet 404 on `docker pull`.
-# Exit: 0 = exists (manifest 200), 1 = confirmed missing (404),
-#       2 = unverifiable (auth/network failure — caller should not hard-fail).
-image_exists() {
-    local prefix="$1" tag="$2" registry repo token url
+# _registry_auth <prefix>
+# Echoes "<registry>\t<repo>\t<token>" for the pull registry behind an image
+# prefix. Split out of image_exists so resolve_digest can reuse the same token
+# dance across Docker Hub, ghcr and gcr.
+_registry_auth() {
+    local prefix="$1" registry repo token
     if [[ "$prefix" == ghcr.io/* ]]; then
         registry="ghcr.io"
         repo="${prefix#ghcr.io/}"
         token=$(curl -fsSL --max-time 15 \
             "https://ghcr.io/token?scope=repository:${repo}:pull" 2>/dev/null \
+            | jq -r '.token // empty')
+    elif [[ "$prefix" == gcr.io/* ]]; then
+        registry="gcr.io"
+        repo="${prefix#gcr.io/}"
+        token=$(curl -fsSL --max-time 15 \
+            "https://gcr.io/v2/token?scope=repository:${repo}:pull&service=gcr.io" 2>/dev/null \
             | jq -r '.token // empty')
     else
         registry="registry-1.docker.io"
@@ -116,7 +125,41 @@ image_exists() {
             "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${repo}:pull" \
             2>/dev/null | jq -r '.token // empty')
     fi
-    [[ -n "$token" ]] || return 2
+    [[ -n "$token" ]] || return 1
+    printf '%s\t%s\t%s' "$registry" "$repo" "$token"
+}
+
+# resolve_digest <prefix> <tag>
+# The manifest digest a tag currently points at, as "sha256:...". Empty on any
+# failure — callers must treat that as "unknown", never as "changed", or a
+# transient network blip would rewrite a pin.
+resolve_digest() {
+    local prefix="$1" tag="$2" registry repo token auth
+    auth=$(_registry_auth "$prefix") || return 1
+    IFS=$'\t' read -r registry repo token <<< "$auth"
+    curl -sSI --max-time 15 \
+        -H "Authorization: Bearer ${token}" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+        -H "Accept: application/vnd.oci.image.index.v1+json" \
+        -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+        "https://${registry}/v2/${repo}/manifests/${tag}" 2>/dev/null \
+        | grep -i '^docker-content-digest:' \
+        | tr -d '\r' | awk '{print $2}'
+}
+
+# image_exists <image_prefix> <tag>
+# Checks whether <image_prefix>:<tag> is actually pullable from the registry the
+# image comes from (GHCR for ghcr.io/* prefixes, else Docker Hub). This catches a
+# tag that exists upstream on GitHub but was never published to the pull registry
+# — minio's RELEASE.* tags read as "up to date" yet 404 on `docker pull`.
+# Exit: 0 = exists (manifest 200), 1 = confirmed missing (404),
+#       2 = unverifiable (auth/network failure — caller should not hard-fail).
+image_exists() {
+    local prefix="$1" tag="$2" registry repo token url auth
+    # No token means we could not ask, not that the tag is gone — 2, never 1.
+    auth=$(_registry_auth "$prefix") || return 2
+    IFS=$'\t' read -r registry repo token <<< "$auth"
 
     url="https://${registry}/v2/${repo}/manifests/${tag}"
     local code
@@ -139,7 +182,9 @@ image_exists() {
 # Columns (tab-separated):
 #   display_name  file  image_prefix  check_type  check_arg  tag_format
 #
-# check_type : github | hub | hub_clean | hub_release | skip
+# check_type : github | hub | hub_clean | hub_release | digest | skip
+#   digest    → the tag is a moving target (e.g. :latest); don't look for a newer
+#               version, just re-resolve what the pinned tag points at now.
 # check_arg  : github → owner/repo   hub* → org/image (library/X for official)
 # tag_format : flavor suffix appended to the fetched (v-stripped) version
 #   bare      → no suffix
@@ -150,6 +195,12 @@ image_exists() {
 #
 # Add "skip" as check_type for images that need manual version management
 # (complex release schemes, variant-only images, etc.).
+#
+# Choosing github vs hub*: check wherever the *image tag* comes from, which is
+# not always where the software is versioned. Projects that cut GitHub releases
+# for the source but tag their images on a different scheme (pihole, minio) must
+# use a hub* type — checking GitHub there yields a version that is real upstream
+# but not pullable, which image_exists then reports as LATEST NOT PULLABLE.
 
 declare -a CHECKS=(
     "actual-budget	services/actual-budget/docker-compose.exist.yml	actualbudget/actual-server	github	actualbudget/actual	bare"
@@ -159,10 +210,11 @@ declare -a CHECKS=(
     "comfyui	ai/comfyui/docker-compose.exist.yml	ghcr.io/ai-dock/comfyui	skip		"
     "collabora	nas/collabora/docker-compose.exist.yml	collabora/code	hub_clean	collabora/code	bare"
     "dashy	services/dashy/docker-compose.exist.yml	lissy93/dashy	github	Lissy93/Dashy	bare"
+    "decree-wh-go	services/decree/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
+    "decree-wh-base	services/decree/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
     "hermes-agent	ai/hermes/docker-compose.exist.yml	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
     "home-assistant	services/homeassistant/docker-compose.exist.yml	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
-    "lightrag	ai/lightrag/docker-compose.exist.yml	ghcr.io/hkuds/lightrag	github	HKUDS/LightRAG	v"
     "lowcoder	services/lowcoder/docker-compose.exist.yml	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"
     "mealie	services/mealie/docker-compose.exist.yml	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
     "minio	nas/minio/docker-compose.exist.yml	minio/minio	hub_release	minio/minio	bare"
@@ -171,10 +223,12 @@ declare -a CHECKS=(
     "ntfy	services/ntfy/docker-compose.exist.yml	binwiederhier/ntfy	github	binwiederhier/ntfy	v"
     "ollama	ai/ollama/docker-compose.exist.yml	ollama/ollama	hub_clean	ollama/ollama	bare"
     "open-webui	ai/open-webui/docker-compose.exist.yml	ghcr.io/open-webui/open-webui	github	open-webui/open-webui	v"
-    "pihole	hosting/pihole/docker-compose.exist.yml	pihole/pihole	github	pi-hole/pi-hole	v"
+    # hub_clean, NOT github: pi-hole's GitHub releases version the core software
+    # (v6.x) while the images are tagged by date (2026.07.2). Checking GitHub
+    # returned 6.4.3, which does not exist on Docker Hub.
+    "pihole	hosting/pihole/docker-compose.exist.yml	pihole/pihole	hub_clean	pihole/pihole	bare"
     "portainer	hosting/portainer/docker-compose.exist.yml	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
     "uptime-kuma	hosting/uptime-kuma/docker-compose.exist.yml	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
-    "vikunja	services/vikunja/docker-compose.exist.yml	vikunja/vikunja	github	go-vikunja/vikunja	bare"
     "whisperx	ai/whisperx/docker-compose.exist.yml	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
 )
 
@@ -203,18 +257,74 @@ print_header
 for entry in "${CHECKS[@]}"; do
     IFS=$'\t' read -r name file image_prefix check_type check_arg tag_format <<< "$entry"
 
-    # Current tag: parse image line, skip commented-out lines
-    current_line=$(grep -v "^[[:space:]]*#" "$REPO/$file" 2>/dev/null \
-        | grep -m1 "image:.*${image_prefix}" || true)
-    if [[ -z "$current_line" ]]; then
-        print_row "$name" "(not found in file)" "" "SKIP"
-        continue
-    fi
-    raw_image=$(echo "$current_line" | sed 's/.*image:[[:space:]]*//' | tr -d "'\" ")
-    if [[ "$raw_image" == *:* ]]; then
-        current_tag="${raw_image##*:}"
+    # Current tag. Compose files carry `image: <prefix>:<tag>`; Dockerfiles
+    # carry `FROM <prefix>:<tag>@sha256:<digest> [AS stage]`, where the digest
+    # is what actually resolves and the tag is documentation. Both are parsed
+    # here so a base image is tracked exactly like any other pinned image.
+    is_dockerfile=false
+    [[ "$(basename "$file")" == Dockerfile* ]] && is_dockerfile=true
+    current_digest=""
+
+    if [[ "$is_dockerfile" == "true" ]]; then
+        current_line=$(grep -v "^[[:space:]]*#" "$REPO/$file" 2>/dev/null \
+            | grep -m1 "^FROM ${image_prefix}[:@]" || true)
+        if [[ -z "$current_line" ]]; then
+            print_row "$name" "(not found in file)" "" "SKIP"
+            continue
+        fi
+        ref="${current_line#FROM }"; ref="${ref%% *}"      # drop " AS builder"
+        [[ "$ref" == *@* ]] && current_digest="${ref#*@}"
+        ref_notag="${ref%@*}"
+        if [[ "$ref_notag" == *:* ]]; then
+            current_tag="${ref_notag##*:}"
+        else
+            current_tag="(none)"
+        fi
     else
-        current_tag="(none)"
+        current_line=$(grep -v "^[[:space:]]*#" "$REPO/$file" 2>/dev/null \
+            | grep -m1 "image:.*${image_prefix}" || true)
+        if [[ -z "$current_line" ]]; then
+            print_row "$name" "(not found in file)" "" "SKIP"
+            continue
+        fi
+        raw_image=$(echo "$current_line" | sed 's/.*image:[[:space:]]*//' | tr -d "'\" ")
+        if [[ "$raw_image" == *:* ]]; then
+            current_tag="${raw_image##*:}"
+        else
+            current_tag="(none)"
+        fi
+    fi
+
+    # Images with no semver tags (distroless: the Debian release is part of the
+    # repo name) are tracked for digest drift instead — "has the tag I pinned
+    # been re-pushed?" rather than "is there a newer version?".
+    if [[ "$check_type" == "digest" ]]; then
+        latest_digest=$(resolve_digest "$image_prefix" "$current_tag" || true)
+        if [[ -z "$latest_digest" ]]; then
+            print_row "$name" "${current_digest:0:19}" "(fetch failed)" "?"
+            (( FAILURES++ )) || true
+        elif [[ "$latest_digest" == "$current_digest" ]]; then
+            print_row "$name" "${current_digest:0:19}" "${latest_digest:0:19}" "up to date"
+        else
+            (( UPDATES_AVAILABLE++ )) || true
+            status="→ DIGEST DRIFT"
+            if [[ "$UPDATE" == "true" ]]; then
+                # Match whatever the FROM line actually carries — tag+digest,
+                # tag only, or digest only — then VERIFY. An unverified sed
+                # reports success on a pin shape it never matched, and every
+                # later run then reports DIGEST DRIFT forever.
+                sed -i -E "s|^FROM ${image_prefix}(:[^[:space:]@]+)?(@sha256:[0-9a-f]+)?|FROM ${image_prefix}:${current_tag}@${latest_digest}|" \
+                    "$REPO/$file"
+                if grep -qF "@${latest_digest}" "$REPO/$file"; then
+                    status="→ UPDATED"
+                else
+                    status="→ UPDATE FAILED"
+                    (( FAILURES++ )) || true
+                fi
+            fi
+            print_row "$name" "${current_digest:0:19}" "${latest_digest:0:19}" "$status"
+        fi
+        continue
     fi
 
     if [[ "$check_type" == "skip" ]]; then
@@ -282,14 +392,46 @@ for entry in "${CHECKS[@]}"; do
         (( UPDATES_AVAILABLE++ )) || true
 
         if [[ "$UPDATE" == "true" ]]; then
-            if [[ "$current_tag" == "(none)" ]]; then
+            if [[ "$is_dockerfile" == "true" ]]; then
+                # Tag and digest must move together, or the digest would keep
+                # pinning the old image and the tag would be a lie. A digest we
+                # cannot resolve means we leave the pin alone.
+                new_digest=$(resolve_digest "$image_prefix" "$latest_tag" || true)
+                if [[ -z "$new_digest" ]]; then
+                    status="→ UPDATE (digest fetch failed, not applied)"
+                else
+                    # `[^[:space:]]*` after a literal `:` cannot match a
+                    # digest-only `FROM prefix@sha256:…` line, which the
+                    # grep above happily selects. Match both shapes, then
+                    # verify rather than assuming the rewrite landed.
+                    sed -i -E "s|^FROM ${image_prefix}(:[^[:space:]@]+)?(@sha256:[0-9a-f]+)?|FROM ${image_prefix}:${latest_tag}@${new_digest}|" \
+                        "$REPO/$file"
+                    if grep -qF "@${new_digest}" "$REPO/$file"; then
+                        status="→ UPDATED"
+                    else
+                        status="→ UPDATE FAILED"
+                        (( FAILURES++ )) || true
+                    fi
+                fi
+            elif [[ "$current_tag" == "(none)" ]]; then
                 # Image had no tag — insert one
                 sed -i "s|image: ${image_prefix}$|image: ${image_prefix}:${latest_tag}|" "$REPO/$file"
+                if grep -qF "image: ${image_prefix}:${latest_tag}" "$REPO/$file"; then
+                    status="→ UPDATED"
+                else
+                    status="→ UPDATE FAILED"
+                    (( FAILURES++ )) || true
+                fi
             else
                 sed -i "s|image: ${image_prefix}:${current_tag}|image: ${image_prefix}:${latest_tag}|g" \
                     "$REPO/$file"
+                if grep -qF "image: ${image_prefix}:${latest_tag}" "$REPO/$file"; then
+                    status="→ UPDATED"
+                else
+                    status="→ UPDATE FAILED"
+                    (( FAILURES++ )) || true
+                fi
             fi
-            status="→ UPDATED"
         fi
     fi
 

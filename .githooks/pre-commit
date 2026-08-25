@@ -25,6 +25,21 @@ for f in "${staged[@]}"; do
             note "rendered secret file staged: $f (only .env.exist* templates belong in git)" ;;
         cloudflare-key.pem|cloudflare.pem|*_password.txt)
             note "rendered credential file staged: $f" ;;
+        # Rendered config files hold webhook bearer tokens / daemon credentials.
+        # Their values are bare hex or UUIDs, so the content patterns below
+        # cannot see them — the filename is the only signal. Only *.exist.*
+        # templates and *.example belong in git.
+        #
+        # What makes it a secret is being RENDERED, not the extension: a
+        # sibling *.exist.* template is the tell. hosting/loki/loki-config.yaml
+        # is hand-committed upstream config with no template, so it stays
+        # committable; ai/chatterbox's rendered config.yaml does not.
+        config.yml|*-config.yml|config.yaml|*-config.yaml)
+            case "$base" in
+                *.yml) tmpl="${f%.yml}.exist.yml" ;;
+                *)     tmpl="${f%.yaml}.exist.yaml" ;;
+            esac
+            [ -e "$tmpl" ] && note "rendered config with credentials staged: $f (commit $tmpl instead)" ;;
     esac
     case "$f" in
         */secrets/*)

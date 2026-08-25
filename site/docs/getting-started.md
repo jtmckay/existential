@@ -26,11 +26,11 @@ This will:
 2. Prompt for any `EXIST_CLI` placeholder values interactively
 3. Auto-generate passwords, keys, and UUIDs for other placeholders
 4. Generate a unified `docker-compose.yml` from all enabled services
-5. Generate a master `.env` by merging `.env.exist` with all enabled service `.env` files
+5. Generate a master `.env` by merging `.env.shared` with all enabled service `.env` files
 
 ## Enable/Disable Services
 
-Edit `.env.exist` and set services to `true` or `false`:
+Edit `.env.shared` and set services to `true` or `false`:
 
 ```bash
 EXIST_IS_AI_OLLAMA=true
@@ -38,10 +38,10 @@ EXIST_IS_SERVICES_DECREE=true
 EXIST_IS_SERVICES_NOCODB=false
 ```
 
-Then regenerate the compose file (already done during initial setup above):
+Then re-run the setup script to re-render and regenerate the compose file:
 
 ```bash
-./existential.sh compose
+./existential.sh
 ```
 
 ## Deploy
@@ -59,4 +59,4 @@ Some services require additional OAuth or configuration steps:
 ./existential.sh run rclone   # Remote file storage
 ```
 
-See [Integrations](./integrations/) for setup details, or [Scripts](./scripts) for the full CLI reference.
+See [Integrations](./integrations/) for setup details. For the full command list, run `./existential.sh run` with no arguments — it prints every available action.

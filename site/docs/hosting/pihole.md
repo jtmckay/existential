@@ -21,9 +21,19 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 
 ## Setup
 
-1. Copy `.env.example` to `.env`
-2. `docker compose up -d`
+1. Enable it in `.env.shared`:
+   ```
+   EXIST_IS_HOSTING_PIHOLE=true
+   ```
+2. Render and start, from the repo root:
+   ```bash
+   ./existential.sh && docker compose up -d
+   ```
 3. Point your router's DNS to the host running Pi-hole
+
+Pi-hole then resolves the whole of `EXIST_DOMAIN` locally via a single wildcard record, which
+removes the stack's dependency on public DNS. It is an upgrade, not a requirement — see
+[How It Works](../how-it-works).
 
 ## Debugging
 

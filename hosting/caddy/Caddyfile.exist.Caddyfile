@@ -143,7 +143,7 @@ dashy.{$CADDY_DOMAIN} {
 decree-webhook.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
-  reverse_proxy decree-webhook:{$DECREE_WEBHOOK_PORT}
+  reverse_proxy decree-webhook:8801
 }
 
 homeassistant.{$CADDY_DOMAIN} {
@@ -186,12 +186,6 @@ nocodb.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
   reverse_proxy nocodb:8080
-}
-
-vikunja.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy vikunja:3456
 }
 
 # ── hosting ─────────────────────────────────────────────────────────────────

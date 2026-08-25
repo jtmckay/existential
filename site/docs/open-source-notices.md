@@ -41,8 +41,6 @@ written request and we will provide it: **[insert contact email]**.
 | Immich | AGPL-3.0 | https://github.com/immich-app/immich |
 | Mealie | AGPL-3.0 | https://github.com/mealie-recipes/mealie |
 | NocoDB | AGPL-3.0 | https://github.com/nocodb/nocodb |
-| Vikunja | AGPL-3.0 | https://github.com/go-vikunja/vikunja |
-| Logseq | AGPL-3.0 | https://github.com/logseq/logseq |
 | Lowcoder | AGPL-3.0 | https://github.com/lowcoder-org/lowcoder |
 | MinIO | AGPL-3.0 | https://github.com/minio/minio |
 | Grafana | AGPL-3.0 | https://github.com/grafana/grafana |

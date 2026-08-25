@@ -28,6 +28,20 @@ while IFS= read -r f; do
     case "$base" in
         .env|.env.shared|.env.local|.env.generated|cloudflare-key.pem|cloudflare.pem|internal-key.pem|internal-ca-key.pem|*_password.txt)
             flag "tracked rendered secret: $f" ;;
+        # Rendered config files (decree-webhook bearer tokens, decree daemon
+        # credentials). Values are bare hex/UUID and match none of the content
+        # patterns below, so the filename is the only signal.
+        #
+        # What makes it a secret is being RENDERED, not the extension: a
+        # sibling *.exist.* template is the tell. hosting/loki/loki-config.yaml
+        # is hand-committed upstream config with no template, so it stays
+        # committable; ai/chatterbox's rendered config.yaml does not.
+        config.yml|*-config.yml|config.yaml|*-config.yaml)
+            case "$base" in
+                *.yml) tmpl="${f%.yml}.exist.yml" ;;
+                *)     tmpl="${f%.yaml}.exist.yaml" ;;
+            esac
+            [ -e "$tmpl" ] && flag "tracked rendered config with credentials: $f" ;;
     esac
     case "$f" in
         */secrets/*) [ "$base" = ".gitkeep" ] || flag "tracked file under secrets/: $f" ;;

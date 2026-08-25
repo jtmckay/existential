@@ -6,8 +6,6 @@ services:
     label: Mealie
   - var: EXIST_IS_SERVICES_NOCODB
     label: NocoDB
-  - var: EXIST_IS_SERVICES_VIKUNJA
-    label: Vikunja
   - var: EXIST_IS_SERVICES_LOWCODER
     label: Lowcoder
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
@@ -18,8 +16,6 @@ services:
     label: Nextcloud
   - var: EXIST_IS_AI_HERMES
     label: Hermes
-  - var: EXIST_IS_AI_LIGHTRAG
-    label: LightRAG
   - var: EXIST_IS_HOSTING_PORTAINER
     label: Portainer
 copies:
@@ -39,14 +35,6 @@ copies:
     dst: services/nocodb/decree/cron/
     label: "nocodb-decree: volume-backup nightly"
     requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/vikunja/decree/cron.example/db-backup-nightly.md
-    dst: services/vikunja/decree/cron/
-    label: "vikunja-decree: db-backup nightly"
-    requires: EXIST_IS_SERVICES_VIKUNJA
-  - src: services/vikunja/decree/cron.example/volume-backup-nightly.md
-    dst: services/vikunja/decree/cron/
-    label: "vikunja-decree: volume-backup nightly"
-    requires: EXIST_IS_SERVICES_VIKUNJA
   - src: services/lowcoder/decree/cron.example/db-backup-nightly.md
     dst: services/lowcoder/decree/cron/
     label: "lowcoder-decree: db-backup nightly"
@@ -71,10 +59,6 @@ copies:
     dst: ai/hermes/decree/cron/
     label: "hermes-decree: volume-backup nightly"
     requires: EXIST_IS_AI_HERMES
-  - src: ai/lightrag/decree/cron.example/volume-backup-nightly.md
-    dst: ai/lightrag/decree/cron/
-    label: "lightrag-decree: volume-backup nightly"
-    requires: EXIST_IS_AI_LIGHTRAG
   - src: hosting/portainer/decree/cron.example/volume-backup-nightly.md
     dst: hosting/portainer/decree/cron/
     label: "portainer-decree: volume-backup nightly"

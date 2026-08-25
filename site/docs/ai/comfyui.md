@@ -12,11 +12,11 @@ Node-based Stable Diffusion UI for local, GPU-accelerated image generation. Work
 
 ## Overview
 
-ComfyUI runs at `https://comfyui.internal` (LAN, via Caddy) and `http://comfyui:8188` (Docker internal DNS, for container-to-container calls). It queues and executes image generation jobs via its web UI or HTTP API. No cloud involved — everything runs on the local GPU.
+ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (LAN, via Caddy) and `http://comfyui:8188` (Docker internal DNS, for container-to-container calls). It queues and executes image generation jobs via its web UI or HTTP API. No cloud involved — everything runs on the local GPU.
 
 ## First Run
 
-After `docker compose up -d`, open `https://comfyui.internal`.
+After `docker compose up -d`, open `https://comfyui.EXIST_DOMAIN`.
 
 Download a checkpoint model using ComfyUI Manager (accessible from the menu in the top-right). Common starting points:
 
@@ -155,7 +155,7 @@ See [Telegram integration](../integrations/telegram) for bot credentials setup.
 
 The recommended workflow authoring loop:
 
-1. Open `https://comfyui.internal` and build the workflow visually
+1. Open `https://comfyui.EXIST_DOMAIN` and build the workflow visually
 2. Click **Save (API format)** — this exports the node graph as the flat JSON that `/prompt` accepts (distinct from the regular save format, which includes UI layout metadata)
 3. Paste the exported JSON into your routine as the `WORKFLOW` heredoc
 4. Replace hardcoded values (prompt text, seed, dimensions) with variables the routine controls

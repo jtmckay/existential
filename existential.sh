@@ -119,19 +119,33 @@ _has_any_enabled() {
 
 _warn_if_no_gateway() {
     _load_env_shared
-    local caddy_on pihole_on
+    local caddy_on pihole_on domain needs_pihole=false
     caddy_on=$(grep '^EXIST_IS_HOSTING_CADDY=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
     pihole_on=$(grep '^EXIST_IS_HOSTING_PIHOLE=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
-    if [[ "${caddy_on:-false}" != "true" || "${pihole_on:-false}" != "true" ]]; then
+    domain=$(grep '^EXIST_DOMAIN=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)
+
+    # A *.nip.io domain resolves itself from public DNS, and a domain the user
+    # owns resolves from their own records — pihole is an upgrade there, not a
+    # requirement. Only a made-up TLD (.internal) actually needs it.
+    case "$domain" in
+        *.internal|"") needs_pihole=true ;;
+    esac
+
+    if [[ "${caddy_on:-false}" != "true" ]]; then
         echo ""
-        echo "  ⚠  Port bindings are commented out by default."
-        echo "     Services are only reachable via https://<slug>.<domain>"
-        echo "     which requires Caddy (TLS routing) and pihole (DNS)."
+        echo "  ⚠  Caddy is disabled, and port bindings are commented out by default."
+        echo "     Nothing will be reachable from a browser."
         echo ""
-        echo "     To access services without them, uncomment the 'ports:' block"
-        echo "     in each service's docker-compose.yml (after the initial render),"
-        echo "     then re-run:"
+        echo "     Either enable Caddy (EXIST_IS_HOSTING_CADDY=true), or uncomment the"
+        echo "     'ports:' block in each service's docker-compose.yml, then re-run:"
         echo "       ./existential.sh && docker compose up -d"
+        echo ""
+    elif [[ "$needs_pihole" == "true" && "${pihole_on:-false}" != "true" ]]; then
+        echo ""
+        echo "  ⚠  EXIST_DOMAIN is '${domain}', which nothing resolves on its own."
+        echo "     Enable pihole (EXIST_IS_HOSTING_PIHOLE=true), add /etc/hosts entries,"
+        echo "     or switch EXIST_DOMAIN in .env.shared to a self-resolving domain:"
+        echo "       <your-lan-ip-with-dashes>.nip.io   (e.g. 192-168-1-50.nip.io)"
         echo ""
     fi
 }
@@ -292,8 +306,8 @@ Actions:
                       rendered secrets are tracked; 'guards'/'harness' prove the
                       secret guards / test plumbing trip on bad input; 'selfcheck'
                       proves each unit suite fails on a forced assertion;
-                      'syntax|gmail|rclone' run those individually. Anything else
-                      is a service slug.
+                      'unit'/'integration'/'services' run those suites. Anything
+                      else is a service slug.
   validate [name]     On-demand checks: all (default), conventions, drift.
   e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
   e2e --all           Run all e2e-testable quests without prompting.

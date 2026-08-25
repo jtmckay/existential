@@ -14,6 +14,9 @@ services:
       - serve
     environment:
       - TZ=${NTFY_TZ} # optional: set desired timezone
+      # Resolved at container start from EXIST_DOMAIN. ntfy reads NTFY_<KEY> for
+      # any server.yml key and env wins, so this needs no re-render to change.
+      - NTFY_BASE_URL=${NTFY_BASE_URL:-https://ntfy.$EXIST_DOMAIN}
     volumes:
       # Message + attachment cache (transient, TTL'd) — tier-3, not backed up.
       - ./ntfy_cache:/var/lib/ntfy

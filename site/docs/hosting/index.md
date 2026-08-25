@@ -27,13 +27,16 @@ Start with [Getting Started](https://existential.company/docs/getting-started)
 
 ### Networking
 
-All services connect to the `exist` overlay network with:
+All services connect to a single Docker **bridge** network named `exist`, created
+automatically by `docker compose up`. Containers reach each other by container name
+(`http://ollama:11434`); see [How It Works](../how-it-works) for the full model.
 
-- **Overlay driver**: Multi-host communication (Docker Swarm compatible)
-- **Attachable**: Standalone containers can join
-- **Encrypted**: IPsec encryption between nodes
-
-The network is automatically created when you run `docker compose up`.
+:::warning Traffic on this network is not encrypted
+A bridge network is single-host and carries plain traffic between containers. It is not an
+overlay, there is no IPsec, and it does not span machines. To run services on more than one
+box, treat them as [complementary services](../how-it-works) reached over a URL rather than
+trying to stretch this network across hosts.
+:::
 
 ### Observability
 

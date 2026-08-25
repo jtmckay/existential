@@ -11,7 +11,7 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'One Data Sink',
+    title: 'Everything In One Place',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.featureIcon}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 2.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m16.5 4.5c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
@@ -19,13 +19,13 @@ const FeatureList: FeatureItem[] = [
     ),
     description: (
       <>
-        Use existing apps like normal. Push all your data — notes, tasks, images,
-        recipes, budgets — into a single self-hosted sink you own and control.
+        Keep using the apps you already like. Whatever they produce — notes, tasks,
+        receipts, photos, recordings — ends up in one place that belongs to you.
       </>
     ),
   },
   {
-    title: 'AI & Automation',
+    title: 'It Handles The Repeating Parts',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.featureIcon}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -34,8 +34,8 @@ const FeatureList: FeatureItem[] = [
     ),
     description: (
       <>
-        With all your data available, create routines to automate tasks, leverage
-        local AI (Ollama, WhisperX, Chatterbox), and get notified only when necessary.
+        Once it's all in one place, the routine work can happen on its own — filing,
+        transcribing, sorting, reminding. You hear about it only when it matters.
       </>
     ),
   },
@@ -49,8 +49,8 @@ const FeatureList: FeatureItem[] = [
     ),
     description: (
       <>
-        Use more technology so you can see less technology. Free, open source software
-        running on your hardware — no subscriptions, no data harvesting, no lock-in.
+        Use more technology so you can see less technology. It runs on your own
+        hardware — nothing to subscribe to, nothing watching, nothing to leave behind.
       </>
     ),
   },

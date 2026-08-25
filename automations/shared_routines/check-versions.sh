@@ -72,7 +72,6 @@ declare -a CHECKS=(
     "hermes-agent	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
     "home-assistant	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	corentinth/it-tools	github	CorentinTh/it-tools	bare"
-    "lightrag	ghcr.io/hkuds/lightrag	github	HKUDS/LightRAG	v"
     "lowcoder	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"
     "mealie	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
     "minio	minio/minio	github	minio/minio	bare"
@@ -84,7 +83,6 @@ declare -a CHECKS=(
     "pihole	pihole/pihole	github	pi-hole/pi-hole	v"
     "portainer	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
     "uptime-kuma	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
-    "vikunja	vikunja/vikunja	github	go-vikunja/vikunja	bare"
     "whisperx	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
 )
 

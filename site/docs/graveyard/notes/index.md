@@ -19,8 +19,9 @@ sidebar_position: 1
 
 ## Evaluated
 
-- [Logseq](../../services/logseq) — active stack (resolved sync via Nextcloud + FolderSync)
-- [Obsidian](./obsidian) — RIP not open source, but top choice if FOSS isn't required
+- [Obsidian](../../services/obsidian) — active stack (sync via Nextcloud + FolderSync)
+- [Logseq](./logseq) — RIP replaced by Obsidian
+
 - Zettlr — RIP lacks drawing
 - [Trilium](./trilium) — RIP lacks proper markdown support
 - [AppFlowy](./app-flowy) — RIP login/DB issues on setup

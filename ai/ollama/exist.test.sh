@@ -18,7 +18,7 @@ skip_if_disabled
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 MODEL="${OLLAMA_MODEL:-gemma4:26b}"
 
-# LightRAG graph synthesis + Hermes system prompt can exceed 32k tokens.
+# Hermes system prompt can exceed 32k tokens.
 # 32k is the hard floor; 64k is the recommended target (see Modelfile).
 MIN_CTX_FAIL=32768
 MIN_CTX_WARN=65536
@@ -85,7 +85,7 @@ elif [ "$NUM_CTX" -lt "$MIN_CTX_FAIL" ]; then
          "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
 elif [ "$NUM_CTX" -lt "$MIN_CTX_WARN" ]; then
     warn "num_ctx >= ${MIN_CTX_WARN}" \
-         "num_ctx=${NUM_CTX} — LightRAG graph synthesis may exceed this" \
+         "num_ctx=${NUM_CTX} — large Hermes prompts may exceed this" \
          "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
 else
     ok "num_ctx=${NUM_CTX} (>= ${MIN_CTX_WARN})"

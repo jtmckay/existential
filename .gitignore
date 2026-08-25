@@ -59,10 +59,14 @@
 workspace
 
 # Dashy
+# dashy-conf.yml is regenerated on every run, unless the user claims it by
+# flipping EXIST_KEEP to true in its header — either way it is theirs, not ours.
 **/dashy-conf.yml
 
 # Decree
 **/decree/webhook/config.yml
+# throwaway binary built by webhook/difftest.sh
+**/decree/webhook/.difftest-webhook
 automations/lib/file-processors/*
 automations/runs/*
 automations/secrets/*

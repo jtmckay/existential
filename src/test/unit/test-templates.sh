@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-templates.sh — unit tests for src/templates.sh render_template().
+# test-templates.sh — unit tests for src/templates.sh.
 #
 # Sources templates.sh (its main block is guarded, so sourcing only defines
 # functions), stubs the secret generators for deterministic output, points
@@ -8,6 +8,12 @@
 #   - EXIST_CLI on line 1 (the (( block_start++ )) set -e landmine)
 #   - & in a resolved value (sed replacement re-inserting the token / looping)
 #   - rendering .env.shared itself must NOT self-substitute its own keys
+#
+# Also covers the _ALWAYS_RENDER carve-out (destinations regenerated every run
+# rather than skipped-if-exists), the EXIST_KEEP opt-out that lets a user claim
+# one of those files, the guard rail that refuses to always-render a template
+# carrying prompts or generated secrets, and the rule that .env stays
+# untouchable regardless.
 #
 # All renders run with stdin from /dev/null, so EXIST_CLI is non-interactive
 # (falls back to its default) and the test never blocks on a prompt.
@@ -18,6 +24,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve both paths BEFORE sourcing templates.sh — it reassigns SCRIPT_DIR to
+# REPO_DIR (the throwaway fake repo), so anything derived from it afterwards
+# points into $TMP.
 TEMPLATES="$(cd "${SCRIPT_DIR}/../.." && pwd)/templates.sh"
 
 # Needs the generators templates.sh sources at /src/utils — only present inside
@@ -139,6 +148,122 @@ printf 'EXIST_USERNAME=EXIST_CLI\n' > "$TMP/t_self"
 out="$(render_template "$TMP/t_self" "$TMP/.env.shared" </dev/null)"
 assert_contains ".env.shared render keeps its own key name" "EXIST_USERNAME=" "$out"
 assert_not_contains ".env.shared render does not inject key's value" "alice=" "$out"
+
+# ── Always-render: _renders_always path matching ──────────────────────────────
+
+if _renders_always "$TMP/services/dashy/dashy-conf.yml"; then
+    _ok "_renders_always matches the dashy destination"
+else
+    _fail "_renders_always matches the dashy destination" "dashy-conf.yml not in _ALWAYS_RENDER"
+fi
+if _renders_always "$TMP/services/mealie/docker-compose.yml"; then
+    _fail "_renders_always rejects an unlisted destination" "matched something it shouldn't"
+else
+    _ok "_renders_always rejects an unlisted destination"
+fi
+
+# ── Always-render: overwrites an existing destination without --force ─────────
+# This is the whole point — the general skip-if-exists gate must not apply.
+
+mkdir -p "$TMP/services/dashy"
+_DCONF="$TMP/services/dashy/dashy-conf.yml"
+printf 'appConfig:\n  theme: colorful\nsections:\n  - name: AI\n    items:\n      - title: Open WebUI\n        url: https://open-webui.EXIST_HOSTDOMAIN\n' \
+    > "$TMP/services/dashy/dashy-conf.exist.yml"
+echo 'EXIST_HOSTDOMAIN=example.test' >> "$TMP/.env.shared"
+printf 'stale: true\n' > "$_DCONF"
+
+FORCE=false
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "always-render returns 2 (regenerated), not 1 (skipped)" "2" "$_rc"
+out="$(cat "$_DCONF")"
+assert_not_contains "always-render replaced the stale destination" "stale: true" "$out"
+assert_contains "always-render stamped the DO-NOT-EDIT header" \
+    "DO NOT EDIT — regenerated on every ./existential.sh run" "$out"
+assert_contains "always-render resolved placeholders" "https://open-webui.example.test" "$out"
+
+# The header marker is what check-drift.ts keys off to skip these files. If the
+# wording changes here, isGenerated() in check-drift.ts must change with it.
+assert_contains "header names the base template" "Base: services/dashy/dashy-conf.exist.yml" "$out"
+assert_contains "header carries the EXIST_KEEP opt-out, defaulted off" \
+    "# EXIST_KEEP: false" "$out"
+
+# ── Always-render: the .env never-overwrite guard still wins ──────────────────
+# .env is checked before _ALWAYS_RENDER, so even if someone lists one it stays
+# untouched — a rendered .env holds answers that can't be regenerated.
+
+printf 'SECRET=keepme\n' > "$TMP/.env"
+printf 'SECRET=EXIST_USERNAME\n' > "$TMP/.env.exist"
+_ALWAYS_RENDER+=(".env")
+_rc=0; _process_one_template "$TMP/.env.exist" >/dev/null || _rc=$?
+assert_eq ".env stays skipped even when listed in _ALWAYS_RENDER" "1" "$_rc"
+assert_eq ".env contents untouched" "SECRET=keepme" "$(cat "$TMP/.env")"
+unset '_ALWAYS_RENDER[-1]'
+
+# ── Always-render: guard rail rejects prompts / generated secrets ─────────────
+# An always-rendered file is overwritten with no backup every run, so a secret
+# would rotate underneath whatever consumed it and EXIST_CLI would re-prompt.
+
+printf 'appConfig:\n  token: EXIST_32_CHAR_HEX_KEY\n' \
+    > "$TMP/services/dashy/dashy-conf.exist.yml"
+if ( _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" ) >/dev/null 2>&1; then
+    _fail "always-render template with a secret token exits non-zero" "it was accepted"
+else
+    _ok "always-render template with a secret token exits non-zero"
+fi
+
+printf 'appConfig:\n  who: EXIST_CLI\n' > "$TMP/services/dashy/dashy-conf.exist.yml"
+if ( _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" ) >/dev/null 2>&1; then
+    _fail "always-render template with EXIST_CLI exits non-zero" "it was accepted"
+else
+    _ok "always-render template with EXIST_CLI exits non-zero"
+fi
+
+# ── Always-render: the EXIST_KEEP opt-out ────────────────────────────────────
+# Flipping the header line to true claims the file. From then on it is the
+# user's: never regenerated, and --force must not touch it either.
+
+printf 'appConfig:\n  theme: colorful\n' > "$TMP/services/dashy/dashy-conf.exist.yml"
+printf '# EXIST_KEEP: true\nappConfig:\n  theme: MINE\n' > "$_DCONF"
+
+FORCE=false
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "EXIST_KEEP: true makes always-render skip (returns 1)" "1" "$_rc"
+assert_contains "EXIST_KEEP: true left the user's content intact" \
+    "theme: MINE" "$(cat "$_DCONF")"
+
+FORCE=true
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "--force still respects EXIST_KEEP: true" "1" "$_rc"
+assert_contains "--force left the claimed file intact" "theme: MINE" "$(cat "$_DCONF")"
+FORCE=false
+
+# The default stamped value must NOT opt out, or nothing would ever regenerate.
+printf '# EXIST_KEEP: false\nappConfig:\n  theme: OLD\n' > "$_DCONF"
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "EXIST_KEEP: false still regenerates (returns 2)" "2" "$_rc"
+assert_not_contains "EXIST_KEEP: false was overwritten" "theme: OLD" "$(cat "$_DCONF")"
+
+# Re-rendering must not stack headers: content comes from the template, so the
+# previous run's header is discarded rather than wrapped inside a new one.
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "repeat render stamps exactly one header" \
+    "1" "$(grep -c 'EXIST_KEEP' "$_DCONF")"
+
+# Only the header counts — the same words further down are just content.
+{ printf '# padding\n%.0s' $(seq 1 25); printf '# EXIST_KEEP: true\n'; } > "$_DCONF"
+_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
+assert_eq "EXIST_KEEP below the header does not opt out" "2" "$_rc"
+
+# A directory template is cp -r'd, which would nest into an existing destination
+# on the second run instead of replacing it.
+rm -f "$TMP/services/dashy/dashy-conf.exist.yml"
+mkdir -p "$TMP/services/dashy/dashy-conf.exist.yml"
+if ( _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" ) >/dev/null 2>&1; then
+    _fail "always-render rejects a directory template" "it was accepted"
+else
+    _ok "always-render rejects a directory template"
+fi
+rmdir "$TMP/services/dashy/dashy-conf.exist.yml"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).

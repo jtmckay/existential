@@ -20,6 +20,12 @@ shared_routines:
     enabled: true
   clean-runs:
     enabled: true
+  comfy-image-text:
+    enabled: false
+  comfy-image-text-image:
+    enabled: false
+  comfy-video-i2v:
+    enabled: false
   develop:
     enabled: false
   file-processor:

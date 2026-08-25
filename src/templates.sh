@@ -19,11 +19,6 @@ SCRIPT_DIR="${REPO_DIR}"
 
 gen_password() { generate_24_char_password; }
 gen_hex()      { generate_hex_key "${1:-32}"; }
-gen_uuid()     {
-    if command -v uuidgen &>/dev/null; then uuidgen | tr '[:upper:]' '[:lower:]'
-    else cat /proc/sys/kernel/random/uuid
-    fi
-}
 
 # ── Placeholder replacement ───────────────────────────────────────────────────
 
@@ -119,20 +114,6 @@ render_template() {
         val=$(gen_hex 32)
         content="$(sed "${line_num}s|EXIST_32_CHAR_HEX_KEY|${val}|" <<<"$content")"
     done
-    while grep -q "EXIST_64_CHAR_HEX_KEY" <<<"$content"; do
-        line_num=$(grep -n "EXIST_64_CHAR_HEX_KEY" <<<"$content" | head -1 | cut -d: -f1)
-        val=$(gen_hex 64)
-        content="$(sed "${line_num}s|EXIST_64_CHAR_HEX_KEY|${val}|" <<<"$content")"
-    done
-    while grep -q "EXIST_TIMESTAMP" <<<"$content"; do
-        line_num=$(grep -n "EXIST_TIMESTAMP" <<<"$content" | head -1 | cut -d: -f1)
-        content="$(sed "${line_num}s|EXIST_TIMESTAMP|$(date +%Y%m%d_%H%M%S)|" <<<"$content")"
-    done
-    while grep -q "EXIST_UUID" <<<"$content"; do
-        line_num=$(grep -n "EXIST_UUID" <<<"$content" | head -1 | cut -d: -f1)
-        val=$(gen_uuid)
-        content="$(sed "${line_num}s|EXIST_UUID|${val}|" <<<"$content")"
-    done
 
     # EXIST_CLI — read text prompt.
     # Shows the contiguous comment block directly above the field as context.
@@ -215,6 +196,23 @@ render_template() {
         content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
     done
 
+    # EXIST_NIP_DOMAIN — a wildcard-DNS domain derived from the host's LAN IP.
+    # nip.io resolves 192-168-1-50.nip.io -> 192.168.1.50 from public DNS, so
+    # `<slug>.<domain>` works on every device with no pihole and no /etc/hosts.
+    # Resolved after the EXIST_CLI loop so EXIST_LOCAL_HOST_IP is already filled
+    # in; it must appear ABOVE this token in the template for that to hold.
+    # Falls back to x.internal (pihole-resolved) when no usable IP is known.
+    while grep -q "EXIST_NIP_DOMAIN" <<<"$content"; do
+        line_num=$(grep -n "EXIST_NIP_DOMAIN" <<<"$content" | head -1 | cut -d: -f1)
+        _nip_ip=$(sed -n 's/^EXIST_LOCAL_HOST_IP=\(.*\)$/\1/p' <<<"$content" | head -1)
+        if [[ "$_nip_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            val="${_nip_ip//./-}.nip.io"
+        else
+            val="x.internal"
+        fi
+        content="$(sed "${line_num}s|EXIST_NIP_DOMAIN|${val}|" <<<"$content")"
+    done
+
     printf '%s\n' "$content"
 }
 
@@ -235,6 +233,65 @@ _template_to_dst() {
 
 _STATS_CREATED=0
 _STATS_SKIPPED=0
+_STATS_REGENERATED=0
+
+# ── Always-render destinations ────────────────────────────────────────────────
+#
+# Rendered files are normally written once and then skipped (see
+# _process_one_template) so a user's edits survive. These are the exceptions:
+# regenerated on EVERY run, --force or not, and never hand-edited.
+#
+# A destination only qualifies when its render is a pure function of
+# (template + .env.shared) — no secrets, no EXIST_CLI prompts — so re-running can
+# never lose information. _assert_always_render_safe enforces that.
+#
+# To customise one, the user flips the EXIST_KEEP line in the stamped header to
+# true. That claims the file: it is theirs from then on and is never rewritten.
+# See _render_opted_out.
+_ALWAYS_RENDER=(
+    "services/dashy/dashy-conf.yml"
+)
+
+# True when $1 (an absolute destination path) is in _ALWAYS_RENDER.
+_renders_always() {
+    local rel="${1#"$REPO_DIR/"}" entry
+    for entry in "${_ALWAYS_RENDER[@]}"; do
+        [[ "$rel" == "$entry" ]] && return 0
+    done
+    return 1
+}
+
+# An always-render destination is overwritten with no backup, so anything the
+# user could not reproduce from the template must not live there. Interactive
+# answers (EXIST_CLI) and generated secrets are exactly that: EXIST_CLI would
+# re-prompt on every run, and a fresh secret each run would break whatever
+# already consumed the old one. Fail loudly rather than silently churn.
+_assert_always_render_safe() {
+    local src="$1" dst="$2" tok f
+
+    # Directory templates are cp -r'd, which copies *into* an existing
+    # destination rather than replacing it — the second run would nest. Only
+    # regular files can be always-rendered.
+    if [[ -d "$src" ]]; then
+        echo "ERROR: ${dst#"$REPO_DIR/"} is in _ALWAYS_RENDER but its template is a" >&2
+        echo "       directory. Only regular files can be always-rendered." >&2
+        exit 1
+    fi
+
+    # EXIST_DOMAIN and other plain .env.shared lookups stay allowed; only prompts
+    # and generated secrets are rejected.
+    for tok in EXIST_CLI EXIST_24_CHAR_PASSWORD EXIST_32_CHAR_HEX_KEY; do
+        if grep -q "$tok" "$src" 2>/dev/null; then
+            echo "ERROR: ${dst#"$REPO_DIR/"} is in _ALWAYS_RENDER but its template" >&2
+            echo "       ($(basename "$src")) contains ${tok}." >&2
+            echo "       Always-rendered files are overwritten every run with no backup," >&2
+            echo "       so they must not carry prompts or generated secrets." >&2
+            echo "       fix: drop it from _ALWAYS_RENDER in src/templates.sh, or move" >&2
+            echo "            the ${tok} value into .env.shared and reference it." >&2
+            exit 1
+        fi
+    done
+}
 
 # Rendered files that hold secrets (DB passwords, API keys, private keys) must
 # not be world/group-readable. chmod 600 anything that looks like a credential
@@ -243,26 +300,91 @@ _secure_if_secret() {
     local f="$1" base; base="$(basename "$f")"
     case "$base" in
         .env|.env.*|*.pem|*_password*.txt) chmod 600 "$f" 2>/dev/null || true ;;
+        # Rendered config files carry bearer tokens (decree-webhook) and daemon
+        # credentials (decree). Everything reaching this function was just
+        # rendered from a *.exist.* template, so both spellings are in scope —
+        # ai/chatterbox renders config.yaml, not config.yml.
+        config.yml|*-config.yml|config.yaml|*-config.yaml) chmod 600 "$f" 2>/dev/null || true ;;
     esac
+}
+
+# Marker line stamped at the top of every always-rendered file. check-drift.ts
+# keys off this string to skip these destinations, so the policy lives in exactly
+# one place — don't reword it without updating src/test/unit/check-drift.ts.
+_GENERATED_MARKER="DO NOT EDIT — regenerated on every ./existential.sh run"
+
+# True when the user has claimed an existing always-rendered destination by
+# flipping the EXIST_KEEP line in its header to true. The file is then theirs:
+# we never rewrite it again, so their edits survive every subsequent run.
+#
+# The toggle is a *comment*, not a bare token, so it stays valid in whatever
+# format the destination is — an uncommented marker would be a syntax error in
+# the YAML that dashy has to parse. Only the header is inspected, so the same
+# words appearing later in the file mean nothing.
+_render_opted_out() {
+    local dst="$1"
+    [[ -f "$dst" ]] || return 1
+    head -20 "$dst" 2>/dev/null | grep -qE '^[[:space:]]*#[[:space:]]*EXIST_KEEP:[[:space:]]*true[[:space:]]*$'
+}
+
+# Print the finished always-render content for $dst: the header, then the
+# rendered template. The header carries the opt-out switch a user flips to claim
+# the file — see _render_opted_out.
+_compose_always_render() {
+    local src="$1" rendered="$2"
+    local _rel_src="${src#"$REPO_DIR/"}"
+
+    printf '%s\n' \
+        "# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" \
+        "# ${_GENERATED_MARKER}" \
+        "# Base: ${_rel_src}" \
+        "#" \
+        "# Want to customise this file? Change the next line to true." \
+        "# It then belongs to you and is never regenerated again." \
+        "# EXIST_KEEP: false" \
+        "# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    printf '%s\n' "$rendered"
 }
 
 _process_one_template() {
     local src="$1" dst
     dst="$(_template_to_dst "$src")"
 
-    # .env files are user-owned once rendered — never overwrite, even with --force
+    # .env files are user-owned once rendered — never overwrite, even with --force.
+    # This guard stays first: it wins over _ALWAYS_RENDER too.
     local _dstbase; _dstbase="$(basename "$dst")"
     if [[ -e "$dst" ]] && [[ "$_dstbase" == .env || "$_dstbase" == .env.* ]]; then
         return 1
     fi
 
-    if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]]; then return 1; fi
+    local _always=false
+    if _renders_always "$dst"; then
+        # The user claimed this file by flipping EXIST_KEEP to true — it is
+        # theirs now, so it falls back to the ordinary write-once behaviour and
+        # --force won't touch it either. Checked before the safety assertion:
+        # a claimed file is nobody's business but the user's.
+        if _render_opted_out "$dst"; then
+            return 1
+        fi
+        _always=true
+        _assert_always_render_safe "$src" "$dst"
+    fi
+
+    if [[ -e "$dst" ]] && [[ "$FORCE" != "true" ]] && [[ "$_always" != "true" ]]; then
+        return 1
+    fi
 
     if [[ -d "$src" ]]; then
         cp -r "$src" "$dst"
         local f rendered
         while IFS= read -r f; do
-            rendered="$(render_template "$f" "$f")"
+            # Checked explicitly: the call sites use `|| _rc=$?`, which disables
+            # set -e for this whole function, so an unchecked failure here would
+            # write an empty string over $f and still report success.
+            if ! rendered="$(render_template "$f" "$f")"; then
+                echo "ERROR: failed to render ${f#"$REPO_DIR/"}" >&2
+                exit 1
+            fi
             printf '%s\n' "$rendered" > "$f"
             _secure_if_secret "$f"
         done < <(find "$dst" -type f 2>/dev/null)
@@ -270,8 +392,29 @@ _process_one_template() {
         # Resolve every placeholder in memory, then write the destination once.
         # If the user aborts mid-prompt, render_template never returns, so the
         # destination is never written and can't hold a literal EXIST_CLI token.
+        #
+        # Both assignments below are status-checked rather than left to set -e:
+        # the call sites invoke this function as `… || _rc=$?`, which disables
+        # set -e for the entire body. An unchecked failure would leave $rendered
+        # empty, and the `>` on the next line would then truncate a live
+        # single-file bind mount to nothing while still reporting "regenerated".
         local rendered
-        rendered="$(render_template "$src" "$dst")"
+        if ! rendered="$(render_template "$src" "$dst")"; then
+            echo "ERROR: failed to render ${src#"$REPO_DIR/"}" >&2
+            exit 1
+        fi
+        if [[ "$_always" == "true" ]]; then
+            if ! rendered="$(_compose_always_render "$src" "$rendered")"; then
+                echo "ERROR: failed to compose ${dst#"$REPO_DIR/"} — left unchanged." >&2
+                exit 1
+            fi
+        fi
+        # `>` truncates the existing inode in place. That is required, not
+        # incidental: an always-rendered file may be a *single-file* bind mount
+        # (dashy-conf.yml is), and replacing it via mv/rename would swap the inode
+        # and detach the running container's mount. Never adopt the
+        # archive-then-rename pattern generate-compose.ts uses for the root
+        # compose file here.
         printf '%s\n' "$rendered" > "$dst"
         _secure_if_secret "$dst"
         # Every volume becomes a host bind mount in generate-compose.ts
@@ -280,25 +423,38 @@ _process_one_template() {
         # volumes: block here is just the declaration source it reads.
     fi
 
+    if [[ "$_always" == "true" ]]; then
+        echo "  regenerated: ${dst#"$REPO_DIR/"}"
+        return 2
+    fi
+
     echo "  created: ${dst#"$REPO_DIR/"}"
     return 0
 }
 
+# Tally one _process_one_template result: 0 created, 2 regenerated, else skipped.
+_tally() {
+    case "$1" in
+        0) _STATS_CREATED=$(( _STATS_CREATED + 1 )) ;;
+        2) _STATS_REGENERATED=$(( _STATS_REGENERATED + 1 )) ;;
+        *) _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 )) ;;
+    esac
+}
+
 _process_templates_in() {
     local root="$1"; [[ -d "$root" ]] || return 0
+    local _rc
 
     while IFS= read -r src; do
-        if _process_one_template "$src"; then _STATS_CREATED=$(( _STATS_CREATED + 1 ))
-        else _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
-        fi
+        _rc=0; _process_one_template "$src" || _rc=$?
+        _tally "$_rc"
     done < <(find "$root" -name '*.exist.*' -type d \
         -not -path '*/graveyard/*' -not -path '*/.git/*' \
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 
     while IFS= read -r src; do
-        if _process_one_template "$src"; then _STATS_CREATED=$(( _STATS_CREATED + 1 ))
-        else _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
-        fi
+        _rc=0; _process_one_template "$src" || _rc=$?
+        _tally "$_rc"
     done < <(find "$root" \( -name '*.exist.*' -o -name '*.env.exist' \) -type f \
         -not -path '*/graveyard/*' -not -path '*/.git/*' \
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
@@ -310,12 +466,10 @@ _process_templates_in() {
 
 _main() {
     if [[ -f "${REPO_DIR}/.env.exist.shared" ]]; then
-        if _process_one_template "${REPO_DIR}/.env.exist.shared"; then
-            _STATS_CREATED=$(( _STATS_CREATED + 1 ))
-            _reload_env_shared
-        else
-            _STATS_SKIPPED=$(( _STATS_SKIPPED + 1 ))
-        fi
+        local _rc=0
+        _process_one_template "${REPO_DIR}/.env.exist.shared" || _rc=$?
+        _tally "$_rc"
+        if [[ "$_rc" == 0 ]]; then _reload_env_shared; fi
     fi
     _load_env_shared
 
@@ -325,7 +479,7 @@ _main() {
         fi
     done < <(_find_service_dirs)
 
-    echo "Created ${_STATS_CREATED} file(s), skipped ${_STATS_SKIPPED} existing"
+    echo "Created ${_STATS_CREATED} file(s), regenerated ${_STATS_REGENERATED}, skipped ${_STATS_SKIPPED} existing"
     if [[ "$_STATS_SKIPPED" -gt 0 ]]; then
         echo "  (use --force to regenerate existing files)"
     fi

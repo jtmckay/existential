@@ -40,7 +40,6 @@ guide: |
     http://loki:3100/ready                   loki
     http://ntfy:80/v1/health                ntfy
     http://hermes-agent:8642/health           hermes
-    http://lightrag:9621/health              lightrag
     http://open-webui:8080/health            open-webui
 
   In Grafana, filter the Decree Overview dashboard by routine=service-health

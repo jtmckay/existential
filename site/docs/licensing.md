@@ -69,12 +69,10 @@ across the network.
 | Home Assistant | [core](https://github.com/home-assistant/core) | Apache-2.0 | 🟢 | |
 | Immich | [immich](https://github.com/immich-app/immich) | AGPL-3.0 | 🟡 | Run unmodified; link to source. Bundles Valkey (BSD) + Postgres. |
 | IT-Tools | [it-tools](https://github.com/CorentinTh/it-tools) | GPL-3.0 | 🟢 | Client-side; GPL, no SaaS clause. |
-| Logseq | [logseq](https://github.com/logseq/logseq) | AGPL-3.0 | 🟡 | |
 | Lowcoder | [lowcoder](https://github.com/lowcoder-org/lowcoder) (CE) | AGPL-3.0 | 🟡 | Also bundles **MongoDB (SSPL)** internally — see databases. |
 | Mealie | [mealie](https://github.com/mealie-recipes/mealie) | AGPL-3.0 | 🟡 | |
 | NocoDB | [nocodb](https://github.com/nocodb/nocodb) | AGPL-3.0 | 🟡 | |
 | Ntfy | [ntfy](https://github.com/binwiederhier/ntfy) | Apache-2.0 / GPL-2.0 | 🟢 | |
-| Vikunja | [vikunja](https://github.com/go-vikunja/vikunja) | AGPL-3.0 | 🟡 | Desktop app is GPL-3.0; server is AGPL. |
 
 ## Storage
 
@@ -127,7 +125,7 @@ Bundled *inside* app stacks, not offered as standalone database services.
 ## Bottom line
 
 Most of the catalog is 🟢 and hostable without ceremony. The 🟡 AGPL apps (Nextcloud,
-Immich, Mealie, NocoDB, Vikunja, Logseq, Lowcoder, MinIO, Grafana/Loki) are compliant as
+Immich, Mealie, NocoDB, Lowcoder, MinIO, Grafana/Loki) are compliant as
 long as you run them unmodified and offer your tenants the source — the
 [Open Source Notices](./open-source-notices) page covers it. The only genuine 🔴 is
 **Open WebUI's branding clause**: keep their branding or buy an enterprise license. Resolve

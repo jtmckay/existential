@@ -82,8 +82,6 @@ services:
       # Docker DNS. The host publish below remains loopback-only.
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_ENABLED: true
-      # LightRAG MCP auth — resolved from .env.shared via EXIST_LIGHTRAG_API_KEY
-      LIGHTRAG_API_KEY: ${HERMES_LIGHTRAG_API_KEY:-}
       # Honcho self-hosted memory — picked up by the honcho plugin as baseUrl fallback.
       # Run `docker exec -it hermes-agent hermes memory setup honcho` once to activate.
       HONCHO_BASE_URL: "http://honcho:8000"

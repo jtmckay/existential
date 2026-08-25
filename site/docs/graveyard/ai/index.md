@@ -9,14 +9,14 @@ sidebar_position: 1
 The idea is to converse with all notes and digital context.
 
 - [LibreChat](./librechat) — RIP
-- [OpenWebUI](./open-web-ui) — replaced by LibreChat
+- [OpenWebUI](../../ai/open-web-ui) — replaced by LibreChat
 - Perplexity — paid enterprise
 - ChatGPT
 
 ## Speech to Text (Transcription)
 
 - [Parakeet](./parakeet) — TBD
-- [Whisper](../../ai/whisper) — active stack
+- [WhisperX](../../ai/whisperx) — active stack
 - [Speaches](./speaches) — TBD
 
 ## Text to Speech
@@ -35,4 +35,5 @@ The idea is to converse with all notes and digital context.
 
 ## Research / Notebooks
 
+- [LightRAG](./lightrag) — RIP replaced by [OpenViking](../../ai/openviking)
 - [OpenNotebook](./open-notebook) — TBD

@@ -33,7 +33,7 @@ The `./data` directory is bind-mounted into the container for agent config, sess
 
 ## Authentication
 
-`HERMES_API_KEY` in `.env.exist` is the shared secret for the gateway. It is the gateway's `API_SERVER_KEY`; Open WebUI sends it as `OPENAI_API_KEY`.
+`HERMES_API_KEY` in `ai/hermes/.env.exist` is the shared secret for the gateway. It is the gateway's `API_SERVER_KEY`; Open WebUI sends it as `OPENAI_API_KEY`.
 
 ## Upgrading
 

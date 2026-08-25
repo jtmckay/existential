@@ -10,20 +10,22 @@ sidebar_position: 9
 
 Simple HTTP-based pub-sub notification service. Send notifications to your phone or desktop via scripts.
 
-## Features
-
-- **Simple HTTP API**: Send notifications with simple HTTP POST requests
-- **Authentication**: User authentication and access control
-- **Multiple Topics**: Organized notification topics
-- **Mobile Apps**: Native apps for Android and iOS
-- **Web Interface**: Browser-based interface for managing notifications
-
 ## Getting Started
 
-1. Copy `.env.example` to `.env` and update variables
-2. Copy `server.yml.example` to `server.yml`
-3. Generate password hashes/tokens (see below)
-4. Run `docker-compose up -d`
+1. Enable it in `.env.shared`:
+   ```
+   EXIST_IS_SERVICES_NTFY=true
+   ```
+2. Render and start, from the repo root:
+   ```bash
+   ./existential.sh && docker compose up -d
+   ```
+3. Create the admin and bot users and issue a bot token:
+   ```bash
+   ./existential.sh run ntfy setup
+   ```
+   This writes `EXIST_NTFY_URL` and `EXIST_NTFY_TOKEN` to the root `.env` so decree and
+   other services can send notifications.
 
 ### Customization
 

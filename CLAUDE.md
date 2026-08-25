@@ -23,8 +23,9 @@ routines), a Unix one-liner, an existing `automations/` helper, an npm package/C
 
 **If something exists and works, use it. Don't convert, reimplement, or "standardize"
 working code without a concrete problem to solve.** Exception: scripts *we* author use
-bash (preferred) or TypeScript/Node (`tsx`) — not Python. External tooling (hermes
-skills, upstream configs) stays in whatever language it shipped in.
+bash (preferred) or TypeScript/Node (`tsx`) — not Python; a long-running network
+service we own may instead be Go (see Principle 1). External tooling (hermes skills,
+upstream configs) stays in whatever language it shipped in.
 
 ---
 
@@ -35,7 +36,17 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 example.
 
 1. **Custom logic is bash, then TypeScript** (via `tsx` in the adhoc container). Never
-   Python for code we own.
+   Python for code we own. **Go is allowed for one narrow case**: a long-running network
+   service that should not depend on another image's runtime — it compiles to a static
+   binary on `distroless`, so the container carries no interpreter or package tree.
+   `services/decree/webhook/` is the only such service today. Go is not an option for
+   scripts, routines, or anything the adhoc container can already run; a port to Go needs
+   a parity harness proving it matches what it replaces, distilled into a golden-file suite
+   once the port lands (see `webhook/main_test.go`) — the harness itself is scaffolding and
+   goes away with the implementation it was diffing against.
+   Go services carry their own `go test` suite (`webhook/main_test.go`) — adhoc has no Go
+   toolchain, so it is **not** part of `./existential.sh test`; run it from the service
+   dir, or in a container: `docker run --rm -v "$PWD":/src -w /src golang:1.26.5-alpine3.23 go test ./...`.
 2. **Configuration is YAML.** `.env` is for secrets/host-specific values only.
 3. **`src/` = host-run scripts. `automations/` = scheduled/webhook/decree-triggered work.**
    Shared routine code in `automations/shared_routines/`; shared helpers in `automations/lib/`.
@@ -48,6 +59,41 @@ example.
 7. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes
    clean up in a verified `trap`.
 8. **Ignore `graveyard/`.** Archived services get no new scripts/tests/docs.
+
+---
+
+## What this stack actually is
+
+Keep the whole model in view, because every convention below exists to serve it:
+
+> **A flag per service folder → render that service's templates → merge everything enabled
+> into one compose file and one `.env` → run it on one network.**
+
+No registry, no plugin system. `EXIST_IS_<CATEGORY>_<SLUG>` is derived from the folder path,
+so *adding a service is adding a folder*. If a change makes that sentence less true, it is
+probably the wrong change. User-facing version: `site/docs/how-it-works.md`.
+
+### Core vs complementary services
+
+A service is **core** if something reaches it by bare container name over the `exist` bridge.
+It is **complementary** if it is reached over a URL/protocol you could point anywhere (rclone
+remote, S3 endpoint, DNS), or if nothing in the stack talks to it at all.
+
+Complementary today: **NAS** (nextcloud, minio, collabora, redis — the core reaches these via
+rclone remotes and the S3 API; `redis` serves only nextcloud), **immich** (nothing references
+it), **homeassistant** (nothing references it either, and it is often bound to the host with
+the USB radios plugged in), **pihole** (LAN DNS), **monitoring**
+(grafana/loki/prometheus/uptime-kuma — they scrape, nothing depends on them).
+
+A Caddy block and a Dashy tile do **not** make a service core — those are ingress and
+navigation, and every complementary service has them. The test is a bare container name in
+another service's config or env.
+
+They all still join `exist` by default, which is fine on one host. The rule is about *not
+adding new coupling*: **never introduce a bare-container-name dependency from the core stack
+into a complementary service.** Reach it by configurable endpoint so it can move to another
+machine — the recommended shape is three stacks (NAS / core / standalone immich + pihole).
+When adding a service, decide which side it is on and wire it accordingly.
 
 ---
 
@@ -103,6 +149,14 @@ via `image:` (not rebuild). WORKDIR is `/work` (project at `/work/.decree`). Bak
 healthcheck: `grep -q decree /proc/1/comm` with a long `start-period` (330s) so a sidecar
 running as `bash` during its migration wait shows `starting`, not `unhealthy`. Adhoc
 disables the healthcheck.
+
+**`decree-webhook` is the exception** — it does *not* use this image. It is a static Go
+binary (`services/decree/webhook/`) on `distroless`, built by compose from its own
+`Dockerfile` rather than by `existential-adhoc`, and shares nothing with the daemon but
+the inbox bind mount. Because distroless ships no shell, curl or wget, its healthcheck is
+the binary probing itself (`/webhook -healthcheck`). Its `README.md` documents the
+config-driven route table and the behaviours that differ from a plain JSON endpoint — read
+it before changing anything in `webhook/`.
 
 Each backup-eligible service ships a `decree/` subdir + a `<slug>-decree` sidecar that
 mounts **only its own volumes** and receives **only its own DB creds** (no master `.env`).
@@ -168,18 +222,63 @@ existing files; `quest` launches the interactive picker first.
 `rclone`, `check-versions`) and service actions (`<cat>/<slug>/exist.<action>.sh`). Bare
 `./existential.sh run` lists every available action — don't memorize the list here.
 
-`test [unit|integration|services]`, `validate [conventions|drift]`, and `e2e [pattern...]`
-(fresh clone → render → up → test → down) round out the entry points.
+`test [secrets|guards|harness|selfcheck|unit|integration|services]` (bare `test` runs them
+all), `validate [conventions|drift]`, and `e2e [pattern...]` (fresh clone → render → up →
+test → down) round out the entry points.
 
 ---
 
 ## Conventions
 
 ### Placeholders (in `*.exist.*` templates)
-`EXIST_CLI` prompts the user; `EXIST_24_CHAR_PASSWORD` / `EXIST_{32,64}_CHAR_HEX_KEY`
-generate secrets; `EXIST_TIMESTAMP`, `EXIST_UUID`; bare `EXIST_*` pulls the matching var
-from root `.env.shared`. An `EXIST_CLI` line can fall back to another var with a
-`# DEFAULT_FROM: EXIST_FOO` comment directly above it (used if the user enters blank).
+`EXIST_CLI` prompts the user; `EXIST_24_CHAR_PASSWORD` / `EXIST_32_CHAR_HEX_KEY` generate
+secrets; bare `EXIST_*` pulls the matching var from root `.env.shared`. An `EXIST_CLI` line
+can fall back to another var with a `# DEFAULT_FROM: EXIST_FOO` comment directly above it
+(used if the user enters blank). Add a new generator only when a template actually needs
+it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`, `EXIST_TIMESTAMP`) were
+carried for nothing and removed.
+
+`EXIST_NIP_DOMAIN` renders `<EXIST_LOCAL_HOST_IP with dots→dashes>.nip.io` — public
+wildcard DNS that maps the name back to that IP, so `<slug>.<domain>` resolves on every
+LAN device with no pihole and no `/etc/hosts`. It is the `EXIST_DOMAIN` default. Resolved
+**after** the `EXIST_CLI` pass, so `EXIST_LOCAL_HOST_IP` must appear *above* it in the
+template; falls back to `x.internal` when no valid IPv4 is set. pihole stays supported and
+becomes a pure upgrade (it answers the same wildcard locally, dropping the internet-DNS
+dependency); `.internal` domains still require it, which `_warn_if_no_gateway` checks.
+
+### Always-rendered files
+
+`templates.sh` renders a destination **once** and skips it thereafter (that's what preserves
+user edits and prompted answers). `_ALWAYS_RENDER` in `src/templates.sh` is the carve-out: a
+short list of destinations regenerated on **every** run, `--force` or not.
+
+**A file only qualifies when its render is a pure function of (template + `.env.shared`)** —
+no secrets, no `EXIST_CLI`. Otherwise re-running loses information: a prompt would re-ask
+every run, and a regenerated secret would rotate out from under whatever already consumed it.
+`_assert_always_render_safe` enforces this and hard-fails the render, so the list can't
+silently go wrong. The `.env` never-overwrite guard is checked *first* and still wins.
+
+Use it when an app reads a static config file it can't env-substitute, so a value like
+`EXIST_DOMAIN` would otherwise be baked once and go stale. `services/dashy/dashy-conf.yml`
+is the only entry today.
+
+Three things come with it:
+
+- **A `DO NOT EDIT` header** is stamped on the output naming the template. `check-drift.ts`
+  keys off that exact marker string (`isGenerated`) to skip these files rather than keeping
+  its own copy of the list — keep the two in sync.
+- **The user opts out by flipping `# EXIST_KEEP: false` to `true`** in that header
+  (`_render_opted_out`). The file is then theirs permanently: never regenerated, and
+  `--force` won't touch it either. That is the whole customisation story — there is no
+  override file and no merge engine. The toggle is a **comment**, so it stays valid in
+  whatever format the destination is (a bare token would break the YAML dashy parses), and
+  only the first 20 lines are inspected so the same words in the body mean nothing.
+- **Write in place, never rename.** These files can be *single-file* bind mounts
+  (dashy-conf.yml is), and `mv`/rename swaps the inode and detaches the running container's
+  mount. `printf > "$dst"` truncates in place, which is why the archive-then-rename pattern
+  `generate-compose.ts` uses for the root compose file must **not** be copied here.
+
+If the app can read env, do that instead — see **Prefer runtime env over render-time baking**.
 
 ### Env var naming
 - **Top-level** (`.env.exist.shared`): every key starts `EXIST_`. Enablement flags:
@@ -270,13 +369,20 @@ Every container is prefixed with the service slug (folder name): `loki`, `loki-p
 `docker ps` should make ownership obvious. Validated by `validate conventions`.
 
 ### Networking
-The hostname suffix is `EXIST_DOMAIN` (default `x.internal`), a configurable variable so a
-second stack can coexist on the same LAN (e.g. `y.internal`) and an advanced user can point it
-at a real domain with valid certs. **Caddy's `Caddyfile.exist.Caddyfile` is the single source
-of truth for which `<slug>.<domain>` hostnames exist** — `validate conventions` keys off it.
+The hostname suffix is `EXIST_DOMAIN`, defaulting to `EXIST_NIP_DOMAIN` →
+`<lan-ip-with-dashes>.nip.io`, which public wildcard DNS resolves back to that IP — so
+`<slug>.<domain>` works on every LAN device with **no piHole and no `/etc/hosts`**. Set it to
+`x.internal` (piHole required, fully offline, and a second stack can take `y.internal`) or to
+a domain you own. **Caddy's `Caddyfile.exist.Caddyfile` is the single source of truth for
+which `<slug>.<domain>` hostnames exist** — `validate conventions` keys off it.
 
-- **Browser / cross-machine → `https://<slug>.<domain>`**: piHole resolves the *whole* domain
-  with **one wildcard record** (`FTLCONF_misc_dnsmasq_lines: address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}`)
+**DNS and TLS are independent choices.** piHole swaps public DNS for local (removing the
+internet dependency); a real cert removes the trust step. Neither requires the other, and the
+combination — owned domain + piHole + a DNS-01 wildcard cert — needs no public A record and
+no inbound connectivity. See `site/docs/how-it-works.md`.
+
+- **Browser / cross-machine → `https://<slug>.<domain>`**: when piHole is enabled it resolves
+  the *whole* domain with **one wildcard record** (`FTLCONF_misc_dnsmasq_lines: address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}`)
   — no per-slug DNS entries. Caddy fronts each slug (stable pinned `*.<domain>` cert via
   `import internal_tls` — **not** `tls internal`; minted once by caddy's `exist.initial.sh` into
   `hosting/caddy/certs/`, so trust survives reboots and `caddy_data` wipes), reverse-proxies
@@ -288,11 +394,32 @@ of truth for which `<slug>.<domain>` hostnames exist** — `validate conventions
 Adding a service only touches **Caddy** (and Dashy if navigable) — piHole's wildcard already
 covers it. `validate conventions` verifies Dashy/Caddy stay in sync and the wildcard record exists.
 
-**`EXIST_DOMAIN` placeholder form by file type** (matters because `templates.sh` substitutes
-bare `EXIST_*` tokens at render time):
-- compose `*.exist.yml` → `${EXIST_DOMAIN}` (not render-substituted; docker resolves from root `.env`).
-- rendered non-compose (`Caddyfile.exist.Caddyfile`, `dashy-conf.exist.yml`, ntfy `server.exist.yml`,
-  service `.env.exist`) → bare `EXIST_DOMAIN` (render-substituted).
+**Prefer runtime env over render-time baking.** A bare `EXIST_DOMAIN` token is substituted
+*once*, when the file is rendered — and `templates.sh` skips files that already exist, so the
+value goes stale. Resolve it at container start instead, which makes swapping domains a
+one-line edit in `.env.shared`. (Where the app genuinely can't read env, the fallback is to
+make the file always-render — see **Always-rendered files** below — but runtime env is still
+the first choice: it needs no re-render at all.)
+
+```yaml
+# in docker-compose.exist.yml — derived from EXIST_DOMAIN, per-service override preserved
+- CADDY_DOMAIN=${CADDY_DOMAIN:-$EXIST_DOMAIN}
+- NTFY_BASE_URL=${NTFY_BASE_URL:-https://ntfy.$EXIST_DOMAIN}
+```
+
+Compose's `${VAR:-$OTHER}` chaining is verified to work. Where an app reads a config *file*,
+check whether it also accepts env — ntfy maps every `server.yml` key to `NTFY_<KEY>` and env
+wins, so its base-url lives in compose. Caddy reads `{$CADDY_DOMAIN}` from its container env,
+so the Caddyfile never bakes a domain either.
+
+**`EXIST_DOMAIN` form by file type:**
+- compose `*.exist.yml` → `${EXIST_DOMAIN}` / `${SLUG_VAR:-…$EXIST_DOMAIN}` — **preferred**.
+- rendered non-compose → bare `EXIST_DOMAIN` (render-substituted). **Last resort**, only when
+  the app cannot read env. `dashy-conf.exist.yml` is the remaining case (Dashy reads a static
+  `conf.yml` and does no substitution of its own); it is in `_ALWAYS_RENDER`, so a domain
+  change propagates on the next plain `./existential.sh`. Note the bare-token sed rewrites
+  **prose too** — don't name the variable in that file's comments or the name is replaced
+  with its value.
 - `.example` swap-ins (`Caddyfile.frontdoor.example`) → `{$EXIST_DOMAIN}` (Caddy expands from its
   container env). Never put `{$EXIST_DOMAIN}` in a rendered file — the bare-token sed would corrupt it.
 

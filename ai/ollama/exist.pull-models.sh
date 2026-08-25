@@ -12,9 +12,9 @@ set -euo pipefail
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 
 MODELS=(
-    gemma4:26b      # primary chat / query LLM (hermes + lightrag query)
-    qwen2.5:7b      # extraction LLM (lightrag entity/relationship extraction)
-    bge-m3:latest   # embedding model (lightrag vector store)
+    gemma4:26b      # primary chat / query LLM (hermes agent tasks)
+    qwen2.5:7b      # extraction LLM (honcho memory deriver)
+    bge-m3:latest   # embedding model (openviking vector store)
     llava:latest    # vision model (ollama-ocr, open-webui image chat)
 )
 

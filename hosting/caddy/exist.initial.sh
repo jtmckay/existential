@@ -12,9 +12,15 @@
 #
 # Idempotent, no sentinel: if the leaf key already exists we do nothing. To
 # rotate (e.g. after 825 days), delete internal-key.pem and re-run
-# ./existential.sh run — the CA is untouched, so devices stay trusted. An
-# advanced user pointing EXIST_DOMAIN at a real domain can simply drop their own
-# valid cert in as internal.pem/internal-key.pem; the skip below leaves it alone.
+# ./existential.sh run — the CA is untouched, so devices stay trusted.
+#
+# The skip below is also the supported path to a REAL certificate: point
+# EXIST_DOMAIN at a domain you own, issue a wildcard cert over the DNS-01
+# challenge, and drop it in as internal.pem/internal-key.pem — this script then
+# leaves it alone. DNS-01 needs no inbound connectivity and no public A record
+# (Let's Encrypt reads a TXT record from public DNS, it never connects to you),
+# so pihole can still resolve the domain entirely on-LAN. See
+# site/docs/how-it-works.md, "Owned domain without exposing your network".
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

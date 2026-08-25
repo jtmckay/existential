@@ -11,7 +11,8 @@ sidebar_position: 1
 
 ## Evaluated
 
-- [Vikunja](../../services/vikunja) — active stack
+- [Obsidian Kanban](../../services/obsidian#kanban) — active stack (a board inside the notes vault, no separate task service)
+- [Vikunja](./vikunja) — RIP replaced by the Obsidian Kanban plugin (one less app and database to maintain)
 - [ntfy](../../services/ntfy) — active stack (notifications)
 - [Super Productivity](./super-productivity) — RIP unrecoverable sync issues on phone
 - Notion

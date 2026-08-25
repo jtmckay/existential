@@ -158,20 +158,41 @@ function templateToDst(tmpl: string): string {
 interface DriftReport {
   file: string;
   renderedMissing: boolean;
+  generated: boolean;
   upstreamLines: Array<[number, string]>;
   localLines: Array<[number, string]>;
   changed: Array<[number, string, string]>;
 }
 
 function hasDrift(r: DriftReport): boolean {
-  if (r.renderedMissing) return false;
+  if (r.renderedMissing || r.generated) return false;
   return r.upstreamLines.length > 0 || r.localLines.length > 0 || r.changed.length > 0;
+}
+
+/**
+ * True when a rendered file carries the always-render header stamped by
+ * src/templates.sh (_GENERATED_MARKER). Those files are rewritten from their
+ * template on every run, so they cannot drift — and they legitimately differ
+ * from it, by that header plus whatever the user's *.override.yml merged in.
+ *
+ * Keying off the header rather than duplicating _ALWAYS_RENDER keeps the policy
+ * in src/templates.sh alone. Keep this string in sync with it.
+ */
+function isGenerated(renderedPath: string): boolean {
+  let head: string;
+  try {
+    head = fs.readFileSync(renderedPath, 'utf8').split('\n').slice(0, 5).join('\n');
+  } catch {
+    return false;
+  }
+  return head.includes('DO NOT EDIT — regenerated on every ./existential.sh run');
 }
 
 function computeDrift(examplePath: string, renderedPath: string): DriftReport {
   const report: DriftReport = {
     file: examplePath,
     renderedMissing: false,
+    generated: false,
     upstreamLines: [],
     localLines: [],
     changed: [],
@@ -179,6 +200,11 @@ function computeDrift(examplePath: string, renderedPath: string): DriftReport {
 
   if (!fs.existsSync(renderedPath)) {
     report.renderedMissing = true;
+    return report;
+  }
+
+  if (isGenerated(renderedPath)) {
+    report.generated = true;
     return report;
   }
 
@@ -257,12 +283,14 @@ function main(): number {
   const templates = findTemplates(REPO_ROOT);
   let driftCount = 0;
   let missingCount = 0;
+  let generatedCount = 0;
 
   for (const tmpl of templates) {
     const rendered = templateToDst(tmpl);
     const report = computeDrift(tmpl, rendered);
 
     if (report.renderedMissing) { missingCount++; continue; }
+    if (report.generated) { generatedCount++; continue; }
     if (!hasDrift(report)) continue;
 
     driftCount++;
@@ -284,6 +312,7 @@ function main(): number {
   console.log();
   console.log(`Examined:     ${templates.length} template files`);
   console.log(`Not rendered: ${missingCount}  (no counterpart on disk — nothing to compare)`);
+  console.log(`Generated:    ${generatedCount}  (regenerated every run — cannot drift)`);
   console.log(`Drifted:      ${driftCount}`);
   console.log();
   console.log('Legend:');

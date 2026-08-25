@@ -22,6 +22,21 @@
   filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.15));
 }
 
+.heroLede {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.heroHonesty {
+  max-width: 34rem;
+  margin: 0 auto 2rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+
 .buttons {
   display: flex;
   align-items: center;

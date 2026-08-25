@@ -121,9 +121,22 @@
 
       <br />
 
-      <a href="https://local.existential.company" class="dashboard-link"
+      <a href="/" class="dashboard-link" id="dashboard-link"
         >← Return to Dashboard</a
       >
+
+      <script>
+        // This page is served for <slug>.<domain>, so derive <domain> from the
+        // hostname instead of baking one in. error.html is not a *.exist.*
+        // template, so a hardcoded host is wrong for every deployment that did
+        // not happen to pick that exact EXIST_DOMAIN.
+        (function () {
+          var parts = window.location.hostname.split(".");
+          var domain = parts.length > 1 ? parts.slice(1).join(".") : parts[0];
+          document.getElementById("dashboard-link").href =
+            window.location.protocol + "//dashy." + domain;
+        })();
+      </script>
 
       <div class="footer">
         <p>

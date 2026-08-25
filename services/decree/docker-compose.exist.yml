@@ -15,7 +15,6 @@ services:
       - NTFY_URL=${EXIST_NTFY_URL}
       - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
-      - LIGHTRAG_API_KEY=${EXIST_LIGHTRAG_API_KEY:-}
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
       - DROPBOX_DEST_DIR=${DECREE_DROPBOX_DEST_DIR}
       - IN_CONTAINER=1
@@ -36,13 +35,15 @@ services:
 
   decree-webhook:
     container_name: decree-webhook
-    # Runs on the shared decree image — it's just an express app. Its deps
-    # (express, express-rate-limit, js-yaml) are baked into the image's
-    # /opt/decree/node_modules (NODE_PATH), so we mount server.js + config and
-    # run node directly (entrypoint override skips the decree-daemon bootstrap).
-    image: existential/decree:local
-    pull_policy: never
-    entrypoint: ["node", "/app/server.js"]
+    # Self-contained static Go binary (webhook/main.go) on distroless. It no
+    # longer rides existential/decree:local, so it carries none of that image's
+    # npm tree and can be run anywhere — including the front-door host.
+    # Built by compose, not by existential-adhoc (which only builds the shared
+    # decree image).
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    image: existential/decree-webhook:local
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     depends_on:
@@ -52,28 +53,23 @@ services:
     # ports disabled — access via https://decree-webhook.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
-    #     - "${DECREE_WEBHOOK_PORT}:${DECREE_WEBHOOK_PORT}"
+    #     - "8801:8801"
     environment:
-      - DECREE_WEBHOOK_PORT=${DECREE_WEBHOOK_PORT}
+      # Listen port is not configurable: the container is reached only over the
+      # exist bridge, so the binary's own default (8801) governs and caddy's
+      # Caddyfile hardcodes the same value. DECREE_WEBHOOK_PORT still works as a
+      # manual override if you uncomment ports: above — change both places.
       - DECREE_WEBHOOK_INBOX=/inbox
-      - NODE_ENV=production
-      #- DECREE_WEBHOOK_MAX_BODY=256kb
+      #- DECREE_WEBHOOK_MAX_BODY_BYTES=262144
       #- DECREE_WEBHOOK_RATE_WINDOW_MS=60000
       #- DECREE_WEBHOOK_RATE_MAX=60
       #- DECREE_WEBHOOK_RATE_FAIL_MAX=10
     volumes:
       - ./decree/inbox:/inbox:z
-      - ./webhook/server.js:/app/server.js:ro
       - ./webhook/config.yml:/app/config.yml:ro
     healthcheck:
-      # decree image ships curl, not wget
-      test:
-        [
-          "CMD",
-          "curl",
-          "-fsS",
-          "http://127.0.0.1:${DECREE_WEBHOOK_PORT}/healthz",
-        ]
+      # distroless ships neither curl nor wget — the binary probes itself
+      test: ["CMD", "/webhook", "-healthcheck"]
       interval: 30s
       timeout: 3s
       retries: 3

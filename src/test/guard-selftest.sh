@@ -39,6 +39,10 @@ FAKE_PEM_BEGIN="-----BEGIN RSA PRIVATE ""KEY-----"
 FAKE_PEM_END="-----END RSA PRIVATE ""KEY-----"
 FAKE_PEM="$(printf '%s\nMIIBfakefakefakefakefakefakefakefake\n%s\n' "$FAKE_PEM_BEGIN" "$FAKE_PEM_END")"
 FAKE_AWS="AKIA""IOSFODNN7EXAMPLE"   # canonical AWS docs example key (AKIA + 16)
+# A decree-webhook bearer secret is a bare UUID or hex string. It deliberately
+# matches NONE of the content patterns the scanners use, so these fixtures
+# prove the filename rule is what catches it — the content rules cannot.
+FAKE_WEBHOOK_SECRET="3f7a1c88-9b2e-4d61-8a05-1e9c4b7d2f60"
 
 TMPS=()
 cleanup() { local d; for d in "${TMPS[@]:-}"; do [ -n "${d:-}" ] && rm -rf "$d"; done; return 0; }
@@ -56,23 +60,28 @@ newrepo() {
 
 # ── pre-commit hook: stage one fixture, return the hook's exit code in RC ──────
 RC=0
-hook_rc() {                        # $1=relpath  $2=content
-    local rel="$1" content="$2" d rc=0
+# $3 (optional) drops a sibling *.exist.* template beside the fixture. The
+# config-file guards key off "was this rendered from a template?", so proving
+# both sides of that needs a fixture that can carry one.
+hook_rc() {                        # $1=relpath  $2=content  [$3=template relpath]
+    local rel="$1" content="$2" tmpl="${3:-}" d rc=0
     d="$(newrepo)"; TMPS+=("$d")
     mkdir -p "$d/$(dirname "$rel")"
     printf '%s\n' "$content" > "$d/$rel"
+    [ -n "$tmpl" ] && printf 'secret: EXIST_32_CHAR_HEX_KEY\n' > "$d/$tmpl"
     git -C "$d" add -fA            # -f: simulate the `git add -f` bypass the hook defends against
     ( cd "$d" && bash "$HOOK" ) >/dev/null 2>&1 || rc=$?
     RC=$rc
 }
 
 # ── no-tracked-secrets.sh: commit one fixture, return scanner exit code in RC ──
-scanner_rc() {                     # $1=relpath  $2=content
-    local rel="$1" content="$2" d rc=0
+scanner_rc() {                     # $1=relpath  $2=content  [$3=template relpath]
+    local rel="$1" content="$2" tmpl="${3:-}" d rc=0
     d="$(newrepo)"; TMPS+=("$d")
     mkdir -p "$d/src/test" "$d/$(dirname "$rel")"
     cp "$SCANNER" "$d/src/test/no-tracked-secrets.sh"   # scanner pins ROOT to ../.. of its own path
     printf '%s\n' "$content" > "$d/$rel"
+    [ -n "$tmpl" ] && printf 'secret: EXIST_32_CHAR_HEX_KEY\n' > "$d/$tmpl"
     git -C "$d" add -fA
     git -C "$d" commit -qm fixture
     bash "$d/src/test/no-tracked-secrets.sh" >/dev/null 2>&1 || rc=$?
@@ -91,6 +100,14 @@ hook_rc "server.pem"                  "$FAKE_PEM"; check "private key in server.
 hook_rc "cloudflare-key.exist.pem"    "$FAKE_PEM"; check "private key in *.exist.pem (placeholder)" allow
 hook_rc "deploy.example"              "$FAKE_PEM"; check "private key in *.example (placeholder)"    allow
 hook_rc "config.yml"                  "key=$FAKE_AWS"; check "AWS key in config.yml"        block
+hook_rc "services/decree/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/decree/webhook/config.exist.yml"
+check "rendered webhook config.yml (content matches no pattern)"                             block
+hook_rc "services/decree/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
+check "webhook config.exist.yml template"                                                    allow
+hook_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
+check "upstream *-config.yaml (no *.exist.* template) still committable"                     allow
+hook_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
+check "rendered *-config.yaml (has a template) blocked like its .yml twin"                    block
 hook_rc ".env"                        "X=1";       check "rendered .env staged"             block
 hook_rc "ai/foo/secrets/token"        "abc";       check "file under secrets/ staged"       block
 hook_rc "ai/foo/secrets/.gitkeep"     "";          check "secrets/.gitkeep staged"          allow
@@ -102,6 +119,14 @@ scanner_rc "cloudflare-key.exist.pem" "$FAKE_PEM"; check "tracked private key in
 scanner_rc "cloudflare-key.pem.example" "$FAKE_PEM"; check "tracked private key in *.example"       allow
 scanner_rc "notes.txt"                "k=$FAKE_AWS"; check "tracked AWS-shaped key"                block
 scanner_rc ".env"                     "X=1";       check "tracked rendered .env"                   block
+scanner_rc "services/decree/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/decree/webhook/config.exist.yml"
+check "tracked rendered webhook config.yml"                                                        block
+scanner_rc "services/decree/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
+check "tracked webhook config.exist.yml template"                                                  allow
+scanner_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
+check "tracked upstream *-config.yaml (no template)"                                               allow
+scanner_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
+check "tracked rendered *-config.yaml (has a template)"                                            block
 scanner_rc "ai/foo/secrets/cred"      "abc";       check "tracked file under secrets/"             block
 scanner_rc "README.md"                "# hello";   check "clean tracked repo"                      allow
 

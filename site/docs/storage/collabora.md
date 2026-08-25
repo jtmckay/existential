@@ -10,14 +10,6 @@ sidebar_position: 4
 
 Document editor embedded in Nextcloud — LibreOffice running as a server.
 
-## Features
-
-- **Real-Time Co-Editing**: Multiple users edit the same document simultaneously
-- **Full Office Suite**: Writer (docs), Calc (spreadsheets), and Impress (presentations)
-- **Format Compatibility**: Opens and saves .docx, .xlsx, .pptx, and ODF files
-- **Track Changes & Comments**: Inline review workflow similar to Google Docs
-- **Nextcloud Integration**: Embeds directly as the document editor in Nextcloud Files
-
 ## Domain Setup
 
 Point the `collabora` subdomain in your DNS to Caddy, and ensure Caddy proxies to the Collabora container.

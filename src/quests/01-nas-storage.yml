@@ -14,7 +14,7 @@ guide: |
 
   Setup:
     1. On your NAS, create an NFS export (dataset/share) with one subdirectory
-       per persistent volume (mealie_data, vikunja_data, …) under a base path.
+       per persistent volume (mealie_data, immich_data, …) under a base path.
        Record the server IP and base path.
 
     2. Mount that export on THIS host (Docker no longer mounts NFS itself).

@@ -37,4 +37,4 @@ If you add accounts later, re-run `./existential.sh run actual-budget` to refres
 
 ## Next Steps
 
-Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../decree/transaction-gmail-actual-budget)
+Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../flows/transaction-gmail-actual-budget)

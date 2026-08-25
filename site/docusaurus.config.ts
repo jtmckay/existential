@@ -8,7 +8,7 @@ const config: Config = {
   },
   themes: ['@docusaurus/theme-mermaid'],
   title: 'Existential',
-  tagline: 'Take control of your digital footprint',
+  tagline: 'A lot of software, working as one thing',
   favicon: 'img/favicon.svg',
 
   future: {

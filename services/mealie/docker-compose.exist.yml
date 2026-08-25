@@ -15,7 +15,7 @@ services:
     environment:
       ALLOW_SIGNUP: "false"
       LOG_LEVEL: "INFO"
-      BASE_URL: ${MEALIE_BASE_URL}
+      BASE_URL: ${MEALIE_BASE_URL:-https://mealie.$EXIST_DOMAIN}
 
       DB_ENGINE: postgres # Optional: 'sqlite', 'postgres'
       # =====================================

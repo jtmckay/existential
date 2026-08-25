@@ -10,28 +10,22 @@ sidebar_position: 10
 
 Open-source home automation platform. Integrates with thousands of devices and services, supports local processing, and serves as the event bus for voice-triggered automations.
 
-## Features
+Home Assistant is a [complementary service](../how-it-works#core-vs-complementary-services) — nothing else in the stack talks to it, so it can run on its own machine or its own schedule without affecting anything. That matters more here than for most: if you're using a Zigbee or Z-Wave stick, HA needs to live on the machine that stick is plugged into, which may not be the machine running the rest of the stack. It still comes up from the repo root with everything else (`./existential.sh && docker compose up -d`) — being complementary means you *can* move it, not that it needs separate commands.
 
-- **Device Integrations**: 3,000+ integrations — lights, switches, sensors, media players, locks, cameras
-- **Automations**: YAML or UI-based rules triggered by time, state, events, or webhooks
-- **Dashboards**: Customizable Lovelace UI with cards for every device type
-- **Voice Control**: Works with HAwake (custom wake words), Google Assistant, Alexa, and local voice pipelines
-- **Local Processing**: Runs entirely on your network — no cloud required
-- **Mobile Apps**: Companion apps for Android and iOS with location tracking and notifications
-- **Developer Tools**: Event bus, template engine, REST and WebSocket APIs
+See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing-my-life-home-assistant) for a real-world setup walkthrough.
 
 ## Getting Started
 
-1. Enable the service in `.env.exist`:
+1. Enable the service in `.env.shared`:
    ```
    EXIST_IS_SERVICES_HOMEASSISTANT=true
    ```
-2. Run `./existential.sh compose` to regenerate the compose file
+2. Run `./existential.sh` to render templates and regenerate the compose file
 3. Start the container:
    ```bash
    docker compose up -d homeassistant
    ```
-4. Open `https://homeassistant.internal` and complete the onboarding wizard to create your admin account
+4. Open `https://homeassistant.EXIST_DOMAIN` and complete the onboarding wizard to create your admin account
 
 Home Assistant generates its own `configuration.yaml` on first boot inside the `homeassistant_config` volume — no manual pre-configuration needed.
 
@@ -60,14 +54,14 @@ Many integrations (HAwake, Tasker via TaskerHA, external scripts) need a long-li
 
 HA automations are defined in YAML or via the UI under **Settings → Automations & Scenes**.
 
-See [HAwake → Home Assistant → Tasker](../decree/hawake-homeassistant) for a complete example of using a custom wake word to trigger Tasker actions through HA.
+See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant) for a complete example of using a custom wake word to trigger Tasker actions through HA.
 
 ## Services
 
 | Endpoint | URL |
 |---|---|
-| Web Interface | https://homeassistant.internal |
-| REST API | https://homeassistant.internal/api/ |
+| Web Interface | https://homeassistant.EXIST_DOMAIN |
+| REST API | https://homeassistant.EXIST_DOMAIN/api/ |
 
 ## Debugging
 

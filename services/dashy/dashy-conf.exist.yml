@@ -1,4 +1,14 @@
-# Dashy dashboard config — `<slug>.<EXIST_DOMAIN>` convention.
+# Dashy dashboard config — `<slug>.<domain>` convention.
+#
+# THIS FILE IS THE TEMPLATE. It renders to dashy-conf.yml on EVERY
+# ./existential.sh run (no --force needed), so a change to the stack domain
+# propagates here like it does everywhere else. Edits to the rendered
+# dashy-conf.yml are overwritten — unless the user claims it by flipping the
+# EXIST_KEEP line in its header to true, after which the file is theirs and this
+# template stops driving it.
+#
+# Note: the bare-token substitution rewrites prose too, so avoid writing the
+# domain variable's name in these comments — it would be replaced with its value.
 #
 # Each item has TWO adjacent blocks: the active one points at the live service
 # (https://<slug>.<domain>), the commented one points at the public docs page. Flip
@@ -29,6 +39,10 @@ appConfig:
   layout: auto
   statusCheckInterval: 60         # ping every 60s
   faviconApi: local
+  # The rendered dashy-conf.yml is regenerated on every ./existential.sh run, so
+  # Dashy's "save config to disk" would be silently undone. Disable it and keep
+  # this file the single source of truth. Browser-local saves still work.
+  preventWriteToDisk: true
 
 sections:
   # ── ai ────────────────────────────────────────────────────────────────────
@@ -102,13 +116,6 @@ sections:
         icon: si-ntfy
         statusCheck: true
         description: Push notifications
-
-      - title: Vikunja
-        url: https://vikunja.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/vikunja
-        icon: si-vikunja
-        statusCheck: true
-        description: Task management
 
   - name: Tools
     icon: fas fa-toolbox
