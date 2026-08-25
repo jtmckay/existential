@@ -6,7 +6,7 @@
 # that the decree daemon then *executes*, so this script never sends an
 # authenticated POST — it exercises only /healthz and the rejection paths.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

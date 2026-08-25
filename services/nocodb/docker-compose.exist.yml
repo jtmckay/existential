@@ -23,7 +23,7 @@ services:
   # UI interface at http://localhost:48080/
   nocodb:
     container_name: nocodb
-    image: "nocodb/nocodb:2026.05.3"
+    image: "nocodb/nocodb:2026.08.1"
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:

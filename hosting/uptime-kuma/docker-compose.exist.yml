@@ -2,7 +2,7 @@ services:
   # UI interface at http://localhost:30565
   uptime-kuma:
     container_name: uptime-kuma
-    image: "louislam/uptime-kuma:2.4.0"
+    image: "louislam/uptime-kuma:2.5.0"
     restart: unless-stopped
     networks:
       - exist

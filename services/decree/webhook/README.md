@@ -20,9 +20,10 @@ disk 3 is full                         routine: notify
 ```
 
 The service is a single static Go binary on `distroless` — no shell, no
-interpreter, no package tree. It is the only Go service in the stack; see the
-"Custom logic is bash, then TypeScript" principle in the root `CLAUDE.md` for
-why this one case is allowed.
+interpreter, no package tree. Because distroless ships no `curl` or `wget`, the
+healthcheck is the binary probing itself (`/webhook -healthcheck`), and its
+`go test` suite runs separately from `./existential.sh test` (see
+`.claude/reference/testing.md`).
 
 ---
 

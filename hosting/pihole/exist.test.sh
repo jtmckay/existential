@@ -4,7 +4,7 @@
 # Two layers matter: the web UI (Caddy admin) and the actual DNS resolver.
 # We probe both — a stack with no DNS is silently broken.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # exist.test.sh — validate that firecrawl is fully operational.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

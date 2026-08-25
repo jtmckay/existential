@@ -8,7 +8,7 @@
 #
 # Invoked by `./existential.sh test`. Runs inside the existential-adhoc
 # container, so /repo points at the repo root and container DNS resolves on
-# the `exist` network — see CLAUDE.md "Service test scripts" + Networking.
+# the `exist` network — see .claude/reference/testing.md + networking.md.
 
 set -euo pipefail
 

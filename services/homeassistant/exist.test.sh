@@ -2,7 +2,7 @@
 # exist.test.sh — validate that the homeassistant container is running and
 # reachable. HA's /api/ endpoint returns {"message":"API running."} when healthy.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

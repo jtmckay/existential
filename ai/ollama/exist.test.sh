@@ -5,7 +5,7 @@
 # Read-only. /api/generate is a single prompt with num_predict=5, no state
 # carried over.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

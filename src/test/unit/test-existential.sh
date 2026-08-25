@@ -8,7 +8,7 @@
 #   - CLI behaviour (--help, unknown options, unknown actions, run dispatch)
 #     is tested by invoking existential.sh as a subprocess.
 #
-# Rules (from CLAUDE.md "Service test scripts"):
+# Rules (from .claude/reference/testing.md):
 #   - Read-only.  No stacking state.  Cleanup via trap.
 #   - Exit non-zero on failure.
 #   - Print clear pass/fail per test.

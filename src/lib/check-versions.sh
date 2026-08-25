@@ -413,19 +413,22 @@ for entry in "${CHECKS[@]}"; do
                         (( FAILURES++ )) || true
                     fi
                 fi
-            elif [[ "$current_tag" == "(none)" ]]; then
-                # Image had no tag — insert one
-                sed -i "s|image: ${image_prefix}$|image: ${image_prefix}:${latest_tag}|" "$REPO/$file"
-                if grep -qF "image: ${image_prefix}:${latest_tag}" "$REPO/$file"; then
-                    status="→ UPDATED"
-                else
-                    status="→ UPDATE FAILED"
-                    (( FAILURES++ )) || true
-                fi
             else
-                sed -i "s|image: ${image_prefix}:${current_tag}|image: ${image_prefix}:${latest_tag}|g" \
-                    "$REPO/$file"
-                if grep -qF "image: ${image_prefix}:${latest_tag}" "$REPO/$file"; then
+                # Patch the ref exactly as the file spells it, not a
+                # `image: <prefix>:<tag>` string rebuilt from the lookup table.
+                # The two are not the same: a line may quote the value
+                # (`image: "lissy93/dashy:4.2.0"`) or carry a registry prefix
+                # the table omits (`index.docker.io/appsmith/appsmith-ce`), and
+                # a rebuilt pattern silently matches neither. $raw_image is the
+                # value already parsed off that line (quotes stripped), so
+                # swapping its tag hits every shape.
+                if [[ "$current_tag" == "(none)" ]]; then
+                    new_image="${raw_image}:${latest_tag}"
+                else
+                    new_image="${raw_image%:*}:${latest_tag}"
+                fi
+                sed -i "s|${raw_image}\([\"']*\)$|${new_image}\1|" "$REPO/$file"
+                if grep -qF "${new_image}" "$REPO/$file"; then
                     status="→ UPDATED"
                 else
                     status="→ UPDATE FAILED"

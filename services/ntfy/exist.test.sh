@@ -3,7 +3,7 @@
 # publishes. Publishing to a one-off topic is non-destructive (ntfy purges
 # unsubscribed topics; we don't subscribe).
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

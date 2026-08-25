@@ -5,7 +5,7 @@
 # :443 is up and that :80 returns a redirect (never plain content). Each service's
 # own exist.test.sh checks its actual <slug>.<domain> routing.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

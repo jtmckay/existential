@@ -1,7 +1,7 @@
 services:
   appsmith:
     container_name: appsmith
-    image: index.docker.io/appsmith/appsmith-ce:v1.98.1
+    image: index.docker.io/appsmith/appsmith-ce:v2.3
     restart: unless-stopped
     networks:
       - exist

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # exist.test.sh — validate that comfyui is fully operational.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 # Run via: ./existential.sh run comfyui test  (or: ./existential.sh test)
 
 set -euo pipefail

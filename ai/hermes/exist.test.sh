@@ -5,7 +5,7 @@
 # Read-only. Memory test creates an ephemeral session id; no cleanup needed
 # (decree-style state is not persisted unless explicitly stored).
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"

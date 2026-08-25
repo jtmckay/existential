@@ -1,7 +1,7 @@
 services:
   actual-budget:
     container_name: actual-budget
-    image: actualbudget/actual-server:26.6.0
+    image: actualbudget/actual-server:26.8.1
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     networks:

@@ -15,7 +15,7 @@
 #
 #     finish
 #
-# Rules (from CLAUDE.md "Service test scripts"):
+# Rules (from .claude/reference/testing.md):
 #   - Read-only. No stacking state. Use HTTP probes / log scans / file inspects.
 #     If a write is unavoidable, clean up in a trap and verify cleanup ran.
 #   - Service-scoped. Don't cascade into testing dependencies — flag them.

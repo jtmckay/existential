@@ -4,7 +4,7 @@
 # Covers lowcoder-frontend (user entry), lowcoder-api-service, lowcoder-node-service.
 # Mongo + redis are upstream deps — TCP probes only, no inspection.
 #
-# See CLAUDE.md "Service test scripts" for the convention.
+# See .claude/reference/testing.md for the convention.
 
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/test" && pwd)/exist-test.sh"
