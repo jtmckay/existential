@@ -27,6 +27,10 @@ flowchart TB
     stt["WhisperX<br/><i>speech → text</i>"]
     tts["Chatterbox<br/><i>text → speech</i>"]
 
+    viking["OpenViking<br/><i>what it knows</i>"]
+    honcho["Honcho<br/><i>what it remembers about you</i>"]
+    craw["Firecrawl<br/><i>reading the web</i>"]
+
     apps["Your apps<br/><i>notes · photos · money · files · recipes …</i>"]
     platform["<b>The platform</b> — free to every service<br/><i>Caddy names + TLS · volumes and NAS · logs and metrics</i>"]
 
@@ -37,6 +41,9 @@ flowchart TB
     ha --> stt
     ha --> tts
     hermes --> ollama
+    hermes --> viking
+    hermes --> honcho
+    hermes --> craw
     dec <--> apps
     hermes --> platform
     apps --> platform
@@ -45,9 +52,11 @@ flowchart TB
     classDef gateway fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
     classDef model fill:#f4f4f4,stroke:#999,color:#333
     classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
+    classDef reach fill:#fdf6e8,stroke:#c98a1b,color:#333
     class ha,owui,oc,dec surface
     class hermes gateway
     class ollama,stt,tts,apps model
+    class viking,honcho,craw reach
     class platform base
 ```
 
@@ -66,6 +75,9 @@ flowchart TB
 |---|---|---|
 | **Gateway** | [Hermes](./ai/hermes) | One OpenAI-compatible URL and API key for every surface. Sessions, skills and memory live here, so they're shared rather than per-app. |
 | **Models** | [Ollama](./ai/ollama) | Loads and serves the weights. Swapping model is a config change behind the gateway; no surface notices. |
+| **Knowledge** | [OpenViking](./ai/openviking) | A `viking://` context database holding memory, resources and skills, so the agent has somewhere durable to keep what it knows rather than re-deriving it each session. |
+| **Memory** | [Honcho](./ai/honcho) | Cross-session memory about *you*. Without it every conversation starts cold; with it, what it learned last week is still there. |
+| **The web** | [Firecrawl](./ai/firecrawl) | Turns a URL into clean markdown a model can read, so no surface or routine has to carry its own browser automation. |
 | **Speech → text** | [WhisperX](./ai/whisperx) | Transcription with speaker labels, used by both live voice and recording flows. |
 | **Text → speech** | [Chatterbox](./ai/chatterbox) | The voice it answers in. Piper is the lighter alternative if you want it on a small box. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |

@@ -24,17 +24,9 @@
 
 .heroLede {
   max-width: 36rem;
-  margin: 0 auto 1rem;
+  margin: 0 auto 2rem;
   font-size: 1.15rem;
   line-height: 1.6;
-}
-
-.heroHonesty {
-  max-width: 36rem;
-  margin: 0 auto 2rem;
-  font-size: 1rem;
-  line-height: 1.6;
-  opacity: 0.8;
 }
 
 .buttons {

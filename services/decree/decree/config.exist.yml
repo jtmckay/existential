@@ -38,6 +38,10 @@ shared_routines:
     enabled: false
   notes:
     enabled: false
+  note-triage:
+    enabled: false
+  note-develop:
+    enabled: false
   notify:
     enabled: true
   ollama-pull:

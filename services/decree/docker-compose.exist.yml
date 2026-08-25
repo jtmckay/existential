@@ -17,6 +17,11 @@ services:
       - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
       - DROPBOX_DEST_DIR=${DECREE_DROPBOX_DEST_DIR}
+      # Gateway credentials for routines that need a model (note-triage,
+      # note-develop). Empty when hermes/firecrawl are disabled — those
+      # routines are opt-in and their pre-checks report the gap clearly.
+      - HERMES_API_KEY=${HERMES_API_KEY:-}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - IN_CONTAINER=1
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX

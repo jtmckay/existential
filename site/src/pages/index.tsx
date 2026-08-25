@@ -25,9 +25,9 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          Whatever you need done digitally, open source can do it.
-          Existential is how you <em>run</em> it — all of it, on your own
-          hardware, as one system.
+          There's an app for that, and it's free open source.
+          Existential runs it all as <em>one</em> connected system
+          on your own hardware, with a local AI underneath.
         </p>
         <div className={styles.buttons}>
           <Link

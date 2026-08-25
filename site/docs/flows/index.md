@@ -41,8 +41,8 @@ a new flow means writing one more routine, not learning a new system.
 Anything you throw at it gets picked up, understood, and filed — without you choosing a
 destination each time.
 
-- [File Processor](./file-change-processing) — a file appears anywhere, and gets handled by rule
-- [Telegram Image → OCR](./image-ocr) — photograph something, get back its text
+- [Camera → OCR](./image-ocr) — photograph something, get back its text
+- [Note → Action](./note-to-action) — a thought worth chasing gets chased, and comes back with the right questions
 
 ### Voice → action
 
@@ -65,3 +65,7 @@ The most tedious recurring paperwork in most people's lives, handled without att
 Every flow above is a routine plus a trigger. The contract for both — how to send something
 in, what a message looks like, how to read the result — is documented in
 [Build On It](../build-on-it).
+
+The mechanism underneath most of them — a file landing in storage becoming a running routine —
+is the [File Processor](../decree/file-change-processing). That is a level-4 page: it explains
+the plumbing rather than what the system does with it.

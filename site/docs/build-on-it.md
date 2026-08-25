@@ -91,6 +91,13 @@ disk 3 is full
 Messages reach the queue from three places, and all three produce this same file:
 a webhook POST, a cron schedule, or another routine emitting a follow-up.
 
+:::tip[Files as a trigger]
+A fourth, built on the first: the [File Processor](./decree/file-change-processing) turns a
+file landing in S3-compatible storage into one of these messages, matched by path against
+whichever processors you have registered. It is how [Camera → OCR](./flows/image-ocr) and
+[Recording → Transcription](./flows/recording-transcription) start.
+:::
+
 ## 3. Where the data lives
 
 Two locations, both plain host directories you can read directly.

@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
@@ -13,7 +13,7 @@ const Surfaces: Surface[] = [
   {
     title: 'Talk to it',
     blurb:
-      'Ask for something out loud, anywhere in the house. It hears you, answers in its own voice, and can actually go do the thing.',
+      'Ask for something on your phone, or anywhere in the house. It hears you, answers in its own voice, and can actually go do the thing.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.surfaceIcon}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />

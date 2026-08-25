@@ -4,6 +4,13 @@ sidebar_position: 2
 
 # File Processor
 
+:::info[Mechanism, not a flow]
+This is the plumbing a [flow](../flows/) sits on: how a file landing in storage becomes a
+running routine. If you are here to see what the system *does*, start at
+[Level 3 · Flows](../flows/). If you are wiring up your own, this and
+[Build On It](../build-on-it) are the pages you want.
+:::
+
 React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `minio-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a signed URL if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
 ```mermaid

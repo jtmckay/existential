@@ -27,7 +27,7 @@ together.
 It is a curated list, not an app store — every service in it is one somebody uses daily and
 maintains. Adding one is flipping a flag. Nothing is replaced with a worse in-house version.
 
-### Figure it out once
+### Solve it once
 Hostnames, HTTPS, storage tiers, logging, secrets, backups, the automation engine — solved a
 single time and applied to everything. The fortieth service costs the same as the second.
 

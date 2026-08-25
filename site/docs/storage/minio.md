@@ -24,7 +24,7 @@ S3-compatible object storage. Provides an S3 interface to all files — replacea
 
 ## File Event Hooks
 
-MinIO can POST S3 events to the Decree webhook to trigger automations when files are created, updated, or deleted. See [File Change → Process](../flows/file-change-processing) for full setup instructions.
+MinIO can POST S3 events to the Decree webhook to trigger automations when files are created, updated, or deleted. See [File Processor](../decree/file-change-processing) for full setup instructions.
 
 ## VM Note
 

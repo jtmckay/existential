@@ -79,7 +79,7 @@ recordings/2026-04-22 Meeting.mp3.transcription.txt   ← created automatically
 ## Prerequisites
 
 - **Nextcloud** running with MinIO configured as S3 external storage
-- **MinIO** webhook sending `ObjectCreated` events to the Decree webhook endpoint (see [File Change → Process](./file-change-processing))
+- **MinIO** webhook sending `ObjectCreated` events to the Decree webhook endpoint (see [File Processor](../decree/file-change-processing))
 - **Whisper** container running and reachable at `http://whisper:8000`
 - **rclone** configured with a `nextcloud` remote (or whichever remote matches your `rclone_src` webhook setting)
 - **Nextcloud mobile app** with auto-upload enabled for your recordings folder
@@ -88,7 +88,7 @@ recordings/2026-04-22 Meeting.mp3.transcription.txt   ← created automatically
 
 ### Step 1 — MinIO webhook
 
-Follow the MinIO setup in [File Change → Process](./file-change-processing#minio-setup) to register the Decree webhook target and subscribe your recordings bucket to `ObjectCreated` events.
+Follow the MinIO setup in [File Processor](../decree/file-change-processing#minio-setup) to register the Decree webhook target and subscribe your recordings bucket to `ObjectCreated` events.
 
 ### Step 2 — rclone remote
 
