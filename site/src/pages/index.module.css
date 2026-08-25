@@ -23,14 +23,14 @@
 }
 
 .heroLede {
-  max-width: 34rem;
+  max-width: 36rem;
   margin: 0 auto 1rem;
   font-size: 1.15rem;
   line-height: 1.6;
 }
 
 .heroHonesty {
-  max-width: 34rem;
+  max-width: 36rem;
   margin: 0 auto 2rem;
   font-size: 1rem;
   line-height: 1.6;
@@ -42,4 +42,38 @@
   align-items: center;
   justify-content: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.closing {
+  padding: 4.5rem 0 5rem;
+  text-align: center;
+  background: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.closingTitle {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.closingLede {
+  max-width: 34rem;
+  margin: 0 auto 2rem;
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.closingCode {
+  max-width: 34rem;
+  margin: 0 auto 2rem;
+  text-align: left;
+}
+
+.closingCode pre {
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  overflow-x: auto;
 }

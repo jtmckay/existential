@@ -2,7 +2,82 @@
 sidebar_position: 3
 ---
 
-# How It Works
+# The Pieces
+
+:::info[Level 2 of 4 · Containers]
+What is actually running, and how the parts fit together. Back out to
+[Level 1 · What It Is](./intro), or zoom in to [Level 3 · Flows](./flows/) to follow one job
+end to end.
+:::
+
+This is where the real names appear. Everything on this page is a replaceable choice — the
+*shape* is the stable part, the projects filling each slot are not.
+
+## The map
+
+```mermaid
+flowchart TB
+    ha["Home Assistant<br/><i>voice, in the house</i>"]
+    owui["Open WebUI<br/><i>chat in a browser</i>"]
+    oc["opencode<br/><i>editor and terminal</i>"]
+    dec["decree<br/><i>routines, nobody present</i>"]
+
+    hermes["<b>Hermes</b> — the one endpoint<br/><i>OpenAI-compatible · sessions · skills</i>"]
+    ollama["Ollama<br/><i>the models</i>"]
+    stt["WhisperX<br/><i>speech → text</i>"]
+    tts["Chatterbox<br/><i>text → speech</i>"]
+
+    apps["Your apps<br/><i>notes · photos · money · files · recipes …</i>"]
+    platform["<b>The platform</b> — free to every service<br/><i>Caddy names + TLS · volumes and NAS · logs and metrics</i>"]
+
+    ha --> hermes
+    owui --> hermes
+    oc --> hermes
+    dec --> hermes
+    ha --> stt
+    ha --> tts
+    hermes --> ollama
+    dec <--> apps
+    hermes --> platform
+    apps --> platform
+
+    classDef surface fill:#e8f4fd,stroke:#027bcb,color:#111
+    classDef gateway fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
+    classDef model fill:#f4f4f4,stroke:#999,color:#333
+    classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
+    class ha,owui,oc,dec surface
+    class hermes gateway
+    class ollama,stt,tts,apps model
+    class platform base
+```
+
+### Reading that in three lines
+
+1. **Everything talks to Hermes.** Voice, browser, editor and automation all hit one
+   OpenAI-compatible endpoint. Nothing else knows which model is loaded.
+2. **decree is the hands.** It watches for things happening and runs routines against your
+   apps and your data — calling Hermes when the work needs judgment.
+3. **The platform is free to every service.** A name, a certificate, a place to put data and
+   somewhere its logs go come with the folder; a service doesn't opt in.
+
+## The AI spine, slot by slot
+
+| Slot | Ships as | Why it's separate |
+|---|---|---|
+| **Gateway** | [Hermes](./ai/hermes) | One OpenAI-compatible URL and API key for every surface. Sessions, skills and memory live here, so they're shared rather than per-app. |
+| **Models** | [Ollama](./ai/ollama) | Loads and serves the weights. Swapping model is a config change behind the gateway; no surface notices. |
+| **Speech → text** | [WhisperX](./ai/whisperx) | Transcription with speaker labels, used by both live voice and recording flows. |
+| **Text → speech** | [Chatterbox](./ai/chatterbox) | The voice it answers in. Piper is the lighter alternative if you want it on a small box. |
+| **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
+| **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. |
+| **Coding front end** | [opencode](./ai/ollama#opencode-integration) | Configured with the Hermes URL as its OpenAI endpoint, so it shares the same models and skills. |
+| **No-human surface** | [decree](./decree/) | The automation engine. Routines call the gateway exactly like you would. |
+
+The reason for the gateway is the whole thesis in miniature: **figure the model, the key, the
+skills and the memory out once, and four surfaces inherit it.** Without it you would configure
+each one separately and they would drift.
+
+## How it's assembled
 
 The whole system, in one sentence:
 
@@ -11,8 +86,6 @@ The whole system, in one sentence:
 
 That's it. There is no plugin system, no service registry, no orchestrator. If you understand
 those three steps you understand the entire stack.
-
-## The three steps
 
 ### 1. Choose — a flag per service
 
@@ -205,7 +278,7 @@ EXIST_DOMAIN=local.example.com
 address=/local.example.com/192.168.1.50     # pihole, resolves entirely on-LAN
 ```
 
-:::note Why not with nip.io or .internal
+:::note[Why not with nip.io or .internal]
 `.internal` isn't a real domain, so no CA will ever issue for it. `nip.io` is real but not
 yours — DNS-01 needs write access to the zone, and HTTP-01 needs a public IP. Either way the
 internal CA is the only option there, which is why the default keeps it.

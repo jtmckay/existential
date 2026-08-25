@@ -31,7 +31,7 @@ All services connect to a single Docker **bridge** network named `exist`, create
 automatically by `docker compose up`. Containers reach each other by container name
 (`http://ollama:11434`); see [How It Works](../how-it-works) for the full model.
 
-:::warning Traffic on this network is not encrypted
+:::warning[Traffic on this network is not encrypted]
 A bridge network is single-host and carries plain traffic between containers. It is not an
 overlay, there is no IPsec, and it does not span machines. To run services on more than one
 box, treat them as [complementary services](../how-it-works) reached over a URL rather than

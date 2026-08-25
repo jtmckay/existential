@@ -14,7 +14,7 @@ This page audits every app in the stack for commercial multi-tenant hosting. It 
 catalog you build your offering from: host the green ones freely, comply with the yellow
 ones, and resolve the red ones before charging for them.
 
-:::note Not legal advice
+:::note[Not legal advice]
 This is an engineering summary to triage risk, not legal advice. Licenses change — Redis,
 Open WebUI, and MinIO all relicensed within the last two years — so confirm each app at its
 current version and get counsel before launch. Re-run this audit on every version bump.

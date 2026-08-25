@@ -4,12 +4,17 @@ sidebar_position: 4
 
 # Build On It
 
+:::info[Level 4 of 4 · Code]
+The contract you write against. Back out to [Level 3 · Flows](./flows/) for worked examples of
+everything below.
+:::
+
 Existential is usable as a backend. The stack stores your data in one place and runs work
 against it; if you want a different front end — a phone app, a single dashboard, a text box
 in a terminal — you can build one against the pieces documented here without touching the
 stack itself.
 
-:::info What this page is
+:::info[What this page is]
 This is a deliberately **small, frozen contract**. Four things. They are the parts you can
 build against without expecting them to move.
 
@@ -99,7 +104,7 @@ Everything under `volumes/` is a host bind mount owned by your user — no Docke
 volumes, nothing opaque, nothing requiring root to read. Point your front end at the
 filesystem or at the S3 endpoint, whichever suits it.
 
-:::warning Not part of the contract
+:::warning[Not part of the contract]
 `volumes_local/` holds live databases. Read them through their service's API, never off
 disk — they're mid-write, and NFS or a concurrent reader will corrupt or mislead you.
 :::

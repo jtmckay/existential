@@ -10,7 +10,7 @@ sidebar_position: 1
 
 [Actual Budget](https://actualbudget.org/) is a local-first personal finance manager. Your data lives on your own server — no third-party cloud. It uses envelope-style zero-based budgeting: every dollar gets assigned a job before you spend it.
 
-:::tip Official docs
+:::tip[Official docs]
 Actual Budget's own documentation is thorough. For anything not covered here — reports, goals, rules, bank sync — start at [actualbudget.org/docs](https://actualbudget.org/docs/).
 :::
 

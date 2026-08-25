@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
@@ -8,7 +8,7 @@ const config: Config = {
   },
   themes: ['@docusaurus/theme-mermaid'],
   title: 'Existential',
-  tagline: 'A lot of software, working as one thing',
+  tagline: 'An active second brain unsiloed',
   favicon: 'img/favicon.svg',
 
   future: {
@@ -72,8 +72,8 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {to: '/about', label: 'About', position: 'left'},
+        { to: '/blog', label: 'Blog', position: 'left' },
+        { to: '/about', label: 'About', position: 'left' },
         {
           href: 'https://discord.gg/McH3kPh9gM',
           label: 'Discord',

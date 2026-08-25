@@ -13,7 +13,7 @@ free-and-open-source rule in this stack: your notes are plain `.md` files in a d
 already own and sync, so the editor is replaceable even though it isn't open source. Nothing
 you write is locked inside it.
 
-:::info Not a container
+:::info[Not a container]
 Obsidian is a desktop and mobile app, not a service the stack runs. There is no compose file
 and no `<slug>.EXIST_DOMAIN` hostname. It reads a vault directory that Nextcloud syncs, which
 is what connects it to everything else here.

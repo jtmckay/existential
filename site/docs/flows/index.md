@@ -4,6 +4,11 @@ sidebar_position: 1
 
 # Flows
 
+:::info[Level 3 of 4 · Components]
+One job traced through the services it touches. Back out to [Level 2 · The Pieces](../how-it-works),
+or go on to [Level 4 · Build On It](../build-on-it) to write your own.
+:::
+
 A flow is one complete path from *something happened* to *it was handled*.
 
 That's the level Existential is meant to be understood at. Underneath, a flow might touch

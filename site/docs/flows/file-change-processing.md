@@ -135,7 +135,7 @@ In the MinIO console go to **Administrator → Events** and add a new webhook en
 
 Save and verify the target shows as reachable. The identifier `DECREE` is used in the next step — MinIO will expose the ARN `arn:minio:sqs::DECREE:webhook`.
 
-:::warning One target is not enough
+:::warning[One target is not enough]
 Adding the webhook target under **Events** only registers the endpoint. MinIO will not send any events until you subscribe individual buckets to it in the next step.
 :::
 

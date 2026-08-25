@@ -34,7 +34,7 @@ Id: 987654321
 
 This is the `TELEGRAM_CHAT_ID` — it tells Decree which chat to send notifications to.
 
-:::tip Group chats
+:::tip[Group chats]
 You can also add the bot to a group and use the group's chat ID (negative number, e.g. `-1001234567890`). Get a group's ID by forwarding a message from it to @userinfobot.
 :::
 

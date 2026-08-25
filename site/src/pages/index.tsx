@@ -1,15 +1,17 @@
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
+import HomepageFeatures from '@site/src/components/HomepageFeatures';
+import HomepageBrain from '@site/src/components/HomepageBrain';
+import HomepageLevels from '@site/src/components/HomepageLevels';
 
 import styles from './index.module.css';
 
 function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
+  const { siteConfig } = useDocusaurusContext();
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
@@ -23,12 +25,9 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          Your notes, tasks, money, photos and recordings all land in one place —
-          and then mostly take care of themselves.
-        </p>
-        <p className={styles.heroHonesty}>
-          It's not one app. It's one system made of many, set up once so you can
-          stop thinking about any of them.
+          Whatever you need done digitally, open source can do it.
+          Existential is how you <em>run</em> it — all of it, on your own
+          hardware, as one system.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -47,15 +46,55 @@ function HomepageHeader() {
   );
 }
 
+function HomepageClosing() {
+  return (
+    <section className={styles.closing}>
+      <div className="container">
+        <Heading as="h2" className={styles.closingTitle}>
+          It's a homelab. You already have the hardware.
+        </Heading>
+        <p className={styles.closingLede}>
+          One machine, Docker, and an evening. Pick what you want, and it comes
+          up wired together.
+        </p>
+        <div className={styles.closingCode}>
+          <pre>
+            <code>
+              {'git clone https://github.com/jtmckay/existential.git\n'}
+              {'cd existential\n'}
+              {'\n'}
+              {'./existential.sh quest      # pick your services\n'}
+              {'docker compose up -d\n'}
+            </code>
+          </pre>
+        </div>
+        <div className={styles.buttons}>
+          <Link className="button button--primary button--lg" to="/docs/getting-started">
+            Getting Started
+          </Link>
+          <Link
+            className="button button--outline button--primary button--lg"
+            href="https://discord.gg/McH3kPh9gM">
+            Discord
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home(): ReactNode {
-  const {siteConfig} = useDocusaurusContext();
+  const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
       title={siteConfig.title}
-      description="A curated homelab stack combining AI tools, workflow automation, note-taking, file management, and productivity applications.">
+      description="A personal cloud you run yourself. Curated open source, set up once, with one local AI behind conversation, coding and automation.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
+        <HomepageBrain />
+        <HomepageLevels />
+        <HomepageClosing />
       </main>
     </Layout>
   );

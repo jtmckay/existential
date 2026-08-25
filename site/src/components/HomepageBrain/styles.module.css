@@ -1,0 +1,164 @@
+.brain {
+  padding: 4rem 0 5rem;
+  background: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.intro {
+  max-width: 44rem;
+  margin: 0 auto 3rem;
+  text-align: center;
+}
+
+.title {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.lede {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  margin: 0;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.surfaces {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+@media screen and (max-width: 996px) {
+  .surfaces {
+    grid-template-columns: 1fr;
+  }
+}
+
+.surface {
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+.surfaceIconWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.surfaceIcon {
+  height: 40px;
+  width: 40px;
+  color: var(--ifm-color-primary);
+}
+
+.surfaceTitle {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.surfaceBlurb {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.converge {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
+  height: 2.5rem;
+}
+
+.convergeLine {
+  justify-self: center;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    var(--ifm-color-emphasis-300),
+    var(--ifm-color-primary)
+  );
+}
+
+@media screen and (max-width: 996px) {
+  .converge {
+    grid-template-columns: 1fr;
+    height: 1.75rem;
+  }
+
+  .converge .convergeLine:not(:first-child) {
+    display: none;
+  }
+}
+
+.core {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.75rem 2rem;
+  text-align: center;
+  border: 2px solid var(--ifm-color-primary);
+  border-radius: 12px;
+  background: var(--ifm-background-color);
+}
+
+.coreLabel {
+  display: inline-block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.coreBlurb {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.metal {
+  display: flex;
+  justify-content: center;
+  height: 2.5rem;
+}
+
+.metalLine {
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    var(--ifm-color-primary),
+    var(--ifm-color-emphasis-400)
+  );
+}
+
+.hardware {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.9rem 1rem;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  border: 1px dashed var(--ifm-color-emphasis-400);
+  border-radius: 12px;
+}
+
+.more {
+  text-align: center;
+  margin: 2.5rem 0 0;
+  font-weight: 600;
+}
