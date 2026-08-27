@@ -1,0 +1,35 @@
+---
+name: Home Finance
+tagline: Track spending and plan meals without a subscription
+e2e: true
+services:
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget
+  - var: EXIST_IS_SERVICES_MEALIE
+    label: Mealie
+copies:
+  - src: services/actual-budget/decree/cron.example/actual-budget-volume-backup-nightly.md
+    dst: services/actual-budget/decree/cron/
+    label: "actual-budget: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
+  - src: services/actual-budget/decree/cron.example/actual-budget-volume-backup-weekly.md
+    dst: services/actual-budget/decree/cron/
+    label: "actual-budget: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
+  - src: services/mealie/decree/cron.example/mealie-db-backup-nightly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie: db-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_MEALIE
+  - src: services/mealie/decree/cron.example/mealie-db-backup-weekly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie: db-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_MEALIE
+  - src: services/mealie/decree/cron.example/mealie-volume-backup-nightly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie: volume-backup-nightly.md"
+    requires: EXIST_IS_SERVICES_MEALIE
+  - src: services/mealie/decree/cron.example/mealie-volume-backup-weekly.md
+    dst: services/mealie/decree/cron/
+    label: "mealie: volume-backup-weekly.md"
+    requires: EXIST_IS_SERVICES_MEALIE
+---

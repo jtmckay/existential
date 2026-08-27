@@ -1,0 +1,35 @@
+---
+name: Bank Transaction Import
+tagline: Automatically import bank alert emails into Actual Budget
+e2e: false
+services:
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree
+---
+
+A cron job polls a Gmail label every 15 minutes, parses bank alert
+emails with a bank-specific parser, and posts transactions to Actual
+Budget — no manual entry required.
+Docs: https://existential.company/docs/decree/transaction-gmail-actual-budget
+
+Prerequisites:
+  - Actual Budget running (Quest 6)
+  - Gmail integration set up (auto-gmail quest)
+
+Setup:
+  1. In Gmail, create a label for your bank's alert emails and set up
+     a filter to apply it automatically.
+
+  2. Add or copy a parser for your bank in:
+         automations/shared_routines/actual-budget-parse.sh
+
+  3. Configure Actual Budget credentials:
+         ./existential.sh run decree gmail-labels
+     (sets GMAIL_LABEL_ID in automations/secrets/gmail/)
+
+  4. Enable the routines in services/decree/decree/config.yml:
+         actual-budget: enabled: true
+         actual-budget-parse: enabled: true
+         gmail-sync: enabled: true

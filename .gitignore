@@ -110,6 +110,15 @@ automations/secrets/*
 **/ntfy-config/user.db
 **/mqtfy-config.yml
 
+# Honcho
+**/honcho/config.toml
+
+# Wyoming voice (models downloaded on first start)
+**/wyoming-piper/data/*
+!**/wyoming-piper/data/.gitkeep
+**/wyoming-whisper/data/*
+!**/wyoming-whisper/data/.gitkeep
+
 # Ollama
 **/ollama/entrypoint.sh
 **/ollama/decree/migrations/*

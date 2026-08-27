@@ -31,8 +31,13 @@ E2E_NETWORK="${E2E_PROJECT}_exist"
 # ── Quest helpers ─────────────────────────────────────────────────────────────
 
 # List EXIST_IS_* vars for a quest YAML file.
+# A quest is markdown: YAML frontmatter, then the guide. Everything read here
+# is data, so scope it to the frontmatter — otherwise a guide that happens to
+# show a `- var:` line in an example would be parsed as if it were config.
+quest_fm() { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1"; }
+
 quest_vars() {
-    grep '^\s*- var:' "$1" | awk '{print $3}'
+    quest_fm "$1" | grep '^\s*- var:' | awk '{print $3}'
 }
 
 # Derive service path from EXIST_IS_* var — no lookup table needed.
@@ -46,20 +51,20 @@ var_to_path() {
     echo "${path,,}"
 }
 
-# Return all numbered quest YAMLs with e2e: true.
+# Return all numbered quest files with e2e: true in their frontmatter.
 automatable_quests() {
-    for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
-        grep -q '^e2e:[[:space:]]*true' "$yaml" && echo "$yaml"
+    for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
+        quest_fm "$yaml" | grep -q '^e2e:[[:space:]]*true' && echo "$yaml"
     done
 }
 
 # Resolve name patterns (e.g. "automation" or "ai finance") to automatable
-# quest YAML paths. Each pattern is matched case-insensitively against the
+# quest file paths. Each pattern is matched case-insensitively against the
 # quest's `name:` field and its filename. A pattern that matches only a
 # non-e2e quest (one needing manual NAS/DNS/TLS setup) reports why it's
 # skipped; a pattern that matches nothing is warned about. Output may contain
 # duplicates — the caller dedupes while preserving order.
-quest_name() { grep '^name:' "$1" | sed 's/^name:[[:space:]]*//'; }
+quest_name() { quest_fm "$1" | grep '^name:' | sed 's/^name:[[:space:]]*//'; }
 
 quests_by_names() {
     local -a all=()
@@ -69,16 +74,16 @@ quests_by_names() {
         found=""
         for yaml in "${all[@]}"; do
             if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
-            || grep -qi -- "$pat" <<<"$(basename "$yaml" .yml)"; then
+            || grep -qi -- "$pat" <<<"$(basename "$yaml" .md)"; then
                 echo "$yaml"; found=1
             fi
         done
         [ -n "$found" ] && continue
         # No e2e-able match — was it a non-e2e quest, or just a typo?
         hit=""
-        for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
+        for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
             if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
-            || grep -qi -- "$pat" <<<"$(basename "$yaml" .yml)"; then
+            || grep -qi -- "$pat" <<<"$(basename "$yaml" .md)"; then
                 hit=$(quest_name "$yaml"); break
             fi
         done
@@ -325,7 +330,7 @@ trap cleanup EXIT INT TERM
 
 run_quest() {
     local yaml="$1"
-    local quest_name; quest_name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+    local quest_name; quest_name=$(quest_fm "$yaml" | grep '^name:' | sed 's/^name:[[:space:]]*//')
 
     hr
     log "${quest_name} — start"
@@ -456,7 +461,7 @@ elif [ ! -t 0 ]; then
 elif command -v fzf >/dev/null 2>&1; then
     # fzf on host — draw picker directly (fzf uses /dev/tty for UI, safe in <(...))
     _excl_header="Excluded (require manual setup):"
-    for _y in "${QUEST_DIR}"/[0-9][0-9]-*.yml; do
+    for _y in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
         grep -q '^e2e:[[:space:]]*false' "$_y" || continue
         _n=$(grep '^name:' "$_y" | sed 's/^name:[[:space:]]*//')
         _excl_header+=$'\n'"  ✗ ${_n}"

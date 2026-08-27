@@ -230,6 +230,8 @@ declare -a CHECKS=(
     "portainer	hosting/portainer/docker-compose.exist.yml	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
     "uptime-kuma	hosting/uptime-kuma/docker-compose.exist.yml	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
     "whisperx	ai/whisperx/docker-compose.exist.yml	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
+    "wyoming-piper	ai/wyoming-piper/docker-compose.exist.yml	rhasspy/wyoming-piper	github	OHF-Voice/wyoming-piper	bare"
+    "wyoming-whisper	ai/wyoming-whisper/docker-compose.exist.yml	rhasspy/wyoming-whisper	github	OHF-Voice/wyoming-faster-whisper	bare"
 )
 
 # ── Output helpers ────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ podman exec -it ollama sh
 
 ```bash
 ollama pull gpt-oss:120b
-# ollama pull qwen3:8b
+# ollama pull gemma4:e2b-it-qat
 ```
 
 ## Create a Larger Context Model

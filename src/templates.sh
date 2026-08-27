@@ -250,6 +250,7 @@ _STATS_REGENERATED=0
 # See _render_opted_out.
 _ALWAYS_RENDER=(
     "services/dashy/dashy-conf.yml"
+    "ai/honcho/config.toml"
 )
 
 # True when $1 (an absolute destination path) is in _ALWAYS_RENDER.

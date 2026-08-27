@@ -133,6 +133,35 @@ printf 'alpha\nbeta\n' > "$insync/x.exist.txt"
 printf 'alpha\nbeta\n' > "$insync/x.txt"
 expect_pass "drift: passes when rendered matches template" tsx "$DRIFT" "$insync"
 
+# ── Quest frontmatter ─────────────────────────────────────────────────────────
+# Quests are markdown: fenced YAML metadata, then the guide. The checks must
+# read only the frontmatter, or a guide that shows `e2e: false` in an example
+# would be validated as if it were the quest's own config.
+
+qfix() { local d; d="$(mkfix)"; mkdir -p "$d/src/quests"; echo "$d"; }
+
+noskip="$(qfix)"
+printf -- '---\nname: X\ne2e: false\n---\n\nA guide.\n' > "$noskip/src/quests/01-x.md"
+expect_fail "conventions: rejects e2e:false with no e2e_skip" tsx "$CONV" "$noskip"
+
+withskip="$(qfix)"
+printf -- '---\nname: X\ne2e: false\ne2e_skip: needs a real NAS\n---\n\nA guide.\n' > "$withskip/src/quests/01-x.md"
+expect_pass "conventions: accepts e2e:false with e2e_skip" tsx "$CONV" "$withskip"
+
+nofm="$(qfix)"
+printf -- 'name: X\ne2e: true\n' > "$nofm/src/quests/01-x.md"
+expect_fail "conventions: rejects a quest with no frontmatter fence" tsx "$CONV" "$nofm"
+
+noname="$(qfix)"
+printf -- '---\ne2e: true\n---\n\nA guide.\n' > "$noname/src/quests/01-x.md"
+expect_fail "conventions: rejects a quest with no name:" tsx "$CONV" "$noname"
+
+# The body is prose. An example inside it must not be read as configuration.
+bodyonly="$(qfix)"
+printf -- '---\nname: X\ne2e: true\n---\n\nSet this in your own quest:\n\ne2e: false\n' \
+    > "$bodyonly/src/quests/01-x.md"
+expect_pass "conventions: ignores e2e:false appearing in the guide body" tsx "$CONV" "$bodyonly"
+
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 

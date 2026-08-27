@@ -1,0 +1,61 @@
+---
+name: Network Access
+tagline: "DNS + reverse proxy — makes every service reachable at https://<slug>.<domain>"
+e2e: false
+e2e_skip: Requires router DNS config and TLS certificate infrastructure
+services:
+  - var: EXIST_IS_HOSTING_PIHOLE
+    label: Pihole
+  - var: EXIST_IS_HOSTING_CADDY
+    label: Caddy
+---
+
+After `docker compose up -d`, two manual steps complete the network setup.
+
+── Step 1: Point your router's DNS at pihole ─────────────────────────────
+
+Every device on your network needs to use pihole as its DNS resolver so
+that `<slug>.<domain>` names resolve to your homelab host. The domain is
+EXIST_DOMAIN (default x.internal); pihole resolves the WHOLE domain with a
+single wildcard record, so new services need no DNS change.
+
+1. Log into your router's admin UI (usually http://192.168.1.1).
+2. Find the DNS settings (often under DHCP or LAN).
+3. Set the primary DNS server to: ${EXIST_LOCAL_HOST_IP}
+   (set in .env.shared as EXIST_LOCAL_HOST_IP)
+4. Save and apply. Devices will pick up the new resolver on their next
+   DHCP lease renewal (or reconnect to Wi-Fi to force it).
+
+Verify pihole is resolving correctly from any device (any subdomain works —
+the wildcard answers them all):
+  nslookup dashy.x.internal <your-pihole-ip>
+
+Running services on a SECOND machine? Keep pihole + caddy on this (front-door)
+host, set EXIST_PEER_HOST_IP to the other machine's IP, and swap in
+hosting/caddy/Caddyfile.frontdoor-lan.example — it forwards every <slug>.<domain>
+to the second machine's Caddy. No per-service DNS or port config needed. For an
+internet-facing entrypoint (real domain + public certs) use the -public variant.
+
+── Step 2: Trust Caddy's internal CA ────────────────────────────────────
+
+Caddy fronts every service with TLS using a pinned internal CA minted by
+caddy's exist.initial.sh. Install the root cert once per device for a green
+padlock everywhere. The CA file is committed to the repo:
+  hosting/caddy/certs/internal-ca.pem
+
+On each device that needs to trust it:
+  macOS:   Open Keychain Access → import internal-ca.pem → set to Always Trust
+  iOS:     AirDrop the .pem → Settings → General → VPN & Device Management → trust it
+  Windows: Run: certutil -addstore -f "ROOT" internal-ca.pem
+  Android: Settings → Security → Install from storage
+  Linux:   sudo cp internal-ca.pem /usr/local/share/ca-certificates/existential-internal-ca.crt
+           && sudo update-ca-certificates
+
+── Optional: Public domain (real HTTPS with Let's Encrypt) ──────────────
+
+To also expose services at https://<slug>.yourdomain.com:
+  ./existential.sh run caddy public-domain
+
+This generates a Caddyfile.public with ACME-enabled blocks for every
+active service. Requires a domain you control with a wildcard DNS record
+pointing at your public IP.

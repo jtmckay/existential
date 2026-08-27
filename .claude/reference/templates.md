@@ -36,8 +36,10 @@ run, and a regenerated secret would rotate out from under whatever already consu
 go wrong. The `.env` never-overwrite guard is checked *first* and still wins.
 
 Use it when an app reads a static config file it can't env-substitute, so a value like
-`EXIST_DOMAIN` would otherwise be baked once and go stale. `services/dashy/dashy-conf.yml` is
-the only entry today.
+`EXIST_DOMAIN` would otherwise be baked once and go stale. Two entries today:
+`services/dashy/dashy-conf.yml` and `ai/honcho/config.toml` — honcho reads a TOML file with no
+env substitution, so the `EXIST_MODEL_*` globals have to be rendered into it, and a model change
+must land without `--force`.
 
 Three things come with it:
 

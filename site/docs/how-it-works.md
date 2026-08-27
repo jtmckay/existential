@@ -78,8 +78,10 @@ flowchart TB
 | **Knowledge** | [OpenViking](./ai/openviking) | A `viking://` context database holding memory, resources and skills, so the agent has somewhere durable to keep what it knows rather than re-deriving it each session. |
 | **Memory** | [Honcho](./ai/honcho) | Cross-session memory about *you*. Without it every conversation starts cold; with it, what it learned last week is still there. |
 | **The web** | [Firecrawl](./ai/firecrawl) | Turns a URL into clean markdown a model can read, so no surface or routine has to carry its own browser automation. |
-| **Speech → text** | [WhisperX](./ai/whisperx) | Transcription with speaker labels, used by both live voice and recording flows. |
-| **Text → speech** | [Chatterbox](./ai/chatterbox) | The voice it answers in. Piper is the lighter alternative if you want it on a small box. |
+| **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper) | What Home Assistant listens with. Speaks the Wyoming protocol HA expects, and runs on CPU so it never evicts the model from the GPU. |
+| **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper) | The voice it answers in, over the same protocol and also on CPU — a spoken reply has to land immediately. |
+| **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
+| **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Expressive and cloneable, over an OpenAI-compatible API — for anything in the stack generating audio outside the HA pipeline. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. |
 | **Coding front end** | [opencode](./ai/ollama#opencode-integration) | Configured with the Hermes URL as its OpenAI endpoint, so it shares the same models and skills. |

@@ -1,25 +1,55 @@
 #!/usr/bin/env bash
-# ollama — manual model pull and Modelfile creation via HTTP API.
+# ollama — manual model pull, driven by the global model selection.
 #
-# This is a manual fallback. Under normal operation ollama-decree migrations
-# handle model setup automatically after ollama passes its health check.
+# This is a manual fallback. Under normal operation the ollama-decree
+# migrations (decree/migrations.example/) do exactly this after ollama passes
+# its health check — copy them into decree/migrations/ and they run once.
+#
+# Which models get pulled is NOT decided here: it comes from the "Model
+# Selection" block in .env.shared (EXIST_MODEL_CHAT, EXIST_MODEL_EXTRACT,
+# EXIST_MODEL_EMBED, EXIST_MODEL_VISION). Change it there and re-run this.
 #
 # Run manually:
 #   ./existential.sh run ollama pull-models
 
 set -euo pipefail
 
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# existential.sh exports .env.shared before dispatching, but this script is also
+# run directly. Source it ourselves so both paths see the same models.
+if [ -f "${REPO_DIR}/.env.shared" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "${REPO_DIR}/.env.shared"
+    set +a
+fi
+
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 
-MODELS=(
-    gemma4:26b      # primary chat / query LLM (hermes agent tasks)
-    qwen2.5:7b      # extraction LLM (honcho memory deriver)
-    bge-m3:latest   # embedding model (openviking vector store)
-    llava:latest    # vision model (ollama-ocr, open-webui image chat)
-)
+MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
+MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
+MODEL_EXTRACT="${EXIST_MODEL_EXTRACT:-}"
+MODEL_EMBED="${EXIST_MODEL_EMBED:-}"
+MODEL_VISION="${EXIST_MODEL_VISION:-}"
 
 hr() { printf '%0.s─' {1..56}; echo; }
 die() { echo "Error: $*" >&2; exit 1; }
+
+command -v jq >/dev/null 2>&1 || die "jq not found"
+[ -n "$MODEL_CHAT" ] || die "EXIST_MODEL_CHAT is not set in ${REPO_DIR}/.env.shared"
+
+# Roles in pull order; the chat model must land before the num_ctx rebuild.
+# A blank value is skipped, which is how EXIST_MODEL_VISION= turns vision off.
+declare -a MODELS=()
+for m in "$MODEL_CHAT" "$MODEL_EXTRACT" "$MODEL_EMBED" "$MODEL_VISION"; do
+    [ -n "$m" ] || continue
+    # De-dupe: EXIST_MODEL_EXTRACT defaults to the same tag as chat.
+    for seen in ${MODELS[@]+"${MODELS[@]}"}; do
+        [ "$seen" = "$m" ] && { m=""; break; }
+    done
+    [ -n "$m" ] && MODELS+=("$m")
+done
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 
@@ -40,14 +70,14 @@ done
 # ── Pull models ───────────────────────────────────────────────────────────────
 
 echo ""
-for model in "${MODELS[@]%%#*}"; do
-    model="${model%%[[:space:]]*}"
-    [ -z "$model" ] && continue
+for model in "${MODELS[@]}"; do
     echo "  Pulling ${model}..."
-    curl -fsSL --no-buffer "${OLLAMA_URL}/api/pull" \
-        -d "{\"model\":\"${model}\"}" \
+    jq -nc --arg m "$model" '{model: $m}' \
+        | curl -fsSL --no-buffer "${OLLAMA_URL}/api/pull" \
+               -H "Content-Type: application/json" --data @- \
         | while IFS= read -r line; do
-            status=$(printf '%s' "$line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('status',''))" 2>/dev/null || true)
+            [ -n "$line" ] || continue
+            status=$(printf '%s' "$line" | jq -r '.status // empty' 2>/dev/null || true)
             [ -n "$status" ] && printf '\r  %-60s' "$status"
         done
     echo ""
@@ -55,26 +85,28 @@ for model in "${MODELS[@]%%#*}"; do
     echo ""
 done
 
-# ── Apply extended context window to gemma4:26b ───────────────────────────────
-# Mirrors migration 02-create-gemma4-26b-ctx65536.md.
+# ── Apply the chat context window ─────────────────────────────────────────────
+# Mirrors migration 02-set-chat-context.md. The rebuilt model keeps the same
+# tag, so every consumer still names exactly one model.
 
-NUM_CTX=65536
-echo "  Applying num_ctx=${NUM_CTX} to gemma4:26b via /api/create..."
-curl -fsSL "${OLLAMA_URL}/api/create" \
-    -d "{\"model\":\"gemma4:26b\",\"modelfile\":\"FROM gemma4:26b\\nPARAMETER num_ctx ${NUM_CTX}\"}" \
-    | while IFS= read -r line; do
-        status=$(printf '%s' "$line" | python3 -c "import sys,json; print(json.loads(sys.stdin.read()).get('status',''))" 2>/dev/null || true)
-        [ -n "$status" ] && echo "  $status"
-    done
-echo "  gemma4:26b updated."
+if [ -n "$MODEL_CHAT_NUM_CTX" ]; then
+    echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} via /api/create..."
+    jq -nc --arg m "$MODEL_CHAT" \
+           --arg f "FROM ${MODEL_CHAT}"$'\n'"PARAMETER num_ctx ${MODEL_CHAT_NUM_CTX}" \
+           '{model: $m, modelfile: $f}' \
+        | curl -fsSL --no-buffer "${OLLAMA_URL}/api/create" \
+               -H "Content-Type: application/json" --data @- \
+        | while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            status=$(printf '%s' "$line" | jq -r '.status // empty' 2>/dev/null || true)
+            [ -n "$status" ] && echo "  $status"
+        done
+    echo "  ${MODEL_CHAT} updated."
+fi
 
 echo ""
 hr
 echo ""
 echo "  Done. Models available:"
-curl -sf "${OLLAMA_URL}/api/tags" | python3 -c "
-import sys, json
-for m in json.load(sys.stdin).get('models', []):
-    print(f\"  {m['name']}\")
-" 2>/dev/null || true
+curl -sf "${OLLAMA_URL}/api/tags" | jq -r '.models[]?.name | "  " + .' 2>/dev/null || true
 echo ""

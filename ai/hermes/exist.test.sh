@@ -17,7 +17,9 @@ skip_if_disabled
 
 HERMES_URL="${HERMES_URL:-http://hermes-agent:8642}"
 HERMES_API_KEY="${HERMES_API_KEY:-${EXIST_HERMES_API_KEY:-}}"
-HERMES_CONFIG="/repo/ai/hermes/data/config.yaml"
+# Seeded by exist.initial.sh and then owned by hermes; /opt/data in the
+# container is volumes_local/hermes_agent_data on the host.
+HERMES_CONFIG="/repo/volumes_local/hermes_agent_data/config.yaml"
 
 AUTH=()
 [ -n "$HERMES_API_KEY" ] && AUTH=(-H "Authorization: Bearer ${HERMES_API_KEY}")

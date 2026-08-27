@@ -43,6 +43,39 @@ Identify the device path on the host:
 ls /dev/serial/by-id/
 ```
 
+## Voice
+
+Home Assistant's Assist pipeline speaks the **Wyoming protocol** — a small,
+line-oriented TCP protocol — not HTTP. That is why the stack ships two
+purpose-built services for it rather than reusing WhisperX and Chatterbox,
+which are HTTP services HA cannot drive:
+
+| | Service | Port |
+|---|---|---|
+| Speech → text | [wyoming-whisper](../ai/wyoming-whisper) | `10300` |
+| Text → speech | [wyoming-piper](../ai/wyoming-piper) | `10200` |
+
+Both run on **CPU** by design. The GPU is already holding the chat model and
+the embedding model; a GPU voice model would evict them mid-answer, and a
+spoken reply needs to land immediately anyway.
+
+### Wiring it up
+
+Neither service has a web UI or a `<slug>.<domain>` hostname — Wyoming is raw
+TCP, so there is nothing for Caddy to front. You add them inside HA:
+
+1. **Settings → Devices & Services → Add Integration → Wyoming Protocol**
+   - Host `wyoming-whisper`, port `10300`
+   - Repeat for host `wyoming-piper`, port `10200`
+2. **Settings → Voice assistants → Add assistant**
+   - Speech-to-text: the wyoming-whisper entry
+   - Text-to-speech: the wyoming-piper entry
+   - Conversation agent: **Ollama**, pointed at `http://ollama:11434`
+
+The models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
+`EXIST_MODEL_STT_LANGUAGE` and `EXIST_MODEL_TTS_VOICE`. See
+[How it works](../how-it-works) for the full model-selection block.
+
 ## Long-Lived Access Token
 
 Many integrations (HAwake, Tasker via TaskerHA, external scripts) need a long-lived access token:

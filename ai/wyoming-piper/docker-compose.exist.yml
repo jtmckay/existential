@@ -1,0 +1,68 @@
+# Refs:
+#   Upstream: https://github.com/OHF-Voice/wyoming-piper
+#   Protocol: https://github.com/OHF-Voice/wyoming
+#   Voices:   https://rhasspy.github.io/piper-samples/
+#
+# wyoming-piper — text-to-speech for Home Assistant's Assist pipeline.
+#
+# Why this and not chatterbox: HA's Assist pipeline speaks the Wyoming protocol
+# (a line-oriented TCP protocol), not HTTP. Chatterbox is an OpenAI-compatible
+# HTTP server, so HA cannot drive it without a bridge. Piper is what HA's own
+# voice stack expects, and it is small enough to run well on CPU.
+#
+# Deliberately CPU-only. The GPU is already holding the chat model plus
+# embeddings; a GPU TTS model would evict them mid-answer.
+# Piper synthesises faster than real time on a couple of CPU cores.
+#
+# Services:
+#   wyoming-piper    — Wyoming TTS server (TCP 10200)
+#
+# Volumes:
+#   data/  (tier-3) — downloaded voice models; re-downloadable, not backed up.
+#
+# Access: tcp://wyoming-piper:10200 on the exist network. No HTTP, so no Caddy
+# block and no dashy tile — you add it in Home Assistant, not in a browser.
+#
+# Setup: Home Assistant → Settings → Devices & Services → Add Integration →
+#        Wyoming Protocol → host `wyoming-piper`, port `10200`.
+
+services:
+  wyoming-piper:
+    container_name: wyoming-piper
+    image: rhasspy/wyoming-piper:2.4.2
+    restart: unless-stopped
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    networks:
+      - exist
+    # No ports published: Home Assistant reaches it over Docker DNS. Uncomment
+    # only if HA runs on a different machine.
+    #   ports:
+    #     - "10200:10200"
+    command:
+      - --voice
+      - ${EXIST_MODEL_TTS_VOICE:-en_US-lessac-medium}
+      - --uri
+      - tcp://0.0.0.0:10200
+      - --data-dir
+      - /data
+      - --download-dir
+      - /data
+    volumes:
+      # Voice models, downloaded on first use — tier-3, re-downloadable.
+      - ./data:/data
+    healthcheck:
+      # Wyoming is raw TCP with no HTTP surface, and the image ships no curl.
+      # Bash's /dev/tcp is the cheapest honest liveness check.
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/10200' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+networks:
+  exist:
+    external: true

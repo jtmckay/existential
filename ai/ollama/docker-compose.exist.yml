@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 16G   # Adjust up for large models (e.g. 32G for 70B+)
+          memory: 12G   # Adjust up for large models (e.g. 32G for 70B+)
         reservations:
           devices:
             - driver: nvidia
@@ -23,6 +23,21 @@ services:
     restart: unless-stopped
     networks:
       - exist
+    environment:
+      # VRAM guards. The stack targets an 8 GB card, where chat + embeddings
+      # together already fill most of it; without these ollama will happily load
+      # a third model on the next request and OOM the GPU mid-generation.
+      #
+      # 2 = the chat model and the embedding model, both resident. Raise this
+      # (and the models in .env.shared's Model Selection block) on a bigger card.
+      OLLAMA_MAX_LOADED_MODELS: "${EXIST_OLLAMA_MAX_LOADED_MODELS:-2}"
+      # How long an idle model stays in VRAM. Long enough that back-to-back
+      # requests don't pay the reload, short enough that a one-off vision or
+      # transcription job hands the memory back.
+      OLLAMA_KEEP_ALIVE: "${EXIST_OLLAMA_KEEP_ALIVE:-10m}"
+      # One generation at a time. Parallel requests each get their own KV cache,
+      # which is what actually blows the budget on a small card.
+      OLLAMA_NUM_PARALLEL: "${EXIST_OLLAMA_NUM_PARALLEL:-1}"
     # ports disabled — access via https://ollama.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -50,6 +65,14 @@ services:
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       - OLLAMA_URL=http://ollama:11434
+      # Model globals from .env.shared — the ollama-pull routine resolves its
+      # OLLAMA_ROLE against these, so migrations name a role, not a tag.
+      # See the "Model Selection" block in .env.exist.shared.
+      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
+      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
+      - EXIST_MODEL_EXTRACT=${EXIST_MODEL_EXTRACT}
+      - EXIST_MODEL_EMBED=${EXIST_MODEL_EMBED}
+      - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
     volumes:
       - ./decree:/work/.decree:z
       - ./exist.test.sh:/work/exist.test.sh:ro,z

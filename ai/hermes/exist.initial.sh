@@ -94,3 +94,124 @@ _ensure_honcho_ai() {
 }
 
 _ensure_honcho_ai
+
+# ── First-boot wiring ─────────────────────────────────────────────────────────
+# Seed hermes' own config so the agent is usable on the FIRST `docker compose
+# up -d` instead of after three manual commands. Everything here was previously
+# a documented post-startup step:
+#
+#   hermes model                              → the model: block below
+#   ./existential.sh run openviking mcp       → mcp_servers.openviking
+#   ./existential.sh run firecrawl mcp        → mcp_servers.firecrawl
+#   hermes memory setup honcho                → honcho.json
+#
+# Those commands still exist and still work — this only fills in what is absent.
+# Every write is guarded on the key not already being present, so a user who has
+# run `hermes model` (or edited the file by hand) keeps their choice. That is why
+# there are no sentinels: the config itself is the state.
+#
+# Schemas are hermes'/honcho's own, not invented here:
+#   https://hermes-agent.nousresearch.com/docs/integrations/providers  (model:)
+#   https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp (mcp_servers:)
+#   https://docs.honcho.dev/v3/guides/integrations/hermes              (honcho.json)
+_seed_hermes_config() {
+    local repo="${SCRIPT_DIR}/../.."
+    local data="${repo}/volumes_local/hermes_agent_data"
+    local cfg="${data}/config.yaml"
+    local honcho_cfg="${data}/honcho.json"
+
+    # existential.sh exports .env.shared before running initials, but this script
+    # is also runnable directly via `./existential.sh run hermes`.
+    if [[ -f "${repo}/.env.shared" ]]; then
+        set -a
+        # shellcheck disable=SC1091
+        . "${repo}/.env.shared"
+        set +a
+    fi
+
+    mkdir -p "$data"
+
+    # ── model ────────────────────────────────────────────────────────────────
+    # Local ollama is reached through hermes' "custom endpoint" provider — see
+    # the Ollama section of the providers doc. context_length must match the
+    # num_ctx the model was actually built with, or hermes packs a prompt ollama
+    # will silently truncate.
+    local chat="${EXIST_MODEL_CHAT:-}"
+    local ctx="${EXIST_MODEL_CHAT_NUM_CTX:-}"
+    if [[ -z "$chat" ]]; then
+        echo "[hermes] EXIST_MODEL_CHAT unset — skipping model config." >&2
+    elif [[ -f "$cfg" ]] && grep -qE '^model:' "$cfg"; then
+        echo "[hermes] config.yaml already has a model: block — leaving it alone."
+    else
+        echo "[hermes] Pointing hermes at ollama (${chat})..."
+        cat >> "$cfg" <<EOF
+model:
+  default: ${chat}
+  provider: custom
+  base_url: http://ollama:11434/v1
+  context_length: ${ctx:-32768}
+EOF
+    fi
+
+    # ── MCP servers ──────────────────────────────────────────────────────────
+    # Only for services actually enabled — an MCP entry pointing at a container
+    # that does not exist makes hermes retry a dead endpoint on every task.
+    if [[ -f "$cfg" ]] && grep -qE '^mcp_servers:' "$cfg"; then
+        echo "[hermes] config.yaml already has mcp_servers: — leaving it alone."
+    else
+        local mcp_block=""
+        if [[ "${EXIST_IS_AI_OPENVIKING:-false}" == "true" ]]; then
+            local ov_key
+            ov_key=$(grep -m1 '^OPENVIKING_API_KEY=' "${repo}/ai/openviking/.env" 2>/dev/null | cut -d= -f2-)
+            if [[ -n "$ov_key" ]]; then
+                mcp_block+="  openviking:
+    url: \"http://openviking:1933/mcp\"
+    headers:
+      Authorization: \"Bearer ${ov_key}\"
+"
+            else
+                echo "[hermes] openviking enabled but OPENVIKING_API_KEY not found — skipping its MCP entry." >&2
+            fi
+        fi
+        if [[ "${EXIST_IS_AI_FIRECRAWL:-false}" == "true" ]]; then
+            mcp_block+="  firecrawl:
+    url: \"http://firecrawl-mcp:3003/mcp\"
+"
+        fi
+        if [[ -n "$mcp_block" ]]; then
+            echo "[hermes] Registering MCP servers..."
+            printf 'mcp_servers:\n%s' "$mcp_block" >> "$cfg"
+        fi
+    fi
+
+    # ── honcho memory ────────────────────────────────────────────────────────
+    # Separate file, checked at $HERMES_HOME/honcho.json before ~/.hermes.
+    # HONCHO_BASE_URL is already passed in compose as the plugin's fallback;
+    # this is what actually turns the provider on.
+    if [[ "${EXIST_IS_AI_HONCHO:-false}" != "true" ]]; then
+        :
+    elif [[ -f "$honcho_cfg" ]]; then
+        echo "[hermes] honcho.json already present — leaving it alone."
+    else
+        echo "[hermes] Enabling honcho memory..."
+        cat > "$honcho_cfg" <<EOF
+{
+  "baseUrl": "http://honcho:8000",
+  "hosts": {
+    "hermes": {
+      "enabled": true,
+      "aiPeer": "hermes",
+      "peerName": "${EXIST_USERNAME:-user}",
+      "workspace": "hermes"
+    }
+  }
+}
+EOF
+    fi
+
+    # The gateway runs as the host uid; anything seeded as root here would be
+    # unreadable to it.
+    chown -R "${EXIST_PUID:-$(id -u)}:${EXIST_PGID:-$(id -g)}" "$data" 2>/dev/null || true
+}
+
+_seed_hermes_config

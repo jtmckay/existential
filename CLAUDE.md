@@ -106,7 +106,18 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 `./existential.sh` renders `*.exist.*` templates, runs each enabled service's
 `exist.initial.sh`, and merges enabled services into a unified `docker-compose.yml`. Disabled
 services are skipped entirely (no secrets/templates land on disk). `--force` re-renders existing
-files; `quest` launches the interactive picker first.
+files; `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
+shipped defaults, which `_has_any_enabled` checks against `.env.exist.shared` rather than by
+counting `true`s — quest asks one hardware question (how much VRAM, which picks a model tier) and
+then leads with a single **Core, or no thanks** choice (`src/quests/00-core.md`) instead of forty
+service checkboxes; declining falls through to the full picker. `EXIST_VRAM_GB` records that the
+question was asked, so it is never re-asked; `run models` is the way back.
+
+A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
+`e2e`, `services`, `copies`), the body for the guide — the same shape as decree's cron and
+migration files. It is read by `yq` in `quest.sh` (`qmeta` / `qbody`), NOT by decree, so decree's
+"extra keys become env vars" contract does not apply. Everything that reads a quest must scope
+itself to the frontmatter; the body is free-form prose.
 
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
@@ -161,6 +172,18 @@ from the repo root against the generated `docker-compose.yml`.
 - **Prefer runtime env over render-time baking.** A bare `EXIST_DOMAIN` token is substituted once
   at render and goes stale; `${EXIST_DOMAIN}` in compose resolves at container start. →
   `networking.md`
+- **Model choice is global, never per-service.** Every model the stack uses is named once in
+  `.env.exist.shared`'s *Model Selection* block (`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EXTRACT`,
+  `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`, `_STT_LANGUAGE`, `_TTS_VOICE`). Consumers read those:
+  ollama migrations name an `OLLAMA_ROLE` (not a tag), honcho renders `config.toml` from them, and
+  the wyoming services take them as compose env. **Never hardcode a model tag in a service.**
+  The values themselves come from a VRAM tier table (`src/utils/model-tiers.sh`): quest asks how
+  much VRAM the machine has on first run, `./existential.sh run models` re-asks later, and
+  `.env.exist.shared` ships the default tier (8 GB). Edit the table, not the individual defaults —
+  a unit test asserts the two agree. Every tier tag must have ollama's **tools** capability
+  (hermes cannot act without it) and be multimodal (so images reuse the resident model). The
+  `0` tier is CPU-only and `generate-compose.ts` keys its GPU-reservation strip off that exact
+  value — do not renumber it.
 
 ---
 

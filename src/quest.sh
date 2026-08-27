@@ -13,6 +13,10 @@ EXIST_ENV="${REPO_DIR}/.env.shared"
 EXIST_ENV_TMPL="${REPO_DIR}/.env.exist.shared"
 QUESTS_DIR="${REPO_DIR}/src/quests"
 
+# VRAM tier → model selection. Sourced, never run — see the file header.
+# shellcheck source=src/utils/model-tiers.sh
+. "${REPO_DIR}/src/utils/model-tiers.sh"
+
 hr()  { printf '%0.s─' {1..56}; echo; }
 die() { echo "Error: $*" >&2; exit 1; }
 
@@ -101,12 +105,42 @@ discover_services() {
     done < "$EXIST_ENV_TMPL"
 }
 
+# ── Quest file format ─────────────────────────────────────────────────────────
+#
+# A quest is a markdown file: YAML frontmatter for the data, the body for the
+# guide. Same shape as decree's cron and migration files, which is what these
+# guides tell you to copy — and it keeps 60% of each file (the prose) out of a
+# YAML block scalar, where indentation was load-bearing and nothing rendered it.
+#
+#     ---
+#     name: Core
+#     services:
+#       - var: EXIST_IS_AI_OLLAMA
+#         label: Ollama
+#     ---
+#
+#     Everything after the closing fence is the guide.
+#
+# The frontmatter is ordinary YAML — nested lists and maps included. It is read
+# by yq here, NOT by decree, so decree's "extra keys become env vars" contract
+# does not apply.
+
+# qmeta <file> <yq-expr> — evaluate a yq expression against the frontmatter.
+qmeta() {
+    awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1" | yq "$2" 2>/dev/null
+}
+
+# qbody <file> — the guide: everything after the closing fence.
+qbody() {
+    awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{f=0;b=1;next} b' "$1"
+}
+
 # ── Quest helpers ─────────────────────────────────────────────────────────────
 
 # Return 0 if all required services for a quest are enabled
 quest_ready() {
     local _f="$1"
-    mapfile -t _qvars < <(yq '.services[].var' "$_f" 2>/dev/null | grep -v '^null$' || true)
+    mapfile -t _qvars < <(qmeta "$_f" '.services[].var' 2>/dev/null | grep -v '^null$' || true)
     for _v in "${_qvars[@]}"; do
         [[ -z "$_v" ]] && continue
         [[ "$(env_get "$_v")" == "true" ]] || return 1
@@ -117,8 +151,8 @@ quest_ready() {
 # Print human labels of missing services for a quest (one per line)
 quest_missing_labels() {
     local _f="$1"
-    mapfile -t _vars   < <(yq '.services[].var'   "$_f" 2>/dev/null | grep -v '^null$' || true)
-    mapfile -t _labels < <(yq '.services[].label' "$_f" 2>/dev/null | grep -v '^null$' || true)
+    mapfile -t _vars   < <(qmeta "$_f" '.services[].var' 2>/dev/null | grep -v '^null$' || true)
+    mapfile -t _labels < <(qmeta "$_f" '.services[].label' 2>/dev/null | grep -v '^null$' || true)
     for _i in "${!_vars[@]}"; do
         [[ -z "${_vars[$_i]:-}" ]] && continue
         [[ "$(env_get "${_vars[$_i]}")" == "true" ]] && continue
@@ -133,10 +167,10 @@ process_quest_crons() {
     local _f="$1"
     local -a _labels=() _srcs=() _dsts=() _restarts=()
     local -a _q_srcs _q_dsts _q_labels _q_requires
-    mapfile -t _q_srcs     < <(yq '.copies[].src      // ""' "$_f" 2>/dev/null || true)
-    mapfile -t _q_dsts     < <(yq '.copies[].dst      // ""' "$_f" 2>/dev/null || true)
-    mapfile -t _q_labels   < <(yq '.copies[].label    // ""' "$_f" 2>/dev/null || true)
-    mapfile -t _q_requires < <(yq '.copies[].requires // ""' "$_f" 2>/dev/null || true)
+    mapfile -t _q_srcs     < <(qmeta "$_f" '.copies[].src // ""' 2>/dev/null || true)
+    mapfile -t _q_dsts     < <(qmeta "$_f" '.copies[].dst // ""' 2>/dev/null || true)
+    mapfile -t _q_labels   < <(qmeta "$_f" '.copies[].label // ""' 2>/dev/null || true)
+    mapfile -t _q_requires < <(qmeta "$_f" '.copies[].requires // ""' 2>/dev/null || true)
     local _i _src _dst _req _fname _dst_abs _svc_part _restart_slug _restart_ctr _lbl
     for _i in "${!_q_srcs[@]}"; do
         _src="${_q_srcs[$_i]}"; _dst="${_q_dsts[$_i]}"
@@ -146,6 +180,12 @@ process_quest_crons() {
             will_be_active "$_req" || continue
         fi
         _fname="${_src##*/}"
+        if [ ! -f "${REPO_DIR}/${_src}" ]; then
+            # Never silent: cp -n would fail below and be reported as "already
+            # exists, skipped", which is how 31 renamed templates went unnoticed.
+            echo "  ⚠  ${_f##*/}: template not found — ${_src}" >&2
+            continue
+        fi
         _dst_abs="${REPO_DIR}/${_dst%/}/"
         [ -f "${_dst_abs}${_fname}" ] && continue
         _svc_part="${_dst%%/decree/*}"
@@ -158,7 +198,7 @@ process_quest_crons() {
 
     [ "${#_labels[@]}" -gt 0 ] || return 0
 
-    echo "  ── Cron templates ─────────────────────────────────────────────"
+    echo "  ── Templates to activate ──────────────────────────────────────"
     echo ""
     local _selected_lines
     _selected_lines=$(
@@ -168,7 +208,7 @@ process_quest_crons() {
                    --delimiter=$'\t' \
                    --with-nth=2 \
                    --layout=reverse \
-                   --header="  Activate cron jobs for this quest — all pre-selected, deselect to skip
+                   --header="  Activate these for this quest — all pre-selected, deselect to skip
   ↑↓ navigate   Space toggle   Enter confirm" \
                    --prompt="Activate ❯ " \
                    --no-info \
@@ -225,6 +265,128 @@ echo ""
 echo "  Option B  No Pihole — wildcard record on this machine only:"
 echo "              dnsmasq:  address=/<domain>/<this-machine-ip>"
 echo ""
+
+# ── Phase 0: Core, or no thanks ───────────────────────────────────────────────
+#
+# On a first run the full 40-service picker is the wrong first question — it asks
+# someone to make forty decisions about software they have not seen yet. Offer
+# ONE decision instead: the core system, or choose for yourself.
+#
+# Only fires when nothing beyond the shipped defaults is enabled, so it shows up
+# once and never gets in the way of `./existential.sh quest` later.
+
+CORE_QUEST="${QUESTS_DIR}/00-core.md"
+
+# True when the user has enabled nothing beyond what ships enabled by default.
+# Mirrors _has_any_enabled in existential.sh — caddy ships as true, so "is any
+# flag set?" would answer no-one's question. Keep the two in sync.
+_defaults_only() {
+    local k v
+    while IFS='=' read -r k v || [[ -n "$k" ]]; do
+        k="${k%%#*}"; k="${k// /}"
+        [[ "$k" =~ ^EXIST_IS_ ]] || continue
+        v="${v%%#*}"; v="${v// /}"
+        [[ "$v" == "true" ]] || continue
+        grep -qE "^${k}=true([[:space:]]*#.*)?$" "$EXIST_ENV_TMPL" 2>/dev/null || return 1
+    done < "$EXIST_ENV"
+    return 0
+}
+
+# Enable every service a quest declares. Prints nothing; returns the count via
+# the _enabled_count global so the caller can report it.
+_enable_quest_services() {
+    local _f="$1" _v
+    _enabled_count=0
+    mapfile -t _qvars < <(qmeta "$_f" '.services[].var // ""' 2>/dev/null | grep -v '^null$\|^$' || true)
+    for _v in "${_qvars[@]}"; do
+        [[ "$(env_get "$_v")" == "true" ]] && continue
+        env_set "$_v" "true"
+        _enabled_count=$(( _enabled_count + 1 ))
+        _newly_enabled_svcs+=("$(var_to_path "$_v")")
+    done
+}
+
+declare -a _newly_enabled_svcs=()
+_newly_enabled=0
+
+# Ask once, on the first run that gets this far. EXIST_VRAM_GB is the record of
+# having asked, so re-running quest never re-asks — `run models` is the way back.
+if [[ -z "$(env_get EXIST_VRAM_GB)" ]]; then
+    _picked="$(model_tier_pick "$MODEL_TIER_DEFAULT_GB")"
+    if [[ -n "$_picked" ]]; then
+        while IFS="=" read -r _k _v; do
+            [[ -n "$_k" ]] && env_set "$_k" "$_v"
+        done < <(model_tier_env "$_picked")
+        _tier_row="$(model_tier_row "$_picked")"
+        IFS=$'\t' read -r _ _tlabel _tchat _tctx _tsize _ <<< "$_tier_row"
+        echo ""
+        echo "  ${_C_GREEN}✓${_C_RESET}  ${_tlabel} — ${_tchat} (${_tsize}), ${_tctx} context"
+        echo "     Chat, memory extraction and images all use that one model."
+        echo "     Change it later:  ./existential.sh run models"
+        echo ""
+    fi
+fi
+
+if _defaults_only && [ -f "$CORE_QUEST" ]; then
+    echo ""
+    hr
+    echo "  ${_C_BOLD}$(qmeta "$CORE_QUEST" '.name')${_C_RESET} — $(qmeta "$CORE_QUEST" '.tagline')"
+    hr
+    echo ""
+    echo "  Everything below runs on your hardware. No API keys, no accounts."
+    echo ""
+    qmeta "$CORE_QUEST" '.services[].label' | sed 's/^/    • /'
+    echo ""
+    echo "  Roughly 25 containers, sized to the VRAM you picked: chat, memory and"
+    echo "  images share one model on the card, speech-to-text and text-to-speech"
+    echo "  run on CPU so they never evict it."
+    echo ""
+
+    _core_choice=$(
+        {
+            printf 'core\t%s✓  Set up Core%s  — the whole system, wired together\n' \
+                "$_C_GREEN" "$_C_RESET"
+            printf 'browse\t   No thanks  — let me pick services and quests myself\n'
+        } | fzf --ansi \
+                --delimiter=$'\t' \
+                --with-nth=2 \
+                --layout=reverse \
+                --header="  Start here?
+  ↑↓ navigate   Enter confirm" \
+                --prompt="Core ❯ " \
+                --no-info
+    ) || _core_choice=""
+
+    if [[ "${_core_choice%%	*}" == "core" ]]; then
+        _enable_quest_services "$CORE_QUEST"
+        _newly_enabled=$(( _newly_enabled + _enabled_count ))
+        echo ""
+        echo "  Enabled ${_enabled_count} service(s) in ${EXIST_ENV}."
+        echo ""
+        hr
+        echo "  Core — setup guide"
+        hr
+        echo ""
+        _core_guide=$(qbody "$CORE_QUEST")
+        if [[ -n "$_core_guide" && "$_core_guide" != "null" ]]; then
+            echo "$_core_guide" | sed 's/^/  /'
+            echo ""
+        fi
+        # Model pulls and watched dirs ship as migration templates; without them
+        # ollama comes up with no models at all. Pre-selected, deselect to skip.
+        process_quest_crons "$CORE_QUEST"
+        echo ""
+        echo "  Next:  ./existential.sh        (renders config for what you just enabled)"
+        echo "         docker compose up -d"
+        echo ""
+        echo "  More to add later:  ./existential.sh quest"
+        echo ""
+        exit 0
+    fi
+
+    echo ""
+    echo "  Fine — here is everything."
+fi
 
 # ── Phase 1: Service picker ───────────────────────────────────────────────────
 
@@ -320,9 +482,7 @@ for _grp in "${!_hdr_selected[@]}"; do
     fi
 done
 
-# Write enabled services to .env.shared
-_newly_enabled=0
-declare -a _newly_enabled_svcs=()
+# Write enabled services to .env.shared (Phase 0 declared the counters)
 for _svc in "${!_enable_set[@]}"; do
     _var="$(path_to_var "$_svc")"
     if [[ "$(env_get "$_var")" != "true" ]]; then
@@ -347,7 +507,7 @@ fi
 echo ""
 
 declare -a _quest_files=()
-while IFS= read -r f; do _quest_files+=("$f"); done < <(find "$QUESTS_DIR" -name '*.yml' -type f | sort)
+while IFS= read -r f; do _quest_files+=("$f"); done < <(find "$QUESTS_DIR" -name '*.md' -type f | sort)
 [ "${#_quest_files[@]}" -gt 0 ] || die "No quest files found in ${QUESTS_DIR}"
 
 _quest_fzf_out=$(
@@ -355,8 +515,8 @@ _quest_fzf_out=$(
         for _f in "${_quest_files[@]}"; do
             if quest_ready "$_f"; then _qdot="${_C_GREEN}●${_C_RESET}"; else _qdot="${_C_YELLOW}●${_C_RESET}"; fi
             printf '%s\t%s  (%s) %-24s  %s\n' \
-                "$_f" "$_qdot" "$(yq '.services | length' "$_f")" \
-                "$(yq '.name' "$_f")" "$(yq '.tagline' "$_f")"
+                "$_f" "$_qdot" "$(qmeta "$_f" '.services | length')" \
+                "$(qmeta "$_f" '.name')" "$(qmeta "$_f" '.tagline')"
         done
     } | fzf --multi \
             --ansi \
@@ -390,8 +550,8 @@ done <<< "$_quest_fzf_out"
 declare -A _quest_missing_vars=()
 declare -A _quest_missing_labels=()
 for _f in "${_active_files[@]}"; do
-    mapfile -t _qsvars   < <(yq '.services[].var   // ""' "$_f" 2>/dev/null | grep -v '^null$\|^$' || true)
-    mapfile -t _qslabels < <(yq '.services[].label // ""' "$_f" 2>/dev/null | grep -v '^null$\|^$' || true)
+    mapfile -t _qsvars   < <(qmeta "$_f" '.services[].var // ""' 2>/dev/null | grep -v '^null$\|^$' || true)
+    mapfile -t _qslabels < <(qmeta "$_f" '.services[].label // ""' 2>/dev/null | grep -v '^null$\|^$' || true)
     for _i in "${!_qsvars[@]}"; do
         _v="${_qsvars[$_i]:-}"
         [[ -z "$_v" || "$_v" == "null" ]] && continue
@@ -491,7 +651,7 @@ _total="${#_active_files[@]}"
 _qi=0
 for _f in "${_active_files[@]}"; do
     _qi=$(( _qi + 1 ))
-    _qname="$(yq '.name' "$_f")"
+    _qname="$(qmeta "$_f" '.name')"
 
     echo ""
     hr
@@ -514,7 +674,7 @@ for _f in "${_active_files[@]}"; do
     fi
 
     # Quest guide
-    _guide=$(yq '.guide // ""' "$_f")
+    _guide=$(qbody "$_f")
     if [[ -n "$_guide" && "$_guide" != "null" ]]; then
         echo "$_guide" | sed 's/^/  /'
         echo ""

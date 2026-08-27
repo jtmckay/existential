@@ -517,18 +517,28 @@ function main(): number {
   // (10) Every decree/config.exist.yml has the required `commands:` block
   errors.push(...checkDecreeConfigs());
 
-  // Quest files: e2e: false must have e2e_skip explaining why
+  // Quest files: markdown with YAML frontmatter, then the guide as the body.
+  // Scope every check to the frontmatter — the body is free-form prose, and a
+  // guide that happens to show an `e2e: false` line in an example is not config.
   const questsDir = path.join(REPO_ROOT, 'src/quests');
   if (fs.existsSync(questsDir)) {
-    for (const f of fs.readdirSync(questsDir).filter(n => /^\d.*\.yml$/.test(n))) {
+    for (const f of fs.readdirSync(questsDir).filter(n => /^\d.*\.md$/.test(n))) {
       const content = fs.readFileSync(path.join(questsDir, f), 'utf8');
-      const lines = content.split('\n');
+      const fm = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fm) {
+        errors.push(`src/quests/${f}: no YAML frontmatter — a quest is fenced metadata, then the guide`);
+        continue;
+      }
+      const lines = fm[1].split('\n');
       const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
       const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));
       if (hasE2eFalse && !hasE2eSkip) {
         errors.push(
           `src/quests/${f}: has 'e2e: false' but no 'e2e_skip:' explanation — add one`,
         );
+      }
+      if (!lines.some(l => /^name:\s*\S/.test(l))) {
+        errors.push(`src/quests/${f}: frontmatter has no 'name:' — the picker needs it`);
       }
     }
   }

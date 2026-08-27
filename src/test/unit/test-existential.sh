@@ -304,6 +304,42 @@ else
     _fail "_has_any_enabled: commented-out line → exits non-zero" "comment was matched"
 fi
 
+# Default-enabled services must NOT count as a user choice. caddy ships as
+# EXIST_IS_HOSTING_CADDY=true, so a bare "is any flag true?" would report an
+# untouched clone as configured and the first-run quest would never fire.
+_has_enabled_with_tmpl() {
+    local env_content="$1" tmpl_content="$2"
+    printf '%s\n' "$env_content"  > "${FAKE_HAS}/.env.shared"
+    printf '%s\n' "$tmpl_content" > "${FAKE_HAS}/.env.exist.shared"
+    local rc=0
+    _source_existential "$FAKE_HAS" "_has_any_enabled" >/dev/null 2>&1 || rc=$?
+    rm -f "${FAKE_HAS}/.env.shared" "${FAKE_HAS}/.env.exist.shared"
+    return $rc
+}
+
+if ! _has_enabled_with_tmpl "EXIST_IS_HOSTING_CADDY=true" "EXIST_IS_HOSTING_CADDY=true"; then
+    _ok "_has_any_enabled: only a default-enabled service → exits non-zero"
+else
+    _fail "_has_any_enabled: only a default-enabled service → exits non-zero" \
+          "a shipped default was counted as a user choice"
+fi
+
+if _has_enabled_with_tmpl $'EXIST_IS_HOSTING_CADDY=true\nEXIST_IS_AI_HERMES=true' \
+                          $'EXIST_IS_HOSTING_CADDY=true\nEXIST_IS_AI_HERMES=false'; then
+    _ok "_has_any_enabled: default plus one user choice → exits 0"
+else
+    _fail "_has_any_enabled: default plus one user choice → exits 0" "returned non-zero"
+fi
+
+# A trailing comment in the template must not stop the default from matching.
+if ! _has_enabled_with_tmpl "EXIST_IS_SERVICES_IMMICH=true" \
+                            "EXIST_IS_SERVICES_IMMICH=true # run this from its own dir"; then
+    _ok "_has_any_enabled: default with a trailing comment → exits non-zero"
+else
+    _fail "_has_any_enabled: default with a trailing comment → exits non-zero" \
+          "the trailing comment defeated the default match"
+fi
+
 # ── Section: service_is_enabled ───────────────────────────────────────────────
 
 echo ""

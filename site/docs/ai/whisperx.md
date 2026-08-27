@@ -12,6 +12,15 @@ sidebar_position: 3
 Speech-to-text transcription with **speaker diarization** (who said what),
 served by whisperX-FastAPI on an OpenAI-compatible API.
 
+:::note Not the Home Assistant one
+This is for **long recordings** — an interview, a meeting, a voice memo — where
+you want to know who said what. It runs on the GPU and is driven by decree.
+
+Home Assistant's voice pipeline uses [wyoming-whisper](./wyoming-whisper)
+instead: HA speaks the Wyoming TCP protocol, not HTTP, and short voice commands
+want low latency far more than they want speaker labels.
+:::
+
 ## Setup
 
 Diarization needs a HuggingFace token (`WHISPERX_HF_TOKEN`, prompted during setup).

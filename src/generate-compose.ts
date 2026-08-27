@@ -81,6 +81,8 @@ interface VolumeContext {
   hostRepoRoot: string;
   nfsHostMount: string;
   repoRoot: string;
+  /** EXIST_VRAM_GB=0 — strip GPU reservations so compose can start at all. */
+  noGpu: boolean;
 }
 
 function isNfsVolume(vol: unknown): boolean {
@@ -157,8 +159,62 @@ function adjustEnvFile(
   return ef.map(f => (typeof f === 'string' && !f.startsWith('/')) ? path.join(servicePrefix, f) : f);
 }
 
-function adjustServicePaths(svc: Record<string, unknown>, ctx: VolumeContext): Record<string, unknown> {
+/**
+ * Remove GPU device reservations from a service.
+ *
+ * `deploy.resources.reservations.devices: [{driver: nvidia, capabilities: [gpu]}]`
+ * is not a soft preference — on a host with no nvidia container runtime docker
+ * refuses to create the container at all ("could not select device driver ...
+ * with capabilities: [[gpu]]"), so a single GPU-reserving service takes down
+ * `docker compose up` for the whole stack.
+ *
+ * That is what makes the CPU-only tier (EXIST_VRAM_GB=0) impossible without
+ * this: four services declare the reservation (ollama, comfyui, whisperx,
+ * chatterbox) and ollama is in Core. Stripping it here keeps the reservation in
+ * the templates — where it is correct for everyone with a card — rather than
+ * forking them.
+ *
+ * This only makes the containers *start*. A service whose whole job is GPU work
+ * (comfyui; whisperx and chatterbox with their cuda settings) is still not
+ * useful on a CPU-only host. Core includes none of them.
+ */
+function stripGpuReservations(svc: Record<string, unknown>): Record<string, unknown> {
+  const deploy = svc['deploy'] as Record<string, unknown> | undefined;
+  const resources = deploy?.['resources'] as Record<string, unknown> | undefined;
+  const reservations = resources?.['reservations'] as Record<string, unknown> | undefined;
+  const devices = reservations?.['devices'];
+  if (!Array.isArray(devices)) return svc;
+
+  const kept = devices.filter(d => {
+    const dev = (d ?? {}) as Record<string, unknown>;
+    const caps = dev['capabilities'];
+    const isGpu = (Array.isArray(caps) && caps.includes('gpu')) || dev['driver'] === 'nvidia';
+    return !isGpu;
+  });
+  if (kept.length === devices.length) return svc;
+
+  // Prune the now-empty ancestors rather than leaving `reservations: {}` behind:
+  // compose accepts it, but it reads as "something was meant to be here".
+  const newReservations: Record<string, unknown> = { ...reservations };
+  if (kept.length) newReservations['devices'] = kept;
+  else delete newReservations['devices'];
+
+  const newResources: Record<string, unknown> = { ...resources };
+  if (Object.keys(newReservations).length) newResources['reservations'] = newReservations;
+  else delete newResources['reservations'];
+
+  const newDeploy: Record<string, unknown> = { ...deploy };
+  if (Object.keys(newResources).length) newDeploy['resources'] = newResources;
+  else delete newDeploy['resources'];
+
   const out = { ...svc };
+  if (Object.keys(newDeploy).length) out['deploy'] = newDeploy;
+  else delete out['deploy'];
+  return out;
+}
+
+function adjustServicePaths(svc: Record<string, unknown>, ctx: VolumeContext): Record<string, unknown> {
+  const out = ctx.noGpu ? stripGpuReservations(svc) : { ...svc };
   if (Array.isArray(out['volumes'])) {
     out['volumes'] = (out['volumes'] as VolumeEntry[]).map(v => adjustVolume(v, ctx));
   }
@@ -179,6 +235,7 @@ function merge(
   enabled: string[],
   nfsHostMount: string,
   networkExternal = false,
+  noGpu = false,
 ): Record<string, unknown> {
   // First pass: collect all top-level volume definitions (needed to detect NFS).
   const topLevelVolumes: Record<string, unknown> = {};
@@ -203,7 +260,7 @@ function merge(
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
-    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot };
+    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot, noGpu };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
       services[name] = adjustServicePaths(svc ?? {}, ctx);
@@ -311,7 +368,13 @@ function main(): void {
   }
 
   const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
-  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal);
+
+  // EXIST_VRAM_GB=0 is the CPU-only tier. Unset means "never asked" — assume a
+  // GPU, which is what every existing install already does.
+  const noGpu = (env['EXIST_VRAM_GB'] ?? '').trim() === '0';
+  if (noGpu) process.stderr.write('EXIST_VRAM_GB=0 — stripping GPU reservations (CPU-only)\n');
+
+  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal, noGpu);
 
   mergeEnv(repoRoot, enabled);
 

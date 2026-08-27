@@ -111,8 +111,24 @@ decree_is_enabled() {
     [[ "${EXIST_IS_SERVICES_DECREE:-false}" == "true" ]]
 }
 
+# True when the user has enabled ANYTHING beyond what ships enabled by default.
+#
+# A bare "is any flag true?" is not the question: caddy ships as
+# EXIST_IS_HOSTING_CADDY=true, so that test passes on a completely fresh clone
+# and the first-run quest never fires. Compare against .env.exist.shared instead
+# — a flag that is true in both is a default, not a choice — so this stays right
+# if the set of default-enabled services ever changes.
 _has_any_enabled() {
-    grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
+    local tmpl="${SCRIPT_DIR}/.env.exist.shared" k v
+    [[ -f "${SCRIPT_DIR}/.env.shared" ]] || return 1
+    while IFS='=' read -r k v || [[ -n "$k" ]]; do
+        k="${k%%#*}"; k="${k// /}"
+        [[ "$k" =~ ^EXIST_IS_ ]] || continue
+        v="${v%%#*}"; v="${v// /}"
+        [[ "$v" == "true" ]] || continue
+        grep -qE "^${k}=true([[:space:]]*#.*)?\$" "$tmpl" 2>/dev/null || return 0
+    done < "${SCRIPT_DIR}/.env.shared"
+    return 1
 }
 
 # ── Access warning ─────────────────────────────────────────────────────────────
