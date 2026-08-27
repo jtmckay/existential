@@ -5,13 +5,16 @@ sidebar_position: 5
 # Obsidian
 
 - Source: https://obsidian.md (proprietary)
-- License: Proprietary (free for personal use)
+- License: Proprietary — free without limits for personal *and* commercial use since
+  February 2025. Not open source. Sync, Publish and a commercial licence are optional paid
+  ways to support the developers.
 - Alternatives: Logseq, Notion, Roam Research, Joplin
 
 **Recommended for notes and tasks.** Obsidian is the one deliberate exception to the
-free-and-open-source rule in this stack: your notes are plain `.md` files in a directory you
-already own and sync, so the editor is replaceable even though it isn't open source. Nothing
-you write is locked inside it.
+open-source rule in this stack. It is still free — free without limits, no sign-up, nothing
+to buy — it just isn't *open source*. That distinction is the whole of the exception: your
+notes are plain `.md` files in a directory you already own and sync, so the editor is
+replaceable. Nothing you write is locked inside it.
 
 :::info[Not a container]
 Obsidian is a desktop and mobile app, not a service the stack runs. There is no compose file

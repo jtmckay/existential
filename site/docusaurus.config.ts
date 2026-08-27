@@ -66,6 +66,7 @@ const config: Config = {
         src: 'img/favicon.svg',
       },
       items: [
+        { to: '/tour', label: 'Tour', position: 'left' },
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',

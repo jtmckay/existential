@@ -20,8 +20,7 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         Notes, photos, money, files, dashboards, monitoring — there is already a
-        good open source answer for nearly all of it. Existential doesn't replace
-        any of it. It runs it, and gets the pieces talking to each other.
+        good open source answer for nearly all of it.
       </>
     ),
   },
@@ -35,8 +34,7 @@ const FeatureList: FeatureItem[] = [
     description: (
       <>
         Hostnames, certificates, storage, logging, backups, secrets, updates —
-        solved a single time, then applied to everything. Adding the next app is
-        adding a folder and flipping one flag; it inherits all of it.
+        solved a single time, then applied to everything.
       </>
     ),
   },
@@ -49,9 +47,8 @@ const FeatureList: FeatureItem[] = [
     ),
     description: (
       <>
-        Your files sit on your disks. Your models run on your GPU. No
-        subscription, no vendor, nobody else's servers, nothing to be locked out
-        of — and it keeps working with the internet unplugged.
+        Your files, your disks. Your models, your GPU. No
+        subscription, nobody else's servers, and it keeps working with the internet unplugged.
       </>
     ),
   },

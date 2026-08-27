@@ -69,13 +69,62 @@
   color: var(--ifm-color-emphasis-800);
 }
 
-.converge {
+.feeds {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+@media screen and (max-width: 996px) {
+  .feeds {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Feeds converge downward into the core. */
+.convergeFeeds {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  max-width: 44rem;
+  margin: 0 auto;
+  height: 2.5rem;
+}
+
+/* The core fans back out into the surfaces — same lines, gradient reversed. */
+.diverge {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   max-width: 60rem;
   margin: 0 auto;
   height: 2.5rem;
+}
+
+.divergeLine {
+  justify-self: center;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    var(--ifm-color-primary),
+    var(--ifm-color-emphasis-300)
+  );
+}
+
+@media screen and (max-width: 996px) {
+  .convergeFeeds,
+  .diverge {
+    grid-template-columns: 1fr;
+    height: 1.75rem;
+  }
+
+  .convergeFeeds .convergeLine:not(:first-child),
+  .diverge .divergeLine:not(:first-child) {
+    display: none;
+  }
 }
 
 .convergeLine {
@@ -87,17 +136,6 @@
     var(--ifm-color-emphasis-300),
     var(--ifm-color-primary)
   );
-}
-
-@media screen and (max-width: 996px) {
-  .converge {
-    grid-template-columns: 1fr;
-    height: 1.75rem;
-  }
-
-  .converge .convergeLine:not(:first-child) {
-    display: none;
-  }
 }
 
 .core {

@@ -51,7 +51,7 @@ sections:
     items:
       - title: Open WebUI
         url: https://open-webui.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/open-webui
+        # url: https://existential.company/docs/ai/open-web-ui
         icon: si-openai
         statusCheck: true
         description: Chat UI routed through hermes-agent
@@ -177,14 +177,14 @@ sections:
     items:
       - title: Nextcloud
         url: https://nextcloud.EXIST_DOMAIN
-        # url: https://existential.company/docs/nas/nextcloud
+        # url: https://existential.company/docs/storage/nextcloud
         icon: si-nextcloud
         statusCheck: true
         description: File sync + collaboration
 
       - title: MinIO Console
         url: https://minio.EXIST_DOMAIN
-        # url: https://existential.company/docs/nas/minio
+        # url: https://existential.company/docs/storage/minio
         icon: si-minio
         statusCheck: true
         description: S3-compatible object store (web console)

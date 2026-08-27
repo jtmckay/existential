@@ -5,7 +5,7 @@ sidebar_position: 11
 # OpenViking
 
 - Source: https://github.com/volcengine/OpenViking
-- License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+- License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: LightRAG, Chroma, Qdrant, Weaviate
 
 Context database for AI agents. It exposes a `viking://` filesystem holding memory,

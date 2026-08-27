@@ -1,0 +1,47 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: center;
+  overflow: hidden;
+}
+
+.heroLede {
+  max-width: 40rem;
+  margin: 1rem auto 0;
+  font-size: 1.15rem;
+  line-height: 1.65;
+  opacity: 0.92;
+}
+
+.closing {
+  padding: 4.5rem 0;
+  text-align: center;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.closingTitle {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.closingLede {
+  max-width: 40rem;
+  margin: 0 auto 2rem;
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.closingNotice {
+  margin: 2rem auto 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--ifm-color-emphasis-600);
+}

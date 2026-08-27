@@ -26,8 +26,9 @@ function HomepageHeader() {
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
           There's an app for that, and it's free open source.
-          Existential runs it all as <em>one</em> connected system
-          on your own hardware, with a local AI underneath.
+          Existential runs it all as <em>one</em> connected system on your own
+          hardware — your files in Nextcloud, your house in Home Assistant, and
+          a local agent in the middle that reads both.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -37,8 +38,8 @@ function HomepageHeader() {
           </Link>
           <Link
             className="button button--outline button--secondary button--lg"
-            href="https://github.com/jtmckay/existential">
-            GitHub
+            to="/tour">
+            Take a tour
           </Link>
         </div>
       </div>
@@ -74,8 +75,8 @@ function HomepageClosing() {
           </Link>
           <Link
             className="button button--outline button--primary button--lg"
-            href="https://discord.gg/McH3kPh9gM">
-            Discord
+            to="/tour">
+            Take a tour
           </Link>
         </div>
       </div>

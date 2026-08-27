@@ -10,8 +10,10 @@ sidebar_position: 1
 - [Home Assistant](./homeassistant) — Home automation
 - [Immich](./immich) — Images and Videos
 - [Obsidian](./obsidian) — Notes and tasks (recommended)
+- [ONLYOFFICE Desktop](./onlyoffice) — Documents, spreadsheets, slides (recommended)
 - [Mealie](./mealie) — Recipes / meal planning
 - [Ntfy](./ntfy) — Notifications
+- [On your phone](./mobile) — The Android apps worth installing
 
 ## Advanced Custom Interfaces
 

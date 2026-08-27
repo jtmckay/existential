@@ -48,6 +48,7 @@ written request and we will provide it: **[insert contact email]**.
 | Collabora Online (CODE) | MPL-2.0 | https://github.com/CollaboraOnline/online |
 | Redis (`redis:alpine`, v8) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |
+| OpenViking | AGPL-3.0 | https://github.com/volcengine/OpenViking |
 | Proxmox VE (host hypervisor) | AGPL-3.0 | https://git.proxmox.com |
 
 ## Permissive components (attribution)
@@ -81,10 +82,27 @@ offer is required; attribution is given here.
 | Valkey | BSD-3 | https://github.com/valkey-io/valkey |
 | Coolify (control plane) | Apache-2.0 | https://github.com/coollabsio/coolify |
 
+## Screenshots
+
+Screenshots on the [tour](/tour) come from two places: each project's own documentation or
+README imagery, and captures of the public demo instances those projects host themselves
+(`it-tools.tech`, `demo.home-assistant.io`, `play.min.io`). Both are reproduced to identify
+the software being run. They remain the property of their respective projects and are used
+here for identification only; each is credited with a link to its upstream source. No
+affiliation or endorsement is implied.
+
+The Obsidian, Dashy and Grafana screenshots are of this stack's own deployment.
+
 ## Branding & trademarks
 
 - **Open WebUI** branding is retained intact, as required by its license for deployments
   exceeding fifty users.
+- **Obsidian** is proprietary software and the one deliberate exception in this stack (see
+  [Obsidian](./services/obsidian)). It is free to use without limits, for personal and
+  commercial use alike — free, but not open source, so no source offer applies to it. The
+  Obsidian name, logo and app icon are trademarks of Dynalist Inc.; they are used here for
+  identification only, and the Obsidian logo and app icon are not used as brand assets of
+  this project.
 - **Coolify**, **Nextcloud**, **Immich**, and all other product names and logos are
   trademarks of their respective owners and are used here for identification only. No
   affiliation or endorsement is implied.
