@@ -83,8 +83,10 @@ docs), `graveyard/` (archived — leave alone).
 - **`.sh` exec bit:** default `644` — `existential.sh` and the decree daemon `bash <script>`
   everything they dispatch. Keep `+x` (`755`) only on scripts executed **by path**:
   `existential.sh` itself, `.githooks/*` (git runs hooks directly), decree hooks
-  (`lib/hooks/*`, wired as `beforeEach`/`afterEach` paths), and `lib/notes/*` (run by path from
-  `notes.sh`).
+  (`lib/hooks/*`, wired as `beforeEach`/`afterEach` paths), `lib/notes/*` (run by path from
+  `notes.sh`), and container `entrypoint:` targets (Docker execs them by path). Everything
+  else stays `644`; `./existential.sh test lint` does not check modes, so this is convention,
+  not enforcement.
 
 ---
 
@@ -105,13 +107,19 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 
 `./existential.sh` renders `*.exist.*` templates, runs each enabled service's
 `exist.initial.sh`, and merges enabled services into a unified `docker-compose.yml`. Disabled
-services are skipped entirely (no secrets/templates land on disk). `--force` re-renders existing
-files; `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
+services are skipped entirely (no secrets/templates land on disk). A rendered destination is
+written **once** and skipped thereafter — there is no re-render flag. `reset` archives every
+rendered file to `archive/<timestamp>/` (paths preserved, gitignored, restore with `cp -r
+archive/<stamp>/. .`) so the next run renders fresh; it never touches `volumes/` or
+`volumes_local/`. `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
 shipped defaults, which `_has_any_enabled` checks against `.env.exist.shared` rather than by
-counting `true`s — quest asks one hardware question (how much VRAM, which picks a model tier) and
-then leads with a single **Core, or no thanks** choice (`src/quests/00-core.md`) instead of forty
-service checkboxes; declining falls through to the full picker. `EXIST_VRAM_GB` records that the
-question was asked, so it is never re-asked; `run models` is the way back.
+counting `true`s — quest asks two hardware questions and then leads with a single **Core, or no
+thanks** choice (`src/quests/00-core.md`) instead of forty service checkboxes; declining falls
+through to the full picker. The hardware questions are **GPU vendor first**
+(`src/utils/gpu-vendor.sh` → `EXIST_GPU_VENDOR`), then VRAM (`src/utils/model-tiers.sh` →
+`EXIST_VRAM_GB`); answering *No GPU* sets `EXIST_VRAM_GB=0` itself and **skips** the VRAM
+question, so the VRAM picker is always asked with `--gpu-only`. `EXIST_GPU_VENDOR` records that
+the pair was asked, so they are never re-asked; `run models` is the way back and re-asks both.
 
 A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
 `e2e`, `services`, `copies`), the body for the guide — the same shape as decree's cron and
@@ -121,7 +129,7 @@ itself to the frontmatter; the body is free-form prose.
 
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
-don't memorize the list here. The rest: `test [secrets|guards|harness|selfcheck|unit|integration|services]`
+don't memorize the list here. The rest: `test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
 (bare `test` runs them all), `validate [conventions|drift]`, and `e2e [pattern...]` (fresh clone
 → render → up → test → down).
 
@@ -136,10 +144,9 @@ The only correct flow for any compose change is:
 
 1. Edit the service's `docker-compose.exist.yml` (tracked template).
 2. If `<service>/docker-compose.yml` already exists (rendered, gitignored), apply the same change
-   there too — `./existential.sh` without `--force` won't re-render it, so `generate-compose.ts`
-   would read the stale copy.
-3. Run `./existential.sh` from the repo root (no `--force` — that re-prompts `EXIST_*`
-   placeholders and is only needed when adding new secrets/vars to a template).
+   there too — a rendered file is never re-rendered, so `generate-compose.ts` would otherwise
+   read the stale copy. (`./existential.sh reset` is the bulk alternative.)
+3. Run `./existential.sh` from the repo root.
 4. Run `docker compose up -d` from the repo root.
 
 **Never `cd` into a service directory and run `docker compose` there.** All compose commands run
@@ -160,7 +167,17 @@ from the repo root against the generated `docker-compose.yml`.
   (`loki-promtail-config.yaml`). `docker ps` should make ownership obvious.
 - **Container user.** Least privilege by default: `user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"`.
   **Never hardcode the literal `1000:1000`**, never `user: "0:0"`. Images with an s6/`PUID`-style
-  init take `PUID`/`PGID` env instead of `user:`. → `services.md`
+  init take `PUID`/`PGID` env instead of `user:`. The one sanctioned `privileged: true` is inside
+  an `x-exist-gpu.amd` block, where it is how Vulkan reaches `/dev/dri` — never in the service
+  body, so it can only ever apply on an AMD host. → `services.md`
+- **GPU wiring is vendor-driven, never forked per template.** Templates declare the nvidia
+  reservation (correct for the majority) and `src/generate-compose.ts` rewrites it from
+  `EXIST_GPU_VENDOR`: `nvidia` is a no-op, `amd`/`none` strip the reservation — docker refuses to
+  create a container whose device driver it cannot satisfy, so one stray reservation takes
+  `docker compose up` down for the *whole* stack — and merge that service's `x-exist-gpu.<vendor>`
+  block instead. Vendor config lives **with the service**, so a new GPU service is still just a
+  new folder. A blank `EXIST_GPU_VENDOR` falls back to the old `EXIST_VRAM_GB == 0` meaning, which
+  is what pre-vendor installs already assumed. → `services.md`
 - **Volumes are always host bind mounts** — never Docker-managed, no top-level `volumes:` block,
   no bare named refs. Three tiers by "backup-worthy?" × "NFS-safe?"; an embedded DB (SQLite,
   bbolt, TSDB) must **never** go on NFS. Every bind dir gets a committed `.gitkeep`. →
@@ -178,12 +195,15 @@ from the repo root against the generated `docker-compose.yml`.
   ollama migrations name an `OLLAMA_ROLE` (not a tag), honcho renders `config.toml` from them, and
   the wyoming services take them as compose env. **Never hardcode a model tag in a service.**
   The values themselves come from a VRAM tier table (`src/utils/model-tiers.sh`): quest asks how
-  much VRAM the machine has on first run, `./existential.sh run models` re-asks later, and
-  `.env.exist.shared` ships the default tier (8 GB). Edit the table, not the individual defaults —
-  a unit test asserts the two agree. Every tier tag must have ollama's **tools** capability
-  (hermes cannot act without it) and be multimodal (so images reuse the resident model). The
-  `0` tier is CPU-only and `generate-compose.ts` keys its GPU-reservation strip off that exact
-  value — do not renumber it.
+  much VRAM the machine has on first run (after the GPU vendor question, and only when the answer
+  was not *No GPU*), `./existential.sh run models` re-asks later, and
+  `.env.exist.shared` ships the default tier's *model* values (8 GB) but ships `EXIST_VRAM_GB`
+  **blank** — that blankness is the record of not-yet-asked, and quest's picker fires only while
+  it is empty, so shipping a value there makes the question unreachable. Edit the table, not the
+  individual defaults — a unit test asserts the two agree, and asserts the blank. Every tier tag
+  must have ollama's **tools** capability (hermes cannot act without it) and be multimodal (so
+  images reuse the resident model). The `0` tier is CPU-only and `generate-compose.ts` keys its
+  GPU-reservation strip off that exact value — do not renumber it.
 
 ---
 

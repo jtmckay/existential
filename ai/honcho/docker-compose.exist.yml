@@ -30,15 +30,31 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - "48001:8000"   # Honcho API (also add to Caddyfile.peer.example)
+    # entrypoint.sh runs upstream's documented bootstrap (alembic upgrade head,
+    # then configure_embeddings.py to resize the vector columns to
+    # EXIST_MODEL_EMBED_DIM) before chaining to the image's own entrypoint.
+    # Without it the default CMD starts the API against an unmigrated — or
+    # wrong-dimension — schema and honcho restart-loops. See entrypoint.sh.
+    entrypoint: ["/entrypoint.sh"]
     environment:
       DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_POSTGRES_PASSWORD}@honcho-postgres:5432/honcho"
     volumes:
+      # Migrations + pgvector dimension alignment, then chain to /app/docker/entrypoint.sh.
+      - ./entrypoint.sh:/entrypoint.sh:ro
       - ./config.toml:/app/config.toml:ro
     depends_on:
       honcho-postgres:
         condition: service_healthy
+    # python3, not curl: the honcho image ships neither curl nor wget, so a curl
+    # healthcheck can never pass and the container stays "unhealthy" while serving
+    # fine — which in turn fails anything gating on service_healthy. Exec form
+    # (CMD, not CMD-SHELL) so the python source needs no nested shell quoting.
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://localhost:8000/health || exit 1']
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=4).status==200 else 1)"
       interval: 15s
       timeout: 5s
       retries: 5

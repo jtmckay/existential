@@ -17,7 +17,7 @@ generate_hex_key() {
     # Use the safe generation method consistently
     local hex_key=""
     
-    for i in $(seq 1 "$length"); do
+    for _ in $(seq 1 "$length"); do
         # Generate random index using multiple entropy sources
         local rand_seed
         if [ -r /dev/urandom ]; then

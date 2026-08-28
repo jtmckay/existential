@@ -46,7 +46,10 @@ probe_caddy "hermes-agent /health" hermes-agent /health 200
 # hermes-dashboard is also fronted by caddy. We don't know its exact
 # health-endpoint contract, so accept any non-error status at root — this
 # only probes routing, not correctness.
-probe_caddy_any   "hermes-dashboard root" hermes-dashboard / "^(200|301|302|401|403|404)$"
+# Hostname is hermes-agent-dashboard, not hermes-dashboard — the Caddyfile is
+# the source of truth for which hostnames exist, and it defines
+# hermes-agent-dashboard.{$CADDY_DOMAIN} -> hermes-agent:9119.
+probe_caddy_any   "hermes-dashboard root" hermes-agent-dashboard / "^(200|301|302|401|403|404)$"
 
 # ── 2. API key ────────────────────────────────────────────────────────────────
 

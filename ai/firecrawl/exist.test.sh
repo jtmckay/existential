@@ -11,6 +11,13 @@ skip_if_disabled
 
 env_var_set "FIRECRAWL_API_KEY"
 
+# Postgres credentials must still match the role baked into the data volume at
+# initdb time — the failure this catches presents only as "dependency failed to
+# start: container firecrawl is unhealthy" on firecrawl-mcp. Checked before the
+# HTTP probes so the cause prints above the symptoms it produces.
+pg_auth_probe "firecrawl-postgres auth" firecrawl-postgres 5432 \
+              "${FIRECRAWL_POSTGRES_USER:-}" "${FIRECRAWL_POSTGRES_PASSWORD:-}" firecrawl
+
 # Root endpoint — unauthenticated, returns {"message":"Firecrawl API",...}
 probe_service "firecrawl /" firecrawl 3002 / 200
 

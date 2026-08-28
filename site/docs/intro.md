@@ -85,7 +85,8 @@ this page: the pieces are replaceable, the shape isn't.*
 
 ## Try it
 
-Prerequisite: [Docker](https://www.docker.com/get-started/).
+Prerequisites: [Docker](https://www.docker.com/get-started/) and
+[Tailscale](https://tailscale.com/download).
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

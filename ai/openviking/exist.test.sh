@@ -30,6 +30,8 @@ fi
 
 CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
     -H "Authorization: Bearer ${OPENVIKING_API_KEY:-}" \
+    -H "X-OpenViking-Account: default" \
+    -H "X-OpenViking-User: default" \
     "${OPENVIKING_URL}/api/v1/fs/ls?uri=viking://" 2>/dev/null || echo "000")
 case "${CODE}" in
     200) ok "openviking filesystem API" ;;
@@ -39,6 +41,9 @@ case "${CODE}" in
     000) fail "openviking filesystem API" \
               "no response within 10s" \
               "docker logs openviking" ;;
+    400) fail "openviking filesystem API" \
+              "400 — tenant-scoped API rejected the request" \
+              "A ROOT key must send X-OpenViking-Account + X-OpenViking-User; check openviking has not changed those header names" ;;
     *)   fail "openviking filesystem API" \
               "HTTP ${CODE}" \
               "docker logs openviking" ;;

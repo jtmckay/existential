@@ -30,6 +30,14 @@ if ! ./existential.sh test harness; then
     exit 1
 fi
 
+# Static shell lint. Needs Docker (throwaway shellcheck container), so it sits
+# with the heavier gates rather than the Docker-free self-tests above.
+if ! ./existential.sh test lint; then
+    echo "" >&2
+    echo "pre-push blocked: shellcheck found issues (fix, or 'git push --no-verify')." >&2
+    exit 1
+fi
+
 if ! ./existential.sh test unit; then
     echo "" >&2
     echo "pre-push blocked: unit tests failed (fix, or 'git push --no-verify')." >&2

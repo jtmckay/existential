@@ -44,6 +44,7 @@ TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:S3/telegram}"
 _credentials="${TELEGRAM_SECRETS_DIR}/credentials.env"
 _offset_file="${TELEGRAM_SECRETS_DIR}/offset.txt"
 
+# shellcheck source=/dev/null  # runtime path, contents are credentials
 [ -f "$_credentials" ] && source "$_credentials"
 
 [ -n "${TELEGRAM_BOT_TOKEN:-}" ] || { echo "TELEGRAM_BOT_TOKEN not set — create ${_credentials}"; exit 1; }

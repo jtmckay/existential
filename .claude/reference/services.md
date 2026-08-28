@@ -65,10 +65,56 @@ open-webui, hermes-agent do this). Use plain `user:` only for images that tolera
 uid.
 
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
-`privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`), pihole (NET_ADMIN),
+`privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`; the only blanket
+`privileged: true` in the repo lives in an `x-exist-gpu.amd` block, see *GPU vendor wiring*
+below), pihole (NET_ADMIN),
 portainer (docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images
 managed by an internal supervisor (appsmith, lowcoder, nextcloud), and images caching into
 `/root` (whisperx, mcp).
+
+## GPU vendor wiring
+
+Templates declare the **nvidia** device reservation and nothing else. That is correct for the
+majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else from
+`EXIST_GPU_VENDOR` (asked by quest as the first hardware question — `src/utils/gpu-vendor.sh`):
+
+| vendor   | what the generator does                                                        |
+|----------|--------------------------------------------------------------------------------|
+| `nvidia` | nothing, beyond dropping the `x-exist-gpu` key                                  |
+| `amd`    | strips the nvidia reservation, merges `x-exist-gpu.amd`                         |
+| `none`   | strips the nvidia reservation, merges `x-exist-gpu.none`; `EXIST_VRAM_GB` is 0  |
+
+The strip is not tidiness. Docker refuses to create a container whose device driver it cannot
+satisfy (`could not select device driver … with capabilities: [[gpu]]`), and compose fails the
+whole `up` — so one nvidia reservation on an AMD or CPU-only host takes down every other service
+in the stack with it. A blank `EXIST_GPU_VENDOR` falls back to the older `EXIST_VRAM_GB == 0`
+signal, so installs predating the question keep generating exactly what they did before.
+
+**Vendor config lives with the service**, as an `x-exist-gpu.<vendor>` block in its
+`docker-compose.exist.yml` — never as a table of container names in the generator, which would
+mean editing two places to add a GPU service:
+
+```yaml
+    x-exist-gpu:
+      amd:
+        privileged: true
+        environment:
+          OLLAMA_VULKAN: "1"
+```
+
+The merge is one level deep and last-wins, except `environment`, which is *merged* so a block can
+set one variable without restating the rest (list form `- KEY=value` is normalised to map form
+first, so either style in the template works). The key itself never reaches the output.
+
+`privileged: true` inside an `x-exist-gpu.amd` block is the **one sanctioned use** of privileged
+in this repo: it is how Vulkan reaches `/dev/dri`, and living in the overlay means it can only
+ever apply on a host that answered *AMD*. Never put it in the service body.
+
+Two things worth stating plainly when you add a block: a stripped reservation only makes a
+container **start**, it does not make a CUDA-only workload work (whisperx pins `DEVICE: cpu` for
+both non-nvidia vendors because CTranslate2 has no ROCm backend — without it the container starts
+and then dies on the first request), and an `x-exist-gpu.<vendor>: {}` is a legitimate way to
+record "considered, nothing to do" rather than leaving the case looking forgotten.
 
 The `*-decree` backup sidecars run as the host user like everything else — the volume data they
 tar is host-owned by the `volumes/` convention, so they need no extra privilege. **DB/cache

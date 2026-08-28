@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154  # message_file / message_dir are injected into the
+# environment by decree before it runs this hook; no hook assigns them itself.
 # Fires after every message attempt (success or failure).
 # Pushes metrics to Prometheus Pushgateway and a summary log to Loki.
 

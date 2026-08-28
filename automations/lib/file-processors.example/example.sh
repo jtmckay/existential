@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with
+# file-processor, which sources it and reads them. Nothing here consumes them.
 # Example file processor — copy/rename this file to add a new type.
 #
 # PATTERN is matched against FILE_SOURCE, the full rclone path:

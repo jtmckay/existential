@@ -6,6 +6,21 @@ services:
     # Pinned (was :latest-cuda) for reproducibility. Bump via ./existential.sh run check-versions.
     image: ghcr.io/ai-dock/comfyui:v2-cuda-12.1.1-base-22.04-v0.2.7
 
+    # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation below is stripped automatically when this applies.
+    x-exist-gpu:
+      amd:
+        # ai-dock publishes a ROCm build at the same ComfyUI version as the CUDA
+        # pin above, so this is a like-for-like swap rather than a version jump.
+        # Bump both tags together via ./existential.sh run check-versions.
+        image: ghcr.io/ai-dock/comfyui:v2-rocm-6.0-runtime-22.04-v0.2.7
+        privileged: true
+      none:
+        # Nothing to add: the reservation is stripped so the container starts,
+        # but this is a CUDA image and image generation on CPU is not practical.
+        # Left explicit so the CPU case reads as considered, not forgotten.
+        {}
+
     # NVIDIA GPU
     deploy:
       resources:

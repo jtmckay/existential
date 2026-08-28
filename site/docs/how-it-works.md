@@ -131,8 +131,9 @@ Templates are tracked in git; rendered files never are.
 
 **Rendering happens once per file.** If the destination already exists it is left alone, so
 the passwords you were prompted for and the edits you made afterwards survive every
-subsequent run. `--force` re-renders anyway; a rendered `.env` is never overwritten even
-then.
+subsequent run. There is no flag to re-render over them — `./existential.sh reset` archives
+the rendered files to `archive/<timestamp>/` and the next run renders fresh, so nothing is
+overwritten without a copy you can restore.
 
 The exception is files that hold nothing you could lose — no secrets, no prompted answers.
 Those are **regenerated on every run** so a value like `EXIST_DOMAIN` baked into them can't
@@ -140,7 +141,7 @@ go stale, and they carry a `DO NOT EDIT` header saying so. Dashy's `dashy-conf.y
 one today: it bakes the domain because Dashy reads a static config file, and it re-renders
 every run so changing your domain updates it along with everything else. If you'd rather
 own it, flip `# EXIST_KEEP: false` to `true` in its header and the file is yours from then
-on — never regenerated, `--force` included.
+on — never regenerated again.
 
 ### 3. Merge — one compose file, one env file
 
@@ -176,21 +177,38 @@ hostname above — faster, and no TLS to trust.
 
 ## Hostnames that just work
 
-`EXIST_DOMAIN` defaults to `<your-lan-ip-with-dashes>.nip.io`, derived automatically from the
-IP you give during setup:
+`EXIST_DOMAIN` defaults to `<your-host-ip-with-dashes>.nip.io`, derived automatically on the
+first run. The IP comes from `tailscale ip -4`, falling back to your LAN address if tailscale
+isn't running:
 
 ```
-EXIST_LOCAL_HOST_IP=192.168.1.50
+EXIST_LOCAL_HOST_IP=100.101.102.103          (tailnet address)
         ↓
-EXIST_DOMAIN=192-168-1-50.nip.io      →  https://dashy.192-168-1-50.nip.io
+EXIST_DOMAIN=100-101-102-103.nip.io   →  https://dashy.100-101-102-103.nip.io
 ```
 
 [nip.io](https://nip.io) is public wildcard DNS: any name ending in `<ip>.nip.io` resolves
-straight back to that IP. Nothing to register, nothing to configure. **Every phone and laptop
-on your LAN can reach the stack immediately — no pihole, no `/etc/hosts`, no DNS setup.**
+straight back to that IP. Nothing to register, nothing to configure. **Every device you own
+can reach the stack immediately — no pihole, no `/etc/hosts`, no DNS setup.**
+
+The two halves do different jobs. **nip.io supplies the wildcard**, so a new service needs no
+DNS change — ever. **Tailscale supplies the reachability**, and because a `100.64.0.0/10`
+address only routes inside your tailnet, the name is public but the stack is not: your laptop
+reaches it from a hotel, and nobody else reaches it at all. No router config, no port
+forwarding, nothing exposed.
+
+:::danger Don't use a MagicDNS name
+Setting `EXIST_DOMAIN=my-box.tailnet.ts.net` looks correct and fails. MagicDNS resolves that
+**exact node name** and nothing beneath it — there is no wildcard under a node — so
+`dashy.my-box.tailnet.ts.net` is NXDOMAIN and the whole `<slug>.<domain>` convention collapses.
+Use the tailnet **IP** in nip.io form.
+
+The same reasoning rules out `tailscale serve`: it terminates TLS for one hostname per node
+with path-based routing, so it cannot give forty services forty hostnames.
+:::
 
 The catch: that lookup goes to the internet. If your WAN link is down, the names stop
-resolving even on the host itself.
+resolving even on the host itself — which is what pihole fixes, below.
 
 ### Upgrading an existing install
 
@@ -213,9 +231,17 @@ Set them again only if you deliberately want that service on a different domain 
 rest of the stack.
 
 Rendered non-`.env` files are skipped the same way. If `hosting/caddy/Caddyfile` predates a
-service you now have enabled, it has no site block for it — re-render with
-`./existential.sh --force` (which re-prompts for placeholders) or copy the missing block
-across from `Caddyfile.exist.Caddyfile` by hand.
+service you now have enabled, it has no site block for it — copy the missing block across
+from `Caddyfile.exist.Caddyfile` by hand, or run `./existential.sh reset` to archive every
+rendered file and render the lot fresh. Reset lists exactly what it will move and asks
+first, and it never touches `volumes/` or `volumes_local/` — your data stays put.
+
+If a command instead complains about permissions — `rm: Permission denied` during setup, or a
+reset that can't write `archive/` — some path in the repo is owned by root. Docker does this: a
+bind mount whose host directory doesn't exist yet gets created by the daemon, and the daemon runs
+as root. `./existential.sh run fix-permissions` gives those paths back to you (add `--dry-run` to
+see the list first). It never deletes anything, and it borrows root from a throwaway container
+rather than asking you for `sudo`.
 
 ### Two independent choices, not one upgrade path
 
@@ -229,6 +255,9 @@ you to change both.
 |---|---|---|
 | **nip.io** *(default)* | Zero setup. Needs internet for DNS. | Not possible — you don't control the `nip.io` zone. |
 | **pihole** | Fully offline. Resolves locally. | **Fully offline *and* no warnings.** See below. |
+
+Neither question is about *reachability* — that is tailscale's job, and it is orthogonal to
+both. You can move along either axis without touching your tailnet.
 
 The bottom-right cell is the good one, and it needs a domain you own — but **not** a public
 A record, and **not** any inbound connectivity.

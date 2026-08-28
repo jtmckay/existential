@@ -34,18 +34,49 @@ _ensure_hermes_install() {
         return 0
     }
 
+    # A NON-EMPTY .venv is the cache marker, not merely a present one. The four
+    # trees below are bind-mount sources in docker-compose.yml, so a `docker
+    # compose up` that beats this script leaves them existing but empty — and
+    # treating that as a valid cache would hand hermes an image whose own .venv,
+    # gateway, node_modules and ui-tui are all shadowed by empty directories
+    # (which is what "hermes-agent: Restarting (127)" looks like from outside).
     if [[ -f "${cache_dir}/.image_id" ]] && \
        [[ "$(cat "${cache_dir}/.image_id")" == "$img_id" ]] && \
-       [[ -d "${cache_dir}/.venv" ]]; then
+       [[ -n "$(ls -A "${cache_dir}/.venv" 2>/dev/null)" ]]; then
         echo "[hermes] Build cache current (${image##*:})."
         return 0
+    fi
+
+    # Same story, one step earlier: those daemon-created directories are
+    # root:root, so every write below (the rm, the docker cp, the chown) fails
+    # for the user running this. Say so once, with the fix, instead of three
+    # times as "Permission denied".
+    local -a _stuck=()
+    local _p
+    for _p in "$cache_dir" "${cache_dir}/.venv" "${cache_dir}/ui-tui" \
+              "${cache_dir}/gateway" "${cache_dir}/node_modules"; do
+        [[ -e "$_p" && ! -w "$_p" ]] && _stuck+=("${_p#"${SCRIPT_DIR}/"}")
+    done
+    if [[ "${#_stuck[@]}" -gt 0 ]]; then
+        echo "[hermes] Cannot write to the build cache — these are owned by another user:" >&2
+        printf '[hermes]   %s\n' "${_stuck[@]}" >&2
+        echo "[hermes]" >&2
+        echo "[hermes] Docker creates a missing bind-mount source as root, so this happens when" >&2
+        echo "[hermes] the stack came up before the cache was extracted. Reclaim them with:" >&2
+        echo "[hermes]     docker compose down && ./existential.sh run fix-permissions" >&2
+        return 1
     fi
 
     echo "[hermes] Extracting build trees from image (one-time per version, ~1 min)..."
     rm -rf "${cache_dir:?}"/.venv "${cache_dir}"/ui-tui "${cache_dir}"/gateway "${cache_dir}"/node_modules "${cache_dir}"/.image_id
 
     local cid
-    cid=$(docker create "$image" 2>/dev/null)
+    # Unchecked, a failure here degrades into four "(not in image, skipping)"
+    # lines and a cache that is silently empty.
+    if ! cid=$(docker create "$image" 2>&1); then
+        echo "[hermes] Could not create a container from ${image}: ${cid}" >&2
+        return 1
+    fi
 
     for tree in .venv ui-tui gateway node_modules; do
         printf "[hermes]   %-14s " "$tree"
@@ -61,7 +92,11 @@ _ensure_hermes_install() {
     local uid="${EXIST_PUID:-$(id -u)}"
     local gid="${EXIST_PGID:-$(id -g)}"
     echo "[hermes] Chowning cache to ${uid}:${gid}..."
-    chown -R "${uid}:${gid}" "$cache_dir"
+    if ! chown -R "${uid}:${gid}" "$cache_dir" 2>/dev/null; then
+        echo "[hermes] Could not chown ${cache_dir#"${SCRIPT_DIR}/"} to ${uid}:${gid}." >&2
+        echo "[hermes] Run: ./existential.sh run fix-permissions" >&2
+        return 1
+    fi
     echo "$img_id" > "${cache_dir}/.image_id"
     echo "[hermes] Build cache ready — future container restarts will skip the chown."
 }

@@ -64,11 +64,19 @@ Click **Get started**.
 - Set the app to **External**
 - Fill in the app name and your email
 
-### 4. Add Yourself as a Test User
+### 4. Publish the App
 
-While the app is in testing mode, only explicitly added users can authorize it. Go to **OAuth consent screen → Test users → Add users** and add your email.
+While the app is in testing mode, Google expires your refresh token after **7 days** —
+the sync then fails with `invalid_grant` and has to be reauthorized. Publishing avoids that.
 
-![Add test user](../decree/image_1759886416610_0.png)
+Go to **OAuth consent screen → Audience**, click **Publish app**, and confirm.
+
+**Do not submit for verification.** Publishing is instant; verification takes weeks, and
+Gmail's `gmail.readonly` is a *restricted* scope, so it would also require a paid annual
+third-party security assessment. You need none of that to use your own app.
+
+The only consequence of staying unverified is a warning screen the first time you authorize:
+click **Advanced → Go to (unsafe)**. You will not see it again.
 
 ### 5. Create OAuth Client ID
 

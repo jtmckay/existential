@@ -1,6 +1,6 @@
 # Testing
 
-Entry point: `./existential.sh test [secrets|guards|harness|selfcheck|unit|integration|services]`
+Entry point: `./existential.sh test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
 (bare `test` runs them all).
 
 `src/test/` splits into `unit/` (no live services), `integration/` (live creds/containers),
@@ -50,6 +50,29 @@ need git/bash, no adhoc; part of `test` (all) and run early in `pre-push`):
   that canary.**
 - **`unit/test-validators.sh`** — opposite-tests the TS validators: builds violating fixture
   trees, asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
+
+## Shell lint
+
+`./existential.sh test lint` → `src/test/lint-shell.sh`. Runs shellcheck at `-S warning` over
+every tracked `*.sh` plus `.githooks/*` (graveyard excluded), in a throwaway
+`koalaman/shellcheck-alpine` container pinned by tag **and** digest. Shellcheck is in neither
+the host nor the adhoc image, and baking it into the decree image would force an image rebuild
+on everyone for a developer-only tool — so this follows the same throwaway-container pattern as
+the Go tests below.
+
+It carries its own opposite: a canary with a deliberate SC2154 must be flagged first. A
+shellcheck that silently isn't running (wrong entrypoint, changed flag, image swap) otherwise
+reads as a clean pass — the exact rot the rest of this file targets.
+
+Findings shellcheck structurally cannot resolve — decree injects `$message_file`, `$PATTERN`
+and friends that no script assigns; several routines `source` a path computed at runtime —
+carry a **targeted inline** `# shellcheck disable=SCxxxx  # <why>` at the site. Don't loosen
+the gate globally or add blanket excludes: the same smell is a real bug somewhere else. It
+found one the day it was wired up (env assignments prefixed to a command substitution instead
+of the command inside it, so `ocr.ts` never received `FILE_PATH`).
+
+Wired into `test` (all) and `pre-push`, grouped with the Docker-needing gates rather than the
+Docker-free self-tests.
 
 ## Go services
 

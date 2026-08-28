@@ -131,9 +131,157 @@ repo="$(new_repo)"
 printf 'EXIST_IS_SERVICES_FOO=true\n' > "$repo/.env.shared"
 tsx "$GC" "$repo" docker-compose.yml >/dev/null 2>&1 || true   # first write
 tsx "$GC" "$repo" docker-compose.yml >/dev/null 2>&1 || true   # second → archive first
-archived="$(find "$repo" -maxdepth 1 -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
+# Archives live under archive/, the same directory `./existential.sh reset`
+# uses — not loose in the repo root, where they used to accumulate.
+archived="$(find "$repo/archive" -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
 if [[ -n "$archived" ]]; then _ok "previous compose archived on regeneration"
-else _fail "previous compose archived on regeneration" "no docker-compose-*.yml found"; fi
+else _fail "previous compose archived on regeneration" "no archive/docker-compose-*.yml found"; fi
+
+stray="$(find "$repo" -maxdepth 1 -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
+if [[ -z "$stray" ]]; then _ok "archives do not land in the repo root"
+else _fail "archives do not land in the repo root" "found ${stray##*/}"; fi
+
+# ── Relative bind sources are created too ─────────────────────────────────────
+#
+# The one that actually bites. A missing bind source is created by the DAEMON,
+# as root:root — which shadows whatever the image had at that mount point and
+# leaves a directory the host user cannot delete on the next render. hermes'
+# hermes_install/{.venv,ui-tui,gateway,node_modules} is exactly this shape.
+# Creating it here, in adhoc under the host uid:gid, gets in first.
+assert_dir "relative bind source created under the service dir" "$repo/services/foo/data"
+
+repo="$(mktemp -d "$TMP/repo.XXXXXX")"
+mkdir -p "$repo/services/bar"
+cat > "$repo/services/bar/docker-compose.yml" <<'YAML'
+services:
+  bar:
+    image: bar:1
+    volumes:
+      - ./dotdir/.venv:/opt/.venv
+      - ./bar-config.yml:/etc/bar.yml
+      - ../../workspace:/workspace
+      - ../../../escapes:/escapes
+      - $HOME/envrooted:/env
+YAML
+printf 'EXIST_IS_SERVICES_BAR=true\n' > "$repo/.env.shared"
+tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+
+# A dot-leading name is a directory, not an extension — .venv must be created.
+assert_dir "dot-leading bind source is treated as a directory" "$repo/services/bar/dotdir/.venv"
+
+# A source with a real file extension is a FILE mount. Creating a directory
+# there would hand the container an empty dir instead of the config.
+assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
+assert_no_dir "file-extension bind source is not created as a directory" "$repo/services/bar/bar-config.yml"
+
+# ../../ back to the repo root is legitimate (hermes and code-server share
+# workspace/ that way) and resolves inside the repo, so it is created.
+assert_dir "repo-root bind source created for a ../.. path" "$repo/workspace"
+
+# A path that escapes the repo is a template bug. Materialising it somewhere
+# else on the host would hide that, so it is left alone.
+assert_no_dir "escaping bind source is not created outside the repo" "$(dirname "$repo")/escapes"
+
+# Env-rooted sources are Docker's to resolve; we cannot know the value.
+assert_no_dir "env-rooted bind source is not created" "$repo/services/bar/\$HOME/envrooted"
+
+# ── GPU vendor: reservation stripping + x-exist-gpu overlays ─────────────────
+#
+# The stakes: docker refuses to create a container whose device driver it cannot
+# satisfy, so leaving a `driver: nvidia` reservation on a non-nvidia host takes
+# `docker compose up` down for the whole stack — not just the GPU service.
+
+new_gpu_repo() {
+    local d; d="$(mktemp -d "$TMP/gpurepo.XXXXXX")"
+    mkdir -p "$d/ai/gpu"
+    cat > "$d/ai/gpu/docker-compose.yml" <<'YAML'
+services:
+  gpu:
+    image: gpu:1
+    environment:
+      - KEEP_ME=yes
+      - DEVICE=cuda
+    x-exist-gpu:
+      amd:
+        image: gpu:1-rocm
+        privileged: true
+        environment:
+          DEVICE: vulkan
+      none:
+        environment:
+          DEVICE: cpu
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+YAML
+    echo "$d"
+}
+
+gpu_render() {   # gpu_render <vendor-env-lines...> — echo the merged compose
+    local repo; repo="$(new_gpu_repo)"
+    { printf 'EXIST_IS_AI_GPU=true\n'; printf '%s\n' "$@"; } > "$repo/.env.shared"
+    tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+    cat "$repo/docker-compose.yml"
+}
+
+# nvidia — the templates are already correct, so this must be a no-op beyond
+# dropping the overlay key itself.
+out="$(gpu_render 'EXIST_GPU_VENDOR=nvidia')"
+assert_contains     "nvidia keeps the device reservation"   "driver: nvidia" "$out"
+assert_contains     "nvidia keeps the memory limit"         "memory: 4G"     "$out"
+assert_not_contains "nvidia drops the x-exist-gpu key"      "x-exist-gpu"    "$out"
+assert_not_contains "nvidia does not apply the amd image"   "gpu:1-rocm"     "$out"
+assert_not_contains "nvidia does not apply amd privileges"  "privileged"     "$out"
+
+# amd — reservation gone, overlay applied.
+out="$(gpu_render 'EXIST_GPU_VENDOR=amd')"
+assert_not_contains "amd strips the device reservation"     "driver: nvidia" "$out"
+assert_not_contains "amd drops the x-exist-gpu key"         "x-exist-gpu"    "$out"
+assert_contains     "amd applies the overlay image"         "gpu:1-rocm"     "$out"
+assert_contains     "amd applies the overlay privileges"    "privileged: true" "$out"
+assert_contains     "amd applies the overlay env"           "DEVICE: vulkan" "$out"
+# The overlay merges into environment rather than replacing it — a vendor block
+# that sets one variable must not silently drop the service's other env.
+assert_contains     "amd keeps unrelated env from the template" "KEEP_ME" "$out"
+# Stripping the devices list must not take the rest of deploy with it.
+assert_contains     "amd keeps the memory limit"            "memory: 4G"     "$out"
+
+# none — same strip, its own overlay.
+out="$(gpu_render 'EXIST_GPU_VENDOR=none')"
+assert_not_contains "none strips the device reservation"    "driver: nvidia" "$out"
+assert_contains     "none applies its own overlay env"      "DEVICE: cpu"    "$out"
+assert_not_contains "none does not apply the amd image"     "gpu:1-rocm"     "$out"
+
+# Backward compatibility: every .env.shared written before the vendor question
+# existed has no EXIST_GPU_VENDOR at all. Those installs must keep generating
+# exactly what they generated before — VRAM 0 meant no GPU, anything else nvidia.
+out="$(gpu_render 'EXIST_VRAM_GB=0')"
+assert_not_contains "legacy EXIST_VRAM_GB=0 still strips the reservation" "driver: nvidia" "$out"
+assert_contains     "legacy EXIST_VRAM_GB=0 applies the none overlay"     "DEVICE: cpu"    "$out"
+
+out="$(gpu_render 'EXIST_VRAM_GB=8')"
+assert_contains     "legacy EXIST_VRAM_GB=8 keeps the reservation" "driver: nvidia" "$out"
+
+out="$(gpu_render)"
+assert_contains     "no GPU keys at all defaults to nvidia" "driver: nvidia" "$out"
+
+# A typo must not fail open. Defaulting to nvidia here would hand an AMD host a
+# reservation its daemon cannot satisfy, and the resulting docker error points
+# at capabilities, not at the misspelling.
+repo="$(new_gpu_repo)"
+printf 'EXIST_IS_AI_GPU=true\nEXIST_GPU_VENDOR=nvida\n' > "$repo/.env.shared"
+err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" && rc=0 || rc=$?
+assert_contains "a misspelled vendor is reported" "not one of" "$err"
+[[ "${rc:-0}" -ne 0 ]] \
+    && _ok "a misspelled vendor exits non-zero" \
+    || _fail "a misspelled vendor exits non-zero" "render continued with an unknown vendor"
+assert_no_file "a misspelled vendor writes no compose file" "$repo/docker-compose.yml"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).

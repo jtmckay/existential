@@ -14,6 +14,18 @@
 
 set -euo pipefail
 
+# Self-elevate into existential-adhoc if we're on the host. ollama publishes no
+# host port — OLLAMA_URL is http://ollama:11434, a Docker DNS name that only
+# resolves on the exist network — so run from the host this script could only
+# ever time out waiting for a server it cannot reach.
+if [[ -z "${IN_CONTAINER:-}" ]]; then
+    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
+    _tty=(-T); [[ -t 0 && -t 1 ]] && _tty=(-it)
+    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm "${_tty[@]}" \
+        --entrypoint "" existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # existential.sh exports .env.shared before dispatching, but this script is also
@@ -91,9 +103,11 @@ done
 
 if [ -n "$MODEL_CHAT_NUM_CTX" ]; then
     echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} via /api/create..."
-    jq -nc --arg m "$MODEL_CHAT" \
-           --arg f "FROM ${MODEL_CHAT}"$'\n'"PARAMETER num_ctx ${MODEL_CHAT_NUM_CTX}" \
-           '{model: $m, modelfile: $f}' \
+    # Structured fields, not the retired flat `modelfile` string — current ollama
+    # rejects the latter with a 400. Keep in step with automations/shared_routines/ollama-pull.sh.
+    jq -nc --arg m "$MODEL_CHAT" --arg f "$MODEL_CHAT" \
+           --argjson c "$MODEL_CHAT_NUM_CTX" \
+           '{model: $m, from: $f, parameters: {num_ctx: $c}}' \
         | curl -fsSL --no-buffer "${OLLAMA_URL}/api/create" \
                -H "Content-Type: application/json" --data @- \
         | while IFS= read -r line; do

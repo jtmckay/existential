@@ -13,7 +13,11 @@ EXIST_ENV="${REPO_DIR}/.env.shared"
 EXIST_ENV_TMPL="${REPO_DIR}/.env.exist.shared"
 QUESTS_DIR="${REPO_DIR}/src/quests"
 
-# VRAM tier → model selection. Sourced, never run — see the file header.
+# The two hardware questions. Both sourced, never run — see their headers.
+# Vendor is asked first: answering "No GPU" fixes the VRAM answer at 0, so the
+# VRAM question is skipped entirely rather than asked and ignored.
+# shellcheck source=src/utils/gpu-vendor.sh
+. "${REPO_DIR}/src/utils/gpu-vendor.sh"
 # shellcheck source=src/utils/model-tiers.sh
 . "${REPO_DIR}/src/utils/model-tiers.sh"
 
@@ -163,38 +167,26 @@ quest_missing_labels() {
 will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 
 # Offer to activate the cron-template copies declared by a single quest file.
+# Which decree container owns a `<cat>/<slug>/decree/...` destination.
+#
+# Not `${dst%%/decree/*}`: services/decree/decree/cron/ has TWO "/decree/"
+# segments, so that strips back to "services" and names a container
+# (services-decree) that does not exist. The slug is always the second path
+# component; the main daemon is plain "decree", every sidecar is "<slug>-decree".
+_decree_container_for() {
+    local _slug
+    _slug="$(cut -d/ -f2 <<< "$1")"
+    [[ "$_slug" == "decree" ]] && echo "decree" || echo "${_slug}-decree"
+}
+
 process_quest_crons() {
     local _f="$1"
-    local -a _labels=() _srcs=() _dsts=() _restarts=()
-    local -a _q_srcs _q_dsts _q_labels _q_requires
-    mapfile -t _q_srcs     < <(qmeta "$_f" '.copies[].src // ""' 2>/dev/null || true)
-    mapfile -t _q_dsts     < <(qmeta "$_f" '.copies[].dst // ""' 2>/dev/null || true)
-    mapfile -t _q_labels   < <(qmeta "$_f" '.copies[].label // ""' 2>/dev/null || true)
-    mapfile -t _q_requires < <(qmeta "$_f" '.copies[].requires // ""' 2>/dev/null || true)
-    local _i _src _dst _req _fname _dst_abs _svc_part _restart_slug _restart_ctr _lbl
-    for _i in "${!_q_srcs[@]}"; do
-        _src="${_q_srcs[$_i]}"; _dst="${_q_dsts[$_i]}"
-        [[ -z "$_src" || "$_src" == "null" ]] && continue
-        _req="${_q_requires[$_i]:-}"
-        if [[ -n "$_req" && "$_req" != "null" ]]; then
-            will_be_active "$_req" || continue
-        fi
-        _fname="${_src##*/}"
-        if [ ! -f "${REPO_DIR}/${_src}" ]; then
-            # Never silent: cp -n would fail below and be reported as "already
-            # exists, skipped", which is how 31 renamed templates went unnoticed.
-            echo "  ⚠  ${_f##*/}: template not found — ${_src}" >&2
-            continue
-        fi
-        _dst_abs="${REPO_DIR}/${_dst%/}/"
-        [ -f "${_dst_abs}${_fname}" ] && continue
-        _svc_part="${_dst%%/decree/*}"
-        _restart_slug="${_svc_part##*/}"
-        [[ "$_restart_slug" == "decree" ]] && _restart_ctr="decree" || _restart_ctr="${_restart_slug}-decree"
-        _lbl="${_q_labels[$_i]:-}"
-        [[ -z "$_lbl" || "$_lbl" == "null" ]] && _lbl="$_fname"
-        _labels+=("$_lbl"); _srcs+=("${REPO_DIR}/${_src}"); _dsts+=("$_dst_abs"); _restarts+=("$_restart_ctr")
-    done
+    local -a _labels=() _srcs=() _dsts=()
+    local _lbl _src _dst
+    while IFS=$'\t' read -r _lbl _src _dst; do
+        [[ -z "$_src" ]] && continue
+        _labels+=("$_lbl"); _srcs+=("$_src"); _dsts+=("$_dst")
+    done < <(_quest_pending_copies "$_f")
 
     [ "${#_labels[@]}" -gt 0 ] || return 0
 
@@ -208,7 +200,9 @@ process_quest_crons() {
                    --delimiter=$'\t' \
                    --with-nth=2 \
                    --layout=reverse \
-                   --header="  Activate these for this quest — all pre-selected, deselect to skip
+                   --marker='✓' \
+                   --header="  All of these are ON — Enter accepts them as-is.
+  Deselect one only if you do not want it (Space toggles).
   ↑↓ navigate   Space toggle   Enter confirm" \
                    --prompt="Activate ❯ " \
                    --no-info \
@@ -220,18 +214,17 @@ process_quest_crons() {
 
     echo ""
     local -A _restart_needed=()
-    local _line _idx2 _rel_src _rel_dst
+    local _line _idx _fname _ctr
     while IFS= read -r _line; do
         [[ -z "$_line" ]] && continue
-        _idx2="${_line%%	*}"
-        _src="${_srcs[$_idx2]}"; _dst="${_dsts[$_idx2]}"
+        _idx="${_line%%	*}"
+        _src="${_srcs[$_idx]}"; _dst="${_dsts[$_idx]}"
         _fname="${_src##*/}"
-        _rel_src="${_src#"${REPO_DIR}/"}"
-        _rel_dst="${_dst#"${REPO_DIR}/"}"
-        mkdir -p "$_dst"
-        if cp -n "$_src" "${_dst}${_fname}" 2>/dev/null; then
-            echo "  ✓ cp ${_rel_src}  →  ${_rel_dst}"
-            _restart_needed["${_restarts[$_idx2]}"]=1
+        mkdir -p "${REPO_DIR}/${_dst}"
+        if cp -n "${REPO_DIR}/${_src}" "${REPO_DIR}/${_dst}${_fname}" 2>/dev/null; then
+            echo "  ✓ cp ${_src}  →  ${_dst}"
+            _ctr="$(_decree_container_for "$_dst")"
+            _restart_needed["$_ctr"]=1
         else
             echo "  ↷ ${_fname} — already exists, skipped"
         fi
@@ -248,23 +241,61 @@ process_quest_crons() {
     echo ""
 }
 
-# ── DNS tip ───────────────────────────────────────────────────────────────────
-
-echo ""
-hr
-echo "  Getting started — accessing your services"
-hr
-echo ""
-echo "  Every service runs at https://<slug>.<domain> (EXIST_DOMAIN, default x.internal)."
-echo "  You need DNS to reach them from a browser."
-echo ""
-echo "  Option A  Enable Pihole (Hosting group) and point your router's"
-echo "            upstream DNS at this machine's IP. Every device on your"
-echo "            network will resolve *.<domain> automatically."
-echo ""
-echo "  Option B  No Pihole — wildcard record on this machine only:"
-echo "              dnsmasq:  address=/<domain>/<this-machine-ip>"
-echo ""
+# ── Closing suggestion: reaching it from elsewhere ────────────────────────────
+#
+# Nothing to decide up front. existential.sh detects the host IP — the tailnet
+# address when tailscale is up — and derives a nip.io domain from it, so every
+# service is reachable at https://<slug>.<domain> from every device on the
+# tailnet with no DNS setup. Local-only DNS is a later, optional upgrade, so it
+# belongs at the END of a run as a suggestion rather than a question at the start.
+_access_tip() {
+    local domain
+    domain="$(env_get EXIST_DOMAIN)"
+    echo ""
+    hr
+    echo "  Reaching your services"
+    hr
+    echo ""
+    if [[ "$domain" == *.nip.io ]]; then
+        echo "  Ready to use on this machine: ${_C_GREEN}https://<service>.${domain}${_C_RESET}"
+        echo "  That name is public wildcard DNS pointing straight back at this host,"
+        if [[ "$domain" == 100-* ]]; then
+            echo "  which is your tailnet address — so it works from any phone or laptop"
+            echo "  logged into your tailnet, anywhere, and from nowhere else. No setup."
+        else
+            echo "  so it works from phones and laptops on the same network too. No setup."
+            echo "  ${_C_YELLOW}Tailscale is not running${_C_RESET} — start it and re-run ./existential.sh to"
+            echo "  get an address that reaches your devices off this LAN too."
+        fi
+    elif [[ -n "$domain" ]]; then
+        # A domain the user chose: .internal (needs pihole) or one they own.
+        echo "  Services are served at ${_C_GREEN}https://<service>.${domain}${_C_RESET}"
+        case "$domain" in
+            *.internal)
+                echo "  Nothing resolves .internal on its own — pihole answers it,"
+                echo "  or add /etc/hosts entries on each device." ;;
+        esac
+    else
+        echo "  Services are served at https://<service>.<EXIST_DOMAIN>."
+    fi
+    echo ""
+    if will_be_active EXIST_IS_HOSTING_CADDY; then
+        echo "  Caddy fronts them with TLS from a local CA. Install its root cert"
+        echo "  once per device for a green padlock:"
+        echo "    https://caddy.${domain:-<domain>}/caddy-root.crt"
+    else
+        echo "  ${_C_YELLOW}Caddy is not enabled${_C_RESET} — nothing is fronting those names. Enable it"
+        echo "  (EXIST_IS_HOSTING_CADDY=true), or uncomment the ports: block in each"
+        echo "  service's docker-compose.yml to reach them by port instead."
+    fi
+    echo ""
+    echo "  Want more than that?"
+    echo "    • Names that resolve with no internet DNS, on your own domain:"
+    echo "        ./existential.sh quest  →  Network Access"
+    echo "    • Real certificates, no CA to install on each device:"
+    echo "        ./existential.sh run caddy public-domain"
+    echo ""
+}
 
 # ── Phase 0: Core, or no thanks ───────────────────────────────────────────────
 #
@@ -306,24 +337,106 @@ _enable_quest_services() {
     done
 }
 
+# List the template copies a quest would make, as "label\tsrc\tdst" rows, skipping
+# any whose `requires:` service is off or whose destination already exists.
+# Shared by the Core plan (which shows them, then copies them all) and by
+# process_quest_crons (which offers them individually).
+#
+# Extra args are enablement vars to treat as ALREADY ON. The Core plan needs
+# that: it lists what will happen before writing anything, so the services its
+# copies require are still false at that point and every row would be filtered
+# out. Passing Core's own service vars answers "requires:" against the state the
+# user is about to confirm, not the state they are in.
+_quest_pending_copies() {
+    local _f="$1"; shift
+    local _assume=" $* "
+    local -a _srcs _dsts _labels _reqs
+    mapfile -t _srcs   < <(qmeta "$_f" '.copies[].src      // ""')
+    mapfile -t _dsts   < <(qmeta "$_f" '.copies[].dst      // ""')
+    mapfile -t _labels < <(qmeta "$_f" '.copies[].label    // ""')
+    mapfile -t _reqs   < <(qmeta "$_f" '.copies[].requires // ""')
+    local _i _src _dst _req _lbl _fname
+    for _i in "${!_srcs[@]}"; do
+        _src="${_srcs[$_i]}"
+        [[ -z "$_src" || "$_src" == "null" ]] && continue
+        _req="${_reqs[$_i]:-}"
+        if [[ -n "$_req" && "$_req" != "null" ]]; then
+            [[ "$_assume" == *" $_req "* ]] || will_be_active "$_req" || continue
+        fi
+        [[ -f "${REPO_DIR}/${_src}" ]] || { echo "  ⚠  ${_f##*/}: template not found — ${_src}" >&2; continue; }
+        _dst="${_dsts[$_i]}"
+        _fname="${_src##*/}"
+        [[ -f "${REPO_DIR}/${_dst%/}/${_fname}" ]] && continue
+        _lbl="${_labels[$_i]:-}"
+        [[ -z "$_lbl" || "$_lbl" == "null" ]] && _lbl="$_fname"
+        printf '%s\t%s\t%s\n' "$_lbl" "$_src" "${_dst%/}/"
+    done
+}
+
+# Copy every pending template for a quest. No prompting: used by the Core path,
+# where the templates are part of what Core IS, not a separate decision.
+_apply_quest_copies() {
+    local _f="$1" _lbl _src _dst _fname
+    local _n=0
+    while IFS=$'\t' read -r _lbl _src _dst; do
+        [[ -z "$_src" ]] && continue
+        _fname="${_src##*/}"
+        mkdir -p "${REPO_DIR}/${_dst}"
+        cp -n "${REPO_DIR}/${_src}" "${REPO_DIR}/${_dst}${_fname}" 2>/dev/null || continue
+        _n=$(( _n + 1 ))
+    done < <(_quest_pending_copies "$_f")
+    # No restart hint: Core runs before `docker compose up -d`, so there is
+    # nothing running to restart. process_quest_crons handles the later case.
+    _APPLIED_COPIES="$_n"
+}
+
 declare -a _newly_enabled_svcs=()
 _newly_enabled=0
 
-# Ask once, on the first run that gets this far. EXIST_VRAM_GB is the record of
-# having asked, so re-running quest never re-asks — `run models` is the way back.
-if [[ -z "$(env_get EXIST_VRAM_GB)" ]]; then
-    _picked="$(model_tier_pick "$MODEL_TIER_DEFAULT_GB")"
-    if [[ -n "$_picked" ]]; then
-        while IFS="=" read -r _k _v; do
-            [[ -n "$_k" ]] && env_set "$_k" "$_v"
-        done < <(model_tier_env "$_picked")
-        _tier_row="$(model_tier_row "$_picked")"
-        IFS=$'\t' read -r _ _tlabel _tchat _tctx _tsize _ <<< "$_tier_row"
+# _apply_tier <gb> — write a tier's KEY=VALUEs to .env.shared and report it.
+# Shared by both paths below so the "No GPU" answer produces exactly the same
+# environment as picking the CPU tier by hand would.
+_apply_tier() {
+    local _gb="$1" _k _v _tlabel _tchat _tctx _tsize
+    while IFS="=" read -r _k _v; do
+        [[ -n "$_k" ]] && env_set "$_k" "$_v"
+    done < <(model_tier_env "$_gb")
+    IFS=$'\t' read -r _ _tlabel _tchat _tctx _tsize _ <<< "$(model_tier_row "$_gb")"
+    echo ""
+    echo "  ${_C_GREEN}✓${_C_RESET}  ${_tlabel} — ${_tchat} (${_tsize}), ${_tctx} context"
+    echo "     Chat, memory extraction and images all use that one model."
+    echo "     Change it later:  ./existential.sh run models"
+    echo ""
+}
+
+# Ask once, on the first run that gets this far. EXIST_GPU_VENDOR is the record
+# of having asked, so re-running quest never re-asks — `run models` is the way
+# back. Vendor comes first because "none" answers the VRAM question for us.
+if [[ -z "$(env_get EXIST_GPU_VENDOR)" ]]; then
+    _vendor="$(gpu_vendor_pick "$GPU_VENDOR_DEFAULT")"
+    if [[ -n "$_vendor" ]]; then
+        env_set EXIST_GPU_VENDOR "$_vendor"
+        IFS=$'\t' read -r _ _vlabel _ <<< "$(gpu_vendor_row "$_vendor")"
         echo ""
-        echo "  ${_C_GREEN}✓${_C_RESET}  ${_tlabel} — ${_tchat} (${_tsize}), ${_tctx} context"
-        echo "     Chat, memory extraction and images all use that one model."
-        echo "     Change it later:  ./existential.sh run models"
-        echo ""
+        echo "  ${_C_GREEN}✓${_C_RESET}  ${_vlabel}"
+
+        if [[ "$_vendor" == "none" ]]; then
+            # No card, so there is no VRAM number to ask for. Pin the CPU tier
+            # and move on; generate-compose.ts strips the GPU reservations.
+            echo "     Everything runs on the CPU — no VRAM question needed."
+            _apply_tier 0
+        else
+            echo ""
+            # --gpu-only: "None (CPU)" is not an answer to "how much VRAM",
+            # and it is already reachable by re-answering the vendor question.
+            _picked="$(model_tier_pick "$MODEL_TIER_DEFAULT_GB" --gpu-only)"
+            # A plain `[[ ... ]] && _apply_tier` here would end the block with a
+            # false test when the user escapes the picker, and `set -e` would
+            # take the whole script down with it.
+            if [[ -n "$_picked" ]]; then
+                _apply_tier "$_picked"
+            fi
+        fi
     fi
 fi
 
@@ -358,10 +471,42 @@ if _defaults_only && [ -f "$CORE_QUEST" ]; then
     ) || _core_choice=""
 
     if [[ "${_core_choice%%	*}" == "core" ]]; then
+        # Choosing Core is the decision. Everything below follows from it, so
+        # show the whole plan and confirm ONCE — never make the templates a
+        # second question: without them ollama starts with no models at all.
+        echo ""
+        hr
+        echo "  Here is what Core will do"
+        hr
+        echo ""
+        echo "  Enable these services:"
+        qmeta "$CORE_QUEST" '.services[].label' | sed 's/^/    • /'
+        # Core enables every service it declares, so answer `requires:` against
+        # that set rather than against the not-yet-written .env.shared.
+        _core_vars="$(qmeta "$CORE_QUEST" '.services[].var' | tr '\n' ' ')"
+        _core_copies="$(_quest_pending_copies "$CORE_QUEST" $_core_vars)"
+        if [[ -n "$_core_copies" ]]; then
+            echo ""
+            echo "  Activate these (models pull themselves; backups start on schedule):"
+            cut -f1 <<< "$_core_copies" | sed 's/^/    • /'
+        fi
+        echo ""
+        echo "  Nothing starts yet — this only writes config. You run"
+        echo "  docker compose up -d when you are ready."
+        echo ""
+        read -rp "  Continue? [Y/n] " _core_confirm
+        if [[ -n "$_core_confirm" && "${_core_confirm,,}" != "y" && "${_core_confirm,,}" != "yes" ]]; then
+            echo ""
+            echo "  Nothing changed."
+            echo ""
+            exit 0
+        fi
+
         _enable_quest_services "$CORE_QUEST"
         _newly_enabled=$(( _newly_enabled + _enabled_count ))
+        _apply_quest_copies "$CORE_QUEST"
         echo ""
-        echo "  Enabled ${_enabled_count} service(s) in ${EXIST_ENV}."
+        echo "  ${_C_GREEN}✓${_C_RESET}  Enabled ${_enabled_count} service(s), activated ${_APPLIED_COPIES} template(s)."
         echo ""
         hr
         echo "  Core — setup guide"
@@ -372,10 +517,7 @@ if _defaults_only && [ -f "$CORE_QUEST" ]; then
             echo "$_core_guide" | sed 's/^/  /'
             echo ""
         fi
-        # Model pulls and watched dirs ship as migration templates; without them
-        # ollama comes up with no models at all. Pre-selected, deselect to skip.
-        process_quest_crons "$CORE_QUEST"
-        echo ""
+        _access_tip
         echo "  Next:  ./existential.sh        (renders config for what you just enabled)"
         echo "         docker compose up -d"
         echo ""
@@ -623,7 +765,6 @@ echo ""
 _has_decree=0; will_be_active EXIST_IS_SERVICES_DECREE        && _has_decree=1 || true
 _has_budget=0; will_be_active EXIST_IS_SERVICES_ACTUAL_BUDGET && _has_budget=1 || true
 _has_pihole=0; will_be_active EXIST_IS_HOSTING_PIHOLE         && _has_pihole=1 || true
-_has_caddy=0;  will_be_active EXIST_IS_HOSTING_CADDY          && _has_caddy=1  || true
 
 _run_steps=()
 if [[ "$_has_decree" -eq 1 ]]; then
@@ -689,25 +830,15 @@ for _f in "${_active_files[@]}"; do
     fi
 done
 
-if [[ "$_has_pihole" -eq 1 || "$_has_caddy" -eq 1 ]]; then
+_access_tip
+
+# Pihole replaces the nip.io lookup with a local answer, so it has one extra
+# step the default path does not: pointing the router at it.
+if [[ "$_has_pihole" -eq 1 ]]; then
+    echo "  You enabled pihole — point your router's DNS at this machine to"
+    echo "  finish it, so names resolve locally instead of over the internet:"
+    echo "    ./existential.sh run pihole"
     echo ""
-    hr
-    echo "  Accessing services"
-    hr
-    echo ""
-    echo "  Each enabled service is reachable at https://<slug>.<domain> (EXIST_DOMAIN)."
-    echo ""
-    if [[ "$_has_pihole" -eq 1 ]]; then
-        echo "  Pihole handles DNS — point your router at it so slugs resolve:"
-        echo "    ./existential.sh run pihole"
-        echo ""
-    fi
-    if [[ "$_has_caddy" -eq 1 ]]; then
-        echo "  Caddy handles TLS with a local CA. Install its root cert once"
-        echo "  per device for green padlocks:"
-        echo "    https://caddy.<domain>/caddy-root.crt  (after first run)"
-        echo ""
-    fi
 fi
 
 # ── Remaining cron templates (informational) ──────────────────────────────────

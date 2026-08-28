@@ -47,8 +47,16 @@
 # nvidia device reservation (ollama, comfyui, whisperx, chatterbox), and docker
 # refuses to create a container it cannot satisfy — one of them takes down
 # `docker compose up` for the whole stack. src/generate-compose.ts strips those
-# reservations when EXIST_VRAM_GB=0. Expect seconds per token; the wyoming voice
-# services are unaffected because they already run on CPU.
+# reservations. Expect seconds per token; the wyoming voice services are
+# unaffected because they already run on CPU.
+#
+# You do not normally reach gb=0 through this picker. The GPU vendor question
+# (src/utils/gpu-vendor.sh) is asked first, and answering "No GPU" sets
+# EXIST_VRAM_GB=0 directly and skips the VRAM question — a VRAM number is not a
+# meaningful thing to ask someone with no card. The tier stays in the table
+# because it is still the row that defines what CPU-only *runs*, and because
+# `run models` can select it deliberately. Callers that have already
+# established there is a GPU pass --gpu-only to hide it.
 #
 # gb=96 is the only tier that runs the weights at full precision (bf16) rather
 # than quantised, which is what the extra memory actually buys. 63 GB of weights
@@ -95,28 +103,48 @@ model_tier_env() {
     printf 'EXIST_MODEL_EMBED_DIM=%s\n'      "$MODEL_TIER_EMBED_DIM"
 }
 
-# model_tier_lines — echo one human-readable line per tier, tab-prefixed with
-# the gb value so a picker can split on it.
+# model_tier_lines [--gpu-only] — echo one human-readable line per tier,
+# tab-prefixed with the gb value so a picker can split on it. With --gpu-only
+# the CPU tier (gb=0) is omitted: the caller already knows a GPU is present,
+# because the vendor question was answered before this one.
 model_tier_lines() {
+    local gpu_only=false
+    [[ "${1:-}" == "--gpu-only" ]] && gpu_only=true
+
     local row gb label chat ctx size note
     for row in "${MODEL_TIERS[@]}"; do
         IFS=$'\t' read -r gb label chat ctx size note <<< "$row"
+        $gpu_only && [[ "$gb" == "0" ]] && continue
         printf '%s\t%-11s %-24s %-8s ctx %-7s %s\n' \
             "$gb" "$label" "$chat" "$size" "$ctx" "$note"
     done
 }
 
-# model_tier_pick [current_gb] — show the tier picker, echo the chosen gb on
-# stdout (nothing if the user aborts). All chrome goes to stderr so the caller
+# model_tier_pick [current_gb] [--gpu-only] — show the tier picker, echo the
+# chosen gb on stdout (nothing if the user aborts). --gpu-only hides the CPU
+# tier, for callers that already know a GPU is present. All chrome goes to stderr so the caller
 # can capture stdout cleanly. Needs fzf, which the adhoc container has.
+#
+# Do NOT redirect fzf's stderr here. fzf renders its whole interface on stderr
+# (stdout is reserved for the selection, which is the point of the design), so
+# a `2>/dev/null` leaves fzf running and waiting for a keypress with nothing on
+# screen — indistinguishable from a hang. Every other picker in the repo leaves
+# stderr alone; this one is captured for its stdout, which is what made the
+# redirect look harmless.
 model_tier_pick() {
-    local current="${1:-$MODEL_TIER_DEFAULT_GB}" pos=1 i=0 row out
-    for row in "${MODEL_TIERS[@]}"; do
-        i=$(( i + 1 ))
-        [[ "${row%%	*}" == "$current" ]] && pos="$i"
-    done
+    local current="${1:-$MODEL_TIER_DEFAULT_GB}" pos=1 i=0 gb out
+    local -a filter=()
+    [[ "${2:-}" == "--gpu-only" ]] && filter=(--gpu-only)
 
-    out=$(model_tier_lines | fzf \
+    # Position the cursor by counting the rows the picker will actually show,
+    # not every row in the table — under --gpu-only the CPU tier is gone and a
+    # table-index would land one row low.
+    while IFS=$'\t' read -r gb _; do
+        i=$(( i + 1 ))
+        [[ "$gb" == "$current" ]] && pos="$i"
+    done < <(model_tier_lines "${filter[@]}")
+
+    out=$(model_tier_lines "${filter[@]}" | fzf \
         --delimiter=$'\t' \
         --with-nth=2 \
         --layout=reverse \
@@ -128,7 +156,7 @@ model_tier_pick() {
   Everything can be changed later with: ./existential.sh run models" \
         --prompt="VRAM ❯ " \
         --no-info \
-        --bind "start:pos(${pos})" 2>/dev/null) || return 0
+        --bind "start:pos(${pos})") || return 0
 
     [[ -n "$out" ]] && printf '%s\n' "${out%%	*}"
 }

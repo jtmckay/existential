@@ -347,6 +347,75 @@ tcp_probe() {
     fi
 }
 
+# ── Database credential probes ───────────────────────────────────────────────
+# A database image bootstraps (initdb / mysql_install_db) exactly ONCE, against
+# an empty data directory. After that the POSTGRES_* / MYSQL_* values in compose
+# are inert: they seeded the bootstrap, they do not reconfigure a running server.
+#
+# So the credentials on disk and the credentials in .env drift apart whenever a
+# render changes them after first start — a regenerated password, or a first
+# render that baked a still-unsubstituted placeholder (EXIST_USERNAME) in as the
+# role name. `./existential.sh reset` re-renders .env but deliberately leaves
+# volumes_local/ alone, which is precisely how the two get out of step.
+#
+# The resulting failure names neither cause: the app's workers exit on connect,
+# the container never passes its healthcheck, and anything downstream with
+# `depends_on: service_healthy` reports only "dependency failed to start".
+# These probes say the actual sentence instead.
+
+# _db_cred_fix HOST USER — shared remediation line for both probes below.
+_db_cred_fix() {
+    printf '%s' "Data volume was initialised with other credentials. Reset the server side to match .env, or recover the old value from archive/<stamp>/ — see .claude/reference/volumes.md"
+}
+
+# pg_auth_probe NAME HOST PORT USER PASSWORD [DB=postgres]
+# Proves the rendered credentials actually authenticate over TCP. Must be TCP:
+# a unix-socket psql inside the container passes under `trust` and would report
+# success against credentials no networked client can use.
+pg_auth_probe() {
+    local name="$1" host="$2" port="$3" user="$4" pass="$5" db="${6:-postgres}"
+    local out rc=0
+    out=$(PGPASSWORD="$pass" PGCONNECT_TIMEOUT=5 \
+          psql -h "$host" -p "$port" -U "$user" -d "$db" -tAc 'select 1' 2>&1) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        ok "$name"
+        return 0
+    fi
+    case "$out" in
+        *"password authentication failed"*|*"does not exist"*)
+            fail "$name" "${host} rejected '${user}': $(printf '%s' "$out" | sed -n 's/.*FATAL:  *//p' | head -1)" \
+                 "$(_db_cred_fix)"
+            ;;
+        *)
+            fail "$name" "no postgres at ${host}:${port} — $(printf '%s' "$out" | tail -1)" \
+                 "Container not running or still starting. Check: docker ps | grep ${host}"
+            ;;
+    esac
+}
+
+# mysql_auth_probe NAME HOST PORT USER PASSWORD [DB]
+# MariaDB/MySQL counterpart. Same TCP-only reasoning as pg_auth_probe.
+mysql_auth_probe() {
+    local name="$1" host="$2" port="$3" user="$4" pass="$5" db="${6:-}"
+    local out rc=0
+    out=$(MYSQL_PWD="$pass" mariadb --connect-timeout=5 -h "$host" -P "$port" \
+          -u "$user" ${db:+"$db"} -sNe 'select 1' 2>&1) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        ok "$name"
+        return 0
+    fi
+    case "$out" in
+        *"Access denied"*|*"Unknown database"*)
+            fail "$name" "${host} rejected '${user}': $(printf '%s' "$out" | sed -n 's/.*ERROR [0-9]* ([0-9A-Za-z]*): *//p' | head -1)" \
+                 "$(_db_cred_fix)"
+            ;;
+        *)
+            fail "$name" "no mariadb at ${host}:${port} — $(printf '%s' "$out" | tail -1)" \
+                 "Container not running or still starting. Check: docker ps | grep ${host}"
+            ;;
+    esac
+}
+
 # env_var_set NAME [VAR_NAME=NAME]
 env_var_set() {
     local name="${1}" var="${2:-$1}"

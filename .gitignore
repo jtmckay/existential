@@ -30,6 +30,10 @@
 **/docker-compose.yml
 /docker-compose-*.yml
 
+# `./existential.sh reset` moves rendered config here, paths preserved.
+# Never pruned automatically — it is the undo for a reset.
+/archive/
+
 # Bridge Config
 **/bridge.config.json
 
@@ -67,6 +71,10 @@ workspace
 **/decree/webhook/config.yml
 # throwaway binary built by webhook/difftest.sh
 **/decree/webhook/.difftest-webhook
+# `go build` in webhook/ drops the compiled binary here (named for the module).
+# The image builds it from source in a multi-stage Dockerfile and .dockerignore
+# denies it from the build context, so a committed copy is pure dead weight.
+**/decree/webhook/decree-webhook
 automations/lib/file-processors/*
 automations/runs/*
 automations/secrets/*
@@ -74,6 +82,9 @@ automations/secrets/*
 **/decree/config.yml
 **/decree/config.hash
 **/decree/cron/*
+# Activated migrations are the user's copies of migrations.example/ — same
+# contract as cron/: the example is tracked, the activated copy is local.
+**/decree/migrations/*
 **/decree/data/*
 **/decree/emails/
 **/decree/inbox/*
@@ -121,13 +132,14 @@ automations/secrets/*
 
 # Ollama
 **/ollama/entrypoint.sh
-**/ollama/decree/migrations/*
 
 # Pi-Hole
 **/piHole/etc-pihole
 
 # Playwright
 **/mcp/playwright-data
+# Playwright MCP scratch output (screenshots, traces)
+**/.playwright-mcp/
 node_modules/
 /automations/playwright/test-results/
 /automations/playwright/playwright-report/
@@ -136,6 +148,7 @@ node_modules/
 
 # Portainer
 **/portainer/portainer_password*
+!**/portainer/portainer_password.exist.txt
 
 # RabbitMQ
 **/ssl/ca.pem
@@ -170,3 +183,8 @@ volumes_local/*/
 **/caddy_config
 **/ntfy_cache
 **/etc-pihole
+
+# OS / editor droppings
+.DS_Store
+Thumbs.db
+*.swp

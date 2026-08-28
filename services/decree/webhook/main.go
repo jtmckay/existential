@@ -163,13 +163,13 @@ func compileRoute(entry endpointConfig, defaultSecret string) (*route, error) {
 	}
 	if len(secret) < minSecretLength {
 		// Actionable on purpose: config.yml is gitignored and is not
-		// re-rendered without --force, so a deployment carrying a shorter
+		// not re-rendered once written, so a deployment carrying a shorter
 		// secret from the Express service (floor 16) hits this on upgrade and
 		// crash-loops under `restart: unless-stopped`. Say how to fix it.
 		return nil, fmt.Errorf(
 			"%s: secret missing or too short (%d chars, min %d) — "+
 				"generate a longer one and set it in services/decree/webhook/config.yml "+
-				"(or re-render with ./existential.sh --force)",
+				"(or re-render with ./existential.sh reset && ./existential.sh)",
 			entry.Path, len(secret), minSecretLength)
 	}
 

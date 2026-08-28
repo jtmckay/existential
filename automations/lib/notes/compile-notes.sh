@@ -96,7 +96,6 @@ compile_dir() {
     local reldir="${dir#$NOTES_DIR/}"
     local name="${reldir//\//_}"
     local out="${OUTPUT_DIR}/${name}.md"
-    local has_content=false
 
     # Check if directory has any matching files first
     local file_count

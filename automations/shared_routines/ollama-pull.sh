@@ -134,8 +134,6 @@ done
 # ── Create from Modelfile (if OLLAMA_FROM is set) ─────────────────────────────
 
 if [ -n "$OLLAMA_FROM" ]; then
-    modelfile="FROM ${OLLAMA_FROM}"
-    [ -n "$OLLAMA_NUM_CTX" ] && modelfile="${modelfile}"$'\n'"PARAMETER num_ctx ${OLLAMA_NUM_CTX}"
 
     # Idempotency: skip if model already exists with correct num_ctx
     if [ -n "$OLLAMA_NUM_CTX" ] && model_present "$OLLAMA_MODEL"; then
@@ -157,8 +155,18 @@ if [ -n "$OLLAMA_FROM" ]; then
             | stream_until_done
     fi
 
+    # Payload shape: ollama replaced the flat `modelfile` string with structured
+    # fields (`from` plus `parameters`/`system`/…). Sending the old form to a
+    # current ollama (0.32.x here) is a hard 400, which stopped this migration —
+    # and, because a failed migration halts the chain, silently prevented the
+    # embed/extract/vision models behind it from ever being pulled.
     echo "Creating ${OLLAMA_MODEL} from ${OLLAMA_FROM} (num_ctx=${OLLAMA_NUM_CTX:-default})..."
-    jq -nc --arg m "$OLLAMA_MODEL" --arg f "$modelfile" '{model: $m, modelfile: $f}' \
+    if [ -n "$OLLAMA_NUM_CTX" ]; then
+        jq -nc --arg m "$OLLAMA_MODEL" --arg f "$OLLAMA_FROM" --argjson c "$OLLAMA_NUM_CTX" \
+            '{model: $m, from: $f, parameters: {num_ctx: $c}}'
+    else
+        jq -nc --arg m "$OLLAMA_MODEL" --arg f "$OLLAMA_FROM" '{model: $m, from: $f}'
+    fi \
         | ollama_api /api/create -X POST -H "Content-Type: application/json" --data @- \
         | stream_until_done
     echo "${OLLAMA_MODEL} created."

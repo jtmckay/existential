@@ -82,6 +82,7 @@ echo "Posted ${amount_raw} → ${payee_name} (account: ${account_id})"
 
 _tg_creds="/secrets/telegram/credentials.env"
 if [ -f "$_tg_creds" ]; then
+    # shellcheck source=/dev/null  # runtime path, contents are credentials
     source "$_tg_creds"
     if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
         _txn_id=$(echo "$_post_output" | grep -oP '(?<=\(id: )[^)]+' || true)

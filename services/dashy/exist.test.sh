@@ -36,7 +36,7 @@ if [ -f "$_CONF" ]; then
     else
         fail "dashy-conf.yml matches EXIST_DOMAIN (${_dom})" \
              "no URL in $_CONF uses .${_dom} — the config is stale" \
-             "Run ./existential.sh (no --force needed) to regenerate it"
+             "Run ./existential.sh to regenerate it"
     fi
 fi
 

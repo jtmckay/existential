@@ -45,6 +45,13 @@ fi
 
 # ── chain to s6-overlay ───────────────────────────────────────────────────────
 # /init is the s6 entrypoint baked into the hermes-agent image.  It runs the
-# cont-init scripts (user-remap, chown) and then exec-s "$@" (gateway run)
-# under HERMES_UID:HERMES_GID.
-exec /init "$@"
+# cont-init scripts (user-remap, chown) and then exec-s the main program under
+# HERMES_UID:HERMES_GID.
+#
+# main-wrapper.sh must sit between /init and "$@": there is no `gateway`
+# binary — `gateway` is a *subcommand* of the hermes CLI, and the wrapper is
+# what routes "first arg is not an executable" to `hermes <args>`. Chaining
+# `exec /init "$@"` skips it, so s6 tried to exec `gateway` directly and the
+# container crash-looped on "rc.init: 91: gateway: not found". This mirrors the
+# image's own entrypoint-dispatch.sh, which runs /init main-wrapper.sh "$@".
+exec /init /opt/hermes/docker/main-wrapper.sh "$@"

@@ -38,6 +38,7 @@ fi
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 _tg_creds="/secrets/telegram/credentials.env"
+# shellcheck source=/dev/null  # runtime path, contents are credentials
 [ -f "$_tg_creds" ] && source "$_tg_creds"
 [ -n "${TELEGRAM_BOT_TOKEN:-}" ] || { echo "TELEGRAM_BOT_TOKEN not set."; exit 1; }
 [ -n "${TELEGRAM_CHAT_ID:-}"   ] || { echo "TELEGRAM_CHAT_ID not set."; exit 1; }

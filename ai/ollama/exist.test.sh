@@ -16,12 +16,29 @@ skip_if_disabled
 # ── Config ────────────────────────────────────────────────────────────────────
 
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
-MODEL="${OLLAMA_MODEL:-gemma4:26b}"
 
-# Hermes system prompt can exceed 32k tokens.
-# 32k is the hard floor; 64k is the recommended target (see Modelfile).
-MIN_CTX_FAIL=32768
-MIN_CTX_WARN=65536
+# Model choice is global, never per-service: EXIST_MODEL_CHAT is written by the
+# VRAM tier table (src/utils/model-tiers.sh) via quest / `run models`. Hardcoding
+# a tag here made this test demand gemma4:26b on every machine — a tag that is
+# not even in the tier table — so a correctly configured CPU-tier host failed.
+load_env_exist
+MODEL="${OLLAMA_MODEL:-${EXIST_MODEL_CHAT:-}}"
+if [ -z "$MODEL" ]; then
+    fail "EXIST_MODEL_CHAT set" \
+         "neither OLLAMA_MODEL nor EXIST_MODEL_CHAT is set" \
+         "Run ./existential.sh run models to pick a VRAM tier"
+    finish
+fi
+
+# The context the configured tier asks for. Falls back to the tier-0 value so a
+# missing key degrades to a floor rather than to 0 (which would read as "unset").
+EXPECT_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-8192}"
+
+# Hermes' system prompt can exceed 32k tokens. That is a property of hermes, not
+# of this machine — on a small tier the shortfall is the tier's accepted
+# trade-off, so it warns. Falling short of the tier's OWN num_ctx is a real
+# misconfiguration (the Modelfile did not apply) and fails.
+HERMES_CTX_WANT=32768
 
 # ── 1. Reachability ───────────────────────────────────────────────────────────
 
@@ -79,16 +96,16 @@ if [ "$NUM_CTX" -eq 0 ]; then
     fail "num_ctx readable for ${MODEL}" \
          "could not parse num_ctx from /api/show" \
          "ollama show ${MODEL}  (and apply ai/ollama/Modelfile)"
-elif [ "$NUM_CTX" -lt "$MIN_CTX_FAIL" ]; then
-    fail "num_ctx >= ${MIN_CTX_FAIL}" \
-         "num_ctx=${NUM_CTX} — hermes system prompt (~18k tokens) will be truncated" \
-         "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
-elif [ "$NUM_CTX" -lt "$MIN_CTX_WARN" ]; then
-    warn "num_ctx >= ${MIN_CTX_WARN}" \
-         "num_ctx=${NUM_CTX} — large Hermes prompts may exceed this" \
-         "Edit ai/ollama/Modelfile.exist.Modelfile: PARAMETER num_ctx ${MIN_CTX_WARN}; re-run ./existential.sh run ollama"
+elif [ "$NUM_CTX" -lt "$EXPECT_CTX" ]; then
+    fail "num_ctx >= ${EXPECT_CTX} (tier)" \
+         "num_ctx=${NUM_CTX} but the configured tier asks for ${EXPECT_CTX}" \
+         "The Modelfile did not apply. Re-run ./existential.sh run ollama"
+elif [ "$NUM_CTX" -lt "$HERMES_CTX_WANT" ]; then
+    warn "num_ctx >= ${HERMES_CTX_WANT} (hermes)" \
+         "num_ctx=${NUM_CTX} matches the tier, but hermes prompts (~18k+) may truncate" \
+         "Accepted trade-off on a small tier. For more headroom pick a larger one: ./existential.sh run models"
 else
-    ok "num_ctx=${NUM_CTX} (>= ${MIN_CTX_WARN})"
+    ok "num_ctx=${NUM_CTX} (tier ${EXPECT_CTX}, hermes floor ${HERMES_CTX_WANT})"
 fi
 
 # ── 4. Memory headroom ────────────────────────────────────────────────────────

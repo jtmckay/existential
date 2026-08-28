@@ -393,8 +393,8 @@ echo "=== CLI: --help ==="
 assert_exit    "existential.sh --help → exit 0"      0 bash "$EXISTENTIAL" --help
 assert_output_contains "existential.sh --help → prints Actions" \
     "Actions:" bash "$EXISTENTIAL" --help
-assert_output_contains "existential.sh --help → mentions --force" \
-    "--force" bash "$EXISTENTIAL" --help
+assert_output_contains "existential.sh --help → mentions reset" \
+    "reset" bash "$EXISTENTIAL" --help
 
 # ── Section: CLI — unknown options ────────────────────────────────────────────
 

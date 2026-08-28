@@ -1,7 +1,7 @@
 # Dashy dashboard config — `<slug>.<domain>` convention.
 #
 # THIS FILE IS THE TEMPLATE. It renders to dashy-conf.yml on EVERY
-# ./existential.sh run (no --force needed), so a change to the stack domain
+# ./existential.sh run, so a change to the stack domain
 # propagates here like it does everywhere else. Edits to the rendered
 # dashy-conf.yml are overwritten — unless the user claims it by flipping the
 # EXIST_KEEP line in its header to true, after which the file is theirs and this
@@ -9,6 +9,11 @@
 #
 # Note: the bare-token substitution rewrites prose too, so avoid writing the
 # domain variable's name in these comments — it would be replaced with its value.
+#
+# SCOPE: this dashboard lists the CORE stack only (src/quests/00-core.md) — the
+# services every install has. Anything else you enable is yours to add: claim the
+# rendered dashy-conf.yml (EXIST_KEEP=true in its header) and edit it on the host,
+# so a later ./existential.sh run cannot overwrite your additions.
 #
 # Each item has TWO adjacent blocks: the active one points at the live service
 # (https://<slug>.<domain>), the commented one points at the public docs page. Flip
@@ -19,6 +24,10 @@
 # hosting/caddy/Caddyfile.exist.Caddyfile (the source of truth for what exists —
 # piHole resolves the whole domain with one wildcard record). Run
 # `./existential.sh validate` to verify.
+#
+# Core services with no HTTP endpoint of their own are deliberately absent:
+# redis, honcho (internal API only), wyoming-whisper and wyoming-piper (reached
+# by Home Assistant over the Wyoming protocol), and caddy itself.
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
 # a red dot when unreachable. That covers runtime health; the comment-flip
@@ -45,30 +54,16 @@ appConfig:
   preventWriteToDisk: true
 
 sections:
-  # ── ai ────────────────────────────────────────────────────────────────────
-  - name: AI
+  # ── the agent ─────────────────────────────────────────────────────────────
+  - name: Agent
     icon: fas fa-robot
     items:
-      - title: Open WebUI
-        url: https://open-webui.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/open-web-ui
-        icon: si-openai
-        statusCheck: true
-        description: Chat UI routed through hermes-agent
-
-      - title: ComfyUI
-        url: https://comfyui.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/comfyui
-        icon: fas fa-image
-        statusCheck: true
-        description: Node-based image generation workflows
-
       - title: Hermes
         url: https://hermes-agent-dashboard.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true
-        description: Hermes Agent routing and ops dashboard
+        description: The agent — routing, sessions and ops dashboard
 
       - title: OpenViking
         url: https://openviking.EXIST_DOMAIN
@@ -77,102 +72,26 @@ sections:
         statusCheck: true
         description: Context database — notes, scraped resources, agent memory
 
+      - title: Ollama
+        url: https://ollama.EXIST_DOMAIN
+        # url: https://existential.company/docs/ai/ollama
+        icon: si-ollama
+        statusCheck: true
+        description: Local models (API — every other AI service talks to this)
 
-  # ── services ──────────────────────────────────────────────────────────────
-  - name: Productivity
-    icon: fas fa-list-check
+  # ── the house ─────────────────────────────────────────────────────────────
+  - name: Home
+    icon: fas fa-house
     items:
-      - title: Actual Budget
-        url: https://actual-budget.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/actual-budget
-        icon: fas fa-money-bill-wave
-        statusCheck: true
-        description: Personal finance
-
-      - title: Immich
-        url: https://immich.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/immich
-        icon: si-immich
-        statusCheck: true
-        description: Photo library
-
-      - title: Mealie
-        url: https://mealie.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/mealie
-        icon: fas fa-utensils
-        statusCheck: true
-        description: Recipe management
-
-      - title: NocoDB
-        url: https://nocodb.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/nocodb
-        icon: fas fa-database
-        statusCheck: true
-        description: Airtable-style database UI
-
-      - title: Ntfy
-        url: https://ntfy.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/ntfy
-        icon: si-ntfy
-        statusCheck: true
-        description: Push notifications
-
-  - name: Tools
-    icon: fas fa-toolbox
-    items:
-      - title: Appsmith
-        url: https://appsmith.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/appsmith
-        icon: si-appsmith
-        statusCheck: true
-        description: Internal-tools platform
-
-      - title: IT Tools
-        url: https://it-tools.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/it-tools
-        icon: hl-it-tools
-        statusCheck: true
-        description: Developer utility toolkit
-
       - title: Home Assistant
         url: https://homeassistant.EXIST_DOMAIN
         # url: https://existential.company/docs/services/homeassistant
         icon: hl-home-assistant
         statusCheck: true
-        description: Smart home automation
+        description: Smart home automation, plus voice via wyoming-whisper/piper
 
-      - title: Lowcoder
-        url: https://lowcoder.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/lowcoder
-        icon: fas fa-file-code
-        statusCheck: true
-        description: Low-code app builder
-
-  - name: Monitoring
-    icon: fas fa-server
-    items:
-      - title: Grafana
-        url: https://grafana.EXIST_DOMAIN/d/decree-overview/decree-overview?orgId=1&refresh=1m
-        # url: https://existential.company/docs/hosting/grafana
-        icon: hl-grafana
-        statusCheck: true
-        description: Dashboards
-
-      - title: Portainer
-        url: https://portainer.EXIST_DOMAIN
-        # url: https://existential.company/docs/hosting/portainer
-        icon: hl-portainer
-        statusCheck: true
-        description: Container management
-
-      - title: Uptime Kuma
-        url: https://uptime-kuma.EXIST_DOMAIN
-        # url: https://existential.company/docs/hosting/uptime-kuma
-        icon: hl-uptime-kuma
-        statusCheck: true
-        description: Service availability monitor
-
-  - name: Hosting
+  # ── files ─────────────────────────────────────────────────────────────────
+  - name: Files
     icon: fas fa-hard-drive
     items:
       - title: Nextcloud
@@ -188,10 +107,3 @@ sections:
         icon: si-minio
         statusCheck: true
         description: S3-compatible object store (web console)
-
-      - title: Pi-hole
-        url: https://pihole.EXIST_DOMAIN
-        # url: https://existential.company/docs/hosting/pihole
-        icon: si-pihole
-        statusCheck: true
-        description: DNS + ad-blocking

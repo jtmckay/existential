@@ -69,8 +69,13 @@ services:
       HERMES_DASHBOARD: '1'
       HERMES_DASHBOARD_HOST: 0.0.0.0
       HERMES_DASHBOARD_PORT: '9119'
-      # Skip the OAuth gate — no providers configured; homelab is behind Caddy.
+      # HERMES_DASHBOARD_INSECURE is inert as of the v2026.8.18 image — it no
+      # longer disables the auth gate. A non-loopback dashboard bind now requires
+      # a real auth provider, so basic auth below is what actually lets :9119 come
+      # up. Kept only to document that setting it is not a substitute.
       HERMES_DASHBOARD_INSECURE: '1'
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-}
       # HERMES_DASHBOARD_TUI: '1' # Enables chat through dashboard
       # Authentication for the gateway when exposing off-loopback.
       # In the default compose setup the gateway is reachable over the docker

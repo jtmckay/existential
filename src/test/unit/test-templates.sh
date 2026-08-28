@@ -69,6 +69,7 @@ EXIST_USER=bob
 EXIST_USERNAME=alice
 EXIST_NTFY_URL=http://ntfy:80
 EXIST_AMP=a&b
+EXIST_BLANK=
 EOF
 
 # Render a template file (non-interactive) and print the resolved content.
@@ -99,6 +100,19 @@ assert_contains "longer key \${EXIST_USERNAME} wins over prefix EXIST_USER" "A=a
 assert_contains "bare longer key EXIST_USERNAME wins over prefix EXIST_USER" "B=alice" "$out"
 assert_contains "shorter key \${EXIST_USER} still resolves" "C=bob" "$out"
 assert_not_contains "prefix key did not corrupt the longer one" "bobNAME" "$out"
+
+# ── Regression: a BLANK .env.shared value must still substitute ────────────────
+# Skipping blank values left the literal token in the rendered file, so an
+# unfilled shared key shipped the string "EXIST_MINIO_SERVER_URL" into a
+# container as a URL (crash-looping minio) and "EXIST_USERNAME" as a postgres
+# role name. Empty is the honest render; a surviving placeholder never is.
+printf 'A=EXIST_BLANK\nB=${EXIST_BLANK}\n' > "$TMP/t_blank"
+out="$(render "$TMP/t_blank")"
+assert_not_contains "blank shared value leaves no bare placeholder" "EXIST_BLANK" "$out"
+# assert_eq on the extracted value, not assert_contains "A=": "A=" is a substring
+# of "A=EXIST_BLANK", so a contains-check here would pass with the bug present.
+assert_eq "blank shared value renders as empty (bare form)" "" "$(grep '^A=' <<<"$out" | cut -d= -f2-)"
+assert_eq "blank shared value renders as empty (\${} form)" "" "$(grep '^B=' <<<"$out" | cut -d= -f2-)"
 
 # ── Generated secrets, unique per occurrence ──────────────────────────────────
 
@@ -162,7 +176,7 @@ else
     _ok "_renders_always rejects an unlisted destination"
 fi
 
-# ── Always-render: overwrites an existing destination without --force ─────────
+# ── Always-render: overwrites an existing destination ─────────────────────────
 # This is the whole point — the general skip-if-exists gate must not apply.
 
 mkdir -p "$TMP/services/dashy"
@@ -171,8 +185,6 @@ printf 'appConfig:\n  theme: colorful\nsections:\n  - name: AI\n    items:\n    
     > "$TMP/services/dashy/dashy-conf.exist.yml"
 echo 'EXIST_HOSTDOMAIN=example.test' >> "$TMP/.env.shared"
 printf 'stale: true\n' > "$_DCONF"
-
-FORCE=false
 _rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
 assert_eq "always-render returns 2 (regenerated), not 1 (skipped)" "2" "$_rc"
 out="$(cat "$_DCONF")"
@@ -220,22 +232,27 @@ fi
 
 # ── Always-render: the EXIST_KEEP opt-out ────────────────────────────────────
 # Flipping the header line to true claims the file. From then on it is the
-# user's: never regenerated, and --force must not touch it either.
+# user's and is never regenerated.
 
 printf 'appConfig:\n  theme: colorful\n' > "$TMP/services/dashy/dashy-conf.exist.yml"
 printf '# EXIST_KEEP: true\nappConfig:\n  theme: MINE\n' > "$_DCONF"
 
-FORCE=false
 _rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
 assert_eq "EXIST_KEEP: true makes always-render skip (returns 1)" "1" "$_rc"
 assert_contains "EXIST_KEEP: true left the user's content intact" \
     "theme: MINE" "$(cat "$_DCONF")"
 
-FORCE=true
-_rc=0; _process_one_template "$TMP/services/dashy/dashy-conf.exist.yml" >/dev/null || _rc=$?
-assert_eq "--force still respects EXIST_KEEP: true" "1" "$_rc"
-assert_contains "--force left the claimed file intact" "theme: MINE" "$(cat "$_DCONF")"
-FORCE=false
+# ── No re-render override ────────────────────────────────────────────────────
+# `--force` was removed: it overwrote with no undo and never said what it would
+# touch (./existential.sh reset archives instead). A leftover FORCE in the
+# environment must therefore do nothing — this fails if the branch comes back.
+
+printf 'fresh: yes\n' > "$TMP/norender.exist.txt"
+printf 'mine: yes\n'  > "$TMP/norender.txt"
+_rc=0; FORCE=true _process_one_template "$TMP/norender.exist.txt" >/dev/null || _rc=$?
+assert_eq "a stray FORCE=true does not re-render (returns 1)" "1" "$_rc"
+assert_contains "a stray FORCE=true left the existing file intact" \
+    "mine: yes" "$(cat "$TMP/norender.txt")"
 
 # The default stamped value must NOT opt out, or nothing would ever regenerate.
 printf '# EXIST_KEEP: false\nappConfig:\n  theme: OLD\n' > "$_DCONF"

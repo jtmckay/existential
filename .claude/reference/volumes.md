@@ -47,6 +47,39 @@ folder. Tier-3 `.gitkeep` is **force-added** past the gitignore — the dir's *c
 gitignored (not backup-worthy), but the empty dir is tracked (same pattern as chatterbox's
 `logs/`, `outputs/`).
 
+**Exception — a `.gitkeep` an image treats as content.** The nextcloud image installs its
+runtime config fragments (`reverse-proxy.config.php`, `redis.config.php`, …) only into a config
+dir it sees as *empty* (`directory_empty "/var/www/html/$dir"`), so the committed `.gitkeep` in
+`volumes/nextcloud_config/` suppresses them — and the failure is silent: nextcloud installs and
+serves, but proxied requests redirect to `http://` and redis caching never engages.
+`nas/nextcloud/exist.initial.sh` removes that one `.gitkeep` pre-startup, and only while it is
+the sole entry, so a configured install is untouched. Keep the `.gitkeep` committed — it still
+does its job of surviving `git clone`; it just has to be gone before the container first looks.
+Watch for the same pattern in any image that populates a bind-mounted dir conditionally on it
+being empty.
+
+### What "root-creates it" actually costs
+
+This is not cosmetic. When a bind-mount source does not exist, the daemon creates it as an empty
+`root:root` directory, and three things follow:
+
+- The container sees an **empty directory** where the image had files. `ai/hermes` mounts
+  `hermes_install/{.venv,ui-tui,gateway,node_modules}`, which its own `exist.initial.sh` extracts
+  from the image — a `docker compose up` that beats the renderer shadows hermes' binaries and it
+  restarts forever with exit 127.
+- The next render can't clean up: `rm -rf` on a root-owned dir fails for the host user, and under
+  `set -e` that aborts the whole run.
+- `reset` dies too, on the first `mkdir -p` under a root-owned `archive/`.
+
+Two defences, in order. `.gitkeep` is the first and covers anything committable. For a path that
+*can't* be committed — populated from an image, or gitignored contents — `adjustVolume` in
+`src/generate-compose.ts` pre-creates every **relative** bind source it rewrites
+(`ensureBindSource`), running inside adhoc as the host uid:gid so the dir lands correctly owned.
+It skips sources with a file extension, since a *file* mount must not become a directory.
+
+Neither defence repairs a checkout that already went wrong: `./existential.sh run fix-permissions`
+does that, borrowing root from a throwaway container rather than asking for sudo.
+
 ## Moving tiers
 
 A one-time **host** data move (`mv volumes/<name> volumes_local/<name>`), called out in the

@@ -26,7 +26,7 @@ Dashy's config is the one place the stack bakes your domain into a file rather t
 it as an environment variable — Dashy reads a static `conf.yml` and does no variable
 substitution of its own. So that the baked value can never go stale, `dashy-conf.yml` is
 **regenerated on every `./existential.sh` run**. Change `EXIST_DOMAIN` and every tile
-follows on the next run; no `--force`, nothing to remember.
+follows on the next run; nothing to remember.
 
 | File | Tracked? | Role |
 |---|---|---|
@@ -41,8 +41,9 @@ Want it your way? Open `services/dashy/dashy-conf.yml` and change one line in th
 # EXIST_KEEP: false     →     # EXIST_KEEP: true
 ```
 
-That's it. The file is now yours: `./existential.sh` will never overwrite it again, not
-even with `--force`. Edit it freely.
+That's it. The file is now yours: `./existential.sh` will never overwrite it again. Edit it
+freely. (`./existential.sh reset` would archive it along with everything else rendered, but
+it moves the file rather than destroying it.)
 
 The trade-off is the one you'd expect — a claimed file stops tracking `EXIST_DOMAIN`, and
 new services won't add themselves to your dashboard. You're maintaining it by hand from

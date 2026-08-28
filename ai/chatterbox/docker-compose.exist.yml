@@ -6,6 +6,10 @@ services:
     container_name: chatterbox
     image: ghcr.io/devnen/chatterbox-tts-server:2.0.0
     restart: unless-stopped
+    # Rendered config.yaml carries a generated auth_password, so templates.sh
+    # chmods it 0600 — readable by the host user only. Run as that user, or the
+    # image's default uid cannot read its own config.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
     # ports disabled — access via https://chatterbox.internal (Caddy + pihole required)
@@ -13,10 +17,16 @@ services:
     #   ports:
     #     - ${CHATTERBOX_PORT:-48004}:8000
 
-    # AMD GPU
-    # privileged: true
-    # environment:
-    #   - CHATTERBOX_DEVICE=vulkan
+    # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation below is stripped automatically when this applies.
+    x-exist-gpu:
+      amd:
+        # Same Vulkan path as ollama, and the same privileged exception: AMD
+        # hosts only, never the default. The NVIDIA_* vars below are left in
+        # place — without the nvidia container runtime they are inert.
+        privileged: true
+        environment:
+          CHATTERBOX_DEVICE: vulkan
 
     # NVIDIA GPU
     deploy:

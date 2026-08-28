@@ -70,9 +70,21 @@ if [[ -f "$_shipped" ]]; then
     _drift=""
     while IFS='=' read -r _k _v; do
         [[ -n "$_k" ]] || continue
+        # EXIST_VRAM_GB is the record of HAVING BEEN ASKED, not a model value, so
+        # it ships blank on purpose — quest's picker fires only while it is empty.
+        # Asserting it against the default tier is what pinned it at 8 and made
+        # the question unreachable. The six model keys still have to agree.
+        [[ "$_k" == "EXIST_VRAM_GB" ]] && continue
         _shipped_v="$(grep -m1 "^${_k}=" "$_shipped" | cut -d= -f2-)"
         [[ "$_shipped_v" == "$_v" ]] || _drift+="${_k} (ships '${_shipped_v}', tier says '${_v}') "
     done < <(model_tier_env "$MODEL_TIER_DEFAULT_GB")
+
+    # ...and the blankness itself is load-bearing, so assert it directly.
+    [[ -z "$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)" ]] \
+        && _ok "EXIST_VRAM_GB ships blank (so quest asks on first run)" \
+        || _fail "EXIST_VRAM_GB ships blank (so quest asks on first run)" \
+                 "ships '$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)'"
+
     [[ -z "$_drift" ]] \
         && _ok ".env.exist.shared matches the default tier" \
         || _fail ".env.exist.shared matches the default tier" "$_drift"
@@ -132,14 +144,38 @@ _cpu_gb="$(model_tier_env 0 | grep "^EXIST_VRAM_GB=" | cut -d= -f2-)"
     && _ok "the CPU tier emits EXIST_VRAM_GB=0 verbatim" \
     || _fail "the CPU tier emits EXIST_VRAM_GB=0 verbatim" "got '${_cpu_gb}' — generate-compose.ts compares this against the string 0"
 
+# EXIST_VRAM_GB=0 is no longer the primary signal — EXIST_GPU_VENDOR is — but it
+# remains the fallback for every .env.shared written before the vendor question
+# existed. If generate-compose.ts stops reading it, those installs silently
+# start getting nvidia reservations they cannot satisfy.
 GC="${REPO_DIR}/src/generate-compose.ts"
 [[ -f "$GC" ]] || GC="/src/generate-compose.ts"
-if grep -q "EXIST_VRAM_GB" "$GC" 2>/dev/null && grep -q "noGpu" "$GC" 2>/dev/null; then
-    _ok "generate-compose.ts still keys its GPU strip off EXIST_VRAM_GB"
+if grep -q "EXIST_VRAM_GB" "$GC" 2>/dev/null && grep -q "EXIST_GPU_VENDOR" "$GC" 2>/dev/null; then
+    _ok "generate-compose.ts reads both EXIST_GPU_VENDOR and the EXIST_VRAM_GB fallback"
 else
-    _fail "generate-compose.ts still keys its GPU strip off EXIST_VRAM_GB" \
-          "generate-compose.ts no longer reads EXIST_VRAM_GB into a noGpu flag"
+    _fail "generate-compose.ts reads both EXIST_GPU_VENDOR and the EXIST_VRAM_GB fallback" \
+          "the legacy VRAM=0 fallback is how pre-vendor installs still get their reservations stripped"
 fi
+
+# ── --gpu-only ────────────────────────────────────────────────────────────────
+# The vendor question is asked first, so by the time the VRAM picker runs we
+# already know there is a card. Offering "None (CPU)" there would let someone
+# answer "nvidia" and then "no GPU", producing a machine with a stripped
+# reservation and a GPU sitting idle.
+_all_n="$(model_tier_lines | wc -l)"
+_gpu_n="$(model_tier_lines --gpu-only | wc -l)"
+[[ "$_gpu_n" -eq $(( _all_n - 1 )) ]] \
+    && _ok "--gpu-only drops exactly one tier" \
+    || _fail "--gpu-only drops exactly one tier" "all=${_all_n} gpu-only=${_gpu_n}"
+
+[[ "$(model_tier_lines --gpu-only | grep -c '^0	')" -eq 0 ]] \
+    && _ok "--gpu-only drops the CPU tier specifically" \
+    || _fail "--gpu-only drops the CPU tier specifically" "gb=0 is still offered"
+
+[[ "$(model_tier_lines | grep -c '^0	')" -eq 1 ]] \
+    && _ok "the CPU tier is still reachable without --gpu-only" \
+    || _fail "the CPU tier is still reachable without --gpu-only" "run models could no longer select CPU"
+
 
 # The CPU tier should not hand someone a model that needs a card to be usable.
 _cpu_chat="$(model_tier_env 0 | grep "^EXIST_MODEL_CHAT=" | cut -d= -f2-)"

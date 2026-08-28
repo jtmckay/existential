@@ -84,6 +84,16 @@ else
     echo "  3. Create Credentials → OAuth 2.0 Client ID → Desktop app"
     echo "  4. Add redirect URI:  ${REDIRECT_URI}"
     echo "  5. Note your Client ID and Client Secret"
+    echo "  6. OAuth consent screen → Audience → Publish app, and confirm."
+    echo "     Do NOT submit for verification — publishing is instant, and"
+    echo "     verification is neither required nor free for a personal app."
+    echo ""
+    echo "     Testing mode expires the refresh token after 7 days; the sync"
+    echo "     then fails with 'invalid_grant'. Published tokens do not expire."
+    echo "     You will see one 'Google hasn't verified this app' warning"
+    echo "     below — click Advanced → Go to (unsafe)."
+    echo ""
+    echo "  Full walkthrough: https://existential.company/docs/integrations/gmail"
     echo ""
 
     read -rp  "Client ID:     " CLIENT_ID

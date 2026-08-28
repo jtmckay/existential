@@ -6,6 +6,8 @@ e2e_skip: Pulls multi-GB LLM, whisper and piper models; too heavy for CI
 services:
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy (TLS + hostnames)
+  - var: EXIST_IS_SERVICES_DASHY
+    label: Dashy (the dashboard — links to everything below)
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud (files)
   - var: EXIST_IS_NAS_REDIS
@@ -83,6 +85,7 @@ What you get:
   Firecrawl              turns a URL into clean text the agent can read
   Decree                 runs it all on a schedule, headless
   Caddy                  https://<service>.<domain> for every one of them
+  Dashy                  one page linking to all of the above
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +118,10 @@ is healthy (~5.5 GB at the 8 GB default, a few minutes).
 
   Watch the pulls:  docker logs -f ollama-decree
   Check everything: ./existential.sh test services
+
+Then open https://dashy.<domain> — that is your landing page, with a link and a
+live status dot for every core service. ./existential.sh prints the URL when it
+finishes.
 
 Two things genuinely need you, because they happen inside another app's UI:
 

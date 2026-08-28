@@ -105,14 +105,14 @@ resolve_label_id() {
     esac
     local labels_file="${GMAIL_DIR}/labels.json"
     if [ ! -f "$labels_file" ]; then
-        echo "Label cache missing. Run: ./existential.sh run gmail-labels" >&2
+        echo "Label cache missing. Run: ./existential.sh run decree gmail-labels" >&2
         exit 1
     fi
     local id
     id=$(jq -r --arg n "$label_name" \
         '.labels[] | select(.name == $n) | .id // empty' "$labels_file" | head -1)
     if [ -z "$id" ]; then
-        echo "Label '${label_name}' not found in cache. Run: ./existential.sh run gmail-labels" >&2
+        echo "Label '${label_name}' not found in cache. Run: ./existential.sh run decree gmail-labels" >&2
         exit 1
     fi
     printf '%s' "$id"
@@ -376,7 +376,8 @@ _handle_auth_failure() {
     if [ ! -f "$_AUTH_FAILURE_FILE" ]; then
         touch "$_AUTH_FAILURE_FILE"
         mkdir -p "$OUTBOX_DIR"
-        local outfile="${OUTBOX_DIR}/gmail-sync-auth-failure-$(date +%s).md"
+        local outfile
+        outfile="${OUTBOX_DIR}/gmail-sync-auth-failure-$(date +%s).md"
         {
             printf -- '---\n'
             printf 'routine: notify\n'
@@ -387,7 +388,7 @@ _handle_auth_failure() {
             printf '\n'
             printf 'Gmail token refresh failed. The gmail-sync routine is paused.\n'
             printf '\n'
-            printf 'To reauthorize: ./existential.sh run gmail\n'
+            printf 'To reauthorize: ./existential.sh run decree gmail-sync\n'
             printf 'Then restart the daemon: docker compose restart decree\n'
         } > "$outfile"
         echo "Auth failure notification queued." >&2

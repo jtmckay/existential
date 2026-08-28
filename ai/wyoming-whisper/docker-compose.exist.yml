@@ -34,6 +34,13 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
+    environment:
+      # The image has no passwd entry for uid 1000, so HOME resolves to "/" —
+      # root-owned and unwritable. huggingface_hub's xet backend caches chunks
+      # under $HOME/.cache regardless of --download-dir, so the model download
+      # died with "Permission denied (os error 13)". Point HF at the one
+      # writable path this container has: the mounted data volume.
+      HF_HOME: /data
     # No ports published: Home Assistant reaches it over Docker DNS. Uncomment
     # only if HA runs on a different machine.
     #   ports:

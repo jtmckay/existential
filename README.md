@@ -35,7 +35,9 @@ flowchart TB
 
 ## 🚀 Quick start
 
-Prerequisite: [Docker](https://www.docker.com/get-started/)
+Prerequisites: [Docker](https://www.docker.com/get-started/) and
+[Tailscale](https://tailscale.com/download) — tailscale is how every device you own reaches
+the stack, and the first run derives your hostnames from its address.
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

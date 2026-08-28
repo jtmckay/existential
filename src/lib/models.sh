@@ -18,6 +18,8 @@ else
 fi
 EXIST_ENV="${REPO_DIR}/.env.shared"
 
+# shellcheck source=src/utils/gpu-vendor.sh
+. "${REPO_DIR}/src/utils/gpu-vendor.sh"
 # shellcheck source=src/utils/model-tiers.sh
 . "${REPO_DIR}/src/utils/model-tiers.sh"
 
@@ -44,6 +46,7 @@ env_set() {
 CURRENT_GB="$(env_get EXIST_VRAM_GB)"
 CURRENT_CHAT="$(env_get EXIST_MODEL_CHAT)"
 CURRENT_EMBED="$(env_get EXIST_MODEL_EMBED)"
+CURRENT_VENDOR="$(env_get EXIST_GPU_VENDOR)"
 
 echo ""
 hr
@@ -53,13 +56,23 @@ echo ""
 if [[ -n "$CURRENT_CHAT" ]]; then
     echo "  Currently: ${CURRENT_CHAT}${CURRENT_GB:+  (${CURRENT_GB} GB tier)}"
     echo "             ${CURRENT_EMBED:-bge-m3} for embeddings"
+    echo "             ${CURRENT_VENDOR:-nvidia} GPU wiring"
 else
     echo "  Nothing selected yet."
 fi
 echo ""
 
-PICKED="$(model_tier_pick "${CURRENT_GB:-$MODEL_TIER_DEFAULT_GB}")"
-[[ -n "$PICKED" ]] || { echo "  Unchanged."; echo ""; exit 0; }
+# Same order as first-run setup: vendor, then VRAM — and "none" answers the
+# VRAM question, so it is not asked. See src/utils/gpu-vendor.sh.
+VENDOR="$(gpu_vendor_pick "${CURRENT_VENDOR:-$GPU_VENDOR_DEFAULT}")"
+[[ -n "$VENDOR" ]] || { echo "  Unchanged."; echo ""; exit 0; }
+
+if [[ "$VENDOR" == "none" ]]; then
+    PICKED=0
+else
+    PICKED="$(model_tier_pick "${CURRENT_GB:-$MODEL_TIER_DEFAULT_GB}" --gpu-only)"
+    [[ -n "$PICKED" ]] || { echo "  Unchanged."; echo ""; exit 0; }
+fi
 
 # Changing the embedding model after openviking has ingested anything corrupts
 # the vector index — the dimensions no longer match what is already stored. No
@@ -77,17 +90,21 @@ if [[ -n "$CURRENT_EMBED" && "$CURRENT_EMBED" != "$NEW_EMBED" ]]; then
     [[ "${_confirm,,}" == "y" ]] || { echo "  Unchanged."; exit 0; }
 fi
 
+env_set EXIST_GPU_VENDOR "$VENDOR"
 while IFS='=' read -r _k _v; do
     [[ -n "$_k" ]] && env_set "$_k" "$_v"
 done < <(model_tier_env "$PICKED")
 
 IFS=$'\t' read -r _ TLABEL TCHAT TCTX TSIZE _ <<< "$(model_tier_row "$PICKED")"
+IFS=$'\t' read -r _ VLABEL _ <<< "$(gpu_vendor_row "$VENDOR")"
 
 echo ""
+echo "  ${_C_GREEN}✓${_C_RESET}  ${VLABEL}"
 echo "  ${_C_GREEN}✓${_C_RESET}  ${TLABEL} — ${TCHAT} (${TSIZE}), ${TCTX} context"
 echo ""
 echo "  Apply it:"
-echo "    ./existential.sh                      # re-renders honcho's config"
+echo "    ./existential.sh                      # re-renders honcho's config,"
+echo "                                          # and the compose file for ${VENDOR}"
 echo "    ./existential.sh run ollama pull-models"
 echo "    docker compose restart honcho hermes-agent openviking"
 echo ""

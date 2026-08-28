@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with
+# file-processor, which sources it and reads them. Nothing here consumes them.
 # Transcribe audio files via WhisperX (with speaker diarization).
 #
 # Matches mp3, mp4, and wav (case-insensitive). Skips the local download and instead

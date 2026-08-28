@@ -32,9 +32,10 @@ Setup:
          EXIST_NFS_BASE_PATH=<nfs-export-base-path># documentation only
 
   4. Re-render so the generated compose binds persistent volumes to the mount:
-         ./existential.sh --force
-     Note: --force overwrites existing docker-compose.yml files.
-     Your .env files are never touched.
+         ./existential.sh reset && ./existential.sh
+     Reset archives every rendered file to archive/<timestamp>/ first, so
+     nothing is lost — .env files included, which it moves rather than
+     overwrites. Your volumes are never touched.
 
 If EXIST_NFS_HOST_MOUNT is blank, all data stays under <repo>/volumes/.
 Setting EXIST_NFS_SERVER_ADDRESS without EXIST_NFS_HOST_MOUNT is a hard

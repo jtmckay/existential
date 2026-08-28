@@ -1,11 +1,24 @@
 # Networking
 
 The hostname suffix is `EXIST_DOMAIN`, defaulting to `EXIST_NIP_DOMAIN` →
-`<lan-ip-with-dashes>.nip.io`, which public wildcard DNS resolves back to that IP — so
-`<slug>.<domain>` works on every LAN device with **no piHole and no `/etc/hosts`**. Set it to
+`<host-ip-with-dashes>.nip.io`, which public wildcard DNS resolves back to that IP — so
+`<slug>.<domain>` works on every device with **no piHole and no `/etc/hosts`**. Nothing is
+asked at setup: `_ensure_host_access` detects the IP and derives the domain. Set it to
 `x.internal` (piHole required, fully offline, and a second stack can take `y.internal`) or to a
-domain you own. **Caddy's `Caddyfile.exist.Caddyfile` is the single source of truth for which
-`<slug>.<domain>` hostnames exist** — `validate conventions` keys off it.
+domain you own — a value already present is never overwritten.
+
+**Tailscale is a prerequisite, and `_detect_host_ip` prefers its address** (`tailscale ip -4`,
+range-checked against `100.64.0.0/10`) over the LAN one. Split the two jobs: **nip.io supplies
+the wildcard**, tailscale supplies the reachability — the name resolves publicly, but a CGNAT
+address only routes inside the tailnet, so nothing is exposed and no router or DNS config is
+needed. **Never use a MagicDNS name as `EXIST_DOMAIN`**: MagicDNS answers exact node names only,
+so `<slug>.<node>.ts.net` is NXDOMAIN and the whole convention collapses (`_warn_if_no_gateway`
+catches `*.ts.net` and says so). `tailscale serve` is out for the same reason — one hostname per
+node, path-routed. Per-service tailscale sidecars would mean a node per container, which breaks
+"adding a service is adding a folder".
+
+**Caddy's `Caddyfile.exist.Caddyfile` is the single source of truth for which `<slug>.<domain>`
+hostnames exist** — `validate conventions` keys off it.
 
 **DNS and TLS are independent choices.** piHole swaps public DNS for local (removing the
 internet dependency); a real cert removes the trust step. Neither requires the other, and the

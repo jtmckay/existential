@@ -462,14 +462,14 @@ elif command -v fzf >/dev/null 2>&1; then
     # fzf on host — draw picker directly (fzf uses /dev/tty for UI, safe in <(...))
     _excl_header="Excluded (require manual setup):"
     for _y in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
-        grep -q '^e2e:[[:space:]]*false' "$_y" || continue
-        _n=$(grep '^name:' "$_y" | sed 's/^name:[[:space:]]*//')
+        quest_fm "$_y" | grep -q '^e2e:[[:space:]]*false' || continue
+        _n=$(quest_name "$_y")
         _excl_header+=$'\n'"  ✗ ${_n}"
     done
     _excl_header+=$'\n─────────────────────────────────────────────────────\nSpace/Tab to toggle  ·  Enter to confirm'
     mapfile -t SELECTED_YAMLS < <(
         automatable_quests | while IFS= read -r _y; do
-            _n=$(grep '^name:' "$_y" | sed 's/^name:[[:space:]]*//')
+            _n=$(quest_name "$_y")
             printf '%s\t%s\n' "$_y" "$_n"
         done | fzf --multi --no-sort \
                    --with-nth=2 \
@@ -487,7 +487,7 @@ else
     [ "${#_all[@]}" -gt 0 ] || die "No automatable quests found."
     echo ""
     for _i in "${!_all[@]}"; do
-        _n=$(grep '^name:' "${_all[$_i]}" | sed 's/^name:[[:space:]]*//')
+        _n=$(quest_name "${_all[$_i]}")
         printf '[e2e]   %d) %s\n' "$(( _i + 1 ))" "$_n"
     done
     echo ""
@@ -506,7 +506,7 @@ fi
 
 log "Selected quests:"
 for yaml in "${SELECTED_YAMLS[@]}"; do
-    name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+    name=$(quest_name "$yaml")
     log "  • ${name}"
 done
 
@@ -515,7 +515,7 @@ preflight_check "${SELECTED_YAMLS[@]}"
 declare -a PASS=() FAIL=()
 
 for yaml in "${SELECTED_YAMLS[@]}"; do
-    name=$(grep '^name:' "$yaml" | sed 's/^name:[[:space:]]*//')
+    name=$(quest_name "$yaml")
     if run_quest "$yaml"; then
         PASS+=("$name")
     else

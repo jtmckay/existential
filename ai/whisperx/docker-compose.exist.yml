@@ -8,6 +8,22 @@ services:
     # models into /root/.cache (same exception as the old whisper / mcp images).
     restart: unless-stopped
 
+    # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation below is stripped automatically when this applies.
+    #
+    # Both non-nvidia cases fall back to CPU, for the same reason: whisperx runs
+    # on faster-whisper/CTranslate2, which has CUDA and CPU backends and no ROCm
+    # one. Without this the container starts with DEVICE=cuda and dies on the
+    # first request looking for a CUDA runtime that is not there — the failure
+    # the stripped reservation would otherwise hide until transcription time.
+    x-exist-gpu:
+      amd:
+        environment:
+          DEVICE: cpu
+      none:
+        environment:
+          DEVICE: cpu
+
     # NVIDIA GPU — large-v3 in int8 (~3 GB VRAM) leaves room alongside ollama.
     deploy:
       resources:

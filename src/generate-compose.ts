@@ -81,8 +81,8 @@ interface VolumeContext {
   hostRepoRoot: string;
   nfsHostMount: string;
   repoRoot: string;
-  /** EXIST_VRAM_GB=0 — strip GPU reservations so compose can start at all. */
-  noGpu: boolean;
+  /** EXIST_GPU_VENDOR — nvidia leaves templates alone; amd/none rewrite them. */
+  gpuVendor: string;
 }
 
 function isNfsVolume(vol: unknown): boolean {
@@ -91,11 +91,72 @@ function isNfsVolume(vol: unknown): boolean {
   return !!(opts && opts['type'] === 'nfs');
 }
 
+// True when some `<name>.exist.<ext>` template renders to this exact path — i.e.
+// the destination is a file existential writes, not a directory to pre-create.
+// Mirrors _template_to_dst in src/templates.sh: `foo.exist.bar` -> `foo.bar`,
+// and `foo.exist.foo` (same word either side) -> `foo`.
+function hasTemplateFor(abs: string): boolean {
+  const dir = path.dirname(abs);
+  const base = path.basename(abs);
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return false;
+  }
+  return entries.some((name) => {
+    const i = name.indexOf('.exist.');
+    if (i < 0) return false;
+    const before = name.slice(0, i);
+    const after = name.slice(i + '.exist.'.length);
+    const dst = before.toLowerCase() === after.toLowerCase() ? before : `${before}.${after}`;
+    return dst === base;
+  });
+}
+
+// A relative bind-mount source that does not exist yet is a trap: `docker compose
+// up` asks the daemon for a path that is not there, and the daemon creates it as
+// an empty root:root directory. That shadows whatever the image had at the mount
+// point (hermes' .venv, gateway, node_modules and ui-tui are exactly this) and
+// leaves behind a directory the host user cannot delete on the next render.
+//
+// Creating it here gets in first: this runs inside the adhoc container, which
+// `run_adhoc` starts as the host uid:gid, so the daemon always finds an existing,
+// correctly-owned directory. Only ever creates — never chowns, never touches
+// anything that already exists. `./existential.sh run fix-permissions` is the
+// repair path for a checkout that already has root-owned directories.
+function ensureBindSource(rel: string, ctx: VolumeContext): void {
+  // A source with a file extension is a file mount (a rendered .yml/.json/.conf).
+  // Creating a directory there would make the container see an empty dir instead
+  // of the file. Node reports '' for dot-leading names like '.venv', so those are
+  // correctly treated as directories.
+  if (path.extname(rel) !== '') return;
+
+  // Never create outside the repo. A '../' chain that escapes the root is a
+  // template bug, and silently materialising it elsewhere on the host hides it.
+  const root = path.resolve(ctx.repoRoot);
+  const abs = path.resolve(root, rel);
+  if (abs !== root && !abs.startsWith(root + path.sep)) return;
+
+  if (fs.existsSync(abs)) return;
+
+  // Extension is not enough: hosting/caddy/Caddyfile is an extensionless SINGLE
+  // FILE, rendered from Caddyfile.exist.Caddyfile. mkdir there mounts an empty
+  // directory over caddy's config (it then fails to start) and blocks the next
+  // render from writing the file. A sibling `<name>.exist.*` template is the
+  // repo's own record that this destination is a rendered file, so ask it.
+  if (hasTemplateFor(abs)) return;
+
+  fs.mkdirSync(abs, { recursive: true });
+}
+
 function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
   if (typeof vol === 'object' && vol !== null) {
     const src = vol['source'] as string | undefined;
     if (src && !src.startsWith('/')) {
-      return { ...vol, source: path.normalize(path.join(ctx.servicePrefix, src)) };
+      const rel = path.normalize(path.join(ctx.servicePrefix, src));
+      if (!src.startsWith('$')) ensureBindSource(rel, ctx);
+      return { ...vol, source: rel };
     }
     return vol;
   }
@@ -126,8 +187,11 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
     return parts.join(':');
   }
 
-  // Relative path — rewrite under service prefix.
-  parts[0] = './' + path.normalize(path.join(ctx.servicePrefix, src));
+  // Relative path — rewrite under service prefix, creating the source directory
+  // so the Docker daemon never has to (see ensureBindSource above).
+  const rel = path.normalize(path.join(ctx.servicePrefix, src));
+  ensureBindSource(rel, ctx);
+  parts[0] = './' + rel;
   return parts.join(':');
 }
 
@@ -168,11 +232,14 @@ function adjustEnvFile(
  * with capabilities: [[gpu]]"), so a single GPU-reserving service takes down
  * `docker compose up` for the whole stack.
  *
- * That is what makes the CPU-only tier (EXIST_VRAM_GB=0) impossible without
- * this: four services declare the reservation (ollama, comfyui, whisperx,
- * chatterbox) and ollama is in Core. Stripping it here keeps the reservation in
- * the templates — where it is correct for everyone with a card — rather than
- * forking them.
+ * That is what makes any non-nvidia host impossible without this: four services
+ * declare the reservation (ollama, comfyui, whisperx, chatterbox) and ollama is
+ * in Core. Stripping it here keeps the reservation in the templates — where it
+ * is correct for the majority — rather than forking them per vendor.
+ *
+ * Applied for BOTH `none` and `amd`: an AMD card is no more able to satisfy a
+ * `driver: nvidia` reservation than no card at all. What AMD gets instead comes
+ * from the service's own `x-exist-gpu.amd` block — see applyGpuOverlay.
  *
  * This only makes the containers *start*. A service whose whole job is GPU work
  * (comfyui; whisperx and chatterbox with their cuda settings) is still not
@@ -213,8 +280,113 @@ function stripGpuReservations(svc: Record<string, unknown>): Record<string, unkn
   return out;
 }
 
+/** The per-service, per-vendor overlay key. */
+const GPU_OVERLAY_KEY = 'x-exist-gpu';
+
+/** Vendors this generator knows how to wire. Mirrors src/utils/gpu-vendor.sh. */
+const GPU_VENDORS = ['nvidia', 'amd', 'none'] as const;
+
+/**
+ * Decide the GPU vendor from the environment.
+ *
+ * EXIST_GPU_VENDOR is authoritative once set. When it is blank — every install
+ * that predates it, and any non-interactive one — fall back to what
+ * EXIST_VRAM_GB already implied: 0 meant "no GPU", anything else meant nvidia.
+ * That keeps existing .env.shared files generating exactly the compose file
+ * they generated before this setting existed.
+ *
+ * An unrecognised value is a typo, not a new vendor. Failing closed to nvidia
+ * would silently hand an AMD host a reservation its daemon cannot satisfy, so
+ * say so loudly and stop — a wrong compose file here breaks `up` for the whole
+ * stack, and the error it produces points at docker, not at this typo.
+ */
+function resolveGpuVendor(env: Record<string, string>): string {
+  const explicit = (env['EXIST_GPU_VENDOR'] ?? '').trim().toLowerCase();
+  if (!explicit) {
+    return (env['EXIST_VRAM_GB'] ?? '').trim() === '0' ? 'none' : 'nvidia';
+  }
+  if (!(GPU_VENDORS as readonly string[]).includes(explicit)) {
+    process.stderr.write(
+      `ERROR: EXIST_GPU_VENDOR='${explicit}' is not one of: ${GPU_VENDORS.join(', ')}.\n` +
+      '  Fix it in .env.shared, or re-run: ./existential.sh run models\n',
+    );
+    process.exit(1);
+  }
+  return explicit;
+}
+
+/**
+ * Apply a service's `x-exist-gpu.<vendor>` block, and drop the key either way.
+ *
+ * Vendor-specific wiring lives with the service rather than in a lookup table
+ * here, because "adding a service is adding a folder" — a table of container
+ * names in this file would make that sentence less true, and every new GPU
+ * service would need an edit in two places.
+ *
+ * Shape, in a service's docker-compose.exist.yml:
+ *
+ *     x-exist-gpu:
+ *       amd:
+ *         privileged: true
+ *         environment:
+ *           OLLAMA_VULKAN: "1"
+ *
+ * The merge is one level deep and last-wins, with `environment` merged rather
+ * than replaced so an overlay can set one variable without restating the rest.
+ * A list-form `environment:` (`- KEY=value`) is normalised to map form first,
+ * so a template can use either style and an overlay still lands correctly.
+ *
+ * nvidia is deliberately not an overlay: it is what the templates already say.
+ */
+function applyGpuOverlay(svc: Record<string, unknown>, vendor: string): Record<string, unknown> {
+  const overlay = svc[GPU_OVERLAY_KEY] as Record<string, unknown> | undefined;
+  const out = { ...svc };
+  delete out[GPU_OVERLAY_KEY];
+  if (!overlay || typeof overlay !== 'object') return out;
+
+  const block = overlay[vendor] as Record<string, unknown> | undefined;
+  if (!block || typeof block !== 'object') return out;
+
+  for (const [key, value] of Object.entries(block)) {
+    if (key === 'environment') {
+      out['environment'] = { ...toEnvMap(out['environment']), ...toEnvMap(value) };
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+/**
+ * Normalise compose's two `environment:` spellings to map form.
+ *
+ * A list entry with no `=` ("PATH") means "inherit from the host" in compose,
+ * which is a null value in map form — not an empty string, which would instead
+ * set the variable to nothing.
+ */
+function toEnvMap(env: unknown): Record<string, unknown> {
+  if (!env) return {};
+  if (Array.isArray(env)) {
+    const map: Record<string, unknown> = {};
+    for (const entry of env) {
+      if (typeof entry !== 'string') continue;
+      const eq = entry.indexOf('=');
+      if (eq === -1) map[entry] = null;
+      else map[entry.slice(0, eq)] = entry.slice(eq + 1);
+    }
+    return map;
+  }
+  if (typeof env === 'object') return { ...(env as Record<string, unknown>) };
+  return {};
+}
+
 function adjustServicePaths(svc: Record<string, unknown>, ctx: VolumeContext): Record<string, unknown> {
-  const out = ctx.noGpu ? stripGpuReservations(svc) : { ...svc };
+  // nvidia is the templates' own default, so it is a pure no-op beyond dropping
+  // the overlay key. Anything else cannot satisfy a `driver: nvidia`
+  // reservation, so the reservation goes and the vendor's overlay comes in.
+  const out = ctx.gpuVendor === 'nvidia'
+    ? applyGpuOverlay(svc, ctx.gpuVendor)
+    : applyGpuOverlay(stripGpuReservations(svc), ctx.gpuVendor);
   if (Array.isArray(out['volumes'])) {
     out['volumes'] = (out['volumes'] as VolumeEntry[]).map(v => adjustVolume(v, ctx));
   }
@@ -235,7 +407,7 @@ function merge(
   enabled: string[],
   nfsHostMount: string,
   networkExternal = false,
-  noGpu = false,
+  gpuVendor = 'nvidia',
 ): Record<string, unknown> {
   // First pass: collect all top-level volume definitions (needed to detect NFS).
   const topLevelVolumes: Record<string, unknown> = {};
@@ -260,7 +432,7 @@ function merge(
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
-    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot, noGpu };
+    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot, gpuVendor };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
       services[name] = adjustServicePaths(svc ?? {}, ctx);
@@ -324,12 +496,14 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
 const KEEP_ARCHIVES = 3;
 
 function pruneArchives(repoRoot: string, keep: number): void {
-  const archives = fs.readdirSync(repoRoot)
+  const archiveDir = path.join(repoRoot, 'archive');
+  if (!fs.existsSync(archiveDir)) return;
+  const archives = fs.readdirSync(archiveDir)
     .filter(f => /^docker-compose-[0-9].*\.yml$/.test(f))
     .sort();                       // lexical sort == chronological (ISO-ish stamp)
   for (const f of archives.slice(0, Math.max(0, archives.length - keep))) {
     try {
-      fs.unlinkSync(path.join(repoRoot, f));
+      fs.unlinkSync(path.join(archiveDir, f));
       process.stderr.write(`Pruned old archive: ${f}\n`);
     } catch { /* best-effort */ }
   }
@@ -369,19 +543,26 @@ function main(): void {
 
   const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
 
-  // EXIST_VRAM_GB=0 is the CPU-only tier. Unset means "never asked" — assume a
-  // GPU, which is what every existing install already does.
-  const noGpu = (env['EXIST_VRAM_GB'] ?? '').trim() === '0';
-  if (noGpu) process.stderr.write('EXIST_VRAM_GB=0 — stripping GPU reservations (CPU-only)\n');
+  const gpuVendor = resolveGpuVendor(env);
+  if (gpuVendor !== 'nvidia') {
+    process.stderr.write(
+      `EXIST_GPU_VENDOR=${gpuVendor} — stripping nvidia reservations` +
+      `, applying ${GPU_OVERLAY_KEY}.${gpuVendor} overlays\n`,
+    );
+  }
 
-  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal, noGpu);
+  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal, gpuVendor);
 
   mergeEnv(repoRoot, enabled);
 
   if (fs.existsSync(outputPath)) {
     const now = new Date();
     const stamp = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
-    const backup = path.join(repoRoot, `docker-compose-${stamp}.yml`);
+    // Same archive/ directory  uses, so generated files
+    // never accumulate in the repo root.
+    const archiveDir = path.join(repoRoot, 'archive');
+    fs.mkdirSync(archiveDir, { recursive: true });
+    const backup = path.join(archiveDir, `docker-compose-${stamp}.yml`);
     fs.renameSync(outputPath, backup);
     process.stderr.write(`Archived: ${backup}\n`);
     pruneArchives(repoRoot, KEEP_ARCHIVES);

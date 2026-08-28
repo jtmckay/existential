@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with
+# file-processor, which sources it and reads them. Nothing here consumes them.
 # OCR images via Ollama vision model.
 #
 # Downloads the image directly (no pre-signed URL), reads it as base64, and sends

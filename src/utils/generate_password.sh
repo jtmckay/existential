@@ -14,7 +14,7 @@ generate_24_char_password() {
 
     local password=""
 
-    for i in $(seq 1 "$length"); do
+    for _ in $(seq 1 "$length"); do
         local rand_seed
         if [ -r /dev/urandom ]; then
             rand_seed=$(od -An -N4 -tu4 < /dev/urandom | tr -d ' ')

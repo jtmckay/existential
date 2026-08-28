@@ -5,10 +5,19 @@ services:
     container_name: ollama
     image: ollama/ollama:0.32.14
 
-    # AMD GPU
-    # privileged: true # needed for GPU
-    # environment:
-    #   - OLLAMA_VULKAN=1
+    # GPU wiring for anything that is not nvidia. Applied by
+    # src/generate-compose.ts from EXIST_GPU_VENDOR — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation below is stripped automatically when this applies.
+    x-exist-gpu:
+      amd:
+        # Vulkan on the stock image, rather than the -rocm tag. privileged is
+        # what actually grants /dev/dri here, and it is a deliberate exception
+        # to the least-privilege convention in CLAUDE.md: it applies ONLY on an
+        # AMD host, never by default. Narrow it to `devices:` if your setup
+        # allows — this is the blunt version that works everywhere.
+        privileged: true
+        environment:
+          OLLAMA_VULKAN: "1"
 
     # NVIDIA GPU or CPU
     deploy:

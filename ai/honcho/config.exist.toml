@@ -1,7 +1,7 @@
 # Honcho configuration — existential homelab stack.
 #
 # Rendered to config.toml on every ./existential.sh run (_ALWAYS_RENDER in
-# src/templates.sh), so a model change in .env.shared lands without --force.
+# src/templates.sh), so a model change in .env.shared lands on the next run.
 #
 # Model names come from the "Model Selection" block in .env.shared, so honcho,
 # openviking and the ollama migrations always agree on which tags to use.

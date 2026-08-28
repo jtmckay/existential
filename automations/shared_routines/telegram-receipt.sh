@@ -52,6 +52,7 @@ fi
 
 TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:S3/telegram}"
 _tg_creds="/secrets/telegram/credentials.env"
+# shellcheck source=/dev/null  # runtime path, contents are credentials
 [ -f "$_tg_creds" ] && source "$_tg_creds"
 [ -n "${TELEGRAM_BOT_TOKEN:-}" ] || { echo "TELEGRAM_BOT_TOKEN not set."; exit 1; }
 [ -n "${TELEGRAM_CHAT_ID:-}"   ] || { echo "TELEGRAM_CHAT_ID not set."; exit 1; }
@@ -151,10 +152,16 @@ for i in $(seq 0 $((_count - 1))); do
         telegram_download_file "$_file_id" "$_tmpfile"
 
         # OCR the receipt
-        FILE_PATH="$_tmpfile" \
-        OCR_MODEL="${OCR_MODEL:-llava}" \
-        OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}" \
-            _ocr_raw=$($_tsx /work/.decree/lib/ocr.ts "$_ocr_prompt") || {
+        # The assignments must sit INSIDE the command substitution so they
+        # prefix the actual tsx command. Written as a prefix to `_ocr_raw=$(…)`
+        # they had no command word to attach to, so bash performed them as plain
+        # shell assignments — unexported, and therefore absent from tsx's
+        # environment. ocr.ts read process.env.FILE_PATH, found nothing, and
+        # exited: every receipt reported "OCR failed" regardless of the image.
+        _ocr_raw=$(FILE_PATH="$_tmpfile" \
+                   OCR_MODEL="${OCR_MODEL:-llava}" \
+                   OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}" \
+                   $_tsx /work/.decree/lib/ocr.ts "$_ocr_prompt") || {
                 telegram_send_reply "$_notify_msg_id" "❌ OCR failed — could not read the receipt. Please try again."
                 continue
             }
