@@ -112,8 +112,8 @@ volumes, nothing opaque, nothing requiring root to read. Point your front end at
 filesystem or at the S3 endpoint, whichever suits it.
 
 :::warning[Not part of the contract]
-`volumes_local/` holds live databases. Read them through their service's API, never off
-disk — they're mid-write, and NFS or a concurrent reader will corrupt or mislead you.
+Volumes declared `db: true` hold live databases. Read them through their service's API, never
+off disk — they're mid-write, and NFS or a concurrent reader will corrupt or mislead you.
 :::
 
 ## 4. Read the result

@@ -31,7 +31,7 @@ It mounts the repo's top-level `workspace/` directory, the same tree
 browser and edits made by an agent land in the same files — that's the point of the shared
 mount, and also the thing to be careful about when both are active.
 
-Its own configuration cache (`code_server_data`) is tier 3: local, disposable, not backed up.
+Its own configuration cache (`code_server_data`) is a _cache: disposable, not backed up.
 
 ## Notes
 

@@ -2,8 +2,8 @@
 # notes — Orchestrates the complete note processing pipeline.
 #
 # Container paths (all absolute):
-#   /data/notes     — Nextcloud sync cache (tier-3 bind: services/decree/data/notes/)
-#   /data/dropbox   — compiled output for Dropbox (tier-3 bind: services/decree/data/dropbox/)
+#   /data/notes     — Nextcloud sync cache (in the decree_data volume: notes/)
+#   /data/dropbox   — compiled output for Dropbox (in the decree_data volume: dropbox/)
 #   /work/.decree/lib/notes/ — pipeline scripts (automations/lib/notes/)
 
 set -euo pipefail

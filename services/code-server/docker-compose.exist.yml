@@ -30,11 +30,14 @@ services:
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       - ./opencode.json:/opencode.exist.json:ro
-      # code-server standalone install — tier-3 local cache, not backed up
-      - ./code_server_data:/code-server-data
+      # code-server standalone install — a _cache — not backed up
+      - code_server_data:/code-server-data
       # Repo top-level workspace — shared with hermes-agent's /opt/data/workspace
       # so both containers operate on the same files.
       - ../../workspace:/workspace
+
+x-exist-volumes:
+  code_server_data: {}
 
 networks:
   exist:

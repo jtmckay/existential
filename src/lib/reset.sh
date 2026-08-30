@@ -137,16 +137,55 @@ echo ""
 
 # ── The data note ─────────────────────────────────────────────────────────────
 
-echo "  ${_C_BOLD}Your data is not touched.${_C_RESET} Reset never moves, copies or deletes it."
-echo "  It stays where it is:"
+echo "  ${_C_BOLD}Nothing in volumes/ is archived.${_C_RESET} Reset only moves the files above."
+echo "  What happens to your volumes is decided by each name's suffix:"
 echo ""
-[[ -d "${REPO_DIR}/volumes" ]] \
-    && echo "    volumes/         $(du -sh "${REPO_DIR}/volumes" 2>/dev/null | cut -f1)  files, photos, backups"
-[[ -d "${REPO_DIR}/volumes_local" ]] \
-    && echo "    volumes_local/   $(du -sh "${REPO_DIR}/volumes_local" 2>/dev/null | cut -f1)  databases, models, embedded stores"
+
+# The suffix vocabulary is enforced by `validate conventions`, so it can be
+# trusted here: _cache is regenerable, everything else is not.
+_vol_size() {
+    local total=0 d sz
+    for d in "$@"; do
+        # du fails on a directory the container locked down (nextcloud's data dir
+        # is 0770 www-data). Missing size must read as 0, never as empty — an
+        # empty string turns the arithmetic below into a syntax error.
+        sz="$(du -sm "$d" 2>/dev/null | cut -f1)"
+        sz="${sz//[!0-9]/}"
+        total=$(( total + ${sz:-0} ))
+    done
+    # Integer maths only — bc is not in the adhoc image.
+    if [[ "$total" -ge 1024 ]]; then printf '%d.%dG' "$(( total / 1024 ))" "$(( (total % 1024) * 10 / 1024 ))"; else printf '%dM' "$total"; fi
+}
+_CACHES=(); _KEEPS=()
+if [[ -d "${REPO_DIR}/volumes" ]]; then
+    for d in "${REPO_DIR}"/volumes/*/; do
+        [[ -d "$d" ]] || continue
+        case "$(basename "$d")" in
+            *_cache) _CACHES+=("$d") ;;
+            *)       _KEEPS+=("$d")  ;;
+        esac
+    done
+fi
+[[ ${#_KEEPS[@]}  -gt 0 ]] && echo "    ${#_KEEPS[@]} × *_data / *_backup   $(_vol_size "${_KEEPS[@]}")  files, databases, archives — never deleted here"
+[[ ${#_CACHES[@]} -gt 0 ]] && echo "    ${#_CACHES[@]} × *_cache             $(_vol_size "${_CACHES[@]}")  models and caches — regenerable, offered below"
 echo ""
-echo "  To start over completely you would delete those yourself, with the stack"
-echo "  down. Nothing in this command will do it for you."
+
+# Caches are the one category it is always safe to offer: by definition the
+# stack rebuilds them. Everything else stays the user's job, with the stack down.
+if [[ ${#_CACHES[@]} -gt 0 ]]; then
+    read -rp "  Also delete the ${#_CACHES[@]} *_cache volume(s)? [y/N] " _nuke
+    if [[ "${_nuke,,}" == "y" || "${_nuke,,}" == "yes" ]]; then
+        for d in "${_CACHES[@]}"; do
+            rm -rf "$d" 2>/dev/null \
+                && echo "  ${_C_GREEN}✓${_C_RESET}  deleted $(basename "$d")" \
+                || echo "  ${_C_YELLOW}could not delete${_C_RESET} $(basename "$d") — root-owned files inside it; run ./existential.sh run fix-permissions, then reset again"
+        done
+        echo ""
+    fi
+fi
+
+echo "  To start over completely, delete the *_data volumes yourself with the"
+echo "  stack down. Nothing here will do that for you."
 echo ""
 
 # ── The warning that actually matters ─────────────────────────────────────────

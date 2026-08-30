@@ -77,7 +77,7 @@ type VolumeEntry = string | Record<string, unknown>;
 
 interface VolumeContext {
   servicePrefix: string;
-  topLevelVolumes: Record<string, unknown>;
+  volumeSpec: Record<string, VolumeSpec>;
   hostRepoRoot: string;
   nfsHostMount: string;
   repoRoot: string;
@@ -85,11 +85,28 @@ interface VolumeContext {
   gpuVendor: string;
 }
 
-function isNfsVolume(vol: unknown): boolean {
-  if (!vol || typeof vol !== 'object') return false;
-  const opts = (vol as Record<string, unknown>)['driver_opts'] as Record<string, unknown> | undefined;
-  return !!(opts && opts['type'] === 'nfs');
+/**
+ * A volume's declared properties, from a service's top-level `x-exist-volumes`
+ * block. The block is the single record of what a volume *is*; the directory it
+ * ends up in is derived from it, never the other way round.
+ *
+ *     x-exist-volumes:
+ *       nextcloud_data:     { nfs: true }
+ *       nextcloud_sql_data: { db: true }        # embedded DB — never NFS
+ *       ollama_cache:       {}                  # regenerable, local
+ *
+ * `nfs: true` is the only thing that moves a volume off local disk, and only
+ * when EXIST_NFS_HOST_MOUNT is set. `db: true` records that the volume holds an
+ * embedded database (SQLite/bbolt/TSDB/postgres data dir), which NFS corrupts —
+ * validate conventions rejects `nfs: true` alongside it.
+ */
+interface VolumeSpec {
+  nfs?: boolean;
+  db?: boolean;
+  backup?: boolean;
 }
+
+const VOLUME_SPEC_KEY = 'x-exist-volumes';
 
 // True when some `<name>.exist.<ext>` template renders to this exact path — i.e.
 // the destination is a file existential writes, not a directory to pre-create.
@@ -172,13 +189,36 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
   // Absolute path — leave unchanged.
   if (src.startsWith('/')) return vol;
 
-  // Named volume (no leading dot, no path separator) — materialise as a host bind mount.
+  // Named volume (no leading dot, no path separator) — materialise as a host
+  // bind mount, placed by its x-exist-volumes declaration.
   if (!src.startsWith('.') && !src.includes('/')) {
     const name = src;
-    const nfs = isNfsVolume(ctx.topLevelVolumes[name]);
+    const spec = ctx.volumeSpec[name];
+
+    // An undeclared name is not a Docker-managed volume by default — that is the
+    // one thing this repo never wants (opaque, re-inits from the image, wrong
+    // UID on NFS). Fail loudly instead of silently creating one.
+    if (!spec) {
+      process.stderr.write(
+        `ERROR: volume '${name}' is mounted by ${ctx.servicePrefix} but not declared.\n` +
+        `  Add it to the '${VOLUME_SPEC_KEY}:' block in that service's docker-compose.exist.yml:\n` +
+        `\n    ${VOLUME_SPEC_KEY}:\n      ${name}: {}\n\n` +
+        `  See .claude/reference/volumes.md for the properties.\n`,
+      );
+      process.exit(1);
+    }
+
     let hostPath: string;
-    if (nfs && ctx.nfsHostMount) {
+    if (spec.nfs && ctx.nfsHostMount) {
+      // Lives on the NAS export, which the host mounts (fstab/autofs). Create the
+      // per-volume directory inside it so Docker never root-creates one — but
+      // only when the mountpoint itself is present. Creating it while the export
+      // is unmounted would quietly write to the empty local mountpoint, and the
+      // data would vanish the moment it mounted.
       hostPath = `${ctx.nfsHostMount}/${name}`;
+      if (fs.existsSync(ctx.nfsHostMount)) {
+        fs.mkdirSync(hostPath, { recursive: true });
+      }
     } else {
       hostPath = `${ctx.hostRepoRoot}/volumes/${name}`;
       fs.mkdirSync(path.join(ctx.repoRoot, 'volumes', name), { recursive: true });
@@ -409,14 +449,16 @@ function merge(
   networkExternal = false,
   gpuVendor = 'nvidia',
 ): Record<string, unknown> {
-  // First pass: collect all top-level volume definitions (needed to detect NFS).
-  const topLevelVolumes: Record<string, unknown> = {};
+  // First pass: collect every enabled service's x-exist-volumes declarations.
+  // Volumes are shared across services by name (a backup sidecar mounts the same
+  // dir as the app it archives), so the spec is merged repo-wide, first wins.
+  const volumeSpec: Record<string, VolumeSpec> = {};
   for (const relPath of enabled) {
     const composePath = path.join(repoRoot, relPath, 'docker-compose.yml');
     if (!fs.existsSync(composePath)) continue;
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
-    for (const [name, vol] of Object.entries((config['volumes'] ?? {}) as Record<string, unknown>)) {
-      if (!(name in topLevelVolumes)) topLevelVolumes[name] = vol;
+    for (const [name, spec] of Object.entries((config[VOLUME_SPEC_KEY] ?? {}) as Record<string, VolumeSpec>)) {
+      if (!(name in volumeSpec)) volumeSpec[name] = spec ?? {};
     }
   }
 
@@ -432,7 +474,7 @@ function merge(
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
-    const ctx: VolumeContext = { servicePrefix: relPath, topLevelVolumes, hostRepoRoot, nfsHostMount, repoRoot, gpuVendor };
+    const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsHostMount, repoRoot, gpuVendor };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
       services[name] = adjustServicePaths(svc ?? {}, ctx);

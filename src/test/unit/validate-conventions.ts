@@ -257,9 +257,8 @@ function checkTopLevelEnvKeys(): string[] {
 }
 
 // The generated master compose must use only host bind mounts. Service templates
-// declare volumes directly as bind paths in one of three tiers — tier-1 NFS user data
-// (${EXIST_NFS_HOST_MOUNT:-./volumes}/<name>), tier-2 local databases
-// (../../volumes_local/<name>), or tier-3 service-dir scratch (./<dir>) — so there's no
+// declare volumes directly as bind paths in one of three tiers — nfs-declared user data
+// (a bare name declared in x-exist-volumes, materialised under volumes/) — so there's no
 // top-level `volumes:` section and `docker volume ls` stays empty. This is the opposite
 // of that guarantee — it trips if a Docker-managed (named) volume survives into the
 // generated compose.
@@ -312,6 +311,89 @@ function checkBindMounts(): string[] {
 const USER_LITERAL_RE   = /^\s*user:\s*["']?\d+:\d+["']?\s*(?:#.*)?$/;
 const UID_ENV_KEY_RE     = /^\s*([A-Za-z_][A-Za-z0-9_]*):\s*["']?(\d+)["']?\s*(?:#.*)?$/;
 const UID_ENV_NAME_RE    = /(?:PUID|PGID|UID|GID)$/;
+
+/**
+ * Volume declarations. Every volume a service mounts by bare name must have an
+ * `x-exist-volumes` entry in that service's own template, and the entry's
+ * properties must agree with the name's suffix.
+ *
+ * The suffix is the part a human reads before deciding whether something is safe
+ * to delete, so it is enforced rather than merely conventional:
+ *
+ *   _data    precious — user data or a live database; never auto-deleted
+ *   _backup  sidecar archives of a _data volume
+ *   _cache   regenerable; refetched or rebuilt on next start (reset deletes these)
+ *
+ * Also rejects the NFS/embedded-DB footgun: an mmap/flock database (SQLite WAL,
+ * bbolt, a TSDB, a postgres data dir) is corrupted by NFS, so `db: true` and
+ * `nfs: true` can never appear together.
+ */
+function checkVolumeSpecs(): string[] {
+  const errors: string[] = [];
+  const SUFFIXES = ['_data', '_backup', '_cache'];
+
+  for (const cat of CATEGORY_DIRS) {
+    const catDir = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catDir)) continue;
+    for (const slug of fs.readdirSync(catDir)) {
+      const file = path.join(catDir, slug, 'docker-compose.exist.yml');
+      if (!fs.existsSync(file)) continue;
+      const rel = `${cat}/${slug}/docker-compose.exist.yml`;
+
+      let data: Record<string, unknown>;
+      try {
+        data = (yaml.load(fs.readFileSync(file, 'utf8')) ?? {}) as Record<string, unknown>;
+      } catch {
+        continue; // parse errors are reported by other checks
+      }
+
+      const spec = (data['x-exist-volumes'] ?? {}) as Record<string, Record<string, unknown> | null>;
+      const declared = new Set(Object.keys(spec));
+      const mounted = new Set<string>();
+
+      for (const svc of Object.values((data['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
+        for (const entry of ((svc ?? {})['volumes'] ?? []) as unknown[]) {
+          if (typeof entry !== 'string') continue;
+          const src = entry.replace(/^['"]|['"]$/g, '').split(':')[0];
+          const isBareNamed = src.length > 0 && !src.startsWith('/') &&
+            !src.startsWith('.') && !src.startsWith('$') && !src.includes('/');
+          if (isBareNamed) mounted.add(src);
+        }
+      }
+
+      for (const name of mounted) {
+        if (!declared.has(name)) {
+          errors.push(
+            `${rel}: mounts '${name}' but does not declare it — add it to the ` +
+            `x-exist-volumes block (see .claude/reference/volumes.md)`,
+          );
+        }
+      }
+      for (const name of declared) {
+        if (!mounted.has(name)) {
+          errors.push(`${rel}: declares volume '${name}' but no service mounts it`);
+        }
+        if (!SUFFIXES.some(sfx => name.endsWith(sfx))) {
+          errors.push(
+            `${rel}: volume '${name}' must end in ${SUFFIXES.join(', ')} — the suffix is ` +
+            `what says whether it is safe to delete`,
+          );
+        }
+        const props = (spec[name] ?? {}) as Record<string, unknown>;
+        if (props['db'] === true && props['nfs'] === true) {
+          errors.push(
+            `${rel}: volume '${name}' is both db and nfs — an embedded database on NFS ` +
+            `corrupts (mmap/flock). Drop 'nfs: true'.`,
+          );
+        }
+        if (name.endsWith('_cache') && props['backup'] === true) {
+          errors.push(`${rel}: volume '${name}' is a _cache but declares backup: true`);
+        }
+      }
+    }
+  }
+  return errors;
+}
 
 function checkHardcodedUids(): string[] {
   const errors: string[] = [];
@@ -510,6 +592,8 @@ function main(): number {
 
   // (9) Master compose uses only host bind mounts — no Docker-managed volumes
   errors.push(...checkBindMounts());
+
+  errors.push(...checkVolumeSpecs());
 
   // No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());

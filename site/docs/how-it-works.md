@@ -234,12 +234,15 @@ Rendered non-`.env` files are skipped the same way. If `hosting/caddy/Caddyfile`
 service you now have enabled, it has no site block for it — copy the missing block across
 from `Caddyfile.exist.Caddyfile` by hand, or run `./existential.sh reset` to archive every
 rendered file and render the lot fresh. Reset lists exactly what it will move and asks
-first, and it never touches `volumes/` or `volumes_local/` — your data stays put.
+first, and it never touches your `_data` or `_backup` volumes — it only offers to delete the
+`*_cache` ones, which the stack refetches on the next start.
 
 If a command instead complains about permissions — `rm: Permission denied` during setup, or a
 reset that can't write `archive/` — some path in the repo is owned by root. Docker does this: a
 bind mount whose host directory doesn't exist yet gets created by the daemon, and the daemon runs
-as root. `./existential.sh run fix-permissions` gives those paths back to you (add `--dry-run` to
+as root. `./existential.sh` creates every volume directory your enabled services need, correctly
+owned, so this mostly happens only if you run `docker compose up -d` in a tree that was never
+rendered. `./existential.sh run fix-permissions` gives those paths back to you (add `--dry-run` to
 see the list first). It never deletes anything, and it borrows root from a throwaway container
 rather than asking you for `sudo`.
 

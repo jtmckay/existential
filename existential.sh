@@ -267,6 +267,57 @@ _warn_if_no_gateway() {
     fi
 }
 
+# ── Reset pre-flight ──────────────────────────────────────────────────────────
+
+# `reset` archives docker-compose.yml along with every other rendered file, so a
+# stack left running outlives the only file that can cleanly stop it: the
+# containers keep going and `docker compose down` then has nothing to read, which
+# turns "stop the stack" into hunting container names by hand. The next
+# `./existential.sh` also renders fresh secrets, which those still-running
+# containers — and their already-initialised volumes — will reject.
+#
+# So offer to bring it down first. This is a plain `down`: containers and the
+# network, never `-v`. Reset does not touch volumes and neither does this.
+#
+# Host-side on purpose. `reset` itself runs inside existential-adhoc, which has
+# no docker socket and so cannot see a running container, let alone stop one.
+_offer_stack_down() {
+    local compose="${SCRIPT_DIR}/docker-compose.yml"
+    [[ -f "$compose" ]] || return 0
+
+    local -a ids=()
+    mapfile -t ids < <($DOCKER_CMD compose -f "$compose" ps -q 2>/dev/null)
+    # An empty `ps -q` can still yield a single empty element.
+    [[ ${#ids[@]} -eq 0 || -z "${ids[0]}" ]] && return 0
+
+    echo ""
+    echo "  ⚠  ${#ids[@]} container(s) from this stack are still running."
+    echo "     reset archives docker-compose.yml too, so stopping them afterwards"
+    echo "     means doing it by hand — there is no compose file left to read."
+    echo ""
+
+    # No TTY (a hook, CI, a pipe): say what was skipped rather than hanging on a
+    # prompt nobody can answer.
+    if [[ ! -t 0 ]]; then
+        echo "     Not a terminal — continuing without stopping them."
+        echo "     Run 'docker compose down' first if that was not intended."
+        echo ""
+        return 0
+    fi
+
+    local reply
+    read -rp "  Run 'docker compose down' first? [Y/n] " reply
+    if [[ "${reply,,}" == "n" || "${reply,,}" == "no" ]]; then
+        echo "  Leaving the stack running."
+        echo ""
+        return 0
+    fi
+
+    echo ""
+    $DOCKER_CMD compose -f "$compose" down
+    echo ""
+}
+
 # ── Dashboard pointer ─────────────────────────────────────────────────────────
 # Dashy is the stack's landing page — the one URL a user needs to remember. Say
 # so at the end of every render, so "where do I go now?" is never a search.
@@ -527,6 +578,8 @@ case "$action" in
         echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
         ;;
     reset)
+        # Before anything is archived, while docker-compose.yml still exists.
+        _offer_stack_down
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/lib/reset.sh
         ;;

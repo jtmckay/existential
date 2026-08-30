@@ -39,9 +39,29 @@ On demand:
 | Script | Write when… |
 |---|---|
 | `exist.initial.sh` | Files/dirs/system config needed before container start. Idempotent. |
+| image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
 | `exist.test.sh` | Always. Every service ships one. Also the sidecar health gate. See `testing.md`. |
+
+**Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
+startup — nextcloud's `/docker-entrypoint-hooks.d/{pre,post}-installation`, postgres'
+`/docker-entrypoint-initdb.d`. Reach for one when the work needs a tool that only exists inside
+the container (`occ`, `psql`) *and* a moment only the image can identify ("right after a
+successful first install"). A decree migration cannot do this: the sidecar has no docker socket,
+so it can only reach a service over the network.
+
+Mount the hook directory specifically, not its parent, so the image's other hook folders survive:
+
+```yaml
+    volumes:
+      - ./hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro,z
+```
+
+Two rules. The scripts need the **exec bit** (`755`) — nextcloud's runner skips any that lack it,
+silently. And they must **exit 0 on every path**: a hook that fails can abort the install it was
+meant to finish. Guard the body and log a warning instead. See
+`nas/nextcloud/hooks/post-installation/01-minio-external-storage.sh`.
 
 Scripts self-elevate into `existential-adhoc` when they need its tooling (`if [[ -z
 "$IN_CONTAINER" ]]; then exec docker compose run …`). Init order (`run_initials`):

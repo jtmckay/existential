@@ -67,8 +67,8 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 ## Layout
 
 Categories: `ai/` `services/` `nas/` `hosting/` (each holds slug-named service dirs). Plus:
-`automations/` (shared decree code), `src/` (setup/utility scripts), `volumes/` (persistent bind
-mounts when NFS unset), `decree/` (cloned source, read-only reference), `site/` (Docusaurus
+`automations/` (shared decree code), `src/` (setup/utility scripts), `volumes/` (every persistent
+bind mount; gitignored, created per enabled service), `decree/` (cloned source, read-only reference), `site/` (Docusaurus
 docs), `graveyard/` (archived — leave alone).
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
@@ -84,8 +84,9 @@ docs), `graveyard/` (archived — leave alone).
   everything they dispatch. Keep `+x` (`755`) only on scripts executed **by path**:
   `existential.sh` itself, `.githooks/*` (git runs hooks directly), decree hooks
   (`lib/hooks/*`, wired as `beforeEach`/`afterEach` paths), `lib/notes/*` (run by path from
-  `notes.sh`), and container `entrypoint:` targets (Docker execs them by path). Everything
-  else stays `644`; `./existential.sh test lint` does not check modes, so this is convention,
+  `notes.sh`), image entrypoint hooks (`nas/nextcloud/hooks/*` — the nextcloud entrypoint
+  *skips* hook scripts without it), and container `entrypoint:` targets (Docker execs them by
+  path). Everything else stays `644`; `./existential.sh test lint` does not check modes, so this is convention,
   not enforcement.
 
 ---
@@ -110,8 +111,10 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 services are skipped entirely (no secrets/templates land on disk). A rendered destination is
 written **once** and skipped thereafter — there is no re-render flag. `reset` archives every
 rendered file to `archive/<timestamp>/` (paths preserved, gitignored, restore with `cp -r
-archive/<stamp>/. .`) so the next run renders fresh; it never touches `volumes/` or
-`volumes_local/`. `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
+archive/<stamp>/. .`) so the next run renders fresh; it never touches `volumes/` beyond
+offering to delete the `*_cache` ones. It archives the generated `docker-compose.yml` too, so it first offers
+to `docker compose down` a stack that is still up (host-side — `reset` itself runs in
+adhoc, which has no docker socket). `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
 shipped defaults, which `_has_any_enabled` checks against `.env.exist.shared` rather than by
 counting `true`s — quest asks two hardware questions and then leads with a single **Core, or no
 thanks** choice (`src/quests/00-core.md`) instead of forty service checkboxes; declining falls
@@ -178,10 +181,12 @@ from the repo root against the generated `docker-compose.yml`.
   block instead. Vendor config lives **with the service**, so a new GPU service is still just a
   new folder. A blank `EXIST_GPU_VENDOR` falls back to the old `EXIST_VRAM_GB == 0` meaning, which
   is what pre-vendor installs already assumed. → `services.md`
-- **Volumes are always host bind mounts** — never Docker-managed, no top-level `volumes:` block,
-  no bare named refs. Three tiers by "backup-worthy?" × "NFS-safe?"; an embedded DB (SQLite,
-  bbolt, TSDB) must **never** go on NFS. Every bind dir gets a committed `.gitkeep`. →
-  `volumes.md`
+- **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
+  `volumes/<name>`, referenced by bare name and declared in the service's top-level
+  `x-exist-volumes:` block (`nfs` / `db` / `backup`); an undeclared name is a hard error. The
+  name's suffix is enforced and says whether it is safe to delete: `_data`, `_backup`, `_cache`.
+  An embedded DB (SQLite, bbolt, TSDB) is `db: true` and must **never** be `nfs: true`. **No
+  `.gitkeep`** — `generate-compose.ts` creates the dirs for enabled services. → `volumes.md`
 - **Addressing.** Browser/cross-machine → `https://<slug>.<domain>` through Caddy;
   container-to-container → `http://<container>:<port>` over Docker DNS. Caddy's
   `Caddyfile.exist.Caddyfile` is the single source of truth for which hostnames exist. →
@@ -189,11 +194,19 @@ from the repo root against the generated `docker-compose.yml`.
 - **Prefer runtime env over render-time baking.** A bare `EXIST_DOMAIN` token is substituted once
   at render and goes stale; `${EXIST_DOMAIN}` in compose resolves at container start. →
   `networking.md`
+- **Env files are not documentation.** `.env.exist.shared` and every `.env.exist` get **one
+  informative line per key** — what it is, and the one thing that breaks if it's wrong. Nothing
+  longer. Explanation, tables, trade-offs and rationale go in `site/docs/` (env-file reference:
+  `site/docs/configuration.md`); link to it from the comment if the key needs more than a line.
+  → `templates.md`
 - **Model choice is global, never per-service.** Every model the stack uses is named once in
   `.env.exist.shared`'s *Model Selection* block (`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EXTRACT`,
   `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`, `_STT_LANGUAGE`, `_TTS_VOICE`). Consumers read those:
   ollama migrations name an `OLLAMA_ROLE` (not a tag), honcho renders `config.toml` from them, and
-  the wyoming services take them as compose env. **Never hardcode a model tag in a service.**
+  the wyoming services take them as compose env. **Never hardcode a model tag in a service.** The ollama *address* is global the same way:
+  `EXIST_OLLAMA_URL` (default `http://ollama:11434`) names it once so the stack can point at an
+  ollama on another host — read it as `${EXIST_OLLAMA_URL:-http://ollama:11434}`, never a bare
+  `http://ollama:11434`.
   The values themselves come from a VRAM tier table (`src/utils/model-tiers.sh`): quest asks how
   much VRAM the machine has on first run (after the GPU vendor question, and only when the answer
   was not *No GPU*), `./existential.sh run models` re-asks later, and
@@ -201,8 +214,11 @@ from the repo root against the generated `docker-compose.yml`.
   **blank** — that blankness is the record of not-yet-asked, and quest's picker fires only while
   it is empty, so shipping a value there makes the question unreachable. Edit the table, not the
   individual defaults — a unit test asserts the two agree, and asserts the blank. Every tier tag
-  must have ollama's **tools** capability (hermes cannot act without it) and be multimodal (so
-  images reuse the resident model). The `0` tier is CPU-only and `generate-compose.ts` keys its
+  must have ollama's **tools** capability (hermes cannot act without it), be multimodal (so
+  images reuse the resident model), and carry **at least 64k context** — hermes requires 64,000
+  tokens and ollama truncates silently below it. On the small tiers that KV cache spills into
+  system RAM, which is a speed cost, not a correctness one, so no tier is cut to meet the floor.
+  The `0` tier is CPU-only and `generate-compose.ts` keys its
   GPU-reservation strip off that exact value — do not renumber it.
 
 ---

@@ -18,8 +18,8 @@
 #
 # Skipping (blank domain) removes Caddyfile.public and the import line.
 #
-# Auto-run by `./existential.sh` on first init for the caddy service.
-# Re-run manually: ./existential.sh run caddy
+# Not auto-run — this is opt-in. Invoke it with:
+#     ./existential.sh run caddy public-domain
 
 set -euo pipefail
 
@@ -28,7 +28,7 @@ if [[ -z "${IN_CONTAINER:-}" ]]; then
     _D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     _R="$(cd "$_D/../.." && pwd)"
     exec docker compose -f "${_R}/existential-compose.yml" run --rm -it \
-        --entrypoint "" existential-adhoc bash "/repo${_D#"$_R"}/exist.initial.sh"
+        --entrypoint "" existential-adhoc bash "/repo${_D#"$_R"}/${BASH_SOURCE[0]##*/}"
 fi
 
 REPO_DIR=/repo
@@ -113,7 +113,7 @@ if [ -z "$DOMAIN" ]; then
     echo "  ✓ Set EXIST_PUBLIC_DOMAIN= (blank) in .env.shared"
     echo ""
     echo "  Restart caddy if it was already running:"
-    echo "    docker compose -f hosting/caddy/docker-compose.yml restart caddy"
+    echo "    docker compose restart caddy   # from the repo root"
     exit 0
 fi
 
@@ -149,6 +149,10 @@ awk -v domain="$DOMAIN" '
         in_block = 1
         next
     }
+    # Drop whatever pins the internal cert so Caddy falls back to ACME for these
+    # hostnames. `import internal_tls` is the current form; `tls internal` is the
+    # older one, kept so a Caddyfile predating the pinned leaf still converts.
+    in_block && /^[[:space:]]*import[[:space:]]+internal_tls[[:space:]]*$/ { next }
     in_block && /^[[:space:]]*tls[[:space:]]+internal[[:space:]]*$/ { next }
     in_block && /^\}[[:space:]]*$/ { print "}"; print ""; in_block = 0; next }
     in_block { print }
@@ -173,7 +177,7 @@ echo "  Public-domain hostnames generated for:"
 sed -n 's/^\([a-z][a-z0-9-]*\)\.'"$(echo "$DOMAIN" | sed 's/\./\\./g')"' \{$/  - https:\/\/\1.'"$DOMAIN"'\//p' "$CADDYFILE_PUBLIC"
 echo ""
 echo "  Restart caddy to apply:"
-echo "    docker compose -f hosting/caddy/docker-compose.yml restart caddy"
+echo "    docker compose restart caddy   # from the repo root"
 echo ""
 echo "  Caddy will request certs on first request to each hostname. If a cert"
 echo "  request fails (rate limits, DNS, port forwarding), see:"

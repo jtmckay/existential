@@ -12,9 +12,16 @@
 #   openviking-decree — backup sidecar + notes-sync cron
 #
 # Volumes:
-#   openviking_data  (tier-2 local) — vector store + workspace; embedded DB, never NFS.
-#   notes/           (tier-3 ephemeral) — rclone-synced notes; re-syncable, not backed up.
-#   resources/       (tier-3 ephemeral) — scraped content from hermes/firecrawl; not backed up.
+#   openviking_data  (db: true) — vector store + workspace; embedded DB, never NFS.
+#   openviking_notes_data      — rclone-synced notes; rclone is the source of truth.
+#   openviking_resources_data  — scraped content from hermes/firecrawl.
+#
+# Knowledgebase:
+#   viking/ at the repo root is yours to fill — drop in anything you want indexed.
+#   It is a plain host directory (gitignored, like workspace/), not a volume: the
+#   point is that you edit it directly, so it does not belong under volumes/.
+#   Mounted read-only at /app/viking and registered as a watched resource, which
+#   openviking re-indexes every 300s. Nested directories are preserved.
 #
 # Access:  https://openviking.<domain>  (EXIST_DOMAIN)
 # MCP:     http://openviking:1933/mcp  (internal Docker DNS, bearer token required)
@@ -23,8 +30,9 @@
 #   1. ./existential.sh run            — renders templates, writes ov.conf
 #   2. docker compose up -d            — starts openviking
 #   3. ./existential.sh run openviking mcp  — registers openviking in hermes
-#   4. Copy decree/migrations.example/01-watch-notes.md → decree/migrations/
-#      to register /app/notes + /app/resources as watched directories on first boot.
+#   4. Copy decree/migrations.example/*.md → decree/migrations/ to register
+#      /app/notes + /app/resources (01) and your viking/ knowledgebase (02) as
+#      watched directories on first boot.
 
 services:
   openviking:
@@ -53,12 +61,17 @@ services:
       start_period: 60s
     volumes:
       # Vector store, graph, and session state — embedded DBs; must be local (never NFS).
-      - ../../volumes_local/openviking_data:/app/.openviking
-      # Notes from rclone sync (tier-3 ephemeral — rclone is the source of truth).
+      - openviking_data:/app/.openviking
+      # Notes from rclone sync (a _cache — rclone is the source of truth).
       # Decree sidecar writes here; openviking reads as a watched resource.
-      - ./notes:/app/notes:ro
-      # Scraped content written by hermes/firecrawl/playwright routines (tier-3 ephemeral).
-      - ./resources:/app/resources:ro
+      - openviking_notes_data:/app/notes:ro
+      # Scraped content written by hermes/firecrawl/playwright routines (a _cache).
+      - openviking_resources_data:/app/resources:ro
+      # Your knowledgebase — a repo-root directory you own and edit, mounted
+      # read-only because openviking only ever indexes it. Relative, not a
+      # declared volume: it is human-facing content like workspace/, not
+      # service state, so it stays out of volumes/.
+      - ../../viking:/app/viking:ro
 
   openviking-decree:
     container_name: openviking-decree
@@ -84,12 +97,17 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
       # Notes — decree rclones here; openviking reads from the same bind mount at /app/notes.
-      - ./notes:/notes:z
+      - openviking_notes_data:/notes:z
       # Scraped resources — decree/hermes writes here; openviking reads from /app/resources.
-      - ./resources:/resources:z
+      - openviking_resources_data:/resources:z
       # TODO: backup sidecar — tar openviking_data → volumes/openviking_data_backup (no sidecar yet)
-      - ../../volumes_local/openviking_data:/volumes/openviking_data
+      - openviking_data:/volumes/openviking_data
     tty: false
+
+x-exist-volumes:
+  openviking_data: { db: true }
+  openviking_notes_data: {}
+  openviking_resources_data: {}
 
 networks:
   exist:

@@ -115,7 +115,7 @@ if [[ "${#FOREIGN[@]}" -gt 0 ]]; then
     echo "  ${_C_BOLD}Owned by another user${_C_RESET} (${#FOREIGN[@]}) — will be given to ${UID_NOW}:${GID_NOW}, recursively:"
     echo ""
     for _p in "${FOREIGN[@]}"; do
-        case "$_p" in volumes/*|volumes_local/*|volumes|volumes_local) _has_volumes=true ;; esac
+        case "$_p" in volumes/*|volumes) _has_volumes=true ;; esac
         printf '    %-46s %s%s%s\n' "$_p" \
             "$_C_DIM" "$(stat -c '%U:%G' "${REPO_DIR}/${_p}" 2>/dev/null)" "$_C_RESET"
     done

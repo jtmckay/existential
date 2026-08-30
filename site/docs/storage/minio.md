@@ -18,9 +18,18 @@ S3-compatible object storage. Provides an S3 interface to all files — replacea
 
 ## Connect to Nextcloud
 
-1. Go to `http://docker_host_ip:9001/login`
-2. Create an access key named `Nextcloud`
-3. Save the Access Key and Secret Key for use with Nextcloud
+Automatic — nothing to do.
+
+On a first `docker compose up -d`, the `01-create-nextcloud-bucket` migration creates the
+`nextcloud` bucket, and Nextcloud mounts it as external storage at **/S3** (a folder in Files,
+shared with every user). Because it is an external-storage mount rather than primary object
+storage, objects keep their real filenames, which is what the
+[File Processor](../decree/file-change-processing) pipeline matches on.
+
+Both halves authenticate with the MinIO root credentials from `nas/minio/.env`, so there is no
+separate access key to create. To use a different bucket, change `BUCKET` in
+`nas/minio/decree/migrations/01-create-nextcloud-bucket.md` and `NEXTCLOUD_S3_BUCKET` in
+`nas/nextcloud/.env` to match. To disable the mount, blank `NEXTCLOUD_S3_KEY`.
 
 ## File Event Hooks
 

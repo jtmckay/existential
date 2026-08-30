@@ -17,11 +17,11 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
       - ./error.html:/var/www/html/error.html:ro,Z
-      # Internal CA root + ACME state — tier-2 local, worth keeping.
+      # Internal CA root + ACME state — db: true, worth keeping.
       # TODO: backup sidecar → volumes/caddy_data_backup (no sidecar yet).
-      - ../../volumes_local/caddy_data:/data
-      # Autosaved JSON config (regenerated from the Caddyfile) — tier-3 throwaway.
-      - ./caddy_config:/config
+      - caddy_data:/data
+      # Autosaved JSON config (regenerated from the Caddyfile) — a _cache throwaway.
+      - caddy_config_data:/config
       # TLS certs: the stable *.<domain> pair minted by exist.initial.sh and any
       # user-supplied cloudflare origin pair. Only *.exist.pem templates are tracked.
       - ./certs/:/etc/caddy/certs/:ro,Z
@@ -34,6 +34,10 @@ services:
       - CADDY_DOMAIN=${CADDY_DOMAIN:-$EXIST_DOMAIN}
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
       - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
+
+x-exist-volumes:
+  caddy_data: {}
+  caddy_config_data: {}
 
 networks:
   exist:

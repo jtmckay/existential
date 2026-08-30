@@ -179,10 +179,27 @@ _gpu_n="$(model_tier_lines --gpu-only | wc -l)"
 
 # The CPU tier should not hand someone a model that needs a card to be usable.
 _cpu_chat="$(model_tier_env 0 | grep "^EXIST_MODEL_CHAT=" | cut -d= -f2-)"
-_cpu_ctx="$(model_tier_env 0 | grep "^EXIST_MODEL_CHAT_NUM_CTX=" | cut -d= -f2-)"
-[[ -n "$_cpu_chat" && "$_cpu_ctx" -le 16384 ]] \
-    && _ok "the CPU tier keeps context modest" \
-    || _fail "the CPU tier keeps context modest" "ctx ${_cpu_ctx} will be painful without a GPU"
+[[ -n "$_cpu_chat" ]] \
+    && _ok "the CPU tier names a chat model" \
+    || _fail "the CPU tier names a chat model" "model_tier_env 0 emitted no EXIST_MODEL_CHAT"
+
+# ── The hermes context floor ──────────────────────────────────────────────────
+
+# Hermes requires 64,000 tokens of context, and ollama truncates a prompt that
+# does not fit rather than erroring — which reads as the agent ignoring its
+# instructions, not as a failure. So the floor applies to EVERY row, gb=0
+# included: on the small tiers the KV cache spills out of VRAM into system RAM
+# and ollama offloads layers to the CPU, which costs speed, not correctness.
+# Lowering any tier below this silently breaks hermes on that tier.
+HERMES_CTX_FLOOR=65536
+_low=""
+for _gb in "${_gbs[@]}"; do
+    _c="$(model_tier_env "$_gb" | grep '^EXIST_MODEL_CHAT_NUM_CTX=' | cut -d= -f2-)"
+    [[ "$_c" -ge "$HERMES_CTX_FLOOR" ]] || _low+="${_gb}(${_c}) "
+done
+[[ -z "$_low" ]] \
+    && _ok "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" \
+    || _fail "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" "below the floor: $_low"
 
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

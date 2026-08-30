@@ -22,6 +22,8 @@ services:
     label: Ollama (local models)
   - var: EXIST_IS_AI_HERMES
     label: Hermes (the agent)
+  - var: EXIST_IS_AI_OPEN_WEBUI
+    label: Open WebUI (the chat window onto Hermes)
   - var: EXIST_IS_AI_HONCHO
     label: Honcho (agent memory)
   - var: EXIST_IS_AI_OPENVIKING
@@ -62,6 +64,12 @@ copies:
     dst: ai/openviking/decree/migrations/
     label: "openviking: watch notes/ and resources/"
     requires: EXIST_IS_AI_OPENVIKING
+  # MinIO's bucket for nextcloud's /S3 folder. Without it the external storage
+  # mount points at a bucket that does not exist.
+  - src: nas/minio/decree/migrations.example/01-create-nextcloud-bucket.md
+    dst: nas/minio/decree/migrations/
+    label: "minio: create the nextcloud bucket"
+    requires: EXIST_IS_NAS_MINIO
   - src: services/decree/decree/cron.example/clean-runs.md
     dst: services/decree/decree/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
@@ -77,10 +85,12 @@ that reads both, and a voice to talk to it. Everything below runs on your
 hardware — no API keys, no accounts, nothing leaving the box.
 
 What you get:
-  Nextcloud + MinIO      files, and the S3 events that let Decree react to them
+  Nextcloud + MinIO      files, with the bucket mounted into Nextcloud as /S3,
+                         and the S3 events that let Decree react to them
   Home Assistant         the house, plus voice via wyoming-whisper/piper
   Ollama                 the local models everything else talks to
   Hermes                 the agent — the thing you actually converse with
+  Open WebUI             the chat window onto Hermes, in your browser
   Honcho + OpenViking    what it remembers, and what it can look things up in
   Firecrawl              turns a URL into clean text the agent can read
   Decree                 runs it all on a schedule, headless
@@ -89,7 +99,7 @@ What you get:
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 
-Roughly 25 containers. The models are sized to the VRAM you picked at the
+Roughly 27 containers. The models are sized to the VRAM you picked at the
 start: one multimodal model handles chat, background memory work and images,
 with bge-m3 alongside it for embeddings. Speech-to-text and text-to-speech
 run on CPU so they never evict the LLM mid-answer.
@@ -98,7 +108,8 @@ Re-size any time with `./existential.sh run models`, or edit the "Model
 Selection" block in .env.shared directly:
 
     EXIST_MODEL_CHAT          the agent's brain — MUST support tool calling
-    EXIST_MODEL_CHAT_NUM_CTX  its context window (VRAM cost grows with this)
+    EXIST_MODEL_CHAT_NUM_CTX  its context window — 64k on every tier, because
+                              hermes needs it
     EXIST_MODEL_EXTRACT       background memory work — same tag as chat
     EXIST_MODEL_VISION        OCR and image chat — same tag as chat
     EXIST_MODEL_EMBED         embeddings — do NOT change after first ingestion
@@ -134,7 +145,10 @@ Two things genuinely need you, because they happen inside another app's UI:
    set the conversation agent to Ollama (http://ollama:11434).
 
 2. Nextcloud's admin credentials were generated for you — they are in
-   nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD.
+   nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
+   installs itself and lands on a login page; the MinIO bucket is already
+   mounted as an "S3" folder in Files. Open WebUI's credentials work the same
+   way — ai/open-webui/.env, OPEN_WEBUI_ADMIN_EMAIL / OPEN_WEBUI_ADMIN_PASSWORD.
 
 To CHANGE what was seeded (each overwrites; the seeding never does):
   ./existential.sh run hermes setup      # pick a different model/provider

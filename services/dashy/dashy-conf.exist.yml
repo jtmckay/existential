@@ -33,6 +33,12 @@
 # a red dot when unreachable. That covers runtime health; the comment-flip
 # covers "not enabled on either machine."
 #
+# The check runs server-side, inside the dashy container — not in your browser —
+# and Caddy's leaf is signed by the stack's private CA, which that container does
+# not trust. Hence `statusCheckAllowInsecure: true` on every item: without it
+# every tile reports "unable to verify leaf certificate" while the service is
+# perfectly healthy. Copy the flag onto any item you add.
+#
 # Icon reference:
 #   https://dashy.to/docs/icons/  (hl-*, si-*, fas fa-*)
 
@@ -58,11 +64,20 @@ sections:
   - name: Agent
     icon: fas fa-robot
     items:
+      - title: Open WebUI
+        url: https://open-webui.EXIST_DOMAIN
+        # url: https://existential.company/docs/ai/open-web-ui
+        icon: fas fa-comments
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Chat with the agent — this is the front door
+
       - title: Hermes
         url: https://hermes-agent-dashboard.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/hermes
         icon: fas fa-frog
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: The agent — routing, sessions and ops dashboard
 
       - title: OpenViking
@@ -70,6 +85,7 @@ sections:
         # url: https://existential.company/docs/ai/openviking
         icon: fas fa-database
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: Context database — notes, scraped resources, agent memory
 
       - title: Ollama
@@ -77,6 +93,7 @@ sections:
         # url: https://existential.company/docs/ai/ollama
         icon: si-ollama
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: Local models (API — every other AI service talks to this)
 
   # ── the house ─────────────────────────────────────────────────────────────
@@ -88,6 +105,7 @@ sections:
         # url: https://existential.company/docs/services/homeassistant
         icon: hl-home-assistant
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: Smart home automation, plus voice via wyoming-whisper/piper
 
   # ── files ─────────────────────────────────────────────────────────────────
@@ -99,6 +117,7 @@ sections:
         # url: https://existential.company/docs/storage/nextcloud
         icon: si-nextcloud
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: File sync + collaboration
 
       - title: MinIO Console
@@ -106,4 +125,5 @@ sections:
         # url: https://existential.company/docs/storage/minio
         icon: si-minio
         statusCheck: true
+        statusCheckAllowInsecure: true
         description: S3-compatible object store (web console)

@@ -11,8 +11,8 @@ services:
     #   ports:
     #     - '45006:5006'
     volumes:
-      # SQLite budget files + sync server — tier-2 local (NFS breaks WAL locking).
-      - ../../volumes_local/actual_budget_data:/data
+      # SQLite budget files + sync server — db: true (NFS breaks WAL locking).
+      - actual_budget_data:/data
     environment:
       - ACTUAL_BUDGET_PASSWORD=${ACTUAL_BUDGET_PASSWORD}
     #   - ACTUAL_BUDGET_HTTPS_KEY=/data/key.key # Uncomment and provide path if using HTTPS
@@ -41,8 +41,11 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
       # TODO: live SQLite tar isn't crash-consistent — .backup → volumes/actual_budget_data_backup.
-      - ../../volumes_local/actual_budget_data:/volumes/actual_budget_data
+      - actual_budget_data:/volumes/actual_budget_data
     tty: false
+
+x-exist-volumes:
+  actual_budget_data: { db: true }
 
 networks:
   exist:

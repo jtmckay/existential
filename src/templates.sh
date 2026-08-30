@@ -464,7 +464,7 @@ _process_one_template() {
         printf '%s\n' "$rendered" > "$dst"
         _secure_if_secret "$dst"
         # Every volume becomes a host bind mount in generate-compose.ts
-        # (materializeBindMounts): ${EXIST_NFS_HOST_MOUNT}/<name> for NFS-marked
+        # from each service's x-exist-volumes block: ${EXIST_NFS_HOST_MOUNT}/<name> for nfs-marked
         # volumes when a host mount is set, else volumes/<name>/. The top-level
         # volumes: block here is just the declaration source it reads.
     fi

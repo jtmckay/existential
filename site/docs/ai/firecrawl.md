@@ -38,5 +38,5 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 
 ## Notes
 
-Its Postgres volume is tier 2 (`volumes_local/firecrawl_postgres_data`) — local only, never
-NFS. Scraped content is a cache: if you lose it, re-crawl.
+Its Postgres volume is `volumes/firecrawl_postgres_data`, declared `db: true` — local only,
+never NFS. Scraped content is a cache: if you lose it, re-crawl.

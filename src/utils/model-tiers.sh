@@ -12,17 +12,24 @@
 #
 #     chat model  +  embedding model (bge-m3, 1.2 GB)  +  KV cache  <  VRAM
 #
-# The KV cache grows with context, which is why num_ctx is part of the tier and
-# not a separate knob — a context that does not fit is the failure mode people
-# actually hit, and it presents as the model quietly forgetting its instructions.
+# The KV cache grows with context, and a context that does not fit is the failure
+# mode people actually hit: it presents as the model quietly forgetting its
+# instructions, not as an error. num_ctx is therefore not a per-tier dial — it is
+# a constant floor the whole table obeys (see rule 3).
 #
-# Two hard rules the table obeys:
+# Three hard rules the table obeys:
 #
 #   1. The chat model MUST support tool calling, or hermes can talk but not act.
 #      Every tag here has ollama's "tools" capability.
 #   2. The chat model is also the vision model. Every tag here is multimodal, so
 #      OCR and image chat reuse the already-resident model instead of evicting
 #      it — which is what a separate llava would do on any card this size.
+#   3. Every tier is at least 64k context, because hermes requires 64,000 tokens
+#      and ollama truncates silently rather than erroring. No tier was cut to
+#      meet this. On the small tiers the KV cache spills out of VRAM into system
+#      RAM and ollama offloads layers to the CPU — that is a speed cost, not a
+#      correctness one, so a 6 GB card still runs the whole stack, just slowly.
+#      src/test/unit/test-model-tiers.sh enforces the floor.
 #
 # A note on gemma4's "E" tags: the E in e2b/e4b is *effective* parameters, a
 # claim about compute, not file size. gemma4:e4b is an 8B model that downloads
@@ -48,7 +55,9 @@
 # refuses to create a container it cannot satisfy — one of them takes down
 # `docker compose up` for the whole stack. src/generate-compose.ts strips those
 # reservations. Expect seconds per token; the wyoming voice services are
-# unaffected because they already run on CPU.
+# unaffected because they already run on CPU. It carries the same 64k context as
+# every other tier — with no card the KV cache was always going to live in system
+# RAM, so the floor costs it nothing it was not already paying.
 #
 # You do not normally reach gb=0 through this picker. The GPU vendor question
 # (src/utils/gpu-vendor.sh) is asked first, and answering "No GPU" sets
@@ -60,17 +69,18 @@
 #
 # gb=96 is the only tier that runs the weights at full precision (bf16) rather
 # than quantised, which is what the extra memory actually buys. 63 GB of weights
-# leaves roughly 30 GB for the KV cache, hence the 128k context.
+# leaves roughly 30 GB for the KV cache, so it is also the only tier that goes
+# past the 64k floor — 128k, comfortably in VRAM rather than spilling.
 
 MODEL_TIER_EMBED="bge-m3"
 MODEL_TIER_EMBED_DIM="1024"
 MODEL_TIER_DEFAULT_GB="8"
 
 MODEL_TIERS=(
-    "0	None (CPU)	qwen3-vl:2b	8192	1.9 GB	no GPU — works, but expect seconds per token, not tokens per second"
-    "6	6 GB	qwen3-vl:4b	16384	3.3 GB	e.g. RTX 3060 6GB — the smallest card worth using"
-    "8	8 GB	gemma4:e2b-it-qat	32768	4.3 GB	e.g. RTX 3070 / 4060 — the recommended baseline"
-    "12	12 GB	gemma4:e4b-it-qat	32768	6.1 GB	e.g. RTX 3060 12GB / 4070 — more headroom, same shape"
+    "0	None (CPU)	qwen3-vl:2b	65536	1.9 GB	no GPU — hermes fits, but expect seconds per token, not tokens per second"
+    "6	6 GB	qwen3-vl:4b	65536	3.3 GB	e.g. RTX 3060 6GB — the 64k KV cache spills to system RAM; it works, slowly"
+    "8	8 GB	gemma4:e2b-it-qat	65536	4.3 GB	e.g. RTX 3070 / 4060 — the recommended baseline; KV cache is a tight fit"
+    "12	12 GB	gemma4:e4b-it-qat	65536	6.1 GB	e.g. RTX 3060 12GB / 4070 — first tier where 64k fits comfortably"
     "16	16 GB	gemma4:12b-it-qat	65536	7.2 GB	e.g. RTX 4080 / A4000 — noticeably stronger reasoning"
     "24	24 GB	gemma4:26b-a4b-it-qat	65536	16 GB	e.g. RTX 3090 / 4090 — quantised, still very capable"
     "96	96 GB+	gemma4:31b-it-bf16	131072	63 GB	e.g. RTX 6000 Pro — full precision, no quantisation loss"

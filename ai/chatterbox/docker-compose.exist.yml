@@ -51,9 +51,14 @@ services:
       - ./config.yaml:/app/config.yaml:Z
       - ./voices:/app/voices:Z
       - ./reference_audio:/app/reference_audio:Z
-      - ./outputs:/app/outputs:Z
-      - ./logs:/app/logs:Z
-      - ./hf_cache:/app/hf_cache   # HuggingFace model cache — tier-3, re-downloadable
+      - chatterbox_outputs_data:/app/outputs:Z
+      - chatterbox_logs_cache:/app/logs:Z
+      - chatterbox_cache:/app/hf_cache   # HuggingFace model cache — a _cache, re-downloadable
+
+x-exist-volumes:
+  chatterbox_cache: {}
+  chatterbox_logs_cache: {}
+  chatterbox_outputs_data: {}
 
 networks:
   exist:

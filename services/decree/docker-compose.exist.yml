@@ -23,6 +23,8 @@ services:
       - HERMES_API_KEY=${HERMES_API_KEY:-}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - IN_CONTAINER=1
+      # Named once in .env.shared — routines (image-ocr, telegram-receipt) read it.
+      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
     volumes:
@@ -31,10 +33,10 @@ services:
       - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:z
-      # Notes data — tier-3. Subdirs created on first use by the scripts.
+      # Notes data — a _cache. Subdirs created on first use by the scripts.
       #   /data/notes   — Nextcloud sync cache (source of truth: Nextcloud)
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
-      - ./data:/data:z
+      - decree_data:/data:z
       - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
     tty: false
 
@@ -78,6 +80,9 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+
+x-exist-volumes:
+  decree_data: {}
 
 networks:
   exist:

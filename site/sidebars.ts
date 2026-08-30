@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     {type: 'doc', id: 'intro', label: 'Level 1 · What It Is'},
     'getting-started',
+    'configuration',
     {type: 'doc', id: 'how-it-works', label: 'Level 2 · The Pieces'},
     {
       type: 'category',

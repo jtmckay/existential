@@ -4,9 +4,10 @@
 # Black-box: builds throwaway fixture repos under a temp dir, runs the real
 # generate-compose.ts via tsx against them, and asserts the merged
 # docker-compose.yml / master .env. Covers service discovery, relative-path
-# adjustment, materialisation of every volume into a host bind mount (named and
-# NFS alike) with the top-level `volumes:` section dropped, NFS volumes binding
-# to the host mount when one is set, the hard error when an NFS server is set
+# adjustment, materialisation of every declared volume into a host bind mount,
+# placement from the service's `x-exist-volumes` block (`nfs: true` binding to
+# the host mount when one is set, everything else staying local), the hard error
+# when a mounted volume is undeclared, the hard error when an NFS server is set
 # without a host mount, the network mode, the empty case, and archiving.
 #
 # Needs tsx + js-yaml — only present inside existential-adhoc. Skips cleanly
@@ -48,13 +49,9 @@ services:
       - named_vol:/cache
       - /abs/host:/abs
       - foo_nfs:/srv
-volumes:
-  foo_nfs:
-    driver_opts:
-      type: nfs
-      o: "addr=1.2.3.4,rw"
-      device: ":/export/foo"
+x-exist-volumes:
   named_vol: {}
+  foo_nfs: { nfs: true }
 YAML
     echo "$d"
 }
@@ -75,8 +72,8 @@ assert_contains "absolute path left unchanged" "/abs/host:/abs" "$compose"
 # Named & NFS volumes both materialise as local host bind mounts (no host mount set).
 assert_contains "named volume materialised as local bind" "/host/realrepo/volumes/named_vol:/cache" "$compose"
 assert_contains "nfs volume materialised as local bind (no host mount)" "/host/realrepo/volumes/foo_nfs:/srv" "$compose"
-assert_not_contains "no NFS driver_opts survive" "type: nfs" "$compose"
-assert_not_contains "no bind driver_opts survive" "o: bind" "$compose"
+assert_not_contains "no x-exist-volumes block survives" "x-exist-volumes" "$compose"
+assert_not_contains "no volume spec keys survive" "nfs: true" "$compose"
 # Top-level volumes section is dropped entirely (no Docker-managed volumes).
 assert_not_contains "top-level named_vol declaration removed" "named_vol: {}" "$compose"
 assert_contains "default network is a bridge" "driver: bridge" "$compose"
@@ -149,6 +146,29 @@ else _fail "archives do not land in the repo root" "found ${stray##*/}"; fi
 # hermes_install/{.venv,ui-tui,gateway,node_modules} is exactly this shape.
 # Creating it here, in adhoc under the host uid:gid, gets in first.
 assert_dir "relative bind source created under the service dir" "$repo/services/foo/data"
+
+# ── Undeclared volume is a hard error ────────────────────────────────────────
+# A bare name with no x-exist-volumes entry used to fall through to a
+# Docker-managed volume — opaque, re-inits from the image, wrong UID on NFS.
+# It must abort generation with a message naming the fix.
+repo="$(mktemp -d "$TMP/repo.XXXXXX")"
+mkdir -p "$repo/services/undeclared"
+cat > "$repo/services/undeclared/docker-compose.yml" <<'YAML'
+services:
+  undeclared:
+    image: undeclared:1
+    volumes:
+      - mystery_data:/data
+YAML
+printf 'EXIST_IS_SERVICES_UNDECLARED=true\n' > "$repo/.env.shared"
+set +e
+err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)"
+code=$?
+set -e
+if [[ $code -ne 0 ]]; then _ok "undeclared volume exits non-zero"; else _fail "undeclared volume exits non-zero" "exit was 0"; fi
+assert_contains "undeclared volume names the volume" "mystery_data" "$err"
+assert_contains "undeclared volume names the fix" "x-exist-volumes" "$err"
+assert_no_file "no compose written for an undeclared volume" "$repo/docker-compose.yml"
 
 repo="$(mktemp -d "$TMP/repo.XXXXXX")"
 mkdir -p "$repo/services/bar"

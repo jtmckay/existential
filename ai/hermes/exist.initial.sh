@@ -111,7 +111,11 @@ _ensure_honcho_ai() {
         echo "[hermes] .venv not yet extracted — honcho-ai will be installed on next run." >&2
         return 0
     fi
-    if "${venv}/bin/python" -c "import honcho" 2>/dev/null; then
+    # Check the tree, not `python -c "import honcho"`: .venv/bin/python is a
+    # symlink to the *container's* interpreter, so running it on the host either
+    # fails or resolves to an unrelated python — either way the import always
+    # said "missing" and every run paid for a fresh pip install.
+    if compgen -G "${venv}/lib/python*/site-packages/honcho/__init__.py" >/dev/null; then
         echo "[hermes] honcho-ai already installed."
         return 0
     fi
@@ -149,9 +153,69 @@ _ensure_honcho_ai
 #   https://hermes-agent.nousresearch.com/docs/integrations/providers  (model:)
 #   https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp (mcp_servers:)
 #   https://docs.honcho.dev/v3/guides/integrations/hermes              (honcho.json)
+# Print just the model: block of a hermes config.yaml — from the `model:` line
+# to the next top-level key. The shipped example is ~1900 lines and mentions
+# base_url and context_length all over it, so every read has to be scoped.
+_hermes_model_block() {
+    awk '/^model:/ { f = 1; print; next } f && /^[^[:space:]#]/ { exit } f { print }' "$1"
+}
+
+# Same, for the memory: block — memory.provider is the external-provider
+# activation key, and `provider:` appears in several other blocks.
+_hermes_memory_block() {
+    awk '/^memory:/ { f = 1; print; next } f && /^[^[:space:]#]/ { exit } f { print }' "$1"
+}
+
+# True when config.yaml's mcp_servers: block already declares server $2 — the
+# per-server guard, so enabling one service later doesn't re-add another.
+_hermes_has_mcp_server() {
+    [[ -f "$1" ]] || return 1
+    awk '/^mcp_servers:/ { f = 1; next } f && /^[^[:space:]#]/ { exit } f { print }' "$1" \
+        | grep -qE "^[[:space:]]{2}$2:[[:space:]]*$"
+}
+
+# True when the model: block is still the image's stock example AND no provider
+# key is configured anywhere — i.e. nobody has chosen a provider yet, so we may.
+_hermes_model_is_stock() {
+    local cfg="$1" provider key
+    provider=$(_hermes_model_block "$cfg" | grep -m1 -E '^[[:space:]]*provider:' \
+        | sed -E 's/^[[:space:]]*provider:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/["'"'"']//g' || true)
+    [[ -z "$provider" || "$provider" == "auto" ]] || return 1
+    for key in ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY GOOGLE_API_KEY \
+               GROQ_API_KEY MISTRAL_API_KEY NOUS_API_KEY; do
+        [[ -n "${!key:-}" ]] && return 1
+        [[ -f "${SCRIPT_DIR}/.env" ]] && grep -qE "^${key}=.+" "${SCRIPT_DIR}/.env" && return 1
+    done
+    return 0
+}
+
+# Rewrite default/provider/base_url/context_length inside the existing model:
+# block, in place, leaving the rest of the file (comments included) untouched.
+_hermes_write_model_block() {
+    local cfg="$1" chat="$2" ctx="$3" url="$4" tmp
+    tmp=$(mktemp)
+    awk -v chat="$chat" -v ctx="$ctx" -v url="$url" '
+        function fill() {
+            if (!d) print "  default: \"" chat "\""
+            if (!p) print "  provider: \"custom\""
+            if (!b) print "  base_url: \"" url "/v1\""
+            if (!c) print "  context_length: " ctx
+        }
+        !f && /^model:/                       { f = 1; print; next }
+        f && /^[^[:space:]#]/                 { fill(); f = 0; done = 1; print; next }
+        f && !d && /^[[:space:]]*default:/    { print "  default: \"" chat "\""; d = 1; next }
+        f && !p && /^[[:space:]]*provider:/   { print "  provider: \"custom\""; p = 1; next }
+        f && !b && /^[[:space:]]*base_url:/   { print "  base_url: \"" url "/v1\""; b = 1; next }
+        f && !c && /^[[:space:]]*context_length:/ { print "  context_length: " ctx; c = 1; next }
+        { print }
+        END { if (f) fill() }
+    ' "$cfg" > "$tmp" && cat "$tmp" > "$cfg"
+    rm -f "$tmp"
+}
+
 _seed_hermes_config() {
     local repo="${SCRIPT_DIR}/../.."
-    local data="${repo}/volumes_local/hermes_agent_data"
+    local data="${repo}/volumes/hermes_agent_data"
     local cfg="${data}/config.yaml"
     local honcho_cfg="${data}/honcho.json"
 
@@ -173,63 +237,132 @@ _seed_hermes_config() {
     # will silently truncate.
     local chat="${EXIST_MODEL_CHAT:-}"
     local ctx="${EXIST_MODEL_CHAT_NUM_CTX:-}"
+    # EXIST_OLLAMA_URL (.env.shared) is the one place the address is named — set
+    # it to reach an ollama on another host. Old installs predate the key, so the
+    # container-network default stands in.
+    local ollama_url="${EXIST_OLLAMA_URL:-http://ollama:11434}"
     if [[ -z "$chat" ]]; then
         echo "[hermes] EXIST_MODEL_CHAT unset — skipping model config." >&2
-    elif [[ -f "$cfg" ]] && grep -qE '^model:' "$cfg"; then
-        echo "[hermes] config.yaml already has a model: block — leaving it alone."
-    else
-        echo "[hermes] Pointing hermes at ollama (${chat})..."
+    elif [[ ! -f "$cfg" ]] || ! grep -qE '^model:' "$cfg"; then
+        echo "[hermes] Pointing hermes at ollama (${chat}) at ${ollama_url}..."
         cat >> "$cfg" <<EOF
 model:
   default: ${chat}
   provider: custom
-  base_url: http://ollama:11434/v1
-  context_length: ${ctx:-32768}
+  base_url: ${ollama_url}/v1
+  context_length: ${ctx:-65536}
 EOF
+    elif _hermes_model_is_stock "$cfg"; then
+        # The container seeds cli-config.yaml.example into /opt/data on first
+        # boot when config.yaml is absent — which is the normal order, since the
+        # volume starts empty. That example ships a full model: block
+        # (provider: "auto", an anthropic default, an openrouter base_url), so a
+        # "does it have a model: block" test says yes and hermes then starts with
+        # no provider it can actually reach: "No inference provider configured".
+        # Stock example + no provider key anywhere = nobody has chosen, so choose.
+        echo "[hermes] config.yaml holds the image's stock model: block — pointing it at ollama (${chat} @ ${ollama_url})."
+        _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$ollama_url"
+    else
+        # Past here the model: block is the user's — their choice of model,
+        # provider and endpoint survives. context_length is the one exception:
+        # it is not a preference, it is a fact about how EXIST_MODEL_CHAT was
+        # built, and a stale value here is unobservable from the outside. Hermes
+        # packs a prompt to whatever this says and ollama truncates the overflow
+        # silently, which reads as the agent ignoring its instructions. So
+        # reconcile this single line and leave every other line alone.
+        local have
+        have=$(_hermes_model_block "$cfg" | grep -m1 -E '^[[:space:]]*context_length:' | grep -oE '[0-9]+' || true)
+        if [[ -z "$ctx" ]]; then
+            echo "[hermes] config.yaml has a model: block; EXIST_MODEL_CHAT_NUM_CTX unset — leaving it alone."
+        elif [[ -z "$have" ]]; then
+            echo "[hermes] config.yaml has a model: block but no context_length — leaving it alone." >&2
+        elif [[ "$have" == "$ctx" ]]; then
+            echo "[hermes] config.yaml already has a model: block (context_length=${ctx}) — leaving it alone."
+        else
+            echo "[hermes] config.yaml context_length=${have} but EXIST_MODEL_CHAT_NUM_CTX=${ctx} — reconciling."
+            sed -i -E "0,/^[[:space:]]*context_length:.*/s//  context_length: ${ctx}/" "$cfg"
+        fi
+
+        # base_url gets the same treatment, but only while it still holds an
+        # ollama address — one the user pointed at their own provider is a
+        # preference and survives. Anything else and EXIST_OLLAMA_URL would be a
+        # setting that silently does nothing, so say so.
+        local have_url
+        have_url=$(_hermes_model_block "$cfg" | grep -m1 -E '^[[:space:]]*base_url:' \
+            | sed -E 's/^[[:space:]]*base_url:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/^"//; s/"$//' || true)
+        if [[ -z "$have_url" || "$have_url" == "${ollama_url}/v1" ]]; then
+            :
+        elif [[ "$have_url" =~ ^https?://[^/]+:11434(/v1)?$ ]]; then
+            echo "[hermes] config.yaml base_url=${have_url} but EXIST_OLLAMA_URL=${ollama_url} — reconciling."
+            sed -i -E "0,/^[[:space:]]*base_url:.*/s##  base_url: ${ollama_url}/v1#" "$cfg"
+        else
+            echo "[hermes] config.yaml base_url=${have_url} (not an ollama endpoint) — leaving it alone; EXIST_OLLAMA_URL is ignored here."
+        fi
     fi
 
     # ── MCP servers ──────────────────────────────────────────────────────────
     # Only for services actually enabled — an MCP entry pointing at a container
     # that does not exist makes hermes retry a dead endpoint on every task.
-    if [[ -f "$cfg" ]] && grep -qE '^mcp_servers:' "$cfg"; then
-        echo "[hermes] config.yaml already has mcp_servers: — leaving it alone."
-    else
-        local mcp_block=""
-        if [[ "${EXIST_IS_AI_OPENVIKING:-false}" == "true" ]]; then
-            local ov_key
-            ov_key=$(grep -m1 '^OPENVIKING_API_KEY=' "${repo}/ai/openviking/.env" 2>/dev/null | cut -d= -f2-)
-            if [[ -n "$ov_key" ]]; then
-                mcp_block+="  openviking:
+    #
+    # Per-server, not all-or-nothing: enabling firecrawl (or openviking) months
+    # after hermes first came up must still register it, and an all-or-nothing
+    # guard on `mcp_servers:` would silently skip it forever. Each entry is
+    # added only when its own key is absent, so a server the user edited,
+    # removed or renamed by hand is left alone.
+    local mcp_block=""
+    if [[ "${EXIST_IS_AI_OPENVIKING:-false}" == "true" ]] && ! _hermes_has_mcp_server "$cfg" openviking; then
+        local ov_key
+        ov_key=$(grep -m1 '^OPENVIKING_API_KEY=' "${repo}/ai/openviking/.env" 2>/dev/null | cut -d= -f2-)
+        if [[ -n "$ov_key" ]]; then
+            mcp_block+="  openviking:
     url: \"http://openviking:1933/mcp\"
     headers:
       Authorization: \"Bearer ${ov_key}\"
 "
-            else
-                echo "[hermes] openviking enabled but OPENVIKING_API_KEY not found — skipping its MCP entry." >&2
-            fi
+        else
+            echo "[hermes] openviking enabled but OPENVIKING_API_KEY not found — skipping its MCP entry." >&2
         fi
-        if [[ "${EXIST_IS_AI_FIRECRAWL:-false}" == "true" ]]; then
-            mcp_block+="  firecrawl:
+    fi
+    # firecrawl-mcp holds FIRECRAWL_API_KEY itself (see its compose env), so
+    # hermes reaches it unauthenticated over the exist network — no header here.
+    if [[ "${EXIST_IS_AI_FIRECRAWL:-false}" == "true" ]] && ! _hermes_has_mcp_server "$cfg" firecrawl; then
+        mcp_block+="  firecrawl:
     url: \"http://firecrawl-mcp:3003/mcp\"
 "
-        fi
-        if [[ -n "$mcp_block" ]]; then
-            echo "[hermes] Registering MCP servers..."
-            printf 'mcp_servers:\n%s' "$mcp_block" >> "$cfg"
-        fi
+    fi
+    if [[ -z "$mcp_block" ]]; then
+        :
+    elif [[ -f "$cfg" ]] && grep -qE '^mcp_servers:' "$cfg"; then
+        # Splice into the existing block rather than appending a second
+        # top-level mcp_servers: key, which YAML would resolve to the last one.
+        echo "[hermes] Registering MCP servers..."
+        local tmp
+        tmp=$(mktemp)
+        awk -v block="$mcp_block" '!f && /^mcp_servers:/ { print; printf "%s", block; f = 1; next } { print }' \
+            "$cfg" > "$tmp" && cat "$tmp" > "$cfg"
+        rm -f "$tmp"
+    else
+        echo "[hermes] Registering MCP servers..."
+        printf 'mcp_servers:\n%s' "$mcp_block" >> "$cfg"
     fi
 
     # ── honcho memory ────────────────────────────────────────────────────────
-    # Separate file, checked at $HERMES_HOME/honcho.json before ~/.hermes.
-    # HONCHO_BASE_URL is already passed in compose as the plugin's fallback;
-    # this is what actually turns the provider on.
+    # Two writes, because hermes splits them:
+    #   honcho.json           — the plugin's own connection/identity config,
+    #                           read at $HERMES_HOME/honcho.json before ~/.hermes.
+    #   config.yaml memory.provider — the activation key. Without it hermes
+    #                           reports "(none — built-in only)" and never loads
+    #                           the plugin, however complete honcho.json is.
+    # `hermes memory setup honcho` writes both; so do we.
+    # HONCHO_BASE_URL is also passed in compose as the plugin's baseUrl fallback.
     if [[ "${EXIST_IS_AI_HONCHO:-false}" != "true" ]]; then
         :
-    elif [[ -f "$honcho_cfg" ]]; then
-        echo "[hermes] honcho.json already present — leaving it alone."
     else
-        echo "[hermes] Enabling honcho memory..."
-        cat > "$honcho_cfg" <<EOF
+        if [[ -f "$honcho_cfg" ]]; then
+            echo "[hermes] honcho.json already present — leaving it alone."
+        else
+            echo "[hermes] Enabling honcho memory..."
+            cat > "$honcho_cfg" <<EOF
 {
   "baseUrl": "http://honcho:8000",
   "hosts": {
@@ -242,6 +375,27 @@ EOF
   }
 }
 EOF
+        fi
+
+        # Only one external provider can be active at a time, so a provider the
+        # user already chose is their choice and survives.
+        local have_provider
+        have_provider=$(_hermes_memory_block "$cfg" 2>/dev/null \
+            | grep -m1 -E '^[[:space:]]*provider:' \
+            | sed -E 's/^[[:space:]]*provider:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/["'"'"']//g' || true)
+        if [[ -n "$have_provider" ]]; then
+            echo "[hermes] config.yaml memory provider is already ${have_provider} — leaving it alone."
+        elif [[ ! -f "$cfg" ]] || ! grep -qE '^memory:' "$cfg"; then
+            printf 'memory:\n  provider: honcho\n' >> "$cfg"
+            echo "[hermes] Activated honcho as hermes' memory provider."
+        else
+            local tmp
+            tmp=$(mktemp)
+            awk '!f && /^memory:/ { print; print "  provider: honcho"; f = 1; next } { print }' \
+                "$cfg" > "$tmp" && cat "$tmp" > "$cfg"
+            rm -f "$tmp"
+            echo "[hermes] Activated honcho as hermes' memory provider."
+        fi
     fi
 
     # The gateway runs as the host uid; anything seeded as root here would be

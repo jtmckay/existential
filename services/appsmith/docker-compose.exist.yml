@@ -11,7 +11,7 @@ services:
     #     - "44080:80"
     volumes:
       # Bundles MongoDB + Redis internally — must be local (NFS corrupts WiredTiger).
-      - ../../volumes_local/appsmith_data:/appsmith-stacks
+      - appsmith_data:/appsmith-stacks
 
   # nuke:
   #   image: node:24-alpine
@@ -45,9 +45,12 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
       # TODO: live-dir tar of a running Mongo is not crash-consistent — replace with a
-      # mongodump → volumes/appsmith_data_backup (NFS). Repointed to volumes_local for now.
-      - ../../volumes_local/appsmith_data:/volumes/appsmith_data
+      # mongodump → volumes/appsmith_data_backup. Not wired up yet.
+      - appsmith_data:/volumes/appsmith_data
     tty: false
+
+x-exist-volumes:
+  appsmith_data: { db: true }
 
 networks:
   exist:

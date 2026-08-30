@@ -53,9 +53,10 @@ Roles:
              badge on its ollama.com page).
 
   chat-ctx   Rebuilds the chat model with num_ctx=EXIST_MODEL_CHAT_NUM_CTX,
-             keeping the same tag. Hermes sends a large system prompt
-             (skills + memory); ollama's stock 4096–8192 truncates it
-             silently, which reads as the model ignoring its instructions.
+             keeping the same tag. Hermes requires 64,000 tokens for its
+             system prompt (skills + memory + tools), so every VRAM tier
+             ships 65536; ollama's stock 4096–8192 truncates it silently,
+             which reads as the model ignoring its instructions.
 
   extract    EXIST_MODEL_EXTRACT — Honcho's deriver (user representation),
              dialectic reasoning, and session summaries. Defaults to the same

@@ -18,8 +18,8 @@ skip_if_disabled
 HERMES_URL="${HERMES_URL:-http://hermes-agent:8642}"
 HERMES_API_KEY="${HERMES_API_KEY:-${EXIST_HERMES_API_KEY:-}}"
 # Seeded by exist.initial.sh and then owned by hermes; /opt/data in the
-# container is volumes_local/hermes_agent_data on the host.
-HERMES_CONFIG="/repo/volumes_local/hermes_agent_data/config.yaml"
+# container is volumes/hermes_agent_data on the host.
+HERMES_CONFIG="/repo/volumes/hermes_agent_data/config.yaml"
 
 AUTH=()
 [ -n "$HERMES_API_KEY" ] && AUTH=(-H "Authorization: Bearer ${HERMES_API_KEY}")
@@ -80,7 +80,10 @@ esac
 # ── 4. Configured model (from config.yaml on disk) ───────────────────────────
 
 if [ -f "$HERMES_CONFIG" ]; then
-    CONFIGURED_MODEL=$(grep -A1 '^model:' "$HERMES_CONFIG" | grep 'default:' | sed 's/.*default: *//' | tr -d '"' || true)
+    # Scope to the model: block — the shipped config is ~1900 lines and carries
+    # comment lines between `model:` and `default:`, so a fixed -A window misses it.
+    CONFIGURED_MODEL=$(awk '/^model:/ { f = 1; next } f && /^[^[:space:]#]/ { exit } f' "$HERMES_CONFIG" \
+        | grep -m1 -E '^[[:space:]]*default:' | sed 's/.*default: *//' | tr -d '"' || true)
     if [ -n "$CONFIGURED_MODEL" ]; then
         ok "hermes config.yaml model=${CONFIGURED_MODEL}"
     else
@@ -92,6 +95,90 @@ else
     warn "hermes config.yaml present" \
          "${HERMES_CONFIG} not found" \
          "Run ./existential.sh run hermes (or boot the container so it generates default config)"
+fi
+
+# ── 4b. Context window (config.yaml vs the model ollama actually built) ──────
+#
+# Hermes packs its prompt to config.yaml's context_length, and ollama truncates
+# the overflow SILENTLY — no error, the agent just starts forgetting its
+# instructions. Nothing else in the stack reports this, and section 6's memory
+# probe only catches it after the fact and only sometimes, so check it directly.
+#
+# Two comparisons, in order of authority:
+#   1. vs ollama's real num_ctx for this model — exceeding it IS the truncation,
+#      so that fails.
+#   2. vs the 64k hermes needs, and vs EXIST_MODEL_CHAT_NUM_CTX — degraded or
+#      drifted, but working, so those warn. `./existential.sh` reconciles the
+#      drift on its next run (ai/hermes/exist.initial.sh).
+HERMES_CTX_FLOOR=65536
+
+if [ -f "$HERMES_CONFIG" ]; then
+    load_env_exist
+    CFG_CTX=$(grep -m1 -E '^[[:space:]]*context_length:' "$HERMES_CONFIG" | grep -oE '[0-9]+' || true)
+    WANT_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
+
+    if [ -z "$CFG_CTX" ]; then
+        warn "hermes context_length set" \
+             "no context_length in ${HERMES_CONFIG}" \
+             "./existential.sh  (exist.initial.sh writes it from EXIST_MODEL_CHAT_NUM_CTX)"
+    else
+        # The real ceiling. Two sources, and the order matters:
+        #
+        #   /api/ps    what the LOADED instance actually allocated. Authoritative,
+        #              because a tag with no baked num_ctx silently inherits
+        #              ollama's server default (4096) — which is invisible in
+        #              /api/show and is the exact state that truncates hermes.
+        #   /api/show  the Modelfile's baked num_ctx. Used when the model is not
+        #              currently loaded, so the check still works cold.
+        OLLAMA_API="${OLLAMA_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}"
+        REAL_CTX=""
+        REAL_SRC=""
+        if [ -n "${CONFIGURED_MODEL:-}" ]; then
+            REAL_CTX=$(curl -sS --max-time 5 "${OLLAMA_API}/api/ps" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    want = sys.argv[1]
+    for m in d.get('models', []):
+        if m.get('model') == want or m.get('name') == want:
+            print(m.get('context_length') or ''); break
+    else: print('')
+except Exception: print('')
+" "$CONFIGURED_MODEL" 2>/dev/null || true)
+            [ -n "$REAL_CTX" ] && REAL_SRC="loaded"
+
+            if [ -z "$REAL_CTX" ]; then
+                REAL_CTX=$(curl -sS --max-time 5 "${OLLAMA_API}/api/show" \
+                            -d "{\"name\":\"${CONFIGURED_MODEL}\"}" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    for line in d.get('parameters','').splitlines():
+        p = line.split()
+        if len(p)==2 and p[0]=='num_ctx': print(p[1]); break
+    else: print('')
+except Exception: print('')
+" 2>/dev/null || true)
+                [ -n "$REAL_CTX" ] && REAL_SRC="Modelfile"
+            fi
+        fi
+
+        if [ -n "$REAL_CTX" ] && [ "$CFG_CTX" -gt "$REAL_CTX" ]; then
+            fail "hermes context_length <= ollama context" \
+                 "config.yaml says ${CFG_CTX} but ${CONFIGURED_MODEL} (${REAL_SRC}) gives ${REAL_CTX} — every prompt above ${REAL_CTX} tokens is truncated silently" \
+                 "./existential.sh run ollama pull-models   (bakes num_ctx=${WANT_CTX:-EXIST_MODEL_CHAT_NUM_CTX} into the tag), then: docker exec ollama ollama stop ${CONFIGURED_MODEL}"
+        elif [ "$CFG_CTX" -lt "$HERMES_CTX_FLOOR" ]; then
+            warn "hermes context_length >= ${HERMES_CTX_FLOOR}" \
+                 "config.yaml says ${CFG_CTX}; hermes needs ${HERMES_CTX_FLOOR} for skills + memory + tool definitions" \
+                 "Raise EXIST_MODEL_CHAT_NUM_CTX in .env.shared, then ./existential.sh && ./existential.sh run ollama pull-models"
+        elif [ -n "$WANT_CTX" ] && [ "$CFG_CTX" != "$WANT_CTX" ]; then
+            warn "hermes context_length matches EXIST_MODEL_CHAT_NUM_CTX" \
+                 "config.yaml says ${CFG_CTX}, .env.shared says ${WANT_CTX}" \
+                 "./existential.sh   (reconciles context_length on the next run)"
+        else
+            ok "hermes context_length=${CFG_CTX}${REAL_CTX:+ (ollama ${REAL_SRC}: ${REAL_CTX})}"
+        fi
+    fi
 fi
 
 # ── 5. MCP servers configured (best-effort URL reachability) ─────────────────
@@ -122,17 +209,45 @@ for line in m.group(1).splitlines():
 " 2>/dev/null)
 fi
 
+# ── 5b. Honcho memory provider (seeded by exist.initial.sh) ──────────────────
+#
+# Hermes needs BOTH halves to use honcho: honcho.json (connection + identity)
+# and memory.provider in config.yaml (the activation key). With only the first
+# it silently falls back to built-in memory — `hermes memory status` is the
+# only place that difference shows.
+
+if [ "${EXIST_IS_AI_HONCHO:-false}" = "true" ]; then
+    HONCHO_JSON="/repo/volumes/hermes_agent_data/honcho.json"
+    MEM_PROVIDER=$(awk '/^memory:/ { f = 1; next } f && /^[^[:space:]#]/ { exit } f' "$HERMES_CONFIG" 2>/dev/null \
+        | grep -m1 -E '^[[:space:]]*provider:' | sed 's/.*provider: *//' | tr -d '"' || true)
+
+    if [ ! -f "$HONCHO_JSON" ]; then
+        warn "hermes honcho.json present" \
+             "${HONCHO_JSON} not found" \
+             "./existential.sh run hermes   (seeds it)"
+    elif [ "$MEM_PROVIDER" != "honcho" ]; then
+        warn "hermes memory provider = honcho" \
+             "config.yaml memory.provider is '${MEM_PROVIDER:-unset}' — hermes is on built-in memory only" \
+             "./existential.sh run hermes, or: docker exec -it hermes-agent hermes memory setup honcho"
+    else
+        ok "hermes memory provider = honcho"
+    fi
+fi
+
 # ── 6. Conversation memory (verifies session continuity end-to-end) ──────────
 
+# 120s, not the usual few seconds: hermes packs a ~20k-token system prompt
+# (skills + memory + tool definitions) and ollama may have to load the model
+# cold — a warm local run measures ~45s.
 SESSION_ID="exist-test-memory-$(date +%s)"
 FIRST_REQ='{"model":"default","messages":[{"role":"user","content":"My lucky number is 7331. Acknowledge it."}],"stream":false}'
 SECOND_REQ='{"model":"default","messages":[{"role":"user","content":"My lucky number is 7331. Acknowledge it."},{"role":"assistant","content":"Acknowledged."},{"role":"user","content":"What is my lucky number?"}],"stream":false}'
 
-FIRST=$(curl -sS --max-time 30 "${AUTH[@]}" \
+FIRST=$(curl -sS --max-time 120 "${AUTH[@]}" \
     -H "Content-Type: application/json" \
     -H "X-Hermes-Session-Id: ${SESSION_ID}" \
     "${HERMES_URL}/v1/chat/completions" -d "$FIRST_REQ" 2>/dev/null || true)
-SECOND=$(curl -sS --max-time 30 "${AUTH[@]}" \
+SECOND=$(curl -sS --max-time 120 "${AUTH[@]}" \
     -H "Content-Type: application/json" \
     -H "X-Hermes-Session-Id: ${SESSION_ID}" \
     "${HERMES_URL}/v1/chat/completions" -d "$SECOND_REQ" 2>/dev/null || true)
@@ -152,7 +267,7 @@ elif echo "$REPLY" | grep -qi "7331"; then
 else
     warn "hermes memory: session recalls earlier message" \
          "model did not echo '7331' (got: $(echo "$REPLY" | head -c 80)…)" \
-         "num_ctx is likely too small. ollama show <model> — confirm num_ctx >= 32768; check 'docker logs hermes-agent | grep truncat'"
+         "num_ctx is likely too small. ollama show <model> — confirm num_ctx >= 65536; check 'docker logs hermes-agent | grep truncat'"
 fi
 
 finish

@@ -77,6 +77,7 @@ case "$1" in
         case "$3" in                              # $3 = -f format string
             *Name*)            echo "/fake-svc" ;;
             "{{.RestartCount}}") echo 0 ;;
+            *Mounts*)          echo "${FAKE_MOUNTS:-}" ;;
             *)                 echo "${FAKE_STATE:-running 0 none}" ;;
         esac ;;
     logs) echo "fake log line" ;;
@@ -96,6 +97,15 @@ FAKE_STATE="running 0 healthy" DOCKER_CMD="$FAKE_DOCKER" \
     bash "$HEALTH" "$COMPOSE_FILE" "" 0 >/dev/null 2>&1 || rc=$?
 if [ "$rc" -eq 0 ]; then pass "healthy running container → gate exits zero"
 else flunk "healthy container wrongly failed the gate (rc=$rc)"; fi
+
+# A Docker-managed volume is invisible to the generated compose file, so this
+# gate is the only thing that can catch one. It must fail even when the
+# container is otherwise perfectly healthy.
+rc=0
+FAKE_STATE="running 0 healthy" FAKE_MOUNTS="/var/www/html " DOCKER_CMD="$FAKE_DOCKER" \
+    bash "$HEALTH" "$COMPOSE_FILE" "" 0 >/dev/null 2>&1 || rc=$?
+if [ "$rc" -ne 0 ]; then pass "Docker-managed volume → gate exits non-zero"
+else flunk "anonymous volume did NOT fail the gate (rc=$rc)"; fi
 
 echo ""
 if [ "$fail" -ne 0 ]; then

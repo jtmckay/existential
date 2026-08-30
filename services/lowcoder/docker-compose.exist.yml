@@ -13,9 +13,12 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${LOWCODER_MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${LOWCODER_MONGO_ROOT_PASSWORD}
     volumes:
-      # MongoDB — tier-2 local (NFS corrupts WiredTiger).
+      # MongoDB — db: true (NFS corrupts WiredTiger).
       # TODO: mongodump → volumes/lowcoder_mongo_backup (no sidecar mount for it yet).
-      - ../../volumes_local/lowcoder_mongo:/data/db
+      - lowcoder_mongo_data:/data/db
+      # mongo declares VOLUME for BOTH /data/db and /data/configdb. Mounting only
+      # the first leaves Docker to make an anonymous volume for the second.
+      - lowcoder_mongo_config_data:/data/configdb
     healthcheck: # https://github.com/rodrigobdz/docker-compose-healthchecks?tab=readme-ov-file#mongo
       test:
         [
@@ -39,9 +42,13 @@ services:
     platform: linux/amd64 # Forces the x86 version (use linux/arm64 if you are on ARM but pulling x86)
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     # Disable RDB persistence — Redis is a session/query cache here, not a
-    # primary store. Without this, bgsave tries to write to /data which is
-    # owned by the image's built-in redis uid, not the host uid.
+    # primary store. Mounting /data host-owned below is what makes that safe:
+    # redis:7-alpine declares VOLUME /data (redis:alpine, on 8.x, does not), so
+    # without the mount Docker supplies an anonymous volume owned by the image's
+    # built-in redis uid, which the host user cannot write.
     command: ["redis-server", "--save", ""]
+    volumes:
+      - lowcoder_redis_cache:/data
     restart: unless-stopped
     healthcheck: # https://stackoverflow.com/a/71504657
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
@@ -113,8 +120,8 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_data:/lowcoder-stacks
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/lowcoder/assets
+      - lowcoder_data:/lowcoder-stacks
+      - lowcoder_assets_data:/lowcoder/assets
     healthcheck: #https://stackoverflow.com/questions/71101967/how-should-i-use-grep-in-docker-compose-healthcheck
       test: curl -sS http://lowcoder-api-service:8080  | grep -c "Lowcoder API is up and runnig" > /dev/null
       interval: 3s
@@ -172,7 +179,7 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/lowcoder/assets
+      - lowcoder_assets_data:/lowcoder/assets
     healthcheck:
       test: curl --fail http://lowcoder-frontend:3000 || exit 1
       interval: 5s
@@ -206,9 +213,16 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_data:/volumes/lowcoder_data
-      - ${EXIST_NFS_HOST_MOUNT:-./volumes}/lowcoder_assets:/volumes/lowcoder_assets
+      - lowcoder_data:/volumes/lowcoder_data
+      - lowcoder_assets_data:/volumes/lowcoder_assets
     tty: false
+
+x-exist-volumes:
+  lowcoder_data: { nfs: true }
+  lowcoder_assets_data: { nfs: true }
+  lowcoder_mongo_data: { db: true }
+  lowcoder_mongo_config_data: { db: true }
+  lowcoder_redis_cache: { db: true }
 
 networks:
   exist:

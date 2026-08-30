@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     # prometheus runs as uid 65534 (nobody) internally; run as the host user
     # instead so it can write the host-owned bind-mounted prometheus_data
-    # (tier-2 local, never NFS).
+    # (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
@@ -19,7 +19,7 @@ services:
       - ./alerts.yml:/etc/prometheus/alerts.yml:ro
       # TSDB — must be local; mmap + POSIX locks are unsupported on NFS (corruption).
       # TODO: opt-in backup sidecar → volumes/prometheus_data_backup (snapshot API).
-      - ../../volumes_local/prometheus_data:/prometheus
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -48,6 +48,9 @@ services:
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+x-exist-volumes:
+  prometheus_data: { db: true }
 
 networks:
   exist:

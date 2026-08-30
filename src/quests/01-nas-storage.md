@@ -7,17 +7,24 @@ services: []
 ---
 
 Existential never uses Docker-managed volumes. Every service's persistent
-data is a host bind mount: by default under <repo>/volumes/<name>, or on a
-NAS if you mount the NFS export on the host first. This gives you visible,
-host-owned, inspectable data plus (with a NAS) redundancy and snapshots.
+data is a host bind mount under <repo>/volumes/<name>. This gives you
+visible, host-owned, inspectable data.
+
+Point it at a NAS and the volumes that are safe to put there move to it.
+Only those: each service declares its volumes in an x-exist-volumes block,
+and just the ones marked `nfs: true` (bulk user files — Nextcloud, MinIO,
+media) relocate. Anything holding a database stays on local disk no matter
+what, because NFS corrupts an embedded DB's locking. You get redundancy and
+snapshots for the data that benefits, and no silent corruption for the rest.
 
 Any NFS-capable NAS works — TrueNAS is a common self-hosted choice.
 Docs: https://existential.company/docs/storage
 
 Setup:
-  1. On your NAS, create an NFS export (dataset/share) with one subdirectory
-     per persistent volume (mealie_data, immich_data, …) under a base path.
-     Record the server IP and base path.
+  1. On your NAS, create an NFS export (dataset/share) and record the server
+     IP and base path. You do not need to pre-create the per-volume
+     subdirectories — ./existential.sh makes the ones your enabled services
+     need, once the export is mounted below.
 
   2. Mount that export on THIS host (Docker no longer mounts NFS itself).
      One-off:

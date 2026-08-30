@@ -18,7 +18,7 @@
 #   wyoming-whisper  — Wyoming STT server (TCP 10300)
 #
 # Volumes:
-#   data/  (tier-3) — downloaded whisper models; re-downloadable, not backed up.
+#   wyoming_whisper_cache — downloaded whisper models; re-downloadable.
 #
 # Access: tcp://wyoming-whisper:10300 on the exist network. No HTTP, so no Caddy
 # block and no dashy tile — you add it in Home Assistant, not in a browser.
@@ -61,8 +61,8 @@ services:
       - --download-dir
       - /data
     volumes:
-      # Whisper models, downloaded on first use — tier-3, re-downloadable.
-      - ./data:/data
+      # Whisper models, downloaded on first use — a _cache, re-downloadable.
+      - wyoming_whisper_cache:/data
     healthcheck:
       # Wyoming is raw TCP with no HTTP surface, and the image ships no curl.
       # Bash's /dev/tcp is the cheapest honest liveness check.
@@ -76,6 +76,9 @@ services:
       resources:
         limits:
           memory: 4G
+
+x-exist-volumes:
+  wyoming_whisper_cache: {}
 
 networks:
   exist:

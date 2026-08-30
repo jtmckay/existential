@@ -54,9 +54,9 @@ services:
 
     command: ["serve"]
     volumes:
-      # Downloaded models — re-pullable, tier-3 (not backed up). The ollama-decree
+      # Downloaded models — re-pullable, a _cache (not backed up). The ollama-decree
       # sidecar runs model routines, not a backup of this dir.
-      - ./ollama_data:/root/.ollama
+      - ollama_cache:/root/.ollama
 
   ollama-decree:
     container_name: ollama-decree
@@ -73,7 +73,7 @@ services:
       - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
       # Model globals from .env.shared — the ollama-pull routine resolves its
       # OLLAMA_ROLE against these, so migrations name a role, not a tag.
       # See the "Model Selection" block in .env.exist.shared.
@@ -91,6 +91,9 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
     tty: false
+
+x-exist-volumes:
+  ollama_cache: {}
 
 networks:
   exist:

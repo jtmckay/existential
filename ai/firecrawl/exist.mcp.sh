@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # firecrawl — register the Firecrawl MCP server in hermes-agent.
 #
-# Run once after both services are healthy:
+# You normally do NOT need this: ai/hermes/exist.initial.sh seeds the same entry
+# into hermes' config.yaml, whether hermes is new or firecrawl was enabled later.
+# Reach for this to repair a config you edited, or to re-register by hand.
+#
 #   ./existential.sh run firecrawl mcp
 #
 # Re-running is safe; hermes-agent overwrites the existing entry.

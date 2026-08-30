@@ -37,7 +37,7 @@ case "${CODE}" in
     200) ok "openviking filesystem API" ;;
     401) fail "openviking filesystem API" \
               "401 unauthorized — API key mismatch" \
-              "Check OPENVIKING_API_KEY matches root_api_key in volumes_local/openviking_data/ov.conf" ;;
+              "Check OPENVIKING_API_KEY matches root_api_key in volumes/openviking_data/ov.conf" ;;
     000) fail "openviking filesystem API" \
               "no response within 10s" \
               "docker logs openviking" ;;
@@ -55,16 +55,42 @@ probe_caddy "openviking /health" openviking /health 200
 
 # ── 5. Notes and resources dirs mounted ──────────────────────────────────────
 
-[[ -d /repo/ai/openviking/notes ]] \
-    && ok "openviking notes/ directory present" \
-    || fail "openviking notes/ directory present" \
-             "missing ai/openviking/notes/" \
-             "git checkout ai/openviking/notes/.gitkeep"
+# Both are declared volumes now, so generate-compose.ts creates them for an
+# enabled openviking — a missing one means the render never ran.
+[[ -d /repo/volumes/openviking_notes_data ]] \
+    && ok "openviking notes volume present" \
+    || fail "openviking notes volume present" \
+             "missing volumes/openviking_notes_data/" \
+             "./existential.sh"
 
-[[ -d /repo/ai/openviking/resources ]] \
-    && ok "openviking resources/ directory present" \
-    || fail "openviking resources/ directory present" \
-             "missing ai/openviking/resources/" \
-             "git checkout ai/openviking/resources/.gitkeep"
+[[ -d /repo/volumes/openviking_resources_data ]] \
+    && ok "openviking resources volume present" \
+    || fail "openviking resources volume present" \
+             "missing volumes/openviking_resources_data/" \
+             "./existential.sh"
+
+# ── 6. Knowledgebase mounted and watched ─────────────────────────────────────
+#
+# viking/ is the user's own directory, so an empty one is fine — but a MISSING
+# one means openviking is indexing nothing, and the only other symptom is
+# searches quietly returning less than they should.
+
+if [[ -d /repo/viking ]]; then
+    ok "openviking knowledgebase dir present ($(find /repo/viking -type f 2>/dev/null | wc -l) file(s))"
+else
+    fail "openviking knowledgebase dir present" \
+         "missing viking/ at the repo root" \
+         "./existential.sh run openviking   (creates it)"
+fi
+
+# The mount is what openviking actually indexes; the host dir existing does not
+# prove the container got it (a stale rendered compose file would not have it).
+if [[ -f /repo/docker-compose.yml ]] && grep -qE '^\s+- \./viking:/app/viking' /repo/docker-compose.yml; then
+    ok "openviking knowledgebase mounted at /app/viking"
+else
+    warn "openviking knowledgebase mounted at /app/viking" \
+         "no ./viking:/app/viking mount in the generated docker-compose.yml" \
+         "./existential.sh   (re-generates it; if ai/openviking/docker-compose.yml is stale, edit it or ./existential.sh reset)"
+fi
 
 finish

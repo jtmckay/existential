@@ -51,8 +51,11 @@ services:
     #     - 8188:8188
 
     volumes:
-      # GPU workspace: models + custom nodes + outputs. Re-downloadable — tier-3, not backed up.
-      - ./comfyui_data:/workspace
+      # GPU workspace: models + custom nodes + outputs. Re-downloadable — a _cache, not backed up.
+      - comfyui_data:/workspace
+
+x-exist-volumes:
+  comfyui_data: {}
 
 networks:
   exist:

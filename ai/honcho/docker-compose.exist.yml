@@ -9,7 +9,7 @@
 #   honcho-postgres  — PostgreSQL + pgvector for vector storage
 #
 # Volumes:
-#   honcho_postgres_data  (tier-2 local) — postgres+pgvector data; not NFS-safe
+#   honcho_postgres_data  (db: true) — postgres+pgvector data; not NFS-safe
 #
 # Access: http://honcho:8000 on the exist network (internal API only)
 #   API docs: https://honcho.<domain>/docs (after a Caddy reverse_proxy block is added)
@@ -75,8 +75,8 @@ services:
       # Subdirectory so .gitkeep at the bind-mount root doesn't block initdb.
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      # Postgres + pgvector data — tier-2 local (WAL/flock; never NFS).
-      - ../../volumes_local/honcho_postgres_data:/var/lib/postgresql/data
+      # Postgres + pgvector data — db: true (WAL/flock; never NFS).
+      - honcho_postgres_data:/var/lib/postgresql/data
       # TODO: backup sidecar — pg_dump → volumes/honcho_postgres_data_backup/
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
@@ -84,6 +84,9 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+
+x-exist-volumes:
+  honcho_postgres_data: { db: true }
 
 networks:
   exist:

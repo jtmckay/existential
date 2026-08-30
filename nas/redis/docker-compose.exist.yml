@@ -13,7 +13,10 @@ services:
     # ports:
     #   - "6379:6379"
     volumes:
-      - ./redis_data:/data:Z
+      - redis_data:/data:Z
+
+x-exist-volumes:
+  redis_data: { db: true }
 
 networks:
   exist:

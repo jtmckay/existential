@@ -42,5 +42,5 @@ docker exec -it hermes-agent hermes memory setup honcho
 
 ## Notes
 
-Its Postgres volume is tier 2 (`volumes_local/honcho_postgres_data`) — pgvector on an
+Its Postgres volume is `volumes/honcho_postgres_data`, declared `db: true` — pgvector on an
 embedded database, so local only and never NFS.

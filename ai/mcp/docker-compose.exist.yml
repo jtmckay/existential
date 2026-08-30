@@ -21,9 +21,12 @@ services:
       PLAYWRIGHT_MCP_HOST: "0.0.0.0"
       PLAYWRIGHT_MCP_ALLOWED_HOSTS: '*'
     volumes:
-      - ./playwright-data:/root/.cache/ms-playwright:Z
+      - mcp_playwright_cache:/root/.cache/ms-playwright:Z
 
 # docker compose exec hermes-agent /opt/hermes/.venv/bin/hermes mcp add playwright --url http://mcp-playwright:8931/sse
+
+x-exist-volumes:
+  mcp_playwright_cache: {}
 
 networks:
   exist:

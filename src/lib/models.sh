@@ -83,7 +83,7 @@ if [[ -n "$CURRENT_EMBED" && "$CURRENT_EMBED" != "$NEW_EMBED" ]]; then
     echo ""
     echo "  ${_C_YELLOW}⚠${_C_RESET}  Embedding model changes: ${CURRENT_EMBED} → ${NEW_EMBED}"
     echo "     OpenViking's vector index is built for the old dimensions and will"
-    echo "     not match. Wipe volumes_local/openviking_data after applying, or"
+    echo "     not match. Wipe volumes/openviking_data after applying, or"
     echo "     searches will return nonsense."
     echo ""
     read -rp "  Continue? [y/N] " _confirm

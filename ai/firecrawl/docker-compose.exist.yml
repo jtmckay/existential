@@ -13,7 +13,7 @@
 #   firecrawl-postgres    — Crawl result and job history persistence (nuq-postgres)
 #
 # Volumes:
-#   firecrawl_postgres_data  (tier-2 local) — postgres data; not NFS-safe (WAL/flock)
+#   firecrawl_postgres_data  (db: true) — postgres data; not NFS-safe (WAL/flock)
 #
 # Access: http://firecrawl:3002 on the exist network
 #   API key: FIRECRAWL_API_KEY from .env (USE_DB_AUTHENTICATION=false)
@@ -115,6 +115,11 @@ services:
     restart: unless-stopped
     networks:
       - exist
+    volumes:
+      # The image declares VOLUME /var/lib/rabbitmq — without this, Docker makes
+      # an anonymous volume for it, which `docker volume ls` hygiene can never
+      # see and which leaks on every recreate.
+      - firecrawl_rabbitmq_cache:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
       interval: 5s
@@ -162,9 +167,15 @@ services:
       # Subdirectory so .gitkeep at the bind-mount root doesn't block initdb.
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      # Crawl results and job history — tier-2 local (WAL/flock; never NFS).
-      - ../../volumes_local/firecrawl_postgres_data:/var/lib/postgresql/data
+      # Crawl results and job history — db: true (WAL/flock; never NFS).
+      - firecrawl_postgres_data:/var/lib/postgresql/data
       # TODO: backup sidecar — pg_dump → volumes/firecrawl_postgres_data_backup/
+
+x-exist-volumes:
+  # Mnesia — an embedded DB, so never NFS; disposable because a lost queue just
+  # means re-crawling.
+  firecrawl_rabbitmq_cache: { db: true }
+  firecrawl_postgres_data: { db: true }
 
 networks:
   exist:

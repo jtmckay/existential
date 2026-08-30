@@ -356,7 +356,7 @@ tcp_probe() {
 # render changes them after first start — a regenerated password, or a first
 # render that baked a still-unsubstituted placeholder (EXIST_USERNAME) in as the
 # role name. `./existential.sh reset` re-renders .env but deliberately leaves
-# volumes_local/ alone, which is precisely how the two get out of step.
+# its volume alone, which is precisely how the two get out of step.
 #
 # The resulting failure names neither cause: the app's workers exit on connect,
 # the container never passes its healthcheck, and anything downstream with

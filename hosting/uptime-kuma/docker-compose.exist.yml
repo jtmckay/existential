@@ -16,7 +16,10 @@ services:
     volumes:
       # SQLite — must be local; NFS breaks WAL locking.
       # TODO: backup sidecar → volumes/uptime_kuma_data_backup (no sidecar yet).
-      - ../../volumes_local/uptime_kuma_data:/app/data
+      - uptime_kuma_data:/app/data
+
+x-exist-volumes:
+  uptime_kuma_data: { db: true }
 
 networks:
   exist:

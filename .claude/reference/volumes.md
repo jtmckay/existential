@@ -3,60 +3,100 @@
 **We never use Docker-managed volumes** — they're opaque and re-init from the image (wrong UID
 on NFS). Every volume is a **host bind mount**: visible, inspectable, correctly-owned.
 
-Templates declare bind mounts **directly** — there is no top-level `volumes:` block and no
-`materializeBindMounts` rewrite. Consolidation stays minimal: `generate-compose.ts`'s generic
-`adjustVolume` only fixes the relative path (prepends the service dir, normalises to repo root)
-— `../../<dir>/<name>` → `./<dir>/<name>`, the same handling every bind mount gets, for **any**
-top-level dir. The generated `docker-compose.yml` has no `volumes:` block and `docker volume ls`
-stays empty; `validate conventions` enforces this (no top-level volumes, no bare named refs).
+A template refers to a volume by **bare name** and declares it in `x-exist-volumes` (below);
+`generate-compose.ts` materialises that into an absolute host path. Paths that are not volumes —
+a mounted config file, a service-dir directory — stay relative and are only normalised
+(`../../<dir>` → `./<dir>`, prepending the service dir). The **generated** `docker-compose.yml`
+therefore contains no bare names and no top-level `volumes:` block, so `docker volume ls` stays
+empty; `validate conventions` enforces that on the generated file.
 
-## Three tiers
+## One directory, declared properties
 
-Picked by "is this backup-worthy?" and "is it NFS-safe?" Name volumes `<service>_<purpose>_data`.
+Every volume lives in **`volumes/<name>`**. There is no second root — what a volume *is* comes
+from its declaration, never from which folder it sits in.
 
-| Tier | Form in template | NFS? | Backed up? | For |
-|---|---|---|---|---|
-| **1 — User data** | `- ${EXIST_NFS_HOST_MOUNT:-./volumes}/<name>:/path` | yes | yes (sidecar) | bulk files/blobs/media/attachments — NFS-safe |
-| **2 — Live DB** | `- ../../volumes_local/<name>:/path` | **never** | yes — sidecar writes a safe archive into `volumes/<name>_backup/` | postgres, mariadb, mongo, embedded SQLite/bbolt/TSDB worth keeping |
-| **3 — Ephemeral** | `- ./<dir>:/path` (in the service dir, gitignored) | no | **no sidecar** | caches, downloaded models, scratch, transient state |
+Each service declares its volumes in an **`x-exist-volumes`** block, a top-level key in its
+`docker-compose.exist.yml` (the same overlay pattern as `x-exist-gpu`: read by the generator,
+stripped from the output). Mounts then reference the volume by bare name:
 
-**Decision rule: local-required AND backup-worthy → tier 2; local-required but throwaway → tier
-3; NFS-safe and backup-worthy → tier 1.** An embedded database (mmap, `flock`, SQLite WAL —
-prometheus TSDB, bbolt, mongo) **must never** be tier 1: NFS corrupts or cripples it.
+```yaml
+services:
+  nextcloud:
+    volumes:
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_sql_data:/var/lib/mysql
 
-- **Tier 1** (`${EXIST_NFS_HOST_MOUNT:-./volumes}/<name>`): when a host NFS mount is set,
-  `templates.sh` substitutes `${EXIST_NFS_HOST_MOUNT}` in (→ `/mnt/.../<name>`); unset →
-  Docker's `:-./volumes` fallback keeps it local. The export is mounted on the **host**
-  (fstab/autofs) — Docker no longer mounts NFS itself. `EXIST_NFS_SERVER_ADDRESS` set without
-  `EXIST_NFS_HOST_MOUNT` is a hard error in `generate-compose.ts` (won't silently fall back).
-- **Tier 2** (`../../volumes_local/<name>`): plain relative path, no NFS token, so it is
-  **always** local — `adjustVolume` rewrites it to `./volumes_local/<name>` at repo root. Its
-  matching NFS archive dir is tier 1 (`volumes/<name>_backup/`), where the service's
-  `*-decree` sidecar drops crash-consistent dumps (dump mechanism is per-service; some are
-  still `# TODO: backup sidecar`). No DB worth keeping should be a bare local dir with no
-  archive path.
-- **Tier 3** (`./<dir>` inside the service folder, gitignored): no archive, no sidecar. If a
-  thing isn't worth backing up, it doesn't get a `volumes/` entry or a sidecar tarring it.
+x-exist-volumes:
+  nextcloud_data:     { nfs: true }
+  nextcloud_sql_data: { db: true }
+```
 
-## .gitkeep
+| Property | Default | Meaning |
+|---|---|---|
+| `nfs`    | `false` | May live on the NAS export. When `EXIST_NFS_HOST_MOUNT` is set, `generate-compose.ts` resolves the source to `<mount>/<name>`; otherwise it stays in `volumes/`. |
+| `db`     | `false` | Holds an embedded or managed database (SQLite WAL, bbolt, a TSDB, a postgres/mysql/mongo data dir). NFS corrupts these — `validate conventions` rejects `db: true` together with `nfs: true`. |
+| `backup` | `false` | A `*-decree` sidecar archives it into `<name>_backup`. |
 
-**Every** bind dir gets a committed `.gitkeep` so it exists on a fresh clone and Docker doesn't
-root-create it (wrong owner): tier 1 `volumes/<name>/.gitkeep` (incl. each `<name>_backup`),
-tier 2 `volumes_local/<name>/.gitkeep`, and tier 3 `<service>/<dir>/.gitkeep` inside the service
-folder. Tier-3 `.gitkeep` is **force-added** past the gitignore — the dir's *contents* are
-gitignored (not backup-worthy), but the empty dir is tracked (same pattern as chatterbox's
-`logs/`, `outputs/`).
+**A bare name with no declaration is a hard error.** `generate-compose.ts` exits non-zero and
+prints the block to add, rather than letting compose fall through to a Docker-managed volume —
+opaque, re-inits from the image, wrong UID on NFS. That check is the reason this repo can use
+bare names safely at all.
 
-**Exception — a `.gitkeep` an image treats as content.** The nextcloud image installs its
-runtime config fragments (`reverse-proxy.config.php`, `redis.config.php`, …) only into a config
-dir it sees as *empty* (`directory_empty "/var/www/html/$dir"`), so the committed `.gitkeep` in
-`volumes/nextcloud_config/` suppresses them — and the failure is silent: nextcloud installs and
-serves, but proxied requests redirect to `http://` and redis caching never engages.
-`nas/nextcloud/exist.initial.sh` removes that one `.gitkeep` pre-startup, and only while it is
-the sole entry, so a configured install is untouched. Keep the `.gitkeep` committed — it still
-does its job of surviving `git clone`; it just has to be gone before the container first looks.
-Watch for the same pattern in any image that populates a bind-mounted dir conditionally on it
-being empty.
+## The suffix says whether it is safe to delete
+
+The name's suffix is the thing a human reads before running `rm -rf`, so it is **enforced** by
+`validate conventions` rather than left to convention:
+
+| Suffix | For | `reset` |
+|---|---|---|
+| `_data`   | user data or a live database | never touched |
+| `_backup` | archives of a `_data` volume, written by that service's `*-decree` sidecar | never touched |
+| `_cache`  | regenerable — models, HF caches, scratch; refetched or rebuilt on next start | offers to delete |
+
+`_cache` may not declare `backup: true` (there is nothing worth archiving). Name volumes
+`<service>_<purpose>_<suffix>`.
+
+A `_backup` volume only exists once something mounts and writes it. Most services still carry a
+`# TODO: backup sidecar` comment instead — today `db-backup` rclones dumps straight to a remote
+(`EXIST_BACKUP_RCLONE_REMOTE`) rather than to a local archive dir. Don't create the directory
+ahead of the sidecar: an unmounted, undeclared `volumes/<name>_backup` is just litter, and the
+generator makes it the moment a template declares one.
+
+**Decision rule:** does losing it cost the user anything they can't get back? → `_data`. Would the
+stack simply re-download or rebuild it? → `_cache`. An embedded database is always `_data` **and**
+`db: true`.
+
+## No .gitkeep
+
+Volume directories are **not** tracked and carry no `.gitkeep`. `volumes/` is gitignored
+wholesale. The directories are created by `generate-compose.ts` for exactly the services that are
+enabled — `ensureBindSource` for relative binds, and the named-volume branch for declared volumes
+— running inside adhoc as the host `uid:gid`, so they land correctly owned before anything can
+`docker compose up`.
+
+That ordering is guaranteed, not hoped for: the root `docker-compose.yml` is itself generated and
+gitignored, so a checkout cannot start the stack without having run `./existential.sh` first.
+
+This replaced a committed `.gitkeep` in every bind dir, which had two problems worth remembering:
+
+- **An image may treat `.gitkeep` as content.** The nextcloud entrypoint populates and chowns
+  `config data custom_apps themes` only while it sees each as *empty*
+  (`directory_empty "/var/www/html/$dir"`). One tracked file locked it out of all four: the config
+  fragments were silently skipped, and `data` never got its `--chown www-data:root`, so apache
+  (uid 33) could not write, `occ maintenance:install` failed ten times, and the browser got the
+  **setup wizard** instead of a login page. An empty generated directory has neither problem, and
+  `nas/nextcloud/exist.test.sh` asserts `"installed":true` so the fatal case cannot pass the
+  health gate.
+- **A tracked file inside a dir the container locks down breaks git.** An installed nextcloud
+  chmods its data dir to `0770 www-data`; the host user cannot traverse it, and every later
+  `git status` failed with *Permission denied*.
+
+If an image needs a directory to be empty at first start, it now simply is.
+
+## Moving a volume between properties
+
+Change the declaration and, if the name changes, `mv volumes/<old> volumes/<new>` on the host with
+the stack down. Nothing moves live data automatically.
 
 ### What "root-creates it" actually costs
 
@@ -71,11 +111,11 @@ This is not cosmetic. When a bind-mount source does not exist, the daemon create
   `set -e` that aborts the whole run.
 - `reset` dies too, on the first `mkdir -p` under a root-owned `archive/`.
 
-Two defences, in order. `.gitkeep` is the first and covers anything committable. For a path that
-*can't* be committed — populated from an image, or gitignored contents — `adjustVolume` in
-`src/generate-compose.ts` pre-creates every **relative** bind source it rewrites
-(`ensureBindSource`), running inside adhoc as the host uid:gid so the dir lands correctly owned.
-It skips sources with a file extension, since a *file* mount must not become a directory.
+The defence is `adjustVolume` in `src/generate-compose.ts`, which pre-creates every bind source
+it rewrites — declared volumes via the named-volume branch, everything relative via
+`ensureBindSource` — running inside adhoc as the host uid:gid so each dir lands correctly owned.
+It skips sources with a file extension, since a *file* mount must not become a directory, and
+skips a destination that has a sibling `<name>.exist.*` template for the same reason.
 
 Neither defence repairs a checkout that already went wrong: `./existential.sh run fix-permissions`
 does that, borrowing root from a throwaway container rather than asking for sudo.

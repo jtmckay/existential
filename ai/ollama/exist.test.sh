@@ -34,11 +34,13 @@ fi
 # missing key degrades to a floor rather than to 0 (which would read as "unset").
 EXPECT_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-8192}"
 
-# Hermes' system prompt can exceed 32k tokens. That is a property of hermes, not
-# of this machine — on a small tier the shortfall is the tier's accepted
-# trade-off, so it warns. Falling short of the tier's OWN num_ctx is a real
-# misconfiguration (the Modelfile did not apply) and fails.
-HERMES_CTX_WANT=32768
+# Hermes requires 64,000 tokens of context. Every tier in the table now ships
+# 65536, so no stock configuration falls short here — this branch fires only on
+# a hand-edited EXIST_MODEL_CHAT_NUM_CTX, or on a model built before the floor
+# existed and never rebuilt. It stays a warn rather than a fail because the tier
+# check above already covers the real misconfiguration (the Modelfile did not
+# apply), and this one has a one-command fix.
+HERMES_CTX_WANT=65536
 
 # ── 1. Reachability ───────────────────────────────────────────────────────────
 
@@ -80,7 +82,46 @@ fi
 # ── 3. num_ctx ────────────────────────────────────────────────────────────────
 
 MODEL_INFO=$(curl -sS "${OLLAMA_URL}/api/show" -d "{\"name\":\"${MODEL}\"}" 2>/dev/null || true)
-NUM_CTX=$(echo "$MODEL_INFO" | python3 -c "
+
+# What the model is CURRENTLY SERVING, which is not the same as what its
+# Modelfile bakes. A tag with no baked num_ctx silently inherits ollama's server
+# default (4096) — invisible in /api/show, and the exact state that truncates
+# hermes without reporting anything. /api/ps is the only place that shows it,
+# so it wins when the model is loaded; /api/show is the cold fallback.
+PS_JSON=$(curl -sS --max-time 5 "${OLLAMA_URL}/api/ps" 2>/dev/null || true)
+read -r LOADED_CTX LOADED_SIZE LOADED_VRAM <<EOF
+$(echo "$PS_JSON" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    want = sys.argv[1]
+    for m in d.get('models', []):
+        if m.get('model') == want or m.get('name') == want:
+            print(m.get('context_length') or 0, m.get('size') or 0, m.get('size_vram') or 0); break
+    else: print(0, 0, 0)
+except Exception: print(0, 0, 0)
+" "$MODEL" 2>/dev/null || echo "0 0 0")
+EOF
+LOADED_CTX="${LOADED_CTX:-0}"; LOADED_SIZE="${LOADED_SIZE:-0}"; LOADED_VRAM="${LOADED_VRAM:-0}"
+
+# Residency: how big the loaded instance actually is, and where it sits. This is
+# the number to look at when deciding whether a context change will fit — it is
+# what `ollama ps` shows, surfaced here so it does not need a docker exec.
+if [ "$LOADED_SIZE" -gt 0 ]; then
+    SIZE_MB=$(( LOADED_SIZE / 1024 / 1024 ))
+    if [ "$LOADED_VRAM" -eq 0 ]; then
+        WHERE="100% CPU (system RAM)"
+    elif [ "$LOADED_VRAM" -ge "$LOADED_SIZE" ]; then
+        WHERE="100% GPU"
+    else
+        WHERE="$(( LOADED_VRAM * 100 / LOADED_SIZE ))% GPU, rest spilled to system RAM"
+    fi
+    ok "resident: ${MODEL} ${SIZE_MB}MB, ${WHERE}, serving ctx ${LOADED_CTX}"
+else
+    ok "resident: ${MODEL} not currently loaded (ollama loads on first request)"
+fi
+
+BAKED_CTX=$(echo "$MODEL_INFO" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -90,37 +131,94 @@ try:
     else: print(0)
 except Exception: print(0)
 " 2>/dev/null || echo "0")
+BAKED_CTX="${BAKED_CTX:-0}"
 
-NUM_CTX="${NUM_CTX:-0}"
+# Prefer what is actually being served; fall back to the baked value when cold.
+if [ "$LOADED_CTX" -gt 0 ]; then
+    NUM_CTX="$LOADED_CTX"; CTX_SRC="serving"
+else
+    NUM_CTX="$BAKED_CTX"; CTX_SRC="Modelfile"
+fi
+
+# A loaded instance below its own baked value means ollama is running an
+# instance created before the rebuild — it needs evicting, not re-creating.
+if [ "$LOADED_CTX" -gt 0 ] && [ "$BAKED_CTX" -gt 0 ] && [ "$LOADED_CTX" -lt "$BAKED_CTX" ]; then
+    warn "serving context matches the Modelfile" \
+         "serving ${LOADED_CTX} but the tag is built for ${BAKED_CTX} — a stale instance is still resident" \
+         "./existential.sh run ollama unload   (drops it; the next request reloads at ${BAKED_CTX})"
+fi
+
 if [ "$NUM_CTX" -eq 0 ]; then
     fail "num_ctx readable for ${MODEL}" \
-         "could not parse num_ctx from /api/show" \
-         "ollama show ${MODEL}  (and apply ai/ollama/Modelfile)"
+         "no num_ctx baked into the tag, and it is not loaded — ollama will serve its 4096 default" \
+         "./existential.sh run ollama pull-models   (bakes num_ctx=${EXPECT_CTX})"
 elif [ "$NUM_CTX" -lt "$EXPECT_CTX" ]; then
     fail "num_ctx >= ${EXPECT_CTX} (tier)" \
          "num_ctx=${NUM_CTX} but the configured tier asks for ${EXPECT_CTX}" \
          "The Modelfile did not apply. Re-run ./existential.sh run ollama"
 elif [ "$NUM_CTX" -lt "$HERMES_CTX_WANT" ]; then
     warn "num_ctx >= ${HERMES_CTX_WANT} (hermes)" \
-         "num_ctx=${NUM_CTX} matches the tier, but hermes prompts (~18k+) may truncate" \
-         "Accepted trade-off on a small tier. For more headroom pick a larger one: ./existential.sh run models"
+         "num_ctx=${NUM_CTX} matches the tier, but hermes needs ${HERMES_CTX_WANT} and ollama truncates silently" \
+         "EXIST_MODEL_CHAT_NUM_CTX was hand-lowered, or this model predates the 64k floor. Set it back to ${HERMES_CTX_WANT} and re-run ./existential.sh run ollama pull-models"
 else
-    ok "num_ctx=${NUM_CTX} (tier ${EXPECT_CTX}, hermes floor ${HERMES_CTX_WANT})"
+    ok "num_ctx=${NUM_CTX} from ${CTX_SRC} (tier ${EXPECT_CTX}, hermes floor ${HERMES_CTX_WANT})"
 fi
 
 # ── 4. Memory headroom ────────────────────────────────────────────────────────
 
 AVAIL_KB=$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0)
-AVAIL_GB=$(( AVAIL_KB / 1024 / 1024 ))
 if [ "$AVAIL_KB" -gt 0 ] && [ "$NUM_CTX" -gt 0 ]; then
-    # Calibrated from observed 2GB @ 4096 tokens for gemma4:26b
-    KV_GB=$(( NUM_CTX / 2048 ))
-    if [ "$KV_GB" -gt "$AVAIL_GB" ]; then
-        warn "RAM headroom for KV cache" \
-             "KV cache for num_ctx=${NUM_CTX} needs ~${KV_GB}GB, ${AVAIL_GB}GB available" \
-             "Reduce num_ctx or free RAM"
+    # Compute the KV cache from the model's OWN geometry rather than a magic
+    # divisor. Every divisor guess here has been wrong: it depends on layer
+    # count, KV-head count and whether the architecture uses sliding-window
+    # attention, which vary by an order of magnitude across the tier table.
+    #
+    #   KV bytes = layers × kv_heads × (key_len + val_len) × num_ctx × bytes
+    #
+    # ollama reports these under architecture-prefixed keys ("qwen3vl.block_count"),
+    # so match on the suffix. bytes is 2 for the default f16 cache.
+    # This is an upper bound: sliding-window models (the gemma4 tiers) hold full
+    # cache on only a fraction of layers, so their real cost is lower.
+    KV_MB=$(echo "$MODEL_INFO" | python3 -c "
+import sys, json
+try:
+    info = json.load(sys.stdin).get('model_info', {})
+    def get(suffix):
+        for k, v in info.items():
+            if k.endswith('.' + suffix) and isinstance(v, int): return v
+        return 0
+    layers = get('block_count')
+    kv     = get('attention.head_count_kv')
+    klen   = get('attention.key_length')
+    vlen   = get('attention.value_length')
+    ctx    = int(sys.argv[1])
+    if not (layers and kv and klen and vlen): print(0)
+    else: print(layers * kv * (klen + vlen) * ctx * 2 // (1024 * 1024))
+except Exception: print(0)
+" "$NUM_CTX" 2>/dev/null || echo "0")
+    KV_MB="${KV_MB:-0}"
+
+    # Sub-GB values must not render as "0GB" — at the small end this number is
+    # the whole point of the check.
+    fmt_mb() {
+        if [ "$1" -ge 1024 ]; then
+            printf '%d.%dGB' "$(( $1 / 1024 ))" "$(( ($1 % 1024) * 10 / 1024 ))"
+        else
+            printf '%dMB' "$1"
+        fi
+    }
+
+    if [ "$KV_MB" -eq 0 ]; then
+        ok "KV cache size not computable for ${MODEL} (unknown geometry) — skipping headroom check"
     else
-        ok "RAM headroom: ~${KV_GB}GB needed, ${AVAIL_GB}GB available"
+        AVAIL_MB=$(( AVAIL_KB / 1024 ))
+        if [ "$KV_MB" -gt "$AVAIL_MB" ]; then
+            fail "RAM headroom for KV cache" \
+                 "KV cache for num_ctx=${NUM_CTX} needs ~$(fmt_mb "$KV_MB") (upper bound) but only $(fmt_mb "$AVAIL_MB") is available — loading this will swap or OOM" \
+                 "Lower EXIST_MODEL_CHAT_NUM_CTX, free RAM, or set OLLAMA_KV_CACHE_TYPE=q8_0 to halve it"
+        else
+            ok "KV cache ~$(fmt_mb "$KV_MB") for num_ctx=${NUM_CTX}, $(fmt_mb "$AVAIL_MB") available"
+        fi
     fi
 fi
 

@@ -14,6 +14,7 @@
 #   - not flapping                 (RestartCount below FLAP_THRESHOLD)
 #   - Health.Status != unhealthy   (starting / healthy / none all pass — "starting"
 #                                    just means inside the healthcheck start_period)
+#   - no Docker-managed volume     (every mount is a host bind — see below)
 #
 # Any failing container gets the tail of its logs dumped, and the script exits
 # non-zero so the caller (e2e harness / `./existential.sh test`) can fail.
@@ -99,8 +100,27 @@ for id in "${IDS[@]}"; do
     fi
 done
 
+# ── No Docker-managed volumes ────────────────────────────────────────────────
+# Only visible from the host, and invisible to every other check: an image with a
+# `VOLUME` directive gets an ANONYMOUS volume for any path the template does not
+# mount itself. Nothing in the generated compose file mentions it, so
+# `validate conventions` cannot see it — but it is opaque, re-inits from the
+# image, has the wrong UID on NFS, and leaks a fresh copy on some recreates.
+# Nextcloud lost its /var/www/html this way: version.php vanished, the entrypoint
+# decided it was a new instance and re-ran the install over a configured one.
+for id in "${IDS[@]}"; do
+    name="$("$DOCKER" inspect -f '{{.Name}}' "$id" 2>/dev/null | sed 's|^/||')"
+    anon="$("$DOCKER" inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Destination}} {{end}}{{end}}' "$id" 2>/dev/null)"
+    [ -z "${anon// }" ] && continue
+    pad "$name"; printf 'FAIL  (Docker-managed volume at: %s)\n' "${anon% }"
+    echo "        Every volume must be a host bind mount. Add the path to this"
+    echo "        service's volumes: and declare it in x-exist-volumes."
+    echo "        See .claude/reference/volumes.md."
+    FAILS=$((FAILS + 1))
+done
+
 if [ "$FAILS" -gt 0 ]; then
     echo "[$SLUG] ${FAILS} container(s) unhealthy — see logs above"
     exit 1
 fi
-echo "[$SLUG] all ${#IDS[@]} container(s) in a healthy steady state"
+echo "[$SLUG] all ${#IDS[@]} container(s) in a healthy steady state, all volumes host binds"

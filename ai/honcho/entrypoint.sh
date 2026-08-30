@@ -46,7 +46,7 @@ if ! "$PY" scripts/configure_embeddings.py --yes; then
     echo "  at a new dimension. Either restore the previous EXIST_MODEL_EMBED /" >&2
     echo "  EXIST_MODEL_EMBED_DIM in .env.shared, or discard the stored memory:" >&2
     echo "    docker compose down honcho honcho-postgres" >&2
-    echo "    rm -rf volumes_local/honcho_postgres_data/pgdata" >&2
+    echo "    rm -rf volumes/honcho_postgres_data/pgdata" >&2
     echo "    ./existential.sh && docker compose up -d" >&2
     exit 1
 fi

@@ -87,8 +87,9 @@ services:
       # Docker DNS. The host publish below remains loopback-only.
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_ENABLED: true
-      # Honcho self-hosted memory — picked up by the honcho plugin as baseUrl fallback.
-      # Run `docker exec -it hermes-agent hermes memory setup honcho` once to activate.
+      # Honcho self-hosted memory — the honcho plugin's baseUrl fallback.
+      # exist.initial.sh already activates the provider (honcho.json +
+      # config.yaml memory.provider), so no manual setup step is needed.
       HONCHO_BASE_URL: "http://honcho:8000"
     command: ["gateway", "run"]
     volumes:
@@ -96,7 +97,7 @@ services:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by hermes-agent. Tier-2 local (never NFS).
-      - ../../volumes_local/hermes_agent_data:/opt/data
+      - hermes_agent_data:/opt/data
       # Repo top-level workspace, shadowing hermes_agent_data's own workspace/
       # subdir — shared with code-server's /workspace so both containers (and
       # Claude Code running inside hermes-agent) operate on the same files.
@@ -128,6 +129,8 @@ services:
       - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
+      # Named once in .env.shared; exist.test.sh probes ollama through it.
+      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
       - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
     volumes:
       - ./decree:/work/.decree:z
@@ -138,8 +141,11 @@ services:
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
       # TODO: live .hermes tar isn't crash-consistent — dump → volumes/hermes_agent_data_backup.
-      - ../../volumes_local/hermes_agent_data:/volumes/hermes_agent_data
+      - hermes_agent_data:/volumes/hermes_agent_data
     tty: false
+
+x-exist-volumes:
+  hermes_agent_data: { db: true }
 
 networks:
   exist:

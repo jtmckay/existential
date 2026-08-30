@@ -99,6 +99,32 @@ render-time baking".
 
 Both are checked by `./existential.sh validate conventions`.
 
+## Env files are not documentation
+
+One informative line per key — what the value is, plus the single thing that breaks if it is
+wrong. That's the budget. No tables, no measured-download lists, no "two traps worth knowing",
+no multi-paragraph rationale.
+
+`.env.exist.shared` had grown a 60-line essay above the *Model Selection* block and another
+under `EXIST_DOMAIN`. It's the wrong home for that: the file is a **template that renders once**
+into the user's `.env.shared`, so every word of it is frozen into their install and goes stale
+silently — nobody re-reads a rendered env file, and nobody diffs it against the template. It is
+also the file people skim to find a key.
+
+The long form lives in `site/docs/configuration.md` (published at
+`https://existential.company/configuration`), which is versioned, searchable, linkable, and the
+thing a user actually reads before their first run. When a key needs more than its line, the
+comment carries a URL to the relevant section rather than the explanation:
+
+```sh
+# Context window for the chat model. 65536 is a FLOOR — hermes breaks below 64,000 tokens.
+EXIST_MODEL_CHAT_NUM_CTX=65536
+```
+
+Two comment forms are structural and stay regardless: `# DEFAULT_FROM: EXIST_FOO` above an
+`EXIST_CLI` line, and `# convention-exempt: upstream-env` at the top of a wholesale upstream env
+file. When you add or change a key, update its doc section in the same task.
+
 ## `EXIST_DOMAIN` form by file type
 
 - compose `*.exist.yml` → `${EXIST_DOMAIN}` / `${SLUG_VAR:-…$EXIST_DOMAIN}` — **preferred**.
