@@ -12,5 +12,9 @@ hooks:
 shared_routines:
   minio-bucket:
     enabled: true
+  minio-service-account:
+    enabled: true
+  workspace-sync:
+    enabled: false
   clean-runs:
     enabled: false

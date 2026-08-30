@@ -3,6 +3,11 @@ services:
     container_name: appsmith
     image: index.docker.io/appsmith/appsmith-ce:v2.3
     restart: unless-stopped
+    # Bundles its own JVM backend, Mongo client and nginx in one container.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     networks:
       - exist
     # ports disabled — access via https://appsmith.<domain> (Caddy + pihole required)
@@ -28,6 +33,11 @@ services:
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
     restart: unless-stopped
+    # Sidecar: bash.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     environment:

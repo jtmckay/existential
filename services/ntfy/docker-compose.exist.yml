@@ -4,12 +4,21 @@ services:
     image: binwiederhier/ntfy:v2.27.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Go binary with a SQLite message cache; ~20 MiB measured.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     # ports disabled — access via https://ntfy.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 44680:80
+    # entrypoint.sh creates the admin and bot users from the env below, then
+    # execs `ntfy serve`. server.yml denies every publish by default, so without
+    # it a fresh install accepts nothing until someone runs `run ntfy setup`.
+    entrypoint: /entrypoint.sh
     command:
       - serve
     environment:
@@ -17,10 +26,19 @@ services:
       # Resolved at container start from EXIST_DOMAIN. ntfy reads NTFY_<KEY> for
       # any server.yml key and env wins, so this needs no re-render to change.
       - NTFY_BASE_URL=${NTFY_BASE_URL:-https://ntfy.$EXIST_DOMAIN}
+      # Your login for the web UI and the mobile apps (services/ntfy/.env).
+      - NTFY_ADMIN_USER=${NTFY_ADMIN_USER:-}
+      - NTFY_ADMIN_PASSWORD=${NTFY_ADMIN_PASSWORD:-}
+      # The publisher every service shares — named once in .env.shared so the
+      # sending and receiving halves can never disagree about the credential.
+      - NTFY_BOT_USER=${EXIST_NTFY_USER:-}
+      - NTFY_BOT_PASSWORD=${EXIST_NTFY_PASSWORD:-}
+      - NTFY_BOT_TOPICS=${EXIST_NTFY_TOPICS:-*}
     volumes:
       # Message + attachment cache (transient, TTL'd) — a _cache, not backed up.
       - ntfy_cache:/var/lib/ntfy
       - ./ntfy-config:/etc/ntfy:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
     healthcheck: # optional: remember to adapt the host:port to your environment
       test:
         [

@@ -58,6 +58,30 @@ automatable_quests() {
     done
 }
 
+# A quest may name an env var the RUNNER has to supply — something no fixture can
+# fake because it is real infrastructure outside the clone:
+#
+#   e2e_requires: EXIST_E2E_OLLAMA_URL
+#
+# The point is Core. Core is only meaningful with a chat model behind it, and a
+# CI box has no GPU — so instead of dropping the flagship path from e2e
+# entirely, it runs against an ollama someone else is hosting. Set the var and
+# Core is exercised for real; leave it unset and the quest skips with a reason
+# rather than failing in a way that looks like a bug in the stack.
+quest_requires() { quest_fm "$1" | grep '^e2e_requires:' | sed 's/^e2e_requires:[[:space:]]*//'; }
+
+# 0 when every requirement is satisfied; otherwise 1, having said what is missing.
+quest_requirements_met() {
+    local yaml="$1" var missing=""
+    for var in $(quest_requires "$yaml"); do
+        [ -n "${!var:-}" ] || missing+="${var} "
+    done
+    [ -z "$missing" ] && return 0
+    log "SKIP $(quest_name "$yaml") — needs: ${missing}"
+    log "     e.g. ${missing%% *}=http://192.168.1.20:11434 ./existential.sh e2e ..."
+    return 1
+}
+
 # Resolve name patterns (e.g. "automation" or "ai finance") to automatable
 # quest file paths. Each pattern is matched case-insensitively against the
 # quest's `name:` field and its filename. A pattern that matches only a
@@ -351,9 +375,34 @@ run_quest() {
     grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
     grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
+    # 2b. An externally-hosted ollama, when the runner supplied one. This is the
+    # `external` GPU vendor: no local ollama, no device reservation to satisfy,
+    # and every model call goes to the other box. It is the only way a GPU-less
+    # runner can exercise a quest whose whole point is the agent.
+    if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ]; then
+        log "Using external ollama: ${EXIST_E2E_OLLAMA_URL}"
+        _env_put() {
+            if grep -q "^${1}=" "$WORK/.env.shared"; then
+                sed -i "s|^${1}=.*|${1}=${2}|" "$WORK/.env.shared"
+            else
+                printf '%s=%s\n' "$1" "$2" >> "$WORK/.env.shared"
+            fi
+        }
+        _env_put EXIST_GPU_VENDOR   external
+        _env_put EXIST_OLLAMA_URL   "$EXIST_E2E_OLLAMA_URL"
+        _env_put EXIST_IS_AI_OLLAMA false
+    fi
+
     # 3. Enable this quest's services
     log "Enabling services..."
     for var in $(quest_vars "$yaml"); do
+        # An external ollama means the quest's own EXIST_IS_AI_OLLAMA=true would
+        # start a second, model-less one on the runner. The remote box is the
+        # ollama; skip that one flag and enable everything else.
+        if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ] && [ "$var" = "EXIST_IS_AI_OLLAMA" ]; then
+            log "  skipping ${var} — models come from ${EXIST_E2E_OLLAMA_URL}"
+            continue
+        fi
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
     done
 
@@ -510,11 +559,30 @@ for yaml in "${SELECTED_YAMLS[@]}"; do
     log "  • ${name}"
 done
 
-preflight_check "${SELECTED_YAMLS[@]}"
-
-declare -a PASS=() FAIL=()
+# Filter on runner-supplied requirements BEFORE preflight. preflight demands the
+# container names be free, which is a real requirement for a quest that is going
+# to run — and pure noise for one that is about to skip. Asking someone to tear
+# down their stack to be told "skipped" is the wrong order.
+declare -a PASS=() FAIL=() SKIP=() RUNNABLE=()
 
 for yaml in "${SELECTED_YAMLS[@]}"; do
+    if quest_requirements_met "$yaml"; then
+        RUNNABLE+=("$yaml")
+    else
+        SKIP+=("$(quest_name "$yaml")")
+    fi
+done
+
+if [ "${#RUNNABLE[@]}" -eq 0 ]; then
+    hr
+    log "Results: 0 passed, 0 failed, ${#SKIP[@]} skipped"
+    log "  Skipped: ${SKIP[*]}"
+    exit 0
+fi
+
+preflight_check "${RUNNABLE[@]}"
+
+for yaml in "${RUNNABLE[@]}"; do
     name=$(quest_name "$yaml")
     if run_quest "$yaml"; then
         PASS+=("$name")
@@ -526,9 +594,10 @@ for yaml in "${SELECTED_YAMLS[@]}"; do
 done
 
 hr
-log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed"
-[ "${#PASS[@]}" -gt 0 ] && log "  Passed: ${PASS[*]}"
-[ "${#FAIL[@]}" -gt 0 ] && log "  Failed: ${FAIL[*]}"
+log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed, ${#SKIP[@]} skipped"
+[ "${#PASS[@]}" -gt 0 ] && log "  Passed:  ${PASS[*]}"
+[ "${#FAIL[@]}" -gt 0 ] && log "  Failed:  ${FAIL[*]}"
+[ "${#SKIP[@]}" -gt 0 ] && log "  Skipped: ${SKIP[*]}"
 hr
 
 [ "${#FAIL[@]}" -eq 0 ]

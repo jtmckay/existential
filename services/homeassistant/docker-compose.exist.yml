@@ -3,6 +3,11 @@ services:
     container_name: homeassistant
     image: ghcr.io/home-assistant/home-assistant:2026.8.2
     restart: unless-stopped
+    # ~102 MiB idle; grows with integrations and the recorder database.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - exist
     volumes:

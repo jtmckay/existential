@@ -4,6 +4,11 @@ services:
     image: redis:alpine
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Nextcloud's file-lock and session cache. A cap matters — redis will fill what it is given.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     command:

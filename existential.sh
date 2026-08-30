@@ -145,24 +145,27 @@ _detect_host_ip() {
     printf '%s' "$ip"
 }
 
-# Upgrade path for checkouts rendered before EXIST_HOST_IP existed, and for any
-# .env.shared left with a blank IP or domain. Both values are only ever FILLED
-# IN, never overwritten: a user who typed a real domain, or who deliberately
-# wants .internal with pihole, keeps it.
+# Retry host detection when it previously came up empty.
+#
+# A key that is MISSING from .env.shared is not this function's problem: the
+# reconciler in src/templates.sh (_reconcile_env_keys) appends any key the
+# template has and the rendered file lacks, and it resolves EXIST_HOST_IP and
+# EXIST_NIP_DOMAIN on the way through. What is left here is the other case —
+# the key exists but is blank because detection failed on an earlier run (no
+# tailscale, no default route yet, first boot before the network was up).
+#
+# Both values are only ever FILLED IN, never overwritten: a user who typed a real
+# domain, or who deliberately wants .internal with pihole, keeps it.
 _ensure_host_access() {
     local f="${SCRIPT_DIR}/.env.shared"
     [[ -f "$f" ]] || return 0
 
     local ip
     ip=$(grep -m1 '^EXIST_LOCAL_HOST_IP=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
-    if [[ -z "$ip" ]]; then
+    if [[ -z "$ip" ]] && grep -q '^EXIST_LOCAL_HOST_IP=' "$f"; then
         ip="$(_detect_host_ip)"
         if [[ -n "$ip" ]]; then
-            if grep -q '^EXIST_LOCAL_HOST_IP=' "$f"; then
-                sed -i "s|^EXIST_LOCAL_HOST_IP=.*|EXIST_LOCAL_HOST_IP=${ip}|" "$f"
-            else
-                printf 'EXIST_LOCAL_HOST_IP=%s\n' "$ip" >> "$f"
-            fi
+            sed -i "s|^EXIST_LOCAL_HOST_IP=.*|EXIST_LOCAL_HOST_IP=${ip}|" "$f"
             if [[ "$ip" =~ ^100\.([6-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]; then
                 echo "Detected tailnet IP: ${ip} (reachable from every device on your tailnet)"
             else
@@ -173,13 +176,9 @@ _ensure_host_access() {
 
     local domain
     domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
-    if [[ -z "$domain" && -n "$ip" ]]; then
+    if [[ -z "$domain" && -n "$ip" ]] && grep -q '^EXIST_DOMAIN=' "$f"; then
         domain="${ip//./-}.nip.io"
-        if grep -q '^EXIST_DOMAIN=' "$f"; then
-            sed -i "s|^EXIST_DOMAIN=.*|EXIST_DOMAIN=${domain}|" "$f"
-        else
-            printf 'EXIST_DOMAIN=%s\n' "$domain" >> "$f"
-        fi
+        sed -i "s|^EXIST_DOMAIN=.*|EXIST_DOMAIN=${domain}|" "$f"
         echo "Set EXIST_DOMAIN=${domain} (public wildcard DNS — every <slug>.<domain> resolves to ${ip}, no pihole needed)"
     fi
 }
@@ -454,6 +453,9 @@ _run_general_utility() {
         # and reclaiming ownership of the repo from inside a container bind-mounted
         # into that same repo is exactly the thing it is repairing.
         fix-permissions) bash "${SCRIPT_DIR}/src/lib/fix-permissions.sh" "$@" ;;
+        # Host-side: reads `docker stats` so it can put observed usage next to
+        # the declared ceilings, and adhoc has no docker socket.
+        footprint)      bash "${SCRIPT_DIR}/src/lib/footprint.sh" "$@" ;;
         *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
 }

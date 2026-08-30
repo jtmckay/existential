@@ -1,15 +1,21 @@
 ---
 cron: "*/15 * * * *"
 routine: service-health
-SERVICE_NAME: grafana
-SERVICE_URL: http://grafana:3000/api/health
+SERVICE_NAME: decree-webhook
+SERVICE_URL: http://decree-webhook:8801/healthz
 ---
 
 Health check cron template for all services accessible from the main decree
 daemon on the exist Docker network.
 
 Each check is a separate cron file. Copy this file and adjust SERVICE_NAME and
-SERVICE_URL for each service you want to monitor. Results appear in Grafana via
+SERVICE_URL for each service you want to monitor.
+
+The shipped default checks decree-webhook, which lives in this same service
+directory — so it is present whenever this cron is. Point it at a service that
+is NOT enabled and the check fails every run and dead-letters forever, which is
+exactly what a default of `grafana` used to do on every Core install (Core does
+not include grafana). Results appear in Grafana via
 Prometheus (decree_run_success metric) and Loki (routine logs).
 
 Prometheus alert: decree_run_success{instance="health-<SERVICE_NAME>"} == 0

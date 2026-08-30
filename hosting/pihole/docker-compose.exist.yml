@@ -20,6 +20,11 @@ services:
     container_name: pihole
     image: pihole/pihole:2026.07.2
     restart: unless-stopped
+    # DNS + a small web UI. The query log is on disk, not in memory.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     networks:
       - exist
     ports:

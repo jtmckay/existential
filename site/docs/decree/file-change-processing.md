@@ -13,18 +13,25 @@ running routine. If you are here to see what the system *does*, start at
 
 React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `minio-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a signed URL if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
+A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file-processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
+
 ```mermaid
 flowchart LR
     A["📦 MinIO\nbucket event"] -->|POST /minio| B
 
     subgraph decree["Decree"]
-        B["minio-router\nparse S3 event"]
+        B["minio-router\nPATTERN on the path"]
         C["file-processor\ndownload via rclone"]
+        G{"CRITERIA\nmatch?"}
         D1["processor A"]
         D2["processor B"]
+        E["agent-task\nopencode → hermes"]
         B -->|"one outbox message\nper matching processor"| C
-        C --> D1
-        C --> D2
+        C --> G
+        G -->|"no criteria,\nor YES"| D1
+        G -->|"no criteria,\nor YES"| D2
+        G -->|"NO"| X["skip"]
+        D1 -.->|"optional handoff"| E
     end
 
     subgraph storage["rclone remote"]
@@ -84,6 +91,8 @@ Create `automations/lib/file-processors/<name>.sh`:
 #!/usr/bin/env bash
 # PATTERN is matched against FILE_SOURCE: "<rclone_src>:<bucket>/<object-key>"
 PATTERN="minio:documents/.*\.pdf$"
+# CRITERIA is optional. Empty = the path match is the whole test.
+CRITERIA=""
 IS_PRE_SIGNED=false
 
 set -euo pipefail
@@ -109,12 +118,14 @@ echo "Processing $FILE_PATH"
 | `FILE_ACTION` | `created` \| `removed` | Event type |
 | `FILE_PATH` | `/tmp/file.pdf.xK3rQp` | Local temp file (empty for `removed` or when `IS_PRE_SIGNED=true`) |
 | `PRE_SIGNED_URL` | `https://…` | Signed URL (set when `IS_PRE_SIGNED=true`, otherwise empty) |
+| `FILE_MATCH_REASON` | `Names a vendor and a due date` | The model's one-line reason the criteria gate passed (empty when `CRITERIA` is unset) |
 
 **Script settings:**
 
 | Setting | Default | Description |
 |---|---|---|
 | `PATTERN` | *(required)* | Regex matched against `FILE_SOURCE` |
+| `CRITERIA` | *(empty)* | Plain-English test of the file's content; empty means the path match is the whole test |
 | `IS_PRE_SIGNED` | `false` | If `true`, skip download and set `PRE_SIGNED_URL` instead |
 
 **Pattern tips:**
@@ -207,3 +218,114 @@ ls automations/runs/
 docker exec decree decree routine minio-router
 docker exec decree decree routine file-processor
 ```
+
+## Matching on content, not just path
+
+Add a `CRITERIA` line and `file-processor` puts the downloaded file to the model
+before running your script:
+
+```bash
+PATTERN="minio:workspace/.*\.md$"
+CRITERIA="an open question the author has not resolved"
+```
+
+The gate is deliberately stingy — it answers `NO` unless the document genuinely
+matches, because a `YES` usually costs a full agent run downstream. On a match,
+`FILE_MATCH_REASON` carries the model's one-line reason into your script.
+
+Three things to know:
+
+- **It costs one model call per file that got past `PATTERN`.** Keep the pattern
+  narrow enough that the gate is not asked about everything.
+- **It only works on text.** For `IS_PRE_SIGNED=true` processors and for
+  `removed` events there is nothing on disk to judge, so the gate is skipped and
+  the processor runs on the path match alone.
+- **No answer is not the same as no match.** If the gateway is down or times out,
+  `file-processor` fails the message so Decree retries it, rather than silently
+  dropping the file — which would look exactly like a clean `NO`.
+
+## Handing off to an agent
+
+A processor's real job is usually to decide *that* something should happen, not
+to do it. `agent-task` is the routine that does it: it runs `opencode run`
+against hermes and files the answer in `workspace/ai/`.
+
+```bash
+cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" << EOF
+---
+routine: agent-task
+file_path: notes/plan.md
+output_name: plan-followup
+prompt: $(jq -rn --arg v "Read this note and work out what can be settled without the author." '$v|@json')
+---
+
+## Matching on content, not just path
+
+Add a `CRITERIA` line and `file-processor` puts the downloaded file to the model
+before running your script:
+
+```bash
+PATTERN="minio:workspace/.*\.md$"
+CRITERIA="an open question the author has not resolved"
+```
+
+The gate is deliberately stingy — it answers `NO` unless the document genuinely
+matches, because a `YES` usually costs a full agent run downstream. On a match,
+`FILE_MATCH_REASON` carries the model's one-line reason into your script.
+
+Three things to know:
+
+- **It costs one model call per file that got past `PATTERN`.** Keep the pattern
+  narrow enough that the gate is not asked about everything.
+- **It only works on text.** For `IS_PRE_SIGNED=true` processors and for
+  `removed` events there is nothing on disk to judge, so the gate is skipped and
+  the processor runs on the path match alone.
+- **No answer is not the same as no match.** If the gateway is down or times out,
+  `file-processor` fails the message so Decree retries it, rather than silently
+  dropping the file — which would look exactly like a clean `NO`.
+
+## Handing off to an agent
+
+A processor's real job is usually to decide *that* something should happen, not
+to do it. `agent-task` is the routine that does it: it runs `opencode run`
+against hermes and files the answer in `workspace/ai/`.
+
+```bash
+cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" << MSG
+---
+routine: agent-task
+file_path: notes/plan.md
+output_name: plan-followup
+prompt: Read this note and work out what can be settled without the author.
+---
+MSG
+```
+
+Because OpenCode is pointed at hermes — an agent gateway that runs its own tool
+loop — it inherits every MCP server hermes has registered: OpenViking search,
+Firecrawl web search, Playwright. The prompt does not name tools; it says what it
+wants, and hermes decides what to reach for.
+
+`agent-task` needs `DECREE_AI=opencode` (already set in
+`services/decree/.env.exist`) and the rendered `services/decree/opencode.json`,
+which points at `http://hermes-agent:8642/v1`.
+
+## Triggering on workspace edits
+
+MinIO fires events for objects written through its own API. Editing a file in
+`workspace/` writes to a bind mount, which fires nothing — so the Workspace Agent
+quest (`src/quests/auto-workspace-agent.md`) adds a `workspace-sync` routine that
+mirrors `workspace/` into a `workspace` bucket on a cron. The mirror is what
+produces the events.
+
+That sync excludes `workspace/ai/`, and the exclusion is load-bearing:
+`workspace/ai/` is where `agent-task` writes, so syncing it would make every
+answer an event and every event another run. OpenViking indexes it straight off
+disk regardless, so past output stays searchable — it simply cannot trigger
+anything.
+
+Two ordering rules follow from the sync being a full mirror:
+
+1. **Sync once before subscribing the bucket.** The first pass uploads the whole
+   workspace, and against a subscribed bucket that arrives as one event per file.
+2. **Detection is a poll.** A change takes up to one cron interval to be noticed.

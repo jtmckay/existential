@@ -30,10 +30,6 @@ copies:
     dst: ai/hermes/decree/cron/
     label: "hermes: volume-backup-weekly.md"
     requires: EXIST_IS_AI_HERMES
-  - src: ai/openviking/decree/migrations.example/01-watch-notes.md
-    dst: ai/openviking/decree/migrations/
-    label: "openviking: 01-watch-notes.md (register watched dirs on first boot)"
-    requires: EXIST_IS_AI_OPENVIKING
   - src: ai/openviking/decree/cron.example/openviking-volume-backup-nightly.md
     dst: ai/openviking/decree/cron/
     label: "openviking: volume-backup-nightly.md"
@@ -90,14 +86,22 @@ in the UI, or place .safetensors files directly in:
 
 Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 
-── OpenViking: watch directories + notes sync ────────────────────────────
+── OpenViking: your knowledgebase ────────────────────────────────────────
 
-The copies section below activates the migration that registers /app/notes
-and /app/resources as watched directories on first boot.
+Your knowledgebase is the workspace/ directory at the repo root — the same
+tree hermes and code-server share, so everything you work on is indexed
+without a second directory to keep in step. ./existential.sh creates it and
+activates the indexer cron, so there is nothing to set up: the sidecar
+uploads new and changed files every 15 minutes, and hermes searches them
+through the openviking MCP server.
 
-To sync notes from an rclone remote, set SYNC_REMOTE and SYNC_DEST in the
-cron frontmatter, then activate:
-  cp ai/openviking/decree/cron.example/openviking-sync-notes.md \
-     ai/openviking/decree/cron/
-Each cron file is independent — add more to sync additional sources on
-different schedules without touching the routine.
+workspace/ai/ holds the output of the agent automations. It is indexed like
+everything else, so an agent can find what an earlier run produced.
+
+Subdirectories are preserved. Deleting a file on disk removes it from the
+index on the next run.
+
+To index a second directory, copy
+ai/openviking/decree/cron.example/openviking-index-knowledgebase.md to
+decree/cron/ under a new name and give it its own INDEX_DIR and
+INDEX_PREFIX.

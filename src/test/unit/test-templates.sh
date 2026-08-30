@@ -282,6 +282,112 @@ else
 fi
 rmdir "$TMP/services/dashy/dashy-conf.exist.yml"
 
+# ── Key-level reconcile of rendered .env files ────────────────────────────────
+# A rendered .env is never overwritten, so a key ADDED to the template upstream
+# would otherwise never reach an install that already rendered it. These cover
+# the four invariants that make append-on-every-run safe.
+
+mkdir -p "$TMP/services/recon"
+_RSRC="$TMP/services/recon/.env.exist"
+_RDST="$TMP/services/recon/.env"
+
+# A new static key arrives with its documentation, and nothing already in the
+# file moves — including a value the user edited away from the template default.
+cat > "$_RSRC" <<'EOF'
+# What the old key does.
+RECON_OLD=default-value
+
+# What the new key does, and the one thing that breaks if it is wrong.
+RECON_NEW=new-default
+EOF
+printf '# What the old key does.\nRECON_OLD=user-edited-this\n' > "$_RDST"
+out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
+assert_contains "new static key appended"            "RECON_NEW=new-default"    "$(cat "$_RDST")"
+assert_contains "the key's own comment came with it" "one thing that breaks"    "$(cat "$_RDST")"
+assert_contains "user's edited value survives"       "RECON_OLD=user-edited-this" "$(cat "$_RDST")"
+assert_not_contains "template default did not overwrite it" "RECON_OLD=default-value" "$(cat "$_RDST")"
+assert_contains "the added key is reported"          "+ RECON_NEW"              "$out"
+
+# A new key whose template value is a generated secret gets a real one — a newly
+# arrived service needs its own credential, not a shared or literal placeholder.
+printf 'RECON_OLD=default-value\nRECON_KEY=EXIST_32_CHAR_HEX_KEY\n' > "$_RSRC"
+printf 'RECON_OLD=user-edited-this\n' > "$_RDST"
+_reconcile_env_keys "$_RSRC" "$_RDST" >/dev/null
+assert_contains "new secret key got a generated value" "RECON_KEY=HX" "$(cat "$_RDST")"
+assert_not_contains "the literal placeholder never lands" "EXIST_32_CHAR_HEX_KEY" "$(cat "$_RDST")"
+
+# A new EXIST_CLI key is a question whose answer is the user's. It arrives blank
+# — the established "not yet answered" sentinel — rather than guessed from
+# DEFAULT_FROM, which resolves against the template and could contradict the user.
+printf 'RECON_OLD=default-value\n# DEFAULT_FROM: RECON_OLD\nRECON_ASK=EXIST_CLI\n' > "$_RSRC"
+printf 'RECON_OLD=user-edited-this\n' > "$_RDST"
+out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
+assert_eq "new EXIST_CLI key appended blank" "RECON_ASK=" "$(grep '^RECON_ASK=' "$_RDST")"
+assert_contains "EXIST_CLI key flagged as needing a value" "needs a value" "$out"
+
+# Blank is load-bearing (EXIST_VRAM_GB = not yet asked, EXIST_OLLAMA_URL_<ROLE> =
+# fall back to the global URL), so a key that is present and empty is left alone.
+printf 'RECON_BLANK=has-a-default\n' > "$_RSRC"
+printf 'RECON_BLANK=\n' > "$_RDST"
+_reconcile_env_keys "$_RSRC" "$_RDST" >/dev/null
+assert_eq "an existing blank value is never filled" "RECON_BLANK=" "$(grep '^RECON_BLANK=' "$_RDST")"
+
+# Append-only in the other direction too: a key the user added and the template
+# does not have is not the reconciler's business. `validate drift` reports those.
+printf 'RECON_OLD=x\n' > "$_RSRC"
+printf 'RECON_OLD=x\nRECON_MINE=keep-me\n' > "$_RDST"
+_reconcile_env_keys "$_RSRC" "$_RDST" >/dev/null
+assert_contains "a locally added key is never removed" "RECON_MINE=keep-me" "$(cat "$_RDST")"
+
+# A file that does not end in a newline must not get the stamp glued to its last
+# value.
+printf 'RECON_OLD=x\nRECON_TAIL=t\n' > "$_RSRC"
+printf 'RECON_OLD=mine' > "$_RDST"
+_reconcile_env_keys "$_RSRC" "$_RDST" >/dev/null
+assert_eq "no trailing newline does not corrupt the last value" \
+    "RECON_OLD=mine" "$(grep '^RECON_OLD=' "$_RDST")"
+assert_contains "and the new key still lands" "RECON_TAIL=t" "$(cat "$_RDST")"
+
+# The regression that matters most, because it runs on every single invocation:
+# an install that is already current must come out byte-identical and silent.
+printf 'RECON_OLD=x\n' > "$_RSRC"
+printf 'RECON_OLD=mine\n' > "$_RDST"
+_before="$(md5sum < "$_RDST")"
+out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
+assert_eq "no new keys leaves the file byte-identical" "$_before" "$(md5sum < "$_RDST")"
+assert_eq "no new keys prints nothing"                 ""        "$out"
+assert_not_contains "no new keys stamps no header" "$_RECONCILE_MARKER" "$(cat "$_RDST")"
+
+# Wiring: the .env guard in _process_one_template still refuses to overwrite
+# (returns 1) but reconciles on the way past.
+printf 'RECON_OLD=x\nRECON_HOOKED=yes\n' > "$_RSRC"
+printf 'RECON_OLD=mine\n' > "$_RDST"
+_rc=0; _process_one_template "$_RSRC" >/dev/null || _rc=$?
+assert_eq ".env is still render-once (returns 1)" "1" "$_rc"
+assert_contains "the .env guard reconciled on the way past" "RECON_HOOKED=yes" "$(cat "$_RDST")"
+assert_contains "the user's value was still not overwritten" "RECON_OLD=mine" "$(cat "$_RDST")"
+
+# A key appended to .env.shared has to be visible for the REST of the same run.
+# The case that bites is a new EXIST_IS_<CATEGORY>_<SLUG>: service_is_enabled
+# decides from the loaded environment whether a service dir is even visited, so
+# without a reload after reconcile a newly arrived service would be skipped for a
+# whole run and only appear on the next one.
+mkdir -p "$TMP/ai/newsvc"
+printf 'EXIST_DOMAIN=example.test\nEXIST_IS_AI_NEWSVC=true\n' > "$TMP/.env.exist.shared"
+printf 'EXIST_DOMAIN=example.test\n' > "$TMP/.env.shared"
+printf 'NEWSVC_URL=https://newsvc.${EXIST_DOMAIN}\n' > "$TMP/ai/newsvc/.env.exist"
+_main >/dev/null 2>&1 || true
+assert_contains "a newly appended EXIST_IS_* flag lands in .env.shared" \
+    "EXIST_IS_AI_NEWSVC=true" "$(cat "$TMP/.env.shared")"
+if [[ -f "$TMP/ai/newsvc/.env" ]]; then
+    _ok "the service it enables renders in the same run"
+    assert_contains "and renders against the existing shared values" \
+        "NEWSVC_URL=https://newsvc.example.test" "$(cat "$TMP/ai/newsvc/.env")"
+else
+    _fail "the service it enables renders in the same run" \
+        "ai/newsvc/.env absent — the new flag was not reloaded"
+fi
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

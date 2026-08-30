@@ -12,6 +12,36 @@ it, and `./existential.sh` merges it into the single `.env` the stack runs on.
 The file itself carries one line per key. This page is the long version — why each value
 exists, what breaks when you change it, and which ones you should never set by hand.
 
+## What happens when you `git pull`
+
+Rendered files are written once and never overwritten — that is what keeps your edits and your
+generated secrets. On its own that would mean a key added upstream never reached you: your
+`.env.shared` already exists, so it gets skipped, and the new setting is silently empty
+everywhere that reads it.
+
+So `./existential.sh` reconciles `.env` files by **key** on every run. Any key the template has
+and your file does not is appended in a stamped block at the end, with its comment, and named in
+the output:
+
+```
+  updated: .env.shared — 2 new key(s) from the template
+    + EXIST_NTFY_USER
+    + EXIST_PUBLIC_DOMAIN  (needs a value)
+```
+
+`git pull && ./existential.sh` is the upgrade. Four things it will never do:
+
+- **Change a value you set.** It only ever appends keys that are absent.
+- **Fill in a blank.** Blank is meaningful here — `EXIST_VRAM_GB` blank means "not asked yet",
+  and a blank `EXIST_OLLAMA_URL_<ROLE>` means "fall back to the global URL".
+- **Remove anything.** A key you added that the template lacks stays.
+  `./existential.sh validate drift` lists those.
+- **Ask you a question.** A key that needs your input arrives blank and is flagged
+  `(needs a value)` — fill it in and re-run.
+
+New services arrive switched off, since their `EXIST_IS_<CATEGORY>_<SLUG>` flag is appended as
+`false`. Run `./existential.sh quest` to turn one on.
+
 ## Service enablement
 
 `EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder. That flag is the whole
@@ -105,16 +135,55 @@ that merely runs at 3B speed.
   [piper-samples](https://rhasspy.github.io/piper-samples/)). This is not whisperx: that
   one runs on the GPU and transcribes long recordings with speaker labels.
 
-### Ollama somewhere else
+## Endpoints — putting roles on different machines {#endpoints}
 
-`EXIST_OLLAMA_URL` (default `http://ollama:11434`) is the single place the ollama address is
-named. Point it at another machine — `http://192.168.1.20:11434` — to run the models on a GPU
-box while the rest of the stack stays here, and disable `EXIST_IS_AI_OLLAMA` if nothing local
-serves them. Re-run `./existential.sh` to propagate it.
+`EXIST_OLLAMA_URL` (default `http://ollama:11434`) is the address every model role uses
+unless it has one of its own. Point it at another machine — `http://192.168.1.20:11434` — to
+run the models on a GPU box while the rest of the stack stays here, and disable
+`EXIST_IS_AI_OLLAMA` if nothing local serves them.
 
-Hermes stores the endpoint in its own `config.yaml`, so `exist.initial.sh` reconciles that
-`base_url` on every run — but only while it still points at an ollama (`:11434`). A `base_url`
-you aimed at some other provider by hand is treated as a preference and left alone.
+The **Model Endpoints** block in `.env.shared` then lets each role go somewhere different, so
+VRAM is spread rather than shared. Every key ships **blank**, and blank means "wherever
+`EXIST_OLLAMA_URL` points" — leave them alone and nothing changes.
+
+| Key | Role | Who reads it |
+|---|---|---|
+| `EXIST_OLLAMA_URL_CHAT` | Chat / reasoning | hermes, open-webui |
+| `EXIST_OLLAMA_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
+| `EXIST_OLLAMA_URL_EMBED` | Embeddings | openviking's vector store, honcho |
+| `EXIST_OLLAMA_URL_VISION` | Vision / OCR | image-ocr, telegram-receipt |
+
+A worked split, with a 24 GB card and an 8 GB one:
+
+```bash
+EXIST_OLLAMA_URL=http://bigbox:11434       # chat and extraction land here
+EXIST_OLLAMA_URL_EMBED=http://littlebox:11434
+EXIST_OLLAMA_URL_VISION=http://littlebox:11434
+```
+
+Chat keeps the big card to itself; embeddings and OCR — small models under bursty load — stop
+evicting it. Re-run `./existential.sh` to propagate, then
+`docker compose restart honcho hermes-agent openviking`.
+
+`./existential.sh run models` prints where each role currently resolves, and the roles are the
+same vocabulary `ollama-pull` uses, so a migration pulls each model **to the machine that will
+serve it** with no per-migration edits.
+
+Two things do not follow the block:
+
+- Hermes stores the endpoint in its own `config.yaml`, so `exist.initial.sh` reconciles that
+  `base_url` on every run — but only while it still points at an ollama (`:11434`). A
+  `base_url` you aimed at some other provider by hand is a preference and is left alone.
+- OpenViking writes `ov.conf` once. Delete it and re-run to repoint an existing install.
+
+### Speech has no endpoint keys
+
+`wyoming-whisper` and `wyoming-piper` run on **CPU** by design, so moving them frees no VRAM and
+there is nothing for this block to spread. They are also reached over raw TCP, addressed by a
+host and port typed into Home Assistant's Wyoming integration — which no file in this repo
+controls. To run one on another machine, publish its port there (the commented `ports:` block in
+that service's compose file), disable the service here, and point Home Assistant at the other
+host.
 
 ## GPU vendor
 
@@ -212,5 +281,9 @@ The remaining keys are secrets shared *between* services, generated on render:
   message it and read the chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
 - `EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN` — the bearer token minIO uses when posting to
   decree's `/minio` webhook endpoint.
+- `EXIST_MINIO_NEXTCLOUD_ACCESS_KEY` / `EXIST_MINIO_NEXTCLOUD_SECRET_KEY` — the bucket-scoped
+  MinIO identity Nextcloud mounts `/S3` with, created by minIO's
+  `02-create-nextcloud-service-account` migration. Not the console login — see
+  [MinIO](./storage/minio.md).
 - `EXIST_MINIO_DOMAIN`, `EXIST_MINIO_SERVER_URL`, `EXIST_NEXTCLOUD_DOMAIN`,
   `EXIST_REDIS_PASSWORD` — see [Storage](./storage/index.md).

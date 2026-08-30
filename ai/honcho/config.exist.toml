@@ -6,8 +6,10 @@
 # Model names come from the "Model Selection" block in .env.shared, so honcho,
 # openviking and the ollama migrations always agree on which tags to use.
 # DB credentials come from DB_CONNECTION_URI env var (set in docker-compose).
-# All LLM calls route through ollama at EXIST_OLLAMA_URL (.env.shared) — the one
-# place that address is named, so pointing the stack at another host moves honcho too.
+# Endpoints come from the "Model Endpoints" block in .env.shared, one per ROLE, so
+# honcho's embeddings and its background extraction can sit on different machines.
+# Each per-role key falls back to EXIST_OLLAMA_URL when blank (resolved in
+# src/templates.sh), so a single-box install needs no change here.
 
 [app]
 LOG_LEVEL = "INFO"
@@ -26,7 +28,7 @@ transport = "openai"
 model = "EXIST_MODEL_EMBED"
 
 [embedding.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EMBED/v1"
 api_key = "ollama"
 
 # Deriver: background worker that builds the user representation.
@@ -40,16 +42,16 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [deriver.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
-# Dialectic reasoning levels — all use EXIST_MODEL_EXTRACT via Ollama.
+# Dialectic reasoning levels — all use EXIST_MODEL_EXTRACT at EXIST_OLLAMA_URL_EXTRACT.
 [dialectic.levels.minimal.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.minimal.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 [dialectic.levels.low.model_config]
@@ -57,7 +59,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.low.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 [dialectic.levels.medium.model_config]
@@ -65,7 +67,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.medium.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 [dialectic.levels.high.model_config]
@@ -73,7 +75,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.high.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 [dialectic.levels.max.model_config]
@@ -81,7 +83,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.max.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 # Session summaries
@@ -90,7 +92,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [summary.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 # Dream: background reflection on accumulated sessions
@@ -99,7 +101,7 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dream.deduction_model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"
 
 [dream.induction_model_config]
@@ -107,5 +109,5 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dream.induction_model_config.overrides]
-base_url = "EXIST_OLLAMA_URL/v1"
+base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
 api_key = "ollama"

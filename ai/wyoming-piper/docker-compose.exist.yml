@@ -61,7 +61,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 192M
 
 x-exist-volumes:
   wyoming_piper_cache: {}

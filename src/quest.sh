@@ -396,6 +396,27 @@ _newly_enabled=0
 # _apply_tier <gb> — write a tier's KEY=VALUEs to .env.shared and report it.
 # Shared by both paths below so the "No GPU" answer produces exactly the same
 # environment as picking the CPU tier by hand would.
+# Ask where the remote ollama lives. Chrome to stderr, the answer to stdout, so
+# the caller can capture it — same contract as the fzf pickers above.
+#
+# Validated only for shape, not reachability: the box may well be off right now,
+# and refusing to record a correct address because it is asleep would be worse
+# than accepting one that is wrong. `./existential.sh test services` is what
+# reports whether it actually answers.
+_ask_ollama_url() {
+    local current="${1:-}" answer
+    local default="${current:-http://192.168.1.20:11434}"
+    printf '     Where is ollama? [%s]\n     ❯ ' "$default" >&2
+    read -r answer
+    answer="${answer:-$default}"
+    answer="${answer%/}"
+    if [[ ! "$answer" =~ ^https?:// ]]; then
+        printf '     Not a URL — using %s. Fix it in .env.shared if wrong.\n' "$default" >&2
+        answer="$default"
+    fi
+    printf '%s\n' "$answer"
+}
+
 _apply_tier() {
     local _gb="$1" _k _v _tlabel _tchat _tctx _tsize
     while IFS="=" read -r _k _v; do
@@ -420,7 +441,23 @@ if [[ -z "$(env_get EXIST_GPU_VENDOR)" ]]; then
         echo ""
         echo "  ${_C_GREEN}✓${_C_RESET}  ${_vlabel}"
 
-        if [[ "$_vendor" == "none" ]]; then
+        if [[ "$_vendor" == "external" ]]; then
+            # The models live elsewhere, so nothing local should serve them —
+            # a running ollama here would pull multi-GB models onto a machine
+            # that never uses them. The VRAM question still applies, because it
+            # sizes the models the REMOTE box will hold.
+            env_set EXIST_IS_AI_OLLAMA false
+            echo "     No local ollama — models come from EXIST_OLLAMA_URL."
+            echo ""
+            _url="$(_ask_ollama_url "$(env_get EXIST_OLLAMA_URL)")"
+            [[ -n "$_url" ]] && env_set EXIST_OLLAMA_URL "$_url"
+            echo ""
+            echo "     How much VRAM does ${_url:-that machine} have?"
+            _picked="$(model_tier_pick "$MODEL_TIER_DEFAULT_GB" --gpu-only)"
+            if [[ -n "$_picked" ]]; then
+                _apply_tier "$_picked"
+            fi
+        elif [[ "$_vendor" == "none" ]]; then
             # No card, so there is no VRAM number to ask for. Pin the CPU tier
             # and move on; generate-compose.ts strips the GPU reservations.
             echo "     Everything runs on the CPU — no VRAM question needed."

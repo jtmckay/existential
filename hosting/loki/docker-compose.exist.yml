@@ -3,6 +3,13 @@ services:
     container_name: loki
     image: grafana/loki:3.2.0
     restart: unless-stopped
+    # ~120 MiB measured, including loki-config.yaml's 100 MB embedded results
+    # cache. A wide Grafana time range costs more; that spill goes to swap, which
+    # is the right trade for a query you run occasionally.
+    deploy:
+      resources:
+        limits:
+          memory: 384M
     # loki runs as uid 10001 internally; run as the host user instead so it can
     # write the host-owned bind-mounted loki_data (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
@@ -19,6 +26,11 @@ services:
     container_name: loki-promtail
     image: grafana/promtail:3.2.0
     restart: unless-stopped
+    # Tails decree's run logs and ships them. Steady ~50-80 MB.
+    deploy:
+      resources:
+        limits:
+          memory: 192M
     networks:
       - exist
     volumes:

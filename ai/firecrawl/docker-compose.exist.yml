@@ -30,7 +30,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 1G
     networks:
       - exist
     environment:
@@ -50,7 +50,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8G
+          memory: 2560M
     networks:
       - exist
     # ports disabled — access via http://firecrawl:3002 on the exist network
@@ -105,6 +105,11 @@ services:
     container_name: firecrawl-redis
     image: redis:8.6.4-alpine3.23
     restart: unless-stopped
+    # Job state. Capped for the same reason as the nextcloud redis.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     command: redis-server --bind 0.0.0.0
@@ -113,6 +118,11 @@ services:
     container_name: firecrawl-rabbitmq
     image: rabbitmq:4.3.1-management
     restart: unless-stopped
+    # Erlang broker; ~94 MiB idle. A backed-up crawl queue is what grows it.
+    deploy:
+      resources:
+        limits:
+          memory: 384M
     networks:
       - exist
     volumes:
@@ -133,6 +143,11 @@ services:
     container_name: firecrawl-mcp
     image: node:22-bullseye
     restart: unless-stopped
+    # Node MCP bridge; ~173 MiB idle.
+    deploy:
+      resources:
+        limits:
+          memory: 384M
     networks:
       - exist
     environment:
@@ -158,6 +173,11 @@ services:
       context: .
       dockerfile: Dockerfile.nuq-postgres
     restart: unless-stopped
+    # Postgres; ~135 MiB idle. Crawl results land here.
+    deploy:
+      resources:
+        limits:
+          memory: 384M
     networks:
       - exist
     environment:

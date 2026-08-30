@@ -277,9 +277,11 @@ function adjustEnvFile(
  * in Core. Stripping it here keeps the reservation in the templates — where it
  * is correct for the majority — rather than forking them per vendor.
  *
- * Applied for BOTH `none` and `amd`: an AMD card is no more able to satisfy a
- * `driver: nvidia` reservation than no card at all. What AMD gets instead comes
- * from the service's own `x-exist-gpu.amd` block — see applyGpuOverlay.
+ * Applied for `none`, `amd` and `external` alike: an AMD card is no more able to
+ * satisfy a `driver: nvidia` reservation than no card at all, and an `external`
+ * host has no card to reserve because the models are on another machine. What
+ * AMD gets instead comes from the service's own `x-exist-gpu.amd` block — see
+ * applyGpuOverlay.
  *
  * This only makes the containers *start*. A service whose whole job is GPU work
  * (comfyui; whisperx and chatterbox with their cuda settings) is still not
@@ -324,7 +326,7 @@ function stripGpuReservations(svc: Record<string, unknown>): Record<string, unkn
 const GPU_OVERLAY_KEY = 'x-exist-gpu';
 
 /** Vendors this generator knows how to wire. Mirrors src/utils/gpu-vendor.sh. */
-const GPU_VENDORS = ['nvidia', 'amd', 'none'] as const;
+const GPU_VENDORS = ['nvidia', 'amd', 'none', 'external'] as const;
 
 /**
  * Decide the GPU vendor from the environment.

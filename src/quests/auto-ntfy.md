@@ -9,37 +9,47 @@ services:
     label: Decree
 ---
 
-ntfy provides push notifications to any device. Decree and other services
-send alerts through it. After `docker compose up -d`:
+ntfy provides push notifications to any device. Decree and other services send
+alerts through it, and it sets itself up — there is no token to mint and nothing
+to copy between screens.
 
-── Step 1: Create a bot user and access token ────────────────────────────
+── What already happened ────────────────────────────────────────────────
 
-1. Open https://ntfy.x.internal in your browser.
-2. Sign in as admin (credentials set during ./existential.sh).
-3. Create a bot account: Settings → Users → Add user
-     username: decree-bot   (or any name)
-     role:     user
-4. Sign in as the bot user.
-5. Generate an access token: Account → Access tokens → Create
-6. Copy the token.
+On its first boot ntfy created two users from your generated credentials:
 
-── Step 2: Save the token to your stack ─────────────────────────────────
+  your admin login   services/ntfy/.env — NTFY_ADMIN_USER / NTFY_ADMIN_PASSWORD
+  the publisher      .env.shared — EXIST_NTFY_USER / EXIST_NTFY_PASSWORD
 
-Run the interactive token-save script:
+Decree publishes as the bot over basic auth. ntfy denies every publish by
+default (auth-default-access: deny-all), so the bot is the reason anything is
+delivered at all — and it is a plain user scoped to EXIST_NTFY_TOPICS, not an
+admin.
+
+── Step 1: Subscribe ────────────────────────────────────────────────────
+
+1. Install the ntfy app, or open https://ntfy.x.internal in a browser.
+2. Sign in with the admin credentials above.
+3. Subscribe to the "decree" topic — that is where routines report by default.
+   Individual routines can override it with `ntfy_topic:` in their frontmatter.
+
+── Step 2: Test a notification ──────────────────────────────────────────
+
+  ./existential.sh test ntfy
+
+Or send one by hand as the bot:
+
+  curl -u "$EXIST_NTFY_USER:$EXIST_NTFY_PASSWORD" \
+       -d "Hello from existential" \
+       http://ntfy.x.internal/decree
+
+── Optional: use a bearer token instead ─────────────────────────────────
+
   ./existential.sh run ntfy setup
 
-This writes EXIST_NTFY_URL and EXIST_NTFY_TOKEN to your .env.shared and
-enables the notify routine in Decree's config.yml.
-
-── Step 3: Test a notification ──────────────────────────────────────────
-
-  curl -H "Authorization: Bearer <token>" \
-       -d "Hello from existential" \
-       http://ntfy.x.internal/exist
-
-Install the ntfy app on your phone and subscribe to the "exist" topic
-for push notifications from your homelab.
+Mints a token for the bot and writes EXIST_NTFY_TOKEN to .env.shared. A token
+takes precedence over the user/password wherever both are set. You do not need
+this — it exists for sharing publish access without sharing the password.
 
 Telegram fallback:
-  If ntfy is unreachable, Decree falls back to Telegram if configured.
-  See the auto-telegram quest.
+  If ntfy rejects the publish or is unreachable, Decree falls back to Telegram
+  if configured. See the auto-telegram quest.

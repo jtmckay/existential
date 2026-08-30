@@ -23,6 +23,9 @@ RUN apt-get update \
     && curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64" \
         -o /usr/local/bin/yq \
     && chmod +x /usr/local/bin/yq \
+    && curl -fsSL "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.RELEASE.2025-08-13T08-35-41Z" \
+        -o /usr/local/bin/mc \
+    && chmod +x /usr/local/bin/mc \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
         -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \

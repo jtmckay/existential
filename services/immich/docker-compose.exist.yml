@@ -12,6 +12,11 @@ services:
     container_name: immich-server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
     restart: unless-stopped
+    # Photo library API plus thumbnail/transcode work.
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
     networks:
       - exist
     # ports disabled — access via https://immich-server.<domain> (Caddy + pihole required)
@@ -40,6 +45,11 @@ services:
     # Example tag: ${IMMICH_VERSION:-release}-cuda
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
     restart: unless-stopped
+    # Runs CLIP and face-recognition models; the models are resident.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     networks:
       - exist
     # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
@@ -58,6 +68,11 @@ services:
     image: docker.io/valkey/valkey:8
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Job queue for imports and thumbnails.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     healthcheck:
@@ -68,6 +83,11 @@ services:
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Postgres with vector extensions over the whole photo library.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - exist
     environment:

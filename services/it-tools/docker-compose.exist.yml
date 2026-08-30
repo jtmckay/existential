@@ -3,6 +3,11 @@ services:
     container_name: it-tools
     image: 'corentinth/it-tools:2024.10.22-7ca5933'
     restart: unless-stopped
+    # Static site behind nginx.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     # ports disabled — access via https://it-tools.<domain> (Caddy + pihole required)

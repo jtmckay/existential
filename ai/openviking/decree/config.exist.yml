@@ -10,9 +10,7 @@ hooks:
   beforeEach: /work/.decree/lib/hooks/config-watch.sh
   afterEach: /work/.decree/lib/hooks/afterEach.sh
 shared_routines:
-  openviking-sync:
-    enabled: true
-  openviking-watch-dirs:
+  openviking-index-dir:
     enabled: true
   volume-backup:
     enabled: true

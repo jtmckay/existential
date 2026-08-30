@@ -4,6 +4,11 @@ services:
     image: "lissy93/dashy:4.5.0"
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Static dashboard with status pings; ~35 MiB idle.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     volumes:
       # Read-only on purpose. dashy-conf.yml is regenerated on every
       # ./existential.sh run (see _ALWAYS_RENDER in src/templates.sh), so Dashy's

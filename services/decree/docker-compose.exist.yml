@@ -5,6 +5,11 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # The automation daemon. ~45 MiB idle, but it runs opencode and tsx in-process.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - exist
     environment:
@@ -13,6 +18,10 @@ services:
       - DECREE_INTERVAL=2
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
+      # ntfy denies every publish by default, so notify.sh needs a credential.
+      # These are created by ntfy's own entrypoint — nothing to run by hand.
+      - NTFY_USER=${EXIST_NTFY_USER:-}
+      - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
       - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
       - DECREE_NOTES_DIR=${DECREE_NOTES_DIR}
@@ -23,8 +32,15 @@ services:
       - HERMES_API_KEY=${HERMES_API_KEY:-}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - IN_CONTAINER=1
-      # Named once in .env.shared — routines (image-ocr, telegram-receipt) read it.
-      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
+      # OpenCode (agent-task) writes its state under $HOME. The container runs
+      # under an unprivileged uid with no home directory, and OpenCode fails
+      # without one — /data is the writable path it already has.
+      - HOME=/data
+      - OPENCODE_DISABLE_AUTOUPDATE=1
+      # Image work (image-ocr, telegram-receipt) is the VISION role, so it
+      # follows that endpoint and falls back to the global one when it is blank.
+      # See the "Model Endpoints" block in .env.exist.shared.
+      - OLLAMA_URL=${EXIST_OLLAMA_URL_VISION:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
     volumes:
@@ -38,6 +54,16 @@ services:
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
       - decree_data:/data:z
       - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
+      # The repo, read-only, so triage can run each enabled service's own
+      # exist.test.sh — they live with their services, not in this directory.
+      # Read-only on purpose: triage observes, it never repairs.
+      - ../../:/repo:ro
+      # The shared workspace, read-write: agent-task files its output in
+      # workspace/ai/. This is the only container that writes there.
+      - ../../workspace:/workspace:z
+      # OpenCode pointed at hermes, so agent-task inherits hermes' MCP
+      # servers (openviking, firecrawl, playwright) with no wiring here.
+      - ./opencode.json:/work/opencode.json:ro,z
     tty: false
 
   decree-webhook:
@@ -53,6 +79,11 @@ services:
     image: existential/decree-webhook:local
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Static Go binary on distroless; ~9 MiB idle and flat.
+    deploy:
+      resources:
+        limits:
+          memory: 64M
     depends_on:
       - decree
     networks:

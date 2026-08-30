@@ -75,6 +75,22 @@ render_template() {
             _vals["$key"]="$value"
         done < "${REPO_DIR}/.env.shared"
 
+        # Per-role model endpoints fall back to the global one when blank. Done
+        # HERE, before substitution, so a template can write the bare token
+        # EXIST_OLLAMA_URL_EMBED and get a working URL on a single-box install
+        # instead of an empty string. Without this, every consumer would have to
+        # carry its own fallback and they would drift.
+        # The resolver in src/utils/model-endpoints.sh is the same rule for
+        # scripts; keep the two in step when adding a role.
+        local _role _role_key
+        for _role in CHAT EXTRACT EMBED VISION; do
+            _role_key="EXIST_OLLAMA_URL_${_role}"
+            if [[ -z "${_vals[$_role_key]:-}" ]]; then
+                _vals["$_role_key"]="${_vals[EXIST_OLLAMA_URL]:-http://ollama:11434}"
+                [[ " ${_keys[*]} " == *" ${_role_key} "* ]] || _keys+=("$_role_key")
+            fi
+        done
+
         # Build the substitutions longest-key-first so a shorter key (EXIST_FOO)
         # can't rewrite the prefix of a longer one (EXIST_FOOBAR). The bare-token
         # form is anchored on a trailing word boundary (\b) for the same reason and
@@ -275,6 +291,7 @@ _template_to_dst() {
 _STATS_CREATED=0
 _STATS_SKIPPED=0
 _STATS_REGENERATED=0
+_STATS_KEYS_ADDED=0
 
 # ── Always-render destinations ────────────────────────────────────────────────
 #
@@ -388,6 +405,143 @@ _compose_always_render() {
     printf '%s\n' "$rendered"
 }
 
+# Header stamped above keys appended to an existing .env by _reconcile_env_keys.
+# check-drift.ts keys off this string to stop comparing at the block, so the policy
+# lives in exactly one place — don't reword it without updating
+# src/test/unit/check-drift.ts.
+_RECONCILE_MARKER="Added by ./existential.sh — new keys from the template"
+
+# Key-level upgrade path for rendered .env files.
+#
+# A rendered destination is written once and never again (_process_one_template),
+# which is what preserves user edits and generated secrets. The cost is that a key
+# ADDED to a template upstream never reaches an install that already rendered it:
+# the file exists, so it is skipped, and every consumer silently sees an empty
+# value. This closes that gap at KEY granularity and leaves the file-level rule
+# exactly as it was.
+#
+# Four invariants, and together they are what make running this on every
+# invocation safe enough to need no flag:
+#   append-only    no existing line is ever modified
+#   never removes  a key the user added that the template lacks stays put
+#                  (`validate drift` already reports those as "- local custom")
+#   never fills    a key present with a blank value is left alone — blank is
+#                  load-bearing here (EXIST_VRAM_GB means "not yet asked";
+#                  EXIST_OLLAMA_URL_<ROLE> means "fall back to the global URL")
+#   no prompting   rendering runs with stdin from /dev/null, so an EXIST_CLI key
+#                  that is NOT new can never stop an upgrade to ask a question
+#
+# New keys arrive with their placeholders resolved by render_template itself
+# rather than by a second implementation here — that is the whole reason this
+# renders the full template and then throws away all but the missing keys.
+_reconcile_env_keys() {
+    local src="$1" dst="$2"
+    [[ -f "$src" && -f "$dst" ]] || return 0
+
+    # Key names live on the left of the '=', so they are readable straight from
+    # the template with no rendering at all. Short-circuit on that: the common
+    # case is an install that is already current, and it should cost one grep per
+    # file rather than a full render.
+    # `|| [[ -n "$k" ]]` on both loops: a file whose last line has no trailing
+    # newline makes read return non-zero, which would silently drop its final key
+    # — and a key missing from this set is a key that gets appended a second time.
+    local -A _seen=()
+    local k
+    while IFS= read -r k || [[ -n "$k" ]]; do
+        [[ -n "$k" ]] && _seen["$k"]=1
+    done < <(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' "$dst")
+
+    local -a _new=()
+    while IFS= read -r k || [[ -n "$k" ]]; do
+        [[ -n "$k" ]] || continue
+        [[ -n "${_seen[$k]:-}" ]] && continue
+        _seen["$k"]=1          # a template that repeats a key still adds it once
+        _new+=("$k")
+    done < <(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' "$src")
+
+    [[ ${#_new[@]} -gt 0 ]] || return 0
+
+    # Non-interactive: EXIST_CLI must never prompt here. render_template detects
+    # /dev/null on fd 0 and falls through to the default instead of asking.
+    local rendered
+    if ! rendered="$(render_template "$src" "$dst" </dev/null)"; then
+        echo "  WARNING: ${src#"$REPO_DIR/"} has new keys but would not render —" >&2
+        echo "           ${dst#"$REPO_DIR/"} left unchanged." >&2
+        return 0
+    fi
+
+    local _block="" _needs=""
+    for k in "${_new[@]}"; do
+        local _tpl_line _line _lineno _start _prev _comments=""
+        _tpl_line="$(grep -m1 "^${k}=" "$src" || true)"
+
+        # Classify by the placeholder on the TEMPLATE line, not the rendered one.
+        # An EXIST_CLI key is a question whose answer belongs to the user, so it
+        # is appended blank — this repo's established "not yet answered" sentinel
+        # — rather than guessed from DEFAULT_FROM, which resolves against the
+        # template's own values and could contradict something the user set.
+        # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY) and
+        # static defaults both take the rendered value: a service arriving for the
+        # first time should get a fresh credential.
+        if [[ "$_tpl_line" == *EXIST_CLI* ]]; then
+            _line="${k}="
+            _needs+=" ${k}"
+        else
+            _line="$(grep -m1 "^${k}=" <<<"$rendered" || true)"
+            [[ -n "$_line" ]] || continue
+        fi
+
+        # The key's own comment block — what the key is, and the one thing that
+        # breaks if it is wrong. Walk up from the key until a blank line, a
+        # non-comment, or a section banner's bottom border, so the documentation
+        # comes along and the divider does not.
+        _lineno="$(grep -n "^${k}=" "$src" | head -1 | cut -d: -f1)"
+        if [[ -n "$_lineno" ]]; then
+            _start=$(( _lineno - 1 ))
+            while (( _start >= 1 )); do
+                _prev="$(sed -n "${_start}p" "$src")"
+                [[ "$_prev" =~ ^[[:space:]]*# ]] || break
+                [[ "$_prev" =~ ^[[:space:]]*#[[:space:]]*[-=]{3,} ]] && break
+                _start=$(( _start - 1 ))
+            done
+            _start=$(( _start + 1 ))
+            if (( _start < _lineno )); then
+                _comments="$(sed -n "${_start},$(( _lineno - 1 ))p" "$src")"
+            fi
+        fi
+
+        [[ -n "$_comments" ]] && _block+="${_comments}"$'\n'
+        _block+="${_line}"$'\n'$'\n'
+    done
+
+    [[ -n "$_block" ]] || return 0
+
+    # A file that does not already end in a newline would otherwise get the stamp
+    # glued onto its last value.
+    if [[ -n "$(tail -c 1 "$dst")" ]]; then
+        printf '\n' >> "$dst"
+    fi
+    {
+        printf '\n#== %s (%s) ==\n' "$_RECONCILE_MARKER" "$(date +%Y-%m-%d)"
+        printf '%s' "$_block"
+    } >> "$dst"
+
+    # Fixes the mode on files rendered before _secure_if_secret existed, and costs
+    # nothing on the ones already at 600.
+    _secure_if_secret "$dst"
+
+    _STATS_KEYS_ADDED=$(( _STATS_KEYS_ADDED + ${#_new[@]} ))
+    echo "  updated: ${dst#"$REPO_DIR/"} — ${#_new[@]} new key(s) from the template"
+    for k in "${_new[@]}"; do
+        if [[ " ${_needs} " == *" ${k} "* ]]; then
+            echo "    + ${k}  (needs a value)"
+        else
+            echo "    + ${k}"
+        fi
+    done
+    return 0
+}
+
 _process_one_template() {
     local src="$1" dst
     dst="$(_template_to_dst "$src")"
@@ -397,6 +551,10 @@ _process_one_template() {
     # This guard stays first: it wins over _ALWAYS_RENDER too.
     local _dstbase; _dstbase="$(basename "$dst")"
     if [[ -e "$dst" ]] && [[ "$_dstbase" == .env || "$_dstbase" == .env.* ]]; then
+        # Never overwritten — but a key ADDED to the template upstream still has
+        # to reach this file, or an existing install runs with it silently empty.
+        # Append-only, and a no-op when nothing is missing: see _reconcile_env_keys.
+        _reconcile_env_keys "$src" "$dst"
         return 1
     fi
 
@@ -515,7 +673,13 @@ _main() {
         local _rc=0
         _process_one_template "${REPO_DIR}/.env.exist.shared" || _rc=$?
         _tally "$_rc"
-        if [[ "$_rc" == 0 ]]; then _reload_env_shared; fi
+        # Reload when the file was just created (_rc 0) AND when reconcile
+        # appended keys to an existing one — nothing else has run yet, so the
+        # counter can only refer to .env.shared here. Without the second case a
+        # newly arrived EXIST_IS_<CATEGORY>_<SLUG> would be invisible to
+        # service_is_enabled below, and the service it enables would be skipped
+        # for one whole run.
+        if [[ "$_rc" == 0 || "$_STATS_KEYS_ADDED" -gt 0 ]]; then _reload_env_shared; fi
     fi
     _load_env_shared
 
@@ -526,6 +690,9 @@ _main() {
     done < <(_find_service_dirs)
 
     echo "Created ${_STATS_CREATED} file(s), regenerated ${_STATS_REGENERATED}, skipped ${_STATS_SKIPPED} existing"
+    if [[ "$_STATS_KEYS_ADDED" -gt 0 ]]; then
+        echo "  added ${_STATS_KEYS_ADDED} new key(s) to existing .env files (listed above)"
+    fi
     if [[ "$_STATS_SKIPPED" -gt 0 ]]; then
         echo "  (existing files are left alone — ./existential.sh reset archives them"
         echo "   to archive/<timestamp>/ so the next run renders fresh)"

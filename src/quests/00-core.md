@@ -1,8 +1,13 @@
 ---
 name: Core
 tagline: The whole system, wired together — files, house, agent, memory, voice
-e2e: false
-e2e_skip: Pulls multi-GB LLM, whisper and piper models; too heavy for CI
+e2e: true
+# Core is only meaningful with a chat model behind it, and a CI runner has no
+# GPU — so it runs against an ollama hosted elsewhere. Set the var and the whole
+# flagship path is exercised for real; leave it unset and the quest skips with a
+# reason instead of being permanently untested.
+#   EXIST_E2E_OLLAMA_URL=http://192.168.1.20:11434 ./existential.sh e2e core
+e2e_requires: EXIST_E2E_OLLAMA_URL
 services:
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy (TLS + hostnames)
@@ -18,6 +23,14 @@ services:
     label: Home Assistant (the house)
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree (automation engine)
+  - var: EXIST_IS_SERVICES_NTFY
+    label: ntfy (push notifications — where automations report in)
+  - var: EXIST_IS_HOSTING_LOKI
+    label: Loki (log store — Decree's run logs land here)
+  - var: EXIST_IS_HOSTING_PROMETHEUS
+    label: Prometheus (metrics store)
+  - var: EXIST_IS_HOSTING_GRAFANA
+    label: Grafana (the window onto both — ships Decree dashboards)
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama (local models)
   - var: EXIST_IS_AI_HERMES
@@ -58,17 +71,15 @@ copies:
     dst: ai/ollama/decree/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
-  # OpenViking watches notes/ and resources/ so hermes and firecrawl have
-  # somewhere to put what they read.
-  - src: ai/openviking/decree/migrations.example/01-watch-notes.md
-    dst: ai/openviking/decree/migrations/
-    label: "openviking: watch notes/ and resources/"
-    requires: EXIST_IS_AI_OPENVIKING
   # MinIO's bucket for nextcloud's /S3 folder. Without it the external storage
   # mount points at a bucket that does not exist.
   - src: nas/minio/decree/migrations.example/01-create-nextcloud-bucket.md
     dst: nas/minio/decree/migrations/
     label: "minio: create the nextcloud bucket"
+    requires: EXIST_IS_NAS_MINIO
+  - src: nas/minio/decree/migrations.example/02-create-nextcloud-service-account.md
+    dst: nas/minio/decree/migrations/
+    label: "minio: create the nextcloud service account"
     requires: EXIST_IS_NAS_MINIO
   - src: services/decree/decree/cron.example/clean-runs.md
     dst: services/decree/decree/cron/
@@ -94,12 +105,18 @@ What you get:
   Honcho + OpenViking    what it remembers, and what it can look things up in
   Firecrawl              turns a URL into clean text the agent can read
   Decree                 runs it all on a schedule, headless
+  ntfy                   how a finished automation tells you it finished
+  Loki + Grafana         every Decree run log, searchable, with two dashboards
+                         wired up before you get there
+  Prometheus             the metrics behind those dashboards
   Caddy                  https://<service>.<domain> for every one of them
   Dashy                  one page linking to all of the above
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 
-Roughly 27 containers. The models are sized to the VRAM you picked at the
+Roughly 34 containers. The observability half is seven of them and costs about
+1 GB in practice; every one carries a memory limit, so a runaway query cannot
+take the box down with it. The models are sized to the VRAM you picked at the
 start: one multimodal model handles chat, background memory work and images,
 with bge-m3 alongside it for embeddings. Speech-to-text and text-to-speech
 run on CPU so they never evict the LLM mid-answer.
@@ -129,6 +146,20 @@ is healthy (~5.5 GB at the 8 GB default, a few minutes).
 
   Watch the pulls:  docker logs -f ollama-decree
   Check everything: ./existential.sh test services
+
+Grafana comes up with the Loki and Prometheus datasources already wired and two
+Decree dashboards already loaded — an overview and a per-run detail view. When a
+routine misbehaves, that is where you look, rather than in `docker logs decree`:
+promtail labels every run log with its message_id, chain and seq, so a routed
+chain reads end to end. Grafana's credentials are generated for you, in
+hosting/grafana/.env.
+
+ntfy provisions itself the same way: its entrypoint creates your admin login
+(services/ntfy/.env) and the exist-bot publisher (EXIST_NTFY_USER /
+EXIST_NTFY_PASSWORD in .env.shared) on first boot, and Decree publishes as the
+bot. Point the ntfy mobile app at https://ntfy.<domain>, log in as the admin,
+and subscribe to the "decree" topic. `./existential.sh run ntfy setup` is only
+needed if you would rather use a bearer token than the generated password.
 
 Then open https://dashy.<domain> — that is your landing page, with a link and a
 live status dot for every core service. ./existential.sh prints the URL when it

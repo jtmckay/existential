@@ -17,7 +17,7 @@ successor to the LightRAG approach of indexing a notes vault.
 | Container | Role |
 |---|---|
 | `openviking` | REST API, MCP server, and Web Studio (port 1933) |
-| `openviking-decree` | Backup sidecar plus the notes-sync cron |
+| `openviking-decree` | Backup sidecar plus the knowledgebase indexer cron |
 
 ## Access
 
@@ -33,13 +33,32 @@ EXIST_IS_AI_OPENVIKING=true
 
 Then `./existential.sh && docker compose up -d` from the repo root.
 
+## What it indexes
+
+`workspace/` at the repo root — the same tree [Hermes](./hermes) mounts at
+`/opt/data/workspace` and code-server mounts at `/workspace`. Everything you actually
+work on is searchable without a second knowledgebase directory to keep in step.
+
+The `openviking-index-dir` routine uploads it into `viking://resources/workspace` every
+15 minutes. It is incremental: unchanged files are skipped, changed files replace their
+old copy, and files you delete on disk leave the index on the next run. A first pass over
+a large tree takes a while — each file is embedded on the way in.
+
+The directory is mounted on the **sidecar**, not on `openviking`. OpenViking's HTTP and
+MCP APIs both refuse host filesystem paths outright, so content only ever reaches it by
+upload — which is also why there is no watched-directory setup.
+
+`workspace/ai/` — where the agent automations write — is indexed like everything else, so
+an agent can find and build on what an earlier run produced. It is excluded from the
+MinIO sync instead, which is what stops that output from triggering more runs. See
+[File Processor](../decree/file-change-processing).
+
 ## What it stores
 
 | Volume | Tier | Contents |
 |---|---|---|
 | `openviking_data` | 2 — local, backed up | Vector store and workspace. Embedded DB, never NFS. |
-| `notes/` | 3 — ephemeral | Notes synced from an rclone remote; re-syncable |
-| `resources/` | 3 — ephemeral | Content scraped via Hermes and [Firecrawl](./firecrawl) |
+| `openviking_index_cache` | 3 — ephemeral | Upload manifest, so unchanged files are not re-embedded each run |
 
-Only the vector store is backed up. Notes and scraped resources are rebuilt from their
-sources, so they're deliberately not in the backup path.
+Only the vector store is backed up. The manifest is a cache: losing it costs one full
+re-index, not any content.

@@ -26,10 +26,38 @@ shared with every user). Because it is an external-storage mount rather than pri
 storage, objects keep their real filenames, which is what the
 [File Processor](../decree/file-change-processing) pipeline matches on.
 
-Both halves authenticate with the MinIO root credentials from `nas/minio/.env`, so there is no
-separate access key to create. To use a different bucket, change `BUCKET` in
-`nas/minio/decree/migrations/01-create-nextcloud-bucket.md` and `NEXTCLOUD_S3_BUCKET` in
-`nas/nextcloud/.env` to match. To disable the mount, blank `NEXTCLOUD_S3_KEY`.
+Nextcloud does **not** use the MinIO root credentials. The `02-create-nextcloud-service-account`
+migration creates a MinIO user named `nextcloud`, attaches a `nextcloud-rw` policy scoped to that
+one bucket, and Nextcloud authenticates as that identity. The root pair stays what it should be:
+the console login, and the admin credential the two migrations themselves run as. The access key
+and secret render from `EXIST_MINIO_NEXTCLOUD_ACCESS_KEY` / `EXIST_MINIO_NEXTCLOUD_SECRET_KEY`
+into both `nas/minio/.env` and `nas/nextcloud/.env`, so the two sides cannot drift.
+
+To use a different bucket, change `BUCKET` in both migrations and `NEXTCLOUD_S3_BUCKET` in
+`nas/nextcloud/.env` to match — the migration reads the credentials from env vars named after the
+bucket (`BUCKET: media` → `MINIO_MEDIA_ACCESS_KEY`). To disable the mount, blank
+`NEXTCLOUD_S3_KEY`.
+
+### Upgrading an install that predates the service account
+
+The external-storage mount is configured once, right after Nextcloud installs, so an existing
+install still holds the root credentials. Rendered files are never re-rendered either, so nothing
+changes on its own. To move an existing install over:
+
+1. Add the two keys to `.env.shared`, `nas/minio/.env` and `nas/nextcloud/.env` by hand — the
+   same access key on both sides, and a fresh secret (`openssl rand -hex 16`).
+2. Copy `nas/minio/decree/migrations.example/02-create-nextcloud-service-account.md` into
+   `nas/minio/decree/migrations/` and let the `minio-decree` sidecar apply it. Confirm with
+   `docker logs minio-decree`.
+3. Point the existing mount at the new identity:
+
+```bash
+docker exec -u www-data nextcloud php occ files_external:list        # note the /S3 mount id
+docker exec -u www-data nextcloud php occ files_external:config <id> key    nextcloud
+docker exec -u www-data nextcloud php occ files_external:config <id> secret <the new secret>
+```
+
+Step 3 must come after step 2 — the identity has to exist in MinIO before Nextcloud tries it.
 
 ## File Event Hooks
 

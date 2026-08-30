@@ -30,6 +30,11 @@ const SKIP_DIRS = new Set([
   'graveyard', 'node_modules', '.git', 'site', 'secrets', 'runs', 'volumes',
 ]);
 const PLACEHOLDER_RE = /EXIST_[A-Z0-9_]+/;
+// Header that src/templates.sh (_RECONCILE_MARKER) stamps above keys it appended
+// to an already-rendered .env. Everything below it is a verbatim copy of template
+// lines that arrived late, so it is not drift in either direction — keep this
+// string in step with templates.sh.
+const RECONCILE_MARKER = 'Added by ./existential.sh — new keys from the template';
 const ENV_KEY_RE = /^([A-Z_][A-Z0-9_]*)=/;
 const YAML_KEY_RE = /^\s*([\w.-]+):\s*\S/;
 
@@ -107,9 +112,24 @@ function lineKey(raw: string): string | null {
   return null;
 }
 
+// Split a rendered file at the reconcile marker. The tail is the block of keys
+// _reconcile_env_keys appended because they were new in the template — copied
+// from it verbatim — so comparing it would report the template's own lines as
+// local customization, and their absence higher up as upstream news. Returning
+// the block lets both sides be discounted.
+function splitReconciled(renderedLines: string[]): [string[], Set<string>] {
+  const at = renderedLines.findIndex(ln => ln.includes(RECONCILE_MARKER));
+  if (at < 0) return [renderedLines, new Set()];
+  const block = new Set(
+    renderedLines.slice(at + 1).map(ln => ln.trimEnd()).filter(ln => ln !== ''),
+  );
+  return [renderedLines.slice(0, at), block];
+}
+
 function stripPlaceholderLines(
   exampleLines: string[],
   renderedLines: string[],
+  reconciled: Set<string> = new Set(),
 ): [string[], number[], string[], number[]] {
   const skipKeys = new Set<string>();
   const exKept: string[] = [], exOrig: number[] = [];
@@ -121,6 +141,9 @@ function stripPlaceholderLines(
       if (k) skipKeys.add(k);
       continue;
     }
+    // Already delivered by a reconcile — the rendered file has this exact line,
+    // just in the appended block rather than in position.
+    if (reconciled.has(ln.trimEnd())) continue;
     exKept.push(ln);
     exOrig.push(i + 1);
   }
@@ -209,9 +232,11 @@ function computeDrift(examplePath: string, renderedPath: string): DriftReport {
   }
 
   const exampleLines = fs.readFileSync(examplePath, 'utf8').split('\n');
-  const renderedLines = fs.readFileSync(renderedPath, 'utf8').split('\n');
+  const allRendered = fs.readFileSync(renderedPath, 'utf8').split('\n');
+  const [renderedLines, reconciled] = splitReconciled(allRendered);
 
-  const [exKept, exOrig, rnKept, rnOrig] = stripPlaceholderLines(exampleLines, renderedLines);
+  const [exKept, exOrig, rnKept, rnOrig] =
+    stripPlaceholderLines(exampleLines, renderedLines, reconciled);
   const opcodes = diffOpcodes(exKept, rnKept);
 
   for (const [tag, i1, i2, j1, j2] of opcodes) {

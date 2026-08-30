@@ -15,6 +15,10 @@ load_env_exist
 
 NTFY_URL="${NTFY_URL:-${EXIST_NTFY_URL:-http://ntfy:80}}"
 NTFY_TOKEN="${NTFY_TOKEN:-${EXIST_NTFY_TOKEN:-}}"
+# The bot user ntfy's entrypoint creates on first boot. A token is the opt-in
+# alternative and wins when both are set — same precedence as notify.sh.
+NTFY_USER="${NTFY_USER:-${EXIST_NTFY_USER:-}}"
+NTFY_PASSWORD="${NTFY_PASSWORD:-${EXIST_NTFY_PASSWORD:-}}"
 
 # ── 1. Health ────────────────────────────────────────────────────────────────
 
@@ -37,21 +41,31 @@ probe_caddy "ntfy /v1/health" ntfy /v1/health 200
 
 # ── 2. Authenticated publish ─────────────────────────────────────────────────
 
-if [ -z "$NTFY_TOKEN" ]; then
+AUTH_ARGS=()
+AUTH_KIND=""
+if [ -n "$NTFY_TOKEN" ]; then
+    AUTH_ARGS=(-H "Authorization: Bearer ${NTFY_TOKEN}")
+    AUTH_KIND="token"
+elif [ -n "$NTFY_USER" ] && [ -n "$NTFY_PASSWORD" ]; then
+    AUTH_ARGS=(-u "${NTFY_USER}:${NTFY_PASSWORD}")
+    AUTH_KIND="user ${NTFY_USER}"
+fi
+
+if [ -z "$AUTH_KIND" ]; then
     warn "ntfy authenticated publish" \
-         "no NTFY_TOKEN / EXIST_NTFY_TOKEN set — auth not verified" \
-         "Run ./existential.sh run ntfy to mint and save a bot token"
+         "no credential set — auth not verified" \
+         "EXIST_NTFY_USER/EXIST_NTFY_PASSWORD are set in .env.shared by default; check they survived"
 else
     CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 \
-        -H "Authorization: Bearer ${NTFY_TOKEN}" \
+        "${AUTH_ARGS[@]}" \
         -H "Title: Existential Test" \
         -d "exist.test.sh ping $(date +%s)" \
         "${NTFY_URL}/exist-test" 2>/dev/null || echo "000")
     case "$CODE" in
-        200) ok "ntfy authenticated publish (topic=exist-test)" ;;
+        200) ok "ntfy authenticated publish (topic=exist-test, ${AUTH_KIND})" ;;
         401|403) fail "ntfy authenticated publish" \
-                       "HTTP $CODE — token rejected" \
-                       "Token may be expired or revoked. Re-run ./existential.sh run ntfy" ;;
+                       "HTTP $CODE — credential rejected (${AUTH_KIND})" \
+                       "docker logs ntfy | grep -i user; the bot is created by ntfy's entrypoint on first boot" ;;
         000) fail "ntfy authenticated publish" \
                   "no response" \
                   "docker logs ntfy" ;;

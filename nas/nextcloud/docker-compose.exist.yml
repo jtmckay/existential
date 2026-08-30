@@ -5,6 +5,11 @@ services:
     container_name: nextcloud
     image: nextcloud:34.0.3
     restart: unless-stopped
+    # php-fpm; ~216 MiB idle but a large upload or occ command is the real peak.
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     networks:
       - exist
     # ports disabled — access via https://nextcloud.<domain> (Caddy + pihole required)
@@ -62,6 +67,11 @@ services:
     image: mariadb:11.4
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # MariaDB. ~22 MiB idle; the InnoDB buffer pool is what grows with library size.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     networks:
       - exist
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
@@ -81,6 +91,11 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Sidecar: bash and rclone. Tiny until an rclone sync walks a big tree.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     environment:

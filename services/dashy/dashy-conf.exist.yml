@@ -127,3 +127,31 @@ sections:
         statusCheck: true
         statusCheckAllowInsecure: true
         description: S3-compatible object store (web console)
+
+  # ── what it's doing ───────────────────────────────────────────────────────
+  - name: Observability
+    icon: fas fa-chart-line
+    items:
+      - title: Grafana
+        url: https://grafana.EXIST_DOMAIN
+        # url: https://existential.company/docs/hosting/grafana
+        icon: si-grafana
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Decree run logs and metrics — start here when a routine misbehaves
+
+      - title: Prometheus
+        url: https://prometheus.EXIST_DOMAIN
+        # url: https://existential.company/docs/hosting/prometheus
+        icon: si-prometheus
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Metrics store behind Grafana (raw query UI)
+
+      - title: ntfy
+        url: https://ntfy.EXIST_DOMAIN
+        # url: https://existential.company/docs/services/ntfy
+        icon: si-ntfy
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Push notifications — where finished automations report in

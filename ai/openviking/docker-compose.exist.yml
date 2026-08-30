@@ -4,35 +4,45 @@
 # OpenViking — open-source context database for AI agents
 #
 # Provides a viking:// filesystem for memory, resources, and skills.
-# Hermes connects to it as an MCP server; the decree sidecar syncs notes
-# from an rclone remote and stores scraped content from firecrawl/playwright.
+# Hermes connects to it as an MCP server; the decree sidecar indexes your
+# workspace/ into it and backs its store up.
 #
 # Services:
 #   openviking       — REST API + MCP server + Web Studio (port 1933)
-#   openviking-decree — backup sidecar + notes-sync cron
+#   openviking-decree — knowledgebase indexer + backup sidecar
 #
 # Volumes:
-#   openviking_data  (db: true) — vector store + workspace; embedded DB, never NFS.
-#   openviking_notes_data      — rclone-synced notes; rclone is the source of truth.
-#   openviking_resources_data  — scraped content from hermes/firecrawl.
+#   openviking_data         (db: true) — vector store + workspace; embedded DB, never NFS.
+#   openviking_index_cache             — upload manifest for the indexer.
 #
 # Knowledgebase:
-#   viking/ at the repo root is yours to fill — drop in anything you want indexed.
-#   It is a plain host directory (gitignored, like workspace/), not a volume: the
-#   point is that you edit it directly, so it does not belong under volumes/.
-#   Mounted read-only at /app/viking and registered as a watched resource, which
-#   openviking re-indexes every 300s. Nested directories are preserved.
+#   workspace/ at the repo root is the one place content comes from — the same
+#   tree hermes (/opt/data/workspace) and code-server (/workspace) share, so
+#   everything you actually work on is searchable without a second dir to keep
+#   in step. It is a plain host directory (gitignored), not a volume: the point
+#   is that you edit it directly, so it does not belong under volumes/. The
+#   openviking-index-dir routine uploads it into viking://resources/workspace on
+#   a cron and keeps it in sync.
+#
+#   workspace/ai/ — automation output — IS indexed, so an agent can find and
+#   build on its earlier work. It is excluded from the workspace-sync routine
+#   instead, which is what stops that output from triggering another run.
+#
+#   It is mounted on the SIDECAR, not on openviking. openviking's HTTP and MCP
+#   APIs both refuse host filesystem paths outright, so a bind mount on the
+#   server would be read by nothing — content only ever reaches it by upload.
+#   That is also why there is no watched-directory setup: it cannot work here.
 #
 # Access:  https://openviking.<domain>  (EXIST_DOMAIN)
 # MCP:     http://openviking:1933/mcp  (internal Docker DNS, bearer token required)
 #
 # Setup:
-#   1. ./existential.sh run            — renders templates, writes ov.conf
-#   2. docker compose up -d            — starts openviking
-#   3. ./existential.sh run openviking mcp  — registers openviking in hermes
-#   4. Copy decree/migrations.example/*.md → decree/migrations/ to register
-#      /app/notes + /app/resources (01) and your viking/ knowledgebase (02) as
-#      watched directories on first boot.
+#   1. ./existential.sh run   — renders templates, writes ov.conf, creates
+#                               workspace/ai/, and activates the indexer cron
+#   2. docker compose up -d   — starts openviking; the sidecar indexes workspace/
+#
+# That is the whole setup. Hermes' own exist.initial.sh registers openviking as
+# an MCP server, so nothing here needs a manual `run openviking mcp` either.
 
 services:
   openviking:
@@ -42,7 +52,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G
     networks:
       - exist
     # ports disabled — access via https://openviking.<domain> (Caddy + pihole required)
@@ -62,16 +72,6 @@ services:
     volumes:
       # Vector store, graph, and session state — embedded DBs; must be local (never NFS).
       - openviking_data:/app/.openviking
-      # Notes from rclone sync (a _cache — rclone is the source of truth).
-      # Decree sidecar writes here; openviking reads as a watched resource.
-      - openviking_notes_data:/app/notes:ro
-      # Scraped content written by hermes/firecrawl/playwright routines (a _cache).
-      - openviking_resources_data:/app/resources:ro
-      # Your knowledgebase — a repo-root directory you own and edit, mounted
-      # read-only because openviking only ever indexes it. Relative, not a
-      # declared volume: it is human-facing content like workspace/, not
-      # service state, so it stays out of volumes/.
-      - ../../viking:/app/viking:ro
 
   openviking-decree:
     container_name: openviking-decree
@@ -79,6 +79,11 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Sidecar: walks the workspace and posts files to openviking's index API.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     environment:
@@ -96,18 +101,21 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
-      # Notes — decree rclones here; openviking reads from the same bind mount at /app/notes.
-      - openviking_notes_data:/notes:z
-      # Scraped resources — decree/hermes writes here; openviking reads from /app/resources.
-      - openviking_resources_data:/resources:z
+      # Your knowledgebase — a repo-root directory you own and edit. Read-only:
+      # the sidecar only ever reads it to upload. It is mounted here rather than
+      # on openviking because openviking cannot read host paths at all (see the
+      # openviking-index-dir routine) — everything reaches it over the API.
+      - ../../workspace:/workspace:ro
+      # Upload manifest (sha256 → relative path) so unchanged files are not
+      # re-uploaded every run. A _cache: losing it costs one full re-index.
+      - openviking_index_cache:/index-cache:z
       # TODO: backup sidecar — tar openviking_data → volumes/openviking_data_backup (no sidecar yet)
       - openviking_data:/volumes/openviking_data
     tty: false
 
 x-exist-volumes:
   openviking_data: { db: true }
-  openviking_notes_data: {}
-  openviking_resources_data: {}
+  openviking_index_cache: {}
 
 networks:
   exist:

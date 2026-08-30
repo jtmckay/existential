@@ -36,6 +36,14 @@
 #           if the service defines one. EXIST_VRAM_GB is forced to 0, which
 #           picks the CPU model tier.
 #
+#   external  Same compose treatment as `none` — this machine has no card to
+#           reserve. What differs is intent: the models run on ANOTHER box's
+#           ollama, named by EXIST_OLLAMA_URL. So quest still asks for VRAM,
+#           because the question is about the REMOTE machine's card, and it
+#           disables EXIST_IS_AI_OLLAMA because nothing local serves models.
+#           This is also what makes Core testable end to end on a GPU-less
+#           runner: everything else is real, only the model is remote.
+#
 # ── Adding a vendor ──────────────────────────────────────────────────────────
 # Add a row here, then give the services that care an `x-exist-gpu.<slug>` block
 # in their docker-compose.exist.yml. generate-compose.ts needs no change: it
@@ -52,6 +60,7 @@ GPU_VENDORS=(
     "nvidia	NVIDIA	CUDA through the nvidia container runtime — the best-supported path"
     "amd	AMD	Vulkan/ROCm — works, but see the note below about privileged containers"
     "none	No GPU (CPU only)	everything runs on the CPU; expect seconds per token, not tokens per second"
+    "external	Ollama on another machine	no card needed here; models come from EXIST_OLLAMA_URL"
 )
 
 # gpu_vendor_row <slug> — echo the raw tab-separated row, or return 1.
@@ -100,6 +109,9 @@ gpu_vendor_pick() {
   This decides how the GPU services are wired. Pick No GPU and everything
   still runs — on the CPU, with the smallest models — and you are not asked
   about VRAM. AMD needs a privileged container for GPU access.
+
+  Pick Ollama on another machine if the models live on a different box: no
+  local ollama is started, and the VRAM question is about THAT machine.
   Change it later with: ./existential.sh run models" \
         --prompt="GPU ❯ " \
         --no-info \

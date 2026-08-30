@@ -3,6 +3,11 @@ services:
     container_name: caddy
     image: caddy:2.11.4
     restart: unless-stopped
+    # Reverse proxy; ~24 MiB idle. Grows only with concurrent TLS handshakes.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
         # ipv4_address: 10.0.0.5 # Verify by running `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' caddy`

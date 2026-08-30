@@ -4,6 +4,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Role → endpoint. Sourced, not reimplemented: the fallback to EXIST_OLLAMA_URL
+# lives in one place so hermes cannot disagree with honcho or openviking.
+# shellcheck source=../../src/utils/model-endpoints.sh
+source "${SCRIPT_DIR}/../../src/utils/model-endpoints.sh"
+
 # Skip when running inside a container — docker socket not available in adhoc.
 if [[ "${IN_CONTAINER:-}" == "1" ]]; then
     exit 0
@@ -237,10 +242,11 @@ _seed_hermes_config() {
     # will silently truncate.
     local chat="${EXIST_MODEL_CHAT:-}"
     local ctx="${EXIST_MODEL_CHAT_NUM_CTX:-}"
-    # EXIST_OLLAMA_URL (.env.shared) is the one place the address is named — set
-    # it to reach an ollama on another host. Old installs predate the key, so the
-    # container-network default stands in.
-    local ollama_url="${EXIST_OLLAMA_URL:-http://ollama:11434}"
+    # The CHAT role's endpoint (.env.shared, "Model Endpoints") — hermes is the
+    # chat consumer, so it follows EXIST_OLLAMA_URL_CHAT and only falls back to
+    # the global EXIST_OLLAMA_URL when that is blank. Set the role key to put the
+    # agent's model on its own box.
+    local ollama_url; ollama_url="$(endpoint_for chat)"
     if [[ -z "$chat" ]]; then
         echo "[hermes] EXIST_MODEL_CHAT unset — skipping model config." >&2
     elif [[ ! -f "$cfg" ]] || ! grep -qE '^model:' "$cfg"; then
@@ -293,10 +299,10 @@ EOF
         if [[ -z "$have_url" || "$have_url" == "${ollama_url}/v1" ]]; then
             :
         elif [[ "$have_url" =~ ^https?://[^/]+:11434(/v1)?$ ]]; then
-            echo "[hermes] config.yaml base_url=${have_url} but EXIST_OLLAMA_URL=${ollama_url} — reconciling."
+            echo "[hermes] config.yaml base_url=${have_url} but the chat endpoint is ${ollama_url} — reconciling."
             sed -i -E "0,/^[[:space:]]*base_url:.*/s##  base_url: ${ollama_url}/v1#" "$cfg"
         else
-            echo "[hermes] config.yaml base_url=${have_url} (not an ollama endpoint) — leaving it alone; EXIST_OLLAMA_URL is ignored here."
+            echo "[hermes] config.yaml base_url=${have_url} (not an ollama endpoint) — leaving it alone; the chat endpoint setting is ignored here."
         fi
     fi
 

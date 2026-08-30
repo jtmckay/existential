@@ -5,7 +5,11 @@ commands:
 max_attempts: 3
 max_depth: 100
 max_log_size: 2097152
-default_routine: develop
+# The catch-all, not develop. A message that arrives with no routine and no
+# router to pick one gets logged and dropped rather than handed to develop,
+# which would put an unrouted message in front of an agent with terminal and
+# write_file access.
+default_routine: route-failed
 hooks:
   beforeAll: ""
   afterAll: ""
@@ -28,6 +32,19 @@ shared_routines:
     enabled: false
   develop:
     enabled: false
+  agent-task:
+    enabled: false
+  # Routing: hermes-router picks a department and queues its dept-* routine.
+  # route-failed is the catch-all and is on by default — it is what decree
+  # falls back to, so disabling it would strand unroutable messages.
+  hermes-router:
+    enabled: false
+  route-failed:
+    enabled: true
+  dept-sales:
+    enabled: false
+  dept-research:
+    enabled: false
   file-processor:
     enabled: false
   minio-router:
@@ -43,6 +60,11 @@ shared_routines:
   note-develop:
     enabled: false
   notify:
+    enabled: true
+  # On by default, and it quiets itself as the stack stays green — see the
+  # routine's header. The person who most needs triage is the one who does not
+  # know it exists, so it cannot be opt-in.
+  triage:
     enabled: true
   ollama-pull:
     enabled: false

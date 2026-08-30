@@ -24,6 +24,11 @@ services:
     networks:
       - exist
     restart: unless-stopped
+    # Docker UI; idles small and does no work of its own.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password
 
 x-exist-volumes:

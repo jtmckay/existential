@@ -69,7 +69,10 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 Categories: `ai/` `services/` `nas/` `hosting/` (each holds slug-named service dirs). Plus:
 `automations/` (shared decree code), `src/` (setup/utility scripts), `volumes/` (every persistent
 bind mount; gitignored, created per enabled service), `decree/` (cloned source, read-only reference), `site/` (Docusaurus
-docs), `graveyard/` (archived — leave alone).
+docs), `graveyard/` (archived — leave alone). One root dir holds *the user's own content* rather
+than service state, so it is gitignored but does **not** live under `volumes/`: `workspace/`
+— shared by hermes and code-server, indexed into openviking, and synced to MinIO (minus
+`workspace/ai/`, which is where the agent automations write).
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
@@ -109,7 +112,11 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 `./existential.sh` renders `*.exist.*` templates, runs each enabled service's
 `exist.initial.sh`, and merges enabled services into a unified `docker-compose.yml`. Disabled
 services are skipped entirely (no secrets/templates land on disk). A rendered destination is
-written **once** and skipped thereafter — there is no re-render flag. `reset` archives every
+written **once** and skipped thereafter — there is no re-render flag. The one exception is
+key-level, not file-level: a rendered `.env*` is still never overwritten, but every run appends
+keys the template has gained since (`_reconcile_env_keys` in `src/templates.sh`), so
+`git pull && ./existential.sh` reaches an existing install. It is append-only — existing values,
+blanks included, are never touched. `reset` archives every
 rendered file to `archive/<timestamp>/` (paths preserved, gitignored, restore with `cp -r
 archive/<stamp>/. .`) so the next run renders fresh; it never touches `volumes/` beyond
 offering to delete the `*_cache` ones. It archives the generated `docker-compose.yml` too, so it first offers
@@ -203,11 +210,20 @@ from the repo root against the generated `docker-compose.yml`.
   `.env.exist.shared`'s *Model Selection* block (`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EXTRACT`,
   `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`, `_STT_LANGUAGE`, `_TTS_VOICE`). Consumers read those:
   ollama migrations name an `OLLAMA_ROLE` (not a tag), honcho renders `config.toml` from them, and
-  the wyoming services take them as compose env. **Never hardcode a model tag in a service.** The ollama *address* is global the same way:
-  `EXIST_OLLAMA_URL` (default `http://ollama:11434`) names it once so the stack can point at an
-  ollama on another host — read it as `${EXIST_OLLAMA_URL:-http://ollama:11434}`, never a bare
-  `http://ollama:11434`.
-  The values themselves come from a VRAM tier table (`src/utils/model-tiers.sh`): quest asks how
+  the wyoming services take them as compose env. **Never hardcode a model tag in a service.**
+- **Model *addresses* are per-role, in one block.** `.env.exist.shared`'s *Model Endpoints*
+  block gives each role its own key (`EXIST_OLLAMA_URL_CHAT`, `_EXTRACT`, `_EMBED`, `_VISION`),
+  each **blank** and falling back to `EXIST_OLLAMA_URL` — that is how VRAM gets spread across
+  machines. **Never read a role key directly and never write your own fallback**: scripts source
+  `src/utils/model-endpoints.sh` and call `endpoint_for <role>`; rendered templates write the
+  bare token (`EXIST_OLLAMA_URL_EMBED`), which `src/templates.sh` resolves before substitution;
+  compose files use `${EXIST_OLLAMA_URL_<ROLE>:-${EXIST_OLLAMA_URL:-http://ollama:11434}}`.
+  Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary so a model is pulled to the machine that
+  serves it. Adding a role means touching all three resolvers —
+  `src/test/unit/test-model-endpoints.sh` asserts they agree. STT/TTS get **no keys**: the
+  wyoming services are CPU-only, so there is no VRAM to spread, and Home Assistant is told
+  where they live in its own UI.
+- **Model values come from the VRAM tier table** (`src/utils/model-tiers.sh`). Quest asks how
   much VRAM the machine has on first run (after the GPU vendor question, and only when the answer
   was not *No GPU*), `./existential.sh run models` re-asks later, and
   `.env.exist.shared` ships the default tier's *model* values (8 GB) but ships `EXIST_VRAM_GB`

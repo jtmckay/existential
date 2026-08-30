@@ -4,6 +4,13 @@ services:
     container_name: prometheus
     image: prom/prometheus:v2.54.1
     restart: unless-stopped
+    # ~145 MiB measured. The TSDB head holds ~2h of samples, so RAM tracks active
+    # series (4 scrape jobs at 15s), not the 90d retention in the flags below —
+    # that is disk.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     # prometheus runs as uid 65534 (nobody) internally; run as the host user
     # instead so it can write the host-owned bind-mounted prometheus_data
     # (declared db: true — never NFS).
@@ -29,6 +36,11 @@ services:
     container_name: prometheus-pushgateway
     image: prom/pushgateway:v1.10.0
     restart: unless-stopped
+    # Holds pushed metrics in memory only; tiny unless something pushes a flood.
+    deploy:
+      resources:
+        limits:
+          memory: 64M
     networks:
       - exist
 
@@ -36,6 +48,11 @@ services:
     container_name: prometheus-node-exporter
     image: prom/node-exporter:v1.8.2
     restart: unless-stopped
+    # Reads /proc on scrape. ~20 MB and flat.
+    deploy:
+      resources:
+        limits:
+          memory: 64M
     networks:
       - exist
     pid: host

@@ -29,6 +29,12 @@ fi
 ntfy_url="${ntfy_url:-${NTFY_URL:-http://ntfy:80}}"
 ntfy_topic="${ntfy_topic:-decree}"
 ntfy_token="${ntfy_token:-${NTFY_TOKEN:-}}"
+# ntfy denies every publish by default (auth-default-access: deny-all in
+# server.yml), so one of these two must be set. The bot user is created by ntfy's
+# entrypoint on first boot and needs nothing from you; a token is the opt-in
+# alternative and wins when both are present.
+ntfy_user="${ntfy_user:-${NTFY_USER:-}}"
+ntfy_password="${ntfy_password:-${NTFY_PASSWORD:-}}"
 ntfy_title="${ntfy_title:-}"
 ntfy_priority="${ntfy_priority:-}"
 ntfy_tags="${ntfy_tags:-}"
@@ -69,11 +75,17 @@ if [ -z "$body" ]; then
 fi
 
 # Build curl args
-# --data-raw prevents curl from interpreting @ as a filename
-args=(-s --data-raw "$body")
+# --data-raw prevents curl from interpreting @ as a filename.
+# -f matters as much as -s: without it curl exits 0 on an HTTP error, so a
+# publish ntfy REJECTED (403 when auth-default-access is deny-all and no token
+# is set — see `./existential.sh run ntfy setup`) was reported as "sent" and the
+# Telegram fallback never fired.
+args=(-fsS --data-raw "$body")
 
 if [ -n "$ntfy_token" ]; then
     args+=(-H "Authorization: Bearer $ntfy_token")
+elif [ -n "$ntfy_user" ] && [ -n "$ntfy_password" ]; then
+    args+=(-u "${ntfy_user}:${ntfy_password}")
 fi
 if [ -n "$ntfy_title" ]; then
     args+=(-H "Title: $ntfy_title")
@@ -89,7 +101,7 @@ if curl "${args[@]}" "${ntfy_url}/${ntfy_topic}"; then
     echo ""
     echo "Notification sent to ${ntfy_topic}"
 elif [[ -n "$telegram_bot_token" && -n "$telegram_chat_id" ]]; then
-    echo "ntfy unreachable — falling back to Telegram" >&2
+    echo "ntfy rejected or unreachable — falling back to Telegram" >&2
     telegram_text="${ntfy_title:+[${ntfy_title}] }${body}"
     if curl -fsSL \
         -d "chat_id=${telegram_chat_id}" \
@@ -103,7 +115,10 @@ elif [[ -n "$telegram_bot_token" && -n "$telegram_chat_id" ]]; then
         exit 1
     fi
 else
-    echo "ntfy unreachable and no Telegram fallback configured (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)" >&2
-    log_notify_failure "ntfy unreachable, no telegram fallback"
+    echo "ntfy rejected the publish or is unreachable, and no Telegram fallback is" >&2
+    echo "configured (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID). A 403 here means" >&2
+    echo "no credential reached this routine — check EXIST_NTFY_USER and" >&2
+    echo "EXIST_NTFY_PASSWORD in .env.shared, then: docker compose up -d decree" >&2
+    log_notify_failure "ntfy rejected/unreachable, no telegram fallback"
     exit 1
 fi

@@ -64,6 +64,11 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Sidecar: pulls models over HTTP; the model lands on disk, not here.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     depends_on:
       - ollama
     networks:
@@ -73,7 +78,8 @@ services:
       - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
-      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
+      # The fallback for any role with no endpoint of its own.
+      - EXIST_OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
       # Model globals from .env.shared — the ollama-pull routine resolves its
       # OLLAMA_ROLE against these, so migrations name a role, not a tag.
       # See the "Model Selection" block in .env.exist.shared.
@@ -82,6 +88,13 @@ services:
       - EXIST_MODEL_EXTRACT=${EXIST_MODEL_EXTRACT}
       - EXIST_MODEL_EMBED=${EXIST_MODEL_EMBED}
       - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
+      # ...and the per-role endpoints, so a role is pulled to the machine that
+      # will actually serve it. Blank means "wherever EXIST_OLLAMA_URL points".
+      # See the "Model Endpoints" block in .env.exist.shared.
+      - EXIST_OLLAMA_URL_CHAT=${EXIST_OLLAMA_URL_CHAT:-}
+      - EXIST_OLLAMA_URL_EXTRACT=${EXIST_OLLAMA_URL_EXTRACT:-}
+      - EXIST_OLLAMA_URL_EMBED=${EXIST_OLLAMA_URL_EMBED:-}
+      - EXIST_OLLAMA_URL_VISION=${EXIST_OLLAMA_URL_VISION:-}
     volumes:
       - ./decree:/work/.decree:z
       - ./exist.test.sh:/work/exist.test.sh:ro,z

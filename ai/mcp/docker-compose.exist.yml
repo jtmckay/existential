@@ -6,7 +6,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G
     networks:
       - exist
     working_dir: /app

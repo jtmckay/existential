@@ -6,6 +6,11 @@ services:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Object store; ~63 MiB idle. Multipart uploads buffer in memory.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - exist
     # ports disabled — access via https://minio.<domain> (Caddy + pihole required)
@@ -31,6 +36,11 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
+    # Sidecar: bash, mc and rclone — the workspace sync runs here.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     networks:
       - exist
     environment:
@@ -39,9 +49,13 @@ services:
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
-      # Bucket creation (minio-bucket routine) talks to the S3 API as root.
+      # Bucket creation (minio-bucket routine) talks to the S3 API as root, and
+      # minio-service-account needs root on the admin API to mint the identity below.
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      # The scoped identity nextcloud authenticates with (minio-service-account routine).
+      - MINIO_NEXTCLOUD_ACCESS_KEY=${MINIO_NEXTCLOUD_ACCESS_KEY}
+      - MINIO_NEXTCLOUD_SECRET_KEY=${MINIO_NEXTCLOUD_SECRET_KEY}
     volumes:
       - ./decree:/work/.decree:z
       - ./exist.test.sh:/work/exist.test.sh:ro,z
@@ -50,6 +64,9 @@ services:
       - ../../automations/lib:/work/.decree/lib:ro,z
       - ../../automations/runs:/work/.decree/runs:z
       - ../../automations/secrets:/secrets:ro,z
+      # The workspace, read-only: workspace-sync only ever reads it to
+      # mirror into the bucket. Writes come from the decree container.
+      - ../../workspace:/workspace:ro,z
     tty: false
 
 x-exist-volumes:

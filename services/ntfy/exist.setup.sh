@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# ntfy — first-time user and token setup
+# ntfy — optional token setup.
 #
-# Creates the admin and bot users in ntfy's auth DB, generates a bot access
-# token, and saves EXIST_NTFY_URL + EXIST_NTFY_TOKEN to the root .env for use
-# by decree and other services.
+# NOT required. ntfy's own entrypoint (services/ntfy/entrypoint.sh) creates the
+# admin and bot users from EXIST_NTFY_USER / EXIST_NTFY_PASSWORD on first boot,
+# and notify.sh publishes with those over basic auth — so a fresh install works
+# with no input at all.
 #
-# Requires ntfy to be running. Run after 'docker compose up -d':
+# Run this only when you want a bearer TOKEN instead: it mints one for the bot
+# and writes EXIST_NTFY_TOKEN to .env.shared, which takes precedence over the
+# user/password everywhere it is read. It also still creates the users, for an
+# install that predates the entrypoint.
+#
+# Requires ntfy to be running. Prompts for passwords only for users that do not
+# already exist:
 #   ./existential.sh run ntfy setup
 
 set -euo pipefail
@@ -48,27 +55,31 @@ hr
 
 # ── Admin user ───────────────────────────────────────────────────────────────
 
+ADMIN_USER=$(env_get "${SCRIPT_DIR}/.env" NTFY_ADMIN_USER); ADMIN_USER="${ADMIN_USER:-admin}"
+BOT_USER=$(env_get "$ROOT_ENV" EXIST_NTFY_USER);              BOT_USER="${BOT_USER:-bot}"
+
 section "Admin user"
-if ntfy_exec user list 2>/dev/null | grep -q '^admin'; then
+if ntfy_exec user list 2>/dev/null | grep -q "^${ADMIN_USER}"; then
     echo "  already exists — skipping"
 else
-    read -rsp "  Password for admin: " ADMIN_PASS; echo
-    docker exec -e NTFY_PASSWORD="$ADMIN_PASS" ntfy ntfy user add --role=admin admin
-    echo "  admin created."
+    read -rsp "  Password for ${ADMIN_USER}: " ADMIN_PASS; echo
+    docker exec -e NTFY_PASSWORD="$ADMIN_PASS" ntfy ntfy user add --role=admin "$ADMIN_USER"
+    echo "  ${ADMIN_USER} created."
 fi
 
 # ── Bot user ─────────────────────────────────────────────────────────────────
 
 section "Bot user"
-if ntfy_exec user list 2>/dev/null | grep -q '^bot'; then
+if ntfy_exec user list 2>/dev/null | grep -q "^${BOT_USER}"; then
     echo "  already exists — skipping"
 else
-    read -rsp "  Password for bot: " BOT_PASS; echo
-    docker exec -e NTFY_PASSWORD="$BOT_PASS" ntfy ntfy user add bot
-    echo "  bot created."
+    read -rsp "  Password for ${BOT_USER}: " BOT_PASS; echo
+    docker exec -e NTFY_PASSWORD="$BOT_PASS" ntfy ntfy user add "$BOT_USER"
+    echo "  ${BOT_USER} created."
 fi
-ntfy_exec access bot "exist*" rw
-echo "  bot access rule (exist*:rw) applied."
+BOT_TOPICS=$(env_get "$ROOT_ENV" EXIST_NTFY_TOPICS); BOT_TOPICS="${BOT_TOPICS:-*}"
+ntfy_exec access "$BOT_USER" "$BOT_TOPICS" rw
+echo "  ${BOT_USER} access rule (${BOT_TOPICS}:rw) applied."
 
 # ── Bot access token ─────────────────────────────────────────────────────────
 
@@ -84,7 +95,7 @@ if [ -n "$CURRENT_TOKEN" ]; then
 fi
 
 if [ -z "$NTFY_TOKEN" ]; then
-    TOKEN_OUTPUT=$(ntfy_exec token add bot 2>&1)
+    TOKEN_OUTPUT=$(ntfy_exec token add "$BOT_USER" 2>&1)
     NTFY_TOKEN=$(echo "$TOKEN_OUTPUT" | grep -oE 'tk_[a-z0-9]+' | head -1)
     [ -n "$NTFY_TOKEN" ] || die "Could not parse token from output: ${TOKEN_OUTPUT}"
     echo "  Token generated: ${NTFY_TOKEN}"

@@ -4,6 +4,11 @@ services:
     container_name: uptime-kuma
     image: "louislam/uptime-kuma:2.5.0"
     restart: unless-stopped
+    # SQLite-backed prober. Memory tracks monitor count, which is small here.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     networks:
       - exist
     # ports disabled — access via https://uptime-kuma.<domain> (Caddy + pihole required)

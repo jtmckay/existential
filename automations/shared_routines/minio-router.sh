@@ -5,6 +5,12 @@
 # every processor in lib/file-processors/, and enqueues one file-processor
 # message per match. The file is downloaded per-processor — no shared state.
 #
+# Matching here is mechanical and cheap: PATTERN against the path, nothing else.
+# A processor may also declare a CRITERIA= line — a natural-language test of the
+# file's CONTENT — which is carried through to file-processor and evaluated
+# there, after the download. Splitting it that way means the expensive half only
+# runs for files that already passed the cheap half.
+#
 # Example webhook trigger (fired by /minio endpoint):
 #
 #   ---
@@ -85,6 +91,13 @@ for _processor in "$_processors_dir"/*.sh; do
         _raw_ref=$(grep -m1 '^IS_PRE_SIGNED=' "$_processor" || true)
         _is_pre_signed=$(echo "$_raw_ref" | sed "s/^IS_PRE_SIGNED=[\"']\?\([^\"']*\)[\"']\?$/\1/")
 
+        # Optional natural-language gate, evaluated by file-processor once the
+        # content is actually on disk — the path is all we have here. Quoted
+        # through jq because criteria are prose: colons and quotes are normal in
+        # them, unlike the mechanical fields above.
+        _raw_crit=$(grep -m1 '^CRITERIA=' "$_processor" || true)
+        _criteria=$(echo "$_raw_crit" | sed "s/^CRITERIA=[\"']\(.*\)[\"']$/\1/")
+
         cat > "$_outbox_file" << EOF
 ---
 routine: file-processor
@@ -92,6 +105,7 @@ rclone_path: ${_file_source}
 processor: ${_processor_name}
 file_action: ${_file_action}
 is_pre_signed: ${_is_pre_signed:-false}
+criteria: $(jq -rn --arg v "${_criteria}" '$v|@json')
 ---
 EOF
         echo "Queued: $_processor_name"

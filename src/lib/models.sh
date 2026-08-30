@@ -111,3 +111,24 @@ echo ""
 echo "  Note: hermes keeps the model already in its config.yaml — it is yours"
 echo "  once written. To repoint it:  ./existential.sh run hermes setup"
 echo ""
+
+# The tier sizes models for ONE card. Anyone who has a second one can stop
+# fighting for VRAM instead of shrinking the models, so say so here — this is
+# the moment they are thinking about how much they have.
+# shellcheck source=../utils/model-endpoints.sh
+source "${REPO_DIR}/src/utils/model-endpoints.sh"
+if endpoints_are_uniform; then
+    echo "  Every model role currently runs at $(endpoint_for chat)."
+    echo "  With a second machine you can split them instead of sizing down —"
+    echo "  chat on the big card, embeddings and vision elsewhere. Set the"
+    echo "  per-role keys in the \"Model Endpoints\" block of .env.shared:"
+    echo "    EXIST_OLLAMA_URL_CHAT / _EXTRACT / _EMBED / _VISION"
+    echo "  Blank means \"wherever EXIST_OLLAMA_URL points\", which is today."
+else
+    echo "  Model roles are split across machines:"
+    for _r in chat extract embed vision; do
+        printf '    %-8s %s\n' "$_r" "$(endpoint_for "$_r")"
+    done
+    echo "  This tier sizes each role's model; it does not move them."
+fi
+echo ""
