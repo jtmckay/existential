@@ -4,14 +4,15 @@
 # Sourced, never run. A dept-<name>.sh routine declares what it is and calls
 # dept_run; everything else lives here so a new department is a 20-line file.
 #
+#   # DEPT_DESCRIPTION: Outbound, discovery, deal strategy.
 #   DEPT_PROFILE="sales"
-#   DEPT_DESCRIPTION="Outbound, discovery, deal strategy."
 #   source "$(dirname "${BASH_SOURCE[0]}")/../lib/hermes-dept.sh"
 #   dept_run
 #
-# DEPT_DESCRIPTION is not decoration: hermes-router reads it out of the file to
-# build the list the router profile chooses from. Write it as the answer to
-# "when should work come here?"
+# DEPT_DESCRIPTION is a header COMMENT, not a variable, and it is not decoration:
+# hermes-router and ai/hermes/exist.profiles.sh both grep `^# DEPT_DESCRIPTION:`
+# out of the file to build the list the router chooses from. Write it as the
+# answer to "when should work come here?"
 #
 # Each department maps to a hermes profile reached at /p/<profile>/v1, which
 # carries its own toolsets and MCP servers. The routine name is what shows up in
@@ -40,6 +41,8 @@ dept_run() {
 
     # The task text is the message body, with the frontmatter stripped.
     local body
+    # shellcheck disable=SC2154  # decree sets message_file in the environment of
+    # the dept-*.sh routine that sources this file; nothing assigns it here.
     body="$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' \
         "${message_file}" | sed '/./,$!d')"
 

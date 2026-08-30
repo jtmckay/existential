@@ -135,7 +135,7 @@ that merely runs at 3B speed.
   [piper-samples](https://rhasspy.github.io/piper-samples/)). This is not whisperx: that
   one runs on the GPU and transcribes long recordings with speaker labels.
 
-## Endpoints — putting roles on different machines {#endpoints}
+## Endpoints — putting roles on different machines {/* #endpoints */}
 
 `EXIST_OLLAMA_URL` (default `http://ollama:11434`) is the address every model role uses
 unless it has one of its own. Point it at another machine — `http://192.168.1.20:11434` — to

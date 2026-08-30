@@ -31,6 +31,8 @@ if [[ -n "${IN_CONTAINER:-}" ]]; then
 else
     REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 fi
+# shellcheck disable=SC2034  # service-common.sh reads $SCRIPT_DIR at call
+# time (it is the repo root for every helper there), not at source time.
 SCRIPT_DIR="$REPO_DIR"
 
 # shellcheck source=../utils/service-common.sh

@@ -42,9 +42,6 @@ CONFIG_DIR="${REPO_DIR}/volumes/homeassistant_data"
 CONFIG="${CONFIG_DIR}/configuration.yaml"
 HTTP_STORE="${CONFIG_DIR}/.storage/http"
 
-# Nothing to do before HA's own first run has created the file.
-[ -f "$CONFIG" ] || exit 0
-
 # Whether the YAML block is already present. This gates ONLY step 1 — an
 # early `exit 0` here (the original shape) skipped the storage repair too, so an
 # install whose configuration.yaml already had the block could never get the
@@ -52,7 +49,7 @@ HTTP_STORE="${CONFIG_DIR}/.storage/http"
 # kept answering 400, and nothing in the render said otherwise. Step 2 has to run
 # on every invocation precisely BECAUSE the block is present.
 HAVE_BLOCK=false
-grep -qE '^http:' "$CONFIG" && HAVE_BLOCK=true
+grep -qE '^http:' "$CONFIG" 2>/dev/null && HAVE_BLOCK=true
 
 # The docker bridge caddy sits on. Trusting the network rather than a pinned
 # container IP keeps this correct when caddy is recreated and its address moves.
@@ -70,6 +67,47 @@ http:
     - ${SUBNET}
 EOF
 }
+
+# Seed the config before HA's first start.
+#
+# HA generates configuration.yaml itself on first run and the generated file has
+# no `http:` section, so a fresh install answers 400 to every proxied request —
+# and this script, running pre-startup, used to have no file to fix and exited.
+# The block only landed on a LATER render, which is why a first install looked
+# like it needed a second pass. HA never overwrites an existing
+# configuration.yaml, so writing it here makes this a genuine pre-startup step.
+#
+# Content mirrors HA's own default. The three !include targets are created
+# alongside it because HA errors on a missing include, and its UI automation,
+# script and scene editors write to exactly those files.
+_seed_config() {
+    mkdir -p "$CONFIG_DIR"
+    [ -f "${CONFIG_DIR}/automations.yaml" ] || printf '[]\n' > "${CONFIG_DIR}/automations.yaml"
+    [ -f "${CONFIG_DIR}/scripts.yaml" ]     || printf '{}\n' > "${CONFIG_DIR}/scripts.yaml"
+    [ -f "${CONFIG_DIR}/scenes.yaml" ]      || printf '[]\n' > "${CONFIG_DIR}/scenes.yaml"
+    cat > "$CONFIG" <<'YAML'
+# Loads default set of integrations. Do not remove.
+default_config:
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+YAML
+    _http_block >> "$CONFIG"
+    echo "  homeassistant: seeded configuration.yaml with http.trusted_proxies (${SUBNET})"
+}
+
+# Fresh install: nothing has started yet, so there is no .storage to repair
+# either — seeding is the whole job.
+if [ ! -f "$CONFIG" ]; then
+    if [ -w "$CONFIG_DIR" ] || mkdir -p "$CONFIG_DIR" 2>/dev/null; then
+        _seed_config
+        exit 0
+    fi
+    echo "  homeassistant: NOTE — cannot create ${CONFIG_DIR#"${REPO_DIR}/"} as $(id -un), so the"
+    echo "                 http: block needed for proxied access was not seeded."
+    exit 0
+fi
 
 # HA runs as root, so on an install it has already started, configuration.yaml is
 # root-owned and cannot be written in place by the host user. The directory it

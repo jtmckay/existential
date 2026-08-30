@@ -73,6 +73,16 @@ _ensure_hermes_install() {
     fi
 
     echo "[hermes] Extracting build trees from image (one-time per version, ~1 min)..."
+    # The cache dir must exist BEFORE the first docker cp. `docker cp src dest/`
+    # with a missing dest does not create dest and copy into it — it makes dest a
+    # copy of src. On a fresh clone that turned hermes_install/ into the venv
+    # itself (bin/, lib/, pyvenv.cfg at the top level) with ui-tui, gateway and
+    # node_modules as siblings inside it, all four reporting "ok" and no .venv
+    # anywhere. Compose then bind-mounted the missing hermes_install/.venv,
+    # docker created it empty and root-owned, and that empty dir shadowed the
+    # image's real venv — hermes never served. It only looked like "needs a
+    # second run" because that first `up` created the dir the copy needed.
+    mkdir -p "$cache_dir"
     rm -rf "${cache_dir:?}"/.venv "${cache_dir}"/ui-tui "${cache_dir}"/gateway "${cache_dir}"/node_modules "${cache_dir}"/.image_id
 
     local cid

@@ -17,6 +17,12 @@
 #   ./existential.sh e2e ai finance      # multiple patterns — each selects matching quest(s)
 #   ./existential.sh e2e down            # tear down leftover artifacts from a crashed run
 #
+# Env:
+#   EXIST_E2E_OLLAMA_URL    run against an ollama on another machine (see quest_requires)
+#   EXIST_E2E_OLLAMA_MODEL  override the chat/extract/vision tag for that server
+#   E2E_HEALTH_TIMEOUT      seconds to wait for healthchecks (default 300)
+#   E2E_KEEP=1              skip teardown so a failure can be inspected
+#
 # Requirements:
 #   - Docker + Docker Compose v2 on the host
 #   - No conflicting containers already running (the pre-flight check catches this)
@@ -153,6 +159,75 @@ wait_running() {
     log "Timeout — current container state:"
     docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps || true
     return 1
+}
+
+# Containers that declare a healthcheck get their own, longer wait.
+#
+# wait_running above only clears the created/restarting transients; a container
+# that is "running (health: starting)" satisfies it immediately. hermes boots a
+# model gateway and open-webui builds its first-run database, and both are still
+# starting long after that — so testing at the 30s mark reported them as product
+# failures when the harness was simply impatient. Containers without a
+# healthcheck cannot be waited on and are not counted.
+#
+# Best-effort, like wait_running: on timeout it says what is still starting and
+# proceeds, because the service tests are the actual verdict.
+wait_healthy() {
+    local work="$1" timeout="${2:-${E2E_HEALTH_TIMEOUT:-300}}"
+    local deadline=$(( $(date +%s) + timeout ))
+    local starting
+    log "Waiting for healthchecks to pass (up to ${timeout}s)..."
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        starting=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps -q 2>/dev/null \
+            | xargs -r docker inspect \
+                --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null \
+            | grep -c '^starting$' || true)
+        if [ "${starting:-0}" -eq 0 ]; then
+            echo
+            return 0
+        fi
+        printf '.'
+        sleep 5
+    done
+    echo
+    log "Still starting after ${timeout}s — proceeding to tests:"
+    docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps -q 2>/dev/null \
+        | xargs -r docker inspect \
+            --format '{{if .State.Health}}{{if eq .State.Health.Status "starting"}}  {{.Name}}{{end}}{{end}}' \
+            2>/dev/null | grep . || true
+    return 0
+}
+
+# The external ollama must actually serve the models the run will ask for.
+#
+# EXIST_E2E_OLLAMA_URL redirects the URL and nothing else, so a runner whose box
+# serves different tags than .env.exist.shared's defaults gets a stack that comes
+# up perfectly clean and then fails every model call — which reads as a product
+# bug rather than the setup mismatch it is. Check once, up front, and name what
+# is actually there. EXIST_E2E_OLLAMA_MODEL overrides the chat/extract/vision tag.
+check_ollama_models() {
+    local work="$1" tags served want key
+    local -a missing=()
+
+    tags=$(curl -fsS -m 15 "${EXIST_E2E_OLLAMA_URL%/}/api/tags" 2>/dev/null) \
+        || die "Cannot reach ${EXIST_E2E_OLLAMA_URL}/api/tags — is that ollama up?"
+    # ollama reports "name:latest" for an untagged pull; compare without it so a
+    # config that says `bge-m3` matches a served `bge-m3:latest`.
+    served=$(printf '%s' "$tags" | jq -r '.models[].name' | sed 's/:latest$//' | sort -u)
+
+    for key in EXIST_MODEL_CHAT EXIST_MODEL_EXTRACT EXIST_MODEL_VISION EXIST_MODEL_EMBED; do
+        want=$(grep -m1 "^${key}=" "$work/.env.shared" 2>/dev/null | cut -d= -f2-)
+        [ -n "$want" ] || continue
+        grep -qxF "${want%:latest}" <<<"$served" || missing+=("${key}=${want}")
+    done
+
+    if [ "${#missing[@]}" -gt 0 ]; then
+        log "The external ollama does not serve every model this run needs:"
+        printf '[e2e]   missing: %s\n' "${missing[@]}"
+        log "  it serves: $(printf '%s' "$served" | tr '\n' ' ')"
+        die "Pull the missing models, or set EXIST_E2E_OLLAMA_MODEL to one it has."
+    fi
+    log "Models OK on ${EXIST_E2E_OLLAMA_URL}: $(printf '%s' "$served" | tr '\n' ' ')"
 }
 
 # Remove leftover .tmp-e2e-* work dirs from a previously crashed run. They may
@@ -335,6 +410,18 @@ preflight_check() {
 WORK=""
 
 cleanup() {
+    # E2E_KEEP=1 leaves the stack and its work dir standing. Teardown destroys
+    # exactly the evidence a failure needs — the containers, their logs, and the
+    # rendered clone — so a debugging run wants the opposite of the default.
+    # `./existential.sh e2e down` reclaims everything afterwards.
+    if [ "${E2E_KEEP:-}" = "1" ] && [ -n "$WORK" ]; then
+        log "E2E_KEEP=1 — leaving the stack up for inspection."
+        log "  containers:  docker compose -p ${E2E_PROJECT} -f ${WORK}/docker-compose.yml ps"
+        log "  a log:       docker logs <container>"
+        log "  clean up:    ./existential.sh e2e down"
+        WORK=""
+        return 0
+    fi
     if [ -n "$WORK" ] && [ -f "$WORK/docker-compose.yml" ]; then
         log "Tearing down..."
         docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" down -v \
@@ -391,6 +478,14 @@ run_quest() {
         _env_put EXIST_GPU_VENDOR   external
         _env_put EXIST_OLLAMA_URL   "$EXIST_E2E_OLLAMA_URL"
         _env_put EXIST_IS_AI_OLLAMA false
+        # One tag covers chat, extract and vision — .env.exist.shared ships them
+        # identical on purpose so a single resident model serves all three.
+        if [ -n "${EXIST_E2E_OLLAMA_MODEL:-}" ]; then
+            log "Using external model: ${EXIST_E2E_OLLAMA_MODEL}"
+            _env_put EXIST_MODEL_CHAT    "$EXIST_E2E_OLLAMA_MODEL"
+            _env_put EXIST_MODEL_EXTRACT "$EXIST_E2E_OLLAMA_MODEL"
+            _env_put EXIST_MODEL_VISION  "$EXIST_E2E_OLLAMA_MODEL"
+        fi
     fi
 
     # 3. Enable this quest's services
@@ -416,6 +511,29 @@ run_quest() {
         existential-adhoc \
         bash /src/templates.sh
 
+    # 4a. Models, before anything tries to use one. Runs after the render because
+    #     that is when .env.shared has every model key — the fixture ships none of
+    #     them, and templates.sh fills them from .env.exist.shared.
+    if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ]; then
+        check_ollama_models "$WORK"
+    fi
+
+    # 4b. Pre-startup filesystem work, exactly as a real install gets it.
+    #     ./existential.sh runs render → exist.initial.sh → up; skipping the
+    #     middle step meant caddy could never start under e2e, because its
+    #     internal.pem is minted here and the Caddyfile hard-references it.
+    #     Sourcing existential.sh gives us the real run_initials rather than a
+    #     second copy that could drift from it — and because BASH_SOURCE points
+    #     at the clone, its SCRIPT_DIR is $WORK and every helper reads the
+    #     clone's .env.shared. Runs in a subshell so its set -e and its
+    #     SCRIPT_DIR stay out of this one.
+    log "Running exist.initial.sh for enabled services..."
+    (
+        # shellcheck source=../../../existential.sh
+        . "$WORK/existential.sh"
+        run_initials
+    ) || die "exist.initial.sh failed for one or more services — see above"
+
     # 5. Generate unified docker-compose.yml
     # Pass $WORK as the host-side repo root so generate-compose.ts can write
     # absolute bind-mount paths that resolve correctly when docker compose up
@@ -438,6 +556,7 @@ run_quest() {
     # 7. Wait for containers to settle out of created/restarting transients.
     #    Best-effort — the container-health gate below is the actual verdict.
     wait_running "$WORK" || true
+    wait_healthy "$WORK" || true
 
     # 8. Container-state gate — fails the quest if anything is restart-looping,
     #    exited, or unhealthy. This is the only place with docker visibility, so

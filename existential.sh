@@ -523,6 +523,19 @@ EOF
 }
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+#
+# Everything above this line is definitions, so sourcing this file hands you the
+# real helpers — run_initials, service_is_enabled, _find_service_dirs — without
+# dispatching a command. That is the point: callers reuse this code path instead
+# of keeping a second copy of it. src/test/e2e/e2e.sh sources it to run the same
+# exist.initial.sh step a real install gets, and src/templates.sh guards its
+# _main the same way.
+#
+# `return` is only reached when sourced; an executed script falls straight
+# through to the dispatch below.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    return 0
+fi
 
 while [[ $# -gt 0 && "$1" == --* ]]; do
     case "$1" in

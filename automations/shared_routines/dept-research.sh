@@ -41,8 +41,12 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     exit 0
 fi
 
+# shellcheck disable=SC2034  # consumed by hermes-dept.sh (${DEPT_PROFILE:?})
+# after the source below; shellcheck does not follow into it. The
+# description is NOT repeated here — hermes-router and exist.profiles.sh
+# both read the `# DEPT_DESCRIPTION:` header comment out of this file, so a
+# second copy as a shell variable is read by nothing and only drifts.
 DEPT_PROFILE="research"
-DEPT_DESCRIPTION="Investigation, fact-finding, competitive and market analysis, literature review."
 
 # shellcheck source=../lib/hermes-dept.sh
 source "${SCRIPT_DIR}/../lib/hermes-dept.sh"
