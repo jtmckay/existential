@@ -91,6 +91,18 @@ if [[ -n "$CURRENT_EMBED" && "$CURRENT_EMBED" != "$NEW_EMBED" ]]; then
 fi
 
 env_set EXIST_GPU_VENDOR "$VENDOR"
+# The vendor answer can forbid services outright -- `external` means the
+# models are on another box, so a local ollama would pull multi-GB models
+# nothing here queries. quest.sh applies the same list on first run; this is
+# the documented way back, so it has to apply it too or changing your mind
+# here silently leaves the forbidden service running.
+while IFS= read -r _svc; do
+    [[ -n "$_svc" ]] || continue
+    if [[ "$(env_get "$_svc")" == "true" ]]; then
+        env_set "$_svc" false
+        echo "  ${_C_GREEN}✓${_C_RESET}  ${_svc}=false — ${VENDOR} serves models elsewhere"
+    fi
+done < <(vendor_disabled_services "$VENDOR")
 while IFS='=' read -r _k _v; do
     [[ -n "$_k" ]] && env_set "$_k" "$_v"
 done < <(model_tier_env "$PICKED")

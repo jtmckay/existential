@@ -31,6 +31,10 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FIXTURES="${REPO_DIR}/src/test/fixtures"
 QUEST_DIR="${REPO_DIR}/src/quests"
+
+# The vendor table, for the rules a vendor imposes on service enablement.
+# shellcheck source=../../utils/gpu-vendor.sh
+. "${REPO_DIR}/src/utils/gpu-vendor.sh"
 E2E_PROJECT="exist-e2e"
 E2E_NETWORK="${E2E_PROJECT}_exist"
 
@@ -546,7 +550,13 @@ run_quest() {
         }
         _env_put EXIST_GPU_VENDOR   external
         _env_put EXIST_OLLAMA_URL   "$EXIST_E2E_OLLAMA_URL"
-        _env_put EXIST_IS_AI_OLLAMA false
+        # Whatever `external` forbids, forbid here too. This used to be a
+        # hardcoded EXIST_IS_AI_OLLAMA=false, which kept the harness correct
+        # while real installs stayed broken -- the bug that fix was papering
+        # over lived in quest.sh for months because e2e never saw it.
+        while IFS= read -r _svc; do
+            [ -n "$_svc" ] && _env_put "$_svc" false
+        done < <(vendor_disabled_services external)
         # One tag covers chat, extract and vision — .env.exist.shared ships them
         # identical on purpose so a single resident model serves all three.
         if [ -n "${EXIST_E2E_OLLAMA_MODEL:-}" ]; then
@@ -559,12 +569,12 @@ run_quest() {
 
     # 3. Enable this quest's services
     log "Enabling services..."
+    _vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
     for var in $(quest_vars "$yaml"); do
-        # An external ollama means the quest's own EXIST_IS_AI_OLLAMA=true would
-        # start a second, model-less one on the runner. The remote box is the
-        # ollama; skip that one flag and enable everything else.
-        if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ] && [ "$var" = "EXIST_IS_AI_OLLAMA" ]; then
-            log "  skipping ${var} — models come from ${EXIST_E2E_OLLAMA_URL}"
+        # The quest lists what it wants; the vendor answer outranks it. Same
+        # rule quest.sh applies to a real install, from the same list.
+        if [ -n "$_vendor" ] && vendor_forbids_service "$_vendor" "$var"; then
+            log "  skipping ${var} — EXIST_GPU_VENDOR=${_vendor}"
             continue
         fi
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"

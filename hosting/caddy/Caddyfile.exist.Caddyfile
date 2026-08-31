@@ -84,10 +84,17 @@ firecrawl.{$CADDY_DOMAIN} {
   reverse_proxy firecrawl:3002
 }
 
+# The upstream follows EXIST_OLLAMA_URL rather than assuming a local container,
+# so this hostname keeps working when the models live on another box. Passed in
+# as CADDY_OLLAMA_UPSTREAM, not {$EXIST_OLLAMA_URL}: a bare EXIST_* token is
+# substituted at RENDER time (even inside comments -- see line 6), which would
+# bake today's value in and produce {$http://host:11434:http://ollama:11434}.
+# Same reason CADDY_DOMAIN exists. The default keeps a local-ollama install
+# byte-identical in behaviour to before.
 ollama.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
-  reverse_proxy ollama:11434
+  reverse_proxy {$CADDY_OLLAMA_UPSTREAM:http://ollama:11434}
 }
 
 open-webui.{$CADDY_DOMAIN} {

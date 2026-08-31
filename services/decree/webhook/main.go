@@ -496,7 +496,14 @@ func (server *webhookServer) serve(writer http.ResponseWriter, request *http.Req
 		content += "\n"
 	}
 
-	filename := fmt.Sprintf("%s-%s.md", matched.routineSlug, time.Now().Format("150405"))
+	// The trailing "-0" is the chain SEQUENCE number, and it is load-bearing.
+	// The daemon splits a message id on its last "-" into <chain>-<seq> and
+	// refuses anything with seq > 100 as runaway chain recursion. Without the
+	// suffix the time stamp itself became the seq, so every message enqueued
+	// after 00:01:40 was dead-lettered as "max depth exceeded" -- i.e. every
+	// webhook message, on every route, for all but the first 100 seconds of
+	// each day. A webhook message always starts a chain, so its seq is 0.
+	filename := fmt.Sprintf("%s-%s-0.md", matched.routineSlug, time.Now().Format("150405"))
 	fullPath := filepath.Join(server.inbox, filename)
 	if !strings.HasPrefix(fullPath, server.inbox+string(os.PathSeparator)) {
 		return writeError(writer, http.StatusInternalServerError, "path resolution failed")

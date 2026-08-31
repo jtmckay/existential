@@ -40,7 +40,8 @@
 #           reserve. What differs is intent: the models run on ANOTHER box's
 #           ollama, named by EXIST_OLLAMA_URL. So quest still asks for VRAM,
 #           because the question is about the REMOTE machine's card, and it
-#           disables EXIST_IS_AI_OLLAMA because nothing local serves models.
+#           disables EXIST_IS_AI_OLLAMA because nothing local serves models —
+#           see vendor_disabled_services below, which is where that rule lives.
 #           This is also what makes Core testable end to end on a GPU-less
 #           runner: everything else is real, only the model is remote.
 #
@@ -62,6 +63,34 @@ GPU_VENDORS=(
     "none	No GPU (CPU only)	everything runs on the CPU; expect seconds per token, not tokens per second"
     "external	Ollama on another machine	no card needed here; models come from EXIST_OLLAMA_URL"
 )
+
+# ── Services a vendor forbids ────────────────────────────────────────────────
+#
+# A vendor answer is not only about device reservations: `external` also means
+# "the models live on another box", and a local ollama under that answer is
+# strictly harmful. It serves nothing (hermes and friends read EXIST_OLLAMA_URL),
+# and its decree sidecar still runs the pull migrations, so it drags multi-GB
+# models onto a machine that will never query them.
+#
+# This rule used to be written out at each call site, and the call sites drifted:
+# quest.sh applied it when the vendor question was first answered, then Core's
+# own service list turned EXIST_IS_AI_OLLAMA straight back on seconds later;
+# `run models` never applied it at all; and e2e.sh carried a private copy so the
+# harness stayed correct while real installs did not. One list, three consumers.
+#
+# vendor_disabled_services <slug> — EXIST_IS_* vars that must stay false under
+# this vendor, one per line. Empty for a vendor with no such rule.
+vendor_disabled_services() {
+    case "$1" in
+        external) printf '%s\n' EXIST_IS_AI_OLLAMA ;;
+        *)        : ;;
+    esac
+}
+
+# vendor_forbids_service <slug> <var> — true when <vendor> forbids <var>.
+vendor_forbids_service() {
+    vendor_disabled_services "$1" | grep -qxF "$2"
+}
 
 # gpu_vendor_row <slug> — echo the raw tab-separated row, or return 1.
 gpu_vendor_row() {

@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -540,6 +541,29 @@ func TestFilenameDerivesFromRawRoutine(t *testing.T) {
 	}
 	if base := filepath.Base(inboxFiles(t, inbox)[0]); !strings.HasPrefix(base, "notes-") {
 		t.Errorf("filename = %q, want notes- prefix", base)
+	}
+}
+
+// The daemon reads a message id as <chain>-<seq> and rejects seq > 100 as
+// runaway chain recursion. A filename of "<routine>-<HHMMSS>.md" made the clock
+// the seq, so every webhook message after 00:01:40 was dead-lettered.
+func TestFilenameEndsWithZeroSequence(t *testing.T) {
+	testServer, inbox := newTestServer(t, 1000, 1000)
+	status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "b")
+	if status != http.StatusCreated {
+		t.Fatal("request failed")
+	}
+	base := strings.TrimSuffix(filepath.Base(inboxFiles(t, inbox)[0]), ".md")
+	index := strings.LastIndex(base, "-")
+	if index < 0 {
+		t.Fatalf("filename = %q, want a <chain>-<seq> form", base)
+	}
+	seq, err := strconv.Atoi(base[index+1:])
+	if err != nil {
+		t.Fatalf("filename = %q, seq %q is not a number", base, base[index+1:])
+	}
+	if seq != 0 {
+		t.Errorf("filename = %q, seq = %d, want 0 — a webhook message starts a chain", base, seq)
 	}
 }
 

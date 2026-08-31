@@ -98,6 +98,30 @@ echo "E2E-PROBE-OK \$(cat "\$FILE_PATH")"
 PROC
 say "installed processor e2e-probe.sh (PATTERN=nextcloud:${BUCKET}/.*\\.txt)"
 
+# ── 2b. Enable the two routines the pipeline needs. They ship `enabled: false`
+#       on purpose -- the pipeline is opt-in, and the auto-file-processing quest
+#       tells you to turn them on by hand (its step 1). The flow does exactly
+#       what that step does, so what runs here is the documented setup and not a
+#       private arrangement the quest never mentions.
+CONFIG="$WORK/services/decree/decree/config.yml"
+[ -f "$CONFIG" ] || fail "decree config.yml not rendered in the clone"
+for _routine in minio-router file-processor; do
+    awk -v r="$_routine" '
+        $0 ~ "^  " r ":$" { print; inblock = 1; next }
+        inblock && /^ *enabled:/ { sub(/false/, "true"); inblock = 0 }
+        { print }
+    ' "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
+    grep -A1 "^  ${_routine}:$" "$CONFIG" | grep -q "enabled: true" \
+        || fail "could not enable ${_routine} in config.yml"
+done
+say "enabled minio-router and file-processor"
+
+# config.yml is read at boot, so the daemon has to be restarted to see it --
+# again exactly what the quest says (its step 3).
+docker restart decree >/dev/null || fail "could not restart decree"
+until_ok "decree back up after restart" 60 docker exec decree true
+say "restarted decree to pick up the routine config"
+
 # ── 3. Bucket, subscribed to the decree webhook target.
 # Credentials come from the container's own environment rather than this
 # script's argv, so they never appear in a host process list or an e2e log.

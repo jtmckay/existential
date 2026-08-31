@@ -326,11 +326,21 @@ _defaults_only() {
 # Enable every service a quest declares. Prints nothing; returns the count via
 # the _enabled_count global so the caller can report it.
 _enable_quest_services() {
-    local _f="$1" _v
+    local _f="$1" _v _vendor
     _enabled_count=0
+    _vendor="$(env_get EXIST_GPU_VENDOR)"
     mapfile -t _qvars < <(qmeta "$_f" '.services[].var // ""' 2>/dev/null | grep -v '^null$\|^$' || true)
     for _v in "${_qvars[@]}"; do
         [[ "$(env_get "$_v")" == "true" ]] && continue
+        # A quest lists the services it needs, but the hardware answer outranks
+        # the list. Core names EXIST_IS_AI_OLLAMA, and the vendor question is
+        # asked BEFORE the Core plan runs — so without this, answering "ollama
+        # on another machine" and then accepting Core re-enabled the local
+        # ollama seconds after quest had just turned it off.
+        if [[ -n "$_vendor" ]] && vendor_forbids_service "$_vendor" "$_v"; then
+            echo "  ${_C_DIM:-}↷ ${_v} stays off — EXIST_GPU_VENDOR=${_vendor}${_C_RESET:-}"
+            continue
+        fi
         env_set "$_v" "true"
         _enabled_count=$(( _enabled_count + 1 ))
         _newly_enabled_svcs+=("$(var_to_path "$_v")")
@@ -446,7 +456,9 @@ if [[ -z "$(env_get EXIST_GPU_VENDOR)" ]]; then
             # a running ollama here would pull multi-GB models onto a machine
             # that never uses them. The VRAM question still applies, because it
             # sizes the models the REMOTE box will hold.
-            env_set EXIST_IS_AI_OLLAMA false
+            while IFS= read -r _svc; do
+                [[ -n "$_svc" ]] && env_set "$_svc" false
+            done < <(vendor_disabled_services "$_vendor")
             echo "     No local ollama — models come from EXIST_OLLAMA_URL."
             echo ""
             _url="$(_ask_ollama_url "$(env_get EXIST_OLLAMA_URL)")"

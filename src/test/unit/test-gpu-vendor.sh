@@ -127,6 +127,70 @@ else
     _fail "models.sh is readable" "not found at ${MODELS}"
 fi
 
+# ── Services a vendor forbids ────────────────────────────────────────────────
+#
+# `external` means the models live on another box. A local ollama under that
+# answer serves nothing and its decree sidecar still pulls multi-GB models, so
+# it must stay off. The rule regressed twice by being written out per call site,
+# so these assert on the shared list and on every consumer honouring it.
+
+vendor_disabled_services external | grep -qxF EXIST_IS_AI_OLLAMA \
+    && _ok "external forbids EXIST_IS_AI_OLLAMA" \
+    || _fail "external forbids EXIST_IS_AI_OLLAMA" \
+             "external means the models are remote; a local ollama pulls GBs nothing queries"
+
+for _v in nvidia amd none; do
+    if [[ -z "$(vendor_disabled_services "$_v")" ]]; then
+        _ok "${_v} forbids nothing"
+    else
+        _fail "${_v} forbids nothing" "only external names a remote ollama"
+    fi
+done
+
+vendor_forbids_service external EXIST_IS_AI_OLLAMA \
+    && _ok "vendor_forbids_service matches exactly" \
+    || _fail "vendor_forbids_service matches exactly" "the predicate disagrees with the list"
+
+if vendor_forbids_service external EXIST_IS_AI_OLLAMA_EXTRA 2>/dev/null; then
+    _fail "vendor_forbids_service is not a prefix match" \
+          "a substring match would disable services that merely share a prefix"
+else
+    _ok "vendor_forbids_service is not a prefix match"
+fi
+
+# Every consumer must go through the list. A hardcoded EXIST_IS_AI_OLLAMA=false
+# is what let quest.sh, models.sh and e2e.sh drift apart in the first place.
+E2E="${SRC_DIR}/test/e2e/e2e.sh"
+for _f in "$QUEST" "$MODELS" "$E2E"; do
+    _name="$(basename "$_f")"
+    if [[ ! -f "$_f" ]]; then
+        _fail "${_name} is readable" "not found at ${_f}"
+        continue
+    fi
+    grep -q 'vendor_disabled_services\|vendor_forbids_service' "$_f" \
+        && _ok "${_name} applies the vendor's forbidden-service list" \
+        || _fail "${_name} applies the vendor's forbidden-service list" \
+                 "it must not hardcode the rule — that is how this broke before"
+
+    # Comments are stripped first: these files explain the rule they now apply
+    # through the list, and prose about the old hardcoding is not the hardcoding.
+    if sed 's/#.*//' "$_f" | grep -q 'EXIST_IS_AI_OLLAMA[= ]*false'; then
+        _fail "${_name} has no hardcoded EXIST_IS_AI_OLLAMA=false" \
+              "use vendor_disabled_services so all three stay in step"
+    else
+        _ok "${_name} has no hardcoded EXIST_IS_AI_OLLAMA=false"
+    fi
+done
+
+# The enablement loop is where Core undid the vendor answer: quest asked first,
+# then Core's services list turned ollama straight back on.
+if [[ -f "$QUEST" ]]; then
+    awk '/^_enable_quest_services\(\)/,/^}/' "$QUEST" | grep -q 'vendor_forbids_service' \
+        && _ok "quest's service enablement respects the vendor" \
+        || _fail "quest's service enablement respects the vendor" \
+                 "a quest listing EXIST_IS_AI_OLLAMA would re-enable it under external"
+fi
+
 # ── The generator ─────────────────────────────────────────────────────────────
 
 if [[ -f "$GC" ]]; then

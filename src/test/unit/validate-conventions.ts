@@ -49,7 +49,12 @@ const PORT_LINE_RE       = /^\s*-\s*"?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))
 // from the container env, NOT rendered). The validator reads the file, so it matches
 // the literal token. (Dashy uses the bare EXIST_DOMAIN form — see DASHY_URL_RE.)
 const CADDY_HEADER_RE    = /^([\w-]+)\.\{\$CADDY_DOMAIN\}\s*\{/;
-const CADDY_PROXY_RE     = /^\s*reverse_proxy\s+(?:https?:\/\/)?([\w-]+):(\d+|\{[^}]+\})/;
+// An upstream may be a Caddy env expansion with a default -- `{$VAR:host:port}` --
+// used where the destination is configurable (ollama can live on another box).
+// The default is what ships, so it is what the slug/container convention is
+// checked against; a deployment that overrides the env var is deliberately
+// pointing the hostname somewhere this repo cannot know about.
+const CADDY_PROXY_RE     = /^\s*reverse_proxy\s+(?:\{\$[A-Z_][A-Z0-9_]*:)?(?:https?:\/\/)?([\w-]+):(\d+|\{[^}]+\})/;
 // piHole no longer enumerates slugs — a single wildcard record points the whole
 // EXIST_DOMAIN at the Caddy host. This is the line we assert exists.
 const PIHOLE_WILDCARD_RE = /address=\/\$\{EXIST_DOMAIN\}\/\$\{EXIST_LOCAL_HOST_IP\}/;

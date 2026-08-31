@@ -37,6 +37,12 @@ services:
       # for this service only. The Caddyfile reads it as {$CADDY_DOMAIN}.
       # PEER/PUBLIC are only used by the front-door swap-in Caddyfiles.
       - CADDY_DOMAIN=${CADDY_DOMAIN:-$EXIST_DOMAIN}
+      # Where ollama.<domain> actually points. Follows the stack-wide
+      # endpoint, so the hostname resolves to a remote ollama under
+      # EXIST_GPU_VENDOR=external and to the local container otherwise --
+      # which turns ollama.<domain> into a live check of whether the
+      # configured endpoint is reachable, instead of a guaranteed 502.
+      - CADDY_OLLAMA_UPSTREAM=${EXIST_OLLAMA_URL:-http://ollama:11434}
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
       - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
 
