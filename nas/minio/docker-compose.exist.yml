@@ -26,7 +26,14 @@ services:
       - MINIO_DOMAIN=${MINIO_DOMAIN}
       - MINIO_SERVER_URL=${MINIO_SERVER_URL}
       - MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-      - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
+      # 8801 is decree-webhook's listen port and is not configurable --
+      # see the comment on its environment: block. This pointed at 48880
+      # for a while, which refuses connections, so no bucket event ever
+      # reached decree. Nothing caught it: decree's own exist.test.sh
+      # probes 8801 directly, so the webhook looked healthy from the one
+      # side that was never wrong. src/test/e2e/e2e.sh now walks the real
+      # chain (write object -> event -> inbox -> run) instead.
+      - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
       - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${MINIO_DECREE_WEBHOOK_AUTH_TOKEN}
     command: server /data --console-address :9001
 

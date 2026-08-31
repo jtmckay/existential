@@ -219,7 +219,7 @@ if [ "$NOTE_NOTIFY" = "true" ]; then
     cat > "${OUTBOX_DIR}/note-develop-$(date +%s%N).md" << EOF
 ---
 routine: notify
-ntfy_title: Idea developed — ${note_name}
+ntfy_title: $(jq -rn --arg v "Idea developed — ${note_name}" '$v|@json')
 ntfy_priority: default
 ntfy_tags: bulb
 ---

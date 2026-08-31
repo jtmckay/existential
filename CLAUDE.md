@@ -54,9 +54,11 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    Shared routine code in `automations/shared_routines/`; shared helpers in `automations/lib/`.
 5. **Repeatable work is a decree routine** (`automations/shared_routines/`), not host cron or
    one-off `docker exec`. One-shots stay as `exist.<action>.sh`.
-6. **Services set themselves up deterministically.** Pre-startup filesystem work →
-   `exist.initial.sh` (idempotent, no sentinels). Post-startup setup → decree migrations (run
-   once). Manual steps → quest guides.
+6. **Services set themselves up deterministically.** Host-side pre-startup work →
+   `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
+   boot → the container's own **`entrypoint.sh`**, which is the one place that can write it
+   (see `services.md`). Post-startup setup → decree migrations (run once). Manual steps → quest
+   guides.
 7. **Services validate themselves** via `exist.test.sh`. Every service ships one.
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
@@ -97,7 +99,8 @@ than service state, so it is gitignored but does **not** live under `volumes/`: 
 ## Service lifecycle
 
 `./existential.sh` renders templates → runs `exist.initial.sh` (pre-startup, idempotent, every
-run, no sentinels). Then the user runs `docker compose up -d`; the sidecar retries
+run, no sentinels). Then the user runs `docker compose up -d`; each service's `entrypoint.sh`
+trues up the config only it can reach; the sidecar retries
 `exist.test.sh` until it passes, and decree applies any pending one-time migrations from
 `<service>/decree/migrations/`. On demand: `./existential.sh run <slug> <action>` →
 `exist.<action>.sh`.
@@ -182,12 +185,17 @@ from the repo root against the generated `docker-compose.yml`.
   body, so it can only ever apply on an AMD host. → `services.md`
 - **GPU wiring is vendor-driven, never forked per template.** Templates declare the nvidia
   reservation (correct for the majority) and `src/generate-compose.ts` rewrites it from
-  `EXIST_GPU_VENDOR`: `nvidia` is a no-op, `amd`/`none` strip the reservation — docker refuses to
+  `EXIST_GPU_VENDOR`: `nvidia` is a no-op, `amd`/`none`/`external` strip the reservation — docker refuses to
   create a container whose device driver it cannot satisfy, so one stray reservation takes
   `docker compose up` down for the *whole* stack — and merge that service's `x-exist-gpu.<vendor>`
   block instead. Vendor config lives **with the service**, so a new GPU service is still just a
   new folder. A blank `EXIST_GPU_VENDOR` falls back to the old `EXIST_VRAM_GB == 0` meaning, which
   is what pre-vendor installs already assumed. → `services.md`
+- **Every container declares `deploy.resources.limits.memory`.** Size it at roughly 2-3x what the
+  service uses idle, not at a worst case: docker sets `memory.swap.max == memory.max`, so a
+  container gets its limit in RAM *plus the same again in swap* before anything is killed. The
+  limit is where swapping starts, not a ceiling. `./existential.sh run footprint` compares limits
+  against live usage. Model servers are the exception — there the limit *is* the model.
 - **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
   `volumes/<name>`, referenced by bare name and declared in the service's top-level
   `x-exist-volumes:` block (`nfs` / `db` / `backup`); an undeclared name is a hard error. The

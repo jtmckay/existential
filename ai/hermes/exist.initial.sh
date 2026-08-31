@@ -189,6 +189,31 @@ _hermes_has_mcp_server() {
         | grep -qE "^[[:space:]]{2}$2:[[:space:]]*$"
 }
 
+# One key out of the model: block. Scoped to the block on purpose — base_url and
+# context_length appear elsewhere in a hermes config, so an unscoped grep reads
+# the wrong line.
+_hermes_model_field() {
+    _hermes_model_block "$1" \
+        | grep -m1 -E "^[[:space:]]*${2}:" \
+        | sed -E "s/^[[:space:]]*${2}:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/[\"']//g" || true
+}
+
+# True when the model: block still points at an ollama endpoint we own, i.e.
+# provider "custom" plus a host:11434 base_url. That is the same test openviking
+# applies to ov.conf's api_base, and it is what separates "existential configured
+# this" from "the user chose Anthropic". The endpoint pattern deliberately
+# matches ANY host on :11434, not just the currently configured one — otherwise
+# moving the chat role to another box would look like a deliberate choice and
+# freeze the config at the dead address.
+_hermes_model_is_ours() {
+    local cfg="$1" provider base
+    provider=$(_hermes_model_field "$cfg" provider)
+    base=$(_hermes_model_field "$cfg" base_url)
+    [[ "$provider" == "custom" ]] || return 1
+    [[ "$base" =~ ^https?://[^/]+:11434(/v1)?$ ]] || return 1
+    return 0
+}
+
 # True when the model: block is still the image's stock example AND no provider
 # key is configured anywhere — i.e. nobody has chosen a provider yet, so we may.
 _hermes_model_is_stock() {
@@ -278,14 +303,34 @@ EOF
         # Stock example + no provider key anywhere = nobody has chosen, so choose.
         echo "[hermes] config.yaml holds the image's stock model: block — pointing it at ollama (${chat} @ ${ollama_url})."
         _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$ollama_url"
+    elif _hermes_model_is_ours "$cfg"; then
+        # The block still points at ollama, so it is .env.shared's to own —
+        # "Model choice is global, never per-service" (CLAUDE.md). Without this,
+        # changing EXIST_MODEL_CHAT silently did nothing here: hermes kept the
+        # first model it was ever given while every other consumer moved, and the
+        # only symptom was the agent answering from a model you thought you had
+        # replaced. Reconciles the endpoint too, so moving the chat role to
+        # another box follows.
+        local cur_model cur_base cur_ctx
+        cur_model=$(_hermes_model_field "$cfg" default)
+        cur_base=$(_hermes_model_field "$cfg" base_url)
+        cur_ctx=$(_hermes_model_field "$cfg" context_length)
+        if [[ "$cur_model" == "$chat" && "$cur_base" == "${ollama_url}/v1" \
+              && ( -z "$ctx" || "$cur_ctx" == "$ctx" ) ]]; then
+            echo "[hermes] config.yaml already current (${chat} @ ${ollama_url}) — leaving it alone."
+        else
+            echo "[hermes] config.yaml has ${cur_model} @ ${cur_base}; .env.shared says ${chat} @ ${ollama_url}/v1 — reconciling."
+            _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$ollama_url"
+        fi
     else
-        # Past here the model: block is the user's — their choice of model,
-        # provider and endpoint survives. context_length is the one exception:
-        # it is not a preference, it is a fact about how EXIST_MODEL_CHAT was
-        # built, and a stale value here is unobservable from the outside. Hermes
-        # packs a prompt to whatever this says and ollama truncates the overflow
-        # silently, which reads as the agent ignoring its instructions. So
-        # reconcile this single line and leave every other line alone.
+        # Not ours: the user pointed hermes at a provider of their own, so their
+        # choice of model, provider and endpoint survives. context_length is the
+        # one exception: it is not a preference, it is a fact about how
+        # EXIST_MODEL_CHAT was built, and a stale value here is unobservable from
+        # the outside. Hermes packs a prompt to whatever this says and ollama
+        # truncates the overflow silently, which reads as the agent ignoring its
+        # instructions. So reconcile this single line and leave every other line
+        # alone.
         local have
         have=$(_hermes_model_block "$cfg" | grep -m1 -E '^[[:space:]]*context_length:' | grep -oE '[0-9]+' || true)
         if [[ -z "$ctx" ]]; then

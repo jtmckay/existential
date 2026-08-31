@@ -135,13 +135,28 @@ subsequent run. There is no flag to re-render over them — `./existential.sh re
 the rendered files to `archive/<timestamp>/` and the next run renders fresh, so nothing is
 overwritten without a copy you can restore.
 
-The exception is files that hold nothing you could lose — no secrets, no prompted answers.
-Those are **regenerated on every run** so a value like `EXIST_DOMAIN` baked into them can't
-go stale, and they carry a `DO NOT EDIT` header saying so. Dashy's `dashy-conf.yml` is the
-one today: it bakes the domain because Dashy reads a static config file, and it re-renders
-every run so changing your domain updates it along with everything else. If you'd rather
-own it, flip `# EXIST_KEEP: false` to `true` in its header and the file is yours from then
-on — never regenerated again.
+Written-once is the right rule for a file, but the wrong one for a *key*. A setting added
+upstream would otherwise never reach an install that had already rendered: the file exists, so
+it is skipped, and the new value is silently empty everywhere that reads it. So `.env` files are
+reconciled key by key on every run — anything the template has and your file lacks is appended,
+with its comment, and named in the output. It is append-only: existing values are never changed,
+blanks are never filled (blank is meaningful — it is how "not asked yet" is recorded), and
+nothing is removed. That is what makes `git pull && ./existential.sh` an upgrade.
+
+Two other exceptions cover config that would otherwise go stale:
+
+**Files that hold nothing you could lose** — no secrets, no prompted answers — are
+**regenerated on every run**, so a value like `EXIST_DOMAIN` baked into them can't go stale.
+They carry a `DO NOT EDIT` header saying so. Dashy's `dashy-conf.yml` and Honcho's `config.toml`
+are the two today. If you'd rather own one, flip `# EXIST_KEEP: false` to `true` in its header
+and the file is yours from then on — never regenerated again.
+
+**Config that lives inside a service's own datastore** can't be reached by any of the above: it
+does not exist until that service's first boot, and the service rewrites it on shutdown. Those
+are trued up by the service's own `entrypoint.sh`, in the moment between the container starting
+and the service starting. Home Assistant's reverse-proxy settings, Nextcloud's trusted domains
+and ntfy's publishing user all work this way — which is why changing `EXIST_DOMAIN` moves the
+whole stack instead of half of it.
 
 ### 3. Merge — one compose file, one env file
 

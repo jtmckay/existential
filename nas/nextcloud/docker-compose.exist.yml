@@ -37,10 +37,17 @@ services:
       # not over /docker-entrypoint-hooks.d, so the image's other hook folders
       # stay in place. Scripts here need the exec bit — run_path skips the rest.
       - ./hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro,z
+      # before-starting runs on EVERY start, which is what re-applies the domain
+      # settings below when EXIST_DOMAIN changes — the installer reads them only
+      # once. See hooks/before-starting/01-sync-domain.sh.
+      - ./hooks/before-starting:/docker-entrypoint-hooks.d/before-starting:ro,z
     environment:
-      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN} # Unfortunately most of these values are only used on the first run.
-      - TRUSTED_PROXIES=${NEXTCLOUD_TRUSTED_PROXIES} # To update values, you will need to manually change config/config.php.
-      - OVERWRITEHOST=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN} # Or nuke your Nextcloud volumes and start over.
+      # The image reads these only on the FIRST run and then ignores them, so
+      # hooks/before-starting/01-sync-domain.sh re-applies them on every start.
+      # That is what lets EXIST_DOMAIN change without nuking the volumes.
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
+      - TRUSTED_PROXIES=${NEXTCLOUD_TRUSTED_PROXIES}
+      - OVERWRITEHOST=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
       - OVERWRITECLIURL=${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
       - OVERWRITEPROTOCOL=${NEXTCLOUD_PROTOCOL}
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}

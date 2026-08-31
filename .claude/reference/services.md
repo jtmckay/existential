@@ -29,8 +29,9 @@ service, decide which side it is on and wire it accordingly.
   1. templates.sh     Render *.exist.* → live files
   2. exist.initial.sh Pre-startup, idempotent, every run. No sentinels — check state, skip if done.
 docker compose up -d  (user runs)
-  3. exist.test.sh    Sidecar retries until this passes (service healthy)
-  4. decree process   Runs pending one-time migrations from <service>/decree/migrations/
+  3. entrypoint.sh    Inside the container, before the service starts. Trues up config it owns.
+  4. exist.test.sh    Sidecar retries until this passes (service healthy)
+  5. decree process   Runs pending one-time migrations from <service>/decree/migrations/
 On demand:
   exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented as quest
   exist.test.sh       ./existential.sh run <slug> test — read-only validation
@@ -39,10 +40,44 @@ On demand:
 | Script | Write when… |
 |---|---|
 | `exist.initial.sh` | Files/dirs/system config needed before container start. Idempotent. |
+| `entrypoint.sh` | Config the service owns, seeds at first boot, and re-reads only at startup — see below. |
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
 | `exist.test.sh` | Always. Every service ships one. Also the sidecar health gate. See `testing.md`. |
+
+**Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
+then `exec`s the image's real entrypoint. Reach for this when a setting is *derived from
+`.env.shared`* but lives inside the service's own datastore, and all three of these hold:
+
+1. the file does not exist until the service's own first boot, so a pre-startup host script has
+   nothing to edit;
+2. the service rewrites it on shutdown, so an edit made while it runs is discarded;
+3. it is the only copy the service actually reads.
+
+Together those close every other window — which is the whole argument for the entrypoint: it is
+the one moment the file exists and nothing is holding it.
+
+Without it the setting silently freezes at whatever the first boot saw, while the rest of the
+stack follows `.env.shared` immediately (caddy reads `{$CADDY_DOMAIN}` at runtime; `dashy-conf.yml`
+and honcho's `config.toml` are `_ALWAYS_RENDER`). That asymmetry is the bug: `EXIST_DOMAIN`
+becomes a one-way door and nothing says so.
+
+In the stack today:
+
+| Service | What it trues up | Why nothing else could |
+|---|---|---|
+| `services/homeassistant` | `.storage/http` — `use_x_forwarded_for`, `trusted_proxies` | HA serves `data.stable` only. It stages `configuration.yaml` into `data.pending` as `not_promoted` and never promotes it, not even across a restart, so proxied requests 400 forever. Restarts itself once when the file did not exist yet. |
+| `nas/nextcloud` | `trusted_domains`, `overwrite*`, `trusted_proxies` (via a `before-starting` hook) | The installer reads them once and then ignores the environment. |
+| `services/ntfy` | the publishing user and its ACL | `ntfy user add` needs the auth DB the server creates on first boot. |
+
+Rules. Keep the true-up **idempotent and quiet** — converge, then say nothing, so a normal start
+is silent (nextcloud's hook logs only what changed). **`exec` the real entrypoint** so the image's
+init keeps PID 1. If a restart is genuinely needed, **bound it**: gate it on a condition the
+restart itself resolves, or it becomes a crash loop. And leave a deliberate choice alone — reconcile
+only while the value still looks like something existential set (hermes checks `provider: custom`
+plus a `:11434` endpoint before touching `model:`; openviking applies the same test to `ov.conf`'s
+`api_base`), so pointing a service at Anthropic or an external host is respected.
 
 **Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
 startup — nextcloud's `/docker-entrypoint-hooks.d/{pre,post}-installation`, postgres'

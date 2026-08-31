@@ -65,10 +65,15 @@ shared_routines:
 Activate the receipt polling cron:
 
 ```bash
-cp automations/cron/telegram-receipt-poll.md.example automations/cron/telegram-receipt-poll.md
+cp services/decree/decree/cron.example/telegram-receipt-poll.md \
+   services/decree/decree/cron/
 ```
 
-Decree picks up the new cron on its next tick — no restart needed.
+Cron frontmatter is read when the daemon starts, so restart it to pick the new schedule up:
+
+```bash
+docker compose restart decree
+```
 
 ## Verifying
 

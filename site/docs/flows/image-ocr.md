@@ -168,13 +168,19 @@ shared_routines:
 Copy and activate the example cron:
 
 ```bash
-cp automations/cron/telegram-poll.md.example automations/cron/telegram-poll.md
+cp services/decree/decree/cron.example/telegram-poll.md \
+   services/decree/decree/cron/
 ```
 
 `telegram-ingest` polls `getUpdates` every minute, tracks a cursor in
 `/secrets/telegram/offset.txt` so nothing is processed twice, and pipes each new photo through
 `rclone rcat` into `TELEGRAM_RCLONE_DEST`. From there it is an ordinary bucket event and the
-flow above takes over. Decree picks up the new cron on its next tick — no restart needed.
+flow above takes over. Cron frontmatter is read when the daemon starts, so restart it to pick
+the new schedule up:
+
+```bash
+docker compose restart decree
+```
 
 #### Option C — rclone
 

@@ -20,12 +20,27 @@ Simple HTTP-based pub-sub notification service. Send notifications to your phone
    ```bash
    ./existential.sh && docker compose up -d
    ```
-3. Create the admin and bot users and issue a bot token:
-   ```bash
-   ./existential.sh run ntfy setup
-   ```
-   This writes `EXIST_NTFY_URL` and `EXIST_NTFY_TOKEN` to the root `.env` so decree and
-   other services can send notifications.
+That is the whole setup. ntfy's `server.yml` denies every publish by default, so a fresh
+install would otherwise accept nothing until someone ran a manual command — which is exactly
+the sort of step that gets missed and then looks like a broken notification path. Its
+`entrypoint.sh` creates the admin user and the publishing bot on first boot from
+`EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` in `.env.shared`, and grants the bot read-write on
+`EXIST_NTFY_TOPICS`. It waits for ntfy to create its auth database first, since `ntfy user add`
+cannot run before that exists, and it is a no-op on every later start.
+
+Decree publishes as that user, so automations report in with no further configuration.
+
+### Using a token instead
+
+`EXIST_NTFY_TOKEN` takes precedence over the user and password when it is set, and ships blank.
+To mint one:
+
+```bash
+./existential.sh run ntfy setup
+```
+
+Leave it blank unless you want a token — a value ntfy does not recognise fails every publish with
+a 401, and because the token wins, the working user/password path is never tried.
 
 ### Customization
 

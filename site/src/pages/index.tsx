@@ -55,8 +55,10 @@ function HomepageClosing() {
           It's a homelab. You already have the hardware.
         </Heading>
         <p className={styles.closingLede}>
-          One machine, Docker, and an evening. Pick what you want, and it comes
-          up wired together.
+          One machine, Docker, and an evening. Start with Core — files, your
+          house, the agent, its memory and voice, plus notifications and
+          monitoring — or pick service by service. Either way it comes up wired
+          together.
         </p>
         <div className={styles.closingCode}>
           <pre>
@@ -64,7 +66,7 @@ function HomepageClosing() {
               {'git clone https://github.com/jtmckay/existential.git\n'}
               {'cd existential\n'}
               {'\n'}
-              {'./existential.sh quest      # pick your services\n'}
+              {'./existential.sh quest      # say yes to Core, or pick your own\n'}
               {'docker compose up -d\n'}
             </code>
           </pre>

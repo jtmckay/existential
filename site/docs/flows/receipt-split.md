@@ -148,10 +148,16 @@ shared_routines:
 ### Step 3 — Activate the receipt polling cron
 
 ```bash
-cp automations/cron/telegram-receipt-poll.md.example automations/cron/telegram-receipt-poll.md
+cp services/decree/decree/cron.example/telegram-receipt-poll.md \
+   services/decree/decree/cron/
 ```
 
-This schedules `telegram-receipt` to run every minute. Decree picks it up on the next tick — no restart needed.
+This schedules `telegram-receipt` to run every minute. Cron frontmatter is read when the daemon
+starts, so restart it to pick the new schedule up:
+
+```bash
+docker compose restart decree
+```
 
 ### Step 4 — Verify
 

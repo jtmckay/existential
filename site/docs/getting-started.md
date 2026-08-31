@@ -19,16 +19,31 @@ sidebar_position: 2
 ## Setup
 
 ```bash
-./existential.sh
+./existential.sh quest
 ```
 
-This will:
+On a first run this asks two hardware questions and then offers **Core** — the whole system
+wired together, rather than forty checkboxes. Say yes and you get files, the house, the agent,
+its memory and voice, plus notifications and monitoring:
 
-1. Find all `.example` files and create non-example counterparts (directories first, then files)
-2. Prompt for any `EXIST_CLI` placeholder values interactively
-3. Auto-generate passwords, keys, and UUIDs for other placeholders
-4. Generate a unified `docker-compose.yml` from all enabled services
-5. Generate a master `.env` by merging `.env.shared` with all enabled service `.env` files
+| | |
+|---|---|
+| **Front door** | Caddy (TLS + hostnames), Dashy (the dashboard) |
+| **Files** | Nextcloud, Redis, MinIO (S3 + file events) |
+| **House** | Home Assistant |
+| **Automation** | Decree, ntfy (where automations report in) |
+| **Monitoring** | Loki, Prometheus, Grafana — Decree's run logs and dashboards |
+| **Agent** | Ollama, Hermes, Open WebUI, Honcho (memory), OpenViking (context), Firecrawl |
+| **Voice** | wyoming-whisper (speech to text), wyoming-piper (text to speech) |
+
+Decline and you fall through to the full picker. Either way, `./existential.sh` on its own does
+the same work without the questions:
+
+1. Renders every `*.exist.*` template into its live counterpart, prompting for `EXIST_CLI` values
+   and generating passwords and keys for the rest
+2. Runs each enabled service's `exist.initial.sh` (pre-startup setup — certs, caches, seed config)
+3. Generates a unified `docker-compose.yml` from all enabled services
+4. Generates a master `.env` by merging `.env.shared` with every enabled service's `.env`
 
 It also fills in `EXIST_LOCAL_HOST_IP` from `tailscale ip -4` (falling back to your LAN address
 if tailscale isn't running) and derives `EXIST_DOMAIN` as `<that-ip-with-dashes>.nip.io`. nip.io
@@ -42,6 +57,30 @@ exact node name and nothing beneath it, so every `<slug>.` under it fails to res
 tailnet **IP** in nip.io form — tailscale carries the traffic, nip.io supplies the wildcard.
 :::
 
+### The hardware questions
+
+**GPU vendor** decides how models run: `nvidia` uses the container runtime, `amd` uses
+Vulkan/ROCm, `none` is CPU-only, and **`external`** means the models live on another machine —
+no card needed here, and no local Ollama. That last one is also how a GPU-less machine runs the
+full agent path: point `EXIST_OLLAMA_URL` at a box that has the VRAM.
+
+**VRAM** picks the model tier. Every model the stack uses is named once, in `.env.shared`'s
+*Model Selection* block, and each role can live on a different machine — see
+[Configuration](./configuration.md#endpoints--putting-roles-on-different-machines).
+
+Re-ask both later with:
+
+```bash
+./existential.sh run models
+```
+
+### Upgrading
+
+`git pull && ./existential.sh` is the upgrade. Rendered files are never overwritten, so your
+edits and generated secrets survive; any key that is new in a template is appended to your
+`.env` files and named in the output. See
+[what happens when you `git pull`](./configuration.md#what-happens-when-you-git-pull).
+
 ## Enable/Disable Services
 
 Edit `.env.shared` and set services to `true` or `false`:
@@ -52,17 +91,31 @@ EXIST_IS_SERVICES_DECREE=true
 EXIST_IS_SERVICES_NOCODB=false
 ```
 
-Then re-run the setup script to re-render and regenerate the compose file:
+Then re-run to pick up the change:
 
 ```bash
 ./existential.sh
 ```
+
+That regenerates `docker-compose.yml` and the master `.env`. It renders templates for services
+you have just enabled, and leaves every file that already exists alone.
 
 ## Deploy
 
 ```bash
 docker compose up -d
 ```
+
+Services bring themselves up: each one's sidecar retries its `exist.test.sh` until it passes, and
+Decree applies any one-time migrations. To see what is and is not working at any point:
+
+```bash
+./existential.sh test services      # every enabled service validates itself
+./existential.sh run footprint      # memory limits vs what is actually in use
+```
+
+Decree's **triage** routine runs the same checks on a schedule and notifies you when something
+breaks or recovers, backing off as the stack stays green.
 
 ## Integrations
 

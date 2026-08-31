@@ -10,16 +10,25 @@ services:
           memory: 512M
     networks:
       - exist
+    # entrypoint.sh writes the reverse-proxy settings into .storage/http, which is
+    # the only place HA serves them from, in the window before HA starts — the one
+    # moment they can be written at all, since HA rewrites .storage on shutdown.
+    # Without it every proxied request answers 400 while :8123 keeps working.
+    entrypoint: /entrypoint.sh
     volumes:
       # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
       # TODO: backup sidecar → volumes/homeassistant_config_backup (no sidecar yet).
       - homeassistant_data:/config
+      - ./entrypoint.sh:/entrypoint.sh:ro
     # ports disabled — access via https://homeassistant.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - 8123:8123
     environment:
       TZ: ${HOMEASSISTANT_TZ}
+      # The docker bridge caddy sits on. Trusting the network rather than a pinned
+      # container IP keeps this correct when caddy is recreated and its address moves.
+      HOMEASSISTANT_TRUSTED_PROXIES: ${EXIST_DOCKER_SUBNET:-172.16.0.0/12}
     # privileged: true  # uncomment if you need access to host hardware (e.g. USB zigbee/z-wave sticks)
 
 x-exist-volumes:

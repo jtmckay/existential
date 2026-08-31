@@ -142,7 +142,7 @@ if [ "$AGENT_NOTIFY" = "true" ]; then
     cat > "${OUTBOX_DIR}/agent-task-$(date +%s%N).md" << EOF
 ---
 routine: notify
-ntfy_title: Agent task done — ${_name}
+ntfy_title: $(jq -rn --arg v "Agent task done — ${_name}" '$v|@json')
 ntfy_priority: default
 ntfy_tags: robot
 ---

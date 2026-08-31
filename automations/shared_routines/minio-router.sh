@@ -94,14 +94,18 @@ for _processor in "$_processors_dir"/*.sh; do
         # Optional natural-language gate, evaluated by file-processor once the
         # content is actually on disk — the path is all we have here. Quoted
         # through jq because criteria are prose: colons and quotes are normal in
-        # them, unlike the mechanical fields above.
+        # them — as they are in rclone_path, which carries an S3 object key and
+        # so is whatever the user named their file. "Report: Q3.pdf" produces a
+        # ": " in the value; unquoted, that message is invalid YAML and decree
+        # re-runs it forever without ever writing run.json. Only processor,
+        # file_action and is_pre_signed below are genuinely mechanical.
         _raw_crit=$(grep -m1 '^CRITERIA=' "$_processor" || true)
         _criteria=$(echo "$_raw_crit" | sed "s/^CRITERIA=[\"']\(.*\)[\"']$/\1/")
 
         cat > "$_outbox_file" << EOF
 ---
 routine: file-processor
-rclone_path: ${_file_source}
+rclone_path: $(jq -rn --arg v "${_file_source}" '$v|@json')
 processor: ${_processor_name}
 file_action: ${_file_action}
 is_pre_signed: ${_is_pre_signed:-false}

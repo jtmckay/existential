@@ -109,7 +109,7 @@ Write markdown. Be concrete and brief — no preamble, no encouragement."
         cat > "${outbox}/dept-${profile}-$(date +%s%N).md" << NOTIFY
 ---
 routine: notify
-ntfy_title: ${profile} — ${name}
+ntfy_title: $(jq -rn --arg v "${profile} — ${name}" '$v|@json')
 ntfy_priority: default
 ntfy_tags: robot
 ---

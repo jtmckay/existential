@@ -186,6 +186,12 @@ grep -q '"EXIST_OLLAMA_URL/v1"' "$HONCHO" \
     && _fail "honcho names no bare EXIST_OLLAMA_URL endpoint" "a base_url still uses the global directly" \
     || _ok "honcho names no bare EXIST_OLLAMA_URL endpoint"
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
+# Without it this suite reported "passed" no matter what — which is the worst
+# possible state for the one thing guarding the three endpoint resolvers.
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

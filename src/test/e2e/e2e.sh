@@ -405,6 +405,66 @@ preflight_check() {
     return 1
 }
 
+# ── Flow tests ────────────────────────────────────────────────────────────────
+#
+# A per-service exist.test.sh can only see its own service. Everything the stack
+# is actually FOR lives between services — a file lands in MinIO and an
+# automation reacts to it — and that seam had no coverage at all: MinIO spent
+# months posting bucket events to a port nothing served while every individual
+# service test passed.
+#
+# A flow is a script in src/test/e2e/flows/ that declares which services it
+# needs. Adding a flow is adding a file; nothing here enumerates them.
+#
+#   FLOW_NAME      one line, shown in the log
+#   FLOW_REQUIRES  space-separated EXIST_IS_* vars, all of which must be on
+#
+# Both are read out of the source with grep rather than by sourcing the file,
+# the same way minio-router reads PATTERN from a processor: a flow is a script
+# to execute, not a library, and sourcing it would run it.
+FLOW_DIR="${REPO_DIR}/src/test/e2e/flows"
+
+flow_meta() {
+    grep -m1 "^${2}=" "$1" | sed "s/^${2}=[\"']\(.*\)[\"']$/\1/"
+}
+
+run_flows() {
+    local work="$1" quest_name="$2"
+    [ -d "$FLOW_DIR" ] || return 0
+
+    local ran=0 failed=0
+    local flow name requires var missing
+    for flow in "$FLOW_DIR"/*.sh; do
+        [ -f "$flow" ] || continue
+        name=$(flow_meta "$flow" FLOW_NAME)
+        requires=$(flow_meta "$flow" FLOW_REQUIRES)
+
+        missing=""
+        for var in $requires; do
+            grep -q "^${var}=true" "$work/.env.shared" || missing="${missing} ${var}"
+        done
+        if [ -n "$missing" ]; then
+            log "  ↷ ${name:-$(basename "$flow")} — skipped (off:${missing})"
+            continue
+        fi
+
+        log "  • ${name:-$(basename "$flow")}"
+        if WORK="$work" E2E_PROJECT="$E2E_PROJECT" REPO_DIR="$REPO_DIR" bash "$flow"; then
+            ran=$(( ran + 1 ))
+        else
+            log "  ✗ ${name:-$(basename "$flow")} — FAILED"
+            failed=$(( failed + 1 ))
+        fi
+    done
+
+    if [ "$failed" -gt 0 ]; then
+        log "${quest_name} — ${failed} flow test(s) FAILED"
+        return 1
+    fi
+    [ "$ran" -eq 0 ] && log "  (no flow tests apply to this quest)"
+    return 0
+}
+
 # ── Per-quest runner ──────────────────────────────────────────────────────────
 
 WORK=""
@@ -437,7 +497,16 @@ cleanup() {
     fi
     WORK=""
 }
-trap cleanup EXIT INT TERM
+# Signals raise an exit rather than running cleanup directly. A handler on
+# INT/TERM returns to where it interrupted, so the old `trap cleanup EXIT INT
+# TERM` tore the stack down and then let the run CONTINUE — against a $WORK it
+# had just blanked. Every later step then resolved to "/docker-compose.yml" and
+# "/existential-compose.yml", and the quest reported "FAILED" when the truth was
+# that someone pressed Ctrl+C. Exiting instead fires the EXIT trap once, cleans
+# up, and stops.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 run_quest() {
     local yaml="$1"
@@ -584,6 +653,14 @@ run_quest() {
             --entrypoint "" existential-adhoc \
             bash /src/test/run-all.sh; then
         log "${quest_name} — service tests FAILED"
+        return 1
+    fi
+
+    # 10. Cross-service flow tests. Runs last: every flow assumes a stack whose
+    #     individual services already pass, so a failure here is unambiguously
+    #     about the wiring between them.
+    log "Running flow tests for ${quest_name}:"
+    if ! run_flows "$WORK" "$quest_name"; then
         return 1
     fi
 

@@ -182,12 +182,34 @@ if [ "$TRIAGE_NOTIFY" = "true" ] && [ "$NOW_FAILED" != "$PREV_FAILED" ]; then
     for s in $PREV_FAILED; do printf '%s\n' $NOW_FAILED  | grep -qx "$s" || _fixed+="${s} "; done
 
     if [ -n "$_broke" ] || [ -n "$_fixed" ]; then
+        # Build the frontmatter values as plain variables first. Inlining them
+        # in the heredoc broke two ways, and both only showed up on the failure
+        # path -- the one path this routine exists for:
+        #   - the title carries a literal ": " ("Stack: x stopped working"), so
+        #     it must be QUOTED. Unquoted, the message is invalid YAML; decree
+        #     fails to parse it, never writes run.json, and so re-runs the same
+        #     triage message on every 5-minute tick forever.
+        #   - ${v:+a}${v:-b} is not an if/else. When v is set, ${v:-b} expands
+        #     to v, not to nothing, so the set branch emitted "high" + "hermes "
+        #     = "highhermes". It only looked correct while nothing was broken.
+        _title=""
+        [ -n "$_broke" ] && _title="Stack: ${_broke% } stopped working"
+        [ -n "$_fixed" ] && _title="${_title:+${_title} · }${_fixed% } recovered"
+        if [ -n "$_broke" ]; then
+            _priority="high";    _tags="warning"
+        else
+            _priority="default"; _tags="white_check_mark"
+        fi
+        # Double-quoted YAML scalar: backslashes first, then quotes.
+        _title_yaml="${_title//\\/\\\\}"
+        _title_yaml="${_title_yaml//\"/\\\"}"
+
         cat > "${OUTBOX_DIR}/triage-$(date +%s%N).md" << NOTIFY
 ---
 routine: notify
-ntfy_title: ${_broke:+Stack: ${_broke% } stopped working}${_broke:+}${_fixed:+${_broke:+ · }${_fixed% } recovered}
-ntfy_priority: ${_broke:+high}${_broke:-default}
-ntfy_tags: ${_broke:+warning}${_broke:-white_check_mark}
+ntfy_title: "${_title_yaml}"
+ntfy_priority: ${_priority}
+ntfy_tags: ${_tags}
 ---
 ${_broke:+Not working: ${_broke% }
 }${_fixed:+Recovered: ${_fixed% }
