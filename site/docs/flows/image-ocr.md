@@ -213,8 +213,10 @@ rclone copyto /path/to/test.jpg nextcloud:S3/telegram/test.jpg \
 Then send a synthetic MinIO event:
 
 ```bash
-curl -X POST http://localhost:48880/minio \
-  -H "Authorization: Bearer <DECREE_MINIO_WEBHOOK_AUTH_TOKEN>" \
+# decree-webhook publishes no host port — it is reached over the exist
+# bridge, so send the event from a container already on it.
+docker exec decree curl -X POST http://decree-webhook:8801/minio \
+  -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"telegram/test.jpg","Records":[]}'
 ```

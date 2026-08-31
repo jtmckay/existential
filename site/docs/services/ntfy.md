@@ -73,16 +73,16 @@ echo "tk_$(tr -dc 'a-z0-9' </dev/urandom | head -c 29)"
 ```bash
 curl -d "Backup completed successfully" \
   -H "Authorization: Bearer tk_REPLACE_BOT_TOKEN" \
-  http://localhost:36880/exist/backup
+  https://ntfy.<domain>/exist/backup
 ```
 
 ## Services
 
 | Endpoint | URL |
 |---|---|
-| Web Interface | http://localhost:36880 |
-| API | http://localhost:36880/{topic} |
-| Health Check | http://localhost:36880/v1/health |
+| Web Interface | `https://ntfy.<domain>` |
+| API | `https://ntfy.<domain>/{topic}` |
+| Health Check | `https://ntfy.<domain>/v1/health` |
 
 ## Debugging
 

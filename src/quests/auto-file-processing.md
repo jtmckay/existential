@@ -20,7 +20,7 @@ the file's rclone path, and fans out one file-processor job per match.
 
 The pipeline:
   MinIO upload
-    → POST http://decree-webhook:48880/minio  (pre-configured in MinIO compose)
+    → POST http://decree-webhook:8801/minio  (pre-configured in MinIO compose)
     → minio-router reads lib/file-processors/*.sh, matches PATTERN
     → enqueues file-processor for each match
     → file-processor downloads the file (or gets a pre-signed URL)

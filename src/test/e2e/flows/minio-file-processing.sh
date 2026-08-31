@@ -122,6 +122,28 @@ docker restart decree >/dev/null || fail "could not restart decree"
 until_ok "decree back up after restart" 60 docker exec decree true
 say "restarted decree to pick up the routine config"
 
+# ── 2c. Point the webhook's rclone_prefix at this run's bucket.
+#
+#       minio-router DROPS the S3 bucket when it builds FILE_SOURCE -- it emits
+#       "<rclone_src>:<rclone_prefix>/<object-key>". That is right for the
+#       topology it was written for, where the bucket IS a nextcloud external
+#       mount and the nextcloud-side path is the prefix. But this flow talks to
+#       MinIO directly through an s3 remote, where the first path segment must
+#       be the bucket -- so the prefix is where the bucket has to go.
+PREFIX_CONFIG="$WORK/services/decree/webhook/config.yml"
+[ -f "$PREFIX_CONFIG" ] || fail "webhook config.yml not rendered in the clone"
+awk -v b="$BUCKET" '
+    /^  - path: \/minio$/ { inblock = 1 }
+    inblock && /^      rclone_prefix:/ { print "      rclone_prefix: " b; inblock = 0; next }
+    { print }
+' "$PREFIX_CONFIG" > "${PREFIX_CONFIG}.tmp" && mv "${PREFIX_CONFIG}.tmp" "$PREFIX_CONFIG"
+grep -q "rclone_prefix: ${BUCKET}" "$PREFIX_CONFIG" \
+    || fail "could not set rclone_prefix to ${BUCKET}"
+docker restart decree-webhook >/dev/null || fail "could not restart decree-webhook"
+until_ok "decree-webhook back up after restart" 60 \
+    docker exec minio curl -sf --max-time 3 -o /dev/null "$HEALTH"
+say "set rclone_prefix=${BUCKET} and restarted decree-webhook"
+
 # ── 3. Bucket, subscribed to the decree webhook target.
 # Credentials come from the container's own environment rather than this
 # script's argv, so they never appear in a host process list or an e2e log.
@@ -130,8 +152,12 @@ docker exec minio sh -c \
     || fail "mc alias set failed"
 docker exec minio mc mb --ignore-existing "e2e/${BUCKET}" >/dev/null \
     || fail "could not create bucket ${BUCKET}"
-docker exec minio mc event add "e2e/${BUCKET}" arn:minio:sqs::DECREE:webhook --event put >/dev/null \
-    || fail "could not subscribe ${BUCKET} to arn:minio:sqs::DECREE:webhook"
+# Assert the subscription EXISTS rather than that adding it succeeded: `mc event
+# add` errors on an overlapping rule, so a re-run against a stack left standing
+# by E2E_KEEP would fail on a bucket that is already correctly wired.
+docker exec minio mc event add "e2e/${BUCKET}" arn:minio:sqs::DECREE:webhook --event put >/dev/null 2>&1 || true
+docker exec minio mc event ls "e2e/${BUCKET}" 2>/dev/null | grep -q 'arn:minio:sqs::DECREE:webhook' \
+    || fail "${BUCKET} is not subscribed to arn:minio:sqs::DECREE:webhook"
 say "bucket ${BUCKET} created and subscribed to the decree webhook"
 
 # ── 4. Drop the file in. Everything after this is observation.
@@ -160,12 +186,16 @@ say "✓ run $(basename "$RUN_DIR") exit_code=0"
 # ── 7. No message may be left stuck. A routine that runs but never gets its
 #       run.json written comes back on every tick forever — that is exactly how
 #       the triage YAML bug hid, so the flow refuses to pass with a live inbox.
-STUCK=$(find "$WORK/services/decree/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+# `|| true` for the same reason as the extractions above, and it bites harder
+# here: a missing dead/ dir makes find exit 1, pipefail propagates it to the
+# assignment, and set -e kills the script with NO message -- a test that fails
+# silently is worse than no test.
+STUCK=$(find "$WORK/services/decree/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l || true)
 [ "$STUCK" -eq 0 ] \
     || fail "${STUCK} message(s) still stuck in the inbox: $(find "$WORK/services/decree/decree/inbox" -maxdepth 1 -name '*.md' -printf '%f ')"
 say "✓ inbox drained, nothing stuck"
 
-DEAD=$(find "$WORK/services/decree/decree/inbox/dead" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+DEAD=$(find "$WORK/services/decree/decree/inbox/dead" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l || true)
 [ "$DEAD" -eq 0 ] \
     || fail "${DEAD} message(s) dead-lettered: $(find "$WORK/services/decree/decree/inbox/dead" -maxdepth 1 -name '*.md' -printf '%f ')"
 say "✓ no dead letters"

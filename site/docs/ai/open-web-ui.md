@@ -7,7 +7,7 @@ sidebar_position: 5
 - Source: https://github.com/open-webui/open-webui
 - License: BSD-3-Clause-derived (branding restrictions apply)
 - Alternatives: LibreChat
-- UI: `http://localhost:11488`
+- UI: `https://open-webui.<domain>`
 
 Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible endpoint and [WhisperX](./whisperx) for speech-to-text.
 
@@ -21,7 +21,7 @@ Each tool in the stack has a distinct role:
 | Open WebUI | Day-to-day conversations |
 | opencode | Coding assistant — connect via Hermes gateway as the OpenAI API endpoint |
 
-Configure opencode to point at the Hermes gateway (`http://localhost:48642/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
+Configure opencode to point at the Hermes gateway (`https://hermes-agent.<domain>/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
 
 ## Backend Wiring
 

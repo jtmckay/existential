@@ -5,6 +5,12 @@
 # every processor in lib/file-processors/, and enqueues one file-processor
 # message per match. The file is downloaded per-processor — no shared state.
 #
+# FILE_SOURCE is "<rclone_src>:<rclone_prefix><object-key>" — the event's S3
+# BUCKET is parsed but deliberately discarded. The path has to be valid for the
+# rclone remote, and in the default topology the bucket is a nextcloud external
+# mount whose nextcloud-side path is the prefix. Talking to MinIO directly over
+# an s3 remote instead? Set rclone_prefix to the bucket name.
+#
 # Matching here is mechanical and cheap: PATTERN against the path, nothing else.
 # A processor may also declare a CRITERIA= line — a natural-language test of the
 # file's CONTENT — which is carried through to file-processor and evaluated

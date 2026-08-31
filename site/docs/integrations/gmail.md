@@ -85,6 +85,12 @@ Go to **APIs & Services → Credentials → Create Credentials → OAuth Client 
 - Application type: **Desktop app**
 - Add redirect URI: `http://localhost:8803`
 
+  This is the one place in the stack where `localhost` is correct rather than a
+  `<slug>.<domain>` hostname: Google's desktop OAuth flow redirects to a loopback
+  listener, and `./existential.sh run decree gmail-sync` publishes port 8803 for
+  exactly as long as that exchange takes. Everything else reaches services through
+  Caddy, because no other container publishes a host port.
+
 Note your **Client ID** and **Client Secret** — you'll paste these into the setup script.
 
 ![Credentials page](../decree/image_1759884031010_0.png)

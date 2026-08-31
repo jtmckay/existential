@@ -82,7 +82,9 @@ This patches `torch_audiomentations/utils/io.py` inside the venv to use `librosa
 ./run_webui.sh
 ```
 
-Open the URL it prints (typically `http://localhost:7860`).
+Open the URL it prints (typically `http://localhost:7860`). This is hawake's own
+server running directly on the host, not a stack container — hence `localhost`
+rather than a `<slug>.<domain>` hostname through Caddy.
 
 ---
 

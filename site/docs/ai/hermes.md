@@ -17,7 +17,7 @@ AI agent gateway with an OpenAI-compatible API and a live dashboard.
 | [Open WebUI](./open-web-ui) | Day-to-day conversations |
 | opencode | Coding assistant — connect via Hermes gateway as the OpenAI API endpoint |
 
-Configure opencode to point at the Hermes gateway (`http://localhost:48642/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
+Configure opencode to point at the Hermes gateway (`https://hermes-agent.<domain>/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
 
 ## Services
 

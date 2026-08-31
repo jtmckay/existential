@@ -8,7 +8,10 @@
 # body of the script:
 #
 # PATTERN (required) is matched against FILE_SOURCE, the full rclone path:
-#   "<rclone_src>:<bucket>/<object-key>"   e.g. "nextcloud:photos/2024/img.jpg"
+#   "<rclone_src>:<rclone_prefix>/<object-key>"  e.g. "nextcloud:S3/2024/img.jpg"
+# Note the S3 BUCKET is not in there — minio-router replaces it with the
+# webhook's rclone_prefix, because the path has to be valid for the rclone
+# remote, not for S3. Match on the prefix and key, never on a bucket name.
 # It is a plain bash regex, evaluated by minio-router. Cheap and mechanical.
 #
 # CRITERIA (optional) is a natural-language test of the file's CONTENT, put to

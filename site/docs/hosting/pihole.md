@@ -6,7 +6,7 @@ sidebar_position: 12
 
 - Source: https://github.com/pi-hole/pi-hole
 - License: [EUPL-1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
-- UI: `http://localhost:42480`
+- UI: `https://pihole.<domain>`
 
 Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and malicious domains for all devices on the network by acting as the primary DNS resolver.
 

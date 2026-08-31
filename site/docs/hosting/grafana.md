@@ -6,7 +6,7 @@ sidebar_position: 11
 
 - Source: https://github.com/grafana/grafana
 - License: [AGPL 3.0](https://www.gnu.org/licenses/agpl-3.0.html)
-- UI: `http://localhost:43010`
+- UI: `https://grafana.<domain>`
 - Credentials: `EXIST_USERNAME` / `EXIST_PASSWORD` (set via `.env.shared`)
 
 Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) logs. Everything is provisioned from code — no manual setup needed.

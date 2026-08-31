@@ -45,7 +45,7 @@ flowchart LR
 
 ### 1. MinIO fires the event
 
-When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs an S3-compatible JSON payload to `http://decree-webhook:48880/minio`:
+When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs an S3-compatible JSON payload to `http://decree-webhook:8801/minio`:
 
 ```json
 {
@@ -55,11 +55,17 @@ When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs 
 }
 ```
 
-The request includes `Authorization: Bearer <DECREE_MINIO_WEBHOOK_AUTH_TOKEN>` — set as a custom header in the MinIO notification target config.
+The request includes `Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN>` — set as a custom header in the MinIO notification target config.
 
 ### 2. minio-router — match and fan out
 
-`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<bucket>/<object-key>` (e.g. `minio:mybucket/documents/report.pdf`), and scans every script in `automations/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
+`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<rclone_prefix>/<object-key>` (e.g. `nextcloud:S3/documents/report.pdf`), and scans every script in `automations/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
+
+:::note The S3 bucket is not part of `FILE_SOURCE`
+
+The router drops the bucket and puts `rclone_prefix` in its place. That is deliberate: in the default topology the bucket *is* a Nextcloud external mount, so the file is reached through the `nextcloud` remote at the mount's path, not through S3. If you point a processor at MinIO directly through an `s3` remote, the first path segment must be the bucket — so set `rclone_prefix` to the bucket name in `services/decree/webhook/config.yml`.
+
+:::
 
 For each matching processor it writes one message to the Decree outbox:
 
@@ -89,7 +95,7 @@ Create `automations/lib/file-processors/<name>.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# PATTERN is matched against FILE_SOURCE: "<rclone_src>:<bucket>/<object-key>"
+# PATTERN is matched against FILE_SOURCE: "<rclone_src>:<rclone_prefix>/<object-key>"
 PATTERN="minio:documents/.*\.pdf$"
 # CRITERIA is optional. Empty = the path match is the whole test.
 CRITERIA=""
@@ -148,8 +154,8 @@ In the MinIO console go to **Administrator → Events** and add a new webhook en
 | Field | Value |
 |---|---|
 | Identifier | `DECREE` |
-| Endpoint | `http://decree-webhook:48880/minio` |
-| Auth Token | your `DECREE_MINIO_WEBHOOK_AUTH_TOKEN` value |
+| Endpoint | `http://decree-webhook:8801/minio` |
+| Auth Token | your `EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN` value |
 
 Save and verify the target shows as reachable. The identifier `DECREE` is used in the next step — MinIO will expose the ARN `arn:minio:sqs::DECREE:webhook`.
 
@@ -187,8 +193,10 @@ Name the remote `minio` (or update `rclone_src` in `services/decree/webhook/conf
 Send a test event directly to the webhook to verify routing without needing a real MinIO event:
 
 ```bash
-curl -X POST http://localhost:48880/minio \
-  -H "Authorization: Bearer <DECREE_MINIO_WEBHOOK_AUTH_TOKEN>" \
+# decree-webhook publishes no host port — it is reached over the exist
+# bridge, so send the event from a container already on it.
+docker exec decree curl -X POST http://decree-webhook:8801/minio \
+  -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"mybucket/documents/hello.txt","Records":[]}'
 ```

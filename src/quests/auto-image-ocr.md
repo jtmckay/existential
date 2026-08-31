@@ -24,7 +24,7 @@ original file.
 
 The pipeline:
   Image synced to Nextcloud → MinIO S3 event
-    → POST http://decree-webhook:48880/minio  (pre-configured in MinIO compose)
+    → POST http://decree-webhook:8801/minio  (pre-configured in MinIO compose)
     → minio-router matches PATTERN against the rclone path
     → ollama-ocr.sh: PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
     → IS_PRE_SIGNED=false — image downloaded locally, base64-encoded, sent to Ollama
@@ -57,7 +57,7 @@ Setup:
 
   5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
        MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:48880/minio
+       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
 
   6. In MinIO, subscribe your bucket to the webhook:
        docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \

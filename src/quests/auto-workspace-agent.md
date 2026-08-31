@@ -35,7 +35,7 @@ files the answer back in `workspace/ai/`.
 The pipeline:
   You edit workspace/notes/plan.md
     → workspace-sync mirrors workspace/ into the minio:workspace bucket (cron)
-    → MinIO fires an S3 event → POST http://decree-webhook:48880/minio
+    → MinIO fires an S3 event → POST http://decree-webhook:8801/minio
     → minio-router matches PATTERN against the rclone path      (free)
     → file-processor downloads it, then puts CRITERIA to hermes  (one call)
     → agent-handoff.sh queues agent-task for what passed both

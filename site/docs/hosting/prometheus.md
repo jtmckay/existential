@@ -6,7 +6,7 @@ sidebar_position: 9
 
 - Source: https://github.com/prometheus/prometheus
 - License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
-- UI: `http://localhost:49090`
+- UI: `https://prometheus.<domain>`
 
 Time-series metrics database. Collects numeric measurements and stores them for querying and alerting.
 
@@ -52,4 +52,4 @@ Edit `hosting/prometheus/prometheus.yml` and add a new entry under `scrape_confi
 
 ## Viewing metrics
 
-Raw metric explorer at `http://localhost:49090`. For dashboards, use [Grafana](./grafana).
+Raw metric explorer at `https://prometheus.<domain>`. For dashboards, use [Grafana](./grafana).
