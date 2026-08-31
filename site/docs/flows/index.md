@@ -18,21 +18,48 @@ a filed file**.
 
 ## How every flow works
 
-All of them have the same three parts. Once you've seen one, you've seen all of them.
+All of them have the same four parts. Once you've seen one, you've seen all of them.
 
 ```
-  something lands  →  a routine runs  →  the result goes somewhere useful
+  input  →  judgment  →  work  →  output
 ```
 
-1. **Something lands.** A file appears, an email arrives, you talk to your phone, a service
-   fires a webhook. Everything ends up as a message in one queue.
-2. **A routine runs.** One script, picked by name from that message. It does the work —
-   transcribe, extract, sort, file, notify.
-3. **The result goes somewhere useful.** A note, a task, a budget line, a notification —
-   or another message, which starts the next flow.
+1. **Input.** A file appears, an email arrives, you talk to your phone, a service fires a
+   webhook, a schedule comes around. Everything ends up as a message in one queue.
+2. **Judgment.** One cheap question: *is this worth doing anything about?* Most things are
+   not — most notes are a grocery list, most files are not receipts. This step is what keeps
+   the next one from running on everything.
+3. **Work.** The expensive part, and only for what got past judgment. Transcribe, research,
+   extract, draft, file. Often several steps, each its own message.
+4. **Output.** A note, a task, a budget line, a notification — or another message, which
+   starts the next flow.
 
-There is only one queue and one kind of message, so there is only one thing to learn. Adding
-a new flow means writing one more routine, not learning a new system.
+There is only one queue and one kind of message, so there is only one thing to learn.
+
+:::tip[The judgment step is the one people skip]
+It is tempting to wire input straight to work. Don't. A flow with no judgment step runs the
+expensive half on everything that arrives, and what you get is a folder of unread reports —
+which is the problem you started with. Being stingy here is what makes a flow worth having.
+:::
+
+## The four knobs
+
+Those four parts are also the four things you change, and **three of them are settings, not
+code.** This is the whole customization model:
+
+| Knob | What it is | How you change it |
+|---|---|---|
+| **Input** | What triggers the flow | Pick a trigger: a cron file, a webhook endpoint, a file-processor `PATTERN`, an inbox drop |
+| **Judgment** | What counts as worth acting on | One line of prompt in cron frontmatter — e.g. `TRIAGE_CRITERIA` |
+| **Work** | What actually gets done | The name of the routine to chain — e.g. `TRIAGE_ROUTINE` |
+| **Output** | Where the result lands | A destination setting, or the routine you chained |
+
+Turning one knob does not disturb the others. Swap a notes vault for an email inbox and the
+judgment and work are untouched; swap "a business idea" for "a house project" and nothing else
+moves. [Note → Action](./note-to-action) turns all four on one flow, one section each.
+
+Adding a genuinely new flow means writing one more routine, not learning a new system —
+see [Writing a Routine](../writing-a-routine).
 
 ## The three that matter most
 
@@ -62,9 +89,15 @@ The most tedious recurring paperwork in most people's lives, handled without att
 
 ## Building your own
 
-Every flow above is a routine plus a trigger. The contract for both — how to send something
-in, what a message looks like, how to read the result — is documented in
-[Build On It](../build-on-it).
+Every flow above is a routine plus a trigger — and both are yours to write.
+
+- **[Writing a Routine](../writing-a-routine)** is the place to start: the anatomy of a
+  routine script, how to register it, the four ways to trigger it, and how one routine hands
+  work to the next.
+- **[Note → Action](./note-to-action)** is the same material as a worked example — four
+  routines wired into one flow, with sections on swapping the judgment, the work, and the input.
+- **[Build On It](../build-on-it)** is the contract for reaching the stack from *outside* it:
+  how to send something in over HTTP and how to read the result.
 
 The mechanism underneath most of them — a file landing in storage becoming a running routine —
 is the [File Processor](../decree/file-change-processing). That is a level-4 page: it explains

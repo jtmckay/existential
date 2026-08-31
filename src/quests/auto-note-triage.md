@@ -21,17 +21,24 @@ new or changed notes, asks the model whether each one is worth acting on, and
 chains real work for the few that are — ending with the questions only you can
 answer.
 
-Two routines:
-  note-triage   scans /data/notes, judges each new or changed note, and
-                chains note-develop for the ones that pass
-  note-develop  takes one flagged note, optionally researches it, and writes
-                a draft plan plus open questions
+Three routines — one that judges, and two ways to do the work:
+  note-triage   scans /data/notes, judges each new or changed note, checks it
+                against the ideas already evaluated, and chains TRIAGE_ROUTINE
+                for the ones that are both good and new
+  note-develop  (default) takes one flagged note, optionally researches it, and
+                writes a draft plan plus open questions
+  idea-workup   (alternative) hands the idea to three hermes departments —
+                competition and market size to research, value proposition to
+                sales — and each answers in its own file
 
 Pipeline each run:
   1. Hash every .md under /data/notes and diff against the last run
   2. For each new or changed note, one cheap YES/NO call to the gateway
-  3. YES  → outbox message → note-develop
-  4. note-develop writes <note>.plan.md and notifies you via ntfy
+  3. YES  → one more cheap call: is this materially new, or an idea already on
+     the ledger at /data/note-triage/ideas.tsv? A duplicate stops here
+  4. New  → outbox message → TRIAGE_ROUTINE
+  5. note-develop writes <note>.plan.md and notifies you via ntfy — or
+     idea-workup writes three files into workspace/ai/ and notifies you per file
 
 IMPORTANT — the first run is a no-op by design. It records the vault as seen
 without triaging, so turning this on with a 5,000-note vault does not fire
@@ -45,10 +52,19 @@ Prerequisites:
   - Hermes running (the gateway the routines call), or set
     TRIAGE_API_URL=http://ollama:11434/v1 in the cron frontmatter to talk to
     Ollama directly
-  - Enable both routines in services/decree/decree/config.yml:
+  - Enable the routines you want in services/decree/decree/config.yml:
       note-triage:
         enabled: true
       note-develop:
+        enabled: true
+
+    For the idea-workup path, enable these instead of (or beside) note-develop
+    and run ./existential.sh run hermes profiles once to provision the profiles:
+      idea-workup:
+        enabled: true
+      dept-research:
+        enabled: true
+      dept-sales:
         enabled: true
 
 Making it yours — everything below is cron frontmatter, no code changes:
@@ -61,7 +77,12 @@ Making it yours — everything below is cron frontmatter, no code changes:
                     way for a few days first — a triage step that fires on
                     everything just makes a folder of unread reports.
   TRIAGE_ROUTINE    what to chain when a note passes (default: note-develop).
-                    Swap in your own routine and the triage half still works.
+                    Set it to idea-workup for the three-department fan-out, or
+                    to your own routine — the triage half never changes.
+  TRIAGE_LEDGER     true by default. The "is this idea new?" check. Set false
+                    to chain every pass, duplicates included.
+  TRIAGE_LEDGER_MAX how many previously evaluated ideas that check sees
+                    (default 100, most recent first).
   TRIAGE_MAX_NOTES  ceiling per run (default 20), so a big import cannot
                     run away with your GPU
   TRIAGE_MODEL      leave empty to use the gateway default

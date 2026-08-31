@@ -9,6 +9,11 @@
 # looking for a business idea; change it to look for whatever you actually want
 # chased down.
 #
+# A note that passes is then checked against the ledger of ideas already
+# evaluated (STATE_DIR/ideas.tsv) — the same idea written down a second time is
+# one idea, not two, and only genuinely new ones chain any work. Set
+# TRIAGE_LEDGER=false to chain every pass instead.
+#
 # First run is a no-op by design: it records the vault as seen without triaging,
 # so enabling this on an existing vault does not fire a thousand model calls.
 # Set TRIAGE_BOOTSTRAP=true for one run if you do want the backlog scanned.
@@ -57,6 +62,8 @@ TRIAGE_BOOTSTRAP="${TRIAGE_BOOTSTRAP:-false}"
 TRIAGE_TIMEOUT="${TRIAGE_TIMEOUT:-120}"
 TRIAGE_DRY_RUN="${TRIAGE_DRY_RUN:-false}"
 TRIAGE_API_KEY="${TRIAGE_API_KEY:-}"
+TRIAGE_LEDGER="${TRIAGE_LEDGER:-true}"
+TRIAGE_LEDGER_MAX="${TRIAGE_LEDGER_MAX:-100}"
 
 # --- Implementation ---
 
@@ -71,9 +78,10 @@ fi
 
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 MANIFEST="${STATE_DIR}/seen.tsv"
+LEDGER="${STATE_DIR}/ideas.tsv"
 
 mkdir -p "$STATE_DIR"
-touch "$MANIFEST"
+touch "$MANIFEST" "$LEDGER"
 
 # Build the current view of the vault: "<sha256>\t<relative path>"
 current="$(mktemp)"
@@ -143,7 +151,63 @@ YES: <one sentence naming the idea>
 or
 NO"
 
+# --- Has this idea already been evaluated? ---------------------------------
+
+LEDGER_SYSTEM="You are given a numbered list of ideas that have already been evaluated, and
+one new idea. Decide whether the new idea is materially the same as one already on the list.
+
+The same idea in different words is a duplicate. A different market, a different mechanism,
+or a genuinely new application of a similar technology is NOT — say NEW when in doubt.
+
+Reply with exactly one line, either:
+NEW
+or
+DUPLICATE: <the number it matches>"
+
+# ledger_verdict <reason> → exit 0 when the idea is new; exit 1 and print the
+# matching prior idea when it is a duplicate.
+#
+# Fails open on purpose. A missing verdict, an empty ledger or a gateway blip
+# all mean "new" — a duplicate workup wastes a run, a dropped one loses the idea
+# for good. This is the opposite of the triage verdict above, which fails closed
+# by leaving the note unseen so the next run retries it.
+ledger_verdict() {
+    local reason="$1" list answer n prior
+
+    [ "$TRIAGE_LEDGER" = "true" ] || return 0
+    [ -s "$LEDGER" ] || return 0
+
+    list="$(tail -n "$TRIAGE_LEDGER_MAX" "$LEDGER" | cut -f2- | nl -ba -w1 -s': ')"
+
+    answer="$(chat "$LEDGER_SYSTEM" "Already evaluated:
+${list}
+
+New idea:
+${reason}" 100 || true)"
+    answer="$(printf '%s' "$answer" | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+    if [ -z "$answer" ]; then
+        echo "WARN: no ledger verdict for \"${reason}\" — treating it as new" >&2
+        return 0
+    fi
+
+    case "$answer" in
+        DUPLICATE*|duplicate*)
+            n="$(printf '%s' "$answer" | sed 's/[^0-9]*\([0-9][0-9]*\).*/\1/')"
+            prior=""
+            if [ -n "$n" ]; then
+                prior="$(printf '%s\n' "$list" | sed -n "${n}p" | sed 's/^[0-9]*: //')"
+            fi
+            printf '%s' "${prior:-an earlier idea}"
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
 flagged=0
+deduped=0
 examined=0
 
 while IFS=$'\t' read -r hash rel; do
@@ -182,12 +246,24 @@ ${body}" 200 || true)"
     case "$verdict" in
         YES*|yes*)
             reason="$(printf '%s' "$verdict" | sed 's/^[Yy][Ee][Ss][[:space:]]*:\?[[:space:]]*//')"
+
+            # Is it new? An idea rewritten in a second note is still one idea.
+            if ! prior="$(ledger_verdict "$reason")"; then
+                echo "dup   ${rel} — already evaluated: ${prior}"
+                deduped=$((deduped + 1))
+                continue
+            fi
+
             echo "FLAG  ${rel} — ${reason}"
             flagged=$((flagged + 1))
 
             if [ "$TRIAGE_DRY_RUN" = "true" ]; then
                 continue
             fi
+
+            # Record it before chaining, so a crash mid-chain cannot produce the
+            # same workup twice on the next run.
+            printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$reason" >> "$LEDGER"
 
             out="${OUTBOX_DIR}/note-triage-$(date +%s%N).md"
             {
@@ -207,4 +283,4 @@ done <<< "$changed"
 
 cp "$current" "$MANIFEST"
 
-echo "Examined ${examined}, flagged ${flagged}."
+echo "Examined ${examined}, flagged ${flagged}, already known ${deduped}."

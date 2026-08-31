@@ -153,3 +153,7 @@ Being straight about the edges:
 If you need more than this, the honest answer is that you're building a service, and it
 belongs in the stack as one — see [Flows](./flows/) for how the existing ones are put
 together.
+
+And if what you actually want is to run your own code *inside* the stack rather than integrate
+with it from outside, you want a routine, not this contract:
+[Writing a Routine](./writing-a-routine).

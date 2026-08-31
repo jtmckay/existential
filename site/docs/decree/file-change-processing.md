@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # File Processor
@@ -226,46 +226,6 @@ ls automations/runs/
 docker exec decree decree routine minio-router
 docker exec decree decree routine file-processor
 ```
-
-## Matching on content, not just path
-
-Add a `CRITERIA` line and `file-processor` puts the downloaded file to the model
-before running your script:
-
-```bash
-PATTERN="minio:workspace/.*\.md$"
-CRITERIA="an open question the author has not resolved"
-```
-
-The gate is deliberately stingy — it answers `NO` unless the document genuinely
-matches, because a `YES` usually costs a full agent run downstream. On a match,
-`FILE_MATCH_REASON` carries the model's one-line reason into your script.
-
-Three things to know:
-
-- **It costs one model call per file that got past `PATTERN`.** Keep the pattern
-  narrow enough that the gate is not asked about everything.
-- **It only works on text.** For `IS_PRE_SIGNED=true` processors and for
-  `removed` events there is nothing on disk to judge, so the gate is skipped and
-  the processor runs on the path match alone.
-- **No answer is not the same as no match.** If the gateway is down or times out,
-  `file-processor` fails the message so Decree retries it, rather than silently
-  dropping the file — which would look exactly like a clean `NO`.
-
-## Handing off to an agent
-
-A processor's real job is usually to decide *that* something should happen, not
-to do it. `agent-task` is the routine that does it: it runs `opencode run`
-against hermes and files the answer in `workspace/ai/`.
-
-```bash
-cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" << EOF
----
-routine: agent-task
-file_path: notes/plan.md
-output_name: plan-followup
-prompt: $(jq -rn --arg v "Read this note and work out what can be settled without the author." '$v|@json')
----
 
 ## Matching on content, not just path
 
