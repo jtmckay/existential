@@ -1,0 +1,26 @@
+routine_source: /work/.decree/shared_routines
+commands:
+  ai_router: opencode run {prompt}
+  ai_interactive: opencode
+max_attempts: 3
+max_log_size: 2097152
+hooks:
+  beforeAll: ""
+  afterAll: ""
+  beforeEach: /work/.decree/lib/hooks/config-watch.sh
+  afterEach: /work/.decree/lib/hooks/afterEach.sh
+# Backups only. This daemon sees every volume and every credential, so nothing
+# that reasons, routes, or reaches an AI belongs here — that stays in `decree`.
+shared_routines:
+  volume-backup:
+    enabled: true
+  db-backup:
+    enabled: true
+  sqlite-backup:
+    enabled: true
+  workspace-sync:
+    enabled: true
+  notify:
+    enabled: true
+  clean-runs:
+    enabled: true

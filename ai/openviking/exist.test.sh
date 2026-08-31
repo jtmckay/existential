@@ -62,11 +62,11 @@ probe_caddy "openviking /health" openviking /health 200
 # first" and opens a circuit breaker; nothing surfaces that but its own log.
 
 # ov.conf is reachable two different ways depending on who is running this.
-# From adhoc the whole repo is mounted at /repo; the decree SIDECAR mounts only
-# what it needs, and gets the data volume at /volumes/openviking_data instead.
-# A bare /repo path works in one and not the other — and since this file is also
-# the sidecar health gate, getting that wrong wedges the daemon for its full
-# 300s startup timeout on every restart.
+# From adhoc and from the decree daemon (triage) the whole repo is mounted at
+# /repo; a daemon that mounts volumes/ instead sees the data volume at
+# /volumes/openviking_data. A bare /repo path works in one and not the other, so
+# try both — this file is also run as a health gate, and getting it wrong wedges
+# the caller for its full 300s startup timeout.
 OV_CONF=""
 for _c in /repo/volumes/openviking_data/ov.conf /volumes/openviking_data/ov.conf; do
     [[ -f "$_c" ]] && { OV_CONF="$_c"; break; }
@@ -104,9 +104,9 @@ fi
 # one means openviking is indexing nothing, and the only other symptom is
 # searches quietly returning less than they should.
 
-# The sidecar sees the knowledgebase at /workspace — that mount IS the wiring
-# under test, so checking it there is the stronger assertion. From adhoc the same
-# directory is /repo/workspace.
+# The decree daemon sees the knowledgebase at /workspace — that mount IS the
+# wiring under test, so checking it there is the stronger assertion. From adhoc
+# the same directory is /repo/workspace.
 VIKING_DIR=""
 for _v in /workspace /repo/workspace; do
     [[ -d "$_v" ]] && { VIKING_DIR="$_v"; break; }
@@ -117,11 +117,11 @@ if [[ -n "$VIKING_DIR" ]]; then
 else
     fail "openviking knowledgebase readable" \
          "neither /workspace (indexer mount) nor /repo/workspace is present" \
-         "./existential.sh   (creates workspace/ and mounts it), then: docker compose up -d openviking-decree"
+         "./existential.sh   (creates workspace/ and mounts it), then: docker compose up -d decree"
 fi
 
-# Repo-wide checks only work where the repo is mounted. In the sidecar the mount
-# above already proves the same wiring, so skip rather than fail.
+# Repo-wide checks only work where the repo is mounted. Where it isn't, the
+# mount above already proves the same wiring, so skip rather than fail.
 if [[ -d /repo ]]; then
     if [[ -f /repo/docker-compose.yml ]] && grep -qE '^\s+- \./workspace:/workspace' /repo/docker-compose.yml; then
         ok "openviking knowledgebase mounted into the indexer"
@@ -138,7 +138,7 @@ if [[ -d /repo ]]; then
     else
         warn "openviking indexer cron active" \
              "no indexer cron in ai/openviking/decree/cron/" \
-             "./existential.sh run openviking   (activates it), then: docker compose restart openviking-decree"
+             "./existential.sh run openviking   (activates it), then: docker compose restart decree"
     fi
 fi
 

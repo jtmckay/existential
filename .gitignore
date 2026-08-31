@@ -78,8 +78,22 @@ workspace
 automations/lib/file-processors/*
 automations/runs/*
 automations/secrets/*
-# Per-decree-daemon runtime state (main decree + all per-service sidecars)
+# Per-decree-daemon runtime state. There are two daemon project dirs, both under
+# services/decree/: decree/ (the main daemon) and decree-backup/ (backups), so
+# each pattern below is repeated for decree-backup/.
 **/decree/config.yml
+**/decree-backup/config.yml
+**/decree-backup/config.hash
+**/decree-backup/cron/*
+**/decree-backup/migrations/*
+**/decree-backup/data/*
+**/decree-backup/inbox/*
+**/decree-backup/outbox/
+**/decree-backup/processed.md
+**/decree-backup/precheck.log
+**/decree-backup/shared_routines/*
+**/decree-backup/lib/*
+**/decree-backup/runs/*
 **/decree/config.hash
 **/decree/cron/*
 # Activated migrations are the user's copies of migrations.example/ — same
@@ -97,7 +111,7 @@ automations/secrets/*
 # Its dead/ holds FULL message bodies — user content and model output — and it
 # sits outside the **/decree/ patterns above, so it needs naming.
 automations/outbox/
-# Sidecar nested bind-mount points — dirs tracked (.gitkeep force-added), content ignored.
+# Nested bind-mount points — dirs tracked (.gitkeep force-added), content ignored.
 # These must exist before first `docker compose up` so Docker doesn't auto-create them as root.
 **/decree/shared_routines/*
 **/decree/lib/*

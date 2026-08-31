@@ -67,17 +67,17 @@ DECREE_DAEMON="${DECREE_DAEMON:-true}"
 # ── Sidecar startup: wait for service health, then run migrations ─────────────
 #
 # When DECREE_SIDECAR=true and exist.test.sh is mounted at /work/exist.test.sh,
-# the sidecar waits for the service to pass its health check before running
-# `decree process` (migrations). This ensures migrations never run against a
-# service that is still starting up.
+# the daemon waits for that script to pass before running `decree process`
+# (migrations). This ensures migrations never run against a service that is
+# still starting up. For `decree` the script is migration-gate.sh, which probes
+# every service the daemon's migrations target.
 #
 # The test script is mounted at /work/exist.test.sh (not inside /work/.decree/)
 # to avoid overlapping with the decree state-dir bind mount.
 #
 # The loop retries for up to DECREE_MIGRATE_TIMEOUT seconds (default 300).
-# If the timeout is reached, the sidecar logs a warning and starts the daemon
-# anyway — missing a migration on first boot is recoverable; blocking forever
-# is not.
+# If the timeout is reached, the daemon logs a warning and starts anyway —
+# missing a migration on first boot is recoverable; blocking forever is not.
 
 if [[ "$DECREE_DAEMON" == "true" && -f "/work/exist.test.sh" ]]; then
   _timeout="${DECREE_MIGRATE_TIMEOUT:-300}"

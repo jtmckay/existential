@@ -130,7 +130,7 @@ fi
 # ── Services a vendor forbids ────────────────────────────────────────────────
 #
 # `external` means the models live on another box. A local ollama under that
-# answer serves nothing and its decree sidecar still pulls multi-GB models, so
+# answer serves nothing and decree still pulls multi-GB models, so
 # it must stay off. The rule regressed twice by being written out per call site,
 # so these assert on the shared list and on every consumer honouring it.
 

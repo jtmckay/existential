@@ -5,7 +5,7 @@
 # Per-service exist.test.sh scripts self-elevate into adhoc, which has no
 # docker socket and can only reach services over the network — so they
 # structurally cannot detect a daemon that is crash-looping or has no HTTP
-# surface (decree main + every *-decree sidecar). This gate fills that gap.
+# surface (decree, decree-backup). This gate fills that gap.
 #
 # Read-only. Pure observation (docker inspect / docker logs). For every
 # container in the given compose project it asserts a healthy steady state:

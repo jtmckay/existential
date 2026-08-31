@@ -14,30 +14,30 @@ services:
   - var: EXIST_IS_AI_OPEN_WEBUI
     label: Open WebUI
 copies:
-  - src: ai/ollama/decree/migrations.example/01-pull-chat-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/10-ollama-pull-chat-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/02-set-chat-context.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/11-ollama-set-chat-context.md
+    dst: services/decree/decree/migrations/
     label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/03-pull-extract-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/12-ollama-pull-extract-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
     requires: EXIST_IS_AI_HONCHO
-  - src: ai/ollama/decree/migrations.example/04-pull-embed-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/13-ollama-pull-embed-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
     requires: EXIST_IS_AI_OPENVIKING
-  - src: ai/ollama/decree/migrations.example/05-pull-vision-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/14-ollama-pull-vision-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
 ---
 
-Copies migration files into ai/ollama/decree/migrations/. After
-docker compose up -d, ollama-decree waits for Ollama to be healthy,
+Copies migration files into services/decree/decree/migrations/. After
+docker compose up -d, the decree daemon waits for Ollama to be healthy,
 then pulls each selected model in order — no manual steps.
 
 These migrations do NOT name a model. They name a ROLE, and the routine

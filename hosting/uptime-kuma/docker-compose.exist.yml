@@ -20,7 +20,8 @@ services:
       - ADMIN_PASSWORD=${UPTIME_KUMA_ADMIN_PASSWORD}
     volumes:
       # SQLite — must be local; NFS breaks WAL locking.
-      # TODO: backup sidecar → volumes/uptime_kuma_data_backup (no sidecar yet).
+      # TODO: no backup yet — add a volume-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - uptime_kuma_data:/app/data
 
 x-exist-volumes:

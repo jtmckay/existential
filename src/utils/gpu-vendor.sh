@@ -69,7 +69,7 @@ GPU_VENDORS=(
 # A vendor answer is not only about device reservations: `external` also means
 # "the models live on another box", and a local ollama under that answer is
 # strictly harmful. It serves nothing (hermes and friends read EXIST_OLLAMA_URL),
-# and its decree sidecar still runs the pull migrations, so it drags multi-GB
+# and decree still runs the pull migrations, so it drags multi-GB
 # models onto a machine that will never query them.
 #
 # This rule used to be written out at each call site, and the call sites drifted:

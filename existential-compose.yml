@@ -4,7 +4,7 @@ services:
     build:
       context: ./automations
     # Canonical build of the decree image. Tagged so the main decree daemon and
-    # every <slug>-decree sidecar can reference it via `image:` instead of each
+    # decree and decree-backup can reference it via `image:` instead of each
     # re-building automations/Dockerfile into its own per-project image.
     image: existential/decree:local
     pull_policy: never

@@ -484,7 +484,7 @@ assert_exit "run nonexistent-utility → exit 1"       1 bash "$EXISTENTIAL" run
 # so _run_service_action errors cleanly.
 # Verify "No script at" is emitted rather than a Docker error.
 (
-    # 'hermes' has no exist.initial.sh in the repo (it only has the decree sidecar).
+    # 'hermes' has no exist.initial.sh in the repo.
     # Check dynamically so the test stays accurate even if that changes.
     if [[ ! -f "${REPO}/ai/hermes/exist.initial.sh" ]]; then
         out=$(bash "$EXISTENTIAL" run hermes 2>&1) || true

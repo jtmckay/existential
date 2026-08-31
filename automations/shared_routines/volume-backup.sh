@@ -3,13 +3,13 @@
 # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
 # older than the tier's retention window.
 #
-# Triggered by cron files in each service's decree/cron/ dir. Decree exposes
-# cron frontmatter keys (TIER, VOLUMES) as env vars. To add or remove a
-# volume, edit the cron file's `VOLUMES:` block — and add a matching mount
-# line to the service's sidecar in docker-compose.exist.yml.
+# Triggered by cron files in services/decree/decree-backup/cron/. Decree
+# exposes cron frontmatter keys (TIER, VOLUMES) as env vars. To add or remove
+# a volume, edit the cron file's `VOLUMES:` block — nothing else: decree-backup
+# mounts the whole volumes/ dir, so every volume is already reachable.
 #
 # Manual invocation:
-#   docker exec <service>-decree decree run volume-backup
+#   docker exec decree-backup decree run volume-backup
 #
 # $VOLUMES format (one entry per line, whitespace-separated):
 #   <volume_name> <comma,separated,consumer,containers>
@@ -30,7 +30,7 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v rclone >/dev/null || precheck_fail "volume-backup" "rclone not found"
     command -v tar    >/dev/null || precheck_fail "volume-backup" "tar not found"
     [ -f "$RCLONE_CONFIG" ] || precheck_fail "volume-backup" "rclone not configured (run ./existential.sh run rclone)"
-    [ -d "$VOLUMES_ROOT" ]  || precheck_fail "volume-backup" "$VOLUMES_ROOT not mounted — add volume mounts to the service sidecar in docker-compose.exist.yml"
+    [ -d "$VOLUMES_ROOT" ]  || precheck_fail "volume-backup" "$VOLUMES_ROOT not mounted — this routine belongs in decree-backup, which binds volumes/ there"
     precheck_pass "volume-backup"
     exit 0
 fi
@@ -66,7 +66,7 @@ while read -r vol _consumers; do
 
     src="${VOLUMES_ROOT}/${vol}"
     if [ ! -d "$src" ]; then
-        echo "skip   $vol (not mounted at $src — add a volume mount to the service sidecar in docker-compose.exist.yml)"
+        echo "skip   $vol (no volumes/$vol on disk — is the service enabled?)"
         skipped=$((skipped + 1))
         continue
     fi

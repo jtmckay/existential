@@ -16,7 +16,7 @@
 #   SVC_USER     access key to create; defaults to MINIO_<BUCKET>_ACCESS_KEY
 #   SVC_SECRET   secret key to set;    defaults to MINIO_<BUCKET>_SECRET_KEY
 #
-# Env vars (passed through the minio-decree sidecar compose env):
+# Env vars (passed through the decree container's compose env):
 #   MINIO_ROOT_USER / MINIO_ROOT_PASSWORD   MinIO admin credentials
 #   MINIO_<BUCKET>_ACCESS_KEY / _SECRET_KEY the identity, rendered from .env
 #   MINIO_URL                               optional, default http://minio:9000

@@ -45,7 +45,7 @@ WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** 
 
 if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     command -v rclone >/dev/null 2>&1     || { echo "rclone not found" >&2; exit 1; }
-    [[ -d "${WORKSPACE_DIR}" ]]           || { echo "${WORKSPACE_DIR} is not a directory — is ../../workspace mounted into minio-decree?" >&2; exit 1; }
+    [[ -d "${WORKSPACE_DIR}" ]]           || { echo "${WORKSPACE_DIR} is not a directory — is ../../workspace mounted into decree-backup?" >&2; exit 1; }
     [[ -n "${MINIO_ROOT_USER:-}" ]]       || { echo "MINIO_ROOT_USER not set" >&2; exit 1; }
     [[ -n "${MINIO_ROOT_PASSWORD:-}" ]]   || { echo "MINIO_ROOT_PASSWORD not set" >&2; exit 1; }
     exit 0

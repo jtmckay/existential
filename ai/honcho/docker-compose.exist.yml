@@ -87,7 +87,8 @@ services:
     volumes:
       # Postgres + pgvector data — db: true (WAL/flock; never NFS).
       - honcho_postgres_data:/var/lib/postgresql/data
-      # TODO: backup sidecar — pg_dump → volumes/honcho_postgres_data_backup/
+      # TODO: no backup yet — add a db-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 5s

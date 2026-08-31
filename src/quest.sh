@@ -167,16 +167,14 @@ quest_missing_labels() {
 will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 
 # Offer to activate the cron-template copies declared by a single quest file.
-# Which decree container owns a `<cat>/<slug>/decree/...` destination.
+# Which decree container owns a `services/decree/<project>/...` destination.
 #
-# Not `${dst%%/decree/*}`: services/decree/decree/cron/ has TWO "/decree/"
-# segments, so that strips back to "services" and names a container
-# (services-decree) that does not exist. The slug is always the second path
-# component; the main daemon is plain "decree", every sidecar is "<slug>-decree".
+# There is one daemon per decree project dir, and the dir name IS the container
+# name: services/decree/decree/ → `decree`, services/decree/decree-backup/ →
+# `decree-backup`. So take the third path component, not the second (which is
+# always "decree" and would name both projects the same).
 _decree_container_for() {
-    local _slug
-    _slug="$(cut -d/ -f2 <<< "$1")"
-    [[ "$_slug" == "decree" ]] && echo "decree" || echo "${_slug}-decree"
+    cut -d/ -f3 <<< "$1"
 }
 
 process_quest_crons() {
@@ -892,19 +890,22 @@ fi
 
 # ── Remaining cron templates (informational) ──────────────────────────────────
 
+# Cron templates live in the decree service's two project dirs (decree/ for the
+# daemon, decree-backup/ for backups), so this walks those rather than every
+# enabled service — nothing else ships a cron.example/ any more.
 _remaining=()
-while IFS='=' read -r _k _v || [[ -n "$_k" ]]; do
-    [[ "$_k" =~ ^EXIST_IS_ ]] && [[ "$_v" == "true" ]] || continue
-    _svc_path="$(var_to_path "$_k")"
-    _cron_ex="${REPO_DIR}/${_svc_path}/decree/cron.example"
-    [ -d "$_cron_ex" ] || continue
-    _dst_dir="${REPO_DIR}/${_svc_path}/decree/cron/"
-    while IFS= read -r _cf; do
-        _fname="${_cf##*/}"
-        [ -f "${_dst_dir}${_fname}" ] && continue
-        _remaining+=("${_svc_path##*/}: ${_svc_path}/decree/cron.example/${_fname}")
-    done < <(find "$_cron_ex" -maxdepth 1 -name '*.md' -type f 2>/dev/null | sort)
-done < "$EXIST_ENV"
+if will_be_active EXIST_IS_SERVICES_DECREE; then
+    for _proj in decree decree-backup; do
+        _cron_ex="${REPO_DIR}/services/decree/${_proj}/cron.example"
+        [ -d "$_cron_ex" ] || continue
+        _dst_dir="${REPO_DIR}/services/decree/${_proj}/cron/"
+        while IFS= read -r _cf; do
+            _fname="${_cf##*/}"
+            [ -f "${_dst_dir}${_fname}" ] && continue
+            _remaining+=("${_proj}: services/decree/${_proj}/cron.example/${_fname}")
+        done < <(find "$_cron_ex" -maxdepth 1 -name '*.md' -type f 2>/dev/null | sort)
+    done
+fi
 
 if [ "${#_remaining[@]}" -gt 0 ]; then
     echo ""

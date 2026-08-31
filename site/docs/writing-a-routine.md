@@ -146,10 +146,12 @@ shared_routines:
   template *and*, if `config.yml` already exists, the rendered copy too.
 
 :::warning[Which daemon?]
-Sidecars are not interchangeable with the main `decree` container. Only the main daemon has a
-writable `/workspace` and the `/repo` mount; the `minio-decree` sidecar sees `/workspace`
-read-only, and the rest see neither. If your routine writes to `workspace/`, it belongs on the
-main daemon.
+There are two, and they are not interchangeable. `decree` is where anything that reasons,
+routes, calls a service API or writes to `workspace/` belongs — it alone has a writable
+`/workspace` and the read-only `/repo` mount. `decree-backup` is where anything that reads
+volume data belongs — it alone mounts `volumes/` and carries every service's credentials, and
+it deliberately has no AI CLI installed. A routine that needs both is a routine that should be
+two.
 :::
 
 ## Choosing a trigger

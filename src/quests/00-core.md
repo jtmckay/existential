@@ -51,34 +51,34 @@ copies:
   # Ollama models. Without these migrations ollama starts with NO models and
   # every other AI service fails its first request — the single most common
   # "I enabled it and nothing works" cause.
-  - src: ai/ollama/decree/migrations.example/01-pull-chat-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/10-ollama-pull-chat-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/02-set-chat-context.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/11-ollama-set-chat-context.md
+    dst: services/decree/decree/migrations/
     label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/03-pull-extract-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/12-ollama-pull-extract-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/04-pull-embed-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/13-ollama-pull-embed-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: ai/ollama/decree/migrations.example/05-pull-vision-model.md
-    dst: ai/ollama/decree/migrations/
+  - src: services/decree/decree/migrations.example/14-ollama-pull-vision-model.md
+    dst: services/decree/decree/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
   # MinIO's bucket for nextcloud's /S3 folder. Without it the external storage
   # mount points at a bucket that does not exist.
-  - src: nas/minio/decree/migrations.example/01-create-nextcloud-bucket.md
-    dst: nas/minio/decree/migrations/
+  - src: services/decree/decree/migrations.example/20-minio-create-nextcloud-bucket.md
+    dst: services/decree/decree/migrations/
     label: "minio: create the nextcloud bucket"
     requires: EXIST_IS_NAS_MINIO
-  - src: nas/minio/decree/migrations.example/02-create-nextcloud-service-account.md
-    dst: nas/minio/decree/migrations/
+  - src: services/decree/decree/migrations.example/21-minio-create-nextcloud-service-account.md
+    dst: services/decree/decree/migrations/
     label: "minio: create the nextcloud service account"
     requires: EXIST_IS_NAS_MINIO
   - src: services/decree/decree/cron.example/clean-runs.md
@@ -141,10 +141,10 @@ so the whole stack can never disagree about which model it is using.
 Almost nothing. ./existential.sh already seeded hermes' config before the
 container starts, so the agent comes up pointed at ollama, with honcho memory
 on and the OpenViking + Firecrawl MCP servers registered. Models pull
-themselves: the ollama-decree migrations you just copied run as soon as ollama
-is healthy (~5.5 GB at the 8 GB default, a few minutes).
+themselves: the ollama migrations you just copied run in the decree daemon as
+soon as ollama is healthy (~5.5 GB at the 8 GB default, a few minutes).
 
-  Watch the pulls:  docker logs -f ollama-decree
+  Watch the pulls:  docker logs -f decree
   Check everything: ./existential.sh test services
 
 Grafana comes up with the Loki and Prometheus datasources already wired and two

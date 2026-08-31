@@ -2,7 +2,7 @@
 name: decree
 description: >
   Work within the Decree automation ecosystem — routines, cron jobs, hooks, inbox/outbox
-  messages, and sidecar backup daemons in automations/ and services/decree/.
+  messages, and the backup daemon in automations/ and services/decree/.
   INVOKE when: user mentions automations/, decree, routines, cron jobs, hooks, inbox, outbox,
   or the decree container; user asks how to automate something, schedule a task, trigger a
   workflow, or process messages; user adds/modifies anything in automations/ or services/decree/.
@@ -14,8 +14,13 @@ description: >
 Decree is an automation orchestrator. It processes inbox messages through configurable
 routines, with lifecycle hooks and cron scheduling. In this repo decree runs as:
 
-- **Main daemon** (`decree` container) — AI workflows, gmail, telegram, webhook-triggered tasks
-- **Per-service sidecars** (`<slug>-decree` containers) — backup routines scoped to one service
+- **`decree`** (`services/decree/decree/`) — AI workflows, gmail, telegram, webhook-triggered
+  tasks, service-health/triage, and **every service's one-time migrations**
+- **`decree-backup`** (`services/decree/decree-backup/`) — backups only: `volume-backup`,
+  `db-backup`, `sqlite-backup`, `workspace-sync`
+
+That is the complete list. Services do **not** get their own `*-decree` sidecar any more; don't
+add one. See `.claude/reference/services.md` for why, and for what each daemon can reach.
 
 ## Paths in This Repo
 
@@ -60,10 +65,11 @@ Sidecars: `<category>/<slug>/decree/` → `/work/.decree`
 2. Add it to every `config.exist.yml` that should see it:
    - `enabled: true` for routines on by default for that daemon
    - `enabled: false` for opt-in routines
-3. Which configs to update:
-   - **Backup routines** — every sidecar that owns a volume or DB
-   - **Notify / utility routines** — every daemon that might use them
-   - **Main-decree-only** (AI workflows, gmail, telegram) — only `services/decree/decree/config.exist.yml`
+3. Which config to update — there are only two:
+   - **Backup / volume-reading routines** — `services/decree/decree-backup/config.exist.yml`
+   - **Everything else** (AI workflows, gmail, telegram, migrations, service crons) —
+     `services/decree/decree/config.exist.yml`
+   - **Notify / utility routines** — both, if either might use them
 
 ```yaml
 # config.exist.yml
@@ -75,9 +81,10 @@ shared_routines:
 ## Activating a Cron Job
 
 ```bash
-cp <state-dir>/cron.example/<name>.md <state-dir>/cron/<name>.md
-# edit cron.example file to set schedule and parameters, then:
-docker compose restart <slug>-decree
+# <project> is decree or decree-backup
+cp services/decree/<project>/cron.example/<name>.md services/decree/<project>/cron/<name>.md
+# edit the copy to set schedule and parameters, then:
+docker compose restart <project>
 ```
 
 Cron files use YAML frontmatter. Extra frontmatter keys are passed as env vars to the routine:
@@ -91,18 +98,22 @@ TARGETS: "minio:9000"
 ---
 ```
 
-## Sidecar Pattern
+## Backups
 
-Each backup-eligible service has a `<slug>-decree` sidecar. Sidecars:
-- Mount only their own service's volumes (not the master `.env`)
-- Receive only their own DB credentials via compose env vars
-- Share `automations/shared_routines/`, `automations/lib/`, `automations/runs/`
+All of them run in `decree-backup`, which mounts `volumes/` wholesale and takes the master
+`.env` via `env_file` (with `DECREE_AI=` blanked — it installs no AI CLI). So **adding a backup
+for a new service is one cron file** in `services/decree/decree-backup/cron.example/`: no
+sidecar, no volume mount, no credential plumbing.
 
-To trigger a backup now:
+To trigger one now, drop a message in its inbox — `decree` has no `run` subcommand:
 ```bash
-docker exec <slug>-decree decree run db-backup -- nightly
-docker exec <slug>-decree decree run volume-backup -- nightly
+printf -- '---\nroutine: volume-backup\nTIER: nightly\nVOLUMES: |\n  my_volume my-container\n---\n' \
+  > services/decree/decree-backup/inbox/manual-backup.md
+docker logs -f decree-backup
 ```
+
+Restores go through `./existential.sh run backup-restore`, which reads the active cron files'
+`TARGETS`/`VOLUMES` blocks out of that same container.
 
 ## Reference Files
 

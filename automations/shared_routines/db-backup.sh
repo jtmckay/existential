@@ -3,12 +3,12 @@
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
 # than the tier's retention window.
 #
-# Triggered by cron files in each service's decree/cron/ dir. Decree exposes
-# cron frontmatter keys (TIER, TARGETS) as env vars. Credential vars come from
-# the sidecar container's environment (set in docker-compose.exist.yml).
+# Triggered by cron files in services/decree/decree-backup/cron/. Decree
+# exposes cron frontmatter keys (TIER, TARGETS) as env vars. Credential vars
+# come from decree-backup's environment, which is the master .env.
 #
 # Manual invocation:
-#   docker exec <service>-decree decree run db-backup
+#   docker exec decree-backup decree run db-backup
 #
 # $TARGETS format (one entry per line, whitespace-separated):
 #   <engine> <container> <USER_ENV_VAR> <PASS_ENV_VAR>

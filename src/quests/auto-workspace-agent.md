@@ -18,12 +18,12 @@ copies:
     dst: automations/lib/file-processors/
     label: "file-processors: agent-handoff.sh (flag unresolved notes and hand them to an agent)"
     requires: EXIST_IS_SERVICES_DECREE
-  - src: nas/minio/decree/migrations.example/03-create-workspace-bucket.md
-    dst: nas/minio/decree/migrations/
+  - src: services/decree/decree/migrations.example/22-minio-create-workspace-bucket.md
+    dst: services/decree/decree/migrations/
     label: "migration: create the workspace bucket"
     requires: EXIST_IS_NAS_MINIO
-  - src: nas/minio/decree/cron.example/workspace-sync.md
-    dst: nas/minio/decree/cron/
+  - src: services/decree/decree-backup/cron.example/workspace-sync.md
+    dst: services/decree/decree-backup/cron/
     label: "cron: mirror workspace/ into MinIO every 10 minutes"
     requires: EXIST_IS_NAS_MINIO
 ---
@@ -62,19 +62,19 @@ Setup:
 
   2. Enable the routines. In services/decree/decree/config.yml set
      `minio-router`, `file-processor` and `agent-task` to enabled: true.
-     In nas/minio/decree/config.yml set `workspace-sync` to enabled: true.
+     `workspace-sync` is already on in services/decree/decree-backup/config.yml.
      Both daemons restart themselves when their config changes.
 
   3. The bucket is created by the migration above on the next
      `docker compose up -d`. Confirm it exists:
-       docker exec minio-decree rclone lsd minio:
+       docker exec decree-backup rclone lsd minio:
 
   4. Sync ONCE, before subscribing. The first pass uploads the whole workspace;
      against a subscribed bucket that arrives as one event per file. Drop a
-     message in the MinIO daemon's inbox and wait for it to finish:
+     message in the backup daemon's inbox and wait for it to finish:
        printf -- '---\nroutine: workspace-sync\n---\n' \
-         > nas/minio/decree/inbox/sync-once.md
-       docker logs -f minio-decree
+         > services/decree/decree-backup/inbox/sync-once.md
+       docker logs -f decree-backup
 
   5. NOW subscribe the bucket to the webhook:
        docker exec minio mc event add minio/workspace \

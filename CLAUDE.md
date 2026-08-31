@@ -13,7 +13,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | touch a `*.exist.*` template, placeholder, or env var | `.claude/reference/templates.md` |
 | add a hostname, Caddy block, or piHole/TLS change | `.claude/reference/networking.md` |
 | write or change a test | `.claude/reference/testing.md` |
-| add a service, sidecar, or change container privileges | `.claude/reference/services.md` |
+| add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
 | work on automations/decree | the `/decree` skill (it reads the live files) |
 
 ---
@@ -100,12 +100,12 @@ than service state, so it is gitignored but does **not** live under `volumes/`: 
 
 `./existential.sh` renders templates → runs `exist.initial.sh` (pre-startup, idempotent, every
 run, no sentinels). Then the user runs `docker compose up -d`; each service's `entrypoint.sh`
-trues up the config only it can reach; the sidecar retries
-`exist.test.sh` until it passes, and decree applies any pending one-time migrations from
-`<service>/decree/migrations/`. On demand: `./existential.sh run <slug> <action>` →
-`exist.<action>.sh`.
+trues up the config only it can reach; the `decree` daemon waits on
+`services/decree/migration-gate.sh` (which probes each service it migrates) and then applies any
+pending one-time migrations from `services/decree/decree/migrations/`. On demand:
+`./existential.sh run <slug> <action>` → `exist.<action>.sh`.
 
-Which script to write for what, container privileges, the decree image/sidecars, and
+Which script to write for what, container privileges, the decree image and its two daemons, and
 core-vs-complementary coupling: `.claude/reference/services.md`.
 
 ---
@@ -252,16 +252,22 @@ from the repo root against the generated `docker-compose.yml`.
 For deeper decree work use the `/decree` skill (it reads the live files). Two non-obvious rules
 worth keeping here:
 
-**Routine registration:** all daemons use `shared_routines` via `routine_source`, so routines
+**Two daemons, not one per service:** `decree` (`services/decree/decree/`) runs everything that
+reasons, routes or reaches a service API — including every service's one-time migrations —
+and `decree-backup` (`services/decree/decree-backup/`) runs the backup routines, mounting
+`volumes/` wholesale and taking the master `.env`. A service gets **no** `*-decree` sidecar; a
+new backup is one cron file. Why, and what each can reach: `.claude/reference/services.md`.
+
+**Routine registration:** both daemons use `shared_routines` via `routine_source`, so routines
 default to **disabled** unless listed in `shared_routines` in `config.exist.yml` (the whitelist).
-When adding a routine, add it to every `config.exist.yml` that should see it — `enabled: true`
+When adding a routine, add it to whichever `config.exist.yml` should see it — `enabled: true`
 for on-by-default, `false` for opt-in; unlisted = invisible. Rendered `config.yml` (gitignored)
 is the user override.
 
 **Cron activation:** each daemon has `cron/` (active, gitignored) + `cron.example/` (tracked; the
 `.example_` suffix deliberately avoids `*.exist.*` so existential.sh never auto-renders them).
-Activate by copying example → `cron/` and restarting the daemon. Active `cron/` is mounted
-read-only; frontmatter (`cron:`, `routine:`, extra keys → env vars) parsed on restart.
+Activate by copying example → `cron/` and restarting that daemon; the project dir name *is* the
+container name. Frontmatter (`cron:`, `routine:`, extra keys → env vars) is parsed on restart.
 
 ---
 

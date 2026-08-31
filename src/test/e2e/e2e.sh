@@ -639,7 +639,7 @@ run_quest() {
 
     # 8. Container-state gate — fails the quest if anything is restart-looping,
     #    exited, or unhealthy. This is the only place with docker visibility, so
-    #    it's where daemon liveness (decree + sidecars, no HTTP surface) is checked.
+    #    it's where daemon liveness (decree, decree-backup — no HTTP surface) is checked.
     if ! bash "${REPO_DIR}/src/test/integration/container-health.sh" \
             "$WORK/docker-compose.yml" "$E2E_PROJECT"; then
         log "${quest_name} — container health gate FAILED"

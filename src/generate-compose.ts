@@ -452,7 +452,7 @@ function merge(
   gpuVendor = 'nvidia',
 ): Record<string, unknown> {
   // First pass: collect every enabled service's x-exist-volumes declarations.
-  // Volumes are shared across services by name (a backup sidecar mounts the same
+  // Volumes are shared across services by name (decree-backup mounts the same
   // dir as the app it archives), so the spec is merged repo-wide, first wins.
   const volumeSpec: Record<string, VolumeSpec> = {};
   for (const relPath of enabled) {

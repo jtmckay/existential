@@ -1,8 +1,10 @@
 ---
 name: Automated Backups
-tagline: Nightly database and volume backups via per-service Decree sidecars
+tagline: Nightly database and volume backups from the decree-backup daemon
 e2e: false
 services:
+  - var: EXIST_IS_SERVICES_DECREE
+    label: Decree (runs the backups)
   - var: EXIST_IS_SERVICES_MEALIE
     label: Mealie
   - var: EXIST_IS_SERVICES_NOCODB
@@ -20,51 +22,52 @@ services:
   - var: EXIST_IS_HOSTING_PORTAINER
     label: Portainer
 copies:
-  - src: services/mealie/decree/cron.example/mealie-db-backup-nightly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie-decree: db-backup nightly"
+  - src: services/decree/decree-backup/cron.example/mealie-db-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "mealie: db-backup nightly"
     requires: EXIST_IS_SERVICES_MEALIE
-  - src: services/mealie/decree/cron.example/mealie-volume-backup-nightly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/mealie-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "mealie: volume-backup nightly"
     requires: EXIST_IS_SERVICES_MEALIE
-  - src: services/nocodb/decree/cron.example/nocodb-db-backup-nightly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb-decree: db-backup nightly"
+  - src: services/decree/decree-backup/cron.example/nocodb-db-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "nocodb: db-backup nightly"
     requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/nocodb/decree/cron.example/nocodb-volume-backup-nightly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/nocodb-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "nocodb: volume-backup nightly"
     requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/lowcoder/decree/cron.example/lowcoder-db-backup-nightly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder-decree: db-backup nightly"
+  - src: services/decree/decree-backup/cron.example/lowcoder-db-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "lowcoder: db-backup nightly"
     requires: EXIST_IS_SERVICES_LOWCODER
-  - src: services/lowcoder/decree/cron.example/lowcoder-volume-backup-nightly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/lowcoder-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "lowcoder: volume-backup nightly"
     requires: EXIST_IS_SERVICES_LOWCODER
-  - src: services/actual-budget/decree/cron.example/actual-budget-volume-backup-nightly.md
-    dst: services/actual-budget/decree/cron/
-    label: "actual-budget-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/actual-budget-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "actual-budget: volume-backup nightly"
     requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
-  - src: services/appsmith/decree/cron.example/appsmith-volume-backup-nightly.md
-    dst: services/appsmith/decree/cron/
-    label: "appsmith-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/appsmith-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "appsmith: volume-backup nightly"
     requires: EXIST_IS_SERVICES_APPSMITH
-  - src: nas/nextcloud/decree/cron.example/nextcloud-db-backup-nightly.md
-    dst: nas/nextcloud/decree/cron/
-    label: "nextcloud-decree: db-backup nightly"
+  - src: services/decree/decree-backup/cron.example/nextcloud-db-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "nextcloud: db-backup nightly"
     requires: EXIST_IS_NAS_NEXTCLOUD
-  - src: ai/hermes/decree/cron.example/hermes-volume-backup-nightly.md
-    dst: ai/hermes/decree/cron/
-    label: "hermes-decree: volume-backup nightly"
+  - src: services/decree/decree-backup/cron.example/hermes-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
+    label: "hermes: volume-backup nightly"
     requires: EXIST_IS_AI_HERMES
 ---
 
 Activates nightly backup crons for every enabled service that has one.
-Each backup runs inside that service's Decree sidecar, which has access to
-the service's volumes and DB credentials without needing the master .env.
+They all run in one daemon, decree-backup, which mounts volumes/ and holds
+every service's DB credentials — so adding a service to this list is one
+cron file, not a new sidecar.
 
 Backups are sent to the rclone remote configured in EXIST_BACKUP_RCLONE_REMOTE.
 Run backup-config if not yet set up:
@@ -74,14 +77,15 @@ What gets backed up (nightly, kept for 7 days):
   - Databases (postgres/mariadb/mongo): pg_dump / mysqldump / mongodump → rclone
   - Volumes: tar.gz → rclone
 
-Weekly backups (kept 28 days) are in each service's cron.example/ — copy
-the *-weekly.md files if you want longer-lived snapshots:
-  cp <service>/decree/cron.example/db-backup-weekly.md \
-     <service>/decree/cron/
+Weekly backups (kept 28 days) sit alongside them — copy the *-weekly.md
+files if you want longer-lived snapshots:
+  cp services/decree/decree-backup/cron.example/<name>-weekly.md \
+     services/decree/decree-backup/cron/
+  docker compose restart decree-backup
 
 Manual trigger (for any service):
-  docker exec <service>-decree decree run db-backup
-  docker exec <service>-decree decree run volume-backup
+  docker exec decree-backup decree run db-backup
+  docker exec decree-backup decree run volume-backup
 
 Restore:
   ./existential.sh run backup-restore

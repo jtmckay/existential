@@ -43,6 +43,39 @@ services:
       - OLLAMA_URL=${EXIST_OLLAMA_URL_VISION:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
+      # ── Service migrations and service crons ────────────────────────────
+      # These used to live in per-service *-decree sidecars. They reach their
+      # service over the exist bridge, so they only ever needed credentials,
+      # never a volume — which is why they collapse into this daemon and the
+      # backups (which do need volumes) went to decree-backup instead.
+      # Enumerated rather than env_file: this container runs agent-task with
+      # terminal and write access, so it gets exactly the keys it uses.
+      #
+      # minio-bucket talks to the S3 API as root; minio-service-account needs
+      # root on the admin API to mint the scoped nextcloud identity.
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
+      - MINIO_NEXTCLOUD_ACCESS_KEY=${MINIO_NEXTCLOUD_ACCESS_KEY:-}
+      - MINIO_NEXTCLOUD_SECRET_KEY=${MINIO_NEXTCLOUD_SECRET_KEY:-}
+      # openviking-index-dir authenticates to the OpenViking REST API.
+      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
+      # The fallback for any role with no endpoint of its own.
+      - EXIST_OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
+      # Model globals from .env.shared — the ollama-pull routine resolves its
+      # OLLAMA_ROLE against these, so a migration names a role, not a tag.
+      # See the "Model Selection" block in .env.exist.shared.
+      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
+      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
+      - EXIST_MODEL_EXTRACT=${EXIST_MODEL_EXTRACT}
+      - EXIST_MODEL_EMBED=${EXIST_MODEL_EMBED}
+      - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
+      # ...and the per-role endpoints, so a role is pulled to the machine that
+      # will actually serve it. Blank means "wherever EXIST_OLLAMA_URL points".
+      # See the "Model Endpoints" block in .env.exist.shared.
+      - EXIST_OLLAMA_URL_CHAT=${EXIST_OLLAMA_URL_CHAT:-}
+      - EXIST_OLLAMA_URL_EXTRACT=${EXIST_OLLAMA_URL_EXTRACT:-}
+      - EXIST_OLLAMA_URL_EMBED=${EXIST_OLLAMA_URL_EMBED:-}
+      - EXIST_OLLAMA_URL_VISION=${EXIST_OLLAMA_URL_VISION:-}
     volumes:
       - ./decree:/work/.decree:z
       - ../../automations/lib:/work/.decree/lib:ro,z
@@ -64,6 +97,59 @@ services:
       # OpenCode pointed at hermes, so agent-task inherits hermes' MCP
       # servers (openviking, firecrawl, playwright) with no wiring here.
       - ./opencode.json:/work/opencode.json:ro,z
+      # entrypoint.sh gates `decree process` (migrations) on /work/exist.test.sh
+      # passing. This daemon's migrations target OTHER services, so the gate is
+      # not its own exist.test.sh but a probe of every service it migrates —
+      # skipping the ones that are disabled. See migration-gate.sh.
+      - ./migration-gate.sh:/work/exist.test.sh:ro,z
+    tty: false
+
+  decree-backup:
+    container_name: decree-backup
+    image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    # Backup daemon: tar, pg_dump/mysqldump/mongodump, rclone. Idle between crons.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - exist
+    # The master env, deliberately. db-backup reads a different credential pair
+    # per service, so enumerating them here would reintroduce exactly the
+    # per-service wiring this container exists to delete. The trade is real and
+    # bounded: this daemon runs six fixed backup routines, no agent and no
+    # router, and the master env stays out of `decree`, which does run agents.
+    env_file:
+      - ../../.env
+    environment:
+      - DECREE_DAEMON=true
+      - DECREE_SIDECAR=true
+      - DECREE_INTERVAL=2
+      - IN_CONTAINER=1
+      # Blanked on purpose, and this is why env_file needs watching: .env sets
+      # DECREE_AI=opencode for the main daemon, and the entrypoint would npm-i
+      # an AI CLI into a container that runs tar and rclone. Nothing here reasons.
+      - DECREE_AI=
+    volumes:
+      - ./decree-backup:/work/.decree:z
+      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
+      - ../../automations/lib:/work/.decree/lib:ro,z
+      - ../../automations/runs:/work/.decree/runs:z
+      - ../../automations/secrets:/secrets:ro,z
+      # Every volume at once. This is what makes a new service need no backup
+      # wiring at all: its volumes/<name> dir is visible here the moment
+      # generate-compose creates it, so activating a cron file is the whole job.
+      # Read-WRITE, and only because restore needs it: the backup routines
+      # themselves only ever read (tar, dump), but `./existential.sh run
+      # backup-restore` extracts into these paths from this container.
+      - ../../volumes:/volumes:z
+      # workspace-sync mirrors the workspace into the MinIO bucket; it only reads.
+      - ../../workspace:/workspace:ro
+    # No /work/exist.test.sh mount: this daemon owns no migrations, so the
+    # entrypoint's health-wait branch is correctly skipped.
     tty: false
 
   decree-webhook:

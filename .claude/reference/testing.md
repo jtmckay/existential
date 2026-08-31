@@ -17,11 +17,12 @@ failure.
 - **Service-scoped** — flag missing deps, don't recurse.
 - **Exit non-zero on failure.**
 - **Skip cleanly when disabled** (`EXIST_IS_<CAT>_<SLUG>` false → exit 0).
-- In sidecar context (`DECREE_SIDECAR=true`), `skip_if_disabled` and `probe_caddy` are no-ops.
+- Inside a decree daemon (`DECREE_SIDECAR=true`), `skip_if_disabled` and `probe_caddy` are no-ops.
 - Suggested output: `[<slug>] <check>  OK|FAIL` with `observed:`/`fix:` lines.
 
-It is also the sidecar health gate: the sidecar retries until this passes before the service is
-considered healthy.
+It is also what the health gates run: `triage` executes every enabled service's copy off the
+`decree` daemon's read-only `/repo` mount every 5 minutes, and `migration-gate.sh` uses the same
+idea to hold migrations back until their target service answers.
 
 ## Container-state gate
 

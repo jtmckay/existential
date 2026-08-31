@@ -2,7 +2,8 @@
 # DB / volume backup restore — runs on the host (needs bash + docker only).
 #
 # DB restores replay a logical dump over a live connection inside the
-# service's decree sidecar (which holds the credentials in its environment).
+# decree-backup container (which holds every service's credentials in its
+# environment and mounts every volume).
 # Volume restores wipe the target volume before extracting — stop consumer
 # containers manually before running this script and restart them yourself.
 
@@ -36,18 +37,31 @@ REMOTE=$(env_get "EXIST_BACKUP_RCLONE_REMOTE")
 DOCKER_CMD="${DOCKER_CMD:-docker}"
 command -v "$DOCKER_CMD" >/dev/null 2>&1 || die "${DOCKER_CMD} not found on PATH"
 
+# Every backup for every service runs in one daemon, so there is nothing to
+# pick: rclone, the credentials and the volumes all live here.
+SIDECAR="decree-backup"
+
 rclone_in() {
-    local sidecar="$1"; shift
-    $DOCKER_CMD exec "${sidecar}" rclone --config /secrets/rclone/rclone.conf "$@"
+    local ctr="$1"; shift
+    $DOCKER_CMD exec "${ctr}" rclone --config /secrets/rclone/rclone.conf "$@"
 }
 rclone_lsf() { rclone_in "$1" lsf "${REMOTE}/$2" 2>/dev/null || true; }
 
-# List running *-decree sidecars (excludes the main `decree` daemon).
-list_sidecars() {
-    $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null \
-        | grep -E '.*-decree$' \
-        | grep -v '^decree$' \
-        | sort
+# Concatenate the TARGETS blocks of every active cron for one routine+tier.
+# Cron files are named per service (mealie-db-backup-nightly.md, …) and now
+# share one cron/ dir, so a restore reads all of them, not one fixed filename.
+collect_targets() {
+    local routine="$1" tier="$2"
+    $DOCKER_CMD exec "${SIDECAR}" bash -c "
+        shopt -s nullglob
+        for f in /work/.decree/cron/*${routine}-${tier}.md; do cat \"\$f\"; echo; done
+    " 2>/dev/null | awk -v k="TARGETS:" '
+        /^---$/ { in_fm = !in_fm; found=0; next }
+        !in_fm  { next }
+        $0 ~ "^" k { found=1; next }
+        found && /^[^ ]/  { found=0; next }
+        found   { sub(/^  /, ""); print }
+    '
 }
 
 # ── Pick kind and tier ────────────────────────────────────────────────────────
@@ -79,34 +93,16 @@ case "${tier:-1}" in
     *) die "Invalid choice." ;;
 esac
 
-# ── Pick sidecar ──────────────────────────────────────────────────────────────
+# ── The backup daemon ─────────────────────────────────────────────────────────
 
-echo ""
-echo "Running decree sidecars:"
-mapfile -t sidecars < <(list_sidecars)
-[ ${#sidecars[@]} -gt 0 ] || die "No running *-decree sidecar containers found."
-for i in "${!sidecars[@]}"; do echo "  [$((i + 1))] ${sidecars[$i]}"; done
-echo ""
-read -rp "Sidecar: " pick
-[[ "$pick" =~ ^[0-9]+$ ]] || die "Pick a number."
-idx=$((pick - 1)); [ "$idx" -ge 0 ] && [ "$idx" -lt "${#sidecars[@]}" ] || die "Out of range."
-SIDECAR="${sidecars[$idx]}"
+$DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -qx "$SIDECAR" \
+    || die "${SIDECAR} is not running — start it with: docker compose up -d ${SIDECAR}"
 
 # ── DB restore ────────────────────────────────────────────────────────────────
 
 if [ "$KIND" = "db" ]; then
-    CRON_FILE_RAW=$($DOCKER_CMD exec "${SIDECAR}" bash -c \
-        "cat /work/.decree/cron/db-backup-${TIER}.md 2>/dev/null || true")
-    [ -n "$CRON_FILE_RAW" ] || die "No active db-backup-${TIER} cron in ${SIDECAR} — copy the template from decree/cron.example/ to decree/cron/"
-
-    TARGETS=$(printf '%s\n' "$CRON_FILE_RAW" | awk -v k="TARGETS:" '
-        /^---$/ { if (in_fm) exit; in_fm=1; next }
-        !in_fm  { next }
-        $0 ~ "^" k { found=1; next }
-        found && /^[^ ]/  { exit }
-        found   { sub(/^  /, ""); print }
-    ')
-    [ -n "$TARGETS" ] || die "No TARGETS block in ${SIDECAR}'s db-backup-${TIER} cron"
+    TARGETS=$(collect_targets db-backup "$TIER")
+    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — copy a template from services/decree/decree-backup/cron.example/ into services/decree/decree-backup/cron/"
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
@@ -126,7 +122,7 @@ if [ "$KIND" = "db" ]; then
             ENGINE="$e"; USER_KEY="$u"; PASS_KEY="$p"; break
         fi
     done <<< "$TARGETS"
-    [ -n "$ENGINE" ] || die "No entry for '$CONTAINER' in ${SIDECAR}'s TARGETS"
+    [ -n "$ENGINE" ] || die "No entry for '$CONTAINER' in any active db-backup-${TIER} cron's TARGETS"
 
     echo ""
     echo "Snapshots:"
@@ -147,7 +143,7 @@ if [ "$KIND" = "db" ]; then
     echo "About to DB-restore:"
     echo "  source   ${REMOTE}/${TIER}/${CONTAINER}/${SNAP}"
     echo "  target   ${CONTAINER}  (engine: ${ENGINE})"
-    echo "  sidecar  ${SIDECAR}"
+    echo "  runs in  ${SIDECAR}"
     echo ""
     read -rp "Type the container name (${CONTAINER}) to confirm: " confirm
     [ "$confirm" = "$CONTAINER" ] || { echo "Aborted."; exit 0; }
@@ -196,7 +192,7 @@ if [ "$KIND" = "volume" ]; then
 echo ""
 echo "Volumes with backups in ${REMOTE}/${TIER}/volumes/:"
 mapfile -t vols < <(rclone_lsf "${SIDECAR}" "${TIER}/volumes/" | sed 's:/$::')
-[ ${#vols[@]} -gt 0 ] || die "No volume backups at ${REMOTE}/${TIER}/volumes/ (via ${SIDECAR})"
+[ ${#vols[@]} -gt 0 ] || die "No volume backups at ${REMOTE}/${TIER}/volumes/"
 for i in "${!vols[@]}"; do echo "  [$((i + 1))] ${vols[$i]}"; done
 echo ""
 read -rp "Volume: " vol
@@ -223,7 +219,7 @@ hr
 echo "About to restore (DESTRUCTIVE):"
 echo "  source   ${REMOTE}/${TIER}/volumes/${VOLUME}/${SNAP}"
 echo "  target   volume ${VOLUME}"
-echo "  sidecar  ${SIDECAR}"
+echo "  runs in  ${SIDECAR}"
 echo ""
 echo "  Stop any containers that mount this volume before proceeding."
 echo "  Restart them yourself when the restore finishes."
@@ -234,7 +230,7 @@ read -rp "Type the volume name (${VOLUME}) to proceed: " confirm
 $DOCKER_CMD exec "${SIDECAR}" bash -c "
     set -euo pipefail
     dst=/volumes/${VOLUME}
-    [ -d \"\$dst\" ] || { echo 'Volume not mounted at '\$dst' — add it to the sidecar in docker-compose.exist.yml'; exit 1; }
+    [ -d \"\$dst\" ] || { echo 'No volumes/'${VOLUME}' on disk — nothing to restore into'; exit 1; }
     echo \"Wipe   \$dst\"
     find \"\$dst\" -mindepth 1 -delete
     echo \"Pull   ${REMOTE}/${TIER}/volumes/${VOLUME}/${SNAP}\"
@@ -253,23 +249,13 @@ fi
 
 [ "$KIND" = "sqlite" ] || exit 0
 
-CRON_FILE_RAW=$($DOCKER_CMD exec "${SIDECAR}" bash -c \
-    "cat /work/.decree/cron/sqlite-backup-${TIER}.md 2>/dev/null || true")
-[ -n "$CRON_FILE_RAW" ] || die "No active sqlite-backup-${TIER} cron in ${SIDECAR} — copy the template from decree/cron.example/ to decree/cron/"
-
-TARGETS=$(printf '%s\n' "$CRON_FILE_RAW" | awk -v k="TARGETS:" '
-    /^---$/ { if (in_fm) exit; in_fm=1; next }
-    !in_fm  { next }
-    $0 ~ "^" k { found=1; next }
-    found && /^[^ ]/  { exit }
-    found   { sub(/^  /, ""); print }
-')
-[ -n "$TARGETS" ] || die "No TARGETS block in ${SIDECAR}'s sqlite-backup-${TIER} cron"
+TARGETS=$(collect_targets sqlite-backup "$TIER")
+[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — copy a template from services/decree/decree-backup/cron.example/ into services/decree/decree-backup/cron/"
 
 echo ""
 echo "SQLite databases with backups in ${REMOTE}/${TIER}/sqlite/:"
 mapfile -t db_names < <(rclone_lsf "${SIDECAR}" "${TIER}/sqlite/" | sed 's:/$::')
-[ ${#db_names[@]} -gt 0 ] || die "No SQLite backups at ${REMOTE}/${TIER}/sqlite/ (via ${SIDECAR})"
+[ ${#db_names[@]} -gt 0 ] || die "No SQLite backups at ${REMOTE}/${TIER}/sqlite/"
 for i in "${!db_names[@]}"; do echo "  [$((i + 1))] ${db_names[$i]}"; done
 echo ""
 read -rp "Database: " db
@@ -282,7 +268,7 @@ while read -r name rel; do
     [ -z "$name" ] && continue
     if [ "$name" = "$DB_NAME" ]; then REL_PATH="$rel"; break; fi
 done <<< "$TARGETS"
-[ -n "$REL_PATH" ] || die "No entry for '${DB_NAME}' in ${SIDECAR}'s TARGETS — the backup name and cron TARGETS entry must match"
+[ -n "$REL_PATH" ] || die "No entry for '${DB_NAME}' in any active sqlite-backup-${TIER} cron's TARGETS — the backup name and cron TARGETS entry must match"
 
 echo ""
 echo "Snapshots:"
@@ -302,8 +288,8 @@ fi
 hr
 echo "About to restore (DESTRUCTIVE):"
 echo "  source   ${REMOTE}/${TIER}/sqlite/${DB_NAME}/${SNAP}"
-echo "  target   /volumes/${REL_PATH}  (inside ${SIDECAR})"
-echo "  sidecar  ${SIDECAR}"
+echo "  target   volumes/${REL_PATH}"
+echo "  runs in  ${SIDECAR}"
 echo ""
 echo "  IMPORTANT: stop the service that owns this database before proceeding."
 echo "  SQLite restore replaces the live database file — writing to an open"
@@ -316,7 +302,7 @@ $DOCKER_CMD exec "${SIDECAR}" bash -c "
     set -euo pipefail
     dst=\"/volumes/${REL_PATH}\"
     dir=\"\$(dirname \"\$dst\")\"
-    [ -d \"\$dir\" ] || { echo 'Parent directory '\$dir' not found — volume not mounted in sidecar?'; exit 1; }
+    [ -d \"\$dir\" ] || { echo 'Parent directory '\$dir' not found — is the volume on disk?'; exit 1; }
     echo \"Pull   ${REMOTE}/${TIER}/sqlite/${DB_NAME}/${SNAP}\"
     rclone --config /secrets/rclone/rclone.conf cat \
         \"${REMOTE}/${TIER}/sqlite/${DB_NAME}/${SNAP}\" \

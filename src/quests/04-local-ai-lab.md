@@ -22,20 +22,20 @@ services:
   - var: EXIST_IS_AI_COMFYUI
     label: ComfyUI
 copies:
-  - src: ai/hermes/decree/cron.example/hermes-volume-backup-nightly.md
-    dst: ai/hermes/decree/cron/
+  - src: services/decree/decree-backup/cron.example/hermes-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
     label: "hermes: volume-backup-nightly.md"
     requires: EXIST_IS_AI_HERMES
-  - src: ai/hermes/decree/cron.example/hermes-volume-backup-weekly.md
-    dst: ai/hermes/decree/cron/
+  - src: services/decree/decree-backup/cron.example/hermes-volume-backup-weekly.md
+    dst: services/decree/decree-backup/cron/
     label: "hermes: volume-backup-weekly.md"
     requires: EXIST_IS_AI_HERMES
-  - src: ai/openviking/decree/cron.example/openviking-volume-backup-nightly.md
-    dst: ai/openviking/decree/cron/
+  - src: services/decree/decree-backup/cron.example/openviking-volume-backup-nightly.md
+    dst: services/decree/decree-backup/cron/
     label: "openviking: volume-backup-nightly.md"
     requires: EXIST_IS_AI_OPENVIKING
-  - src: ai/openviking/decree/cron.example/openviking-volume-backup-weekly.md
-    dst: ai/openviking/decree/cron/
+  - src: services/decree/decree-backup/cron.example/openviking-volume-backup-weekly.md
+    dst: services/decree/decree-backup/cron/
     label: "openviking: volume-backup-weekly.md"
     requires: EXIST_IS_AI_OPENVIKING
 ---
@@ -53,7 +53,7 @@ Pull whatever those name:
   ./existential.sh run ollama pull-models
 
 Or let it happen unattended — the auto-ollama-models quest copies migrations
-that ollama-decree runs as soon as ollama is healthy.
+that the decree daemon runs as soon as ollama is healthy.
 
 At the defaults (~4 GB total) this takes a few minutes. Models are stored in
 the ollama_data volume and survive container restarts.
@@ -91,7 +91,7 @@ Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 Your knowledgebase is the workspace/ directory at the repo root — the same
 tree hermes and code-server share, so everything you work on is indexed
 without a second directory to keep in step. ./existential.sh creates it and
-activates the indexer cron, so there is nothing to set up: the sidecar
+activates the indexer cron, so there is nothing to set up: decree
 uploads new and changed files every 15 minutes, and hermes searches them
 through the openviking MCP server.
 
@@ -102,6 +102,6 @@ Subdirectories are preserved. Deleting a file on disk removes it from the
 index on the next run.
 
 To index a second directory, copy
-ai/openviking/decree/cron.example/openviking-index-knowledgebase.md to
-decree/cron/ under a new name and give it its own INDEX_DIR and
-INDEX_PREFIX.
+services/decree/decree/cron.example/openviking-index-knowledgebase.md to
+services/decree/decree/cron/ under a new name and give it its own INDEX_DIR
+and INDEX_PREFIX.

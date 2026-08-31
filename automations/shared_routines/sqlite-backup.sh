@@ -14,7 +14,7 @@
 #   rclone cat <remote>/<path> | gunzip | sqlite3 restored.db
 #
 # Manual invocation:
-#   docker exec <service>-decree decree run sqlite-backup
+#   docker exec decree-backup decree run sqlite-backup
 
 set -euo pipefail
 

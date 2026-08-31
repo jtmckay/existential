@@ -123,39 +123,6 @@ services:
       retries: 5
       start_period: 30s
 
-  hermes-decree:
-    container_name: hermes-decree
-    image: existential/decree:local  # shared image, built by existential-adhoc
-    pull_policy: never
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    restart: unless-stopped
-    # Sidecar: bash. Runs hermes' own migrations and nothing heavy.
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    networks:
-      - exist
-    environment:
-      - DECREE_DAEMON=true
-      - DECREE_SIDECAR=true
-      - DECREE_INTERVAL=2
-      - IN_CONTAINER=1
-      # Named once in .env.shared; exist.test.sh probes ollama through it.
-      - OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
-      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
-    volumes:
-      - ./decree:/work/.decree:z
-      - ./exist.test.sh:/work/exist.test.sh:ro,z
-      - ../../src/test/exist-test.sh:/src/test/exist-test.sh:ro,z
-      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ../../automations/lib:/work/.decree/lib:ro,z
-      - ../../automations/runs:/work/.decree/runs:z
-      - ../../automations/secrets:/secrets:ro,z
-      # TODO: live .hermes tar isn't crash-consistent — dump → volumes/hermes_agent_data_backup.
-      - hermes_agent_data:/volumes/hermes_agent_data
-    tty: false
-
 x-exist-volumes:
   hermes_agent_data: { db: true }
 

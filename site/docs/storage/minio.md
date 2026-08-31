@@ -46,9 +46,9 @@ changes on its own. To move an existing install over:
 
 1. Add the two keys to `.env.shared`, `nas/minio/.env` and `nas/nextcloud/.env` by hand — the
    same access key on both sides, and a fresh secret (`openssl rand -hex 16`).
-2. Copy `nas/minio/decree/migrations.example/02-create-nextcloud-service-account.md` into
-   `nas/minio/decree/migrations/` and let the `minio-decree` sidecar apply it. Confirm with
-   `docker logs minio-decree`.
+2. Copy `services/decree/decree/migrations.example/21-minio-create-nextcloud-service-account.md`
+   into `services/decree/decree/migrations/` and let the `decree` daemon apply it. Confirm with
+   `docker logs decree`.
 3. Point the existing mount at the new identity:
 
 ```bash

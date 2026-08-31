@@ -21,7 +21,7 @@
 #
 #   * The departments write to /workspace/ai, and only the MAIN decree daemon
 #     has a writable /workspace. Enable idea-workup, dept-research and
-#     dept-sales in services/decree/decree/config.yml — not on a sidecar.
+#     dept-sales in services/decree/decree/config.yml — not in decree-backup.
 #   * The profiles must exist: ./existential.sh run hermes profiles. Without
 #     them every department call 401s, because a profile carries its own
 #     API_SERVER_KEY rather than borrowing the default one's.

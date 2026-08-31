@@ -17,7 +17,9 @@ successor to the LightRAG approach of indexing a notes vault.
 | Container | Role |
 |---|---|
 | `openviking` | REST API, MCP server, and Web Studio (port 1933) |
-| `openviking-decree` | Backup sidecar plus the knowledgebase indexer cron |
+
+The knowledgebase indexer cron runs in the main `decree` daemon, and the backup of
+`openviking_data` in `decree-backup` — OpenViking ships no container of its own for either.
 
 ## Access
 
@@ -44,8 +46,8 @@ The `openviking-index-dir` routine uploads it into `viking://resources/workspace
 old copy, and files you delete on disk leave the index on the next run. A first pass over
 a large tree takes a while — each file is embedded on the way in.
 
-The directory is mounted on the **sidecar**, not on `openviking`. OpenViking's HTTP and
-MCP APIs both refuse host filesystem paths outright, so content only ever reaches it by
+The directory is mounted on the **decree daemon**, not on `openviking`. OpenViking's HTTP
+and MCP APIs both refuse host filesystem paths outright, so content only ever reaches it by
 upload — which is also why there is no watched-directory setup.
 
 `workspace/ai/` — where the agent automations write — is indexed like everything else, so
@@ -58,7 +60,7 @@ MinIO sync instead, which is what stops that output from triggering more runs. S
 | Volume | Tier | Contents |
 |---|---|---|
 | `openviking_data` | 2 — local, backed up | Vector store and workspace. Embedded DB, never NFS. |
-| `openviking_index_cache` | 3 — ephemeral | Upload manifest, so unchanged files are not re-embedded each run |
 
-Only the vector store is backed up. The manifest is a cache: losing it costs one full
-re-index, not any content.
+The upload manifest that keeps unchanged files from being re-embedded lives in the decree
+daemon's own `decree_data` volume (`/data/openviking-index`), not in a volume of its own. It
+is a cache: losing it costs one full re-index, not any content.

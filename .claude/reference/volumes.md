@@ -35,7 +35,7 @@ x-exist-volumes:
 |---|---|---|
 | `nfs`    | `false` | May live on the NAS export. When `EXIST_NFS_HOST_MOUNT` is set, `generate-compose.ts` resolves the source to `<mount>/<name>`; otherwise it stays in `volumes/`. |
 | `db`     | `false` | Holds an embedded or managed database (SQLite WAL, bbolt, a TSDB, a postgres/mysql/mongo data dir). NFS corrupts these — `validate conventions` rejects `db: true` together with `nfs: true`. |
-| `backup` | `false` | A `*-decree` sidecar archives it into `<name>_backup`. |
+| `backup` | `false` | `decree-backup` archives it into `<name>_backup`. |
 
 **A bare name with no declaration is a hard error.** `generate-compose.ts` exits non-zero and
 prints the block to add, rather than letting compose fall through to a Docker-managed volume —
@@ -50,17 +50,17 @@ The name's suffix is the thing a human reads before running `rm -rf`, so it is *
 | Suffix | For | `reset` |
 |---|---|---|
 | `_data`   | user data or a live database | never touched |
-| `_backup` | archives of a `_data` volume, written by that service's `*-decree` sidecar | never touched |
+| `_backup` | archives of a `_data` volume, written by `decree-backup` | never touched |
 | `_cache`  | regenerable — models, HF caches, scratch; refetched or rebuilt on next start | offers to delete |
 
 `_cache` may not declare `backup: true` (there is nothing worth archiving). Name volumes
 `<service>_<purpose>_<suffix>`.
 
-A `_backup` volume only exists once something mounts and writes it. Most services still carry a
-`# TODO: backup sidecar` comment instead — today `db-backup` rclones dumps straight to a remote
-(`EXIST_BACKUP_RCLONE_REMOTE`) rather than to a local archive dir. Don't create the directory
-ahead of the sidecar: an unmounted, undeclared `volumes/<name>_backup` is just litter, and the
-generator makes it the moment a template declares one.
+A `_backup` volume only exists once something mounts and writes it, and today nothing does:
+`db-backup` and `volume-backup` rclone straight to a remote (`EXIST_BACKUP_RCLONE_REMOTE`)
+rather than to a local archive dir. Don't create the directory ahead of a template that declares
+it — an unmounted, undeclared `volumes/<name>_backup` is just litter, and the generator makes it
+the moment a template declares one.
 
 **Decision rule:** does losing it cost the user anything they can't get back? → `_data`. Would the
 stack simply re-download or rebuild it? → `_cache`. An embedded database is always `_data` **and**

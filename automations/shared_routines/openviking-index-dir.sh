@@ -26,12 +26,12 @@
 #     no stale lockfile to clear by hand.
 #
 # Env vars (set via cron frontmatter):
-#   INDEX_DIR     directory to index, as seen inside the sidecar (e.g. /viking)
+#   INDEX_DIR     directory to index, as seen inside the daemon (e.g. /workspace)
 #   INDEX_PREFIX  viking:// destination prefix
 #                   (default viking://resources/<basename of INDEX_DIR>)
 #   INDEX_EXCLUDE optional extended-regex of relative paths to skip
 #
-# Env vars (passed through sidecar compose env):
+# Env vars (passed through the decree container's compose env):
 #   OPENVIKING_API_KEY  Bearer token for the OpenViking REST API
 #   OPENVIKING_URL      defaults to http://openviking:1933
 #   INDEX_STATE_DIR     manifest location (default /index-cache)

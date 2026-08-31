@@ -189,7 +189,8 @@ services:
     volumes:
       # Crawl results and job history — db: true (WAL/flock; never NFS).
       - firecrawl_postgres_data:/var/lib/postgresql/data
-      # TODO: backup sidecar — pg_dump → volumes/firecrawl_postgres_data_backup/
+      # TODO: no backup yet — add a db-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
 
 x-exist-volumes:
   # Mnesia — an embedded DB, so never NFS; disposable because a lost queue just

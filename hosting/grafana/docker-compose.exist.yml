@@ -24,7 +24,8 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
-      # TODO: backup sidecar → volumes/grafana_data_backup (no sidecar yet).
+      # TODO: no backup yet — add a volume-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
 

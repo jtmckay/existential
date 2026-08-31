@@ -23,7 +23,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
       - ./error.html:/var/www/html/error.html:ro,Z
       # Internal CA root + ACME state — db: true, worth keeping.
-      # TODO: backup sidecar → volumes/caddy_data_backup (no sidecar yet).
+      # TODO: no backup yet — add a volume-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - caddy_data:/data
       # Autosaved JSON config (regenerated from the Caddyfile) — a _cache throwaway.
       - caddy_config_data:/config

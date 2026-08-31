@@ -55,40 +55,8 @@ services:
       POSTGRES_PASSWORD: ${MEALIE_POSTGRES_PASSWORD}
       POSTGRES_USER: ${MEALIE_POSTGRES_USER}
     volumes:
-      # Postgres — db: true. TODO: pg_dump → volumes/mealie_pg_data_backup.
+      # Postgres — db: true. Backed up logically by the mealie-db-backup crons.
       - mealie_pg_data:/var/lib/postgresql/data
-
-  mealie-decree:
-    container_name: mealie-decree
-    image: existential/decree:local  # shared image, built by existential-adhoc
-    pull_policy: never
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    restart: unless-stopped
-    # Sidecar: bash.
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    networks:
-      - exist
-    environment:
-      - DECREE_DAEMON=true
-      - DECREE_SIDECAR=true
-      - DECREE_INTERVAL=2
-      - IN_CONTAINER=1
-      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
-      - MEALIE_POSTGRES_USER=${MEALIE_POSTGRES_USER}
-      - MEALIE_POSTGRES_PASSWORD=${MEALIE_POSTGRES_PASSWORD}
-    volumes:
-      - ./decree:/work/.decree:z
-      - ./exist.test.sh:/work/exist.test.sh:ro,z
-      - ../../src/test/exist-test.sh:/src/test/exist-test.sh:ro,z
-      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ../../automations/lib:/work/.decree/lib:ro,z
-      - ../../automations/runs:/work/.decree/runs:z
-      - ../../automations/secrets:/secrets:ro,z
-      - mealie_data:/volumes/mealie_data
-    tty: false
 
 x-exist-volumes:
   mealie_data: { nfs: true }

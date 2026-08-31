@@ -16,7 +16,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./portainer_password.txt:/run/portainer/admin_password:ro
       # bbolt (portainer.db) — must be local; NFS breaks flock/mmap.
-      # TODO: backup sidecar → volumes/portainer_data_backup (no sidecar yet).
+      # TODO: no backup yet — add a volume-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - portainer_data:/data
     security_opt:
       - no-new-privileges:true

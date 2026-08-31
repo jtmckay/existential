@@ -4,16 +4,15 @@
 # OpenViking — open-source context database for AI agents
 #
 # Provides a viking:// filesystem for memory, resources, and skills.
-# Hermes connects to it as an MCP server; the decree sidecar indexes your
-# workspace/ into it and backs its store up.
+# Hermes connects to it as an MCP server; the main decree daemon indexes your
+# workspace/ into it (openviking-index-knowledgebase cron) and decree-backup
+# tars its store.
 #
 # Services:
-#   openviking       — REST API + MCP server + Web Studio (port 1933)
-#   openviking-decree — knowledgebase indexer + backup sidecar
+#   openviking — REST API + MCP server + Web Studio (port 1933)
 #
 # Volumes:
-#   openviking_data         (db: true) — vector store + workspace; embedded DB, never NFS.
-#   openviking_index_cache             — upload manifest for the indexer.
+#   openviking_data (db: true) — vector store + workspace; embedded DB, never NFS.
 #
 # Knowledgebase:
 #   workspace/ at the repo root is the one place content comes from — the same
@@ -28,7 +27,7 @@
 #   build on its earlier work. It is excluded from the workspace-sync routine
 #   instead, which is what stops that output from triggering another run.
 #
-#   It is mounted on the SIDECAR, not on openviking. openviking's HTTP and MCP
+#   It is mounted on the DECREE daemon, not on openviking. openviking's HTTP and MCP
 #   APIs both refuse host filesystem paths outright, so a bind mount on the
 #   server would be read by nothing — content only ever reaches it by upload.
 #   That is also why there is no watched-directory setup: it cannot work here.
@@ -39,7 +38,7 @@
 # Setup:
 #   1. ./existential.sh run   — renders templates, writes ov.conf, creates
 #                               workspace/ai/, and activates the indexer cron
-#   2. docker compose up -d   — starts openviking; the sidecar indexes workspace/
+#   2. docker compose up -d   — starts openviking; decree indexes workspace/
 #
 # That is the whole setup. Hermes' own exist.initial.sh registers openviking as
 # an MCP server, so nothing here needs a manual `run openviking mcp` either.
@@ -73,49 +72,8 @@ services:
       # Vector store, graph, and session state — embedded DBs; must be local (never NFS).
       - openviking_data:/app/.openviking
 
-  openviking-decree:
-    container_name: openviking-decree
-    image: existential/decree:local
-    pull_policy: never
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    restart: unless-stopped
-    # Sidecar: walks the workspace and posts files to openviking's index API.
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    networks:
-      - exist
-    environment:
-      - DECREE_DAEMON=true
-      - DECREE_SIDECAR=true
-      - DECREE_INTERVAL=2
-      - IN_CONTAINER=1
-      - EXIST_BACKUP_RCLONE_REMOTE=${EXIST_BACKUP_RCLONE_REMOTE}
-      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY}
-    volumes:
-      - ./decree:/work/.decree:z
-      - ./exist.test.sh:/work/exist.test.sh:ro,z
-      - ../../src/test/exist-test.sh:/src/test/exist-test.sh:ro,z
-      - ../../automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ../../automations/lib:/work/.decree/lib:ro,z
-      - ../../automations/runs:/work/.decree/runs:z
-      - ../../automations/secrets:/secrets:ro,z
-      # Your knowledgebase — a repo-root directory you own and edit. Read-only:
-      # the sidecar only ever reads it to upload. It is mounted here rather than
-      # on openviking because openviking cannot read host paths at all (see the
-      # openviking-index-dir routine) — everything reaches it over the API.
-      - ../../workspace:/workspace:ro
-      # Upload manifest (sha256 → relative path) so unchanged files are not
-      # re-uploaded every run. A _cache: losing it costs one full re-index.
-      - openviking_index_cache:/index-cache:z
-      # TODO: backup sidecar — tar openviking_data → volumes/openviking_data_backup (no sidecar yet)
-      - openviking_data:/volumes/openviking_data
-    tty: false
-
 x-exist-volumes:
   openviking_data: { db: true }
-  openviking_index_cache: {}
 
 networks:
   exist:

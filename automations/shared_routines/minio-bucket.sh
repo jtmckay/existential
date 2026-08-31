@@ -11,7 +11,7 @@
 # Env vars (set via migration/cron frontmatter):
 #   BUCKET       bucket name to create, e.g. "nextcloud"
 #
-# Env vars (passed through the minio-decree sidecar compose env):
+# Env vars (passed through the decree container's compose env):
 #   MINIO_ROOT_USER / MINIO_ROOT_PASSWORD   MinIO credentials
 #   MINIO_URL                               optional, default http://minio:9000
 set -euo pipefail

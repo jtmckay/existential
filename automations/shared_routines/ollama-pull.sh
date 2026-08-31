@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ollama-pull — pull an Ollama model or create one from a Modelfile via HTTP API.
-# Used by ollama-decree migrations; idempotent on both pull and create.
+# Used by the decree daemon's ollama migrations; idempotent on pull and create.
 #
 # Naming a model by ROLE (preferred):
 #   OLLAMA_ROLE      chat | chat-ctx | extract | embed | vision
@@ -10,7 +10,7 @@
 # ones. That matters as soon as roles are split across boxes — pulling the chat
 # model to the embedding host would fill the wrong disk and leave chat with no
 # model at all. ai/ollama/docker-compose.yml passes both sets through to this
-# sidecar. Model choice stays in ONE place — the "Model Selection" and "Model
+# daemon. Model choice stays in ONE place — the "Model Selection" and "Model
 # Endpoints" blocks in .env.exist.shared — instead of hardcoded per migration:
 #
 #   chat      → EXIST_MODEL_CHAT        @ EXIST_OLLAMA_URL_CHAT

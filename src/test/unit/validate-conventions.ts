@@ -16,7 +16,7 @@
  *  9. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  * 10. Every `<cat>/<slug>/decree/config.exist.yml` has the required top-level `commands:`
- *      block (decree requires it — no serde default — and missing it crashes all sidecars).
+ *      block (decree requires it — no serde default — and missing it crashes the daemon).
  * 11. Every Caddy slug must equal the backendContainer name, or start with
  *      `{backendContainer}-`. A slug shorter/different than the container it proxies
  *      (e.g. `hermes.internal` → `hermes-agent`) is a convention violation — it implies
@@ -326,7 +326,7 @@ const UID_ENV_NAME_RE    = /(?:PUID|PGID|UID|GID)$/;
  * to delete, so it is enforced rather than merely conventional:
  *
  *   _data    precious — user data or a live database; never auto-deleted
- *   _backup  sidecar archives of a _data volume
+ *   _backup  decree-backup archives of a _data volume
  *   _cache   regenerable; refetched or rebuilt on next start (reset deletes these)
  *
  * Also rejects the NFS/embedded-DB footgun: an mmap/flock database (SQLite WAL,
@@ -440,7 +440,7 @@ function checkHardcodedUids(): string[] {
 // ── Decree config check ────────────────────────────────────────────────────────
 // Every <cat>/<slug>/decree/config.exist.yml is a decree daemon config.
 // decree 0.4.2 requires a top-level `commands:` block — it is the only field in
-// AppConfig without a serde default, so a missing block fails all sidecars on startup.
+// AppConfig without a serde default, so a missing block fails the daemon on startup.
 
 function checkDecreeConfigs(): string[] {
   const errors: string[] = [];

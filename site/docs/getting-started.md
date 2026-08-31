@@ -106,8 +106,9 @@ you have just enabled, and leaves every file that already exists alone.
 docker compose up -d
 ```
 
-Services bring themselves up: each one's sidecar retries its `exist.test.sh` until it passes, and
-Decree applies any one-time migrations. To see what is and is not working at any point:
+Services bring themselves up: Decree waits for the services its migrations target to pass their
+`exist.test.sh`, then applies any one-time migrations. To see what is and is not working at any
+point:
 
 ```bash
 ./existential.sh test services      # every enabled service validates itself

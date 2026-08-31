@@ -24,7 +24,7 @@
 # ── What it runs ─────────────────────────────────────────────────────────────
 #
 # Each enabled service's own exist.test.sh — the same authoritative check
-# `./existential.sh test services` runs, and the same one the service's sidecar
+# `./existential.sh test services` runs, and the same one the migration gate
 # retries at startup. Nothing is configured per service: enablement is read from
 # .env.shared, so a service added tomorrow is triaged tomorrow with no cron file
 # to write. That is the point — service-health probes ONE url you named, this

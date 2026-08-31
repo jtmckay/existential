@@ -44,7 +44,7 @@ On demand:
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
-| `exist.test.sh` | Always. Every service ships one. Also the sidecar health gate. See `testing.md`. |
+| `exist.test.sh` | Always. Every service ships one. Also what triage and the migration gate run. See `testing.md`. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
 then `exec`s the image's real entrypoint. Reach for this when a setting is *derived from
@@ -83,8 +83,8 @@ plus a `:11434` endpoint before touching `model:`; openviking applies the same t
 startup — nextcloud's `/docker-entrypoint-hooks.d/{pre,post}-installation`, postgres'
 `/docker-entrypoint-initdb.d`. Reach for one when the work needs a tool that only exists inside
 the container (`occ`, `psql`) *and* a moment only the image can identify ("right after a
-successful first install"). A decree migration cannot do this: the sidecar has no docker socket,
-so it can only reach a service over the network.
+successful first install"). A decree migration cannot do this: no decree daemon has a docker
+socket, so a migration can only reach a service over the network.
 
 Mount the hook directory specifically, not its parent, so the image's other hook folders survive:
 
@@ -171,26 +171,51 @@ both non-nvidia vendors because CTranslate2 has no ROCm backend — without it t
 and then dies on the first request), and an `x-exist-gpu.<vendor>: {}` is a legitimate way to
 record "considered, nothing to do" rather than leaving the case looking forgotten.
 
-The `*-decree` backup sidecars run as the host user like everything else — the volume data they
-tar is host-owned by the `volumes/` convention, so they need no extra privilege. **DB/cache
+`decree-backup` runs as the host user like everything else — the volume data it tars is
+host-owned by the `volumes/` convention, so it needs no extra privilege. **DB/cache
 images** (postgres, mariadb, mongo, redis) also run as the host user, but the data volume must be
 owned by that uid first — pinning `user:` on a dir already initialized under the image's old
 service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0"`.
 
-## Decree image & sidecars
+## Decree image & daemons
 
 The decree image is built **once** from `automations/Dockerfile` by `existential-adhoc`, tagged
-`existential/decree:local`; main `decree` and every `*-decree` sidecar reference it via `image:`
-(not rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked healthcheck: `grep -q
-decree /proc/1/comm` with a long `start-period` (330s) so a sidecar running as `bash` during its
+`existential/decree:local`; both `decree` and `decree-backup` reference it via `image:` (not
+rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked healthcheck: `grep -q decree
+/proc/1/comm` with a long `start-period` (330s) so a daemon running as `bash` during its
 migration wait shows `starting`, not `unhealthy`. Adhoc disables the healthcheck.
 
-Each backup-eligible service ships a `decree/` subdir + a `<slug>-decree` sidecar that mounts
-**only its own volumes** and receives **only its own DB creds** (no master `.env`). All daemons
-share `automations/`'s `shared_routines/`, `lib/`, `runs/` via read-only mounts (routines at
-`/work/.decree/shared_routines`), so logs from every daemon land in one audit trail. Sidecar
-`decree/` dirs mirror the main daemon (`config.exist.yml` + `routine_source`, `cron.example/`,
-gitignored runtime dirs).
+**There are exactly two daemons, and services do not get their own.** Both live in
+`services/decree/`, one project dir each — the dir name *is* the container name, which is what
+`quest.sh`'s `_decree_container_for` keys off. Each mirrors the same shape (`config.exist.yml` +
+`routine_source`, `cron.example/`, gitignored runtime dirs), and both mount `automations/`'s
+`shared_routines/`, `lib/` and `runs/`, so logs from either land in one audit trail.
+
+| | `decree` (`decree/`) | `decree-backup` (`decree-backup/`) |
+|---|---|---|
+| Runs | routing, notes, triage, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync` |
+| Sees | `/repo` read-only, `/workspace` read-write, `decree_data` | `volumes/` read-write, `/workspace` read-only |
+| Credentials | enumerated, only the keys its routines use | the **master `.env`** via `env_file` |
+| AI CLI | `DECREE_AI` from `.env` (opencode) | none — `DECREE_AI=` blanked to override `env_file` |
+
+The split is the whole design. Backups need every volume and every DB credential; nothing else
+does, and the container that runs an agent with terminal access must not have them. So `decree`
+gets breadth of *reach* (it talks to services over the bridge, which needs no volume at all) and
+`decree-backup` gets breadth of *data*, and neither gets both.
+
+This replaced a `<slug>-decree` sidecar per backup-eligible service. Those isolated each service
+to its own volumes and creds, which was stricter — the trade was deliberate: ten sidecars meant a
+`decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
+volume and credential YAML **per service**, against a repo whose whole claim is that adding a
+service is adding a folder. Now a new service's backup is one cron file in
+`decree-backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
+the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
+
+**Migration ordering.** `entrypoint.sh` gates `decree process` on `/work/exist.test.sh` passing,
+retrying for `DECREE_MIGRATE_TIMEOUT` (300s). `decree`'s migrations target *other* services, so
+that file is `services/decree/migration-gate.sh`, which probes each service it migrates and skips
+the ones whose `EXIST_IS_*` flag is false. Add a migration for a new service and you add its probe
+there. `decree-backup` mounts no such file, so it correctly skips the wait entirely.
 
 **`decree-webhook` does not use this image.** It is a static Go binary
 (`services/decree/webhook/`) on `distroless`, built by compose from its own `Dockerfile` rather
