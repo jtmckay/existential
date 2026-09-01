@@ -47,6 +47,14 @@ services:
       - HF_HUB_ENABLE_HF_TRANSFER=1
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # librosa JIT-compiles through numba at import, and numba caches next to
+      # the source it compiled — inside dist-packages, which this container
+      # cannot write because it runs as the host user rather than root. Without
+      # somewhere else to put it the import raises
+      #   RuntimeError: cannot cache function '__o_fold': no locator available
+      # and the server crash-loops before it serves anything. Point it at the
+      # cache volume that is already mounted and writable.
+      - NUMBA_CACHE_DIR=/app/hf_cache/numba
     volumes:
       - ./config.yaml:/app/config.yaml:Z
       - ./voices:/app/voices:Z

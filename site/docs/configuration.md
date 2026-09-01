@@ -205,13 +205,20 @@ What it changes, all in `src/generate-compose.ts`:
 
 The strip is not cosmetic: docker refuses to create a container whose device driver it
 cannot satisfy, so one nvidia-reserving service takes down `docker compose up` for the
-*whole* stack on a host without that runtime. Blank is treated as `nvidia`, which is what
-every install predating this setting already assumed.
+*whole* stack on a host without that runtime. Blank falls back to `EXIST_VRAM_GB`: a `0`
+there means `none`, any other number means `nvidia` — which is what every install predating
+this setting already assumed. Both blank means nobody was ever asked (a fresh clone, CI, the
+e2e harness) and resolves to `none`, because guessing `nvidia` there loses the whole `up` on
+any host that hasn't got one.
 
 **`external` is how a machine with no GPU still runs the whole agent path.** Quest turns off the
 local Ollama and asks for the URL of one that already has the VRAM, and every role follows it
-unless you override that role's endpoint above. It is also what the end-to-end test suite uses,
-so the flagship path can be exercised on a runner with no card:
+unless you override that role's endpoint above.
+
+The end-to-end suite does not need it. It runs Ollama in-clone on the CPU against a
+deliberately tiny model set — a 1B chat model and a 46 MB embedder, pinned in
+`src/test/fixtures/env.shared` — so the flagship path is exercised on every run, on a runner
+with no card. Point it at a real GPU elsewhere if you'd rather:
 
 ```bash
 EXIST_E2E_OLLAMA_URL=http://192.168.1.20:11434 ./existential.sh e2e core

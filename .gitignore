@@ -181,6 +181,9 @@ node_modules/
 # are actually enabled — so nothing inside is tracked and there are no .gitkeep
 # files to trip over when you delete a volume.
 volumes/
+# immich keeps its DB off NFS in a second tree, named in its own upstream-env
+# .env (DB_DATA_LOCATION) rather than in x-exist-volumes.
+volumes_local/
 
 # Service-dir scratch that is NOT a volume: hermes' runtime, extracted from the
 # image by its exist.initial.sh.

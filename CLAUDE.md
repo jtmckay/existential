@@ -190,7 +190,9 @@ from the repo root against the generated `docker-compose.yml`.
   `docker compose up` down for the *whole* stack — and merge that service's `x-exist-gpu.<vendor>`
   block instead. Vendor config lives **with the service**, so a new GPU service is still just a
   new folder. A blank `EXIST_GPU_VENDOR` falls back to the old `EXIST_VRAM_GB == 0` meaning, which
-  is what pre-vendor installs already assumed. → `services.md`
+  is what pre-vendor installs already assumed — but only when VRAM was answered. **Both blank
+  means nothing was ever asked** (fresh clone, CI, e2e) and resolves to `none`: guessing nvidia
+  there loses the whole `up` on every non-nvidia host. → `services.md`
 - **Every container declares `deploy.resources.limits.memory`.** Size it at roughly 2-3x what the
   service uses idle, not at a worst case: docker sets `memory.swap.max == memory.max`, so a
   container gets its limit in RAM *plus the same again in swap* before anything is killed. The

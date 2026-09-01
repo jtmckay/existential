@@ -7,7 +7,15 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          # 1G was the wall, not a ceiling — it idled at 1022 MiB against it.
+          # The image bakes two in-process SentenceTransformers models for RAG
+          # (all-MiniLM-L6-v2 plus a bge-micro auxiliary, see RAG_EMBEDDING_MODEL
+          # in its own env), so the embedder is resident in this container rather
+          # than served by ollama, and that is most of the footprint. Setting
+          # RAG_EMBEDDING_ENGINE=ollama would move it out, but it re-embeds every
+          # existing knowledge collection under a different model, so that is a
+          # deliberate migration, not a memory fix.
+          memory: 2G
     networks:
       - exist
     # ports disabled — access via https://open-webui.<domain> (Caddy + pihole required)

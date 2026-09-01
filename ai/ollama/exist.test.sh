@@ -34,12 +34,12 @@ fi
 # missing key degrades to a floor rather than to 0 (which would read as "unset").
 EXPECT_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-8192}"
 
-# Hermes requires 64,000 tokens of context. Every tier in the table now ships
-# 65536, so no stock configuration falls short here — this branch fires only on
-# a hand-edited EXIST_MODEL_CHAT_NUM_CTX, or on a model built before the floor
-# existed and never rebuilt. It stays a warn rather than a fail because the tier
-# check above already covers the real misconfiguration (the Modelfile did not
-# apply), and this one has a one-command fix.
+# Hermes requires 64,000 tokens of context, and it enforces that itself: below
+# the floor it raises "context window ... below the minimum 64,000 required by
+# Hermes Agent" and refuses to start the agent. Every tier in the table ships
+# 65536, so no stock configuration falls short — this branch fires only on a
+# hand-edited EXIST_MODEL_CHAT_NUM_CTX, or on a model built before the floor
+# existed and never rebuilt.
 HERMES_CTX_WANT=65536
 
 # ── 1. Reachability ───────────────────────────────────────────────────────────
@@ -157,8 +157,8 @@ elif [ "$NUM_CTX" -lt "$EXPECT_CTX" ]; then
          "num_ctx=${NUM_CTX} but the configured tier asks for ${EXPECT_CTX}" \
          "The Modelfile did not apply. Re-run ./existential.sh run ollama"
 elif [ "$NUM_CTX" -lt "$HERMES_CTX_WANT" ]; then
-    warn "num_ctx >= ${HERMES_CTX_WANT} (hermes)" \
-         "num_ctx=${NUM_CTX} matches the tier, but hermes needs ${HERMES_CTX_WANT} and ollama truncates silently" \
+    fail "num_ctx >= ${HERMES_CTX_WANT} (hermes)" \
+         "num_ctx=${NUM_CTX} matches the tier, but hermes refuses to start an agent below ${HERMES_CTX_WANT}" \
          "EXIST_MODEL_CHAT_NUM_CTX was hand-lowered, or this model predates the 64k floor. Set it back to ${HERMES_CTX_WANT} and re-run ./existential.sh run ollama pull-models"
 else
     ok "num_ctx=${NUM_CTX} from ${CTX_SRC} (tier ${EXPECT_CTX}, hermes floor ${HERMES_CTX_WANT})"

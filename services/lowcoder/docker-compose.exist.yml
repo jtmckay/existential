@@ -156,11 +156,14 @@ services:
       LOWCODER_PGID: "${EXIST_PGID:-1000}"
       LOWCODER_API_SERVICE_URL: "http://lowcoder-api-service:8080"
     restart: unless-stopped
-    # Node service for query execution.
+    # Node service for query execution. 1G, not 512M: V8 sizes its heap from the
+    # cgroup limit and at 512M this crash-loops on startup with
+    # "FatalProcessOutOfMemory" before it ever listens on 6060 — which then
+    # blocks lowcoder-frontend, whose depends_on requires it healthy.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     depends_on:
       lowcoder-api-service:
         condition: service_healthy
@@ -170,6 +173,11 @@ services:
       interval: 3s
       timeout: 5s
       retries: 10
+      # Setup (a chown of node_modules to LOWCODER_PUID) runs before the service
+      # listens, so the 30s of retries above can expire on a cold volume before
+      # it is up. That marks it unhealthy and lowcoder-frontend's
+      # `condition: service_healthy` then refuses to start at all.
+      start_period: 300s
     networks:
       - exist
 

@@ -288,8 +288,15 @@ assert_contains     "legacy EXIST_VRAM_GB=0 applies the none overlay"     "DEVIC
 out="$(gpu_render 'EXIST_VRAM_GB=8')"
 assert_contains     "legacy EXIST_VRAM_GB=8 keeps the reservation" "driver: nvidia" "$out"
 
+# Both keys blank is NOT a legacy install — it is the shipped default, so it is
+# what a fresh clone, CI, and the e2e harness all render. Assuming nvidia there
+# put a reservation docker cannot satisfy on every non-nvidia host, and compose
+# fails the whole `up`, not just the GPU service. Guess `none` instead: the cost
+# is an unanswered nvidia host running on CPU, against a stack that will not
+# start for everyone else.
 out="$(gpu_render)"
-assert_contains     "no GPU keys at all defaults to nvidia" "driver: nvidia" "$out"
+assert_not_contains "no GPU keys at all strips the reservation" "driver: nvidia" "$out"
+assert_contains     "no GPU keys at all applies the none overlay" "DEVICE: cpu"  "$out"
 
 # A typo must not fail open. Defaulting to nvidia here would hand an AMD host a
 # reservation its daemon cannot satisfy, and the resulting docker error points

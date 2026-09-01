@@ -24,8 +24,10 @@
 #   2. The chat model is also the vision model. Every tag here is multimodal, so
 #      OCR and image chat reuse the already-resident model instead of evicting
 #      it — which is what a separate llava would do on any card this size.
-#   3. Every tier is at least 64k context, because hermes requires 64,000 tokens
-#      and ollama truncates silently rather than erroring. No tier was cut to
+#   3. Every tier is at least 64k context, because hermes refuses to start an
+#      agent below 64,000 tokens ("context window ... below the minimum 64,000
+#      required by Hermes Agent") — it reads the number from its own config.yaml,
+#      so the check fires before ollama is ever asked. No tier was cut to
 #      meet this. On the small tiers the KV cache spills out of VRAM into system
 #      RAM and ollama offloads layers to the CPU — that is a speed cost, not a
 #      correctness one, so a 6 GB card still runs the whole stack, just slowly.

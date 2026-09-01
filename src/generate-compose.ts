@@ -331,11 +331,21 @@ const GPU_VENDORS = ['nvidia', 'amd', 'none', 'external'] as const;
 /**
  * Decide the GPU vendor from the environment.
  *
- * EXIST_GPU_VENDOR is authoritative once set. When it is blank — every install
- * that predates it, and any non-interactive one — fall back to what
- * EXIST_VRAM_GB already implied: 0 meant "no GPU", anything else meant nvidia.
- * That keeps existing .env.shared files generating exactly the compose file
- * they generated before this setting existed.
+ * EXIST_GPU_VENDOR is authoritative once set. When it is blank, what happens
+ * next turns on whether EXIST_VRAM_GB was answered:
+ *
+ *   VRAM set    — an install that predates the vendor question. Fall back to
+ *                 what VRAM already implied: 0 meant "no GPU", anything else
+ *                 meant nvidia. Those .env.shared files keep generating exactly
+ *                 the compose file they generated before this setting existed.
+ *   VRAM blank  — NOTHING has been answered. Both keys ship blank, so this is a
+ *                 render that never reached quest: a fresh clone, CI, the e2e
+ *                 harness. Assuming nvidia there hands every non-nvidia host a
+ *                 reservation its daemon cannot satisfy, and docker fails the
+ *                 whole `up`, not just the GPU service. `none` is the only safe
+ *                 guess: it costs an nvidia host acceleration until it answers
+ *                 the question, where the other way costs everyone else a stack
+ *                 that will not start.
  *
  * An unrecognised value is a typo, not a new vendor. Failing closed to nvidia
  * would silently hand an AMD host a reservation its daemon cannot satisfy, so
@@ -345,7 +355,9 @@ const GPU_VENDORS = ['nvidia', 'amd', 'none', 'external'] as const;
 function resolveGpuVendor(env: Record<string, string>): string {
   const explicit = (env['EXIST_GPU_VENDOR'] ?? '').trim().toLowerCase();
   if (!explicit) {
-    return (env['EXIST_VRAM_GB'] ?? '').trim() === '0' ? 'none' : 'nvidia';
+    const vram = (env['EXIST_VRAM_GB'] ?? '').trim();
+    if (vram === '') return 'none';
+    return vram === '0' ? 'none' : 'nvidia';
   }
   if (!(GPU_VENDORS as readonly string[]).includes(explicit)) {
     process.stderr.write(

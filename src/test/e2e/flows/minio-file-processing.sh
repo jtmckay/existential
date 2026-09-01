@@ -32,6 +32,11 @@ fail() { printf '[flow]   ✗ %s\n' "$*" >&2; exit 1; }
 # Poll until a command succeeds. Cheaper and far less flaky than a fixed sleep:
 # the decree daemon's inbox scan and the model-free processor are both fast, but
 # a loaded CI box is not.
+#
+# Returns 1 on timeout rather than calling fail(), which exits. As a bare
+# statement that still aborts the script under `set -e` — the behaviour every
+# call site but one wants — while letting the one that needs to dump diagnostics
+# first catch it with `|| { ...; exit 1; }`.
 until_ok() {
     local what="$1" timeout="$2"; shift 2
     local deadline=$(( SECONDS + timeout ))
@@ -42,7 +47,8 @@ until_ok() {
         fi
         sleep 2
     done
-    fail "${what} — not observed within ${timeout}s"
+    printf '[flow]   ✗ %s — not observed within %ss\n' "$what" "$timeout" >&2
+    return 1
 }
 
 # ── 0. The webhook is reachable from MinIO, at the port MinIO is configured to
@@ -167,11 +173,41 @@ docker exec minio mc cp "/tmp/${OBJECT}" "e2e/${BUCKET}/${OBJECT}" >/dev/null \
 say "uploaded ${BUCKET}/${OBJECT}"
 
 # ── 5. The chain, asserted one link at a time so a break names itself.
+#
+# The budgets are generous because they are waiting on a QUEUE, not on the
+# pipeline. decree runs one routine at a time, and the same daemon runs triage
+# — which executes every enabled service's exist.test.sh and took 59s on a
+# quiet Core stack, longer on a loaded one where each curl waits out its own
+# timeout. An upload that lands mid-triage sits in the inbox until it finishes.
+# Measured, once decree is actually free: router and processor both complete in
+# under half a second. So a timeout here means "never arrived", never "slow".
 _router_queued() { grep -rlq "minio-router" "$WORK/automations/runs"/*/message.md; }
-until_ok "MinIO event reached decree as a minio-router message" 60 _router_queued
+until_ok "MinIO event reached decree as a minio-router message" 180 _router_queued
 
 _processor_ran() { grep -rq "E2E-PROBE-OK ${TOKEN}" "$WORK/automations/runs"/*/routine.log; }
-until_ok "file-processor ran e2e-probe on the uploaded object" 120 _processor_ran
+# On failure this step used to report only "not observed", which says nothing
+# about WHICH link broke — the router can run and match nothing, or match and
+# enqueue a message decree never picks up, and both look identical from here.
+# The clone is torn down straight afterwards, so anything not printed now is
+# gone. Dump the state that separates those cases before giving up.
+_diagnose() {
+    printf '[flow]   --- runs (routine, exit_code) ---\n' >&2
+    local d
+    for d in "$WORK/automations/runs"/*/; do
+        [ -d "$d" ] || continue
+        printf '[flow]     %s: %s\n' "$(basename "$d")" \
+            "$(tr -d '\n' < "${d}run.json" 2>/dev/null || echo 'no run.json')" >&2
+    done
+    printf '[flow]   --- minio-router routine.log ---\n' >&2
+    sed 's/^/[flow]     /' "$WORK/automations/runs"/*minio-router*/routine.log >&2 2>/dev/null || true
+    printf '[flow]   --- processors visible to decree ---\n' >&2
+    docker exec decree ls -la /work/.decree/lib/file-processors 2>&1 | sed 's/^/[flow]     /' >&2 || true
+    printf '[flow]   --- inbox / outbox ---\n' >&2
+    docker exec decree sh -c 'ls -la /work/.decree/inbox /work/.decree/outbox' 2>&1 \
+        | sed 's/^/[flow]     /' >&2 || true
+}
+until_ok "file-processor ran e2e-probe on the uploaded object" 180 _processor_ran \
+    || { _diagnose; exit 1; }
 
 # ── 6. And it succeeded. A routine that runs and fails is not a passing flow.
 RUN_DIR=$(grep -rl "E2E-PROBE-OK ${TOKEN}" "$WORK/automations/runs"/*/routine.log 2>/dev/null | head -1 || true)

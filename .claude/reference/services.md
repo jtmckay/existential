@@ -145,6 +145,13 @@ whole `up` — so one nvidia reservation on an AMD or CPU-only host takes down e
 in the stack with it. A blank `EXIST_GPU_VENDOR` falls back to the older `EXIST_VRAM_GB == 0`
 signal, so installs predating the question keep generating exactly what they did before.
 
+When **both** are blank nothing has ever been answered — that is the shipped default, i.e. a
+render that never reached quest (a fresh clone, CI, the e2e harness) — and it resolves to
+`none`, not nvidia. It has to: otherwise a fresh clone on an AMD or CPU host gets a reservation
+docker cannot satisfy and loses the entire `up`. Guessing wrong the safe way costs an nvidia
+host acceleration until it answers the question; the other way costs everyone else a stack that
+will not start.
+
 **Vendor config lives with the service**, as an `x-exist-gpu.<vendor>` block in its
 `docker-compose.exist.yml` — never as a table of container names in the generator, which would
 mean editing two places to add a GPU service:

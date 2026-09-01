@@ -31,11 +31,13 @@ services:
     image: "nocodb/nocodb:2026.08.1"
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Node app server over the metadata DB.
+    # Node app server over the metadata DB. 1G, not 512M: V8 sizes its heap from
+    # the cgroup limit, and at 512M nocodb OOM-loops during startup with
+    # "Ineffective mark-compacts near heap limit" before it ever serves a request.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     networks:
       - exist
     depends_on:

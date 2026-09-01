@@ -98,6 +98,43 @@ FAKE_STATE="running 0 healthy" DOCKER_CMD="$FAKE_DOCKER" \
 if [ "$rc" -eq 0 ]; then pass "healthy running container → gate exits zero"
 else flunk "healthy container wrongly failed the gate (rc=$rc)"; fi
 
+# One restart that has SETTLED is not a loop. homeassistant's entrypoint exits
+# once by design on a cold first boot (it can only write .storage/http while HA
+# is stopped), so a gate that fails on a single advance fails every correct
+# first install. RestartCount sits at 1 across both windows here.
+rc=0
+FAKE_STATE="running 1 healthy" DOCKER_CMD="$FAKE_DOCKER" \
+    bash "$HEALTH" "$COMPOSE_FILE" "" 0 >/dev/null 2>&1 || rc=$?
+if [ "$rc" -eq 0 ]; then pass "one settled restart → gate exits zero"
+else flunk "a single settled restart wrongly failed the gate (rc=$rc)"; fi
+
+# ...but a count that is STILL advancing on the second window is a real loop.
+# This fake increments RestartCount on every combined-state inspect, so the
+# second window always sees a higher number than the first.
+FAKE_LOOP="$d/docker-looping"
+cat > "$FAKE_LOOP" <<'FAKE'
+#!/usr/bin/env bash
+case "$1" in
+    compose) echo fakeid1 ;;
+    inspect)
+        case "$3" in
+            *Name*)              echo "/fake-svc" ;;
+            "{{.RestartCount}}") echo 0 ;;
+            *Mounts*)            echo "" ;;
+            *)  n=$(cat "${FAKE_COUNTER}" 2>/dev/null || echo 0)
+                n=$((n + 1)); echo "$n" > "${FAKE_COUNTER}"
+                echo "running $n none" ;;
+        esac ;;
+    logs) echo "fake log line" ;;
+esac
+FAKE
+chmod +x "$FAKE_LOOP"
+rc=0
+FAKE_COUNTER="$d/count" DOCKER_CMD="$FAKE_LOOP" \
+    bash "$HEALTH" "$COMPOSE_FILE" "" 0 >/dev/null 2>&1 || rc=$?
+if [ "$rc" -ne 0 ]; then pass "still-advancing RestartCount → gate exits non-zero"
+else flunk "an active restart loop did NOT fail the gate (rc=$rc)"; fi
+
 # A Docker-managed volume is invisible to the generated compose file, so this
 # gate is the only thing that can catch one. It must fail even when the
 # container is otherwise perfectly healthy.

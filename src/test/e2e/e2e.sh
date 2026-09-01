@@ -18,7 +18,9 @@
 #   ./existential.sh e2e down            # tear down leftover artifacts from a crashed run
 #
 # Env:
-#   EXIST_E2E_OLLAMA_URL    run against an ollama on another machine (see quest_requires)
+#   EXIST_E2E_OLLAMA_URL    run against an ollama on another machine instead of
+#                           the in-clone CPU one (see the Models block in
+#                           src/test/fixtures/env.shared)
 #   EXIST_E2E_OLLAMA_MODEL  override the chat/extract/vision tag for that server
 #   E2E_HEALTH_TIMEOUT      seconds to wait for healthchecks (default 300)
 #   E2E_KEEP=1              skip teardown so a failure can be inspected
@@ -73,11 +75,15 @@ automatable_quests() {
 #
 #   e2e_requires: EXIST_E2E_OLLAMA_URL
 #
-# The point is Core. Core is only meaningful with a chat model behind it, and a
-# CI box has no GPU — so instead of dropping the flagship path from e2e
-# entirely, it runs against an ollama someone else is hosting. Set the var and
-# Core is exercised for real; leave it unset and the quest skips with a reason
-# rather than failing in a way that looks like a bug in the stack.
+# No quest declares one today. Core used to: it needed a chat model and a CI box
+# has no GPU, so it demanded an ollama someone else was hosting — and skipped by
+# default, which left the flagship path permanently untested. It now runs ollama
+# in-clone on the CPU against the tiny model set pinned in
+# src/test/fixtures/env.shared, so the requirement is gone.
+#
+# The mechanism stays because the next quest that needs real infrastructure
+# outside the clone (a NAS, a domain, a device) has nowhere else to say so, and
+# skipping with a reason beats failing in a way that looks like a stack bug.
 quest_requires() { quest_fm "$1" | grep '^e2e_requires:' | sed 's/^e2e_requires:[[:space:]]*//'; }
 
 # 0 when every requirement is satisfied; otherwise 1, having said what is missing.
