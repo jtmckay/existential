@@ -9,6 +9,12 @@
 # Invoked by `./existential.sh test`. Runs inside the existential-adhoc
 # container, so /repo points at the repo root and container DNS resolves on
 # the `exist` network — see .claude/reference/testing.md + networking.md.
+#
+# e2e does NOT come through here. It runs the per-service tier as a decree
+# message instead (src/test/e2e/checks/00-services.md), because triage already
+# runs every enabled service's exist.test.sh and under e2e the enabled set is
+# exactly the quest's — which is what the old E2E_MODE/E2E_SERVICE_PATHS pair
+# was reconstructing by hand.
 
 set -euo pipefail
 
@@ -85,7 +91,7 @@ fi
 
 # ── Unit tests ─────────────────────────────────────────────────────────────────
 
-if [[ "$TIER" == "unit" || "$TIER" == "all" ]] && [ "${E2E_MODE:-}" != "1" ]; then
+if [[ "$TIER" == "unit" || "$TIER" == "all" ]]; then
     echo "=== Unit tests ==="
     for script in "${TEST_DIR}/unit/test-"*.sh; do
         [ -f "$script" ] || continue
@@ -97,7 +103,7 @@ fi
 
 # ── Integration tests ──────────────────────────────────────────────────────────
 
-if [[ "$TIER" == "integration" || "$TIER" == "all" ]] && [ "${E2E_MODE:-}" != "1" ]; then
+if [[ "$TIER" == "integration" || "$TIER" == "all" ]]; then
     echo "=== Integration tests ==="
     for script in "${TEST_DIR}/integration/test-"*.sh; do
         [ -f "$script" ] || continue
@@ -109,14 +115,10 @@ fi
 
 # ── Per-service tests ──────────────────────────────────────────────────────────
 
-if [[ "$TIER" == "all" || "$TIER" == "services" ]] || [ "${E2E_MODE:-}" = "1" ]; then
-    [ "${E2E_MODE:-}" != "1" ] && echo "=== Per-service tests ==="
+if [[ "$TIER" == "all" || "$TIER" == "services" ]]; then
+    echo "=== Per-service tests ==="
     while IFS= read -r script; do
         rel="${script#"${REPO}/"}"
-        if [ "${E2E_MODE:-}" = "1" ]; then
-            svc_path="${rel%/exist.test.sh}"
-            echo ":${E2E_SERVICE_PATHS:-}:" | grep -qF ":${svc_path}:" || continue
-        fi
         run "$rel" "$script"
     done < <(find "${REPO}/ai" "${REPO}/services" "${REPO}/nas" "${REPO}/hosting" \
                   -maxdepth 2 -name 'exist.test.sh' -type f 2>/dev/null | sort)

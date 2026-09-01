@@ -218,11 +218,7 @@ unless you override that role's endpoint above.
 The end-to-end suite does not need it. It runs Ollama in-clone on the CPU against a
 deliberately tiny model set — a 1B chat model and a 46 MB embedder, pinned in
 `src/test/fixtures/env.shared` — so the flagship path is exercised on every run, on a runner
-with no card. Point it at a real GPU elsewhere if you'd rather:
-
-```bash
-EXIST_E2E_OLLAMA_URL=http://192.168.1.20:11434 ./existential.sh e2e core
-```
+with no card.
 
 `EXIST_VRAM_GB` records the tier that was picked, and likewise ships blank. `0` is the
 CPU-only tier — you normally reach it by answering *No GPU* to the vendor question, which

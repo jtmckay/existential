@@ -92,7 +92,12 @@ for _processor in "$_processors_dir"/*.sh; do
 
     if [[ "$_file_source" =~ $_pattern ]]; then
         _processor_name=$(basename "$_processor" .sh)
-        _outbox_file="/work/.decree/outbox/${message_id}-${_processor_name}.md"
+        # decree reads the outbox but never creates it, so every routine that
+        # queues a message has to. minio-router was the one that did not, and it
+        # failed on the first event a fresh install ever routed.
+        _outbox_dir="${OUTBOX_DIR:-/work/.decree/outbox}"
+        mkdir -p "$_outbox_dir"
+        _outbox_file="${_outbox_dir}/${message_id}-${_processor_name}.md"
 
         _raw_ref=$(grep -m1 '^IS_PRE_SIGNED=' "$_processor" || true)
         _is_pre_signed=$(echo "$_raw_ref" | sed "s/^IS_PRE_SIGNED=[\"']\?\([^\"']*\)[\"']\?$/\1/")

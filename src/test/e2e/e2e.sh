@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # e2e.sh — end-to-end test harness.
 #
-# For each selected quest, creates a clean git-archive copy of the repo,
-# enables the quest's services, renders templates, generates a unified
-# docker-compose, brings it up, runs exist.test.sh for every enabled
-# service inside the existential-adhoc container (which shares the
-# same Docker network as the services), then tears everything down.
+# For each selected quest: make a clean git-archive copy of the repo, enable the
+# quest's services, render templates, generate a unified docker-compose, bring it
+# up, then drop this run's CHECKS into the decree inbox and let the daemon run
+# them. Every check writes runs/<id>/{message.md,routine.log,run.json}; that
+# evidence is copied to e2e-out/ before the stack is torn down.
+#
+# A check is a markdown file in checks/ — see checks/README.md. Adding a check is
+# adding a file; nothing here enumerates them.
 #
 # Quests with e2e: false in their YAML require external infrastructure
 # (NAS/NFS, DNS, TLS) and are excluded — shown greyed out in the picker.
@@ -18,12 +21,10 @@
 #   ./existential.sh e2e down            # tear down leftover artifacts from a crashed run
 #
 # Env:
-#   EXIST_E2E_OLLAMA_URL    run against an ollama on another machine instead of
-#                           the in-clone CPU one (see the Models block in
-#                           src/test/fixtures/env.shared)
-#   EXIST_E2E_OLLAMA_MODEL  override the chat/extract/vision tag for that server
-#   E2E_HEALTH_TIMEOUT      seconds to wait for healthchecks (default 300)
-#   E2E_KEEP=1              skip teardown so a failure can be inspected
+#   E2E_HEALTH_TIMEOUT   seconds to wait for healthchecks (default 300)
+#   E2E_CHECK_TIMEOUT    seconds to wait for the checks to drain (default 900)
+#   E2E_KEEP=1           skip teardown so a failure can be inspected live
+#   E2E_OUT              output directory (default <repo>/e2e-out)
 #
 # Requirements:
 #   - Docker + Docker Compose v2 on the host
@@ -37,17 +38,27 @@ QUEST_DIR="${REPO_DIR}/src/quests"
 # The vendor table, for the rules a vendor imposes on service enablement.
 # shellcheck source=../../utils/gpu-vendor.sh
 . "${REPO_DIR}/src/utils/gpu-vendor.sh"
+
+# Evidence collection, kept sourceable so harness-selftest.sh can drive it
+# against a fabricated runs/ tree without spinning up a stack.
+# shellcheck source=results.sh
+. "${REPO_DIR}/src/test/e2e/results.sh"
+
+CHECK_DIR="${REPO_DIR}/src/test/e2e/checks"
+E2E_OUT="${E2E_OUT:-${REPO_DIR}/e2e-out}"
 E2E_PROJECT="exist-e2e"
 E2E_NETWORK="${E2E_PROJECT}_exist"
 
 # ── Quest helpers ─────────────────────────────────────────────────────────────
 
-# List EXIST_IS_* vars for a quest YAML file.
 # A quest is markdown: YAML frontmatter, then the guide. Everything read here
 # is data, so scope it to the frontmatter — otherwise a guide that happens to
 # show a `- var:` line in an example would be parsed as if it were config.
+# Single keys go through e2e_fm_get (results.sh); this is for the one consumer
+# that needs the whole block, because `services:` is a list, not a key.
 quest_fm() { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1"; }
 
+# List EXIST_IS_* vars for a quest.
 quest_vars() {
     quest_fm "$1" | grep '^\s*- var:' | awk '{print $3}'
 }
@@ -66,50 +77,21 @@ var_to_path() {
 # Return all numbered quest files with e2e: true in their frontmatter.
 automatable_quests() {
     for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
-        quest_fm "$yaml" | grep -q '^e2e:[[:space:]]*true' && echo "$yaml"
+        [ "$(e2e_fm_get "$yaml" e2e)" = true ] && echo "$yaml"
     done
 }
 
-# A quest may name an env var the RUNNER has to supply — something no fixture can
-# fake because it is real infrastructure outside the clone:
-#
-#   e2e_requires: EXIST_E2E_OLLAMA_URL
-#
-# No quest declares one today. Core used to: it needed a chat model and a CI box
-# has no GPU, so it demanded an ollama someone else was hosting — and skipped by
-# default, which left the flagship path permanently untested. It now runs ollama
-# in-clone on the CPU against the tiny model set pinned in
-# src/test/fixtures/env.shared, so the requirement is gone.
-#
-# The mechanism stays because the next quest that needs real infrastructure
-# outside the clone (a NAS, a domain, a device) has nowhere else to say so, and
-# skipping with a reason beats failing in a way that looks like a stack bug.
-quest_requires() { quest_fm "$1" | grep '^e2e_requires:' | sed 's/^e2e_requires:[[:space:]]*//'; }
-
-# 0 when every requirement is satisfied; otherwise 1, having said what is missing.
-quest_requirements_met() {
-    local yaml="$1" var missing=""
-    for var in $(quest_requires "$yaml"); do
-        [ -n "${!var:-}" ] || missing+="${var} "
-    done
-    [ -z "$missing" ] && return 0
-    log "SKIP $(quest_name "$yaml") — needs: ${missing}"
-    log "     e.g. ${missing%% *}=http://192.168.1.20:11434 ./existential.sh e2e ..."
-    return 1
-}
+quest_name() { e2e_fm_get "$1" name; }
 
 # Resolve name patterns (e.g. "automation" or "ai finance") to automatable
 # quest file paths. Each pattern is matched case-insensitively against the
-# quest's `name:` field and its filename. A pattern that matches only a
-# non-e2e quest (one needing manual NAS/DNS/TLS setup) reports why it's
-# skipped; a pattern that matches nothing is warned about. Output may contain
-# duplicates — the caller dedupes while preserving order.
-quest_name() { quest_fm "$1" | grep '^name:' | sed 's/^name:[[:space:]]*//'; }
-
+# quest's `name:` field and its filename. A pattern that selects nothing —
+# a typo, or a quest that isn't e2e-able — is warned about and skipped.
+# Output may contain duplicates — the caller dedupes while preserving order.
 quests_by_names() {
     local -a all=()
     mapfile -t all < <(automatable_quests)
-    local pat yaml found hit
+    local pat yaml found
     for pat in "$@"; do
         found=""
         for yaml in "${all[@]}"; do
@@ -118,126 +100,47 @@ quests_by_names() {
                 echo "$yaml"; found=1
             fi
         done
-        [ -n "$found" ] && continue
-        # No e2e-able match — was it a non-e2e quest, or just a typo?
-        hit=""
-        for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
-            if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
-            || grep -qi -- "$pat" <<<"$(basename "$yaml" .md)"; then
-                hit=$(quest_name "$yaml"); break
-            fi
-        done
-        if [ -n "$hit" ]; then
-            log "'${pat}' matched \"${hit}\" but that quest isn't e2e-able (needs manual setup) — skipped" >&2
-        else
-            log "No quest matched '${pat}' — skipped" >&2
-        fi
+        [ -n "$found" ] || log "No quest matched '${pat}' — skipped" >&2
     done
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 log()  { printf '\n[e2e] %s\n' "$*"; }
+# Every compose call against the e2e stack goes through here — the -p/-f pair was
+# repeated a dozen times, and each copy was a chance to address the wrong stack.
+_compose() { local w="$1"; shift; docker compose -p "$E2E_PROJECT" -f "$w/docker-compose.yml" "$@"; }
 die()  { printf '\n[e2e] FATAL: %s\n' "$*" >&2; exit 1; }
 hr()   { printf '[e2e] '; printf '%0.s─' {1..54}; echo; }
 
-wait_running() {
-    local work="$1" timeout="${2:-30}"
-    local deadline=$(( $(date +%s) + timeout ))
-    log "Waiting for containers to stabilize (up to ${timeout}s)..."
-    while [ "$(date +%s)" -lt "$deadline" ]; do
-        local total running in_progress
-        total=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
-                    ps -q 2>/dev/null | wc -l | tr -d ' ')
-        running=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
-                    ps -q --status running 2>/dev/null | wc -l | tr -d ' ')
-        # "created" and "restarting" are transitional — wait them out
-        in_progress=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" \
-                    ps -q --status created --status restarting 2>/dev/null | wc -l | tr -d ' ')
-        if [ "$total" -gt 0 ] && [ "$in_progress" -eq 0 ]; then
-            echo
-            if [ "$total" -ne "$running" ]; then
-                log "$(( total - running )) container(s) not running — proceeding to tests"
-                docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps || true
-            fi
-            return 0
-        fi
-        printf '.'
-        sleep 2
-    done
-    echo
-    log "Timeout — current container state:"
-    docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps || true
-    return 1
-}
-
-# Containers that declare a healthcheck get their own, longer wait.
+# Wait for the stack to settle: no created/restarting transients, and nothing
+# still "health: starting".
 #
-# wait_running above only clears the created/restarting transients; a container
-# that is "running (health: starting)" satisfies it immediately. hermes boots a
-# model gateway and open-webui builds its first-run database, and both are still
-# starting long after that — so testing at the 30s mark reported them as product
-# failures when the harness was simply impatient. Containers without a
-# healthcheck cannot be waited on and are not counted.
-#
-# Best-effort, like wait_running: on timeout it says what is still starting and
-# proceeds, because the service tests are the actual verdict.
-wait_healthy() {
+# This was two functions with two budgets. The first cleared the transients in
+# 30s and considered a container "running (health: starting)" settled — which
+# hermes and open-webui are for minutes while a model gateway boots and a
+# first-run database builds, so tests fired early and reported the harness's
+# impatience as product failures. Both were called with `|| true` and neither
+# was ever the verdict: container-health.sh is, and it resamples and applies its
+# own flap threshold. So one wait, one generous budget, still best-effort.
+wait_settled() {
     local work="$1" timeout="${2:-${E2E_HEALTH_TIMEOUT:-300}}"
     local deadline=$(( $(date +%s) + timeout ))
-    local starting
-    log "Waiting for healthchecks to pass (up to ${timeout}s)..."
+    local unsettled
+    log "Waiting for containers to settle (up to ${timeout}s)..."
     while [ "$(date +%s)" -lt "$deadline" ]; do
-        starting=$(docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps -q 2>/dev/null \
-            | xargs -r docker inspect \
-                --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null \
-            | grep -c '^starting$' || true)
-        if [ "${starting:-0}" -eq 0 ]; then
-            echo
-            return 0
-        fi
+        unsettled=$(_compose "$work" ps -q --status created --status restarting 2>/dev/null | wc -l | tr -d ' ')
+        unsettled=$(( unsettled + $(_compose "$work" ps -q 2>/dev/null \
+            | xargs -r docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null \
+            | grep -c '^starting$' || true) ))
+        [ "$unsettled" -eq 0 ] && { echo; return 0; }
         printf '.'
         sleep 5
     done
     echo
-    log "Still starting after ${timeout}s — proceeding to tests:"
-    docker compose -p "$E2E_PROJECT" -f "$work/docker-compose.yml" ps -q 2>/dev/null \
-        | xargs -r docker inspect \
-            --format '{{if .State.Health}}{{if eq .State.Health.Status "starting"}}  {{.Name}}{{end}}{{end}}' \
-            2>/dev/null | grep . || true
+    log "Still unsettled after ${timeout}s — proceeding; the health gate is the verdict:"
+    _compose "$work" ps || true
     return 0
-}
-
-# The external ollama must actually serve the models the run will ask for.
-#
-# EXIST_E2E_OLLAMA_URL redirects the URL and nothing else, so a runner whose box
-# serves different tags than .env.exist.shared's defaults gets a stack that comes
-# up perfectly clean and then fails every model call — which reads as a product
-# bug rather than the setup mismatch it is. Check once, up front, and name what
-# is actually there. EXIST_E2E_OLLAMA_MODEL overrides the chat/extract/vision tag.
-check_ollama_models() {
-    local work="$1" tags served want key
-    local -a missing=()
-
-    tags=$(curl -fsS -m 15 "${EXIST_E2E_OLLAMA_URL%/}/api/tags" 2>/dev/null) \
-        || die "Cannot reach ${EXIST_E2E_OLLAMA_URL}/api/tags — is that ollama up?"
-    # ollama reports "name:latest" for an untagged pull; compare without it so a
-    # config that says `bge-m3` matches a served `bge-m3:latest`.
-    served=$(printf '%s' "$tags" | jq -r '.models[].name' | sed 's/:latest$//' | sort -u)
-
-    for key in EXIST_MODEL_CHAT EXIST_MODEL_EXTRACT EXIST_MODEL_VISION EXIST_MODEL_EMBED; do
-        want=$(grep -m1 "^${key}=" "$work/.env.shared" 2>/dev/null | cut -d= -f2-)
-        [ -n "$want" ] || continue
-        grep -qxF "${want%:latest}" <<<"$served" || missing+=("${key}=${want}")
-    done
-
-    if [ "${#missing[@]}" -gt 0 ]; then
-        log "The external ollama does not serve every model this run needs:"
-        printf '[e2e]   missing: %s\n' "${missing[@]}"
-        log "  it serves: $(printf '%s' "$served" | tr '\n' ' ')"
-        die "Pull the missing models, or set EXIST_E2E_OLLAMA_MODEL to one it has."
-    fi
-    log "Models OK on ${EXIST_E2E_OLLAMA_URL}: $(printf '%s' "$served" | tr '\n' ' ')"
 }
 
 # Remove leftover .tmp-e2e-* work dirs from a previously crashed run. They may
@@ -321,165 +224,291 @@ e2e_down() {
 }
 
 # ── Pre-flight collision detection ────────────────────────────────────────────
+#
+# Anything labelled with our own compose project is ours and is always safe to
+# remove — that is e2e_down's whole job, so preflight calls it rather than
+# carrying a second copy of the sweep. What is left over after that can only be
+# a collision with the user's REAL stack, which is the one case worth stopping
+# and asking about.
 
 preflight_check() {
     local -a yaml_files=("$@")
-    local errors=0
 
-    # Collect every container_name from compose files for the selected quests
-    declare -a wanted=()
+    # Reclaim our own leftovers first. Doing this before looking for collisions
+    # also removes the ordering hazard the old inline version had to document:
+    # a stale volume cannot be removed while a stopped container still
+    # references it, and e2e_down takes them down in that order already.
+    e2e_down >/dev/null 2>&1 || true
+
+    # Every container_name the selected quests would claim.
+    local -a wanted=("existential-adhoc")
+    local yaml var path compose name
     for yaml in "${yaml_files[@]}"; do
         for var in $(quest_vars "$yaml"); do
-            local path; path=$(var_to_path "$var")
-            local compose="${REPO_DIR}/${path}/docker-compose.exist.yml"
+            path=$(var_to_path "$var")
+            compose="${REPO_DIR}/${path}/docker-compose.exist.yml"
             [ -f "$compose" ] || continue
             while IFS= read -r name; do
-                [[ -n "$name" ]] && wanted+=("$name")
+                [ -n "$name" ] && wanted+=("$name")
             done < <(grep -E '^\s+container_name:' "$compose" 2>/dev/null | awk '{print $NF}')
         done
     done
-    wanted+=("existential-adhoc")
 
     local existing
     existing=$(docker ps -a --format '{{.Names}}' 2>/dev/null || true)
 
-    local stale_network=0
-    if docker network inspect "$E2E_NETWORK" >/dev/null 2>&1; then
-        stale_network=1; errors=$(( errors + 1 ))
-    fi
-
-    declare -a collisions=()
+    local -a collisions=() names_only=()
     for name in "${wanted[@]}"; do
-        if echo "$existing" | grep -qxF "$name"; then
-            local state
-            state=$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo "unknown")
-            collisions+=("${name} (${state})")
-            errors=$(( errors + 1 ))
+        if grep -qxF "$name" <<<"$existing"; then
+            collisions+=("${name} ($(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null || echo unknown))")
+            names_only+=("$name")
         fi
     done
 
-    # Stale e2e volumes (exist-e2e_*) are always safe to remove — they are ephemeral
-    # artifacts from prior runs. If a previous run crashed before down -v completed,
-    # the volume persists but its device path points to a deleted temp dir, causing
-    # "exists but doesn't match config" on the next run.
-    # NOTE: must be detected here but removed AFTER any stale containers are gone,
-    # because docker volume rm fails if stopped containers still reference the volume.
-    local stale_vols
-    stale_vols=$(docker volume ls --filter "label=com.docker.compose.project=${E2E_PROJECT}" -q 2>/dev/null || true)
-
-    _remove_stale_volumes() {
-        if [ -n "$stale_vols" ]; then
-            log "Removing stale e2e volumes: $(echo "$stale_vols" | tr '\n' ' ')"
-            # shellcheck disable=SC2086
-            docker volume rm $stale_vols 2>/dev/null || true
-        fi
-    }
-
-    if [ "$errors" -eq 0 ]; then
-        _remove_stale_volumes
+    if [ "${#collisions[@]}" -eq 0 ]; then
         log "Pre-flight OK"
         return 0
     fi
 
     echo ""
-    echo "[e2e] ✗ PRE-FLIGHT FAILED — conflicting containers or stale network found."
+    echo "[e2e] ✗ PRE-FLIGHT FAILED — these container names are already taken:"
+    printf '[e2e]     %s\n' "${collisions[@]}"
     echo ""
-    if [ "${#collisions[@]}" -gt 0 ]; then
-        echo "[e2e]   Containers:"
-        for c in "${collisions[@]}"; do echo "[e2e]     $c"; done
-        echo ""
-    fi
-    [ "$stale_network" -eq 1 ] && { echo "[e2e]   Network:  ${E2E_NETWORK} (stale)"; echo ""; }
-    echo "[e2e]   If these are your real stack containers, stop them first:"
-    echo "[e2e]     docker compose down"
+    echo "[e2e]   If these are your real stack, stop it first:  docker compose down"
     echo ""
-
-    local names_only=()
-    for c in "${collisions[@]}"; do names_only+=("${c% (*)}"); done
 
     if [ -t 0 ]; then
-        echo "[e2e]   Press Enter to remove the above and continue (Ctrl-C to abort)."
+        echo "[e2e]   Press Enter to remove them and continue (Ctrl-C to abort)."
         echo "[e2e]   Note: only containers are removed — named and NFS volumes are untouched."
         printf '[e2e] > '
         read -r _
-        [ "${#names_only[@]}" -gt 0 ] && docker rm -f "${names_only[@]}" >/dev/null
-        docker network rm "$E2E_NETWORK" >/dev/null 2>&1 || true
-        _remove_stale_volumes
+        docker rm -f "${names_only[@]}" >/dev/null
         log "Pre-flight OK (cleaned up)"
         return 0
     fi
 
-    echo "[e2e]   To remove:"
-    [ "${#names_only[@]}" -gt 0 ] && echo "[e2e]     docker rm -f ${names_only[*]}"
-    [ "$stale_network" -eq 1 ]    && echo "[e2e]     docker network rm ${E2E_NETWORK}"
+    echo "[e2e]   To remove:  docker rm -f ${names_only[*]}"
     return 1
 }
 
-# ── Flow tests ────────────────────────────────────────────────────────────────
+# ── Checks ────────────────────────────────────────────────────────────────────
 #
-# A per-service exist.test.sh can only see its own service. Everything the stack
-# is actually FOR lives between services — a file lands in MinIO and an
-# automation reacts to it — and that seam had no coverage at all: MinIO spent
-# months posting bucket events to a port nothing served while every individual
-# service test passed.
+# A check is a decree message in checks/ (see checks/README.md). e2e stages any
+# sibling routine into the clone, drops the applicable messages into the inbox,
+# and lets the daemon run them — one per run dir, each with its own verdict, and
+# one failure never hiding the rest.
 #
-# A flow is a script in src/test/e2e/flows/ that declares which services it
-# needs. Adding a flow is adding a file; nothing here enumerates them.
-#
-#   FLOW_NAME      one line, shown in the log
-#   FLOW_REQUIRES  space-separated EXIST_IS_* vars, all of which must be on
-#
-# Both are read out of the source with grep rather than by sourcing the file,
-# the same way minio-router reads PATTERN from a processor: a flow is a script
-# to execute, not a library, and sourcing it would run it.
-FLOW_DIR="${REPO_DIR}/src/test/e2e/flows"
+# Frontmatter is read with e2e_fm_get (results.sh) rather than by sourcing or by
+# a YAML parser: a check is data e2e reads and data decree reads, and the two
+# must not disagree about what the file says.
 
-flow_meta() {
-    grep -m1 "^${2}=" "$1" | sed "s/^${2}=[\"']\(.*\)[\"']$/\1/"
-}
-
-run_flows() {
-    local work="$1" quest_name="$2"
-    [ -d "$FLOW_DIR" ] || return 0
-
-    local ran=0 failed=0
-    local flow name requires var missing
-    for flow in "$FLOW_DIR"/*.sh; do
-        [ -f "$flow" ] || continue
-        name=$(flow_meta "$flow" FLOW_NAME)
-        requires=$(flow_meta "$flow" FLOW_REQUIRES)
-
+# Checks whose `requires:` vars are all enabled in the clone.
+applicable_checks() {
+    local work="$1" md name var missing
+    for md in "$CHECK_DIR"/[0-9][0-9]-*.md; do
+        [ -f "$md" ] || continue
+        name="$(basename "$md" .md)"
         missing=""
-        for var in $requires; do
+        for var in $(e2e_fm_get "$md" requires); do
             grep -q "^${var}=true" "$work/.env.shared" || missing="${missing} ${var}"
         done
         if [ -n "$missing" ]; then
-            log "  ↷ ${name:-$(basename "$flow")} — skipped (off:${missing})"
+            log "  ↷ ${name} — skipped (off:${missing})" >&2
             continue
         fi
+        echo "$md"
+    done
+}
 
-        log "  • ${name:-$(basename "$flow")}"
-        if WORK="$work" E2E_PROJECT="$E2E_PROJECT" REPO_DIR="$REPO_DIR" bash "$flow"; then
-            ran=$(( ran + 1 ))
-        else
-            log "  ✗ ${name:-$(basename "$flow")} — FAILED"
-            failed=$(( failed + 1 ))
+# Stage checks into the clone, BEFORE render and up. Everything here is read
+# once at container start, which is precisely why it cannot be done from inside
+# a check: the daemon is already running by then.
+#
+#   - sibling routines land in shared_routines/ and are registered enabled
+#   - each check's needs_routines are switched on
+#   - max_attempts drops to 1: decree retries three times by default, which for
+#     a failing check means three times the wall clock and three routine-N.log
+#     files to read. The clone only; a real install still gets its retries.
+stage_checks() {
+    local work="$1" md name sh cfg
+    cfg="$work/services/decree/decree/config.exist.yml"
+    [ -f "$cfg" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
+
+    sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
+
+    local -a enable=()
+    for md in "$CHECK_DIR"/[0-9][0-9]-*.md; do
+        [ -f "$md" ] || continue
+        name="$(basename "$md" .md)"
+        sh="${md%.md}.sh"
+        if [ -f "$sh" ]; then
+            cp "$sh" "$work/automations/shared_routines/$(e2e_fm_get "$md" routine).sh"
+            enable+=("$(e2e_fm_get "$md" routine)")
         fi
+        # needs_routines is a space-separated list, so splitting is the point.
+        local -a needs=()
+        read -r -a needs <<<"$(e2e_fm_get "$md" needs_routines)"
+        enable+=("${needs[@]+"${needs[@]}"}")
     done
 
-    if [ "$failed" -gt 0 ]; then
-        log "${quest_name} — ${failed} flow test(s) FAILED"
-        return 1
-    fi
-    [ "$ran" -eq 0 ] && log "  (no flow tests apply to this quest)"
+    local r
+    for r in $(printf '%s\n' "${enable[@]+"${enable[@]}"}" | awk 'NF && !seen[$0]++'); do
+        if grep -q "^  ${r}:$" "$cfg"; then
+            # Flip this routine's own enabled:, and only this one.
+            awk -v r="$r" '
+                $0 == "  " r ":" { print; inblock = 1; next }
+                inblock && /^ *enabled:/ { sub(/false/, "true"); inblock = 0 }
+                { print }
+            ' "$cfg" > "${cfg}.tmp" && mv "${cfg}.tmp" "$cfg"
+        else
+            printf '  %s:\n    enabled: true\n' "$r" >> "$cfg"
+        fi
+        grep -A1 "^  ${r}:$" "$cfg" | grep -q 'enabled: true' \
+            || die "could not enable decree routine ${r}"
+    done
+    [ "${#enable[@]}" -gt 0 ] && log "  staged routines: $(printf '%s\n' "${enable[@]}" | awk 'NF && !seen[$0]++' | tr '\n' ' ')"
+
+    # A check may also carry a sibling <name>.stage.sh — host-side setup that has
+    # to happen before the stack boots, for config a running container has
+    # already read. It gets $WORK and nothing else; anything it can do at routine
+    # runtime belongs in the routine instead, where the credentials exist.
+    # The harness has no business knowing which services a check touches.
+    local st
+    for md in "$CHECK_DIR"/[0-9][0-9]-*.md; do
+        st="${md%.md}.stage.sh"
+        [ -f "$st" ] || continue
+        WORK="$work" REPO_DIR="$REPO_DIR" bash "$st" \
+            || die "$(basename "$st") failed — see above"
+    done
     return 0
+}
+
+# Drop the applicable checks into the inbox. Filenames are prefixed so they sort
+# after anything decree put there itself.
+drop_checks() {
+    local work="$1" md n=0
+    local inbox="$work/services/decree/decree/inbox"
+    [ -d "$inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
+
+    # Wait for the daemon phase before dropping anything. decree's entrypoint
+    # runs `decree process` first, and that drains the WHOLE inbox — so a check
+    # landing during it is run by the migration pass, where the first dead letter
+    # aborts the rest. Messages, not migrations, is the entire point; do not let
+    # them be processed as migrations by accident. pid1 is `bash` through the
+    # health-wait and migrations, and `decree` once the daemon is up, which is the
+    # same signal the image's own healthcheck uses.
+    local deadline=$(( $(date +%s) + 600 ))
+    until docker exec decree grep -q decree /proc/1/comm 2>/dev/null; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            log "  decree never reached its daemon phase — nothing can run the checks"
+            return 1
+        fi
+        sleep 5
+    done
+
+    while IFS= read -r md; do
+        [ -n "$md" ] || continue
+        cp "$md" "${inbox}/e2e-$(basename "$md")"
+        log "  → $(basename "$md" .md)"
+        n=$(( n + 1 ))
+    done < <(applicable_checks "$work")
+    [ "$n" -gt 0 ] || { log "  (no checks apply to this quest)"; return 1; }
+    return 0
+}
+
+# Wait for the daemon to drain. Done when the inbox holds no *.md and no run is
+# in flight; a dead letter does NOT end the wait, because the daemon carries on
+# past one and the remaining checks still have results to produce.
+#
+# This also asserts the property that used to be the MinIO flow's last two
+# steps, and it belongs here rather than there: a message that runs but never
+# gets its run.json comes back on every tick forever, and nothing scoped to one
+# check can see that. Nothing may be left stuck, from any routine.
+await_checks() {
+    local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
+    local inbox="$work/services/decree/decree/inbox"
+    local deadline=$(( $(date +%s) + timeout )) left
+    log "Waiting for checks to drain (up to ${timeout}s)..."
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        left=$(find "$inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+        [ "$left" -eq 0 ] && { echo; return 0; }
+        printf '.'
+        sleep 5
+    done
+    echo
+    log "Inbox did not drain within ${timeout}s — still queued:"
+    find "$inbox" -maxdepth 1 -name '*.md' -printf '[e2e]   %f\n' 2>/dev/null || true
+    return 1
+}
+
+# Container logs for anything the health gate is unhappy about. Kept apart from
+# collect_results so that stays pure-filesystem and testable without Docker.
+collect_logs() {
+    local work="$1" out="$2" id name state
+    mkdir -p "$out/logs"
+    while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        state=$(docker inspect --format '{{.State.Status}}{{if .State.Health}} {{.State.Health.Status}}{{end}}' "$id" 2>/dev/null || true)
+        case "$state" in
+            "running"|"running healthy") continue ;;
+        esac
+        name=$(docker inspect --format '{{.Name}}' "$id" 2>/dev/null | sed 's#^/##')
+        docker logs --tail 200 "$id" > "$out/logs/${name:-$id}.log" 2>&1 || true
+    done < <(_compose "$work" ps -q 2>/dev/null)
+    rmdir "$out/logs" 2>/dev/null || true
+}
+
+# Copy this quest's evidence out of the doomed clone and grade it. Returns
+# non-zero when any check failed, so run_quest can fail the quest on it.
+#
+# This is what makes the harness inspectable at all. The clone is deleted on the
+# way out, so for a long time the only way to see WHY something failed was to
+# print it first — hence the flow test's inline stderr dump — or to skip teardown
+# with E2E_KEEP=1 and go spelunking in containers. The evidence was always there
+# in a good shape; it was just being thrown away.
+collect_quest_results() {
+    local work="$1" quest="$2" out slug rc=0
+    slug="$(printf '%s' "$quest" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
+    out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
+
+    collect_results "$work/automations/runs" \
+                    "$work/services/decree/decree/inbox/dead" \
+                    "$out" || rc=1
+    collect_logs "$work" "$out"
+
+    # Anything still queued is a stuck message: it will come back on every tick
+    # forever. await_checks already failed the run for it — this only carries the
+    # messages out as evidence, and it lives here rather than there because the
+    # cleanup trap reaches this function on paths where await_checks never ran.
+    local stuck
+    stuck=$(find "$work/services/decree/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${stuck:-0}" -gt 0 ]; then
+        mkdir -p "$out/stuck"
+        find "$work/services/decree/decree/inbox" -maxdepth 1 -name '*.md' \
+            -exec cp {} "$out/stuck/" \; 2>/dev/null || true
+        log "  ${stuck} message(s) left stuck in the inbox — see ${out#"${REPO_DIR}/"}/stuck/"
+    fi
+
+    log "Results → ${out#"${REPO_DIR}/"}/results.md"
+    sed -n '/^|/p' "$out/results.md" 2>/dev/null | sed 's/^/[e2e]   /' || true
+    return "$rc"
 }
 
 # ── Per-quest runner ──────────────────────────────────────────────────────────
 
 WORK=""
+QUEST_LABEL=""
+COLLECTED=0
 
 cleanup() {
+    # Collect before anything is destroyed, if the run did not get that far
+    # itself — a crash, a failed `up`, or a Ctrl+C. This is the case that most
+    # needs the evidence, so it is the last thing that should go without it.
+    if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$WORK/automations/runs" ]; then
+        collect_quest_results "$WORK" "${QUEST_LABEL:-interrupted}" || true
+        COLLECTED=1
+    fi
+
     # E2E_KEEP=1 leaves the stack and its work dir standing. Teardown destroys
     # exactly the evidence a failure needs — the containers, their logs, and the
     # rendered clone — so a debugging run wants the opposite of the default.
@@ -489,13 +518,13 @@ cleanup() {
         log "  containers:  docker compose -p ${E2E_PROJECT} -f ${WORK}/docker-compose.yml ps"
         log "  a log:       docker logs <container>"
         log "  clean up:    ./existential.sh e2e down"
+        log "  (the run's own evidence is already in ${E2E_OUT#"${REPO_DIR}/"}/ either way)"
         WORK=""
         return 0
     fi
     if [ -n "$WORK" ] && [ -f "$WORK/docker-compose.yml" ]; then
         log "Tearing down..."
-        docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" down -v \
-            --remove-orphans 2>/dev/null || true
+        _compose "$WORK" down -v --remove-orphans 2>/dev/null || true
     fi
     docker network rm "$E2E_NETWORK" 2>/dev/null || true
     if [ -n "$WORK" ] && [ -d "$WORK" ]; then
@@ -520,12 +549,14 @@ trap 'exit 143' TERM
 
 run_quest() {
     local yaml="$1"
-    local quest_name; quest_name=$(quest_fm "$yaml" | grep '^name:' | sed 's/^name:[[:space:]]*//')
+    local quest_name; quest_name=$(quest_name "$yaml")
 
     hr
     log "${quest_name} — start"
     hr
 
+    QUEST_LABEL="$quest_name"
+    COLLECTED=0
     WORK="${REPO_DIR}/.tmp-e2e-$(date '+%Y-%m-%d_%H-%M')-$$"
     mkdir -p "$WORK"
 
@@ -541,39 +572,16 @@ run_quest() {
     grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
     grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
-    # 2b. An externally-hosted ollama, when the runner supplied one. This is the
-    # `external` GPU vendor: no local ollama, no device reservation to satisfy,
-    # and every model call goes to the other box. It is the only way a GPU-less
-    # runner can exercise a quest whose whole point is the agent.
-    if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ]; then
-        log "Using external ollama: ${EXIST_E2E_OLLAMA_URL}"
-        _env_put() {
-            if grep -q "^${1}=" "$WORK/.env.shared"; then
-                sed -i "s|^${1}=.*|${1}=${2}|" "$WORK/.env.shared"
-            else
-                printf '%s=%s\n' "$1" "$2" >> "$WORK/.env.shared"
-            fi
-        }
-        _env_put EXIST_GPU_VENDOR   external
-        _env_put EXIST_OLLAMA_URL   "$EXIST_E2E_OLLAMA_URL"
-        # Whatever `external` forbids, forbid here too. This used to be a
-        # hardcoded EXIST_IS_AI_OLLAMA=false, which kept the harness correct
-        # while real installs stayed broken -- the bug that fix was papering
-        # over lived in quest.sh for months because e2e never saw it.
-        while IFS= read -r _svc; do
-            [ -n "$_svc" ] && _env_put "$_svc" false
-        done < <(vendor_disabled_services external)
-        # One tag covers chat, extract and vision — .env.exist.shared ships them
-        # identical on purpose so a single resident model serves all three.
-        if [ -n "${EXIST_E2E_OLLAMA_MODEL:-}" ]; then
-            log "Using external model: ${EXIST_E2E_OLLAMA_MODEL}"
-            _env_put EXIST_MODEL_CHAT    "$EXIST_E2E_OLLAMA_MODEL"
-            _env_put EXIST_MODEL_EXTRACT "$EXIST_E2E_OLLAMA_MODEL"
-            _env_put EXIST_MODEL_VISION  "$EXIST_E2E_OLLAMA_MODEL"
-        fi
-    fi
+    # 3. Enable this quest's services.
+    #
+    # Plus decree, unconditionally: it is where the checks RUN, the same way
+    # existential-adhoc is brought up for every quest whether or not the quest
+    # asks for it. Four e2e-able quests (local-ai-lab, home-finance,
+    # media-and-files, productivity-and-tools) do not list it, and without this
+    # they would render a stack with nothing able to test it — which reads as a
+    # pass while verifying nothing.
+    sed -i 's|^EXIST_IS_SERVICES_DECREE=false|EXIST_IS_SERVICES_DECREE=true|' "$WORK/.env.shared"
 
-    # 3. Enable this quest's services
     log "Enabling services..."
     _vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
     for var in $(quest_vars "$yaml"); do
@@ -586,6 +594,12 @@ run_quest() {
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
     done
 
+    # 3b. Stage this run's checks into the clone. Before the render, because
+    #     what it touches (decree's routine whitelist, the webhook route table,
+    #     the probe processor) is read once at container start.
+    log "Staging checks..."
+    stage_checks "$WORK"
+
     # 4. Render service templates (non-interactive — .env.shared already present)
     log "Rendering templates..."
     docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
@@ -595,13 +609,6 @@ run_quest() {
         -e FORCE=false \
         existential-adhoc \
         bash /src/templates.sh
-
-    # 4a. Models, before anything tries to use one. Runs after the render because
-    #     that is when .env.shared has every model key — the fixture ships none of
-    #     them, and templates.sh fills them from .env.exist.shared.
-    if [ -n "${EXIST_E2E_OLLAMA_URL:-}" ]; then
-        check_ollama_models "$WORK"
-    fi
 
     # 4b. Pre-startup filesystem work, exactly as a real install gets it.
     #     ./existential.sh runs render → exist.initial.sh → up; skipping the
@@ -636,47 +643,34 @@ run_quest() {
     #    silently test a stale image of the committed code (this is exactly how a
     #    crash-looping decree daemon once slipped through as a PASS).
     log "Starting services..."
-    docker compose -p "$E2E_PROJECT" -f "$WORK/docker-compose.yml" up -d --build
+    _compose "$WORK" up -d --build
 
-    # 7. Wait for containers to settle out of created/restarting transients.
-    #    Best-effort — the container-health gate below is the actual verdict.
-    wait_running "$WORK" || true
-    wait_healthy "$WORK" || true
+    # 7. Wait for the stack to settle. Best-effort — the gate below is the verdict.
+    wait_settled "$WORK" || true
 
     # 8. Container-state gate — fails the quest if anything is restart-looping,
     #    exited, or unhealthy. This is the only place with docker visibility, so
     #    it's where daemon liveness (decree, decree-backup — no HTTP surface) is checked.
-    if ! bash "${REPO_DIR}/src/test/integration/container-health.sh" \
-            "$WORK/docker-compose.yml" "$E2E_PROJECT"; then
-        log "${quest_name} — container health gate FAILED"
-        return 1
-    fi
+    local health_rc=0
+    bash "${REPO_DIR}/src/test/integration/container-health.sh" \
+        "$WORK/docker-compose.yml" "$E2E_PROJECT" || health_rc=1
+    [ "$health_rc" -eq 0 ] || log "${quest_name} — container health gate FAILED"
 
-    # 9. Run per-service tests
-    log "Running service tests for ${quest_name}:"
-    local e2e_paths=""
-    for var in $(quest_vars "$yaml"); do
-        local svc_path; svc_path=$(var_to_path "$var")
-        if [ -f "$WORK/${svc_path}/exist.test.sh" ]; then
-            log "  • ${svc_path}/exist.test.sh"
-            e2e_paths="${e2e_paths:+${e2e_paths}:}${svc_path}"
-        fi
-    done
-    if ! docker compose -p "$E2E_PROJECT" -f "$WORK/existential-compose.yml" run --rm \
-            --user "$(id -u):$(id -g)" \
-            -e E2E_MODE=1 \
-            -e "E2E_SERVICE_PATHS=${e2e_paths}" \
-            --entrypoint "" existential-adhoc \
-            bash /src/test/run-all.sh; then
-        log "${quest_name} — service tests FAILED"
-        return 1
-    fi
+    # 9. The checks. Everything the quest actually verifies happens here: the
+    #    per-service tests (00-services runs triage, which runs every enabled
+    #    service's exist.test.sh) and each cross-service chain, as one message
+    #    apiece. The health gate's result does not skip them — a quest with one
+    #    unhealthy container still has results worth collecting for the rest.
+    log "Running checks for ${quest_name}:"
+    local checks_rc=0
+    drop_checks "$WORK" || checks_rc=1
+    [ "$checks_rc" -eq 0 ] && { await_checks "$WORK" || checks_rc=1; }
 
-    # 10. Cross-service flow tests. Runs last: every flow assumes a stack whose
-    #     individual services already pass, so a failure here is unambiguously
-    #     about the wiring between them.
-    log "Running flow tests for ${quest_name}:"
-    if ! run_flows "$WORK" "$quest_name"; then
+    # 10. Copy the evidence out before teardown destroys it, and grade it.
+    collect_quest_results "$WORK" "$quest_name" || checks_rc=1
+    COLLECTED=1
+
+    if [ "$health_rc" -ne 0 ] || [ "$checks_rc" -ne 0 ]; then
         return 1
     fi
 
@@ -694,10 +688,6 @@ if [ "${1:-}" = "down" ]; then
     exit 0
 fi
 
-# Always start from a clean slate: a previous run that crashed before its trap
-# fired can leave root-owned .tmp-e2e-* dirs behind (they accumulate otherwise).
-sweep_leftover_workdirs
-
 # Build adhoc image once — used for template rendering, compose gen, and tests.
 log "Building existential-adhoc image..."
 docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build existential-adhoc
@@ -705,8 +695,9 @@ docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build 
 # Quest selection
 declare -a SELECTED_YAMLS=()
 
-if [ "${1:-}" = "--all" ]; then
-    # Explicitly run every automatable quest
+if [ "${1:-}" = "--all" ] || { [ "$#" -eq 0 ] && [ ! -t 0 ]; }; then
+    # Every automatable quest — asked for with --all, or implied by having no
+    # selection and no terminal to ask on.
     mapfile -t SELECTED_YAMLS < <(automatable_quests)
     [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No automatable quests found."
 elif [ "$#" -gt 0 ]; then
@@ -715,15 +706,12 @@ elif [ "$#" -gt 0 ]; then
     # too. Dedupe while preserving order (a pattern may match several quests).
     mapfile -t SELECTED_YAMLS < <(quests_by_names "$@" | awk '!seen[$0]++')
     [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No e2e-able quests matched: $*"
-elif [ ! -t 0 ]; then
-    # Non-interactive with no selection: run every automatable quest
-    mapfile -t SELECTED_YAMLS < <(automatable_quests)
-    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No automatable quests found."
-elif command -v fzf >/dev/null 2>&1; then
+else
+    command -v fzf >/dev/null 2>&1 || die "fzf not found"
     # fzf on host — draw picker directly (fzf uses /dev/tty for UI, safe in <(...))
     _excl_header="Excluded (require manual setup):"
     for _y in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
-        quest_fm "$_y" | grep -q '^e2e:[[:space:]]*false' || continue
+        [ "$(e2e_fm_get "$_y" e2e)" = false ] || continue
         _n=$(quest_name "$_y")
         _excl_header+=$'\n'"  ✗ ${_n}"
     done
@@ -741,28 +729,6 @@ elif command -v fzf >/dev/null 2>&1; then
             | cut -f1
     )
     [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No quests selected."
-else
-    # No fzf — numbered prompt
-    declare -a _all=()
-    mapfile -t _all < <(automatable_quests)
-    [ "${#_all[@]}" -gt 0 ] || die "No automatable quests found."
-    echo ""
-    for _i in "${!_all[@]}"; do
-        _n=$(quest_name "${_all[$_i]}")
-        printf '[e2e]   %d) %s\n' "$(( _i + 1 ))" "$_n"
-    done
-    echo ""
-    printf '[e2e] Run which? Enter numbers (e.g. 1 3) or blank for all: '
-    read -r _choice
-    if [ -z "$_choice" ]; then
-        SELECTED_YAMLS=("${_all[@]}")
-    else
-        for _n in $_choice; do
-            _idx=$(( _n - 1 ))
-            [ "$_idx" -ge 0 ] && [ "$_idx" -lt "${#_all[@]}" ] && SELECTED_YAMLS+=("${_all[$_idx]}")
-        done
-    fi
-    [ "${#SELECTED_YAMLS[@]}" -gt 0 ] || die "No quests selected."
 fi
 
 log "Selected quests:"
@@ -771,30 +737,11 @@ for yaml in "${SELECTED_YAMLS[@]}"; do
     log "  • ${name}"
 done
 
-# Filter on runner-supplied requirements BEFORE preflight. preflight demands the
-# container names be free, which is a real requirement for a quest that is going
-# to run — and pure noise for one that is about to skip. Asking someone to tear
-# down their stack to be told "skipped" is the wrong order.
-declare -a PASS=() FAIL=() SKIP=() RUNNABLE=()
+declare -a PASS=() FAIL=()
+
+preflight_check "${SELECTED_YAMLS[@]}"
 
 for yaml in "${SELECTED_YAMLS[@]}"; do
-    if quest_requirements_met "$yaml"; then
-        RUNNABLE+=("$yaml")
-    else
-        SKIP+=("$(quest_name "$yaml")")
-    fi
-done
-
-if [ "${#RUNNABLE[@]}" -eq 0 ]; then
-    hr
-    log "Results: 0 passed, 0 failed, ${#SKIP[@]} skipped"
-    log "  Skipped: ${SKIP[*]}"
-    exit 0
-fi
-
-preflight_check "${RUNNABLE[@]}"
-
-for yaml in "${RUNNABLE[@]}"; do
     name=$(quest_name "$yaml")
     if run_quest "$yaml"; then
         PASS+=("$name")
@@ -806,10 +753,10 @@ for yaml in "${RUNNABLE[@]}"; do
 done
 
 hr
-log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed, ${#SKIP[@]} skipped"
+log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed"
+log "  Evidence: ${E2E_OUT#"${REPO_DIR}/"}/"
 [ "${#PASS[@]}" -gt 0 ] && log "  Passed:  ${PASS[*]}"
 [ "${#FAIL[@]}" -gt 0 ] && log "  Failed:  ${FAIL[*]}"
-[ "${#SKIP[@]}" -gt 0 ] && log "  Skipped: ${SKIP[*]}"
 hr
 
 [ "${#FAIL[@]}" -eq 0 ]

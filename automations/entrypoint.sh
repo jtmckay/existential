@@ -64,9 +64,9 @@ fi
 
 DECREE_DAEMON="${DECREE_DAEMON:-true}"
 
-# ── Sidecar startup: wait for service health, then run migrations ─────────────
+# ── Daemon startup: wait for service health, then run migrations ──────────────
 #
-# When DECREE_SIDECAR=true and exist.test.sh is mounted at /work/exist.test.sh,
+# When DECREE_DAEMON=true and exist.test.sh is mounted at /work/exist.test.sh,
 # the daemon waits for that script to pass before running `decree process`
 # (migrations). This ensures migrations never run against a service that is
 # still starting up. For `decree` the script is migration-gate.sh, which probes

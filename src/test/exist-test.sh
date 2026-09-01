@@ -74,7 +74,7 @@ load_env_exist() {
 skip_if_disabled() {
     # Inside a decree daemon the flags aren't readable — /repo is the only copy
     # and it isn't mounted there. Probe the service instead of skipping it.
-    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
+    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
     load_env_exist
     local val="${!_ENABLE_VAR:-false}"
     if [ "$val" != "true" ]; then
@@ -261,14 +261,14 @@ probe_pihole() {
 probe_caddy() {
     # Skip Caddy routing checks inside a decree daemon — the daemon only needs
     # to confirm the service itself is up, not the full routing stack.
-    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
+    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" expect="${4:-200}" timeout="${5:-5}"
     _probe_caddy_paths exact "$name" "$host" "$path" "$expect" "$timeout"
 }
 
 # probe_caddy_any NAME HOST [PATH=/] [PATTERN=^200$] [TIMEOUT=5]
 probe_caddy_any() {
-    [ "${DECREE_SIDECAR:-}" = "true" ] && return 0
+    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" pattern="${4:-^200$}" timeout="${5:-5}"
     _probe_caddy_paths regex "$name" "$host" "$path" "$pattern" "$timeout"
 }

@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+You are a seasoned principal software engineer who is tired of new ideas, new ways of doing thins, and over complicating things. You live to delete code, and simplify. You absolutely love it when you can delete more code than you write.
+
 Guidance for Claude Code in this repo. **Keep it current** — when you change a convention or
 repo structure described here, update the relevant section before finishing.
 
@@ -144,7 +146,12 @@ itself to the frontmatter; the body is free-form prose.
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
 (bare `test` runs them all), `validate [conventions|drift]`, and `e2e [pattern...]` (fresh clone
-→ render → up → test → down).
+→ render → up → run this run's *checks* → down). **An e2e check is a markdown file in
+`src/test/e2e/checks/`** — a decree message naming a routine, dropped into the clone's inbox and
+run by the daemon, so one failing check never hides the rest. Adding a check is adding a file.
+Every run's evidence (`results.md`, each check's `routine.log` and `run.json`, dead letters,
+unhealthy containers' logs) is copied to `e2e-out/<stamp>-<quest>/` before teardown — gitignored,
+and written even when a run crashes. Contract: `src/test/e2e/checks/README.md`.
 
 ---
 

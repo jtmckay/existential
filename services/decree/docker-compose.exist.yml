@@ -126,7 +126,6 @@ services:
       - ../../.env
     environment:
       - DECREE_DAEMON=true
-      - DECREE_SIDECAR=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       # Blanked on purpose, and this is why env_file needs watching: .env sets

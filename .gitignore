@@ -198,3 +198,6 @@ volumes_local/
 .DS_Store
 Thumbs.db
 *.swp
+
+# e2e evidence — one directory per run, copied out of the clone before teardown
+/e2e-out/

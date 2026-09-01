@@ -6,8 +6,7 @@ e2e: true
 # GPU — so e2e runs ollama on the CPU against the 1B model pinned in
 # src/test/fixtures/env.shared. That is slow per token but fast to pull, and it
 # means the flagship path is exercised on every run rather than only when
-# someone has a second box to point at. To use a real GPU elsewhere instead:
-#   EXIST_E2E_OLLAMA_URL=http://192.168.1.20:11434 ./existential.sh e2e core
+# someone has a second box to point at.
 services:
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy (TLS + hostnames)

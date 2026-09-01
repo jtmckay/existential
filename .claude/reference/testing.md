@@ -17,12 +17,55 @@ failure.
 - **Service-scoped** — flag missing deps, don't recurse.
 - **Exit non-zero on failure.**
 - **Skip cleanly when disabled** (`EXIST_IS_<CAT>_<SLUG>` false → exit 0).
-- Inside a decree daemon (`DECREE_SIDECAR=true`), `skip_if_disabled` and `probe_caddy` are no-ops.
+- Inside a decree daemon (`DECREE_DAEMON=true`), `skip_if_disabled` and `probe_caddy` are no-ops.
 - Suggested output: `[<slug>] <check>  OK|FAIL` with `observed:`/`fix:` lines.
 
 It is also what the health gates run: `triage` executes every enabled service's copy off the
 `decree` daemon's read-only `/repo` mount every 5 minutes, and `migration-gate.sh` uses the same
 idea to hold migrations back until their target service answers.
+
+## End-to-end
+
+`./existential.sh e2e [--all|<pattern>...|down]` → `src/test/e2e/e2e.sh`. Per selected quest:
+`git archive` the repo into `.tmp-e2e-*` (tracked files only, no secrets) → copy
+`src/test/fixtures/env.shared` over `.env.shared` and flip on the quest's `EXIST_IS_*` vars →
+**stage checks** → render templates → `run_initials` (sourced from the clone's own
+`existential.sh`, not a second copy) → `generate-compose.ts` → `up -d --build` → settle →
+container-state gate → **drop checks, wait for the inbox to drain** → copy the evidence to
+`e2e-out/` → tear down. Quests are selected by `e2e: true` frontmatter; `e2e: false` ones need
+manual NAS/DNS/TLS setup and must carry an `e2e_skip:` reason (enforced by
+`validate-conventions.ts`).
+
+**A check is a markdown file in `src/test/e2e/checks/`** — a decree message naming a routine.
+Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
+
+- `00-services.md` runs `triage` with `TRIAGE_STRICT=true`, which is the entire per-service tier.
+  triage already runs every *enabled* service's `exist.test.sh`, and under e2e the enabled set is
+  exactly the quest's — so there is no service list to build and `run-all.sh` is not involved.
+- A check with a sibling `.sh` gets it staged into the clone's `shared_routines/` and registered,
+  so test code never lands in a user's `config.yml`. It runs **inside `decree`**: `mc`, `rclone`,
+  `jq`, `yq`, `curl`, `tsx`, service credentials, `/repo` read-only, DNS to every container — but
+  no Docker socket. Anything needing one stays on the host in `e2e.sh`.
+- **Messages, not migrations.** `decree process` stops at the first dead letter, so one failure
+  would hide every later result; `decree daemon` drains past it. That difference is the whole
+  reason for the choice.
+- decree runs **one message at a time**, and a check *is* that message — so a check can prove work
+  was enqueued but can never wait for work it triggered. Push those assertions down (a probe
+  processor that validates its own inputs) and let the drain gate grade them.
+
+**`e2e-out/<stamp>-<quest>/`** (gitignored) is the output directory: `results.md` (one row per
+check), each run's `message.md`/`routine.log`/`run.json` copied verbatim, `dead/`, `stuck/`, and
+`logs/` for any container the gate was unhappy about. It is written before teardown *and* from the
+`cleanup` trap, so a crashed or interrupted run still leaves its evidence. `E2E_KEEP=1`
+additionally leaves the stack standing for live poking; `./existential.sh e2e down` reclaims
+containers, networks, volumes and work dirs from a crashed run.
+
+Verdict: `run.json` with `exit_code: 0` passes; no `run.json`, a non-zero code, or a dead letter
+fails. A quest also fails on the container-state gate, on an inbox that never drained, and on
+producing **no** checks at all — a run that verified nothing must not read green.
+
+Its opposite lives in `harness-selftest.sh` (below): `collect_results` driven against a fabricated
+`runs/` tree.
 
 ## Container-state gate
 
@@ -43,8 +86,10 @@ need git/bash, no adhoc; part of `test` (all) and run early in `pre-push`):
   asserts `pre-commit` **and** `no-tracked-secrets.sh` actually trip (incl. the `*.exist.*` /
   `*.example` exemptions). New secret-guard logic ⇒ add a fixture here.
 - **`harness-selftest.sh`** (`test harness`) — proves the *plumbing* surfaces failures:
-  `run-all.sh` fails+names a failing suite, and `container-health.sh` (driven by a fake
-  `docker`) trips on a bad container.
+  `run-all.sh` fails+names a failing suite, `container-health.sh` (driven by a fake `docker`)
+  trips on a bad container, and e2e's `collect_results` (sourced from `src/test/e2e/results.sh`)
+  grades a failed, dead-lettered, or entirely absent check as a failure and copies its evidence
+  out. New e2e grading logic ⇒ add a case here.
 - **`test selfcheck`** (adhoc) — runs every `unit/test-*.sh` with `TEST_SELFCHECK=1`, which
   fires a one-line canary (`[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail …`) each suite carries
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
