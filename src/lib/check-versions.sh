@@ -99,6 +99,21 @@ latest_hub_release() {
         | sort | tail -1
 }
 
+# latest_hub_dated <org/image> <family>
+# Newest <family>-YYYYMMDD tag from Docker Hub. Images that publish a dated,
+# immutable build per GPU flavour (yanwk/comfyui-boot: cu126-slim / rocm / cpu)
+# carry no semver at all, so the family is read off the tag already pinned and
+# only the date moves. Dates sort lexically in chronological order.
+latest_hub_dated() {
+    local path="$1" family="$2"
+    curl -fsSL --max-time 15 \
+        "https://registry.hub.docker.com/v2/repositories/${path}/tags?page_size=100&name=${family}-" \
+        2>/dev/null \
+        | jq -r '.results[].name' 2>/dev/null \
+        | grep -E "^${family}-[0-9]{8}$" \
+        | sort | tail -1
+}
+
 # _registry_auth <prefix>
 # Echoes "<registry>\t<repo>\t<token>" for the pull registry behind an image
 # prefix. Split out of image_exists so resolve_digest can reuse the same token
@@ -111,6 +126,13 @@ _registry_auth() {
         token=$(curl -fsSL --max-time 15 \
             "https://ghcr.io/token?scope=repository:${repo}:pull" 2>/dev/null \
             | jq -r '.token // empty')
+    elif [[ "$prefix" == mcr.microsoft.com/* ]]; then
+        # MCR serves manifests anonymously — there is no token endpoint. Emit a
+        # placeholder so the shared "no token means we could not ask" guard in
+        # image_exists doesn't read anonymous access as a failure.
+        registry="mcr.microsoft.com"
+        repo="${prefix#mcr.microsoft.com/}"
+        token="anonymous"
     elif [[ "$prefix" == gcr.io/* ]]; then
         registry="gcr.io"
         repo="${prefix#gcr.io/}"
@@ -183,6 +205,9 @@ image_exists() {
 #   display_name  file  image_prefix  check_type  check_arg  tag_format
 #
 # check_type : github | hub | hub_clean | hub_release | digest | skip
+#   hub_dated → the image_prefix carries the tag family (repo:family), which is
+#               also how a file with one pinned tag per GPU vendor gets a row per
+#               vendor instead of three rows all matching the first image: line.
 #   digest    → the tag is a moving target (e.g. :latest); don't look for a newer
 #               version, just re-resolve what the pinned tag points at now.
 # check_arg  : github → owner/repo   hub* → org/image (library/X for official)
@@ -207,10 +232,22 @@ declare -a CHECKS=(
     "appsmith	services/appsmith/docker-compose.exist.yml	appsmith/appsmith-ce	hub	appsmith/appsmith-ce	v"
     "caddy	hosting/caddy/docker-compose.exist.yml	caddy	hub_clean	library/caddy	bare"
     "chatterbox	ai/chatterbox/docker-compose.exist.yml	ghcr.io/devnen/chatterbox-tts-server	github	devnen/chatterbox-tts-server	v"
-    "comfyui	ai/comfyui/docker-compose.exist.yml	ghcr.io/ai-dock/comfyui	skip		"
+    # Three rows, one per GPU vendor: the body pins the nvidia tag and the
+    # x-exist-gpu overlays pin the amd and cpu ones, and all three must move
+    # together or a non-nvidia host silently stays on an old build.
+    "comfyui	ai/comfyui/docker-compose.exist.yml	yanwk/comfyui-boot:cu126-slim	hub_dated	yanwk/comfyui-boot	bare"
+    "comfyui-rocm	ai/comfyui/docker-compose.exist.yml	yanwk/comfyui-boot:rocm	hub_dated	yanwk/comfyui-boot	bare"
+    "comfyui-cpu	ai/comfyui/docker-compose.exist.yml	yanwk/comfyui-boot:cpu	hub_dated	yanwk/comfyui-boot	bare"
     "collabora	nas/collabora/docker-compose.exist.yml	collabora/code	hub_clean	collabora/code	bare"
     "dashy	services/dashy/docker-compose.exist.yml	lissy93/dashy	github	Lissy93/Dashy	bare"
     "grafana	hosting/grafana/docker-compose.exist.yml	grafana/grafana	hub_clean	grafana/grafana	bare"
+    # digest, not github: the firecrawl images carry no semver tags at all, so
+    # :latest@sha256 is the only pin available and re-resolving the tag is the
+    # only way to learn the pin has gone stale.
+    "firecrawl	ai/firecrawl/docker-compose.exist.yml	ghcr.io/firecrawl/firecrawl	digest		"
+    "firecrawl-pw	ai/firecrawl/docker-compose.exist.yml	ghcr.io/firecrawl/playwright-service	digest		"
+    "firecrawl-rabbitmq	ai/firecrawl/docker-compose.exist.yml	rabbitmq	hub_clean	library/rabbitmq	-management"
+    "firecrawl-redis	ai/firecrawl/docker-compose.exist.yml	redis	hub_clean	library/redis	-alpine3.23"
     "decree-wh-go	services/decree/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
     "decree-wh-base	services/decree/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
     # digest, not github: upstream stopped tagging images at v2.0.3 while the
@@ -227,6 +264,7 @@ declare -a CHECKS=(
     "loki	hosting/loki/docker-compose.exist.yml	grafana/loki	hub_clean	grafana/loki	bare"
     # hub, not hub_clean: every alloy tag is v-prefixed, which hub_clean rejects.
     "loki-alloy	hosting/loki/docker-compose.exist.yml	grafana/alloy	hub	grafana/alloy	v"
+    "mcp-playwright	ai/mcp/docker-compose.exist.yml	mcr.microsoft.com/playwright/mcp	github	microsoft/playwright-mcp	v"
     "mealie	services/mealie/docker-compose.exist.yml	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
     "minio	nas/minio/docker-compose.exist.yml	minio/minio	hub_release	minio/minio	bare"
     "nextcloud	nas/nextcloud/docker-compose.exist.yml	nextcloud	hub_clean	library/nextcloud	bare"
@@ -274,6 +312,9 @@ print_header
 
 for entry in "${CHECKS[@]}"; do
     IFS=$'\t' read -r name file image_prefix check_type check_arg tag_format <<< "$entry"
+    # A hub_dated prefix is "repo:family" so its grep hits one image: line in a
+    # multi-vendor file; the registry only ever wants the repo.
+    image_repo="${image_prefix%%:*}"
 
     # Current tag. Compose files carry `image: <prefix>:<tag>`; Dockerfiles
     # carry `FROM <prefix>:<tag>@sha256:<digest> [AS stage]`, where the digest
@@ -322,7 +363,7 @@ for entry in "${CHECKS[@]}"; do
     # repo name) are tracked for digest drift instead — "has the tag I pinned
     # been re-pushed?" rather than "is there a newer version?".
     if [[ "$check_type" == "digest" ]]; then
-        latest_digest=$(resolve_digest "$image_prefix" "$current_tag" || true)
+        latest_digest=$(resolve_digest "$image_repo" "$current_tag" || true)
         if [[ -z "$latest_digest" ]]; then
             print_row "$name" "${current_digest:0:19}" "(fetch failed)" "?"
             (( FAILURES++ )) || true
@@ -367,6 +408,7 @@ for entry in "${CHECKS[@]}"; do
         hub)         latest_version=$(latest_hub "$check_arg" || true) ;;
         hub_clean)   latest_version=$(latest_hub_clean "$check_arg" || true) ;;
         hub_release) latest_version=$(latest_hub_release "$check_arg" || true) ;;
+        hub_dated)   latest_version=$(latest_hub_dated "$check_arg" "${current_tag%-*}" || true) ;;
     esac
 
     if [[ -z "$latest_version" ]]; then
@@ -399,7 +441,7 @@ for entry in "${CHECKS[@]}"; do
         if [[ "$current_tag" != "(none)" ]]; then
             # `|| exists=$?` keeps a non-zero return (1 missing / 2 unverifiable)
             # from tripping `set -e` and aborting the whole run.
-            exists=0; image_exists "$image_prefix" "$current_tag" || exists=$?
+            exists=0; image_exists "$image_repo" "$current_tag" || exists=$?
             if [[ "$exists" -eq 1 ]]; then
                 print_row "$name" "$current_tag" "$latest_tag" "✗ PIN NOT PULLABLE"
                 (( FAILURES++ )) || true
@@ -409,7 +451,7 @@ for entry in "${CHECKS[@]}"; do
         status="up to date"
     else
         # Never offer (or apply) an update to a tag that isn't on the pull registry.
-        exists=0; image_exists "$image_prefix" "$latest_tag" || exists=$?
+        exists=0; image_exists "$image_repo" "$latest_tag" || exists=$?
         if [[ "$exists" -eq 1 ]]; then
             print_row "$name" "$current_tag" "$latest_tag" "✗ LATEST NOT PULLABLE"
             (( FAILURES++ )) || true
@@ -424,7 +466,7 @@ for entry in "${CHECKS[@]}"; do
                 # Tag and digest must move together, or the digest would keep
                 # pinning the old image and the tag would be a lie. A digest we
                 # cannot resolve means we leave the pin alone.
-                new_digest=$(resolve_digest "$image_prefix" "$latest_tag" || true)
+                new_digest=$(resolve_digest "$image_repo" "$latest_tag" || true)
                 if [[ -z "$new_digest" ]]; then
                     status="→ UPDATE (digest fetch failed, not applied)"
                 else

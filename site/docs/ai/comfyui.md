@@ -25,7 +25,16 @@ Download a checkpoint model using ComfyUI Manager (accessible from the menu in t
 | `sd_xl_base_1.0.safetensors` | SDXL — general purpose, 1024×1024 native |
 | Flux.1-dev | High quality, requires separate text encoder + VAE |
 
-Models are stored in the `comfyui_data` volume at `/workspace/ComfyUI/models/checkpoints/` and persist across container restarts.
+The container's whole working tree is the `comfyui_data` volume: the image copies ComfyUI out to `/root` on first boot, so models, custom nodes,
+generated images and saved workflows are all one mount. On the host that is `volumes/comfyui_data/ComfyUI/` — checkpoints in
+`models/checkpoints/` (`models/diffusion_models`, `models/text_encoders`, `models/vae`, `models/loras` for the rest), generated images in
+`output/`, saved workflows and settings in `user/`.
+
+:::warning No authentication
+ComfyUI has no login of its own, and nothing is put in front of it. Anyone who can reach
+`https://comfyui.EXIST_DOMAIN` can queue workflows, read and write files under the volume, and install custom nodes — which is arbitrary Python
+executed in the container. Keep it on the tailnet; do not put it behind a public A record.
+:::
 
 ## API
 
@@ -51,75 +60,23 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 Decree routines are shell scripts in `automations/shared_routines/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
-### Example routine
+### The routines that ship
+
+Three are already written, registered in `services/decree/decree/config.exist.yml` and off by default:
+
+| Routine | Workflow | Needs |
+|---|---|---|
+| `comfy-image-text` | `automations/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
+| `comfy-image-text-image` | `automations/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
+| `comfy-video-i2v` | `automations/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
+
+Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip a routine's `enabled: true`, restart decree, then:
 
 ```bash
-#!/usr/bin/env bash
-# automations/shared_routines/comfyui-generate.sh
-set -euo pipefail
-
-COMFYUI_URL="${COMFYUI_URL:-http://comfyui:8188}"
-CLIENT_ID="$(uuidgen)"
-USER_PROMPT="${DECREE_PROMPT:-a scenic mountain landscape}"
-
-# Build workflow JSON — export this from the ComfyUI UI (Save > API format), then paste here
-WORKFLOW=$(cat <<'EOF'
-{
-  "3": {"class_type": "KSampler",              "inputs": {"seed": 42, "steps": 20, "cfg": 7, "sampler_name": "euler", "scheduler": "normal", "denoise": 1, "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0]}},
-  "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sd_xl_base_1.0.safetensors"}},
-  "5": {"class_type": "EmptyLatentImage",       "inputs": {"width": 1024, "height": 1024, "batch_size": 1}},
-  "6": {"class_type": "CLIPTextEncode",         "inputs": {"text": "PROMPT_HERE", "clip": ["4", 1]}},
-  "7": {"class_type": "CLIPTextEncode",         "inputs": {"text": "ugly, blurry, low quality", "clip": ["4", 1]}},
-  "8": {"class_type": "VAEDecode",              "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-  "9": {"class_type": "SaveImage",              "inputs": {"filename_prefix": "decree", "images": ["8", 0]}}
-}
-EOF
-)
-
-# Inject the prompt text
-PROMPT=$(echo "$WORKFLOW" | sed "s/PROMPT_HERE/${USER_PROMPT}/g")
-
-# Submit the job
-RESPONSE=$(curl -sS -X POST "${COMFYUI_URL}/prompt" \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\": ${PROMPT}, \"client_id\": \"${CLIENT_ID}\"}")
-PROMPT_ID=$(echo "$RESPONSE" | grep -o '"prompt_id":"[^"]*"' | cut -d'"' -f4)
-
-if [[ -z "$PROMPT_ID" ]]; then
-    echo "ERROR: ComfyUI rejected the job. Response: $RESPONSE" >&2
-    exit 1
-fi
-
-echo "Queued: $PROMPT_ID"
-
-# Poll until the job finishes (up to 5 minutes)
-for i in $(seq 1 60); do
-    STATUS=$(curl -sS "${COMFYUI_URL}/history/${PROMPT_ID}")
-    if echo "$STATUS" | grep -q '"outputs"'; then
-        FILENAME=$(echo "$STATUS" | grep -o '"filename":"[^"]*"' | head -1 | cut -d'"' -f4)
-        echo "Generated: ${COMFYUI_URL}/view?filename=${FILENAME}&type=output"
-        exit 0
-    fi
-    sleep 5
-done
-
-echo "ERROR: timed out waiting for $PROMPT_ID" >&2
-exit 1
+docker exec decree decree run comfy-image-text
 ```
 
-Register it in `services/decree/decree/config.exist.yml`:
-
-```yaml
-shared_routines:
-  comfyui-generate:
-    enabled: true
-```
-
-Trigger it manually:
-
-```bash
-docker exec decree decree run comfyui-generate
-```
+Write your own the same way: POST the workflow to `/api/prompt`, poll `/history/{id}` until `outputs` appears, then fetch the file from `/view`.
 
 ## Telegram → ComfyUI Workflow
 
@@ -172,7 +129,7 @@ SEED=$(od -A n -t u4 -N 4 /dev/urandom | tr -d ' ')
 - **Batch generation**: submit multiple `/prompt` requests — ComfyUI queues them and processes in order, each with its own `prompt_id`
 - **Model persistence**: the `comfyui_data` volume keeps all downloaded models across `docker compose down`
 - **Workflow iteration**: small changes to steps (20→30), CFG scale (7→9), or sampler (`euler` → `dpmpp_2m`) have meaningful quality impact — iterate in the UI before committing to a routine
-- **Image retrieval**: `SaveImage` nodes write to `/workspace/ComfyUI/output/` inside the container; the `/view` endpoint serves them from there with no additional volume mount needed
+- **Image retrieval**: `SaveImage` nodes write to `/root/ComfyUI/output/` inside the container; the `/view` endpoint serves them from there with no additional volume mount needed
 
 ## Debugging
 

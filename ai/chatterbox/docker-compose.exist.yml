@@ -1,7 +1,8 @@
 services:
   # TTS - text to speech
-  # UI interface at http://localhost:8004/
-  # API docs at http://localhost:8004/docs
+  # UI at https://chatterbox.<EXIST_DOMAIN>/ , API docs at /docs
+  # config.yaml pins server.port to 8000, so that — not upstream's 8004 — is the
+  # port Caddy and exist.test.sh talk to.
   chatterbox:
     container_name: chatterbox
     image: ghcr.io/devnen/chatterbox-tts-server:2.0.0
@@ -20,27 +21,43 @@ services:
     # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
     # The nvidia reservation below is stripped automatically when this applies.
     x-exist-gpu:
-      amd:
-        # Same Vulkan path as ollama, and the same privileged exception: AMD
-        # hosts only, never the default. The NVIDIA_* vars below are left in
-        # place — without the nvidia container runtime they are inert.
-        privileged: true
-        environment:
-          CHATTERBOX_DEVICE: vulkan
+      # Considered, nothing to do. This is a CUDA image running PyTorch, which
+      # has no Vulkan or ROCm inference path here — so the ollama-style
+      # `privileged: true` + a vendor env var bought nothing: config.py reads
+      # zero environment variables (0 hits for os.environ/getenv in upstream
+      # config.py), so `CHATTERBOX_DEVICE` was never read by anything.
+      # tts_engine.device: auto in config.yaml already falls back to CPU when
+      # CUDA is not functional, which is the correct (slow) behaviour on every
+      # non-nvidia host.
+      amd: {}
 
     # NVIDIA GPU
     deploy:
       resources:
         limits:
-          memory: 4G
+          # A model server: the limit IS the model. The original checkpoint that
+          # model.repo_id: chatterbox selects is t3_cfg 2.13GB + s3gen 1.06GB +
+          # ve 6MB of fp32 weights, and on a GPU-less host (which is what a
+          # fresh clone, CI and e2e all resolve to) all of that is resident in
+          # system RAM alongside the torch runtime. 4G did not cover it.
+          memory: 8G
         reservations:
           devices:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
 
-    # CPU only - comment out 'deploy' above and uncomment below
-    # No additional configuration needed, device auto-detects to cpu
+    # The model loads in the FastAPI lifespan, and a failure there is only
+    # logged — the server still binds and answers 200 on / and /docs with no
+    # model at all. /api/model-info is the only endpoint that tells the two
+    # apart, so health is keyed off its "loaded" flag rather than reachability.
+    # No curl or wget in this image; python3 is the only HTTP client it has.
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import json,urllib.request,sys; sys.exit(0 if json.load(urllib.request.urlopen('http://localhost:8000/api/model-info', timeout=10))['loaded'] else 1)"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 900s   # cold start downloads ~3.2GB of weights from HuggingFace
 
     environment:
       - HF_TOKEN=${CHATTERBOX_HF_TOKEN}

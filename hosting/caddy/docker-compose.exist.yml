@@ -58,6 +58,10 @@ services:
       # which turns ollama.<domain> into a live check of whether the
       # configured endpoint is reachable, instead of a guaranteed 502.
       - CADDY_OLLAMA_UPSTREAM=${EXIST_OLLAMA_URL:-http://ollama:11434}
+      # Firecrawl has no auth of its own (see the firecrawl block in the
+      # Caddyfile) -- caddy is where the bearer key is enforced. Blank when
+      # firecrawl is disabled, which fails that host closed.
+      - CADDY_FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
       - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
 

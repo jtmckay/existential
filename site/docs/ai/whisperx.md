@@ -26,10 +26,11 @@ want low latency far more than they want speaker labels.
 Diarization needs a HuggingFace token (`WHISPERX_HF_TOKEN`, prompted during setup).
 Accept the gated model terms once while logged in:
 
-- https://huggingface.co/pyannote/speaker-diarization-3.1
-- https://huggingface.co/pyannote/segmentation-3.0
+- https://huggingface.co/pyannote/speaker-diarization-community-1
 
-Without the token, plain transcription still works but diarization fails.
+Without the token, transcription and alignment still succeed and the task then
+fails at the diarize step with a HuggingFace 401 — every health route stays green,
+so check the task's `error` field, not the service.
 
 ## References
 

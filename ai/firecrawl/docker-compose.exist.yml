@@ -15,8 +15,12 @@
 # Volumes:
 #   firecrawl_postgres_data  (db: true) — postgres data; not NFS-safe (WAL/flock)
 #
-# Access: http://firecrawl:3002 on the exist network
-#   API key: FIRECRAWL_API_KEY from .env (USE_DB_AUTHENTICATION=false)
+# Access: http://firecrawl:3002 on the exist network -- UNAUTHENTICATED.
+#   Self-hosted firecrawl has no auth: with USE_DB_AUTHENTICATION false,
+#   controllers/auth.js returns a mock quota object for any api_key, including
+#   none. FIRECRAWL_API_KEY is enforced by caddy on firecrawl.<domain>, which is
+#   the only path that leaves the bridge. On-bridge callers (firecrawl-mcp,
+#   decree) send it anyway so the two paths stay interchangeable.
 #
 # Note: GHCR images publish no semantic version tags. Versions are pinned by manifest digest.
 
@@ -39,7 +43,9 @@ services:
       PROXY_USERNAME: ${FIRECRAWL_PROXY_USERNAME:-}
       PROXY_PASSWORD: ${FIRECRAWL_PROXY_PASSWORD:-}
       BLOCK_MEDIA: ${FIRECRAWL_BLOCK_MEDIA:-true}
-      MAX_CONCURRENT_PAGES: ${FIRECRAWL_CRAWL_CONCURRENT_REQUESTS:-10}
+      # Each open Chromium page costs ~100-200 MiB on top of the ~400 MiB the
+      # browser sits at idle, so 10 does not fit the 1G limit above.
+      MAX_CONCURRENT_PAGES: ${FIRECRAWL_MAX_CONCURRENT_PAGES:-4}
     tmpfs:
       - /tmp/.cache:noexec,nosuid,size=1g
 
@@ -72,15 +78,22 @@ services:
       POSTGRES_DB: firecrawl
       POSTGRES_HOST: firecrawl-postgres
       POSTGRES_PORT: 5432
-      # Auth — USE_DB_AUTHENTICATION=false means TEST_API_KEY is the only key accepted
+      # Auth — false is the only self-hostable value (true needs Supabase).
+      # It disables auth entirely; caddy carries the bearer check instead.
       USE_DB_AUTHENTICATION: "false"
+      # Upstream's own test-suite key ("// Testing" in the image config schema).
+      # It authenticates nothing here; kept only so the rate-limit overrides
+      # RATE_LIMIT_TEST_API_KEY_* have a key to attach to.
       TEST_API_KEY: ${FIRECRAWL_API_KEY}
       BULL_AUTH_KEY: ${FIRECRAWL_BULL_AUTH_KEY:-}
-      # Throughput tuning
-      NUM_WORKERS_PER_QUEUE: ${FIRECRAWL_NUM_WORKERS_PER_QUEUE:-8}
-      CRAWL_CONCURRENT_REQUESTS: ${FIRECRAWL_CRAWL_CONCURRENT_REQUESTS:-10}
-      MAX_CONCURRENT_JOBS: ${FIRECRAWL_MAX_CONCURRENT_JOBS:-5}
-      BROWSER_POOL_SIZE: ${FIRECRAWL_BROWSER_POOL_SIZE:-5}
+      # Throughput. NUQ_WORKER_COUNT is the only concurrency knob this image has —
+      # NUM_WORKERS_PER_QUEUE, CRAWL_CONCURRENT_REQUESTS, MAX_CONCURRENT_JOBS and
+      # BROWSER_POOL_SIZE are pre-nuq names that appear nowhere in the image and
+      # were silently doing nothing. Each worker is a ~280 MiB node process and
+      # the harness runs api + queue + extract + reconciler + prefetch alongside
+      # them, so the stock 5 put idle RSS at 2.1 GiB — past firecrawl's own
+      # MAX_RAM=0.8 shed threshold for the limit below.
+      NUQ_WORKER_COUNT: ${FIRECRAWL_NUQ_WORKER_COUNT:-2}
       # Optional AI provider keys (enable /extract and /map LLM features)
       OPENAI_API_KEY: ${FIRECRAWL_OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${FIRECRAWL_OPENAI_BASE_URL:-}
@@ -94,6 +107,10 @@ services:
         condition: service_started
       firecrawl-rabbitmq:
         condition: service_healthy
+      # nuq keeps job state in postgres, so the API starting first means workers
+      # hammering a refused connection until it happens to come up.
+      firecrawl-postgres:
+        condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'node -e "require(\"http\").get(\"http://localhost:3002/\", r => process.exit(r.statusCode < 500 ? 0 : 1)).on(\"error\", () => process.exit(1))"']
       interval: 15s
@@ -105,6 +122,8 @@ services:
     container_name: firecrawl-redis
     image: redis:8.6.4-alpine3.23
     restart: unless-stopped
+    # No volume, so nothing to chown — same as nas/redis.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     # Job state. Capped for the same reason as the nextcloud redis.
     deploy:
       resources:
@@ -184,8 +203,15 @@ services:
       POSTGRES_USER: "${FIRECRAWL_POSTGRES_USER}"
       POSTGRES_PASSWORD: "${FIRECRAWL_POSTGRES_PASSWORD}"
       POSTGRES_DB: firecrawl
-      # Subdirectory so .gitkeep at the bind-mount root doesn't block initdb.
+      # Subdirectory: initdb refuses a non-empty data dir, and the bind-mount
+      # root is created by the host before the container ever starts.
       PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d firecrawl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       # Crawl results and job history — db: true (WAL/flock; never NFS).
       - firecrawl_postgres_data:/var/lib/postgresql/data

@@ -95,9 +95,12 @@ first `docker compose up -d` it already points at ollama (EXIST_MODEL_CHAT,
 with a matching context_length), has honcho memory enabled, and has the MCP
 servers for the AI services you enabled.
 
-Only reach for these if you want to CHANGE that — each one overwrites:
-  ./existential.sh run hermes setup      # interactive model picker (needs a TTY)
+Playwright is the exception: hermes seeds firecrawl and openviking only, so
+if you enabled MCP you must register it yourself, once, after `up -d`:
   ./existential.sh run mcp mcp           # Playwright — browser automation
+
+Only reach for these if you want to CHANGE the seeded entries — each overwrites:
+  ./existential.sh run hermes setup      # interactive model picker (needs a TTY)
   ./existential.sh run firecrawl mcp     # Firecrawl  — web scraping
   ./existential.sh run openviking mcp    # OpenViking — context database
 
@@ -108,9 +111,13 @@ The seeding never overwrites: anything already in config.yaml wins.
 ComfyUI runs at https://comfyui.x.internal after containers are up.
 It ships with no models — download one via the ComfyUI Manager node
 in the UI, or place .safetensors files directly in:
-  ai/comfyui/comfyui_data/models/checkpoints/
+  volumes/comfyui_data/ComfyUI/models/checkpoints/
 
 Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
+
+The comfy-image-* and comfy-video-i2v decree routines need Flux2 and Wan 2.2
+instead; the HuggingFace URLs are in each workflow in automations/lib/comfy/,
+and they go under .../models/{diffusion_models,text_encoders,vae,loras}/.
 
 ── OpenViking: your knowledgebase ────────────────────────────────────────
 

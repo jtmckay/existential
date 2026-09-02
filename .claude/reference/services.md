@@ -126,7 +126,8 @@ Root is expected for: privileged-port binders that can't take a cap (use `cap_ad
 below), pihole (NET_ADMIN),
 portainer (docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images
 managed by an internal supervisor (appsmith, lowcoder, nextcloud), and images caching into
-`/root` (whisperx, mcp).
+`/root` (whisperx — it is built with no `USER`, sets no `HF_HOME`, and so writes its
+HuggingFace and torch model caches to `/root/.cache`, which is the volume it mounts).
 
 ## GPU vendor wiring
 

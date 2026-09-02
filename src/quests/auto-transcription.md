@@ -41,8 +41,7 @@ Processor convention (whisperx-transcribe.sh):
 Setup:
   1. Diarization needs a HuggingFace token. The WhisperX setup prompts for it
      (WHISPERX_HF_TOKEN); first accept the gated model terms while logged in:
-       https://huggingface.co/pyannote/speaker-diarization-3.1
-       https://huggingface.co/pyannote/segmentation-3.0
+       https://huggingface.co/pyannote/speaker-diarization-community-1
 
   2. Enable the routines in services/decree/decree/config.yml:
        file-processor:

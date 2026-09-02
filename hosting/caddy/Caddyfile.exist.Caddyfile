@@ -81,7 +81,22 @@ hermes-agent-dashboard.{$CADDY_DOMAIN} {
 firecrawl.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
-  reverse_proxy firecrawl:3002
+  # Firecrawl self-hosted has NO authentication of its own. With
+  # USE_DB_AUTHENTICATION unset/false, controllers/auth.js returns a mock quota
+  # object for ANY api_key -- including a missing one -- so every /v1 endpoint
+  # answers unauthenticated. TEST_API_KEY is upstream's own test-suite key (it
+  # sits under "// Testing" in the image's config schema), not a server
+  # credential. The bearer check therefore has to live here, or the scraper is
+  # an open proxy for anyone who can reach caddy.
+  # Fail closed: a blank CADDY_FIRECRAWL_API_KEY (firecrawl disabled, or key
+  # unrendered) matches nothing, so the host 401s instead of opening up.
+  @unauthorized not header Authorization "Bearer {$CADDY_FIRECRAWL_API_KEY}"
+  handle @unauthorized {
+    respond "Unauthorized" 401
+  }
+  handle {
+    reverse_proxy firecrawl:3002
+  }
 }
 
 # The upstream follows EXIST_OLLAMA_URL rather than assuming a local container,

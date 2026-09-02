@@ -14,7 +14,7 @@ tts_engine:
   device: auto
   predefined_voices_path: voices
   reference_audio_path: reference_audio
-  default_voice_id: default_sample.wav
+  default_voice_id: Emily.wav
 paths:
   model_cache: ./model_cache
   output: ./outputs

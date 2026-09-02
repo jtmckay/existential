@@ -18,6 +18,10 @@ services:
       # triage runs every service test in here; hermes reads this to know
       # whether a real inference is affordable on this host.
       - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
+      # whisperx-transcribe.ts must send device/compute_type on every request —
+      # whisperx's async endpoints default to cuda/float16 regardless of the
+      # service's own env — so it needs the same vendor answer generate-compose uses.
+      - EXIST_GPU_VENDOR=${EXIST_GPU_VENDOR:-}
       - DECREE_INTERVAL=2
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}

@@ -45,13 +45,31 @@ services:
     environment:
       # ML config — int8 is required on shared/limited VRAM; large-v3 is the
       # most accurate model that still fits the 6 GB 3060 alongside other GPU apps.
+      # These four are read by the OpenAI-compatible /v1/audio/* path only (what
+      # open-webui uses). The async /speech-to-text* path ignores them: every
+      # WhisperModelParams field is a query param with a *hardcoded* default
+      # (model=tiny, device=cuda, compute_type=float16 — app/schemas.py:334), so
+      # a caller must send its own or a CPU-only host fails every task with
+      # "CUDA driver version is insufficient". automations/lib/whisperx-transcribe.ts
+      # sends them.
       WHISPER_MODEL: large-v3
       DEVICE: cuda
       COMPUTE_TYPE: int8
       DEFAULT_LANG: en
       # Diarization (pyannote) needs a HuggingFace token with the
-      # pyannote/speaker-diarization-3.1 + segmentation-3.0 model terms accepted.
+      # pyannote/speaker-diarization-community-1 terms accepted — that is the
+      # model whisperx 0.8.0 asks for (whisperx/diarize.py:101), not the 3.1 the
+      # older guides name. Without it the task fails at the diarize step with a
+      # 401 while /health still reports ok.
       HF_TOKEN: ${WHISPERX_HF_TOKEN}
+      # SSRF protection ships ON and blocks every RFC1918 range — including
+      # 172.16/12, where the `exist` bridge lives. That silently defeats the whole
+      # point of /speech-to-text-url: the MinIO pre-signed URL the auto-transcription
+      # flow hands over resolves to a bridge or LAN address and comes back
+      # 422 SSRF_BLOCKED. whisperx publishes no ports and is reachable only from
+      # inside the stack, so the private ranges the stack itself uses are re-allowed;
+      # loopback and link-local (169.254.169.254 — cloud metadata) stay blocked.
+      SSRF_BLOCKED_NETWORKS: '["0.0.0.0/8","100.64.0.0/10","127.0.0.0/8","169.254.0.0/16","192.0.0.0/24","192.0.2.0/24","192.88.99.0/24","198.18.0.0/15","198.51.100.0/24","203.0.113.0/24","224.0.0.0/4","240.0.0.0/4","255.255.255.255/32","::1/128"]'
       # SQLite holds task results + the speaker-embedding database (persisted volume).
       DB_URL: sqlite:////data/db/records.db
       ENVIRONMENT: production

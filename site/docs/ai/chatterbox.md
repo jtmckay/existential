@@ -4,7 +4,8 @@ sidebar_position: 4
 
 # Chatterbox
 
-- Source: https://github.com/resemble-ai/chatterbox
+- Source: https://github.com/resemble-ai/chatterbox (model)
+- Server: https://github.com/devnen/Chatterbox-TTS-Server (the image this runs)
 - License: [MIT](https://opensource.org/licenses/MIT)
 - Alternatives: Speaches, Piper, Coqui TTS, ElevenLabs
 
@@ -20,3 +21,9 @@ Reach for Chatterbox when something in the stack is generating audio over HTTP
 and you want an expressive or cloned voice.
 :::
 
+:::caution Generated audio is watermarked
+Chatterbox stamps every waveform it produces with Resemble AI's
+[Perth](https://github.com/resemble-ai/perth) imperceptible watermark, in the
+model package itself (`chatterbox/tts.py` applies `PerthImplicitWatermarker` on
+every synthesis). There is no setting to turn it off.
+:::

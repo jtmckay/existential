@@ -1,29 +1,68 @@
+# Playwright MCP — browser automation exposed over MCP (Streamable HTTP, /mcp).
+#
+# Consumer: hermes-agent, registered manually once with
+#   ./existential.sh run mcp mcp
+# It is NOT one of the profile-wired MCP servers (ai/hermes/entrypoint.sh knows
+# only openviking and firecrawl), so a department profile cannot name it.
+#
+# Access: http://mcp-playwright:8931/mcp on the exist network.
+# There is NO authentication — upstream says so explicitly ("Playwright MCP is
+# not a security boundary"). Anything that can reach the port gets a browser
+# with network access to every other container, so keep it off the public
+# internet; --allowed-hosts is DNS-rebinding protection, not auth.
+
 services:
   mcp-playwright:
     container_name: mcp-playwright
-    image: node:22-bullseye
+    # Official image: bundles the chromium build the server launches. The old
+    # `node:22 + npx @playwright/mcp@latest` shape started and answered MCP but
+    # had no browser, so every tool call returned "Chromium distribution 'chrome'
+    # is not found at /opt/google/chrome/chrome".
+    image: mcr.microsoft.com/playwright/mcp:v0.0.80
     restart: unless-stopped
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # Chromium + one page; ~215 MiB with a tab open, ~70 MiB idle. Headroom is
+    # for extra tabs and heavy pages.
     deploy:
       resources:
         limits:
           memory: 1G
     networks:
       - exist
-    working_dir: /app
-    command: ["npx", "@playwright/mcp@latest", "--port", "8931", "--headless"]
-    # ports disabled — access via https://mcp-playwright.<domain> (Caddy + pihole required)
-    # Uncomment to expose directly:
-    #   ports:
-    #     - "8931:8931"
+    # The image's entrypoint is `node /app/cli.js --headless --browser chromium
+    # --no-sandbox`, so these are appended to it.
+    #
+    # --allowed-hosts: the server 403s any Host it does not recognise. The entry
+    #   must carry the port exactly as clients send it, so the Docker-DNS form is
+    #   `mcp-playwright:8931`; Caddy forwards `mcp-playwright.<domain>` with no
+    #   port. Dropping this to '*' disables the check entirely.
+    # --isolated: browser profile in memory, so nothing persists between clients.
+    command:
+      - "--port"
+      - "8931"
+      - "--host"
+      - "0.0.0.0"
+      - "--allowed-hosts"
+      - "mcp-playwright:8931,mcp-playwright.${EXIST_DOMAIN}"
+      - "--isolated"
+      - "--output-dir"
+      - "/output"
     environment:
-      # optional: tweak browser config via env if you want
-      PLAYWRIGHT_MCP_PORT: "8931"
-      PLAYWRIGHT_MCP_HOST: "0.0.0.0"
-      PLAYWRIGHT_MCP_ALLOWED_HOSTS: '*'
+      # Chromium's crashpad handler needs a writable HOME; with `user:` set to an
+      # arbitrary uid there is no passwd entry, HOME becomes / and the browser
+      # dies on launch with "chrome_crashpad_handler: --database is required".
+      HOME: /output
     volumes:
-      - mcp_playwright_cache:/root/.cache/ms-playwright:Z
-
-# docker compose exec hermes-agent /opt/hermes/.venv/bin/hermes mcp add playwright --url http://mcp-playwright:8931/sse
+      # Snapshots, traces and downloads the server writes — regenerable scratch.
+      - mcp_playwright_cache:/output:Z
+    # Without this the container is invisible to the container-state gate, which
+    # only flags `unhealthy`. Any HTTP answer proves the server is listening.
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "require(\"http\").get(\"http://localhost:8931/\", r => process.exit(r.statusCode < 500 ? 0 : 1)).on(\"error\", () => process.exit(1))"']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 x-exist-volumes:
   mcp_playwright_cache: {}
