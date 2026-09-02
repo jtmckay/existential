@@ -78,7 +78,7 @@ Or let it happen unattended — the auto-ollama-models quest copies migrations
 that the decree daemon runs as soon as ollama is healthy.
 
 At the defaults (~4 GB total) this takes a few minutes. Models are stored in
-the ollama_data volume and survive container restarts.
+the ollama_cache volume and survive container restarts.
 
 To pull individual models manually:
   docker exec ollama ollama pull <model>

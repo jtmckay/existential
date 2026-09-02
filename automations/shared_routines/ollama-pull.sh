@@ -96,6 +96,16 @@ ollama_api() {
     curl -fsSL --max-time 30 "${OLLAMA_URL}${1}" "${@:2}"
 }
 
+# /api/pull and /api/create stream for as long as the transfer takes — minutes
+# for a multi-GB tag. ollama_api's 30s cap is right for /api/tags and /api/show
+# and fatal here: curl exits 28 mid-stream, pipefail turns that into a routine
+# failure, and a failed migration halts the chain, so the extract/embed/vision
+# models behind it are never pulled either. That is the "ollama came up with no
+# models" failure the e2e harness found. Mirrors exist.pull-models.sh.
+ollama_api_stream() {
+    curl -fsSL --no-buffer --max-time 3600 "${OLLAMA_URL}${1}" "${@:2}"
+}
+
 # Present if any installed tag shares this model's base name (before the colon),
 # so "gemma4:e2b-it-qat" matches an existing "gemma4:e2b-it-qat" without demanding an exact tag.
 model_present() {
@@ -168,7 +178,7 @@ if [ -n "$OLLAMA_FROM" ]; then
     if ! model_present "$OLLAMA_FROM"; then
         echo "Base model ${OLLAMA_FROM} not present — pulling first..."
         jq -nc --arg m "$OLLAMA_FROM" '{model: $m}' \
-            | ollama_api /api/pull -X POST -H "Content-Type: application/json" --data @- \
+            | ollama_api_stream /api/pull -X POST -H "Content-Type: application/json" --data @- \
             | stream_until_done
     fi
 
@@ -184,7 +194,7 @@ if [ -n "$OLLAMA_FROM" ]; then
     else
         jq -nc --arg m "$OLLAMA_MODEL" --arg f "$OLLAMA_FROM" '{model: $m, from: $f}'
     fi \
-        | ollama_api /api/create -X POST -H "Content-Type: application/json" --data @- \
+        | ollama_api_stream /api/create -X POST -H "Content-Type: application/json" --data @- \
         | stream_until_done
     echo "${OLLAMA_MODEL} created."
     exit 0
@@ -199,7 +209,7 @@ fi
 
 echo "Pulling ${OLLAMA_MODEL}..."
 jq -nc --arg m "$OLLAMA_MODEL" '{model: $m}' \
-    | ollama_api /api/pull -X POST -H "Content-Type: application/json" --data @- \
+    | ollama_api_stream /api/pull -X POST -H "Content-Type: application/json" --data @- \
     | stream_until_done
 
 echo "${OLLAMA_MODEL} pulled."

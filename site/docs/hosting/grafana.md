@@ -20,15 +20,16 @@ Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) lo
 | Prometheus datasource | `provisioning/datasources/prometheus.yaml` | Default datasource, 15s scrape interval |
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Pre-built Decree monitoring |
+| Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `routine.log` and `message.md`, by message ID |
 
-Grafana re-reads the provisioning directory every 30 seconds, so changes to files take effect without a restart.
+Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
 
 ## Decree Overview dashboard
 
 Covers the Decree automation engine with panels for:
 
 - **Current Status** — last run success/failure per routine (Prometheus gauges)
-- **Run logs** — live log stream from Loki, filterable by routine, trigger type, and exit code
+- **Run logs** — live log stream from Loki, filterable by routine and trigger type
 
 This is the main place to check when a Decree automation fails or behaves unexpectedly.
 
@@ -36,7 +37,7 @@ This is the main place to check when a Decree automation fails or behaves unexpe
 
 - **New dashboard**: drop a JSON export into `hosting/grafana/provisioning/dashboards/`. Grafana auto-loads it.
 - **New datasource**: add a YAML file to `hosting/grafana/provisioning/datasources/`.
-- **Alerts**: configure in the Grafana UI or add alert rules to dashboard JSON — they persist in the `grafana_data` volume.
+- **Alerts**: unified alerting only, configured in the Grafana UI — rules persist in the `grafana_data` volume. Legacy alert rules embedded in dashboard JSON were removed in Grafana 11. Alerting rules are not provisioned from files here; only `datasources/` and `dashboards/` are bind-mounted.
 
 ## Data flow summary
 
@@ -47,7 +48,7 @@ Decree run
        └─ Loki push API (log: structured summary line)
 
 automations/runs/**/routine.log
-  └─ Alloy → Loki (full routine output, labeled by run_id/chain/seq)
+  └─ Alloy → Loki (full routine output, labeled by message_id/chain/seq)
 
 Grafana
   ├─ queries Prometheus for metric panels

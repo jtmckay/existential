@@ -210,6 +210,7 @@ declare -a CHECKS=(
     "comfyui	ai/comfyui/docker-compose.exist.yml	ghcr.io/ai-dock/comfyui	skip		"
     "collabora	nas/collabora/docker-compose.exist.yml	collabora/code	hub_clean	collabora/code	bare"
     "dashy	services/dashy/docker-compose.exist.yml	lissy93/dashy	github	Lissy93/Dashy	bare"
+    "grafana	hosting/grafana/docker-compose.exist.yml	grafana/grafana	hub_clean	grafana/grafana	bare"
     "decree-wh-go	services/decree/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
     "decree-wh-base	services/decree/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
     "hermes-agent	ai/hermes/docker-compose.exist.yml	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
@@ -231,6 +232,10 @@ declare -a CHECKS=(
     # returned 6.4.3, which does not exist on Docker Hub.
     "pihole	hosting/pihole/docker-compose.exist.yml	pihole/pihole	hub_clean	pihole/pihole	bare"
     "portainer	hosting/portainer/docker-compose.exist.yml	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
+    # github, not hub*: every prom/prometheus tag is v-prefixed (so hub_clean
+    # matches nothing) and hub sorts the -busybox/-distroless flavours above the
+    # plain tag. The GitHub release tag is the plain version.
+    "prometheus	hosting/prometheus/docker-compose.exist.yml	prom/prometheus	github	prometheus/prometheus	v"
     "uptime-kuma	hosting/uptime-kuma/docker-compose.exist.yml	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
     "whisperx	ai/whisperx/docker-compose.exist.yml	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
     "wyoming-piper	ai/wyoming-piper/docker-compose.exist.yml	rhasspy/wyoming-piper	github	OHF-Voice/wyoming-piper	bare"

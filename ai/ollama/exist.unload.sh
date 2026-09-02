@@ -16,9 +16,10 @@
 
 set -euo pipefail
 
-# Self-elevate into existential-adhoc if we're on the host. ollama publishes no
-# host port — OLLAMA_URL is http://ollama:11434, a Docker DNS name that only
-# resolves on the exist network.
+# Self-elevate into existential-adhoc if we're on the host. A local ollama
+# publishes no host port — the default endpoint is http://ollama:11434, a Docker
+# DNS name that only resolves on the exist network. adhoc is on that network,
+# and can equally reach a remote EXIST_OLLAMA_URL.
 if [[ -z "${IN_CONTAINER:-}" ]]; then
     _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
     _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
@@ -36,7 +37,13 @@ if [ -f "${REPO_DIR}/.env.shared" ]; then
     set +a
 fi
 
-OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
+# The chat model's address, resolved in one place. Never read EXIST_OLLAMA_URL_*
+# directly and never write a private fallback — src/utils/model-endpoints.sh is
+# the single source of truth, so an install whose chat model lives on another box
+# unloads it there instead of on a container that does not exist.
+# shellcheck source=../../src/utils/model-endpoints.sh
+. "${REPO_DIR}/src/utils/model-endpoints.sh"
+OLLAMA_URL="${OLLAMA_URL:-$(endpoint_for chat)}"
 MODEL="${1:-${EXIST_MODEL_CHAT:-}}"
 
 die() { echo "Error: $*" >&2; exit 1; }

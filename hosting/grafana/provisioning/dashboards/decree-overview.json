@@ -154,7 +154,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"decree\",routine=~\"$routine\"} | logfmt",
+          "expr": "{job=\"decree\",routine=~\"$routine\",trigger_type=~\"$trigger_type\"} | logfmt",
           "queryType": "range",
           "refId": "A",
           "maxLines": 100
@@ -447,6 +447,7 @@
         "type": "query"
       },
       {
+        "allValue": ".*",
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "hide": 0,
         "includeAll": true,

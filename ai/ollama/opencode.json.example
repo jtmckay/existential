@@ -21,9 +21,9 @@
   "provider": {
     "ollama": {
       "models": {
-        "gemma4:e2b": {
+        "gemma4:e2b-it-qat": {
           "_launch": true,
-          "name": "gemma4:e2b",
+          "name": "gemma4:e2b-it-qat",
           "modalities": {
             "input": [
               "text"
@@ -39,7 +39,7 @@
           "options": {
             "extraBody": {
               "options": {
-                "num_ctx": 128000
+                "num_ctx": 65536
               }
             }
           }
@@ -48,7 +48,7 @@
       "name": "Ollama",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "http://192.168.1.31:11434/v1"
+        "baseURL": "http://YOUR-OLLAMA-HOST:11434/v1"
       }
     }
   }

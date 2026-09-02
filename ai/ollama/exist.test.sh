@@ -15,14 +15,20 @@ skip_if_disabled
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
-
 # Model choice is global, never per-service: EXIST_MODEL_CHAT is written by the
 # VRAM tier table (src/utils/model-tiers.sh) via quest / `run models`. Hardcoding
 # a tag here made this test demand gemma4:26b on every machine — a tag that is
 # not even in the tier table — so a correctly configured CPU-tier host failed.
 load_env_exist
 MODEL="${OLLAMA_MODEL:-${EXIST_MODEL_CHAT:-}}"
+
+# Address is per-role and resolved in one place. Hardcoding http://ollama:11434
+# here tested a container that does not exist on an install pointed at another
+# box (EXIST_OLLAMA_URL / EXIST_OLLAMA_URL_CHAT), and reported it as ollama being
+# down. Never read the role keys directly — see src/utils/model-endpoints.sh.
+# shellcheck source=../../src/utils/model-endpoints.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/utils" && pwd)/model-endpoints.sh"
+OLLAMA_URL="${OLLAMA_URL:-$(endpoint_for chat)}"
 if [ -z "$MODEL" ]; then
     fail "EXIST_MODEL_CHAT set" \
          "neither OLLAMA_MODEL nor EXIST_MODEL_CHAT is set" \
@@ -81,10 +87,13 @@ fi
 MODEL_INFO=$(curl -sS "${OLLAMA_URL}/api/show" -d "{\"name\":\"${MODEL}\"}" 2>/dev/null || true)
 
 # What the model is CURRENTLY SERVING, which is not the same as what its
-# Modelfile bakes. A tag with no baked num_ctx silently inherits ollama's server
-# default (4096) — invisible in /api/show, and the exact state that truncates
-# hermes without reporting anything. /api/ps is the only place that shows it,
-# so it wins when the model is loaded; /api/show is the cold fallback.
+# Modelfile bakes. A tag with no baked num_ctx inherits ollama's own default,
+# which since 0.32 is *sized from VRAM* (`ollama serve --help`: "4k/32k/256k
+# based on VRAM") rather than a fixed 4096 — so it is not merely small, it is
+# unpredictable across machines. Invisible in /api/show either way, and the
+# exact state that truncates hermes without reporting anything. /api/ps is the
+# only place that shows it, so it wins when the model is loaded; /api/show is
+# the cold fallback.
 PS_JSON=$(curl -sS --max-time 5 "${OLLAMA_URL}/api/ps" 2>/dev/null || true)
 read -r LOADED_CTX LOADED_SIZE LOADED_VRAM <<EOF
 $(echo "$PS_JSON" | python3 -c "
@@ -147,7 +156,7 @@ fi
 
 if [ "$NUM_CTX" -eq 0 ]; then
     fail "num_ctx readable for ${MODEL}" \
-         "no num_ctx baked into the tag, and it is not loaded — ollama will serve its 4096 default" \
+         "no num_ctx baked into the tag, and it is not loaded — ollama will serve its own VRAM-sized default, which may be far below the tier" \
          "./existential.sh run ollama pull-models   (bakes num_ctx=${EXPECT_CTX})"
 elif [ "$NUM_CTX" -lt "$EXPECT_CTX" ]; then
     fail "num_ctx >= ${EXPECT_CTX} (tier)" \
@@ -212,7 +221,7 @@ except Exception: print(0)
         if [ "$KV_MB" -gt "$AVAIL_MB" ]; then
             fail "RAM headroom for KV cache" \
                  "KV cache for num_ctx=${NUM_CTX} needs ~$(fmt_mb "$KV_MB") (upper bound) but only $(fmt_mb "$AVAIL_MB") is available — loading this will swap or OOM" \
-                 "Lower EXIST_MODEL_CHAT_NUM_CTX, free RAM, or set OLLAMA_KV_CACHE_TYPE=q8_0 to halve it"
+                 "Lower EXIST_MODEL_CHAT_NUM_CTX, free RAM, or set OLLAMA_KV_CACHE_TYPE=q8_0 in ai/ollama/.env to halve it"
         else
             ok "KV cache ~$(fmt_mb "$KV_MB") for num_ctx=${NUM_CTX}, $(fmt_mb "$AVAIL_MB") available"
         fi

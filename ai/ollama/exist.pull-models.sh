@@ -39,12 +39,14 @@ if [ -f "${REPO_DIR}/.env.shared" ]; then
     set +a
 fi
 
-# EXIST_OLLAMA_URL (.env.shared) is the one place the address is named, so a
-# stack pointed at an ollama on another host pulls to THAT host. Hardcoding the
-# container name here made this action silently unusable in exactly that setup:
-# it waited 30 attempts on a name that does not resolve, exited 0, and left the
-# models unpulled — which surfaces much later as openviking embedding failures.
-OLLAMA_URL="${OLLAMA_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}"
+# Every role resolves its own endpoint, exactly as the ollama-pull routine does,
+# so a split install pulls each model to the box that will serve it. Reading the
+# EXIST_OLLAMA_URL_* keys here (or writing a private fallback) is forbidden —
+# src/utils/model-endpoints.sh is the single source of truth. An explicit
+# OLLAMA_URL still overrides everything, which is how you target one box.
+# shellcheck source=../../src/utils/model-endpoints.sh
+. "${REPO_DIR}/src/utils/model-endpoints.sh"
+_url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else endpoint_for "$1"; fi; }
 
 MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
 MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
@@ -60,15 +62,25 @@ command -v jq >/dev/null 2>&1 || die "jq not found"
 
 # Roles in pull order; the chat model must land before the num_ctx rebuild.
 # A blank value is skipped, which is how EXIST_MODEL_VISION= turns vision off.
-declare -a MODELS=()
-for m in "$MODEL_CHAT" "$MODEL_EXTRACT" "$MODEL_EMBED" "$MODEL_VISION"; do
-    [ -n "$m" ] || continue
-    # De-dupe: EXIST_MODEL_EXTRACT defaults to the same tag as chat.
-    for seen in ${MODELS[@]+"${MODELS[@]}"}; do
-        [ "$seen" = "$m" ] && { m=""; break; }
+# Each entry is "url<TAB>tag": de-duped on the PAIR, because the same tag on two
+# different boxes is two pulls, and two roles on one box sharing a tag is one.
+declare -a JOBS=()
+_add_job() {
+    local url tag entry
+    tag="$2"; [ -n "$tag" ] || return 0
+    url="$(_url_for "$1")"
+    entry="${url}"$'\t'"${tag}"
+    for seen in ${JOBS[@]+"${JOBS[@]}"}; do
+        [ "$seen" = "$entry" ] && return 0
     done
-    [ -n "$m" ] && MODELS+=("$m")
-done
+    JOBS+=("$entry")
+}
+_add_job chat    "$MODEL_CHAT"
+_add_job extract "$MODEL_EXTRACT"
+_add_job embed   "$MODEL_EMBED"
+_add_job vision  "$MODEL_VISION"
+
+CHAT_URL="$(_url_for chat)"
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 
@@ -76,15 +88,18 @@ echo ""
 echo "  ollama model setup"
 hr
 echo ""
-echo "  Waiting for ollama at ${OLLAMA_URL}..."
-for i in $(seq 1 30); do
-    if curl -sf --max-time 5 "${OLLAMA_URL}/api/tags" >/dev/null 2>&1; then
-        echo "  ollama ready."
-        break
-    fi
-    [ "$i" -eq 30 ] && die "ollama did not respond after 30 attempts"
-    sleep 5
-done
+_wait_for() {
+    local url="$1" i
+    echo "  Waiting for ollama at ${url}..."
+    for i in $(seq 1 30); do
+        if curl -sf --max-time 5 "${url}/api/tags" >/dev/null 2>&1; then
+            echo "  ollama ready."
+            return 0
+        fi
+        [ "$i" -eq 30 ] && die "ollama at ${url} did not respond after 30 attempts"
+        sleep 5
+    done
+}
 
 # ── Pull models ───────────────────────────────────────────────────────────────
 
@@ -101,8 +116,10 @@ echo ""
 #
 # The cost is that an existing tag is never refreshed from upstream. Deleting it
 # on the ollama host (`ollama rm <tag>`) is how you ask for a fresh copy.
-HAVE_TAGS=$(curl -sf --max-time 10 "${OLLAMA_URL}/api/tags" 2>/dev/null \
-    | jq -r '.models[]?.name' 2>/dev/null || true)
+_tags_at() {
+    curl -sf --max-time 10 "${1}/api/tags" 2>/dev/null \
+        | jq -r '.models[]?.name' 2>/dev/null || true
+}
 
 _have_model() {
     local want="$1" have
@@ -117,16 +134,23 @@ EOF
     return 1
 }
 
-for model in "${MODELS[@]}"; do
+LAST_URL=""
+for job in "${JOBS[@]}"; do
+    IFS=$'\t' read -r url model <<< "$job"
+    if [ "$url" != "$LAST_URL" ]; then
+        _wait_for "$url"
+        HAVE_TAGS="$(_tags_at "$url")"
+        LAST_URL="$url"
+    fi
     if _have_model "$model"; then
-        echo "  ${model} already present — skipping pull."
+        echo "  ${model} already present at ${url} — skipping pull."
         echo ""
         continue
     fi
-    echo "  Pulling ${model}..."
+    echo "  Pulling ${model} to ${url}..."
     # --max-time so an unsatisfiable name fails the command instead of hanging.
     jq -nc --arg m "$model" '{model: $m}' \
-        | curl -fsSL --no-buffer --max-time 3600 "${OLLAMA_URL}/api/pull" \
+        | curl -fsSL --no-buffer --max-time 3600 "${url}/api/pull" \
                -H "Content-Type: application/json" --data @- \
         | while IFS= read -r line; do
             [ -n "$line" ] || continue
@@ -143,13 +167,13 @@ done
 # tag, so every consumer still names exactly one model.
 
 if [ -n "$MODEL_CHAT_NUM_CTX" ]; then
-    echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} via /api/create..."
+    echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} at ${CHAT_URL}..."
     # Structured fields, not the retired flat `modelfile` string — current ollama
     # rejects the latter with a 400. Keep in step with automations/shared_routines/ollama-pull.sh.
     jq -nc --arg m "$MODEL_CHAT" --arg f "$MODEL_CHAT" \
            --argjson c "$MODEL_CHAT_NUM_CTX" \
            '{model: $m, from: $f, parameters: {num_ctx: $c}}' \
-        | curl -fsSL --no-buffer "${OLLAMA_URL}/api/create" \
+        | curl -fsSL --no-buffer --max-time 3600 "${CHAT_URL}/api/create" \
                -H "Content-Type: application/json" --data @- \
         | while IFS= read -r line; do
             [ -n "$line" ] || continue
@@ -163,5 +187,9 @@ echo ""
 hr
 echo ""
 echo "  Done. Models available:"
-curl -sf "${OLLAMA_URL}/api/tags" | jq -r '.models[]?.name | "  " + .' 2>/dev/null || true
+URLS=$(printf '%s\n' "${JOBS[@]}" | cut -f1 | sort -u)
+for url in $URLS; do
+    [ "$(printf '%s\n' "$URLS" | wc -l)" -gt 1 ] && echo "  ${url}:"
+    _tags_at "$url" | sed 's/^/  /'
+done
 echo ""

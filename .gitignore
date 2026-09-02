@@ -18,12 +18,10 @@
 **/nextcloud_data
 **/openwebui_data
 **/nextcloudsql_data
-**/ollama_data
 **/pg_data
 **/qdrant_data
 **/redis_data
 **/speaches_data
-**/uptime-kuma_data
 
 **/node_modules
 
@@ -147,9 +145,6 @@ automations/outbox/
 
 # Honcho
 **/honcho/config.toml
-
-# Ollama
-**/ollama/entrypoint.sh
 
 # Playwright MCP scratch output (screenshots, traces)
 **/.playwright-mcp/
