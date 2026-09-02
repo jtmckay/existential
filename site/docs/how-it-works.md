@@ -24,8 +24,8 @@ flowchart TB
 
     hermes["<b>Hermes</b> — the one endpoint<br/><i>OpenAI-compatible · sessions · skills</i>"]
     ollama["Ollama<br/><i>the models</i>"]
-    stt["WhisperX<br/><i>speech → text</i>"]
-    tts["Chatterbox<br/><i>text → speech</i>"]
+    stt["wyoming-whisper<br/><i>speech → text</i>"]
+    tts["wyoming-piper<br/><i>text → speech</i>"]
 
     viking["OpenViking<br/><i>what it knows</i>"]
     honcho["Honcho<br/><i>what it remembers about you</i>"]
@@ -81,7 +81,7 @@ flowchart TB
 | **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper) | What Home Assistant listens with. Speaks the Wyoming protocol HA expects, and runs on CPU so it never evicts the model from the GPU. |
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper) | The voice it answers in, over the same protocol and also on CPU — a spoken reply has to land immediately. |
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
-| **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Expressive and cloneable, over an OpenAI-compatible API — for anything in the stack generating audio outside the HA pipeline. |
+| **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. |
 | **Coding front end** | [opencode](./ai/ollama#opencode-integration) | Configured with the Hermes URL as its OpenAI endpoint, so it shares the same models and skills. |

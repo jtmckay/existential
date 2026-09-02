@@ -4,19 +4,26 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import ServiceTour from '@site/src/components/ServiceTour';
-import { TOUR } from '@site/src/data/tourServices';
+import { TOUR, type TourSection } from '@site/src/data/tourServices';
 
 import styles from './tour.module.css';
 
-/** Counts apps, so summary cards like `mobile` don't inflate the tally. */
-const count = (kind: 'hosted' | 'recommended') =>
-  TOUR.filter((s) => s.kind === kind).reduce(
+/**
+ * Counts apps, so summary cards like `mobile` don't inflate the tally.
+ *
+ * Core and beyond-Core are counted separately and said separately in the lede:
+ * one number covering both would be the same overclaim the divider exists to
+ * stop — Core installs the first figure, not the sum.
+ */
+const count = (match: (s: TourSection) => boolean) =>
+  TOUR.filter(match).reduce(
     (n, s) => n + s.services.filter((service) => !service.summary).length,
     0,
   );
 
-const HOSTED = count('hosted');
-const RECOMMENDED = count('recommended');
+const CORE = count((s) => s.tier === 'core' && s.kind === 'hosted');
+const CORE_CLIENTS = count((s) => s.tier === 'core' && s.kind === 'recommended');
+const EXTRA = count((s) => s.tier === 'extra');
 
 function TourHeader(): ReactNode {
   return (
@@ -26,9 +33,10 @@ function TourHeader(): ReactNode {
           What you actually get
         </Heading>
         <p className={styles.heroLede}>
-          {HOSTED} apps Existential hosts on hardware you own, every one of them free and
-          open source — plus {RECOMMENDED} more we would recommend installing yourself.
-          Scroll through and see what they look like.
+          <strong>{CORE} apps make up the core</strong> — on
+          hardware you own, every one of them free and open source — plus {CORE_CLIENTS}{' '}
+          clients you install on your own machines to reach them. Plus {EXTRA} optional bonus
+          services you can turn on. Scroll through and see what they look like.
         </p>
       </div>
     </header>

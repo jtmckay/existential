@@ -138,9 +138,7 @@ note-triage:
   enabled: true
 idea-workup:
   enabled: true
-dept-research:
-  enabled: true
-dept-sales:
+hermes-dept:
   enabled: true
 ```
 
@@ -149,15 +147,16 @@ dept-sales:
 is gitignored, so it is yours to edit. A rendered file is never re-rendered.
 :::
 
-### 3. Provision the hermes profiles — fan-out path only
+### 3. Confirm the hermes profiles exist — fan-out path only
 
 ```bash
-./existential.sh run hermes profiles
+docker exec hermes-agent ls /opt/data/profiles
 ```
 
-Each department is served at `/p/<name>/v1` with its own tools and its own API key. Skip this
-and every department call returns 401, because a profile does not borrow the default profile's
-credential.
+`ai/hermes/entrypoint.sh` provisions every profile in `ai/hermes/profiles/` on boot, so
+`research` and `sales` should already be there; if not, `docker compose up -d hermes-agent`.
+Each department is served at `/p/<name>/v1` with its own tools and its own API key — a profile
+does not borrow the default profile's credential, so an unprovisioned one returns 401.
 
 ### 4. Restart, then watch it do nothing
 
@@ -252,9 +251,9 @@ department whose hermes profile owns the right tools:
 
 | Question | Department | Why that profile |
 |---|---|---|
-| Who else is already doing this? | `dept-research` | The only department with web access — `search`, `web`, plus Firecrawl and OpenViking |
-| How big is the market? | `dept-research` | Same tools; a separate message so it lands as its own document |
-| What is my value proposition? | `dept-sales` | Owns pricing, positioning and customer-facing writing |
+| Who else is already doing this? | `research` | The only department with web access — `search`, `web`, plus Firecrawl and OpenViking |
+| How big is the market? | `research` | Same tools; a separate message so it lands as its own document |
+| What is my value proposition? | `sales` | Owns pricing, positioning and customer-facing writing |
 
 Each answer arrives as its own file in `workspace/ai/`:
 
@@ -369,7 +368,7 @@ are copied back to the vault over rclone instead.
 | The triage call and the chain | **Ships.** `note-triage` → outbox message → next routine |
 | Knowing an idea is already evaluated | **Ships.** The ledger at `/data/note-triage/ideas.tsv` |
 | Research, draft, open questions | **Ships.** `note-develop`, with [Firecrawl](../ai/firecrawl) research when configured |
-| Competition, market size, value proposition | **Ships.** `idea-workup` → `dept-research` and `dept-sales` |
+| Competition, market size, value proposition | **Ships.** `idea-workup` → `hermes-dept` (research and sales) |
 | Indexing notes for retrieval | **Ships.** [OpenViking](../ai/openviking) watches directories and keeps them queryable |
 | Notifying you | **Ships.** `notify` → ntfy, or `telegram-notify` |
 | **What counts as worth acting on** | **Yours.** One line of prompt, and the whole point of the flow |

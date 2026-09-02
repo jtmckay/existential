@@ -4,9 +4,8 @@ routine: note-triage
 TRIAGE_CRITERIA: "a business idea — something the author could plausibly build, sell, or start"
 TRIAGE_ROUTINE: note-develop
 TRIAGE_MAX_NOTES: "20"
-# Swap the work: idea-workup fans the idea out to dept-research and dept-sales
-# instead of drafting one document. Needs those routines enabled and
-# `./existential.sh run hermes profiles` run once.
+# Swap the work: idea-workup fans the idea out to the research and sales departments
+# instead of drafting one document. Needs idea-workup and hermes-dept enabled.
 # TRIAGE_ROUTINE: idea-workup
 # TRIAGE_LEDGER: "false"   # chain every pass, even an idea already evaluated
 # TRIAGE_LEDGER_MAX: "100" # how many past ideas the "is it new?" call sees

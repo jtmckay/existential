@@ -10,16 +10,20 @@ are here to see what the system does, start at [Level 3 · Flows](../flows/).
 :::
 
 A task arrives with no idea who should handle it. `hermes-router` reads it, names one
-department, and writes a decree message addressed to that department's routine. The department
-answers with its own tools and files the result in `workspace/ai/`.
+department, and writes a decree message naming that department. The department answers with its
+own tools and files the result in `workspace/ai/`.
+
+There is one routine for all of them — `hermes-dept` — because a department's identity is not
+code. It is a profile definition in `ai/hermes/profiles/<name>/profile.yml`, and *that* is what
+both the router and hermes itself read.
 
 ```mermaid
 flowchart LR
     A["📥 inbox\nroutine: hermes-router"] --> B["🧭 hermes-router"]
     B -->|/p/router/v1| C["hermes\nrouter profile\n(no tools)"]
     C -->|"a department name"| B
-    B -->|outbox| D["🏷️ dept-research"]
-    B -->|outbox| E["🏷️ dept-sales"]
+    B -->|"outbox\nprofile: research"| D["🏷️ hermes-dept"]
+    B -->|"outbox\nprofile: sales"| E["🏷️ hermes-dept"]
     B -->|"no match, or\nan unknown answer"| F["🚫 route-failed"]
     D -->|/p/research/v1| G["hermes\nresearch profile\nsearch · web · openviking · firecrawl"]
     E -->|/p/sales/v1| H["hermes\nsales profile\nskills · todo · openviking"]
@@ -51,47 +55,44 @@ Routing on the tool-free profile is what makes it cheap enough to run on every m
 
 ## Adding a department
 
-A department is one file in `automations/shared_routines/`:
+A department is one directory in `ai/hermes/profiles/`. Create
+`ai/hermes/profiles/legal/profile.yml`:
 
-```bash
-#!/usr/bin/env bash
-# Department: legal
-#
-# DEPT_DESCRIPTION: Contracts, terms, licensing questions, and compliance review.
-# DEPT_TOOLSETS: skills, todo
-# DEPT_MCP: openviking
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# ... precheck block, copied from dept-sales.sh ...
-DEPT_PROFILE="legal"
-source "${SCRIPT_DIR}/../lib/hermes-dept.sh"
-dept_run
+```yaml
+description: Contracts, terms, licensing questions, and compliance review.
+toolsets: skills, todo
+mcp: openviking
 ```
 
-Those three header lines are the whole registration. `hermes-router` reads `DEPT_DESCRIPTION`
-out of every `dept-*.sh` to build the list it chooses from, and
-`./existential.sh run hermes profiles` reads all three to create the matching hermes profile.
-Nothing else changes — no registry, no router edit.
+Then `docker compose up -d hermes-agent`. That is the whole job.
 
-Then:
+Those three keys are the whole registration, and they are read by exactly two things:
+`ai/hermes/entrypoint.sh` creates the matching hermes profile on boot, and `hermes-router`
+reads the same file — over its read-only `/repo` mount — to build the list it chooses from.
+No routine to write, no registry, no router edit, and no second copy of the description to
+drift.
 
-1. Add `dept-legal: {enabled: true}` to `services/decree/decree/config.exist.yml`. Shared
-   routines are invisible until they are listed.
-2. `./existential.sh && docker compose up -d`
-3. `./existential.sh run hermes profiles` — creates `profiles/legal/` with the toolsets and MCP
-   servers the header named, inheriting the model from your default profile.
+Write `description` as the answer to *"when should work come here?"*. It is the only thing the
+router sees, so a vague one produces vague routing.
 
-Write `DEPT_DESCRIPTION` as the answer to *"when should work come here?"*. It is the only thing
-the router sees, so a vague one produces vague routing.
+The one thing that is not automatic: `hermes-dept` must be enabled in
+`services/decree/decree/config.yml` (shared routines are invisible until listed). Enable it
+once and every department you add afterwards works with no further change.
 
 ## Provisioning the profiles
 
-```
-./existential.sh run hermes profiles
-```
+Nothing to run — `ai/hermes/entrypoint.sh` provisions every profile in `ai/hermes/profiles/`
+when the container starts.
+
+That is the only place it *can* happen, and the reason is worth knowing before you go looking
+for a migration to do it with: profiles are created by the hermes CLI writing into the
+container's own data volume, so the host would need `docker exec` and decree cannot reach them
+at all — it has no Docker socket, and it sees the repo read-only. Config a service owns, written
+by that service's entrypoint, is the repo's standing answer for exactly this shape.
 
 Idempotent and never destructive: an existing profile keeps its `config.yaml`. To rebuild one
-after changing its header, delete `volumes/hermes_agent_data/profiles/<name>` and run it again.
+after changing its definition, delete `volumes/hermes_agent_data/profiles/<name>` and restart
+hermes.
 
 Each profile gets its own `API_SERVER_KEY`. Secondary profiles do not borrow the default
 profile's credential — a profile without one returns 401 on every request, and an unknown
@@ -118,8 +119,8 @@ output_name: competitor-scan
 Find out who already sells this, and how they position against each other.
 ```
 
-Or skip the router and address a department directly with `routine: dept-research` — the same
-routine, no routing call. A file processor does this by writing the outbox message itself; see
+Or skip the router and address a department directly with `routine: hermes-dept` and
+`profile: research` — the same routine the router would have queued, no routing call. A file processor does this by writing the outbox message itself; see
 [File Processor](./file-change-processing).
 
 ## When routing fails

@@ -132,8 +132,11 @@ that merely runs at 3B speed.
   wyoming-piper) so they never compete with the LLM for VRAM. `EXIST_MODEL_STT` takes
   `tiny | base | small | medium | large-v3`; `EXIST_MODEL_TTS_VOICE` takes a piper voice
   (`<lang>_<REGION>-<name>-<quality>` — browse and listen at
-  [piper-samples](https://rhasspy.github.io/piper-samples/)). This is not whisperx: that
-  one runs on the GPU and transcribes long recordings with speaker labels.
+  [piper-samples](https://rhasspy.github.io/piper-samples/)). `EXIST_MODEL_STT_LANGUAGE` is a
+  language hint (`en` by default) that beats auto-detect on short commands — set it to the
+  language you actually speak, since a one-word wake command gives the detector almost nothing
+  to work with. This is not whisperx: that one runs on the GPU and transcribes long recordings
+  with speaker labels.
 
 <a id="endpoints"></a>
 
@@ -294,6 +297,9 @@ The remaining keys are secrets shared *between* services, generated on render:
   ntfy's own entrypoint on first boot — nothing to run by hand. `EXIST_NTFY_TOKEN` is optional and
   ships blank; it takes precedence when set, so a stale or unrecognised value 401s every publish
   and the working user/password path is never tried. Mint one with `./existential.sh run ntfy setup`.
+  `EXIST_NTFY_TOPICS` is what that identity is granted read/write on — `*` by default, because
+  services publish to topics of their own naming (`decree`, `alerts`, `exist-md`, …). Narrow it
+  only if you also rename those topics, or publishes start failing with a permission error.
 - `EXIST_TELEGRAM_BOT_TOKEN` / `EXIST_TELEGRAM_CHAT_ID` — the fallback `notify.sh` uses when
   ntfy is unreachable. Create a bot with [BotFather](https://t.me/BotFather) (`/newbot`), then
   message it and read the chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`.

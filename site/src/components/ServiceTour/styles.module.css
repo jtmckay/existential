@@ -6,21 +6,36 @@
 .tour {
   --tour-radius: 14px;
   /*
-   * One scroll step: the vertical rhythm of the tour. The sticky frame column
-   * and each text panel are BOTH exactly this tall, which is what keeps the
-   * picture level with the text before the frame has stuck. Change it in one
-   * place or not at all.
+   * One scroll step: the vertical rhythm of the tour, and the distance between
+   * one service and the next. The sticky frame column and each text panel are
+   * BOTH exactly this tall, which is what keeps the picture level with the text
+   * before the frame has stuck. Change it in one place or not at all.
+   *
+   * This is a floor, not a taste: the frame is 3/2 and as wide as its column, so
+   * on a 1080px-tall viewport it is already ~46vh. Going below that does not
+   * tighten the page, it just clamps the screenshot (see .frame's max-width) and
+   * makes the picture smaller. 48vh is as close to the image as it goes — and it
+   * is deliberately under half the viewport, so the next service is always
+   * visible below the current one rather than a screen away.
    */
-  --tour-step: 72vh;
+  --tour-step: 48vh;
+  /*
+   * The tour runs wider than the rest of the site. Infima's .container caps at
+   * --ifm-container-width (1140px by default), which silently overrode .grid's
+   * own max-width below and held the screenshot ~15% narrower than intended.
+   * Setting the variable here rather than overriding max-width keeps .container's
+   * padding and centring behaviour intact.
+   */
+  --ifm-container-width: 84rem;
 }
 
 .stage {
-  padding: 3rem 0 5rem;
+  padding: 2rem 0 3rem;
 }
 
 .stageHead {
   max-width: 44rem;
-  margin: 0 auto 2rem;
+  margin: 0 auto 1.5rem;
   text-align: center;
 }
 
@@ -52,6 +67,32 @@
   padding: 0.25rem 0.7rem;
 }
 
+/*
+ * How many services are in this section, and which one you are on. The tour's
+ * failure mode is not knowing there is more below: a pinned frame with one
+ * paragraph beside it reads like the end of the page. Cheap, and it answers
+ * "how much of this is left" at a glance.
+ */
+.progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
+.pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ifm-color-emphasis-300);
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.pipOn {
+  background: var(--ifm-color-primary);
+  transform: scale(1.35);
+}
+
 .stageLede {
   font-size: 1rem;
   line-height: 1.65;
@@ -62,9 +103,9 @@
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 3rem;
-  max-width: 76rem;
+  max-width: 82rem;
   margin: 0 auto;
 }
 
@@ -99,12 +140,30 @@
   height: var(--tour-step);
   display: flex;
   align-items: center;
+  /* The frame is width-driven, so on a short window it can grow taller than the
+     step it sits in. Its max-width below keeps it inside; centre what is left. */
+  justify-content: center;
 }
 
 .frame {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 2;
+  /*
+   * Height is width x 2/3, so the picture needs a height budget. Budget it
+   * against the VIEWPORT, not --tour-step: tying it to the step meant every
+   * tightening of the scroll rhythm silently shrank the screenshot, which is the
+   * opposite trade. max-width rather than max-height so the aspect ratio is
+   * preserved instead of squashed.
+   *
+   * The frame may therefore end up taller than the sticky box it sits in. That
+   * is fine and stays centred: the box is centred in the viewport and the frame
+   * is centred in the box, so the overflow is symmetric and lands in the stage's
+   * own padding. What matters is that the BOX stays exactly one step tall — that
+   * equality is what keeps the picture level with the text before sticky
+   * engages.
+   */
+  max-width: calc(60vh * 3 / 2);
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--tour-radius);
   background: var(--ifm-background-surface-color);
@@ -297,7 +356,7 @@
 
 @media screen and (max-width: 996px) {
   .stage {
-    padding: 2rem 0 3rem;
+    padding: 1.5rem 0 2rem;
   }
 
   .grid {
@@ -385,5 +444,51 @@
     opacity: 1;
     transform: none;
     transition: none;
+  }
+}
+
+/* ── The Core / beyond-Core divider ──────────────────────────────────────────
+ *
+ * Deliberately the loudest thing on the page after the hero: a full-bleed band
+ * that breaks the rhythm of the stages, so the transition cannot be scrolled
+ * past without registering. The tour's one real failure mode is a reader taking
+ * every card for part of the system.
+ */
+.beyond {
+  margin: 2rem 0 1rem;
+  padding: 3rem 0;
+  border-top: 3px solid var(--ifm-color-primary);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-color-emphasis-100);
+  text-align: center;
+}
+
+.beyondKicker {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+}
+
+.beyondTitle {
+  margin: 0 0 1rem;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1.15;
+}
+
+.beyondLede {
+  margin: 0 auto;
+  max-width: 46rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--ifm-color-emphasis-800);
+}
+
+@media (max-width: 768px) {
+  .beyond {
+    margin-top: 1.5rem;
+    padding: 2.5rem 0;
   }
 }

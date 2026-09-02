@@ -44,10 +44,10 @@ tokens on every single call. A router that only has to *pick a department* needs
 so it runs at about 650 tokens: a 64x reduction on a decision made for every incoming message.
 
 Each profile needs its own `API_SERVER_KEY` — one profile's key will not authenticate against
-another, and an unknown profile name returns 404. `./existential.sh run hermes profiles` creates
-one profile per `dept-*.sh` routine, reading each department's declared description, toolsets and
-MCP servers straight out of its source. It is idempotent, so re-running only fills in what is
-missing.
+another, and an unknown profile name returns 404. `ai/hermes/entrypoint.sh` creates one profile
+per directory in `ai/hermes/profiles/` on every boot, reading each department's declared
+description, toolsets and MCP servers out of its `profile.yml`. It is idempotent, so a restart
+only fills in what is missing.
 
 See [Routing to Departments](../decree/routing.md) for how a message reaches the right one.
 

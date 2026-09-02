@@ -6,9 +6,9 @@
 # outbox messages, each naming the department whose hermes profile owns the
 # tools that question needs.
 #
-#   who else is doing this   → dept-research  (the only department with web access)
-#   how big is the market    → dept-research
-#   what is my value prop    → dept-sales     (pricing and positioning)
+#   who else is doing this   → research  (the only department with web access)
+#   how big is the market    → research
+#   what is my value prop    → sales     (pricing and positioning)
 #
 # Each answer lands in workspace/ai/<slug>-<question>.md as its own document
 # with its own notification, which is the point — three focused answers you can
@@ -20,11 +20,13 @@
 # Two things worth knowing before enabling it:
 #
 #   * The departments write to /workspace/ai, and only the MAIN decree daemon
-#     has a writable /workspace. Enable idea-workup, dept-research and
-#     dept-sales in services/decree/decree/config.yml — not in decree-backup.
-#   * The profiles must exist: ./existential.sh run hermes profiles. Without
-#     them every department call 401s, because a profile carries its own
-#     API_SERVER_KEY rather than borrowing the default one's.
+#     has a writable /workspace. Enable idea-workup and hermes-dept in
+#     services/decree/decree/config.yml — not in decree-backup.
+#   * The profiles must exist. hermes' entrypoint provisions them from
+#     ai/hermes/profiles/ on boot, so this is only a question after adding a
+#     new department: restart hermes. Without a profile every department call
+#     401s, because each carries its own API_SERVER_KEY rather than borrowing
+#     the default one's.
 #
 # Decree runs messages one at a time and AGENT_TIMEOUT defaults to 900s, so a
 # fan-out of three can take the better part of an hour. It is not stuck.
@@ -51,8 +53,8 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
         "NOTES_DIR ${NOTES_DIR:-/data/notes} does not exist — run the 'notes' routine first, or point NOTES_DIR at your vault"
     [ -n "${HERMES_API_KEY:-}" ] || precheck_fail "idea-workup" \
         "HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through"
-    compgen -G "${SCRIPT_DIR}/dept-*.sh" >/dev/null 2>&1 || precheck_fail "idea-workup" \
-        "no dept-*.sh routines found in shared_routines/ — nothing to hand the questions to"
+    [ -f "${SCRIPT_DIR}/hermes-dept.sh" ] || precheck_fail "idea-workup" \
+        "hermes-dept.sh not found in shared_routines/ — nothing to hand the questions to"
     precheck_pass "idea-workup"
     exit 0
 fi
@@ -95,19 +97,20 @@ fi
 
 # --- The three questions ---------------------------------------------------
 #
-# Each is one outbox message. The shape is what lib/hermes-dept.sh expects: it
-# strips the frontmatter and treats the body as the task, so the question and
-# the note both go below the fence. The note is embedded rather than referenced
-# because a department profile has no filesystem access.
+# Each is one outbox message. The shape is what hermes-dept expects: it strips
+# the frontmatter and treats the body as the task, so the question and the note
+# both go below the fence. The note is embedded rather than referenced because a
+# department profile has no filesystem access.
 
 hand_off() {
-    # hand_off <routine> <suffix> <question>
-    local routine="$1" suffix="$2" question="$3" out
+    # hand_off <profile> <suffix> <question>
+    local profile="$1" suffix="$2" question="$3" out
 
     out="${OUTBOX_DIR}/idea-workup-${suffix}-$(date +%s%N).md"
     {
         printf -- '---\n'
-        printf 'routine: %s\n' "$routine"
+        printf 'routine: hermes-dept\n'
+        printf 'profile: %s\n' "$profile"
         printf 'output_name: %s\n' "$(jq -rn --arg v "${slug}-${suffix}" '$v|@json')"
         printf 'source_file: %s\n' "$(jq -rn --arg v "$note_path" '$v|@json')"
         printf -- '---\n\n'
@@ -118,22 +121,22 @@ hand_off() {
         printf -- '--- the note ---\n%s\n--- end note ---\n' "$note_body"
     } > "$out"
 
-    echo "  ${routine} → workspace/ai/${slug}-${suffix}.md"
+    echo "  ${profile} → workspace/ai/${slug}-${suffix}.md"
 }
 
-hand_off dept-research competition \
+hand_off research competition \
 "Who is already doing this? Name the real products and companies that solve this problem
 today, what they charge, and where each of them is weak. Then say in one paragraph whether
 the space is crowded, contested, or genuinely open. Where you could not find something, say
 so rather than filling the gap."
 
-hand_off dept-research tam \
+hand_off research tam \
 "How big is the market for this? Work from the bottom up: who exactly would buy it, roughly
 how many of them there are, and what they already spend on the problem. Show the arithmetic
 so the number can be argued with. State every assumption you had to make, and say plainly
 which of them you could not verify."
 
-hand_off dept-sales value-prop \
+hand_off sales value-prop \
 "What is the value proposition here? Name who the buyer is, then write the one sentence that
 would make that buyer stop and read, then the three reasons they would choose this over what
 they use today, then the strongest objection they would raise and whether it can be answered.

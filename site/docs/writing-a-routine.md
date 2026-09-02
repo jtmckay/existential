@@ -228,7 +228,8 @@ mkdir -p "$OUTBOX_DIR"
 
 cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" <<MSG
 ---
-routine: dept-research
+routine: hermes-dept
+profile: research
 output_name: competition
 ---
 Who else is already doing this?

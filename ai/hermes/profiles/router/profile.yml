@@ -1,0 +1,7 @@
+# The router is not a department: it reads a task, names the department that
+# should handle it, and stops. No toolsets and no MCP on purpose — choosing
+# between two words needs neither, and every tool it carried would be paid for
+# on every routed message. This is the profile that makes routing affordable.
+description: Routing only: reads a task and names the department that should handle it.
+toolsets:
+mcp:

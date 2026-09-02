@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -63,6 +64,34 @@ function Shot({
   );
 }
 
+/**
+ * The line between what Core installs and what it does not.
+ *
+ * Rendered once, immediately before the first `tier: 'extra'` section. It exists
+ * because the failure mode of this page is a reader assuming every card is part
+ * of the system — which is exactly what happened with portainer, pihole and
+ * uptime-kuma sitting inside "Underneath". Sections above it are the product;
+ * sections below it are a flag you flip yourself.
+ */
+function BeyondCore(): ReactNode {
+  return (
+    <aside className={styles.beyond} aria-label="Beyond Core">
+      <div className="container">
+        <p className={styles.beyondKicker}>Everything above is Core</p>
+        <Heading as="h2" className={styles.beyondTitle}>
+          Everything below is extra
+        </Heading>
+        <p className={styles.beyondLede}>
+          Core is one choice at setup and it comes up wired together — that is the system this
+          page is about, and it ends here. Every service past this line is off by default and
+          nothing above depends on any of them. They are real, they are supported, and they are
+          entirely optional: turn one on when you want it, or never.
+        </p>
+      </div>
+    </aside>
+  );
+}
+
 function Stage({
   section,
   sectionIndex,
@@ -95,10 +124,30 @@ function Stage({
           <Heading as="h2" id={headingId} className={styles.stageTitle}>
             {section.name}
           </Heading>
+          {/* Two independent facts. A section can be neither, either or both:
+              'recommended' means you install it rather than the stack hosting it
+              (true of two Core sections), 'extra' means Core does not include it. */}
           {section.kind === 'recommended' && (
-            <span className={styles.stageBadge}>Recommended · not hosted</span>
+            <span className={styles.stageBadge}>You install this one · not hosted</span>
+          )}
+          {section.tier === 'extra' && section.kind === 'hosted' && (
+            <span className={styles.stageBadge}>Beyond Core · off unless you turn it on</span>
           )}
           {section.lede && <p className={styles.stageLede}>{section.lede}</p>}
+          {section.services.length > 1 && (
+            <div
+              className={styles.progress}
+              role="img"
+              aria-label={`Service ${active + 1} of ${section.services.length} in this section`}
+            >
+              {section.services.map((service, i) => (
+                <span
+                  key={service.slug}
+                  className={clsx(styles.pip, i === active && styles.pipOn)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className={styles.grid}>
@@ -279,14 +328,17 @@ export default function ServiceTour(): ReactNode {
   return (
     <div className={styles.tour}>
       {TOUR.map((section, i) => (
-        <Stage
-          key={section.name}
-          section={section}
-          sectionIndex={i}
-          active={active[i]}
-          registerSection={registerSection}
-          registerPanel={registerPanel}
-        />
+        <Fragment key={section.name}>
+          {/* The first extra section is where Core stops. */}
+          {section.tier === 'extra' && TOUR[i - 1]?.tier === 'core' && <BeyondCore />}
+          <Stage
+            section={section}
+            sectionIndex={i}
+            active={active[i]}
+            registerSection={registerSection}
+            registerPanel={registerPanel}
+          />
+        </Fragment>
       ))}
     </div>
   );

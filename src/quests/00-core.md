@@ -88,6 +88,14 @@ copies:
     dst: services/decree/decree/cron/
     label: "decree: health-checks.md"
     requires: EXIST_IS_SERVICES_DECREE
+  # Keeps workspace/ searchable. Core installs openviking as the agent's context
+  # database, but nothing puts anything IN it — without this cron hermes answers
+  # from the model alone and the "it knows your material" half of Core is inert.
+  # Same tree hermes and code-server already share, so there is nothing to place.
+  - src: services/decree/decree/cron.example/openviking-index-knowledgebase.md
+    dst: services/decree/decree/cron/
+    label: "decree: openviking-index-knowledgebase.md (index workspace/ every 15m)"
+    requires: EXIST_IS_AI_OPENVIKING
 ---
 
 Core is the whole system in one pass: your files, your house, a local agent

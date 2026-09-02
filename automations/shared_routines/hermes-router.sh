@@ -4,9 +4,11 @@
 # Decides which department should handle a message, then writes an outbox
 # message naming that department's routine. It does not do the work itself.
 #
-# Departments are discovered, not configured: every dept-<name>.sh in
-# shared_routines/ is a candidate, and its DEPT_DESCRIPTION line is what the
-# router sees. Adding a department is adding a file — nothing here changes.
+# Departments are discovered, not configured: every ai/hermes/profiles/<name>/
+# is a candidate and its profile.yml `description:` is what the router sees —
+# the same file hermes' entrypoint provisions the profile from, so a description
+# is written once. Adding a department is adding a directory; nothing here
+# changes. The router profile itself is skipped: it cannot route to itself.
 #
 # The decision runs against the hermes 'router' profile (/p/router/v1), which
 # carries no toolsets and no MCP servers because naming a department needs
@@ -45,13 +47,17 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     command -v jq >/dev/null 2>&1 || precheck_fail "hermes-router" "jq not found"
     [ -n "${HERMES_API_KEY:-}" ] || precheck_fail "hermes-router" \
         "HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through"
-    compgen -G "${SCRIPT_DIR}/dept-*.sh" >/dev/null 2>&1 || precheck_fail "hermes-router" \
-        "no dept-*.sh routines found in shared_routines/ — nothing to route to"
+    [ -d "${PROFILE_DEFS:-/repo/ai/hermes/profiles}" ] || precheck_fail "hermes-router" \
+        "no profile definitions at ${PROFILE_DEFS:-/repo/ai/hermes/profiles} — the repo mount is missing"
     precheck_pass "hermes-router"
     exit 0
 fi
 
 ROUTER_PROFILE="${ROUTER_PROFILE:-router}"
+# The profile definitions, read off decree's read-only /repo mount. Read-only is
+# all this needs: provisioning happens in hermes' own entrypoint, which is the
+# only place that can reach the CLI and the data volume.
+PROFILE_DEFS="${PROFILE_DEFS:-/repo/ai/hermes/profiles}"
 ROUTER_TIMEOUT="${ROUTER_TIMEOUT:-300}"
 FALLBACK_ROUTINE="${FALLBACK_ROUTINE:-route-failed}"
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
@@ -63,16 +69,19 @@ mkdir -p "$OUTBOX_DIR"
 
 _departments=()
 _catalog=""
-for _f in "${SCRIPT_DIR}"/dept-*.sh; do
+for _f in "${PROFILE_DEFS}"/*/profile.yml; do
     [ -f "$_f" ] || continue
-    _n="$(basename "$_f" .sh)"; _n="${_n#dept-}"
-    _d="$(grep -m1 '^# DEPT_DESCRIPTION:' "$_f" | sed 's/^# DEPT_DESCRIPTION:[[:space:]]*//')"
+    _n="$(basename "$(dirname "$_f")")"
+    # A profile cannot route to itself, and the router owns no tools with which
+    # to do the work anyway.
+    [ "$_n" = "$ROUTER_PROFILE" ] && continue
+    _d="$(grep -m1 '^description:' "$_f" | sed 's/^description:[[:space:]]*//')"
     _departments+=("$_n")
     _catalog="${_catalog}- ${_n}: ${_d:-(no description)}"$'\n'
 done
 
 if [ "${#_departments[@]}" -eq 0 ]; then
-    echo "No dept-*.sh routines found — nothing to route to." >&2
+    echo "No department profiles found in ${PROFILE_DEFS} — nothing to route to." >&2
     exit 1
 fi
 
@@ -156,9 +165,10 @@ fi
 
 echo "Routed to: ${_matched}"
 
-cat > "${OUTBOX_DIR}/dept-${_matched}-$(date +%s%N).md" << EOF
+cat > "${OUTBOX_DIR}/hermes-dept-${_matched}-$(date +%s%N).md" << EOF
 ---
-routine: dept-${_matched}
+routine: hermes-dept
+profile: ${_matched}
 routed_by: hermes-router
 route_reason: $(jq -rn --arg v "routed to ${_matched} by the ${ROUTER_PROFILE} profile" '$v|@json')
 source_file: $(jq -rn --arg v "${source_file:-}" '$v|@json')
@@ -168,4 +178,4 @@ output_name: $(jq -rn --arg v "${output_name:-}" '$v|@json')
 ${_body}
 EOF
 
-echo "Queued dept-${_matched}."
+echo "Queued hermes-dept for ${_matched}."

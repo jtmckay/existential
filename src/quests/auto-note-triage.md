@@ -58,14 +58,9 @@ Prerequisites:
       note-develop:
         enabled: true
 
-    For the idea-workup path, enable these instead of (or beside) note-develop
-    and run ./existential.sh run hermes profiles once to provision the profiles:
-      idea-workup:
-        enabled: true
-      dept-research:
-        enabled: true
-      dept-sales:
-        enabled: true
+    For the idea-workup path, run the Hermes Departments quest instead of (or
+    beside) note-develop — it enables idea-workup with the research and sales
+    departments and provisions the profiles they call.
 
 Making it yours — everything below is cron frontmatter, no code changes:
 

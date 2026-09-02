@@ -34,16 +34,16 @@ shared_routines:
     enabled: false
   agent-task:
     enabled: false
-  # Routing: hermes-router picks a department and queues its dept-* routine.
+  # Routing: hermes-router picks a department and queues hermes-dept for it.
   # route-failed is the catch-all and is on by default — it is what decree
   # falls back to, so disabling it would strand unroutable messages.
+  # There is one hermes-dept for every department: which one is a message
+  # parameter, and the departments themselves are ai/hermes/profiles/*/.
   hermes-router:
     enabled: false
   route-failed:
     enabled: true
-  dept-sales:
-    enabled: false
-  dept-research:
+  hermes-dept:
     enabled: false
   file-processor:
     enabled: false
@@ -57,14 +57,31 @@ shared_routines:
     enabled: false
   gmail-sync:
     enabled: false
+  # Named by cron.example/openviking-index-knowledgebase.md. Activating a cron
+  # is meant to be the whole job, so the routine it names has to be visible —
+  # unlisted, the cron fires and decree declines the routine, and openviking
+  # indexes nothing while looking perfectly healthy.
+  openviking-index-dir:
+    enabled: true
+  # Same shape: telegram-ingest and telegram-receipt are named by their
+  # cron.example files (and 05-smart-home / auto-receipt-split copy the receipt
+  # one), and telegram-notify is chained from actual-budget's outbox. All three
+  # are gated by the cron file and /secrets/telegram/credentials.env, so leaving
+  # them visible costs nothing and being invisible silently drops the work.
+  telegram-ingest:
+    enabled: true
+  telegram-receipt:
+    enabled: true
+  telegram-notify:
+    enabled: true
   notes:
     enabled: false
   note-triage:
     enabled: false
   note-develop:
     enabled: false
-  # The fan-out alternative to note-develop: hands the flagged idea to
-  # dept-research and dept-sales, so those two must be on for it to land.
+  # The fan-out alternative to note-develop: hands the flagged idea to the
+  # research and sales departments, so hermes-dept must be on for it to land.
   idea-workup:
     enabled: false
   notify:

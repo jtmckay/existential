@@ -98,10 +98,16 @@ services:
       # exist.initial.sh already activates the provider (honcho.json +
       # config.yaml memory.provider), so no manual setup step is needed.
       HONCHO_BASE_URL: "http://honcho:8000"
+      # Read by entrypoint.sh when a profile's definition names openviking as an
+      # MCP server — it is written into that profile's generated config.yaml.
+      OPENVIKING_API_KEY: ${OPENVIKING_API_KEY:-}
     command: ["gateway", "run"]
     volumes:
       # entrypoint.sh: installs decree + claude-code on first start, chains to /init.
       - ./entrypoint.sh:/entrypoint.sh:ro
+      # Profile definitions, read-only. Adding a profile is adding a directory
+      # here; entrypoint.sh provisions each one into /opt/data/profiles on boot.
+      - ./profiles:/opt/profile-defs:ro
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by hermes-agent. Tier-2 local (never NFS).
       - hermes_agent_data:/opt/data
