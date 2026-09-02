@@ -68,18 +68,6 @@ AIEOF
     echo "[openviking] workspace/ai/ output directory created."
 fi
 
-# Activate the indexer cron. cron/ is gitignored (it is the user's active set),
-# so the tracked example is the only copy in git — this just puts it in place so
-# indexing works from the first `docker compose up -d` rather than after a manual
-# cp. Guarded on absence: edit or delete the active copy and it stays that way.
-CRON_SRC="${SCRIPT_DIR}/decree/cron.example/openviking-index-knowledgebase.md"
-CRON_DST="${SCRIPT_DIR}/decree/cron/openviking-index-knowledgebase.md"
-if [[ -f "${CRON_SRC}" && ! -e "${CRON_DST}" ]]; then
-    mkdir -p "$(dirname "${CRON_DST}")"
-    cp "${CRON_SRC}" "${CRON_DST}"
-    echo "[openviking] knowledgebase indexer cron activated."
-fi
-
 DATA_DIR="${REPO_ROOT}/volumes/openviking_data"
 mkdir -p "${DATA_DIR}"
 

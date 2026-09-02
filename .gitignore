@@ -118,8 +118,6 @@ automations/outbox/
 **/decree/lib/*
 **/decree/runs/*
 
-# Hermes
-**/hermes/data
 
 # LightRAG
 **/lightrag/rag_storage
@@ -185,7 +183,6 @@ volumes_local/
 
 # Service-dir scratch that is NOT a volume: hermes' runtime, extracted from the
 # image by its exist.initial.sh.
-**/hermes_agent_src
 **/hermes_install
 **/model-cache
 **/caddy_config

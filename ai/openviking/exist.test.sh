@@ -10,7 +10,7 @@ exist_test_init "openviking" EXIST_IS_AI_OPENVIKING
 skip_if_disabled
 
 OPENVIKING_URL="${OPENVIKING_URL:-http://openviking:1933}"
-OPENVIKING_API_KEY="${OPENVIKING_API_KEY:-${EXIST_OPENVIKING_API_KEY:-}}"
+OPENVIKING_API_KEY="${OPENVIKING_API_KEY:-}"
 
 # ── 1. Health (unauthenticated) ───────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ probe_service "openviking /health" openviking 1933 /health 200
 
 if [[ -z "${OPENVIKING_API_KEY:-}" ]]; then
     warn "openviking API key configured" \
-         "EXIST_OPENVIKING_API_KEY is empty" \
+         "OPENVIKING_API_KEY is empty" \
          "Re-run ./existential.sh run after setting OPENVIKING_API_KEY in .env"
 else
     ok "openviking API key configured"
@@ -91,6 +91,30 @@ else
              "Is ollama up and EXIST_OLLAMA_URL correct? docker logs ollama"
     elif printf '%s' "${TAGS}" | grep -q "\"${EMBED_MODEL}"; then
         ok "openviking embedding model available (${EMBED_MODEL})"
+
+        # The other half of the same silent failure. OpenViking validates every
+        # vector against ov.conf's `dimension` and DROPS the ones that disagree
+        # ("Dense vector dimension mismatch: expected N, got M" — storage/
+        # collection_schemas.py). Uploads still return ok, the file still shows
+        # up in the viking:// tree, and search still returns nothing. Nothing
+        # asserts EXIST_MODEL_EMBED and EXIST_MODEL_EMBED_DIM agree once the
+        # user has edited .env.shared, so ask the model itself.
+        WANT_DIM=$(sed -n 's/.*"dimension"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' \
+            "${OV_CONF}" 2>/dev/null | head -1 || true)
+        GOT_DIM=$(curl -sS --max-time 30 "${EMBED_BASE%/v1}/api/embed" \
+            -d "{\"model\": \"${EMBED_MODEL}\", \"input\": \"dimension probe\"}" 2>/dev/null \
+            | jq -r '.embeddings[0] | length' 2>/dev/null || true)
+        if [[ -z "${WANT_DIM}" || -z "${GOT_DIM}" || "${GOT_DIM}" == "null" ]]; then
+            warn "openviking embedding dimension matches the model" \
+                 "could not probe ${EMBED_MODEL} on ${EMBED_BASE%/v1}" \
+                 "curl ${EMBED_BASE%/v1}/api/embed -d '{\"model\":\"${EMBED_MODEL}\",\"input\":\"x\"}'"
+        elif [[ "${WANT_DIM}" == "${GOT_DIM}" ]]; then
+            ok "openviking embedding dimension matches the model (${GOT_DIM})"
+        else
+            fail "openviking embedding dimension matches the model" \
+                 "ov.conf says ${WANT_DIM}, ${EMBED_MODEL} returns ${GOT_DIM} — every vector is dropped, so search returns nothing" \
+                 "Set EXIST_MODEL_EMBED_DIM=${GOT_DIM} in .env.shared, delete volumes/openviking_data/ov.conf and the stale index, then ./existential.sh run openviking"
+        fi
     else
         fail "openviking embedding model available" \
              "${EMBED_MODEL} is not pulled on ${EMBED_BASE%/v1} — uploads succeed but nothing is embedded, so search returns nothing" \
@@ -132,13 +156,15 @@ if [[ -d /repo ]]; then
     fi
 
     # Without an active cron nothing ever indexes, and the only symptom is
-    # searches quietly returning nothing. exist.initial.sh activates it.
-    if compgen -G "/repo/ai/openviking/decree/cron/*index*" >/dev/null; then
+    # searches quietly returning nothing. The indexer is a routine of the main
+    # decree daemon, so its cron lives in that daemon's project dir — openviking
+    # ships no decree/ of its own. Quest activates it (`copies` in 00-core.md).
+    if compgen -G "/repo/services/decree/decree/cron/*openviking-index*" >/dev/null; then
         ok "openviking indexer cron active"
     else
         warn "openviking indexer cron active" \
-             "no indexer cron in ai/openviking/decree/cron/" \
-             "./existential.sh run openviking   (activates it), then: docker compose restart decree"
+             "no openviking-index cron in services/decree/decree/cron/" \
+             "cp services/decree/decree/cron.example/openviking-index-knowledgebase.md services/decree/decree/cron/, then: docker compose restart decree"
     fi
 fi
 

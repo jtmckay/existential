@@ -52,6 +52,10 @@ copies:
     dst: services/decree/decree-backup/cron/
     label: "hermes: volume-backup-weekly.md"
     requires: EXIST_IS_AI_HERMES
+  - src: services/decree/decree/cron.example/openviking-index-knowledgebase.md
+    dst: services/decree/decree/cron/
+    label: "decree: openviking-index-knowledgebase.md (index workspace/ every 15m)"
+    requires: EXIST_IS_AI_OPENVIKING
   - src: services/decree/decree-backup/cron.example/openviking-volume-backup-nightly.md
     dst: services/decree/decree-backup/cron/
     label: "openviking: volume-backup-nightly.md"
@@ -113,7 +117,7 @@ Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 Your knowledgebase is the workspace/ directory at the repo root — the same
 tree hermes and code-server share, so everything you work on is indexed
 without a second directory to keep in step. ./existential.sh creates it and
-activates the indexer cron, so there is nothing to set up: decree
+this quest activates the indexer cron, so there is nothing to set up: decree
 uploads new and changed files every 15 minutes, and hermes searches them
 through the openviking MCP server.
 

@@ -23,13 +23,13 @@ Configure opencode to point at the Hermes gateway (`https://hermes-agent.<domain
 
 | Container | Purpose | Port |
 |---|---|---|
-| hermes-agent | Gateway API + dashboard | 48642 (API), 49119 (dashboard) |
+| hermes-agent | Gateway API + dashboard | 8642 (API), 9119 (dashboard) — not published to the host; reach them through Caddy |
 
 ## Architecture
 
 `hermes-agent` is the long-running gateway. It exposes an OpenAI-compatible HTTP API on `:8642` and a dashboard on `:9119`. [Open WebUI](./open-web-ui) connects to it over the internal `exist` network.
 
-The `./data` directory is bind-mounted into the container for agent config, sessions, skills, and memory.
+`volumes/hermes_agent_data` is bind-mounted at `/opt/data` for agent config, sessions, skills, and memory.
 
 ### Profiles
 

@@ -36,8 +36,8 @@
 # MCP:     http://openviking:1933/mcp  (internal Docker DNS, bearer token required)
 #
 # Setup:
-#   1. ./existential.sh run   — renders templates, writes ov.conf, creates
-#                               workspace/ai/, and activates the indexer cron
+#   1. ./existential.sh run   — renders templates, writes ov.conf, and creates
+#                               workspace/ai/ (quest activates the indexer cron)
 #   2. docker compose up -d   — starts openviking; decree indexes workspace/
 #
 # That is the whole setup. Hermes' own exist.initial.sh registers openviking as
@@ -51,7 +51,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
     networks:
       - exist
     # ports disabled — access via https://openviking.<domain> (Caddy + pihole required)

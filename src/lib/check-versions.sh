@@ -227,6 +227,7 @@ declare -a CHECKS=(
     "ntfy	services/ntfy/docker-compose.exist.yml	binwiederhier/ntfy	github	binwiederhier/ntfy	v"
     "ollama	ai/ollama/docker-compose.exist.yml	ollama/ollama	hub_clean	ollama/ollama	bare"
     "open-webui	ai/open-webui/docker-compose.exist.yml	ghcr.io/open-webui/open-webui	github	open-webui/open-webui	v"
+    "openviking	ai/openviking/docker-compose.exist.yml	ghcr.io/volcengine/openviking	github	volcengine/OpenViking	v"
     # hub_clean, NOT github: pi-hole's GitHub releases version the core software
     # (v6.x) while the images are tagged by date (2026.07.2). Checking GitHub
     # returned 6.4.3, which does not exist on Docker Hub.
