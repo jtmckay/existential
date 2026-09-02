@@ -23,7 +23,7 @@ for f in "${staged[@]}"; do
     case "$base" in
         .env|.env.shared|.env.local|.env.generated)
             note "rendered secret file staged: $f (only .env.exist* templates belong in git)" ;;
-        cloudflare-key.pem|cloudflare.pem|*_password.txt)
+        cloudflare-key.pem|cloudflare.pem|public-key.pem|*_password.txt)
             note "rendered credential file staged: $f" ;;
         # Rendered config files hold webhook bearer tokens / daemon credentials.
         # Their values are bare hex or UUIDs, so the content patterns below

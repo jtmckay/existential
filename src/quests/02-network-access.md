@@ -42,7 +42,7 @@ forwarding, and nothing exposed to the internet.
 
 Caddy fronts every service with TLS using a pinned internal CA minted by
 caddy's exist.initial.sh. Install the root cert once per device for a green
-padlock everywhere. The CA file is committed to the repo:
+padlock everywhere. The CA file is generated on this host (gitignored):
   hosting/caddy/certs/internal-ca.pem
 
 On each device that needs to trust it:

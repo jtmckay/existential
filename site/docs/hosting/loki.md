@@ -16,21 +16,25 @@ Two containers work together:
 | Service | Role |
 |---|---|
 | `loki` | Stores and indexes logs (port 3100 internal) |
-| `loki-promtail` | Tails log files and ships them to Loki |
+| `loki-alloy` | Tails log files and ships them to Loki |
 
-Promtail is mounted read-only on `automations/runs/` and watches `**/routine.log`. It parses the path to extract labels from the run ID format (`D<date>-<time>-<routine>-<seq>`):
+[Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.
+
+Alloy is mounted read-only on `automations/runs/` and watches `**/routine.log` and `**/message.md`. It parses the path to extract labels from the run ID format (`D<day>-<time>-<routine>-<seq>`):
 
 | Label | Example |
 |---|---|
-| `run_id` | `D20250502-1430-gmail-sync-1` |
-| `chain` | `D20250502-1430-gmail-sync` |
-| `seq` | `1` |
+| `message_id` | `D0005-0750-gmail-sync-0` |
+| `chain` | `D0005-0750-gmail-sync` |
+| `seq` | `0` |
+
+It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines carry no container-name label — Alloy would need the Docker socket (= host root) to resolve an ID to a name, which is deliberately not mounted — so they are a catch-all grep, not a per-service view.
 
 In addition, the `afterEach` hook pushes a structured summary line to Loki after each Decree run — one event per attempt with `routine`, `trigger`, `exit_code`, `attempts`, `duration_s`, and `final` fields.
 
 ## Storage
 
-Single-node filesystem storage under `/loki` in the named volume `loki_data`. Old samples beyond 168h (7 days) are rejected on ingest. The embedded query cache is capped at 100 MB.
+Single-node filesystem storage under `/loki` in the volume `loki_data`, TSDB index on schema v13. Old samples beyond 168h (7 days) are rejected on ingest, and the compactor deletes anything older than 720h (30 days). The embedded query cache is capped at 100 MB.
 
 ## Querying
 

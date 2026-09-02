@@ -279,8 +279,8 @@ _access_tip() {
     echo ""
     if will_be_active EXIST_IS_HOSTING_CADDY; then
         echo "  Caddy fronts them with TLS from a local CA. Install its root cert"
-        echo "  once per device for a green padlock:"
-        echo "    https://caddy.${domain:-<domain>}/caddy-root.crt"
+        echo "  once per device for a green padlock — copy it off this host:"
+        echo "    hosting/caddy/certs/internal-ca.pem"
     else
         echo "  ${_C_YELLOW}Caddy is not enabled${_C_RESET} — nothing is fronting those names. Enable it"
         echo "  (EXIST_IS_HOSTING_CADDY=true), or uncomment the ports: block in each"
@@ -882,9 +882,9 @@ _access_tip
 # Pihole replaces the nip.io lookup with a local answer, so it has one extra
 # step the default path does not: pointing the router at it.
 if [[ "$_has_pihole" -eq 1 ]]; then
-    echo "  You enabled pihole — point your router's DNS at this machine to"
-    echo "  finish it, so names resolve locally instead of over the internet:"
-    echo "    ./existential.sh run pihole"
+    echo "  You enabled pihole — point your router's primary DNS at this"
+    echo "  machine to finish it, so names resolve locally instead of over"
+    echo "  the internet."
     echo ""
 fi
 

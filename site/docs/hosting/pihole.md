@@ -14,10 +14,10 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 
 | Service | Port |
 |---|---|
-| DNS | 53 (TCP + UDP) |
-| Web UI | 42480 (HTTP), 42443 (HTTPS) |
-| DHCP (optional) | 67 |
-| NTP (optional) | 123 |
+| DNS | 53 (TCP + UDP) — published on the host |
+| Web UI | 80, reached only through Caddy at `https://pihole.<domain>` |
+| DHCP (optional) | 67 — uncomment in the compose template |
+| NTP (optional) | 123 — uncomment in the compose template |
 
 ## Setup
 

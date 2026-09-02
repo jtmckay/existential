@@ -94,7 +94,8 @@ is given network access to that specific instance (e.g. you hand them a Grafana 
 | Cloudflare | external SaaS | N/A | Governed by Cloudflare's ToS, not a redistributable. |
 | Docker Engine / Moby | Apache-2.0 | 🟢 | |
 | Grafana | AGPL-3.0 | 🟡 | Only if tenants get dashboard access. |
-| Loki / Promtail | AGPL-3.0 | 🟡 | As above. |
+| Loki | AGPL-3.0 | 🟡 | As above. |
+| Alloy | Apache-2.0 | 🟢 | Permissive. |
 | Pi-hole | EUPL-1.2 | 🟢 | Infrastructure. |
 | Portainer CE | zlib | 🟢 | |
 | Prometheus | Apache-2.0 | 🟢 | |

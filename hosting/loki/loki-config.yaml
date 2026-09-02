@@ -33,6 +33,17 @@ schema_config:
         prefix: index_
         period: 24h
 
+# Without retention_enabled the compactor only compacts; it never deletes, and
+# limits_config.retention_period is ignored — loki_data grows forever. Both keys
+# are required, and delete_request_store must be set or loki refuses to start.
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
 limits_config:
   reject_old_samples: true
   reject_old_samples_max_age: 168h
+  # 30d, a whole number of 24h index periods. Also what bounds label cardinality:
+  # the docker job's per-container-id `filename` label only ages out via retention.
+  retention_period: 720h

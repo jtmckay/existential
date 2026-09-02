@@ -62,7 +62,7 @@ latest_hub() {
         2>/dev/null \
         | jq -r '.results[].name' 2>/dev/null \
         | grep -E '^v?[0-9]+\.[0-9]+' \
-        | grep -vE '(rc|alpha|beta|dev|edge|nightly|sha-|-arm|-amd64|-linux|-windows|unstable)' \
+        | grep -vE '(rc|alpha|beta|dev|edge|nightly|sha-|-arm|-amd64|-linux|-windows|unstable|boringcrypto)' \
         | sed 's/^v//' \
         | sort -V | tail -1
 }
@@ -216,6 +216,9 @@ declare -a CHECKS=(
     "home-assistant	services/homeassistant/docker-compose.exist.yml	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lowcoder	services/lowcoder/docker-compose.exist.yml	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"
+    "loki	hosting/loki/docker-compose.exist.yml	grafana/loki	hub_clean	grafana/loki	bare"
+    # hub, not hub_clean: every alloy tag is v-prefixed, which hub_clean rejects.
+    "loki-alloy	hosting/loki/docker-compose.exist.yml	grafana/alloy	hub	grafana/alloy	v"
     "mealie	services/mealie/docker-compose.exist.yml	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
     "minio	nas/minio/docker-compose.exist.yml	minio/minio	hub_release	minio/minio	bare"
     "nextcloud	nas/nextcloud/docker-compose.exist.yml	nextcloud	hub_clean	library/nextcloud	bare"

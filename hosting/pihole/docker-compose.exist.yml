@@ -1,8 +1,8 @@
 # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
 #
-# You will need to uncomment and disable the stub DNS
-# /etc/systemd/resolved.conf
-# DNSStubListener=no
+# Port 53 collides with systemd-resolved on most Linux hosts. Set
+# DNSStubListener=no in /etc/systemd/resolved.conf and restart it first, or
+# the container will fail to bind.
 #
 # ── DNS convention ────────────────────────────────────────────────────────────
 # piHole resolves the ENTIRE base domain (EXIST_DOMAIN, default x.internal) and
@@ -40,8 +40,8 @@ services:
       # Uncomment the line below if you are using Pi-hole as your NTP server
       #- "123:123/udp"
     environment:
-      # Set the appropriate timezone for your location (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), e.g:
-      TZ: 'America/Denver'
+      # Timestamps in the query log and web UI (PIHOLE_TZ in .env).
+      TZ: ${PIHOLE_TZ:-UTC}
       # Set a password to access the web interface. Not setting one will result in a random password being assigned
       FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
       # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
@@ -66,10 +66,12 @@ services:
       #   ${EXIST_PEER_HOST_IP} immich.${EXIST_DOMAIN}      # this one service lives on the peer host
       #   192.168.1.99 grafana.${EXIST_DOMAIN}              # pin grafana at a fixed box
     volumes:
-      # For persisting Pi-hole's databases and common configuration file
+      # pihole.toml, gravity.db and the pihole-FTL.db query log (SQLite + WAL).
+      # v6 needs no /etc/dnsmasq.d mount — FTLCONF_misc_dnsmasq_lines above is
+      # the supported way to add raw dnsmasq directives.
       - 'pihole_data:/etc/pihole:Z'
-      # Uncomment the below if you have custom dnsmasq config files that you want to persist. Not needed for most starting fresh with Pi-hole v6. If you're upgrading from v5 you and have used this directory before, you should keep it enabled for the first v6 container start to allow for a complete migration. It can be removed afterwards. Needs environment variable FTLCONF_misc_etc_dnsmasq_d: 'true'
-      #- './etc-dnsmasq.d:/etc/dnsmasq.d'
+    # No `user:` — FTL starts as root to bind :53 and set the caps below, then
+    # drops to its own `pihole` user (uid 1000) for everything else.
     cap_add:
       # See https://docs.pi-hole.net/docker/#note-on-capabilities
       # Required if you are using Pi-hole as your DHCP server, else not needed
@@ -80,7 +82,8 @@ services:
       - SYS_NICE
 
 x-exist-volumes:
-  pihole_data: {}
+  # gravity.db + pihole-FTL.db are SQLite (WAL) — never on NFS.
+  pihole_data: { db: true }
 
 networks:
   exist:

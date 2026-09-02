@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# exist.test.sh — validate that loki + loki-promtail are operational.
+# exist.test.sh — validate that loki + loki-alloy are operational.
 #
 # See .claude/reference/testing.md for the convention.
 
@@ -15,11 +15,11 @@ skip_if_disabled
 # (30 × 2s ≈ 60s) so a freshly-started loki isn't a false failure.
 EXIST_PROBE_RETRIES=30 http_probe "loki:3100 /ready"      "http://loki:3100/ready"      200
 
-# promtail readiness on :9080. /ready emits a transient 500 (then 200) during cold
-# start, and isn't reachable at all (000) until its HTTP server binds — both are
-# "warming up", so retry on 000/500/503 with a loki-sized budget rather than failing
-# the instant we catch the startup window.
+# alloy readiness on :12345 (its UI/health port, deliberately not routed through
+# Caddy — loki has no route either). /-/ready is 503 until every component has
+# evaluated, and unreachable (000) until the HTTP server binds; both mean "warming
+# up", so keep a loki-sized budget rather than failing inside the startup window.
 EXIST_PROBE_RETRIES=30 EXIST_PROBE_RETRY_CODES="000 500 503" \
-    http_probe "loki-promtail:9080 /ready" "http://loki-promtail:9080/ready" 200
+    http_probe "loki-alloy:12345 /-/ready" "http://loki-alloy:12345/-/ready" 200
 
 finish

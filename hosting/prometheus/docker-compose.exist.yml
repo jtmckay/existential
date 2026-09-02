@@ -1,11 +1,11 @@
 services:
-  # Prometheus metrics UI at http://localhost:49090
+  # Prometheus metrics UI at https://prometheus.<domain> (no host port by default)
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.14.0
     restart: unless-stopped
     # ~145 MiB measured. The TSDB head holds ~2h of samples, so RAM tracks active
-    # series (4 scrape jobs at 15s), not the 90d retention in the flags below —
+    # series (3 scrape jobs at 15s), not the 90d retention in the flags below —
     # that is disk.
     deploy:
       resources:
@@ -32,30 +32,39 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=90d'
+      # Whichever limit trips first wins. Without the size cap 90d of retention is
+      # unbounded on disk, and this stack's disk is shared with every volume.
+      - '--storage.tsdb.retention.size=5GB'
 
   prometheus-pushgateway:
     container_name: prometheus-pushgateway
-    image: prom/pushgateway:v1.10.0
+    image: prom/pushgateway:v1.11.3
     restart: unless-stopped
     # Holds pushed metrics in memory only; tiny unless something pushes a flood.
     deploy:
       resources:
         limits:
           memory: 64M
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
 
   prometheus-node-exporter:
     container_name: prometheus-node-exporter
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1
     restart: unless-stopped
     # Reads /proc on scrape. ~20 MB and flat.
     deploy:
       resources:
         limits:
           memory: 64M
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
+    # Host PID namespace so the /proc entries under /host/proc resolve to host
+    # processes rather than this container's one. Network metrics still report
+    # this container's netns (eth0/lo) — host NICs would need network_mode: host,
+    # which would take it off the exist bridge and out of Docker DNS.
     pid: host
     volumes:
       - /proc:/host/proc:ro

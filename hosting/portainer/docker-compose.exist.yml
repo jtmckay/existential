@@ -1,7 +1,7 @@
 services:
   portainer:
     container_name: portainer
-    image: portainer/portainer-ce:2.44.0
+    image: portainer/portainer-ce:2.45.0
     # Root + docker.sock: portainer manages the Docker daemon. The image is
     # distroless (no shell), so the admin password can't be written at startup —
     # templates.sh renders portainer_password.txt; we mount it read-only and point
@@ -30,7 +30,10 @@ services:
       resources:
         limits:
           memory: 256M
-    command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password
+    # --http-disabled: portainer otherwise also serves the whole API in plaintext
+    # on :9000, reachable by every container on the exist bridge. Caddy and
+    # exist.test.sh only ever use :9443.
+    command: -H unix:///var/run/docker.sock --admin-password-file /run/portainer/admin_password --http-disabled
 
 x-exist-volumes:
   portainer_data: { db: true }

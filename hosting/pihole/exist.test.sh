@@ -20,8 +20,7 @@ probe_service_any "pihole /admin/" pihole 80 /admin/ "^(200|301|302|307|401)$"
 tcp_probe "pihole:53 DNS (tcp)" pihole 53
 
 # Canary record — confirm pihole's wildcard resolves the whole domain, not just
-# its own hostname. dashy is the conventional test target also used by
-# hosting/pihole/exist.initial.sh.
+# its own hostname. dashy is the conventional test target.
 probe_pihole "pihole canary record" dashy
 
 finish

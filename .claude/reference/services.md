@@ -44,7 +44,7 @@ On demand:
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
-| `exist.test.sh` | Always. Every service ships one. Also what triage and the migration gate run. See `testing.md`. |
+| `exist.test.sh` | Every service with a container ships one. Also what triage and the migration gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
 then `exec`s the image's real entrypoint. Reach for this when a setting is *derived from

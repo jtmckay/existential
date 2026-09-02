@@ -126,7 +126,7 @@ skip() {
 # Budget: EXIST_PROBE_RETRIES (default 8) attempts, 2s apart (~16s for slow starts).
 # Warming-up codes: EXIST_PROBE_RETRY_CODES (default "000 503"). A probe whose
 # readiness endpoint signals not-ready differently can widen the set, e.g.
-# promtail's /ready emits a transient 500 on cold start: EXIST_PROBE_RETRY_CODES="000 500 503".
+# loki-alloy's /-/ready can emit a 500 on cold start: EXIST_PROBE_RETRY_CODES="000 500 503".
 _probe_code() {
     local url="$1" timeout="$2"; shift 2
     local code attempts=0 max="${EXIST_PROBE_RETRIES:-8}"

@@ -41,7 +41,7 @@ trying to stretch this network across hosts.
 ### Observability
 
 - [Prometheus](./prometheus) — Metrics collection (+ Pushgateway for Decree)
-- [Loki](./loki) — Log aggregation (+ Promtail for Decree run logs)
+- [Loki](./loki) — Log aggregation (+ Alloy for Decree run logs)
 - [Grafana](./grafana) — Dashboards over Prometheus and Loki
 
 ### Network

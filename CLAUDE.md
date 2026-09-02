@@ -185,8 +185,8 @@ from the repo root against the generated `docker-compose.yml`.
   (`<cat>/<slug>/.env.exist`) start `<SLUG>_` (folder uppercased, hyphens → underscores).
   Enablement flags are `EXIST_IS_<CATEGORY>_<SLUG>=true|false`. → `templates.md`
 - **Container naming.** Every container is prefixed with the service slug (folder name): `loki`,
-  `loki-promtail` ✓; `promtail` ✗. Same for identity-bearing support files
-  (`loki-promtail-config.yaml`). `docker ps` should make ownership obvious.
+  `loki-alloy` ✓; `alloy` ✗. Same for identity-bearing support files
+  (`loki-alloy-config.alloy`). `docker ps` should make ownership obvious.
 - **Container user.** Least privilege by default: `user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"`.
   **Never hardcode the literal `1000:1000`**, never `user: "0:0"`. Images with an s6/`PUID`-style
   init take `PUID`/`PGID` env instead of `user:`. The one sanctioned `privileged: true` is inside

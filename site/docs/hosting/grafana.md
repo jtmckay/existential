@@ -47,7 +47,7 @@ Decree run
        └─ Loki push API (log: structured summary line)
 
 automations/runs/**/routine.log
-  └─ Promtail → Loki (full routine output, labeled by run_id/chain/seq)
+  └─ Alloy → Loki (full routine output, labeled by run_id/chain/seq)
 
 Grafana
   ├─ queries Prometheus for metric panels

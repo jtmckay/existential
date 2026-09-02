@@ -479,9 +479,8 @@ echo "=== CLI: run <utility> dispatch ==="
 assert_exit "run nonexistent-utility → exit 1"       1 bash "$EXISTENTIAL" run totally-fake-utility
 
 # A slug that matches a real service dir should NOT reach Docker — it should
-# fail because there's no exist.initial.sh.  (pihole has one, but we don't
-# want to actually run it.)  We test with a slug that has no exist.initial.sh
-# so _run_service_action errors cleanly.
+# fail because there's no exist.initial.sh.  We test with a slug that has no
+# exist.initial.sh so _run_service_action errors cleanly.
 # Verify "No script at" is emitted rather than a Docker error.
 (
     # 'hermes' has no exist.initial.sh in the repo.

@@ -44,7 +44,8 @@ written request and we will provide it: **[insert contact email]**.
 | Lowcoder | AGPL-3.0 | https://github.com/lowcoder-org/lowcoder |
 | MinIO | AGPL-3.0 | https://github.com/minio/minio |
 | Grafana | AGPL-3.0 | https://github.com/grafana/grafana |
-| Loki / Promtail | AGPL-3.0 | https://github.com/grafana/loki |
+| Loki | AGPL-3.0 | https://github.com/grafana/loki |
+| Alloy | Apache-2.0 | https://github.com/grafana/alloy |
 | Collabora Online (CODE) | MPL-2.0 | https://github.com/CollaboraOnline/online |
 | Redis (`redis:alpine`, v8) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |

@@ -157,7 +157,7 @@ soon as ollama is healthy (~5.5 GB at the 8 GB default, a few minutes).
 Grafana comes up with the Loki and Prometheus datasources already wired and two
 Decree dashboards already loaded — an overview and a per-run detail view. When a
 routine misbehaves, that is where you look, rather than in `docker logs decree`:
-promtail labels every run log with its message_id, chain and seq, so a routed
+alloy labels every run log with its message_id, chain and seq, so a routed
 chain reads end to end. Grafana's credentials are generated for you, in
 hosting/grafana/.env.
 

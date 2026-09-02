@@ -16,10 +16,10 @@ This stack runs Prometheus alongside a **Pushgateway**, which is how Decree auto
 
 | Service | Port | Role |
 |---|---|---|
-| `prometheus` | 49090 | Stores and queries metrics |
+| `prometheus` | 9090 (internal) | Stores and queries metrics |
 | `prometheus-pushgateway` | 9091 (internal) | Receives pushed metrics from short-lived jobs |
 
-Prometheus scrapes Pushgateway every 15s and retains data for 90 days.
+Prometheus scrapes Pushgateway every 15s and retains data for 90 days or 5 GB, whichever comes first.
 
 ## How metrics get in
 

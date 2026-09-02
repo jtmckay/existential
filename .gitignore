@@ -45,10 +45,13 @@
 # Caddy
 **/Caddyfile
 
-# Caddy TLS certs (hosting/caddy/certs/) — only the *.exist.pem templates are tracked.
+# Caddy TLS certs (hosting/caddy/certs/) — nothing in there is tracked.
 # Cloudflare origin pair (user-supplied):
 **/cloudflare-key.pem
 **/cloudflare.pem
+# Your own public-domain wildcard pair (Caddyfile.frontdoor-public.example):
+**/public-key.pem
+**/public.pem
 # Stable *.internal cert + CA, minted by caddy/exist.initial.sh (keys are secret;
 # certs are host-local generated artifacts — none are committed):
 **/internal-ca-key.pem
@@ -192,7 +195,6 @@ volumes_local/
 **/model-cache
 **/caddy_config
 **/ntfy_cache
-**/etc-pihole
 
 # OS / editor droppings
 .DS_Store

@@ -14,11 +14,11 @@ services:
 Adds per-service health check crons to the main Decree daemon. Each cron
 probes a service URL every 15 minutes. Results flow automatically to:
 
-  - Prometheus: decree_run_success{instance="health-<service>"} gauge
+  - Prometheus: decree_run_success{instance="service-health"} gauge
   - Loki:       structured run logs (routine, exit_code, duration)
   - Grafana:    queryable in the Decree Overview dashboard
-  - Alerting:   ServiceHealthCheckFailing fires after 20 min of failures
-                → ntfy notification via hosting/prometheus/alerts.yml
+  - Alerting:   ServiceHealthCheckFailing (hosting/prometheus/alerts.yml)
+                rides triage's per-service exist_service_healthy gauge
 
 Setup — for each service you want to monitor:
 
@@ -27,7 +27,7 @@ Setup — for each service you want to monitor:
           services/decree/decree/cron/health-check-<slug>.md
 
   2. Edit the copy and set:
-       SERVICE_NAME: <slug>          # becomes the Prometheus instance label
+       SERVICE_NAME: <slug>          # display name in the run log
        SERVICE_URL:  http://<container>:<port>/<health-path>
 
   3. Restart decree:
