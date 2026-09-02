@@ -31,11 +31,28 @@ model = "EXIST_MODEL_EMBED"
 base_url = "EXIST_OLLAMA_URL_EMBED/v1"
 api_key = "ollama"
 
-# Deriver: background worker that builds the user representation.
-# High-volume background work — EXIST_MODEL_EXTRACT defaults to the same tag as
-# EXIST_MODEL_CHAT so only one model stays resident on a small card.
+# Deriver: background worker that builds the user representation. It runs in the
+# honcho-deriver container (`python -m src.deriver`), NOT in the API — the API
+# only enqueues. High-volume background work, so the extract role defaults to the
+# same tag as the chat role and only one model stays resident on a small card.
+# (No EXIST_ token in this comment on purpose: templates.sh substitutes tokens in
+# comments too, which turns "X defaults to Y" into "X defaults to X".)
 [deriver]
 ENABLED = true
+# Process each work unit as soon as it appears instead of waiting for
+# REPRESENTATION_BATCH_MAX_TOKENS (1024) to accumulate in it.
+#
+# A work unit is workspace:session:peer, so the threshold is per *conversation*.
+# Upstream's default suits a busy multi-tenant server, where every session keeps
+# growing. Here it strands short ones permanently: a finished 56-token hermes
+# chat never gains the ~970 more tokens it would need, so nothing is ever
+# derived from it. Measured on this install — after the deriver drained, the
+# only rows left in `queue` were the four work units under the threshold.
+#
+# The cost is batching efficiency: more, smaller LLM calls against the extract
+# endpoint. On a single-user homelab that is the right trade — the alternative
+# is memory that silently skips every short conversation.
+FLUSH_ENABLED = true
 
 [deriver.model_config]
 transport = "openai"

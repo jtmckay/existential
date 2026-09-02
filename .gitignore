@@ -16,7 +16,6 @@
 **/minio_data
 **/n8n_data
 **/nextcloud_data
-**/openwebui_data
 **/nextcloudsql_data
 **/pg_data
 **/qdrant_data

@@ -116,8 +116,9 @@ works for a user who isn't `1000:1000` (LDAP, a second account, a server) withou
 **Pick the right mechanism, not always `user:`:** images with an s6/`PUID`-style init (it starts
 as root then drops) break under `user:` — set their `PUID`/`PGID` (or `UID`/`GID`,
 `HERMES_UID`/`GID`, …) **env** to `${EXIST_PUID:-1000}`/`${EXIST_PGID:-1000}` instead (lowcoder,
-open-webui, hermes-agent do this). Use plain `user:` only for images that tolerate an arbitrary
-uid.
+hermes-agent do this). Use plain `user:` only for images that tolerate an arbitrary uid — and
+check the image really does drop: open-webui *looks* like this case and is not one (it is built
+`USER 0:0` with a root-owned `/app` and never drops), so it stays root with a comment saying so.
 
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
 `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`; the only blanket

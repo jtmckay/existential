@@ -213,6 +213,13 @@ declare -a CHECKS=(
     "grafana	hosting/grafana/docker-compose.exist.yml	grafana/grafana	hub_clean	grafana/grafana	bare"
     "decree-wh-go	services/decree/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
     "decree-wh-base	services/decree/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
+    # digest, not github: upstream stopped tagging images at v2.0.3 while the
+    # server in :latest reports 3.0.9, so :latest@sha256 is the only real pin.
+    "honcho	ai/honcho/docker-compose.exist.yml	ghcr.io/plastic-labs/honcho	digest		"
+    # skip: the tag is <pgvector>-pg<major>. A newer pgvector is a safe bump,
+    # a newer pg major is pg_upgrade/dump-restore on a live data dir — no
+    # check type can tell those apart, so this one is picked by hand.
+    "honcho-pgvector	ai/honcho/docker-compose.exist.yml	pgvector/pgvector	skip		"
     "hermes-agent	ai/hermes/docker-compose.exist.yml	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
     "home-assistant	services/homeassistant/docker-compose.exist.yml	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
@@ -299,8 +306,13 @@ for entry in "${CHECKS[@]}"; do
             continue
         fi
         raw_image=$(echo "$current_line" | sed 's/.*image:[[:space:]]*//' | tr -d "'\" ")
-        if [[ "$raw_image" == *:* ]]; then
-            current_tag="${raw_image##*:}"
+        # A compose pin can carry a digest too (`image: repo:latest@sha256:…`).
+        # Split it off first, exactly like the FROM branch above, or current_tag
+        # becomes the hex digest and a `digest` check compares against nothing.
+        [[ "$raw_image" == *@* ]] && current_digest="${raw_image#*@}"
+        raw_notag="${raw_image%@*}"
+        if [[ "$raw_notag" == *:* ]]; then
+            current_tag="${raw_notag##*:}"
         else
             current_tag="(none)"
         fi
@@ -324,8 +336,13 @@ for entry in "${CHECKS[@]}"; do
                 # tag only, or digest only — then VERIFY. An unverified sed
                 # reports success on a pin shape it never matched, and every
                 # later run then reports DIGEST DRIFT forever.
-                sed -i -E "s|^FROM ${image_prefix}(:[^[:space:]@]+)?(@sha256:[0-9a-f]+)?|FROM ${image_prefix}:${current_tag}@${latest_digest}|" \
-                    "$REPO/$file"
+                if [[ "$is_dockerfile" == "true" ]]; then
+                    sed -i -E "s|^FROM ${image_prefix}(:[^[:space:]@]+)?(@sha256:[0-9a-f]+)?|FROM ${image_prefix}:${current_tag}@${latest_digest}|" \
+                        "$REPO/$file"
+                else
+                    sed -i -E "s|(image:[[:space:]]*)${image_prefix}(:[^[:space:]@]+)?(@sha256:[0-9a-f]+)?|\\1${image_prefix}:${current_tag}@${latest_digest}|" \
+                        "$REPO/$file"
+                fi
                 if grep -qF "@${latest_digest}" "$REPO/$file"; then
                     status="→ UPDATED"
                 else
