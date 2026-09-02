@@ -15,6 +15,7 @@ services:
       disable: true
     environment:
       - IN_CONTAINER=1
+      - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
       - DECREE_DIR=/work/.decree
       - SECRETS_DIR=/secrets
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN:-}

@@ -54,6 +54,13 @@ fi
 
 echo "Processing: $FILE_PATH"
 echo "From:       $FILE_SOURCE"
+
+# Assert before you work. A processor that reports success over a file that
+# never downloaded is worse than one that fails: the run goes green and the
+# broken half of the chain — the remote, the prefix, or the key — stays hidden.
+# Exiting non-zero here dead-letters the message, which is how you find out.
+[ -s "$FILE_PATH" ] || { echo "Empty or missing: $FILE_PATH" >&2; exit 1; }
+
 echo "--- file contents ---"
 cat "$FILE_PATH"
 echo "--- end ---"

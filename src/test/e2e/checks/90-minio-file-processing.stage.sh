@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-side setup for 10-minio-file-processing, run by e2e.sh's stage_checks
+# Host-side setup for 90-minio-file-processing, run by e2e.sh's stage_checks
 # before the stack boots.
 #
 # Only two things live here, and both for the same reason: they are read once at
@@ -21,33 +21,15 @@ WCFG="$WORK/services/decree/webhook/config.exist.yml"
 
 # ── The probe processor ──────────────────────────────────────────────────────
 #
-# Matches only this run's bucket and needs no model: CRITERIA is deliberately
-# empty, because the natural-language gate costs a model call and this is about
-# wiring, not judgment.
-#
-# It ASSERTS ITS OWN INPUTS and exits non-zero when they are wrong. That is what
-# makes the chain testable at all — decree runs one message at a time and the
-# check IS that message, so no check can ever wait for the processor it
-# triggers. The processor has to be the thing that fails, and e2e's
-# every-run-is-graded rule turns that failure into a red row.
+# The SHIPPED example is the probe. It already matches `nextcloud:.*\.txt` with
+# an empty CRITERIA — no model call, which is right for a wiring test — and
+# since it asserts its own downloaded file is non-empty, a break anywhere in the
+# chain exits non-zero and e2e's every-run-is-graded rule turns that into a red
+# row. That assertion is the only thing this check needs a processor to do, and
+# a generated near-copy of the example was 17 lines of drift waiting to happen.
 mkdir -p "$WORK/automations/lib/file-processors"
-cat > "$WORK/automations/lib/file-processors/e2e-probe.sh" << PROC
-#!/usr/bin/env bash
-# shellcheck disable=SC2034  # PATTERN/CRITERIA are read by file-processor, not set by it
-PATTERN="nextcloud:${BUCKET}/.*\.txt"
-CRITERIA=""
-IS_PRE_SIGNED=false
-set -euo pipefail
-[ "\${FILE_ACTION:-}" = "removed" ] && { echo "E2E-PROBE removed \${FILE_KEY}"; exit 0; }
-echo "E2E-PROBE-SOURCE \${FILE_SOURCE}"
-[ -s "\$FILE_PATH" ] || { echo "E2E-PROBE-FAIL empty or missing \${FILE_PATH}" >&2; exit 1; }
-# The object's body is the token in its own name; if those disagree the router
-# handed the processor the wrong file.
-_want="\${FILE_KEY##*/}"; _want="\${_want#probe-}"; _want="\${_want%.txt}"
-_got="\$(cat "\$FILE_PATH")"
-[ "\$_got" = "\$_want" ] || { echo "E2E-PROBE-FAIL want \${_want} got \${_got}" >&2; exit 1; }
-echo "E2E-PROBE-OK \${_got}"
-PROC
+cp "$WORK/automations/lib/file-processors.example/example.sh" \
+   "$WORK/automations/lib/file-processors/"
 
 # ── The webhook's rclone_prefix ──────────────────────────────────────────────
 #
@@ -64,4 +46,4 @@ awk -v b="$BUCKET" '
 ' "$WCFG" > "${WCFG}.tmp" && mv "${WCFG}.tmp" "$WCFG"
 grep -q "rclone_prefix: ${BUCKET}" "$WCFG" || { echo "could not set rclone_prefix" >&2; exit 1; }
 
-echo "  staged MinIO probe processor + rclone_prefix=${BUCKET}"
+echo "  staged the example file-processor + rclone_prefix=${BUCKET}"

@@ -10,11 +10,10 @@
 # container, so /repo points at the repo root and container DNS resolves on
 # the `exist` network — see .claude/reference/testing.md + networking.md.
 #
-# e2e does NOT come through here. It runs the per-service tier as a decree
-# message instead (src/test/e2e/checks/00-services.md), because triage already
-# runs every enabled service's exist.test.sh and under e2e the enabled set is
-# exactly the quest's — which is what the old E2E_MODE/E2E_SERVICE_PATHS pair
-# was reconstructing by hand.
+# e2e does NOT come through here, and no longer runs a per-service tier at all:
+# `triage` already runs every enabled service's exist.test.sh on the real stack
+# every five minutes. e2e's remit is the thing triage cannot see — a FRESH
+# install rendering, migrating and wiring itself up.
 
 set -euo pipefail
 

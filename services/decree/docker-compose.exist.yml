@@ -15,6 +15,9 @@ services:
     environment:
       - DECREE_AI=${DECREE_AI}
       - DECREE_DAEMON=true
+      # triage runs every service test in here; hermes reads this to know
+      # whether a real inference is affordable on this host.
+      - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
       - DECREE_INTERVAL=2
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
@@ -126,6 +129,9 @@ services:
       - ../../.env
     environment:
       - DECREE_DAEMON=true
+      # Marks THIS daemon, not `decree`, as the one with no /repo and no routing
+      # stack: exist.test.sh skips its flag lookup and Caddy probes here only.
+      - DECREE_BACKUP=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       # Blanked on purpose, and this is why env_file needs watching: .env sets

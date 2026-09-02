@@ -10,16 +10,16 @@
 # runs/<message_id>/{message.md,routine.log,run.json} per check — it was just
 # being thrown away. This copies it out before teardown and writes an index.
 #
-# Verdict rule, and the whole reason checks are inbox messages rather than
-# migrations: decree writes run.json only when a routine SUCCEEDS, and
+# Verdict rule: decree writes run.json only when a routine SUCCEEDS, and
 # dead-letters the message after max_attempts when it does not. So
 #     run.json with exit_code 0  → PASS
 #     no run.json, or non-zero   → FAIL
 #     message in inbox/dead/     → FAIL
-# and one failure never hides the others, because `decree daemon` keeps draining
-# the inbox past a dead letter (unlike `decree process`, which stops).
+# `decree process` stops at the first dead letter, which is why checks are
+# numbered above the product's own migrations — everything that matters has
+# already run and been graded by the time one can halt anything.
 #
-# Every run in the clone is graded, not just the messages e2e dropped: a check
+# Every run in the clone is graded, not just the checks e2e staged: a check
 # can only prove it ENQUEUED work (decree runs one message at a time and the
 # check is that message), so the run that work produces is where its success or
 # failure actually shows up. The daemon's own crons fire too; under e2e the stack
@@ -66,7 +66,7 @@ collect_results() {
         # message.md is what makes a directory a decree run — anything else under
         # runs/ is not a result and must not be graded as one.
         [ -f "${d}message.md" ] || continue
-        # EVERY run counts, not only the messages e2e dropped itself. The work a
+        # EVERY run counts, not only the checks e2e staged itself. The work a
         # check triggers — a router matching, a processor running — lands here as
         # its own run, and grading only the named checks let a live run report
         # PASS while minio-router was failing on every event it routed.

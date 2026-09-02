@@ -47,6 +47,10 @@ shared_routines:
     enabled: false
   file-processor:
     enabled: false
+  minio-bucket:
+    enabled: true
+  minio-service-account:
+    enabled: true
   minio-router:
     enabled: false
   gmail:
@@ -70,8 +74,12 @@ shared_routines:
   # know it exists, so it cannot be opt-in.
   triage:
     enabled: true
+  # No cron names these three: they run only when a MIGRATION does. Left
+  # disabled/unlisted they made every ollama and minio migration a no-op --
+  # decree created the run, declined the routine, and `decree process` stopped
+  # at that first dead letter, hiding every migration behind it.
   ollama-pull:
-    enabled: false
+    enabled: true
   check-versions:
     enabled: true
   service-health:

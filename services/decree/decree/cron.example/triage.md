@@ -29,7 +29,3 @@ Tuning (add as frontmatter keys above):
   TRIAGE_MAX_INTERVAL   the interval it settles to, default 360
   TRIAGE_NOTIFY         false to stop ntfy notifications entirely
   TRIAGE_ALWAYS         true to check every tick and ignore the backoff
-  TRIAGE_STRICT         true to exit non-zero when a service is failing.
-                        Leave it off here: decree would retry the whole suite
-                        and dead-letter it. e2e sets it, because there the exit
-                        code is the verdict.

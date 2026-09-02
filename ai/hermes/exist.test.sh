@@ -239,6 +239,17 @@ fi
 # 120s, not the usual few seconds: hermes packs a ~20k-token system prompt
 # (skills + memory + tool definitions) and ollama may have to load the model
 # cold — a warm local run measures ~45s.
+# Two real ~20k-token inferences. Warm on a GPU that is ~45s; on a CPU-only box
+# it is minutes, so both curls burn their 120s and the check reports "no
+# response" -- a timeout dressed up as a broken hermes. EXIST_VRAM_GB=0 is the
+# stack's own record that there is no GPU (e2e's fixture sets it, so does the
+# "No GPU" answer in quest), so say so and stop rather than cry wolf every tick.
+if [ "${EXIST_VRAM_GB:-}" = "0" ]; then
+    skip "hermes memory: chat completion round-trip" \
+         "no GPU (EXIST_VRAM_GB=0) - two ~20k-token inferences would time out"
+    finish
+fi
+
 SESSION_ID="exist-test-memory-$(date +%s)"
 FIRST_REQ='{"model":"default","messages":[{"role":"user","content":"My lucky number is 7331. Acknowledge it."}],"stream":false}'
 SECOND_REQ='{"model":"default","messages":[{"role":"user","content":"My lucky number is 7331. Acknowledge it."},{"role":"assistant","content":"Acknowledged."},{"role":"user","content":"What is my lucky number?"}],"stream":false}'

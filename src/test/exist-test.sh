@@ -72,9 +72,11 @@ load_env_exist() {
 }
 
 skip_if_disabled() {
-    # Inside a decree daemon the flags aren't readable — /repo is the only copy
+    # Inside the backup daemon the flags aren't readable — /repo is the only copy
     # and it isn't mounted there. Probe the service instead of skipping it.
-    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
+    # NOT DECREE_DAEMON: that is true in `decree` too, which is exactly where
+    # triage runs every service test with /repo mounted and Caddy reachable.
+    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
     load_env_exist
     local val="${!_ENABLE_VAR:-false}"
     if [ "$val" != "true" ]; then
@@ -100,6 +102,18 @@ warn() {
     [ -n "${2:-}" ] && printf '        observed: %s\n' "$2"
     [ -n "${3:-}" ] && printf '        fix:      %s\n' "$3"
     WARNINGS=$((WARNINGS + 1))
+}
+
+# A check that CANNOT run in this environment, said plainly instead of failed.
+# Skipping with a reason beats failing in a way that looks like a broken stack
+# -- the same rule e2e applies to a quest it cannot run.
+#
+# Prints "SKIP", deliberately not "skipped -- ": run-all.sh reads that phrase as
+# "the whole suite was skipped" and would hide every other result in the file.
+skip() {
+    _pad "$1"; printf 'SKIP\n'
+    [ -n "${2:-}" ] && printf '        reason:   %s\n' "$2"
+    return 0
 }
 
 # ── Probes ───────────────────────────────────────────────────────────────────
@@ -259,16 +273,18 @@ probe_pihole() {
 # a single hostname. Caller pairs this with their own http_probe for the
 # direct leg.
 probe_caddy() {
-    # Skip Caddy routing checks inside a decree daemon — the daemon only needs
+    # Skip Caddy routing checks inside the backup daemon — the daemon only needs
     # to confirm the service itself is up, not the full routing stack.
-    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
+    # NOT DECREE_DAEMON: that is true in `decree` too, which is exactly where
+    # triage runs every service test with /repo mounted and Caddy reachable.
+    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" expect="${4:-200}" timeout="${5:-5}"
     _probe_caddy_paths exact "$name" "$host" "$path" "$expect" "$timeout"
 }
 
 # probe_caddy_any NAME HOST [PATH=/] [PATTERN=^200$] [TIMEOUT=5]
 probe_caddy_any() {
-    [ "${DECREE_DAEMON:-}" = "true" ] && return 0
+    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
     local name="$1" host="$2" path="${3:-/}" pattern="${4:-^200$}" timeout="${5:-5}"
     _probe_caddy_paths regex "$name" "$host" "$path" "$pattern" "$timeout"
 }

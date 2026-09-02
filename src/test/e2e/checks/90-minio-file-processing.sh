@@ -2,9 +2,9 @@
 # e2e-minio-file-processing — the MinIO → webhook → router → processor chain.
 #
 # Staged into the clone's shared_routines/ by e2e.sh and triggered by the
-# message in 10-minio-file-processing.md. Runs inside the decree daemon, so it
-# reaches MinIO over the exist bridge with mc and reads the rendered stack at
-# /repo. Every write lands in the disposable e2e clone.
+# migration in 90-minio-file-processing.md. Runs inside decree, so it reaches
+# MinIO over the exist bridge with mc and reads the rendered stack at /repo.
+# Every write lands in the disposable e2e clone.
 #
 # Setup that must happen before the daemon boots (the probe processor, and the
 # webhook's rclone_prefix) is done on the host in e2e.sh's stage_checks — both
@@ -119,11 +119,13 @@ say "uploaded ${BUCKET}/${OBJECT}"
 #                                the inbox. This is the bug the whole check
 #                                exists for: a wrong port means nothing arrives.
 #   the router matched it, and
-#   the processor read the file  the probe processor asserts its own inputs and
-#                                exits non-zero if they are wrong, so a break
-#                                dead-letters that message.
-#   nothing broke or stuck       e2e.sh requires a drained inbox and an empty
-#                                dead/ before any quest may pass.
+#   the processor read the file  the example processor staged as the probe
+#                                asserts its download is non-empty and exits
+#                                non-zero otherwise, so a break dead-letters
+#                                that message.
+#   nothing broke                every run in the clone is graded, so the
+#                                router's and the processor's own runs each get
+#                                a row of their own.
 #
 # The budget is generous because it waits on a QUEUE and on MinIO's own notify
 # retry, not on the pipeline; measured, the webhook enqueues in well under a

@@ -39,7 +39,6 @@
 #   TRIAGE_NOTIFY         notify on change (default true)
 #   TRIAGE_ALWAYS         ignore backoff and run every tick (default false)
 #   TRIAGE_REPO           repo mount (default /repo)
-#   TRIAGE_STRICT         exit non-zero when a service failed (default false)
 #
 #   ---
 #   cron: "*/5 * * * *"
@@ -60,7 +59,6 @@ TRIAGE_BACKOFF="${TRIAGE_BACKOFF:-5 5 15 30 60}"
 TRIAGE_MAX_INTERVAL="${TRIAGE_MAX_INTERVAL:-360}"
 TRIAGE_NOTIFY="${TRIAGE_NOTIFY:-true}"
 TRIAGE_ALWAYS="${TRIAGE_ALWAYS:-false}"
-TRIAGE_STRICT="${TRIAGE_STRICT:-false}"
 PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://prometheus-pushgateway:9091}"
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 
@@ -253,14 +251,7 @@ else
     echo "Next check in ${NEXT}m. Fix with: ./existential.sh test services"
 fi
 
-# Under TRIAGE_STRICT the exit code IS the verdict — the mode e2e runs in, where
-# a broken service must fail the run and nothing is watching Grafana or ntfy.
-if [ "$TRIAGE_STRICT" = "true" ] && [ "${#FAILED[@]}" -gt 0 ]; then
-    echo "TRIAGE_STRICT: ${#FAILED[@]} service(s) failed — ${FAILED[*]}" >&2
-    exit 1
-fi
-
-# Otherwise always exit 0, even with services down. Triage's job is to REPORT
+# Always exit 0, even with services down. Triage's job is to REPORT
 # health, and it did that — a non-zero exit would tell decree the routine itself
 # failed, so it would retry the whole suite three times and then dead-letter. The
 # health signal rides the exist_service_healthy gauge (per service, so Grafana can

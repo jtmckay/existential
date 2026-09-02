@@ -145,10 +145,12 @@ itself to the frontmatter; the body is free-form prose.
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
-(bare `test` runs them all), `validate [conventions|drift]`, and `e2e [pattern...]` (fresh clone
-→ render → up → run this run's *checks* → down). **An e2e check is a markdown file in
-`src/test/e2e/checks/`** — a decree message naming a routine, dropped into the clone's inbox and
-run by the daemon, so one failing check never hides the rest. Adding a check is adding a file.
+(bare `test` runs them all), `validate [conventions|drift]`, and `e2e [pattern...]`. e2e answers
+one question — **does a fresh install come up working?** — because that is the one thing `triage`
+cannot see; it copies the **working tree** (not HEAD) into a throwaway clone → render → up →
+checks → down, and does *not* re-run per-service tests. **An e2e check is a markdown file in
+`src/test/e2e/checks/`** — a decree migration, copied into the clone and numbered `90-` and up so
+the product's own migrations are all graded first. Adding a check is adding a file.
 Every run's evidence (`results.md`, each check's `routine.log` and `run.json`, dead letters,
 unhealthy containers' logs) is copied to `e2e-out/<stamp>-<quest>/` before teardown — gitignored,
 and written even when a run crashes. Contract: `src/test/e2e/checks/README.md`.
