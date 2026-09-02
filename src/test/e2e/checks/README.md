@@ -16,24 +16,18 @@ Checks are copied in rather than shipped in `migrations.example/` — that
 directory is what a user's quest copies from, and test code has no business in
 the product tree.
 
-## Why migrations, and why the number matters
+## Why messages, and why after the gate
 
-`decree process` returns the moment a message dead-letters, so a failure early
-in the pass hides every later result. That is correct for migrations, where step
-12 may depend on step 11, and it used to be the reason checks were inbox
-messages instead.
+`decree process` stops the moment a message dead-letters, so as migrations the
+first failing check would hide every later one. That alone is a reason, but the
+one that actually bit us is timing: **migrations run during decree's boot**, so a
+check written as a migration judges a stack that is still starting. Run that way,
+`00-services` failed hermes, appsmith, lowcoder, nocodb and nextcloud across four
+quests whose containers the health gate then found perfectly healthy.
 
-**Number checks above the product's own migrations and the objection goes
-away.** The stack's migrations are `10-`–`22-` (ollama models, MinIO buckets);
-checks start at `90-`, so every product migration has already run and been
-graded before the first check executes. A check that dead-letters halts only the
-checks behind it — and with one check, nothing. What that buys in exchange is
-one mechanism instead of two: no inbox drop, no drain poll, no dead-letter
-dance, and a check that is exercised by the same code path the product uses.
-
-If checks ever grow to the point where one blocking the next is a real loss,
-the answer is still a number — give the expensive ones the higher ones — not a
-second runner.
+Migrations are setup. Checks are verification, and verification runs once the
+stack is up — so e2e drops them into the inbox after the container-health gate
+and `decree daemon` drains them past any dead letter.
 
 ## Frontmatter
 

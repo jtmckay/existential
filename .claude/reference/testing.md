@@ -47,28 +47,32 @@ work is what gets tested, and git's own ignore rules are what keeps `.env.shared
 the same filter that keeps them out of a commit. One consequence: an untracked file that is *not*
 gitignored now lands in the clone.
 
-**A check is a markdown file in `src/test/e2e/checks/`** — a decree **migration** naming a
-routine, copied into the clone's `migrations/` before `up` and applied during decree's boot.
+**A check is a markdown file in `src/test/e2e/checks/`** — a decree **message** naming a routine,
+dropped into the clone's inbox *after* the container-health gate and run by the daemon.
 Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
 
-- There is **no per-service tier**. `triage` already runs every enabled service's `exist.test.sh`
-  on the real stack every five minutes, so e2e does not repeat it. Its remit is what triage cannot
-  see: a fresh install rendering, applying its quest's `copies:`, running migrations, and wiring
-  one service to another. A service that is up but misconfigured is triage's job, not e2e's.
+- `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
+  quest with no migrations and no MinIO verifies **nothing**: five of the eight copy only cron
+  files (nightly/weekly backups, `clean-runs`, `gmail-sync`), none of which can fire inside a run
+  that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
 - A check with a sibling `.sh` gets it staged into the clone's `shared_routines/` and registered,
   so test code never lands in a user's `config.yml`. It runs **inside `decree`**: `mc`, `rclone`,
   `jq`, `yq`, `curl`, `tsx`, service credentials, `/repo` read-only, DNS to every container — but
   no Docker socket. Anything needing one stays on the host in `e2e.sh`.
-- **Migrations, numbered `90-` and up.** `decree process` stops at the first dead letter, which
-  is why checks sit *above* the product's own migrations (`10-`–`22-`): those are all graded
-  before a check can halt anything. One mechanism, not two — the checks run down the same code
-  path the product's migrations do, and there is no inbox drop and no drain poll to maintain.
-  Checks are copied into the clone, never shipped in `migrations.example/`, which is a user's
-  copy source.
+- **Messages, not migrations, and dropped after the gate.** `decree process` stops at the first
+  dead letter, so migrations would let one failure hide the rest. The reason that actually bit us
+  is timing: migrations run during decree's **boot**, so a check written as one judges a stack
+  that is still starting — it failed hermes, appsmith, lowcoder, nocodb and nextcloud on four
+  quests the health gate then found healthy. Migrations are setup; checks are verification.
 - decree runs **one message at a time**, and a check *is* that message — so a check can prove work
   was enqueued but can never wait for work it triggered. Push those assertions down (a probe
   processor that validates its own inputs); `decree process` drains the whole inbox before the
   daemon starts, so that queued work runs and is graded inside the same wait.
+
+One run at a time: `e2e.sh` takes a machine-wide `flock` on `/tmp/exist-e2e.lock` before it
+does anything, because its startup teardown reclaims *any* `.tmp-e2e-*` stack it finds — a second
+run would delete the first one's containers mid-flight. `e2e down` takes the same lock. flock
+frees on process death, so a crash leaves nothing stale.
 
 **`e2e-out/<stamp>-<quest>/`** (gitignored) is the output directory: `results.md` (one row per
 check), each run's `message.md`/`routine.log`/`run.json` copied verbatim, `dead/`, `stuck/`, and
@@ -84,6 +88,29 @@ nothing must not read green.
 
 Its opposite lives in `harness-selftest.sh` (below): `collect_results` driven against a fabricated
 `runs/` tree.
+
+## Traps this harness has already fallen into
+
+Each of these was tried, shipped, and reverted. They all look like simplifications.
+
+- **Core is not a representative quest — verify a harness change against all of them.** Core is
+  the only quest with a full migration set; five of the others copy *cron files only*. Twice a
+  change was justified against a green Core and broke everything else: stripping the clone's crons
+  left those five with nothing gradable at all (a guaranteed `0 of 0` = fail), and running checks
+  as migrations passed Core only because `migration-gate.sh` holds its slow starter back. Run the
+  sweep, not `e2e core`.
+- **Don't convert checks into migrations.** It is the obvious consolidation and it is a phase
+  error — see "Messages, not migrations" above. The rationale is written into
+  `checks/README.md` and `results.sh` as well; if you find yourself proposing it, all three
+  already say no.
+- **Don't collapse two env flags because they look redundant.** `DECREE_SIDECAR` and
+  `DECREE_DAEMON` read as duplicates; they were never set on the same container, and merging them
+  silently turned `probe_caddy` into a no-op inside `decree` — which is where triage runs every
+  service's test. Grep for what actually *sets* a variable before deciding two of them are one.
+- **The value is in running the quests, not in the harness.** Every real bug this effort found —
+  ollama installed with no models, hermes crying wolf on a GPU-less host, the disabled Caddy probe
+  — came from bringing a quest up and looking, not from adding test infrastructure. When e2e work
+  starts growing faster than the findings it produces, stop and go run something.
 
 ## Container-state gate
 

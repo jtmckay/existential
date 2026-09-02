@@ -15,9 +15,11 @@
 #     run.json with exit_code 0  → PASS
 #     no run.json, or non-zero   → FAIL
 #     message in inbox/dead/     → FAIL
-# `decree process` stops at the first dead letter, which is why checks are
-# numbered above the product's own migrations — everything that matters has
-# already run and been graded by the time one can halt anything.
+# and one failure never hides the others, because `decree daemon` keeps draining
+# the inbox past a dead letter (unlike `decree process`, which stops). Checks are
+# messages for a second reason too: a message is dropped once the stack is up,
+# whereas a migration runs during decree's boot and would judge services that
+# have not finished starting.
 #
 # Every run in the clone is graded, not just the checks e2e staged: a check
 # can only prove it ENQUEUED work (decree runs one message at a time and the
@@ -36,8 +38,12 @@
 e2e_fm_get() {
     local file="$1" key="$2"
     [ -f "$file" ] || return 0
+    # Trailing whitespace is trimmed as well as leading: a caller comparing
+    # against a literal (`[ "$(e2e_fm_get "$f" e2e)" = true ]`) would otherwise
+    # match NEITHER branch on `e2e:  true   `, and a quest would vanish from the
+    # run list and the excluded list at once, with no warning.
     awk -v k="^${2}:" 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f && $0 ~ k' "$file" \
-        | head -1 | sed "s/^${key}:[[:space:]]*//"
+        | head -1 | sed "s/^${key}:[[:space:]]*//; s/[[:space:]]*\$//"
 }
 
 # exit_code out of a run.json, or empty when there is none. grep rather than jq:

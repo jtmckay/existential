@@ -10,13 +10,13 @@
 # Per selected quest: copy the WORKING TREE into a throwaway clone (tracked
 # files plus untracked-but-not-ignored ones, so uncommitted work is what gets
 # tested and secrets stay out by git's own ignore rules), enable the quest's
-# services, apply its copies:, stage this run's CHECKS as decree migrations,
-# render, up, and wait for decree to work through them. Evidence lands in
-# e2e-out/ before teardown.
+# services, apply its copies:, render, up, then drop this run's CHECKS into the
+# decree inbox once the stack is healthy and let the daemon run them. Evidence
+# lands in e2e-out/ before teardown.
 #
-# A check is a markdown file in checks/ — see checks/README.md. It is a decree
-# MIGRATION, the same mechanism the product's own migrations use. Adding a check
-# is adding a file; nothing here enumerates them.
+# A check is a markdown file in checks/ — a decree message, run after the stack
+# is up because that is when "does it work?" can be asked. Adding a check is
+# adding a file; nothing here enumerates them.
 #
 # Usage (via existential.sh):
 #   ./existential.sh e2e                 # every e2e-able quest
@@ -214,13 +214,10 @@ stage_checks() {
     cfg="$work/services/decree/decree/config.exist.yml"
     [ -f "$cfg" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
     sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
-    mkdir -p "$work/services/decree/decree/migrations"
 
     local -a enable=() needs=()
     while IFS= read -r md; do
         [ -n "$md" ] || continue
-        cp "$md" "$work/services/decree/decree/migrations/$(basename "$md")"
-        log "  → $(basename "$md" .md)"
         sh="${md%.md}.sh"
         if [ -f "$sh" ]; then
             cp "$sh" "$work/automations/shared_routines/$(e2e_fm_get "$md" routine).sh"
@@ -254,25 +251,62 @@ stage_checks() {
     return 0
 }
 
-# Migrations run during decree's BOOT: the entrypoint waits on migration-gate.sh,
-# runs `decree process` — which works through migrations/ and then drains the
-# whole inbox, including everything those migrations enqueue — and only then
-# execs the daemon. pid1 is `bash` until that exec and `decree` after, the same
-# signal the image's own healthcheck uses. So this one poll is the whole wait:
-# when it returns, every check has run and so has the work it triggered.
-await_migrations() {
-    local timeout="${E2E_CHECK_TIMEOUT:-900}"
-    local deadline=$(( $(date +%s) + timeout ))
-    log "Waiting for decree to finish its migrations (up to ${timeout}s)..."
+# Drop the applicable checks into the inbox. Filenames are prefixed so they sort
+# after anything decree put there itself.
+drop_checks() {
+    local work="$1" md n=0
+    local inbox="$work/services/decree/decree/inbox"
+    [ -d "$inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
+
+    # Wait for the daemon phase before dropping anything. decree's entrypoint
+    # runs `decree process` first, and that drains the WHOLE inbox — so a check
+    # landing during it is run by the migration pass, where the first dead letter
+    # aborts the rest. Messages, not migrations, is the entire point; do not let
+    # them be processed as migrations by accident. pid1 is `bash` through the
+    # health-wait and migrations, and `decree` once the daemon is up, which is the
+    # same signal the image's own healthcheck uses.
+    local deadline=$(( $(date +%s) + 600 ))
     until docker exec decree grep -q decree /proc/1/comm 2>/dev/null; do
-        [ "$(date +%s)" -ge "$deadline" ] && {
-            echo; log "  decree never reached its daemon phase — its migrations did not finish"
-            return 1; }
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            log "  decree never reached its daemon phase — nothing can run the checks"
+            return 1
+        fi
+        sleep 5
+    done
+
+    while IFS= read -r md; do
+        [ -n "$md" ] || continue
+        cp "$md" "${inbox}/e2e-$(basename "$md")"
+        log "  → $(basename "$md" .md)"
+        n=$(( n + 1 ))
+    done < <(applicable_checks "$work")
+    [ "$n" -gt 0 ] || { log "  (no checks apply to this quest)"; return 1; }
+    return 0
+}
+
+# Wait for the daemon to drain. Done when the inbox holds no *.md and no run is
+# in flight; a dead letter does NOT end the wait, because the daemon carries on
+# past one and the remaining checks still have results to produce.
+#
+# This also asserts the property that used to be the MinIO flow's last two
+# steps, and it belongs here rather than there: a message that runs but never
+# gets its run.json comes back on every tick forever, and nothing scoped to one
+# check can see that. Nothing may be left stuck, from any routine.
+await_checks() {
+    local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
+    local inbox="$work/services/decree/decree/inbox"
+    local deadline=$(( $(date +%s) + timeout )) left
+    log "Waiting for checks to drain (up to ${timeout}s)..."
+    while [ "$(date +%s)" -lt "$deadline" ]; do
+        left=$(find "$inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+        [ "$left" -eq 0 ] && { echo; return 0; }
         printf '.'
         sleep 5
     done
     echo
-    return 0
+    log "Inbox did not drain within ${timeout}s — still queued:"
+    find "$inbox" -maxdepth 1 -name '*.md' -printf '[e2e]   %f\n' 2>/dev/null || true
+    return 1
 }
 
 # ── Evidence ──────────────────────────────────────────────────────────────────
@@ -427,6 +461,19 @@ run_quest() {
     ( . "$WORK/existential.sh"; run_initials ) \
         || die "exist.initial.sh failed for one or more services — see above"
 
+    # 6b. Strip the daemon's crons. They fire on a */5 schedule against a stack
+    #     that lives for a single run, so whether one lands inside the window is
+    #     a coin toss — the same tree produced 10 rows and 12 rows on consecutive
+    #     runs, and evidence that changes run to run is not evidence.
+    #
+    #     Nothing that can FAIL is lost: triage exits 0 even with services down
+    #     by design (its verdict rides the exist_service_healthy gauge and ntfy,
+    #     not the exit code) and the notify it queues follows it. What a cron
+    #     does on a schedule is triage's job on the real stack, continuously —
+    #     which is exactly why e2e stopped running a per-service tier at all.
+    rm -f "$WORK/services/decree/decree/cron/"*.md \
+          "$WORK/services/decree/decree-backup/cron/"*.md
+
     # 7. $WORK is passed as the host-side repo root so the generated bind-mount
     #    paths resolve on the host, not inside adhoc.
     log "Generating docker-compose.yml..."
@@ -447,11 +494,14 @@ run_quest() {
         "$WORK/docker-compose.yml" "$E2E_PROJECT" || health_rc=1
     [ "$health_rc" -eq 0 ] || log "${name} — container health gate FAILED"
 
-    # 10. The checks already ran — they are migrations, and decree applies those
-    #     before it becomes a daemon. All that is left is to wait for that and
-    #     read the evidence. An unhealthy container does not skip it: whatever
-    #     did run still has results worth collecting.
-    await_migrations || checks_rc=1
+    # 10. The checks, dropped now and not earlier: a check asks whether the
+    #     stack WORKS, and that question is only meaningful once it has finished
+    #     starting. Run as migrations (during decree's boot) they failed hermes,
+    #     appsmith, lowcoder, nocodb and nextcloud on stacks the health gate
+    #     then found healthy. An unhealthy container does not skip them — the
+    #     rest still have results worth collecting.
+    drop_checks "$WORK" || checks_rc=1
+    [ "$checks_rc" -eq 0 ] && { await_checks "$WORK" || checks_rc=1; }
 
     collect_quest_results "$WORK" "$name" || checks_rc=1
     COLLECTED=1

@@ -17,11 +17,33 @@ services:
     label: OpenViking
   - var: EXIST_IS_AI_WHISPERX
     label: WhisperX
-  - var: EXIST_IS_AI_CHATTERBOX
-    label: Chatterbox
   - var: EXIST_IS_AI_COMFYUI
     label: ComfyUI
 copies:
+  # Ollama models. Without these migrations ollama starts with NO models and
+  # every other AI service here — open-webui, hermes, mcp — fails its first
+  # request. Core carries the same block; this quest enables ollama too and was
+  # missing it, so "Local AI Lab" installed a model server with no models.
+  - src: services/decree/decree/migrations.example/10-ollama-pull-chat-model.md
+    dst: services/decree/decree/migrations/
+    label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: services/decree/decree/migrations.example/11-ollama-set-chat-context.md
+    dst: services/decree/decree/migrations/
+    label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: services/decree/decree/migrations.example/12-ollama-pull-extract-model.md
+    dst: services/decree/decree/migrations/
+    label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: services/decree/decree/migrations.example/13-ollama-pull-embed-model.md
+    dst: services/decree/decree/migrations/
+    label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
+    requires: EXIST_IS_AI_OLLAMA
+  - src: services/decree/decree/migrations.example/14-ollama-pull-vision-model.md
+    dst: services/decree/decree/migrations/
+    label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
+    requires: EXIST_IS_AI_OLLAMA
   - src: services/decree/decree-backup/cron.example/hermes-volume-backup-nightly.md
     dst: services/decree/decree-backup/cron/
     label: "hermes: volume-backup-nightly.md"
