@@ -178,6 +178,12 @@ services:
       context: ./webhook
       dockerfile: Dockerfile
     image: existential/decree-webhook:local
+    # Built by compose (above), never published anywhere — `docker compose pull`
+    # doesn't look at `build:`, it just pulls whatever `image:` names for every
+    # service, so without this it tries Docker Hub for a repo that only exists
+    # as this local build and fails with "pull access denied". Same reason the
+    # decree/decree-backup services above pin this.
+    pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     # Static Go binary on distroless; ~9 MiB idle and flat.
