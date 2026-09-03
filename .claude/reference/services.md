@@ -140,6 +140,7 @@ majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else f
 | `nvidia` | nothing, beyond dropping the `x-exist-gpu` key                                  |
 | `amd`    | strips the nvidia reservation, merges `x-exist-gpu.amd`                         |
 | `none`   | strips the nvidia reservation, merges `x-exist-gpu.none`; `EXIST_VRAM_GB` is 0  |
+| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another machine |
 
 The strip is not tidiness. Docker refuses to create a container whose device driver it cannot
 satisfy (`could not select device driver … with capabilities: [[gpu]]`), and compose fails the

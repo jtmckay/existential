@@ -16,6 +16,8 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | add a hostname, Caddy block, or piHole/TLS change | `.claude/reference/networking.md` |
 | write or change a test | `.claude/reference/testing.md` |
 | add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
+| change `existential.sh`, `reset`, a quest, or an e2e check | `.claude/reference/setup.md` |
+| change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
 | work on automations/decree | the `/decree` skill (it reads the live files) |
 
 ---
@@ -70,13 +72,10 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 ## Layout
 
-Categories: `ai/` `services/` `nas/` `hosting/` (each holds slug-named service dirs). Plus:
-`automations/` (shared decree code), `src/` (setup/utility scripts), `volumes/` (every persistent
-bind mount; gitignored, created per enabled service), `decree/` (cloned source, read-only reference), `site/` (Docusaurus
-docs), `graveyard/` (archived — leave alone). One root dir holds *the user's own content* rather
-than service state, so it is gitignored but does **not** live under `volumes/`: `workspace/`
-— shared by hermes and code-server, indexed into openviking, and synced to MinIO (minus
-`workspace/ai/`, which is where the agent automations write).
+One root dir holds *the user's own content* rather than service state, so it is gitignored but
+does **not** live under `volumes/`: `workspace/` — shared by hermes and code-server, indexed
+into openviking, and synced to MinIO (minus `workspace/ai/`, which is where the agent
+automations write).
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
@@ -84,8 +83,8 @@ than service state, so it is gitignored but does **not** live under `volumes/`: 
   (`SERVICE_CATEGORIES`, `_load_env_shared`, `service_is_enabled`, `_find_service_dirs`,
   `_enable_var_for`), used by both `existential.sh` and `src/templates.sh`, keyed off
   `$SCRIPT_DIR`.
-- `src/test/` = `unit/` + `integration/` + `e2e/`; `.githooks/` = `pre-commit` (secrets) and
-  `pre-push` (the rest). Both detailed in `.claude/reference/testing.md`.
+- `.githooks/` = `pre-commit` (secrets) and `pre-push` (the rest). Both detailed in
+  `.claude/reference/testing.md`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
 - **`.sh` exec bit:** default `644` — `existential.sh` and the decree daemon `bash <script>`
   everything they dispatch. Keep `+x` (`755`) only on scripts executed **by path**:
@@ -118,42 +117,18 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 `exist.initial.sh`, and merges enabled services into a unified `docker-compose.yml`. Disabled
 services are skipped entirely (no secrets/templates land on disk). A rendered destination is
 written **once** and skipped thereafter — there is no re-render flag. The one exception is
-key-level, not file-level: a rendered `.env*` is still never overwritten, but every run appends
-keys the template has gained since (`_reconcile_env_keys` in `src/templates.sh`), so
-`git pull && ./existential.sh` reaches an existing install. It is append-only — existing values,
-blanks included, are never touched. `reset` archives every
-rendered file to `archive/<timestamp>/` (paths preserved, gitignored, restore with `cp -r
-archive/<stamp>/. .`) so the next run renders fresh; it never touches `volumes/` beyond
-offering to delete the `*_cache` ones. It archives the generated `docker-compose.yml` too, so it first offers
-to `docker compose down` a stack that is still up (host-side — `reset` itself runs in
-adhoc, which has no docker socket). `quest` launches the interactive picker first. On a first run — nothing enabled beyond the
-shipped defaults, which `_has_any_enabled` checks against `.env.exist.shared` rather than by
-counting `true`s — quest asks two hardware questions and then leads with a single **Core, or no
-thanks** choice (`src/quests/00-core.md`) instead of forty service checkboxes; declining falls
-through to the full picker. The hardware questions are **GPU vendor first**
-(`src/utils/gpu-vendor.sh` → `EXIST_GPU_VENDOR`), then VRAM (`src/utils/model-tiers.sh` →
-`EXIST_VRAM_GB`); answering *No GPU* sets `EXIST_VRAM_GB=0` itself and **skips** the VRAM
-question, so the VRAM picker is always asked with `--gpu-only`. `EXIST_GPU_VENDOR` records that
-the pair was asked, so they are never re-asked; `run models` is the way back and re-asks both.
-
-A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
-`e2e`, `services`, `copies`), the body for the guide — the same shape as decree's cron and
-migration files. It is read by `yq` in `quest.sh` (`qmeta` / `qbody`), NOT by decree, so decree's
-"extra keys become env vars" contract does not apply. Everything that reads a quest must scope
-itself to the frontmatter; the body is free-form prose.
+key-level: a rendered `.env*` is never overwritten, but every run **appends** keys the template
+has gained since, so `git pull && ./existential.sh` reaches an existing install. Existing
+values, blanks included, are never touched. `reset` archives every rendered file to
+`archive/<timestamp>/` so the next run renders fresh. → `setup.md`
 
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
-don't memorize the list here. The rest: `test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
-(bare `test` runs them all), `validate [conventions|drift]`, and `e2e [pattern...]`. e2e answers
-one question — **does a fresh install come up working?** — because that is the one thing `triage`
-cannot see; it copies the **working tree** (not HEAD) into a throwaway clone → render → up →
-checks → down, and does *not* re-run per-service tests. **An e2e check is a markdown file in
-`src/test/e2e/checks/`** — a decree migration, copied into the clone and numbered `90-` and up so
-the product's own migrations are all graded first. Adding a check is adding a file.
-Every run's evidence (`results.md`, each check's `routine.log` and `run.json`, dead letters,
-unhealthy containers' logs) is copied to `e2e-out/<stamp>-<quest>/` before teardown — gitignored,
-and written even when a run crashes. Contract: `src/test/e2e/checks/README.md`.
+don't memorize the list here. The rest: `test` (bare `test` runs every suite),
+`validate [conventions|drift]`, `e2e [pattern...]`, and `quest` (the interactive picker, which
+also asks the two hardware questions on a first run). e2e answers one question — **does a fresh
+install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,
+so adding a check is adding a file. → `setup.md`
 
 ---
 
@@ -193,15 +168,10 @@ from the repo root against the generated `docker-compose.yml`.
   an `x-exist-gpu.amd` block, where it is how Vulkan reaches `/dev/dri` — never in the service
   body, so it can only ever apply on an AMD host. → `services.md`
 - **GPU wiring is vendor-driven, never forked per template.** Templates declare the nvidia
-  reservation (correct for the majority) and `src/generate-compose.ts` rewrites it from
-  `EXIST_GPU_VENDOR`: `nvidia` is a no-op, `amd`/`none`/`external` strip the reservation — docker refuses to
-  create a container whose device driver it cannot satisfy, so one stray reservation takes
-  `docker compose up` down for the *whole* stack — and merge that service's `x-exist-gpu.<vendor>`
-  block instead. Vendor config lives **with the service**, so a new GPU service is still just a
-  new folder. A blank `EXIST_GPU_VENDOR` falls back to the old `EXIST_VRAM_GB == 0` meaning, which
-  is what pre-vendor installs already assumed — but only when VRAM was answered. **Both blank
-  means nothing was ever asked** (fresh clone, CI, e2e) and resolves to `none`: guessing nvidia
-  there loses the whole `up` on every non-nvidia host. → `services.md`
+  reservation and `src/generate-compose.ts` rewrites it from `EXIST_GPU_VENDOR`, merging that
+  service's `x-exist-gpu.<vendor>` block instead. One stray reservation docker cannot satisfy
+  fails `docker compose up` for the *whole* stack. Vendor config lives **with the service**, so
+  a new GPU service is still just a new folder. → `services.md`
 - **Every container declares `deploy.resources.limits.memory`.** Size it at roughly 2-3x what the
   service uses idle, not at a worst case: docker sets `memory.swap.max == memory.max`, so a
   container gets its limit in RAM *plus the same again in swap* before anything is killed. The
@@ -226,35 +196,18 @@ from the repo root against the generated `docker-compose.yml`.
   `site/docs/configuration.md`); link to it from the comment if the key needs more than a line.
   → `templates.md`
 - **Model choice is global, never per-service.** Every model the stack uses is named once in
-  `.env.exist.shared`'s *Model Selection* block (`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EXTRACT`,
-  `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`, `_STT_LANGUAGE`, `_TTS_VOICE`). Consumers read those:
-  ollama migrations name an `OLLAMA_ROLE` (not a tag), honcho renders `config.toml` from them, and
-  the wyoming services take them as compose env. **Never hardcode a model tag in a service.**
+  `.env.exist.shared`'s *Model Selection* block. **Never hardcode a model tag in a service** —
+  consumers read those keys (ollama migrations name an `OLLAMA_ROLE`, not a tag). → `models.md`
 - **Model *addresses* are per-role, in one block.** `.env.exist.shared`'s *Model Endpoints*
-  block gives each role its own key (`EXIST_OLLAMA_URL_CHAT`, `_EXTRACT`, `_EMBED`, `_VISION`),
-  each **blank** and falling back to `EXIST_OLLAMA_URL` — that is how VRAM gets spread across
-  machines. **Never read a role key directly and never write your own fallback**: scripts source
-  `src/utils/model-endpoints.sh` and call `endpoint_for <role>`; rendered templates write the
-  bare token (`EXIST_OLLAMA_URL_EMBED`), which `src/templates.sh` resolves before substitution;
-  compose files use `${EXIST_OLLAMA_URL_<ROLE>:-${EXIST_OLLAMA_URL:-http://ollama:11434}}`.
-  Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary so a model is pulled to the machine that
-  serves it. Adding a role means touching all three resolvers —
-  `src/test/unit/test-model-endpoints.sh` asserts they agree. STT/TTS get **no keys**: the
-  wyoming services are CPU-only, so there is no VRAM to spread, and Home Assistant is told
-  where they live in its own UI.
-- **Model values come from the VRAM tier table** (`src/utils/model-tiers.sh`). Quest asks how
-  much VRAM the machine has on first run (after the GPU vendor question, and only when the answer
-  was not *No GPU*), `./existential.sh run models` re-asks later, and
-  `.env.exist.shared` ships the default tier's *model* values (8 GB) but ships `EXIST_VRAM_GB`
-  **blank** — that blankness is the record of not-yet-asked, and quest's picker fires only while
-  it is empty, so shipping a value there makes the question unreachable. Edit the table, not the
-  individual defaults — a unit test asserts the two agree, and asserts the blank. Every tier tag
-  must have ollama's **tools** capability (hermes cannot act without it), be multimodal (so
-  images reuse the resident model), and carry **at least 64k context** — hermes requires 64,000
-  tokens and ollama truncates silently below it. On the small tiers that KV cache spills into
-  system RAM, which is a speed cost, not a correctness one, so no tier is cut to meet the floor.
-  The `0` tier is CPU-only and `generate-compose.ts` keys its
-  GPU-reservation strip off that exact value — do not renumber it.
+  block gives each role its own key, each **blank** and falling back to `EXIST_OLLAMA_URL` —
+  that is how VRAM gets spread across machines. **Never read a role key directly and never
+  write your own fallback**: there are three resolvers and they must agree. → `models.md`
+- **Model values come from the VRAM tier table** (`src/utils/model-tiers.sh`). Edit the table,
+  not the individual defaults — a unit test asserts the two agree, and asserts that
+  `.env.exist.shared` ships `EXIST_VRAM_GB` **blank** (the record of not-yet-asked). Every tier
+  tag needs ollama's **tools** capability, multimodal, and **at least 64k context**. The `0`
+  tier is CPU-only and `generate-compose.ts` keys its GPU-reservation strip off that exact
+  value — do not renumber it. → `models.md`
 
 ---
 
