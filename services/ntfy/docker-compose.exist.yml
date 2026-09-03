@@ -4,11 +4,12 @@ services:
     image: binwiederhier/ntfy:v2.27.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Go binary with a SQLite message cache; ~20 MiB measured.
+    # Go binary with a SQLite message cache; 14-17 MiB measured idle, publishing,
+    # holding open subscriber connections, and receiving an attachment upload.
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 64M
     networks:
       - exist
     # ports disabled — access via https://ntfy.<domain> (Caddy + pihole required)
@@ -39,7 +40,10 @@ services:
       - ntfy_cache:/var/lib/ntfy
       - ./ntfy-config:/etc/ntfy:ro
       - ./entrypoint.sh:/entrypoint.sh:ro
-    healthcheck: # optional: remember to adapt the host:port to your environment
+    # Confirmed against a real v2.27.0 container: /v1/health returns
+    # {"healthy":true} with no auth required, and the image ships wget (no
+    # curl) — matches the CMD-SHELL below.
+    healthcheck:
       test:
         [
           "CMD-SHELL",

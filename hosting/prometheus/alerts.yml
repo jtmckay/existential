@@ -49,8 +49,16 @@ groups:
           description: "Triage has reported {{ $labels.service }} ({{ $labels.category }}) unhealthy for 20 minutes. Check Loki for recent run logs."
 
       # ── Backup health (via pushgateway) ───────────────────────────────────
+      # Instance label is the decree routine name (automations/lib/hooks/afterEach.sh
+      # pushes every routine run to job=decree/instance=<routine>, and Pushgateway
+      # auto-derives push_time_seconds per job/instance grouping key — verified
+      # empirically, no metric named push_time_seconds is emitted by the routines
+      # themselves). Covers all three backup routines in
+      # automations/shared_routines/: volume-backup, db-backup, sqlite-backup.
+      # workspace-sync is deliberately excluded — it mirrors workspace/ into
+      # MinIO to drive S3 events, not a backup (see the routine's own header).
       - alert: BackupNotRun
-        expr: (time() - push_time_seconds{instance=~"db-backup|volume-backup"}) > 86400 * 2
+        expr: (time() - push_time_seconds{instance=~"db-backup|volume-backup|sqlite-backup"}) > 86400 * 2
         for: 0m
         labels:
           severity: warning

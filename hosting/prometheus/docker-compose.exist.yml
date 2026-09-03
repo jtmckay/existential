@@ -17,6 +17,17 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
+    # /-/healthy only proves the web server answers, not that scraping/rules
+    # are working (exist.test.sh's `up` query covers that) — still a real
+    # liveness signal without it a wedged process reads as "running" to the
+    # container-state gate. wget is busybox's, baked into the image (verified:
+    # /bin/wget in prom/prometheus:v3.14.0, no curl).
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     # ports disabled — access via https://prometheus.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -48,6 +59,14 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
+    # Same /bin/wget-on-busybox baseline as prometheus above (verified against
+    # prom/pushgateway:v1.11.3).
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9091/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   prometheus-node-exporter:
     container_name: prometheus-node-exporter
@@ -61,6 +80,14 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
+    # node-exporter serves no /-/healthy (verified: 404 — it registers no such
+    # route); /metrics is the liveness signal, same one exist.test.sh probes.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     # Host PID namespace so the /proc entries under /host/proc resolve to host
     # processes rather than this container's one. Network metrics still report
     # this container's netns (eth0/lo) — host NICs would need network_mode: host,

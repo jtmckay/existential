@@ -48,9 +48,13 @@ loki.process "decree" {
 	}
 }
 
-// Every container's json-file log. No docker socket: resolving an id to a name
-// would need the Docker API, which is host root. So these carry only the
-// 64-hex container id in `filename` — a catch-all grep, not a per-service view.
+// Every container's json-file log. No docker socket, so these carry only the
+// 64-hex container id in `filename` — a catch-all grep, not a per-service
+// view. The id *could* be resolved to a name without the socket (root can
+// read the sibling .../<id>/config.v2.json's "Name" field — verified), but
+// that's an undocumented internal docker state file with no compatibility
+// guarantee across engine versions, which is a worse trade than an id you can
+// `docker inspect` by hand.
 loki.source.file "docker_containers" {
 	targets = [
 		{ __path__ = "/var/lib/docker/containers/*/*.log", job = "docker" },

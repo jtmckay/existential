@@ -5,13 +5,42 @@ services:
     container_name: nextcloud
     image: nextcloud:34.0.3
     restart: unless-stopped
-    # php-fpm; ~216 MiB idle but a large upload or occ command is the real peak.
+    # Apache + mod_php, not php-fpm — this tag's CMD is apache2-foreground
+    # (`docker inspect nextcloud:34.0.3 --format '{{.Config.Cmd}}'`); the -fpm
+    # variant is a separate tag this compose doesn't use. ~120 MiB idle
+    # (`docker stats`, fresh install, no uploads), but a large upload or occ
+    # command is the real peak.
     deploy:
       resources:
         limits:
           memory: 768M
     networks:
       - exist
+    depends_on:
+      # redis is a separate, independently-toggleable service (nas/redis) and
+      # not declared here: an EXIST_IS_NAS_REDIS=false install would then merge
+      # a depends_on for a service that doesn't exist in the compose file at
+      # all, and `docker compose up` refuses the whole stack over it. redis is
+      # still effectively required (REDIS_HOST below is unconditional, no
+      # blank-key guard like the S3 vars) — exist.test.sh flags that
+      # dependency instead, where a missing/disabled redis fails one check
+      # rather than the render.
+      nextcloud-db:
+        condition: service_healthy
+    healthcheck:
+      # A 200 on /status.php is NOT proof of a working instance — an
+      # *uninstalled* Nextcloud serves the setup wizard with the same 200 and
+      # "installed":false (see exist.test.sh, which hits the same endpoint).
+      # Check the JSON, not just the status code.
+      test: ["CMD-SHELL", "curl -sf http://localhost/status.php | grep -q '\"installed\":true'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # Apache doesn't start listening until AFTER the entrypoint's install/
+      # upgrade block finishes (rsync of the codebase + `occ maintenance:install`
+      # + hooks), so a slow first boot fails silently within this window rather
+      # than flapping the health state.
+      start_period: 120s
     # ports disabled — access via https://nextcloud.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -37,15 +66,28 @@ services:
       # not over /docker-entrypoint-hooks.d, so the image's other hook folders
       # stay in place. Scripts here need the exec bit — run_path skips the rest.
       - ./hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro,z
-      # before-starting runs on EVERY start, which is what re-applies the domain
-      # settings below when EXIST_DOMAIN changes — the installer reads them only
-      # once. See hooks/before-starting/01-sync-domain.sh.
+      # before-starting runs on EVERY start. NEXTCLOUD_TRUSTED_DOMAINS is the one
+      # var here that actually needs that: the installer writes trusted_domains
+      # into config.php once (image /entrypoint.sh's install block) and nothing
+      # ever re-reads the env var after that, so
+      # hooks/before-starting/01-sync-domain.sh re-applies it on every start —
+      # that is what lets EXIST_DOMAIN change without nuking the volumes. See
+      # that script for the rest.
       - ./hooks/before-starting:/docker-entrypoint-hooks.d/before-starting:ro,z
     environment:
-      # The image reads these only on the FIRST run and then ignores them, so
-      # hooks/before-starting/01-sync-domain.sh re-applies them on every start.
-      # That is what lets EXIST_DOMAIN change without nuking the volumes.
       - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
+      # TRUSTED_PROXIES/OVERWRITEHOST/OVERWRITEPROTOCOL/OVERWRITECLIURL are NOT
+      # one-time like trusted_domains above: the installer also copies
+      # config/reverse-proxy.config.php (image source) into the live config
+      # dir, and that file calls getenv() on each of these directly — it is
+      # merged back in on EVERY PHP request, after config.php and overriding it
+      # (lib/private/Config.php's readData(): config.php loads first, then
+      # every `*.config.php` via glob+natsort, later keys win via
+      # array_replace_recursive). So these four just need to stay set here;
+      # verified by restarting a live install with a changed OVERWRITEHOST and
+      # no hook involved — `occ config:system:get overwritehost` picked up the
+      # new value immediately while config.php's own baked copy stayed on the
+      # old one.
       - TRUSTED_PROXIES=${NEXTCLOUD_TRUSTED_PROXIES}
       - OVERWRITEHOST=${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
       - OVERWRITECLIURL=${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
@@ -57,7 +99,11 @@ services:
       - MYSQL_USER=${NEXTCLOUD_SQL_USER}
       - MYSQL_HOST=nextcloud-db
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      # NOT REDIS_PORT — config/redis.config.php (image source) only reads
+      # REDIS_HOST_PORT; REDIS_PORT was never consumed by anything and only
+      # looked correct because 6379 is also what redis.config.php falls back to
+      # when REDIS_HOST_PORT is absent (`getenv('REDIS_HOST')[0] != '/' ? 6379`).
+      - REDIS_HOST_PORT=6379
       - REDIS_HOST_PASSWORD=${EXIST_REDIS_PASSWORD}
       # MinIO external storage, mounted at /S3 by
       # hooks/post-installation/01-minio-external-storage.sh. Blank key = the
@@ -74,7 +120,9 @@ services:
     image: mariadb:11.4
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # MariaDB. ~22 MiB idle; the InnoDB buffer pool is what grows with library size.
+    # MariaDB. ~85 MiB idle measured via `docker stats` (default
+    # innodb_buffer_pool_size is the stock 128M, i.e. about half this limit —
+    # raise the limit before raising that). Grows with library size beyond that.
     deploy:
       resources:
         limits:
@@ -83,7 +131,8 @@ services:
       - exist
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      # MariaDB — db: true. TODO: mysqldump → volumes/nextcloud_sql_data_backup.
+      # MariaDB — db: true. Backup: copy nextcloud-db-backup-{nightly,weekly}.md
+      # from services/decree/decree-backup/cron.example/ into cron/ and restart it.
       - nextcloud_sql_data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${NEXTCLOUD_ROOT_PASSWORD}
@@ -91,6 +140,18 @@ services:
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=${NEXTCLOUD_SQL_USER}
       # - MARIADB_AUTO_UPGRADE=1
+    healthcheck:
+      # healthcheck.sh ships in the official image and connects over the local
+      # unix socket as the current OS user with no creds — verified working
+      # under this same non-root `user:` against a correctly-owned bind mount
+      # (`docker exec --user 1000:1000 <ctr> healthcheck.sh --connect` → 0).
+      # innodb_initialized additionally rejects the narrow window mid-crash-
+      # recovery where the socket answers but InnoDB isn't ready yet.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 x-exist-volumes:
   # The webroot itself: PHP code, always local (never nfs — see the mount comment).

@@ -2,10 +2,39 @@ services:
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:2.45.0
-    # Root + docker.sock: portainer manages the Docker daemon. The image is
-    # distroless (no shell), so the admin password can't be written at startup —
-    # templates.sh renders portainer_password.txt; we mount it read-only and point
-    # --admin-password-file at it (default /portainer entrypoint, no shell needed).
+    # Root: the image ships no USER (defaults to uid/gid 0 — verified: a container
+    # started with no `user:` override reports Uid/Gid 0 in /proc/1/status) and is
+    # distroless (verified: no /bin/sh, /bin/bash or busybox in the rootfs — no
+    # shell to run under any other identity even if there were one). It also has
+    # no PUID/PGID-style env for dropping privileges. The host's docker.sock is
+    # group-owned (root:docker here) — a non-root uid would need that gid, which
+    # a distroless image gives no way to add. Root is the only thing this image
+    # can run as; the socket is root-equivalent regardless of what uid asks it,
+    # so this costs nothing that `user:` would otherwise have bought.
+    #
+    # docker.sock is mounted :ro below. That is NOT a security boundary — verified
+    # by actually driving the API through a :ro-mounted socket end-to-end (auth,
+    # then POST /docker/containers/create), which created a real container on the
+    # host. A `:ro` bind mount only stops this container from unlinking/replacing
+    # the socket *file*; it has no effect on what the Unix-domain connection can
+    # ask the daemon to do, because that permission lives in dockerd, not in the
+    # mount flag. It's still worth doing — it's free and it is what portainer's
+    # own packaging does (the image's baked-in Docker Desktop extension compose
+    # mounts the same path `:ro`) — just don't read it as containment.
+    #
+    # The admin password: the image is distroless, so nothing can be written into
+    # it at container startup — templates.sh renders portainer_password.txt once,
+    # mounted read-only, and --admin-password-file points at it (the stock
+    # /portainer entrypoint reads it directly; no shell needed). Verified this is
+    # a ONE-TIME seed, not a synced value: on every boot after the first, the log
+    # reads "instance already has an administrator user defined, skipping admin
+    # password related flags" and the file is ignored. So: rotating EXIST_PASSWORD
+    # does nothing here after first boot (portainer_password.txt itself is also
+    # render-once — see templates.md), and a password changed later via the UI
+    # survives every restart untouched. There is also no in-image way to reset a
+    # forgotten password (no shell to exec into, no CLI subcommand for it) short
+    # of deleting the portainer_data volume and starting over.
+    #
     # ports disabled — access via https://portainer.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -13,7 +42,7 @@ services:
     volumes:
       # Docker (default). For rootless Podman instead, swap for:
       #   - /run/user/${EXIST_PUID:-1000}/podman/podman.sock:/var/run/docker.sock:z
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./portainer_password.txt:/run/portainer/admin_password:ro
       # bbolt (portainer.db) — must be local; NFS breaks flock/mmap.
       # TODO: no backup yet — add a volume-backup cron in
@@ -25,11 +54,18 @@ services:
     networks:
       - exist
     restart: unless-stopped
-    # Docker UI; idles small and does no work of its own.
+    # Measured ~20-22 MiB RSS idle, under API load, and after a forced
+    # environment snapshot against a 36-container test host (snapshot size scales
+    # with what's running, and 36 moved it by well under 1 MiB). No native
+    # HEALTHCHECK is defined on purpose: the image ships no shell, wget or curl
+    # (verified against the exported rootfs) and the binary has no self-probe
+    # flag, so there is no CMD Docker could exec inside the container.
+    # exist.test.sh's HTTP probes (from outside, over the exist network) are the
+    # only functional healthcheck this image supports.
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 128M
     # --http-disabled: portainer otherwise also serves the whole API in plaintext
     # on :9000, reachable by every container on the exist bridge. Caddy and
     # exist.test.sh only ever use :9443.

@@ -13,6 +13,10 @@ services:
     # loki runs as uid 10001 internally; run as the host user instead so it can
     # write the host-owned bind-mounted loki_data (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # No healthcheck: the image ships nothing to run one with (verified —
+    # `docker export` on grafana/loki:3.7.7 lists exactly one file,
+    # /usr/bin/loki; no shell, no wget/curl). exist.test.sh's /ready probe is
+    # the readiness signal instead.
     networks:
       - exist
     volumes:
@@ -38,6 +42,9 @@ services:
     # No `user:` — alloy must read /var/lib/docker/containers, which is
     # root-owned (0700) and not chown-able. Root is structurally required for
     # the docker_containers scrape job.
+    # No healthcheck: verified against grafana/alloy:v1.19.2 — the image has
+    # no wget/curl/nc (only a shell). exist.test.sh's /-/ready probe, plus its
+    # check that logs actually land in loki, is the readiness signal instead.
     networks:
       - exist
     volumes:

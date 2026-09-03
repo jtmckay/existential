@@ -21,7 +21,7 @@
 # that is one event per file arriving at once. Order it:
 #
 #   printf -- '---\nroutine: workspace-sync\n---\n' \
-#     > nas/minio/decree/inbox/sync-once.md          # wait for it to finish, then:
+#     > services/decree/decree-backup/inbox/sync-once.md   # wait for it to finish, then:
 #   docker exec minio mc event add minio/workspace arn:minio:sqs::DECREE:webhook \
 #     --event put,delete
 #

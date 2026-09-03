@@ -53,6 +53,8 @@ shared_routines:
     enabled: true
   minio-router:
     enabled: false
+  nextcloud-richdocuments:
+    enabled: true
   gmail:
     enabled: false
   gmail-sync:

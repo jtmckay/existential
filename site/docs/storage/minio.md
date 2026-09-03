@@ -20,18 +20,19 @@ S3-compatible object storage. Provides an S3 interface to all files — replacea
 
 Automatic — nothing to do.
 
-On a first `docker compose up -d`, the `01-create-nextcloud-bucket` migration creates the
+On a first `docker compose up -d`, the `20-minio-create-nextcloud-bucket` migration creates the
 `nextcloud` bucket, and Nextcloud mounts it as external storage at **/S3** (a folder in Files,
 shared with every user). Because it is an external-storage mount rather than primary object
 storage, objects keep their real filenames, which is what the
 [File Processor](../decree/file-change-processing) pipeline matches on.
 
-Nextcloud does **not** use the MinIO root credentials. The `02-create-nextcloud-service-account`
-migration creates a MinIO user named `nextcloud`, attaches a `nextcloud-rw` policy scoped to that
-one bucket, and Nextcloud authenticates as that identity. The root pair stays what it should be:
-the console login, and the admin credential the two migrations themselves run as. The access key
-and secret render from `EXIST_MINIO_NEXTCLOUD_ACCESS_KEY` / `EXIST_MINIO_NEXTCLOUD_SECRET_KEY`
-into both `nas/minio/.env` and `nas/nextcloud/.env`, so the two sides cannot drift.
+Nextcloud does **not** use the MinIO root credentials. The
+`21-minio-create-nextcloud-service-account` migration creates a MinIO user named `nextcloud`,
+attaches a `nextcloud-rw` policy scoped to that one bucket, and Nextcloud authenticates as that
+identity. The root pair stays what it should be: the console login, and the admin credential the
+two migrations themselves run as. The access key and secret render from
+`EXIST_MINIO_NEXTCLOUD_ACCESS_KEY` / `EXIST_MINIO_NEXTCLOUD_SECRET_KEY` into both
+`nas/minio/.env` and `nas/nextcloud/.env`, so the two sides cannot drift.
 
 To use a different bucket, change `BUCKET` in both migrations and `NEXTCLOUD_S3_BUCKET` in
 `nas/nextcloud/.env` to match — the migration reads the credentials from env vars named after the

@@ -307,7 +307,7 @@ The remaining keys are secrets shared *between* services, generated on render:
   decree's `/minio` webhook endpoint.
 - `EXIST_MINIO_NEXTCLOUD_ACCESS_KEY` / `EXIST_MINIO_NEXTCLOUD_SECRET_KEY` — the bucket-scoped
   MinIO identity Nextcloud mounts `/S3` with, created by minIO's
-  `02-create-nextcloud-service-account` migration. Not the console login — see
+  `21-minio-create-nextcloud-service-account` migration. Not the console login — see
   [MinIO](./storage/minio.md).
 - `EXIST_MINIO_DOMAIN`, `EXIST_MINIO_SERVER_URL`, `EXIST_NEXTCLOUD_DOMAIN`,
   `EXIST_REDIS_PASSWORD` — see [Storage](./storage/index.md).

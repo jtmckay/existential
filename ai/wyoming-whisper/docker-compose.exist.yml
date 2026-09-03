@@ -29,7 +29,17 @@
 services:
   wyoming-whisper:
     container_name: wyoming-whisper
-    image: rhasspy/wyoming-whisper:3.6.0
+    # 3.7.0: no CLI/behavior change we rely on (checked the changelog — the new
+    # WYO_WHISPER_* env-var config, HA name-biasing tiers, and Dockerfile.gpu
+    # are all inert for a CPU install with no --hass-token set), but ctranslate2
+    # went 4.8.1 → 4.8.2, fixing an out-of-bounds StorageView read plus two
+    # unvalidated-allocation-size bugs in the C++ inference engine that loads
+    # the model and processes every request
+    # (https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) — worth
+    # taking for a service that runs untrusted-ish model files through it.
+    # Re-tested end-to-end at this tag: model download (with the HF_HOME fix
+    # below), describe handshake, and a real transcription all still work.
+    image: rhasspy/wyoming-whisper:3.7.0
     restart: unless-stopped
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
@@ -40,26 +50,33 @@ services:
       # under $HOME/.cache regardless of --download-dir, so the model download
       # died with "Permission denied (os error 13)". Point HF at the one
       # writable path this container has: the mounted data volume.
+      # Re-verified against the 3.7.0 image (still uid-1000-rootless, still
+      # ships hf-xet 1.6.0, and `hf_hub_download(..., filename="model.bin")`
+      # as uid 1000 with no HF_HOME still dies trying to write
+      # /.cache/huggingface/xet/logs) — this is not stale.
       HF_HOME: /data
     # No ports published: Home Assistant reaches it over Docker DNS. Uncomment
     # only if HA runs on a different machine.
     #   ports:
     #     - "10300:10300"
+    # --uri/--data-dir/--device need no restating: the image's own ENTRYPOINT
+    # (docker_run.sh, verified at this exact tag) already runs
+    # `wyoming_faster_whisper --uri tcp://0.0.0.0:10300 --data-dir /data
+    # --device cpu "$@"` before appending this list — STT_DEVICE (the only
+    # thing that would change the device default) is unset in this CPU image,
+    # only Dockerfile.gpu sets it. --data-dir is also an argparse "append"
+    # action, so restating it doesn't just shadow the default, it adds a
+    # second, redundant /data to the search list. --download-dir needs nothing
+    # either: unset, it falls back to the first --data-dir (__main__.py:224-226),
+    # which is already /data from the entrypoint. --model/--language/--beam-size
+    # are the only settings actually being chosen here.
     command:
       - --model
       - ${EXIST_MODEL_STT:-base}
       - --language
       - ${EXIST_MODEL_STT_LANGUAGE:-en}
-      - --device
-      - cpu
       - --beam-size
       - "1"
-      - --uri
-      - tcp://0.0.0.0:10300
-      - --data-dir
-      - /data
-      - --download-dir
-      - /data
     volumes:
       # Whisper models, downloaded on first use — a _cache, re-downloadable.
       - wyoming_whisper_cache:/data

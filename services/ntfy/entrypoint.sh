@@ -13,19 +13,13 @@
 # a second or two after startup; ntfy reads the auth database per request (the
 # ACL cache is off by default), so they take effect with no restart.
 #
-# Idempotent, no sentinels: each step is guarded on the user already existing,
-# so a restart is a no-op and a hand-edited user is left alone. The auth
-# database IS the state.
+# Idempotent, no sentinels: `ntfy user add --ignore-exists` is a no-op on a
+# user that's already there (verified against a real v2.27.0 container — exit
+# 0, password untouched), so a restart does nothing and a hand-edited user is
+# left alone. The auth database IS the state.
 set -eu
 
 AUTH_FILE="${NTFY_AUTH_FILE:-/var/lib/ntfy/user.db}"
-
-# `ntfy user list` prints "user <name> (role: ...)", so the name is the SECOND
-# field — anchoring on the first one silently never matches, and every restart
-# then tries to re-create a user that already exists.
-_have_user() {
-    ntfy user list 2>/dev/null | grep -q "^user ${1} "
-}
 
 _provision() {
     # Wait for serve to create the auth file. Bounded: if it never appears the
@@ -42,13 +36,11 @@ _provision() {
     done
 
     # The admin: the login for the web UI and the mobile apps. Never publishes.
+    # `--ignore-exists` prints its own "already exists"/"added" line, so this
+    # needs no branch of its own.
     if [ -n "${NTFY_ADMIN_USER:-}" ] && [ -n "${NTFY_ADMIN_PASSWORD:-}" ]; then
-        if _have_user "$NTFY_ADMIN_USER"; then
-            echo "[ntfy] admin user ${NTFY_ADMIN_USER} exists — skipping."
-        else
-            echo "[ntfy] Creating admin user ${NTFY_ADMIN_USER}..."
-            NTFY_PASSWORD="$NTFY_ADMIN_PASSWORD" ntfy user add --role=admin "$NTFY_ADMIN_USER"
-        fi
+        NTFY_PASSWORD="$NTFY_ADMIN_PASSWORD" \
+            ntfy user add --role=admin --ignore-exists "$NTFY_ADMIN_USER"
     fi
 
     # The bot: the identity decree and every other service publishes as. A plain
@@ -56,12 +48,8 @@ _provision() {
     # and nothing else — it cannot add users, mint tokens, or read the auth
     # database.
     if [ -n "${NTFY_BOT_USER:-}" ] && [ -n "${NTFY_BOT_PASSWORD:-}" ]; then
-        if _have_user "$NTFY_BOT_USER"; then
-            echo "[ntfy] bot user ${NTFY_BOT_USER} exists — skipping."
-        else
-            echo "[ntfy] Creating bot user ${NTFY_BOT_USER}..."
-            NTFY_PASSWORD="$NTFY_BOT_PASSWORD" ntfy user add "$NTFY_BOT_USER"
-        fi
+        NTFY_PASSWORD="$NTFY_BOT_PASSWORD" \
+            ntfy user add --ignore-exists "$NTFY_BOT_USER"
         # Re-applied every boot on purpose: this is the one thing that must
         # track NTFY_BOT_TOPICS, and `ntfy access` replaces the rule for a
         # topic pattern rather than stacking duplicates.

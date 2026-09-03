@@ -25,9 +25,15 @@
 # piHole resolves the whole domain with one wildcard record). Run
 # `./existential.sh validate` to verify.
 #
-# Core services with no HTTP endpoint of their own are deliberately absent:
-# redis, honcho (internal API only), wyoming-whisper and wyoming-piper (reached
-# by Home Assistant over the Wyoming protocol), and caddy itself.
+# Core services with no useful tile are deliberately absent. No HTTP endpoint
+# of their own: redis, honcho (internal API only), wyoming-whisper and
+# wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki
+# (Grafana is the window onto it), decree (background daemon), and caddy
+# itself. Has an endpoint but nothing a browser tile can show: decree-webhook
+# is a POST-only, bearer-authed inbox receiver with no GET route worth linking
+# (services/decree/webhook/README.md). Firecrawl gets a tile below, but its
+# active block points at the docs page, not the live service — see the item
+# for why.
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
 # a red dot when unreachable. That covers runtime health; the comment-flip
@@ -95,6 +101,16 @@ sections:
         statusCheck: true
         statusCheckAllowInsecure: true
         description: Local models (API — every other AI service talks to this)
+
+      - title: Firecrawl
+        # Points at the docs page, not firecrawl.<domain>, on purpose: Caddy
+        # 401s every request there without "Authorization: Bearer
+        # CADDY_FIRECRAWL_API_KEY" (hosting/caddy/Caddyfile.exist.Caddyfile),
+        # which a dashboard tile can't supply. A live/statusCheck block would
+        # read permanently down instead of just being an API with no UI.
+        url: https://existential.company/docs/ai/firecrawl
+        icon: fas fa-spider
+        description: Web scraping/crawling API for the agent — no browser UI, needs an API key
 
   # ── the house ─────────────────────────────────────────────────────────────
   - name: Home

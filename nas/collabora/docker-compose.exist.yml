@@ -4,20 +4,44 @@ services:
     container_name: collabora
     image: collabora/code:26.04.3.1.1
     restart: unless-stopped
-    # Renders office documents; each open document is a forked process.
+    # ~540MiB idle with the default 4 pre-spawned children (num_prespawn_children
+    # in coolwsd.xml) before a single document is open; each open document forks
+    # another LO process on top of that. 1536M is ~2.8x idle.
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 1536M
+    # No `user:` override. The published image runs a fixed non-root uid — 1001
+    # baked into coolwsd's own ownership, not an s6/PUID-style init — and
+    # actually enforces it: /opt/cool/child-roots (the jail root coolwsd chroots
+    # each document process into) is chown'd cool:cool 1001:1001 at image build
+    # time, so `user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"` fails to start
+    # with "Failed to initialize COOLWSD: Access to file denied:
+    # /opt/cool/child-roots/<jail>" (confirmed by running the image under
+    # `--user 1000:1000`). Nothing to gain from it anyway: this service declares
+    # no volumes, so there's no host-owned file for a mismatched uid to lock out.
+    #
+    # The image also ships its own HEALTHCHECK (`coolwsd --probe --use-env-vars`,
+    # 30s interval / 10s timeout / 120s start_period — `docker image inspect
+    # collabora/code:26.04.3.1.1 --format '{{json .Config.Healthcheck}}'`), which
+    # compose picks up automatically since this service declares none of its own.
     networks:
       - exist
     environment:
       - username=${COLLABORA_USERNAME}
-      - password=${COLLABORA_PASSWORD} 
-      # Derived from EXIST_DOMAIN at container start; override per-service by
-      # setting COLLABORA_NEXTCLOUD_DOMAIN / COLLABORA_DOMAIN in collabora's .env.
-      - domain=${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
+      - password=${COLLABORA_PASSWORD}
       - server_name=${COLLABORA_DOMAIN:-collabora.$EXIST_DOMAIN}
+      # WOPI host allowlist. coolwsd's initializeEnvOptions() (wsd/COOLWSD.cpp)
+      # only understands username/password/server_name/dictionaries/
+      # remoteconfigurl/content_security_policy/aliasgroupN as env vars — a
+      # bare `domain=` (what this used to be) is silently ignored, verified by
+      # diffing /etc/coolwsd/coolwsd.xml with and without it set: no difference.
+      # Without aliasgroup1, coolwsd.xml's storage.wopi.alias_groups defaults to
+      # mode="first" — it trusts whichever WOPI host's request reaches it FIRST
+      # and locks to that host until restart, which on a Caddy-fronted, publicly
+      # reachable coolwsd means the first visitor to open any doc URL wins that
+      # slot, not necessarily Nextcloud. This pins it to Nextcloud explicitly.
+      - aliasgroup1=https://${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true
       - extra_params=--o:ssl.enable=false --o:ssl.termination=true

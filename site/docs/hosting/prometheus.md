@@ -12,14 +12,17 @@ Time-series metrics database. Collects numeric measurements and stores them for 
 
 ## What's configured
 
-This stack runs Prometheus alongside a **Pushgateway**, which is how Decree automations push metrics rather than being scraped directly.
+This stack runs Prometheus alongside a **Pushgateway** (how Decree automations push metrics
+rather than being scraped directly) and **node-exporter** (host CPU/memory/disk metrics).
 
 | Service | Port | Role |
 |---|---|---|
 | `prometheus` | 9090 (internal) | Stores and queries metrics |
 | `prometheus-pushgateway` | 9091 (internal) | Receives pushed metrics from short-lived jobs |
+| `prometheus-node-exporter` | 9100 (internal) | Exposes host CPU/memory/disk/filesystem metrics |
 
-Prometheus scrapes Pushgateway every 15s and retains data for 90 days or 5 GB, whichever comes first.
+Prometheus scrapes all three (itself, Pushgateway, node-exporter) every 15s and retains data for
+90 days or 5 GB, whichever comes first.
 
 ## How metrics get in
 
@@ -49,6 +52,19 @@ Prometheus pulls these into its time series on the next scrape interval.
 ## Adding more scrapers
 
 Edit `hosting/prometheus/prometheus.yml` and add a new entry under `scrape_configs`. Any container on the `exist` network is reachable by container name.
+
+## Alert rules
+
+`hosting/prometheus/alerts.yml` defines host-resource alerts (disk/memory/CPU, off node-exporter),
+a service-health alert (`ServiceHealthCheckFailing`, off triage's `exist_service_healthy` gauge —
+see above), and a backup alert (`BackupNotRun`, off the `push_time_seconds` metric Pushgateway
+auto-stamps on every push from `volume-backup`/`db-backup`/`sqlite-backup`).
+
+**There is no Alertmanager in this stack.** A firing alert is visible at
+`https://prometheus.<domain>/alerts` and nowhere else — nothing pages, emails, or ntfys. If you
+want a firing alert to reach you, either poll `/alerts` yourself, wire a decree routine to poll
+Prometheus's `/api/v1/alerts` API, or add an Alertmanager service (out of scope for what ships
+here today).
 
 ## Viewing metrics
 

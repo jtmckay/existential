@@ -21,10 +21,27 @@ services:
     image: pihole/pihole:2026.07.2
     restart: unless-stopped
     # DNS + a small web UI. The query log is on disk, not in memory.
+    #
+    # No explicit healthcheck: the image bakes in its own (`docker image inspect
+    # pihole/pihole:2026.07.2 --format '{{.Config.Healthcheck}}'`) —
+    # `dig ... @127.0.0.1 pi.hole`, an actual DNS resolution, not a process
+    # check — and Docker applies it with no `healthcheck:` stanza needed here.
+    # Verified: `docker inspect` on a running container reports
+    # `"Status":"healthy"` with that exact dig output in its log. This is what
+    # container-health.sh's gate and triage's restart-loop/unhealthy check see.
     deploy:
       resources:
         limits:
-          memory: 256M
+          # Measured (docker stats): ~9 MiB idle, ~10-12 MiB after `pihole -g`
+          # loaded a real 78k-domain StevenBlack list and under query load — FTL
+          # stores gravity in an efficient on-disk/mmap'd structure, not a
+          # per-domain in-memory blob, so even a much larger list (OISD, 1M+
+          # domains) is unlikely to add more than a few tens of MiB. 128M
+          # mirrors caddy's limit: both are lightweight, always-on infra the
+          # rest of the LAN depends on, so this leaves headroom an ordinary
+          # "2-3x idle" service wouldn't need — an OOM-killed pihole takes DNS
+          # down for every device pointed at it, not just one container.
+          memory: 128M
     networks:
       - exist
     ports:
@@ -46,6 +63,11 @@ services:
       FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
       # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
       FTLCONF_dns_listeningMode: 'ALL'
+      # Upstream resolver for everything the wildcard/gravity below don't answer
+      # locally — not set here on purpose. Verified: the image's own default
+      # (dns.upstreams in pihole.toml) is Google DNS (8.8.8.8, 8.8.4.4), so
+      # non-local queries work with zero config. Set FTLCONF_dns_upstreams to
+      # override, e.g. '["1.1.1.1","1.0.0.1"]'.
       # Wildcard DNS masks: each `address=/<domain>/<ip>` line resolves that domain
       # AND every `<slug>.<domain>` subdomain to one host — see the "DNS convention"
       # header above. The first line is this stack; add more lines to point another
@@ -70,8 +92,11 @@ services:
       # v6 needs no /etc/dnsmasq.d mount — FTLCONF_misc_dnsmasq_lines above is
       # the supported way to add raw dnsmasq directives.
       - 'pihole_data:/etc/pihole:Z'
-    # No `user:` — FTL starts as root to bind :53 and set the caps below, then
-    # drops to its own `pihole` user (uid 1000) for everything else.
+    # No `user:` — start.sh runs as root to bind :53 and apply the caps below,
+    # then execs `pihole-FTL` under its own `pihole` user (uid/gid 1000, distinct
+    # from EXIST_PUID/PGID). Verified: `docker exec pihole ps aux` shows
+    # `pihole-FTL no-daemon` running as `pihole`, only start.sh/crond/tail stay
+    # root. Pinning `user:` here would stop start.sh from binding :53 at all.
     cap_add:
       # See https://docs.pi-hole.net/docker/#note-on-capabilities
       # Required if you are using Pi-hole as your DHCP server, else not needed
