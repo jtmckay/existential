@@ -166,78 +166,15 @@ quest_missing_labels() {
 
 will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 
-# Offer to activate the cron-template copies declared by a single quest file.
-# Which decree container owns a `services/decree/<project>/...` destination.
-#
-# There is one daemon per decree project dir, and the dir name IS the container
-# name: services/decree/decree/ → `decree`, services/decree/decree-backup/ →
-# `decree-backup`. So take the third path component, not the second (which is
-# always "decree" and would name both projects the same).
-_decree_container_for() {
-    cut -d/ -f3 <<< "$1"
-}
-
-process_quest_crons() {
-    local _f="$1"
-    local -a _labels=() _srcs=() _dsts=()
-    local _lbl _src _dst
-    while IFS=$'\t' read -r _lbl _src _dst; do
-        [[ -z "$_src" ]] && continue
-        _labels+=("$_lbl"); _srcs+=("$_src"); _dsts+=("$_dst")
-    done < <(_quest_pending_copies "$_f")
-
-    [ "${#_labels[@]}" -gt 0 ] || return 0
-
-    echo "  ── Templates to activate ──────────────────────────────────────"
-    echo ""
-    local _selected_lines
-    _selected_lines=$(
-        for _i in "${!_labels[@]}"; do
-            printf '%d\t%s\n' "$_i" "${_labels[$_i]}"
-        done | fzf --multi \
-                   --delimiter=$'\t' \
-                   --with-nth=2 \
-                   --layout=reverse \
-                   --marker='✓' \
-                   --header="  All of these are ON — Enter accepts them as-is.
-  Deselect one only if you do not want it (Space toggles).
-  ↑↓ navigate   Space toggle   Enter confirm" \
-                   --prompt="Activate ❯ " \
-                   --no-info \
-                   --bind 'start:select-all' \
-                   --bind 'space:toggle+down'
-    ) || _selected_lines=""
-
-    [[ -n "$_selected_lines" ]] || { echo "  (skipped)"; echo ""; return 0; }
-
-    echo ""
-    local -A _restart_needed=()
-    local _line _idx _fname _ctr
-    while IFS= read -r _line; do
-        [[ -z "$_line" ]] && continue
-        _idx="${_line%%	*}"
-        _src="${_srcs[$_idx]}"; _dst="${_dsts[$_idx]}"
-        _fname="${_src##*/}"
-        mkdir -p "${REPO_DIR}/${_dst}"
-        if cp -n "${REPO_DIR}/${_src}" "${REPO_DIR}/${_dst}${_fname}" 2>/dev/null; then
-            echo "  ✓ cp ${_src}  →  ${_dst}"
-            _ctr="$(_decree_container_for "$_dst")"
-            _restart_needed["$_ctr"]=1
-        else
-            echo "  ↷ ${_fname} — already exists, skipped"
-        fi
-    done <<< "$_selected_lines"
-
-    if [ "${#_restart_needed[@]}" -gt 0 ]; then
-        echo ""
-        echo "  Restart to activate:"
-        local _svc
-        for _svc in "${!_restart_needed[@]}"; do
-            echo "    docker compose restart ${_svc}"
-        done
-    fi
-    echo ""
-}
+# Non-Core quests do NOT copy anything on the user's behalf. Their guide body
+# is the instructions — mkdir/cp/restart commands written in prose, meant to
+# be read and typed (or copy-pasted) by hand. That is deliberate: Core is the
+# one path optimized for minimal input, because it IS the base system: without
+# its migrations ollama has no models and nothing else works. Everywhere past
+# that, the point is for the user (or an agent driving this repo) to see and
+# understand the mechanism — a markdown file living at cron.example/ that gets
+# copied to cron/ to activate — not have it happen invisibly behind a picker.
+# See any auto-*.md quest for the pattern.
 
 # ── Closing suggestion: reaching it from elsewhere ────────────────────────────
 #
@@ -347,8 +284,10 @@ _enable_quest_services() {
 
 # List the template copies a quest would make, as "label\tsrc\tdst" rows, skipping
 # any whose `requires:` service is off or whose destination already exists.
-# Shared by the Core plan (which shows them, then copies them all) and by
-# process_quest_crons (which offers them individually).
+# Only the Core plan uses this now (shows them, then copies them all) — every
+# other quest's `copies:`-equivalent activation steps are hand-written into
+# its guide body instead. Kept generic in case a future automated path needs
+# it again, but there is currently exactly one caller.
 #
 # Extra args are enablement vars to treat as ALREADY ON. The Core plan needs
 # that: it lists what will happen before writing anything, so the services its
@@ -394,7 +333,7 @@ _apply_quest_copies() {
         _n=$(( _n + 1 ))
     done < <(_quest_pending_copies "$_f")
     # No restart hint: Core runs before `docker compose up -d`, so there is
-    # nothing running to restart. process_quest_crons handles the later case.
+    # nothing running to restart yet.
     _APPLIED_COPIES="$_n"
 }
 
@@ -861,15 +800,14 @@ for _f in "${_active_files[@]}"; do
         echo ""
     fi
 
-    # Quest guide
+    # Quest guide — this IS the activation step for anything past service
+    # enablement. Whatever cron/migration templates this quest needs, the
+    # prose above already spells out the mkdir/cp/restart commands.
     _guide=$(qbody "$_f")
     if [[ -n "$_guide" && "$_guide" != "null" ]]; then
         echo "$_guide" | sed 's/^/  /'
         echo ""
     fi
-
-    # Cron templates for this quest
-    process_quest_crons "$_f"
 
     # Prompt before moving on, unless this was the last quest
     if [ "$_qi" -lt "$_total" ]; then
@@ -915,6 +853,7 @@ if [ "${#_remaining[@]}" -gt 0 ]; then
     echo ""
     for _r in "${_remaining[@]}"; do echo "  ${_r}"; done
     echo ""
-    echo "  Re-run ./existential.sh quest to activate interactively."
+    echo "  Activate one: cp <the file above> services/decree/<decree|decree-backup>/cron/"
+    echo "                docker compose restart <decree|decree-backup>"
     echo ""
 fi

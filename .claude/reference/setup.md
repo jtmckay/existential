@@ -46,8 +46,14 @@ never re-asked; `./existential.sh run models` is the way back and re-asks both.
 ### Quest file format
 
 A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
-`e2e`, `services`, `copies`), the body for the guide — the same shape as decree's cron and
-migration files.
+`e2e`, `services`, and — Core only — `copies`), the body for the guide — the same shape as
+decree's cron and migration files.
+
+Only `00-core.md` uses `copies:` to auto-activate templates; that is deliberate, since Core IS
+the base system and should ask as little as possible. Every other quest's activation steps
+(`mkdir`/`cp`/`docker compose restart`) are written directly into its guide body instead — the
+point past Core is for the user (or an agent) to see and understand the cron.example/ → cron/
+mechanism, not have a picker do it invisibly. See any `auto-*.md` quest for the pattern.
 
 It is read by `yq` in `quest.sh` (`qmeta` / `qbody`), **not** by decree, so decree's "extra keys
 become env vars" contract does not apply here. Everything that reads a quest must scope itself

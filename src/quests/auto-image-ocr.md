@@ -11,11 +11,6 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: automations/lib/file-processors.example/ollama-ocr.sh
-    dst: automations/lib/file-processors/
-    label: "file-processors: ollama-ocr.sh (OCR for jpg/png/webp/heic and more)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Drop an image into Nextcloud (or send one to your Telegram bot) and Decree
@@ -49,8 +44,10 @@ Setup:
   2. Make sure the llava model (or your chosen OCR_MODEL) is pulled in Ollama:
        docker exec ollama ollama pull llava
 
-  3. The quest copies ollama-ocr.sh into automations/lib/file-processors/.
-     Processor scripts are bind-mounted live into decree — no restart needed for them.
+  3. Copy the processor in. Processor scripts are bind-mounted live into
+     decree — no restart needed for this one:
+       cp automations/lib/file-processors.example/ollama-ocr.sh \
+          automations/lib/file-processors/
 
   4. Restart decree to pick up config changes:
        docker compose restart decree

@@ -13,32 +13,33 @@ services:
     label: Hermes
   - var: EXIST_IS_AI_OPEN_WEBUI
     label: Open WebUI
-copies:
-  - src: services/decree/decree/migrations.example/10-ollama-pull-chat-model.md
-    dst: services/decree/decree/migrations/
-    label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/11-ollama-set-chat-context.md
-    dst: services/decree/decree/migrations/
-    label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/12-ollama-pull-extract-model.md
-    dst: services/decree/decree/migrations/
-    label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
-    requires: EXIST_IS_AI_HONCHO
-  - src: services/decree/decree/migrations.example/13-ollama-pull-embed-model.md
-    dst: services/decree/decree/migrations/
-    label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
-    requires: EXIST_IS_AI_OPENVIKING
-  - src: services/decree/decree/migrations.example/14-ollama-pull-vision-model.md
-    dst: services/decree/decree/migrations/
-    label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
-    requires: EXIST_IS_AI_OLLAMA
 ---
 
-Copies migration files into services/decree/decree/migrations/. After
-docker compose up -d, the decree daemon waits for Ollama to be healthy,
-then pulls each selected model in order — no manual steps.
+Copy migration files into services/decree/decree/migrations/, one per role
+— only the roles the services you enabled actually need. After
+`docker compose up -d`, the decree daemon waits for Ollama to be healthy,
+then runs each migration once, in order — no further manual steps.
+
+  mkdir -p services/decree/decree/migrations/
+
+  # Always, if Ollama is enabled — the chat model and its context window
+  cp services/decree/decree/migrations.example/10-ollama-pull-chat-model.md \
+     services/decree/decree/migrations.example/11-ollama-set-chat-context.md \
+     services/decree/decree/migrations/
+
+  # Only if Honcho is enabled — the extraction model it uses for memory work
+  cp services/decree/decree/migrations.example/12-ollama-pull-extract-model.md \
+     services/decree/decree/migrations/
+
+  # Only if OpenViking is enabled — the embedding model for its vector store
+  cp services/decree/decree/migrations.example/13-ollama-pull-embed-model.md \
+     services/decree/decree/migrations/
+
+  # Always, if Ollama is enabled — skips itself at runtime if EXIST_MODEL_VISION is blank
+  cp services/decree/decree/migrations.example/14-ollama-pull-vision-model.md \
+     services/decree/decree/migrations/
+
+  docker compose restart decree
 
 These migrations do NOT name a model. They name a ROLE, and the routine
 resolves it against the "Model Selection" block in .env.shared. Change a

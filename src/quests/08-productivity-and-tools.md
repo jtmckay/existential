@@ -11,45 +11,38 @@ services:
     label: Lowcoder
   - var: EXIST_IS_SERVICES_IT_TOOLS
     label: IT Tools
-copies:
-  - src: services/nocodb/decree/cron.example/nocodb-db-backup-nightly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb: db-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/nocodb/decree/cron.example/nocodb-db-backup-weekly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb: db-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/nocodb/decree/cron.example/nocodb-volume-backup-nightly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb: volume-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/nocodb/decree/cron.example/nocodb-volume-backup-weekly.md
-    dst: services/nocodb/decree/cron/
-    label: "nocodb: volume-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_NOCODB
-  - src: services/appsmith/decree/cron.example/appsmith-volume-backup-nightly.md
-    dst: services/appsmith/decree/cron/
-    label: "appsmith: volume-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_APPSMITH
-  - src: services/appsmith/decree/cron.example/appsmith-volume-backup-weekly.md
-    dst: services/appsmith/decree/cron/
-    label: "appsmith: volume-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_APPSMITH
-  - src: services/lowcoder/decree/cron.example/lowcoder-db-backup-nightly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder: db-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_LOWCODER
-  - src: services/lowcoder/decree/cron.example/lowcoder-db-backup-weekly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder: db-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_LOWCODER
-  - src: services/lowcoder/decree/cron.example/lowcoder-volume-backup-nightly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder: volume-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_LOWCODER
-  - src: services/lowcoder/decree/cron.example/lowcoder-volume-backup-weekly.md
-    dst: services/lowcoder/decree/cron/
-    label: "lowcoder: volume-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_LOWCODER
 ---
+
+NocoDB, Appsmith and Lowcoder each bundle their own database — nothing here
+shares nas/redis or nas/nextcloud. IT Tools is stateless (no backup needed).
+
+Nightly backups (kept 7 days) run in decree-backup once you copy their cron
+files in. Copy only the ones for what you enabled:
+
+  mkdir -p services/decree/decree-backup/cron/
+
+  # NocoDB — Postgres + upload volume
+  cp services/decree/decree-backup/cron.example/nocodb-db-backup-nightly.md \
+     services/decree/decree-backup/cron.example/nocodb-volume-backup-nightly.md \
+     services/decree/decree-backup/cron/
+
+  # Appsmith — embedded Mongo/Redis/Postgres live inside its one volume
+  cp services/decree/decree-backup/cron.example/appsmith-volume-backup-nightly.md \
+     services/decree/decree-backup/cron/
+
+  # Lowcoder — Mongo + its own volume
+  cp services/decree/decree-backup/cron.example/lowcoder-db-backup-nightly.md \
+     services/decree/decree-backup/cron.example/lowcoder-volume-backup-nightly.md \
+     services/decree/decree-backup/cron/
+
+  docker compose restart decree-backup
+
+Weekly backups (kept 28 days) sit alongside the nightly ones — same idea,
+copy the matching `-weekly.md` file instead of (or as well as) `-nightly.md`.
+
+Manual trigger:
+  docker exec decree-backup decree run db-backup
+  docker exec decree-backup decree run volume-backup
+
+Restore:
+  ./existential.sh run backup-restore

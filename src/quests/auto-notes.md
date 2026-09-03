@@ -7,11 +7,6 @@ services:
     label: Decree
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
-copies:
-  - src: services/decree/decree/cron.example/notes.md
-    dst: services/decree/decree/cron/
-    label: "decree: notes.md (every 10 minutes)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Activates a recurring cron that pulls notes from Nextcloud, compiles them,
@@ -33,7 +28,9 @@ Prerequisites:
       notes:
         enabled: true
 
-After activating the cron, restart decree:
+Activate the cron:
+  mkdir -p services/decree/decree/cron/
+  cp services/decree/decree/cron.example/notes.md services/decree/decree/cron/
   docker compose restart decree
 
 Logs for each run land in automations/runs/ and are queryable in Grafana

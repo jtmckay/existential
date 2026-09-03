@@ -7,11 +7,6 @@ services:
     label: Actual Budget
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: services/decree/decree/cron.example/telegram-receipt-poll.md
-    dst: services/decree/decree/cron/
-    label: "decree: telegram-receipt-poll.md"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 When a bank alert lands, Decree notifies you via Telegram. Reply with
@@ -23,6 +18,9 @@ Prerequisites:
   - Bank Transaction Import set up (auto-budget-import quest)
   - Telegram Bot connected (auto-telegram quest)
 
-The telegram-receipt-poll cron (copied above) polls for receipt photo
-replies every 30 minutes. It matches replies to outstanding transactions
-and triggers the split via the actual-budget routine.
+Activate the poller — checks for receipt-photo replies every 30 minutes,
+matches them to outstanding transactions, and triggers the split via the
+actual-budget routine:
+  mkdir -p services/decree/decree/cron/
+  cp services/decree/decree/cron.example/telegram-receipt-poll.md services/decree/decree/cron/
+  docker compose restart decree

@@ -7,11 +7,6 @@ services:
     label: MinIO
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: automations/lib/file-processors.example/example.sh
-    dst: automations/lib/file-processors/
-    label: "file-processors: example.sh (copy and rename to add a processor)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 When a file lands in MinIO, the webhook triggers minio-router, which reads
@@ -54,9 +49,10 @@ Setup:
        minio-router:
          enabled: true
 
-  2. Copy a processor from automations/lib/file-processors.example/ to
-     automations/lib/file-processors/ (the quest does this for example.sh).
-     Rename and edit PATTERN + logic for your use case.
+  2. Copy the example processor, rename it, and edit PATTERN + logic for
+     your use case:
+       cp automations/lib/file-processors.example/example.sh \
+          automations/lib/file-processors/my-processor.sh
 
   3. Restart decree to pick up config changes:
        docker compose restart decree
