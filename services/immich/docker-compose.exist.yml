@@ -12,17 +12,37 @@ services:
     container_name: immich-server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
     restart: unless-stopped
-    # Photo library API plus thumbnail/transcode work.
+    # API + the "microservices" background-job workers (thumbnails, EXIF,
+    # transcode, DB migrations) run combined in this one Node process.
+    # Measured (release image, empty library, real upload → thumbnail/EXIF
+    # pipeline run): ~830 MiB-1 GiB settled, briefly over 1.5 GiB right after
+    # boot while migrations run. Video transcoding is heavier than photo
+    # processing, hence the headroom past the settled figure.
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: 3G
+    # Runs as the host user. The image ships no USER (root by default) but
+    # nothing in it needs root: verified end-to-end (real upload → thumbnail
+    # → EXIF → CLIP → face pipeline, all green) as 1000:1000 against a
+    # freshly-created, host-owned UPLOAD_LOCATION — which is exactly what
+    # exist.initial.sh guarantees exists before `docker compose up` (see
+    # that file's comment). It only ever writes under /data and the
+    # world-writable /tmp.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
     # ports disabled — access via https://immich-server.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "2283:2283"
+    # Hardware-accelerated *video transcoding* — separate from the ML worker's
+    # GPU accel below, and not wired to EXIST_GPU_VENDOR: upstream's own
+    # hwaccel.transcoding.yml needs a different capability set per backend
+    # (NVENC wants gpu+compute+video; VAAPI — the AMD *and* Intel path — wants
+    # plain /dev/dri with no vendor split to key an overlay off), and software
+    # transcoding (bundled jellyfin-ffmpeg) already works with zero extra
+    # wiring. Left as upstream's manual opt-in:
     # extends:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
@@ -34,45 +54,91 @@ services:
     env_file:
       - .env
     depends_on:
-      - immich-redis
-      - immich-postgres
-    # healthcheck:
-    #   disable: false
+      immich-redis:
+        condition: service_healthy
+      immich-postgres:
+        condition: service_healthy
+    # No override — the image ships its own HEALTHCHECK (`immich-healthcheck`:
+    # curl http://localhost:2283/api/server/ping, requires the literal body
+    # {"res":"pong"} — confirmed via `docker inspect` + reading the script at
+    # /usr/src/app/server/bin/immich-healthcheck). Default docker timing (30s
+    # interval/timeout, 3 retries, no start_period) is fine — observed
+    # healthy within ~30s of container start in testing.
 
   immich-machine-learning:
     container_name: immich-machine-learning
-    # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
-    # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    # CUDA build by default — see the x-exist-gpu block below for the
+    # amd/none swap; this mirrors the repo's usual "nvidia reservation ships
+    # in the template" default (services.md). Unlike ollama/whisperx there is
+    # no single binary that runtime-detects the card: immich ships a
+    # DIFFERENT IMAGE per backend (upstream's hwaccel.ml.yml), so the vendor
+    # switch has to change the tag, not just an env var or a device list.
+    # Sizes, confirmed with `docker pull`: cpu tag 1.85 GB, -cuda 7.71 GB,
+    # -rocm 31.7 GB — a real reason not to default a non-nvidia host onto
+    # this tag. (onnxruntime does fall back to CPUExecutionProvider on its
+    # own if CUDAExecutionProvider can't init — confirmed this tag boots and
+    # serves /predict fine with no GPU present — but there's no reason to
+    # make a CPU-only host download 7.7 GB it can't use.)
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}-cuda
     restart: unless-stopped
-    # Runs CLIP and face-recognition models; the models are resident.
+    # Runs CLIP + facial-recognition (detection & recognition) models,
+    # resident for model_ttl (300s) after last use — OCR and duplicate
+    # detection can add a 3rd/4th resident model on top. Measured: 264 MiB
+    # with nothing loaded, ~1.05 GiB with the two default models
+    # (ViT-B-32__openai CLIP + buffalo_l face) resident after processing one
+    # real photo — hence the headroom past a strict 2x.
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 3G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation above is stripped automatically when this applies.
+    # rocm block matches upstream's hwaccel.ml.yml `rocm:` entry exactly
+    # (group_add + two devices, no privileged needed — this is ROCm, not the
+    # Vulkan trick ollama/comfyui use for AMD).
+    x-exist-gpu:
+      amd:
+        image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}-rocm
+        group_add:
+          - video
+        devices:
+          - /dev/dri:/dev/dri
+          - /dev/kfd:/dev/kfd
+      none:
+        image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
     networks:
       - exist
-    # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
-    #   file: hwaccel.ml.yml
-    #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
+    # Runs as the host user — confirmed: boots to "Application startup
+    # complete" and serves /predict as 1000:1000 with no permission errors.
+    # The one warning (falls back from /.config/matplotlib to /tmp, itself
+    # world-writable) is benign and upstream-known, not a functional issue.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     volumes:
       # ML model cache — re-downloadable, a _cache (not backed up).
       - immich_model_cache:/cache
     env_file:
       - .env
-    # healthcheck:
-    #   disable: false
+    # No override — ships its own HEALTHCHECK (`python3 healthcheck.py`: GET
+    # http://localhost:3003/ping, expects 200 — confirmed by reading the
+    # script at /usr/src/healthcheck.py). Same default timing reasoning as
+    # immich-server above.
 
   immich-redis:
     container_name: immich-redis
-    image: docker.io/valkey/valkey:8
+    image: docker.io/valkey/valkey:9
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Job queue for imports and thumbnails.
+    # Job queue for imports and thumbnails — holds no persisted volume, so a
+    # major-version bump carries no data-compat risk. Measured ~5 MiB idle.
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 64M
     networks:
       - exist
     healthcheck:
@@ -83,11 +149,15 @@ services:
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Postgres with vector extensions over the whole photo library.
+    # Postgres + the vchord vector extension (immich's InitialMigration runs
+    # `CREATE EXTENSION vchord` and indexes embeddings `USING vchordrq` — a
+    # stock postgres/pgvector image has no such access method) over the whole
+    # photo library. Measured ~360-445 MiB idle with an empty library; vector
+    # index builds grow with library size, hence the headroom past 2-3x.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     networks:
       - exist
     environment:
@@ -101,6 +171,18 @@ services:
       # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data:Z
     shm_size: 128mb
+    # Override the image's own healthcheck.sh (pg_isready + a checksum-failure
+    # scan of pg_stat_database — correct, but on a 300s interval and 300s
+    # start_period: confirmed via `docker inspect`. Too slow to gate
+    # `depends_on: condition: service_healthy` above, or the decree migration
+    # wait, on anything resembling a normal boot). A plain pg_isready is
+    # enough to say "accepting connections" for that purpose.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
 x-exist-volumes:
   immich_model_cache: {}

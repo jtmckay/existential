@@ -14,14 +14,21 @@
 #   1. The `http:` block in configuration.yaml — here. It is the file the user
 #      edits, so trusted_proxies is tuned there and everything downstream reads
 #      it back.
-#   2. The same settings in `.storage/http`'s `data.stable`, the only place HA
-#      actually serves from — services/homeassistant/entrypoint.sh. HA stages the
-#      YAML into `data.pending` with "error": "not_promoted" and never promotes
-#      it, not even across a restart, so `stable` has to be written directly and
-#      only while HA is stopped. This script has no such window: on a first
-#      install HA has not created the file yet, and afterwards HA is running and
-#      would discard the edit on shutdown. The entrypoint runs in exactly that
-#      gap, as root, inside the container.
+#   2. The same settings in `.storage/http`'s `data.stable`, the only slot a
+#      plain restart re-reads immediately — services/homeassistant/entrypoint.sh.
+#      Verified against the real 2026.8.2 image: HA stages the YAML into
+#      `data.pending` and actually runs that first boot's session on it (so
+#      proxied access can briefly work right after a truly fresh install) — but
+#      nothing promotes `pending` to `stable` except a human clicking Confirm in
+#      Settings → System → Network within 5 minutes. Left alone, an in-process
+#      timer reverts it and restarts HA itself; only then does `pending` gain
+#      `"error": "not_promoted"`. A `docker restart` in between doesn't promote
+#      it either — confirmed by restarting mid-window and finding `pending`
+#      unchanged. Either way `stable` never gains the settings on its own, so
+#      `stable` has to be written directly, and only while HA is stopped. This
+#      script has no such window: on a first install HA has not created the file
+#      yet, and afterwards HA is running and would discard the edit on shutdown.
+#      The entrypoint runs in exactly that gap, as root, inside the container.
 #
 # Seeding matters for the same reason. HA writes configuration.yaml on its own
 # first start, so a pre-startup script that waits for the file never gets to add
@@ -38,12 +45,15 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_DIR="${REPO_DIR}/volumes/homeassistant_data"
 CONFIG="${CONFIG_DIR}/configuration.yaml"
 
-# Whether the YAML block is already present. This gates ONLY step 1 — an
-# early `exit 0` here (the original shape) skipped the storage repair too, so an
-# install whose configuration.yaml already had the block could never get the
-# migration cleared or the pending config promoted: the file looked right, HA
-# kept answering 400, and nothing in the render said otherwise. Step 2 has to run
-# on every invocation precisely BECAUSE the block is present.
+# Whether the YAML block is already present. This gates only the append below —
+# it must NOT short-circuit the whole script with an early `exit 0` (an earlier
+# shape of this file did exactly that). entrypoint.sh's storage repair lives in
+# a different file and runs unconditionally on every container start regardless
+# of what happens here, but a bare `exit 0` here would still skip the "already
+# present" case's own log line below and any future step this script grows —
+# so a fresh install whose configuration.yaml already had the block (edited by
+# hand, or restored from a backup) fell through silently instead of confirming
+# anything, which looked identical to the script having done nothing at all.
 HAVE_BLOCK=false
 grep -qE '^http:' "$CONFIG" 2>/dev/null && HAVE_BLOCK=true
 

@@ -27,7 +27,30 @@ See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing
    ```
 4. Open `https://homeassistant.EXIST_DOMAIN` and complete the onboarding wizard to create your admin account
 
-Home Assistant generates its own `configuration.yaml` on first boot inside the `homeassistant_config` volume — no manual pre-configuration needed.
+Home Assistant generates its own `configuration.yaml` on first boot inside the `homeassistant_data` volume — no manual pre-configuration needed.
+
+On a genuinely fresh install, the container restarts itself once a few seconds into the very first boot — that's `entrypoint.sh` finishing a proxy-trust fix HA can't apply until it has written its own storage once (details in that file). If `https://homeassistant.EXIST_DOMAIN` blips or 400s for a moment right after `docker compose up -d`, that's this one-time restart; reload the page and it's gone for good.
+
+## Network & Device Discovery
+
+Home Assistant runs on the shared `exist` bridge network like every other
+service, reached through Caddy at `https://homeassistant.EXIST_DOMAIN` — not
+`network_mode: host`. That keeps it behind the same TLS/Caddy front door as
+the rest of the stack, but it has a real cost: **HA's own Docker docs call
+`--net=host` a requirement for zeroconf/mDNS and SSDP/UPnP discovery**, and a
+Docker bridge does not forward multicast traffic out to the LAN. Devices and
+services that rely on it to announce themselves — Chromecast, Sonos, HomeKit
+accessories, ESPHome's auto-discovery, many network printers — will **not**
+show up under Settings → Devices & Services → Discovered automatically on this
+setup.
+
+This doesn't block using them: add such a device with its integration's
+manual/static-IP setup instead of relying on discovery. If you'd rather have
+discovery and are fine with HA leaving `exist` (it becomes unreachable by
+container name from anything else in the stack, and Caddy can no longer front
+it since it isn't publishing 8123 on the bridge), switch to
+`network_mode: host` in `docker-compose.yml` yourself and access it directly
+on `:8123`.
 
 ## Hardware Access
 
@@ -95,6 +118,17 @@ See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant) for a 
 |---|---|
 | Web Interface | https://homeassistant.EXIST_DOMAIN |
 | REST API | https://homeassistant.EXIST_DOMAIN/api/ |
+
+## Backup
+
+Not wired up yet. `homeassistant_data` (recorder SQLite DB + `configuration.yaml`
++ everything else in `/config`) has no `decree-backup` cron — unlike most other
+services in this stack, nothing currently copies it off-box. To add one, copy a
+`volume-backup` cron file (e.g. `mealie-volume-backup-nightly.md`/`-weekly.md`)
+from `services/decree/decree-backup/cron.example/` to a new
+`homeassistant-volume-backup-*.md`, point its `VOLUMES:` block at
+`homeassistant_data homeassistant`, drop it into
+`services/decree/decree-backup/cron/`, and restart `decree-backup`.
 
 ## Debugging
 

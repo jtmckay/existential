@@ -6,12 +6,20 @@
 # broken for browsers while direct access on :8123 keeps working. That split is
 # what makes it easy to miss.
 #
-# The setting lives in TWO places and only one of them counts. HA 2026.8 moved
-# http config out of YAML into .storage/http, and serves `data.stable` — nothing
-# else. It reads configuration.yaml exactly once, stages the result in
-# `data.pending` with "error": "not_promoted", and never promotes it. Restarting
-# does not promote it either (verified). So the YAML block alone is not enough,
-# no matter how correct it looks, and `check_config` still calls it valid.
+# The setting lives in TWO places and only `data.stable` is durable. HA 2026.8
+# moved http config out of YAML into .storage/http. It reads configuration.yaml
+# exactly once and stages the result in `data.pending` with `error: null` —
+# verified against the real 2026.8.2 image, that pending config is what the
+# CURRENT boot session actually runs on, so proxied access can briefly work
+# right after a genuinely fresh install (and survives a `docker restart` taken
+# in that window unchanged — verified). But nothing promotes it to `data.stable`
+# except a human clicking Confirm in Settings → System → Network, and a headless
+# `docker compose up -d` install never does. Left unconfirmed for 5 minutes, HA's
+# own in-process timer reverts pending and restarts itself; only then does
+# `pending` gain `"error": "not_promoted"`, and every boot after that loads
+# `stable` — which never gained the settings on its own. So the YAML block alone
+# is not enough for anything durable, no matter how correct it looks, and
+# `check_config` still calls it valid.
 #
 # Writing `stable` is therefore the only fix, and it has to happen while HA is
 # NOT running — HA rewrites .storage on shutdown, so an edit made against a live
@@ -88,7 +96,10 @@ fi
 
 # First-ever boot: HA has not written .storage/http yet, so there is nothing to
 # patch until it has. Watch for it, then ask for the single restart described
-# above. Backgrounded so HA still comes up as PID 1 under s6.
+# above. Backgrounded so HA still comes up as PID 1 under s6. In practice this
+# resolves fast — timed against the real image, .storage/http exists ~4-5s
+# into the container's life — so the 300s ceiling is headroom for a slow host,
+# not the expected wait.
 if [ "$_had_store" = false ]; then
     (
         _waited=0
