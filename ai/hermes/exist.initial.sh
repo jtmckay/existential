@@ -89,9 +89,15 @@ _ensure_hermes_install() {
 
     local cid
     # Unchecked, a failure here degrades into four "(not in image, skipping)"
-    # lines and a cache that is silently empty.
-    if ! cid=$(docker create "$image" 2>&1); then
-        echo "[hermes] Could not create a container from ${image}: ${cid}" >&2
+    # lines and a cache that is silently empty. Stderr is deliberately left
+    # unredirected (not `2>&1` into cid): on a fresh clone the image is not
+    # pulled yet, so this is where the pull happens, and Docker's pull-progress
+    # text would otherwise land inside `cid` alongside the real container ID —
+    # every `docker cp "${cid}:..."` below then silently fails against that
+    # garbled ref (swallowed by its own `2>/dev/null`), leaving .venv empty
+    # while .image_id still gets written as if the cache were ready.
+    if ! cid=$(docker create "$image"); then
+        echo "[hermes] Could not create a container from ${image}." >&2
         return 1
     fi
 
@@ -121,10 +127,18 @@ _ensure_hermes_install() {
 _ensure_hermes_install
 
 # Install honcho-ai into the cached venv so the honcho memory plugin is importable.
-# Runs after _ensure_hermes_install so the venv is guaranteed to exist.
+# Runs after _ensure_hermes_install, which is expected to have populated the
+# venv by now — but generate-compose.ts pre-creates the directory itself (empty)
+# well before this script runs, so its presence alone proves nothing; see the
+# non-emptiness check below.
 _ensure_honcho_ai() {
     local venv="${SCRIPT_DIR}/hermes_install/.venv"
-    if [[ ! -d "${venv}" ]]; then
+    # Non-empty, not merely present: generate-compose.ts pre-creates .venv as an
+    # empty directory at render time (ensureBindSource), before this script ever
+    # runs — the same reason _ensure_hermes_install above uses `ls -A` as its own
+    # cache marker. A bare `-d` here would always be true from the first run
+    # onward and never actually catch "not yet extracted."
+    if [[ ! -d "${venv}" ]] || [[ -z "$(ls -A "${venv}" 2>/dev/null)" ]]; then
         echo "[hermes] .venv not yet extracted — honcho-ai will be installed on next run." >&2
         return 0
     fi
