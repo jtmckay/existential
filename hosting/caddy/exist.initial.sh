@@ -36,6 +36,7 @@ EXIST_DOMAIN="$(grep -E '^EXIST_DOMAIN=' "$ENV_SHARED" 2>/dev/null | head -1 | c
 EXIST_DOMAIN="${EXIST_DOMAIN:-x.internal}"
 
 CERT_DIR="$SCRIPT_DIR/certs"                # mounted at /etc/caddy/certs/
+mkdir -p "$CERT_DIR"                        # nothing tracked lives here; git won't create it
 CA_KEY="$CERT_DIR/internal-ca-key.pem"
 CA_CRT="$CERT_DIR/internal-ca.pem"          # ← install THIS on each device, once
 LEAF_KEY="$CERT_DIR/internal-key.pem"

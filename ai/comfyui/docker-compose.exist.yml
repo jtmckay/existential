@@ -1,46 +1,62 @@
 services:
-  # Node-based image generation UI (Stable Diffusion / SDXL)
+  # Node-based image/video generation UI (Stable Diffusion / SDXL / Flux / Wan)
   # Web UI at http://comfyui:8188 / https://comfyui.<domain>
   comfyui:
     container_name: comfyui
-    # Pinned (was :latest-cuda) for reproducibility. Bump via ./existential.sh run check-versions.
-    image: ghcr.io/ai-dock/comfyui:v2-cuda-12.1.1-base-22.04-v0.2.7
+    # yanwk/comfyui-boot publishes a dated, immutable tag per GPU flavour every
+    # week. Bump all three together via ./existential.sh run check-versions.
+    # cu126 (not cu130) is the nvidia default: it runs on a 525+ driver, where
+    # CUDA 13 needs 580+.
+    image: yanwk/comfyui-boot:cu126-slim-20260831
 
     # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
     # The nvidia reservation below is stripped automatically when this applies.
     x-exist-gpu:
       amd:
-        # ai-dock publishes a ROCm build at the same ComfyUI version as the CUDA
-        # pin above, so this is a like-for-like swap rather than a version jump.
-        # Bump both tags together via ./existential.sh run check-versions.
-        image: ghcr.io/ai-dock/comfyui:v2-rocm-6.0-runtime-22.04-v0.2.7
+        # ROCm build of the same image. privileged is what actually grants
+        # /dev/dri here, and it is the sanctioned exception to least privilege:
+        # it applies ONLY on an AMD host, never by default.
+        image: yanwk/comfyui-boot:rocm-20260826
         privileged: true
       none:
-        # Nothing to add: the reservation is stripped so the container starts,
-        # but this is a CUDA image and image generation on CPU is not practical.
-        # Left explicit so the CPU case reads as considered, not forgotten.
-        {}
+        # CPU build. Its own CLI_ARGS default is --cpu, which the body's
+        # CLI_ARGS would otherwise blank out — hence restating it here.
+        # Generation on CPU is minutes per image: a smoke test, not real work.
+        image: yanwk/comfyui-boot:cpu-20260831
+        environment:
+          CLI_ARGS: --cpu ${COMFYUI_ARGS:-}
 
     # NVIDIA GPU
     deploy:
       resources:
         limits:
-          memory: 16G   # Adjust for your VRAM + CPU RAM needs
+          memory: 16G   # A model server: the limit is the model (Flux2 fp8 ~12G)
         reservations:
           devices:
             - driver: nvidia
               count: all
               capabilities: [gpu]
 
+    # The image starts as root but tolerates any uid: /root is the workdir and
+    # the bind mount below replaces it, so it is owned by the host user.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video,display
-      - DIRECT_ADDRESS=0.0.0.0
-      - DIRECT_ADDRESS_GET_WAN=false
-      - WEB_ENABLE_AUTH=false
-      - CF_TUNNEL_TOKEN=
-      - AUTO_UPDATE=false
-      - COMFYUI_ARGS=${COMFYUI_ARGS:---listen 0.0.0.0}
+      # The image hardcodes /root as HOME for its pip/pycache paths but does not
+      # export HOME, which docker sets to / for an arbitrary uid.
+      - HOME=/root
+      # Extra ComfyUI flags only (e.g. --lowvram on an 8 GB card). The image
+      # already supplies --listen --port.
+      - CLI_ARGS=${COMFYUI_ARGS:-}
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8188/system_stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s   # first boot unpacks ComfyUI + custom nodes into the volume
 
     restart: unless-stopped
     networks:
@@ -51,11 +67,14 @@ services:
     #     - 8188:8188
 
     volumes:
-      # GPU workspace: models + custom nodes + outputs. Re-downloadable — a _cache, not backed up.
-      - comfyui_data:/workspace
+      # /root IS the ComfyUI install: the entrypoint copies the bundle out of
+      # the image on first boot, so models, custom_nodes, input/, output/ and
+      # user/ (workflows, settings, comfyui.db) all live under this one mount.
+      - comfyui_data:/root
 
 x-exist-volumes:
-  comfyui_data: {}
+  # db: ComfyUI keeps a SQLite database at ComfyUI/user/comfyui.db.
+  comfyui_data: { db: true }
 
 networks:
   exist:

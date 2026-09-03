@@ -1,0 +1,102 @@
+// Alloy's own config language, not YAML. Replaces loki-promtail-config.yaml
+// (promtail is EOL). Generated with `alloy convert --source-format=promtail`,
+// then simplified: the two decree jobs shared a pipeline and are now one.
+
+// Decree run logs. `log_type` rides on the target, so routine.log and
+// message.md share one component; the regexes below only pull message_id /
+// chain / seq out of the path. These labels are a contract — the grafana
+// decree-overview and decree-run-detail dashboards query them.
+loki.source.file "decree" {
+	targets = [
+		{ __path__ = "/runs/**/routine.log", job = "decree", log_type = "routine" },
+		{ __path__ = "/runs/**/message.md", job = "decree", log_type = "message" },
+	]
+	forward_to = [loki.process.decree.receiver]
+
+	// Without this the `__path__` globs are taken literally and every target
+	// fails with "stat ...: no such file or directory".
+	file_match {
+		enabled = true
+	}
+
+	// One-shot import of promtail's positions.yaml. Alloy converts it into its
+	// own per-component format on first start and ignores it forever after, so
+	// the switch does not re-ship (and duplicate) every historical run. A no-op
+	// on a fresh install.
+	legacy_positions_file = "/var/lib/alloy/data/positions.yaml"
+}
+
+loki.process "decree" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.regex {
+		source     = "filename"
+		expression = ".*/(?P<message_id>[^/]+)/(?:routine\\.log|message\\.md)$"
+	}
+
+	stage.regex {
+		source     = "message_id"
+		expression = "^(?P<chain>D\\d+-\\d+-.+)-(?P<seq>\\d+)$"
+	}
+
+	stage.labels {
+		values = {
+			message_id = null,
+			chain      = null,
+			seq        = null,
+		}
+	}
+}
+
+// Every container's json-file log. No docker socket, so these carry only the
+// 64-hex container id in `filename` — a catch-all grep, not a per-service
+// view. The id *could* be resolved to a name without the socket (root can
+// read the sibling .../<id>/config.v2.json's "Name" field — verified), but
+// that's an undocumented internal docker state file with no compatibility
+// guarantee across engine versions, which is a worse trade than an id you can
+// `docker inspect` by hand.
+loki.source.file "docker_containers" {
+	targets = [
+		{ __path__ = "/var/lib/docker/containers/*/*.log", job = "docker" },
+	]
+	forward_to = [loki.process.docker_containers.receiver]
+
+	file_match {
+		enabled = true
+	}
+
+	legacy_positions_file = "/var/lib/alloy/data/positions.yaml"
+}
+
+loki.process "docker_containers" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.json {
+		expressions = {
+			log    = "log",
+			stream = "stream",
+			time   = "time",
+		}
+	}
+
+	stage.labels {
+		values = {
+			stream = null,
+		}
+	}
+
+	stage.timestamp {
+		source = "time"
+		format = "RFC3339Nano"
+	}
+
+	stage.output {
+		source = "log"
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

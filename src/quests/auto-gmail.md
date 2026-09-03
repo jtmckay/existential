@@ -5,11 +5,6 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: services/decree/decree/cron.example/gmail-sync.md
-    dst: services/decree/decree/cron/
-    label: "decree: gmail-sync.md"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Grants Decree read-only Gmail access via OAuth 2.0. Required by the
@@ -17,8 +12,11 @@ bank transaction import and receipt split automations.
 Docs: https://existential.company/docs/integrations/gmail
 
 Setup:
-  ./existential.sh run decree gmail-sync
+  1. ./existential.sh run decree gmail-sync
+     Opens a browser OAuth flow and writes credentials to
+     automations/secrets/gmail/.
 
-This opens a browser OAuth flow and writes credentials to
-automations/secrets/gmail/. The gmail-sync cron (copied above)
-polls for new messages every 15 minutes once activated.
+  2. Activate the poller — checks for new messages every 15 minutes:
+       mkdir -p services/decree/decree/cron/
+       cp services/decree/decree/cron.example/gmail-sync.md services/decree/decree/cron/
+       docker compose restart decree

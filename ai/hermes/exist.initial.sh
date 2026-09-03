@@ -14,10 +14,12 @@ if [[ "${IN_CONTAINER:-}" == "1" ]]; then
     exit 0
 fi
 
-# Pre-populate hermes build trees from the image so stage2-hook.sh skips its
-# 5-min recursive chown on every container restart. The hook gates the entire
-# chown block on .venv ownership: if .venv is already uid ${EXIST_PUID:-1000},
-# it skips chowning .venv, ui-tui, gateway, and node_modules.
+# Pre-populate hermes build trees from the image onto the host, so /opt/hermes
+# is host-writable. That is what _ensure_honcho_ai below needs: the image's own
+# venv is deliberately sealed (stage2-hook.sh: "Do not chown runtime code or
+# dependency trees under $INSTALL_DIR" — keeping /opt/hermes root-owned is how
+# it stops an agent session from bricking its own gateway), so honcho-ai cannot
+# be pip-installed into it in place.
 #
 # We extract once per image version (tracked by image digest in .image_id).
 # On fresh clone or after a new image pull: re-extracts and chowns on the host

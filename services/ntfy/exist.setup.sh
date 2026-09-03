@@ -59,7 +59,13 @@ ADMIN_USER=$(env_get "${SCRIPT_DIR}/.env" NTFY_ADMIN_USER); ADMIN_USER="${ADMIN_
 BOT_USER=$(env_get "$ROOT_ENV" EXIST_NTFY_USER);              BOT_USER="${BOT_USER:-bot}"
 
 section "Admin user"
-if ntfy_exec user list 2>/dev/null | grep -q "^${ADMIN_USER}"; then
+# `ntfy user list` prints "user <name> (role: ...)" — the name is the SECOND
+# field. Anchoring on the first (as this used to) never matches, so every run
+# fell through to `ntfy user add` on a user that already existed, which exits
+# 1 under `set -euo pipefail` and aborted the script before it minted a token.
+# Verified against a real v2.27.0 container. Same fix as entrypoint.sh's
+# `_have_user`, which got this right.
+if ntfy_exec user list 2>/dev/null | grep -q "^user ${ADMIN_USER} "; then
     echo "  already exists — skipping"
 else
     read -rsp "  Password for ${ADMIN_USER}: " ADMIN_PASS; echo
@@ -70,7 +76,7 @@ fi
 # ── Bot user ─────────────────────────────────────────────────────────────────
 
 section "Bot user"
-if ntfy_exec user list 2>/dev/null | grep -q "^${BOT_USER}"; then
+if ntfy_exec user list 2>/dev/null | grep -q "^user ${BOT_USER} "; then
     echo "  already exists — skipping"
 else
     read -rsp "  Password for ${BOT_USER}: " BOT_PASS; echo

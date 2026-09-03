@@ -1,16 +1,6 @@
 groups:
   - name: existential
     rules:
-      # ── Container health ──────────────────────────────────────────────────
-      - alert: ContainerDown
-        expr: absent(container_last_seen{name=~".+"}) or (time() - container_last_seen) > 60
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Container {{ $labels.name }} is not running"
-          description: "Container {{ $labels.name }} has been down for more than 2 minutes."
-
       # ── Host resources ────────────────────────────────────────────────────
       - alert: HostDiskSpaceLow
         expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
@@ -48,31 +38,30 @@ groups:
           summary: "Host CPU usage above 90% for 10 minutes"
           description: "CPU is {{ $value | humanize }}% used."
 
-      # ── Service health (via decree health check crons) ────────────────────
+      # ── Service health (via decree triage) ───────────────────────────────
       - alert: ServiceHealthCheckFailing
-        expr: decree_run_success{instance=~"health-.+"} == 0
+        expr: exist_service_healthy == 0
         for: 20m
         labels:
           severity: warning
         annotations:
-          summary: "Service {{ $labels.instance }} health check failing"
-          description: "The decree health probe for {{ $labels.instance }} has been failing for 20 minutes. Check Loki for recent run logs."
+          summary: "Service {{ $labels.service }} is failing its own exist.test.sh"
+          description: "Triage has reported {{ $labels.service }} ({{ $labels.category }}) unhealthy for 20 minutes. Check Loki for recent run logs."
 
       # ── Backup health (via pushgateway) ───────────────────────────────────
+      # Instance label is the decree routine name (automations/lib/hooks/afterEach.sh
+      # pushes every routine run to job=decree/instance=<routine>, and Pushgateway
+      # auto-derives push_time_seconds per job/instance grouping key — verified
+      # empirically, no metric named push_time_seconds is emitted by the routines
+      # themselves). Covers all three backup routines in
+      # automations/shared_routines/: volume-backup, db-backup, sqlite-backup.
+      # workspace-sync is deliberately excluded — it mirrors workspace/ into
+      # MinIO to drive S3 events, not a backup (see the routine's own header).
       - alert: BackupNotRun
-        expr: (time() - push_time_seconds{job=~"db-backup|volume-backup"}) > 86400 * 2
+        expr: (time() - push_time_seconds{instance=~"db-backup|volume-backup|sqlite-backup"}) > 86400 * 2
         for: 0m
         labels:
           severity: warning
         annotations:
-          summary: "Backup job {{ $labels.job }} has not reported in 48h"
+          summary: "Backup job {{ $labels.instance }} has not reported in 48h"
           description: "Last seen {{ $value | humanizeDuration }} ago. Check decree cron config."
-
-      - alert: BackupFailed
-        expr: backup_last_success == 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Backup job {{ $labels.job }} reported failure"
-          description: "Check decree run logs in automations/runs/."

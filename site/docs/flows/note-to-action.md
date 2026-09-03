@@ -369,7 +369,7 @@ are copied back to the vault over rclone instead.
 | Knowing an idea is already evaluated | **Ships.** The ledger at `/data/note-triage/ideas.tsv` |
 | Research, draft, open questions | **Ships.** `note-develop`, with [Firecrawl](../ai/firecrawl) research when configured |
 | Competition, market size, value proposition | **Ships.** `idea-workup` → `hermes-dept` (research and sales) |
-| Indexing notes for retrieval | **Ships.** [OpenViking](../ai/openviking) watches directories and keeps them queryable |
+| Indexing notes for retrieval | **Ships.** A decree cron uploads `workspace/` into [OpenViking](../ai/openviking) every 15 minutes and keeps it queryable |
 | Notifying you | **Ships.** `notify` → ntfy, or `telegram-notify` |
 | **What counts as worth acting on** | **Yours.** One line of prompt, and the whole point of the flow |
 

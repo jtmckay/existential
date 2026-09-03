@@ -14,6 +14,21 @@ sidebar_position: 1
 Actual Budget's own documentation is thorough. For anything not covered here — reports, goals, rules, bank sync — start at [actualbudget.org/docs](https://actualbudget.org/docs/).
 :::
 
+## Getting Started
+
+Enable it, then bring the stack up from the repo root:
+
+```bash
+EXIST_IS_SERVICES_ACTUAL_BUDGET=true    # in .env.shared
+./existential.sh && docker compose up -d
+```
+
+Visit `https://actual-budget.<domain>`. The server has no default or env-configured password —
+the first thing you'll see is a **Create Password** screen, which calls the server's one-time
+bootstrap endpoint to set your login password. There's nothing to change here later beyond that
+one field; if you ever need to reset it, use `docker exec -it actual-budget node
+bin/actual-server.js --reset-password` (interactive, needs a TTY).
+
 ## First-Time Setup
 
 ### 1. Create a budget file

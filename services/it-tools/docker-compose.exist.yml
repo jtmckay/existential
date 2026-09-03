@@ -1,13 +1,37 @@
 services:
   it-tools:
     container_name: it-tools
+    # Pinned to upstream's most recent dated release — verified against Docker
+    # Hub: it and `latest` were published together on 2024-10-22, and upstream
+    # has cut no dated tag since (only a rolling `nightly` moves after that).
     image: 'corentinth/it-tools:2024.10.22-7ca5933'
+    # Plain nginx:1.26.2 (verified via `docker inspect`, entrypoint
+    # /docker-entrypoint.sh) serving a prebuilt static SPA — no backend, no
+    # database, nothing per-request beyond disk reads. Runs and stays root: the
+    # master binds :80 (a privileged port) and mkdir()s /var/cache/nginx's temp
+    # dirs, which are root-owned in the base image — verified by running with
+    # `--user 1000:1000 --cap-add=NET_BIND_SERVICE`, which fails at startup with
+    # `mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)`.
+    # Workers still drop to the image's own `nginx` user per nginx.conf.
     restart: unless-stopped
-    # Static site behind nginx.
     deploy:
       resources:
         limits:
-          memory: 128M
+          # Measured idle (docker stats, freshly started, no traffic): ~7.4 MiB.
+          # 32M is ~4x that — static-file serving has no request-driven growth,
+          # so this is headroom for concurrent connections, not a guess.
+          memory: 32M
+    healthcheck:
+      # / is the only route — a static SPA has no dedicated /health. --spider
+      # just checks nginx answers 200. Must be 127.0.0.1, not localhost: this
+      # image's IPv6-listen entrypoint hook only enables `listen [::]:80` when
+      # the container has IPv6 available, so `localhost` resolving to ::1 first
+      # gets "connection refused" even though :80 is fine (verified).
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - exist
     # ports disabled — access via https://it-tools.<domain> (Caddy + pihole required)

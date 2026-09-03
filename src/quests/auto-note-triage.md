@@ -9,11 +9,6 @@ services:
     label: Hermes
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
-copies:
-  - src: services/decree/decree/cron.example/note-triage.md
-    dst: services/decree/decree/cron/
-    label: "decree: note-triage.md (hourly scan of the notes vault)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Most notes get written once and never read again. This watches the vault for
@@ -90,7 +85,9 @@ Making it yours — everything below is cron frontmatter, no code changes:
                     Without it, note-develop says where it would have looked
                     instead of inventing a market.
 
-After activating the cron, restart decree:
+Activate the hourly scan:
+  mkdir -p services/decree/decree/cron/
+  cp services/decree/decree/cron.example/note-triage.md services/decree/decree/cron/
   docker compose restart decree
 
 Logs for each run land in automations/runs/ and are queryable in Grafana

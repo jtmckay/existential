@@ -4,7 +4,8 @@ services:
     image: postgres:16.6
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Postgres holding table metadata and data.
+    # Postgres holding table metadata and data. Measured ~90-105MiB idle
+    # (docker stats, fresh init) — 256M is ~2.5x that.
     deploy:
       resources:
         limits:
@@ -16,7 +17,8 @@ services:
       POSTGRES_PASSWORD: ${NOCODB_POSTGRES_PASSWORD}
       POSTGRES_USER: ${NOCODB_POSTGRES_USER}
     volumes:
-      # Postgres — db: true. TODO: pg_dump → volumes/nocodb_pg_data_backup.
+      # Postgres — db: true. Backup: copy nocodb-db-backup-{nightly,weekly}.md from
+      # services/decree/decree-backup/cron.example/ into cron/ and restart it.
       - nocodb_pg_data:/var/lib/postgresql/data
       # - ./ncpg_data:/var/lib/postgresql/data # Local volume for Postgres data
     healthcheck:
@@ -25,19 +27,29 @@ services:
       test: 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
       timeout: 2s
 
-  # UI interface at http://localhost:48080/
   nocodb:
     container_name: nocodb
     image: "nocodb/nocodb:2026.08.1"
+    # The image ships no USER (Config.User is empty — dumb-init/start.sh both run
+    # as root by default) but tolerates an arbitrary uid: verified
+    # nocodb/nocodb:2026.08.1 starts, mkdir -p's NC_TOOL_DIR (/usr/app/data), and
+    # runs its schema migrations cleanly under 1000:1000 against a pre-owned bind
+    # mount — no /etc/passwd or $HOME lookup blocks it.
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Node app server over the metadata DB. 1G, not 512M: V8 sizes its heap from
-    # the cgroup limit, and at 512M nocodb OOM-loops during startup with
-    # "Ineffective mark-compacts near heap limit" before it ever serves a request.
+    # Node app server over the metadata DB. Measured RSS (docker exec, cat
+    # /proc/<pid>/status) settles at ~860MiB idle right after first-boot schema
+    # migrations — nocodb bundles a lot (monaco-editor, googleapis, several AI
+    # SDKs) into one process. 2G is ~2.3x that idle figure, this repo's usual
+    # headroom; the previous 1G left only ~160MiB, not enough once real usage
+    # (imports, script/formula execution) adds to the idle baseline.
+    # 512M OOM-loops during startup with "Ineffective mark-compacts near heap
+    # limit" before ever serving a request — V8 sizes its heap from the cgroup
+    # limit, so that failure mode gets worse, not better, at a tighter limit.
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
     networks:
       - exist
     depends_on:
@@ -47,13 +59,24 @@ services:
       NC_DB: "pg://nocodb-postgres:5432?u=${NOCODB_POSTGRES_USER}&p=${NOCODB_POSTGRES_PASSWORD}&d=nocodb"
       NC_ADMIN_EMAIL: ${NOCODB_ADMIN_EMAIL}
       NC_ADMIN_PASSWORD: ${NOCODB_ADMIN_PASSWORD}
-    # ports disabled — access via https://nocodb.<domain> (Caddy + pihole required)
-    # Uncomment to expose directly:
+    # ports disabled — access via https://nocodb.<domain> (Caddy + pihole
+    # required). Uncomment to expose directly at http://localhost:48080/:
     #   ports:
     #     - 48080:8080
     volumes:
       - nocodb_data:/usr/app/data
       # - ./nc_data:/usr/app/data # Local volume for NocoDB data
+    healthcheck:
+      # Liveness only: /api/v1/health is a hardcoded {"message":"OK"} with no DB
+      # touch — verified it stays 200 with nocodb-postgres stopped. That's still
+      # the right compose healthcheck (proves the process is up, gates
+      # depends_on elsewhere), but it is NOT a readiness signal — exist.test.sh
+      # probes an endpoint that actually reads through to postgres.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
 
 x-exist-volumes:
   nocodb_data: { nfs: true }

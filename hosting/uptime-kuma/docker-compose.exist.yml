@@ -1,10 +1,11 @@
 services:
-  # UI interface at http://localhost:30565
   uptime-kuma:
     container_name: uptime-kuma
-    image: "louislam/uptime-kuma:2.5.0"
+    image: "louislam/uptime-kuma:2.5.3"
     restart: unless-stopped
-    # SQLite-backed prober. Memory tracks monitor count, which is small here.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # Measured: 118 MiB idle under this limit, no swap pressure (node sizes its
+    # heap to the cgroup). Monitor count is what moves it.
     deploy:
       resources:
         limits:
@@ -16,12 +17,10 @@ services:
     #   ports:
     #     - 43001:3001
     environment:
-      - ADMIN_USERNAME=${UPTIME_KUMA_ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${UPTIME_KUMA_ADMIN_PASSWORD}
+      # v2 shows an interactive DB-choice wizard on first boot unless this is set.
+      - UPTIME_KUMA_DB_TYPE=sqlite
     volumes:
       # SQLite — must be local; NFS breaks WAL locking.
-      # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - uptime_kuma_data:/app/data
 
 x-exist-volumes:

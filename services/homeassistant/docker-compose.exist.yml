@@ -3,24 +3,64 @@ services:
     container_name: homeassistant
     image: ghcr.io/home-assistant/home-assistant:2026.8.2
     restart: unless-stopped
-    # ~102 MiB idle; grows with integrations and the recorder database.
+    # Measured against the actual image (default_config, no extra integrations,
+    # onboarding not completed): ~285-345 MiB, briefly peaking near 345 MiB during
+    # the first boot's component setup, settling ~285 MiB idle after a restart.
+    # A real install adds integrations, the recorder DB, and history/logbook
+    # growth on top of that — 2-3x the measured idle, rounded up.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1024M
+    # No `user:` override. Confirmed via `docker inspect`: the image ships no
+    # USER (defaults to root) and no PUID/PGID-style env — s6 runs the whole
+    # thing as root and /config ends up root-owned once HA has booted (checked
+    # with `docker exec ... ls -la /config`). This is also why the exist.initial.sh
+    # copy-and-replace fallback exists: after first boot the host user can no
+    # longer write configuration.yaml in place.
+    healthcheck:
+      # HA ships no baked-in HEALTHCHECK (checked with `docker inspect
+      # --format '{{json .Config.Healthcheck}}'` — null) and exposes no
+      # documented /health route; /manifest.json is the frontend's own static
+      # asset, served unauthenticated as soon as the web server is up, and is
+      # what exist.test.sh already probes for the same reason. curl is present
+      # in the image (`docker exec ... which curl`).
+      test: ["CMD", "curl", "-f", "http://localhost:8123/manifest.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     networks:
       - exist
     # entrypoint.sh writes the reverse-proxy settings into .storage/http, which is
     # the only place HA serves them from, in the window before HA starts — the one
     # moment they can be written at all, since HA rewrites .storage on shutdown.
     # Without it every proxied request answers 400 while :8123 keeps working.
+    # Verified against the real image (2026.8.2): sending an unconfigured
+    # X-Forwarded-For to a container with no trusted_proxies set returns 400 for
+    # *every* route, static assets included, not just the API — confirming
+    # "every proxied request" is literal, not just auth'd ones.
     entrypoint: /entrypoint.sh
     volumes:
       # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
-      # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # TODO: no backup cron wired up yet. Add a volume-backup cron.example entry
+      # for `homeassistant_data homeassistant` (same shape as
+      # services/decree/decree-backup/cron.example/mealie-volume-backup-*.md) —
+      # out of scope for this directory, see services/decree/decree-backup/.
       - homeassistant_data:/config
       - ./entrypoint.sh:/entrypoint.sh:ro
+    # Bridge network (`exist`), not `network_mode: host`. Upstream's own docs
+    # (home-assistant.io/installation/docker) call `--net=host` a requirement
+    # for zeroconf/mDNS and SSDP/UPnP discovery — Docker's bridge driver does
+    # not forward multicast out to the LAN, so Chromecast, Sonos, HomeKit,
+    # ESPHome, printers etc. will NOT auto-discover on `exist`. That trade is
+    # deliberate here: staying on the bridge keeps HA behind Caddy/TLS like
+    # every other service and off the host's network namespace. If you need
+    # discovery, switch to `network_mode: host` yourself — that drops this
+    # service off `exist` entirely (no more container-DNS reachability, and
+    # Caddy can no longer front it since it isn't publishing 8123 on the bridge)
+    # so you'd also uncomment the `ports:` block below and access :8123 directly,
+    # unproxied. Undiscovered devices still work fine added by static IP.
     # ports disabled — access via https://homeassistant.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
@@ -29,6 +69,13 @@ services:
       TZ: ${HOMEASSISTANT_TZ}
       # The docker bridge caddy sits on. Trusting the network rather than a pinned
       # container IP keeps this correct when caddy is recreated and its address moves.
+      # EXIST_DOCKER_SUBNET has no default anywhere else in the stack (grep the
+      # repo — homeassistant is the only reader) so this always falls back to
+      # 172.16.0.0/12 in practice; that fallback is correct because Docker's
+      # default bridge address-pool (172.17.0.0/16-172.31.0.0/16) lives entirely
+      # inside it — confirmed with `docker network inspect` against this
+      # install's actual `exist` network. Set EXIST_DOCKER_SUBNET yourself only
+      # if you've reconfigured Docker's address pool outside that range.
       HOMEASSISTANT_TRUSTED_PROXIES: ${EXIST_DOCKER_SUBNET:-172.16.0.0/12}
     # privileged: true  # uncomment if you need access to host hardware (e.g. USB zigbee/z-wave sticks)
 

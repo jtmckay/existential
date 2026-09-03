@@ -130,7 +130,14 @@ if [ -f "$HERMES_CONFIG" ]; then
         #              /api/show and is the exact state that truncates hermes.
         #   /api/show  the Modelfile's baked num_ctx. Used when the model is not
         #              currently loaded, so the check still works cold.
-        OLLAMA_API="${OLLAMA_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}"
+        # Per-role address, resolved in one place. A hand-rolled fallback to
+        # EXIST_OLLAMA_URL queries the wrong box the moment the chat role is
+        # moved (EXIST_OLLAMA_URL_CHAT) — and a wrong box answers nothing, so
+        # REAL_CTX comes back empty and the authoritative truncation check
+        # below is silently skipped. See src/utils/model-endpoints.sh.
+        # shellcheck source=../../src/utils/model-endpoints.sh
+        . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/utils" && pwd)/model-endpoints.sh"
+        OLLAMA_API="${OLLAMA_URL:-$(endpoint_for chat)}"
         REAL_CTX=""
         REAL_SRC=""
         if [ -n "${CONFIGURED_MODEL:-}" ]; then

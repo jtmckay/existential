@@ -18,7 +18,7 @@
 #   wyoming-piper    — Wyoming TTS server (TCP 10200)
 #
 # Volumes:
-#   data/  (a _cache) — downloaded voice models; re-downloadable, not backed up.
+#   wyoming_piper_cache — downloaded voice models; re-downloadable, not backed up.
 #
 # Access: tcp://wyoming-piper:10200 on the exist network. No HTTP, so no Caddy
 # block and no dashy tile — you add it in Home Assistant, not in a browser.
@@ -38,15 +38,15 @@ services:
     # only if HA runs on a different machine.
     #   ports:
     #     - "10200:10200"
+    # --uri/--data-dir need no restating: the image's own ENTRYPOINT
+    # (docker_run.sh, verified at this exact tag) already runs
+    # `wyoming_piper --uri tcp://0.0.0.0:10200 --data-dir /data "$@"` before
+    # appending this list, and --download-dir defaults to the first --data-dir
+    # when unset (wyoming_piper/__main__.py:156-158) — which is already /data
+    # from that hardcoded flag. --voice is the only thing left to say.
     command:
       - --voice
       - ${EXIST_MODEL_TTS_VOICE:-en_US-lessac-medium}
-      - --uri
-      - tcp://0.0.0.0:10200
-      - --data-dir
-      - /data
-      - --download-dir
-      - /data
     volumes:
       # Voice models, downloaded on first use — a _cache, re-downloadable.
       - wyoming_piper_cache:/data

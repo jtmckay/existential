@@ -1,6 +1,9 @@
 services:
-  # Object storage for Nextcloud
-  # UI interface at http://localhost:49001
+  # S3-compatible object storage. Backs Nextcloud's /S3 external-storage mount
+  # (nas/nextcloud) and the workspace-sync -> decree-webhook file-event pipeline
+  # (automations/shared_routines/workspace-sync.sh). Console UI is reached via
+  # https://minio.<domain> by default -- ports below are disabled, so
+  # http://localhost:49001 only works once you uncomment them.
   minio:
     container_name: minio
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
@@ -19,7 +22,9 @@ services:
     #     - "49000:9000"
     #     - "49001:9001"
     volumes:
-      - minio_data:/data # Path to the mounted NFS share on the Proxmox host
+      # TODO: no backup yet — add a volume-backup cron in
+      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      - minio_data:/data
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
@@ -36,6 +41,21 @@ services:
       - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
       - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${MINIO_DECREE_WEBHOOK_AUTH_TOKEN}
     command: server /data --console-address :9001
+    # /minio/health/live is registered unauthenticated (cmd/healthcheck-router.go)
+    # and answers 200 as soon as the HTTP server accepts connections -- it does
+    # NOT wait for the object layer to finish initializing (LivenessCheckHandler,
+    # cmd/healthcheck-handler.go:192-211, only ever fails on a full request queue).
+    # That is still the right liveness signal (same tier docker-compose healthchecks
+    # use everywhere else in this stack); exist.test.sh's mc probe below is what
+    # proves the object layer + credentials actually work.
+    # curl is a static binary baked into the image (Dockerfile.release), not a
+    # package -- present on every minio/minio:RELEASE.* tag.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 x-exist-volumes:
   minio_data: { nfs: true }

@@ -39,7 +39,32 @@ fi
 # from "caddy/pihole routing broken".
 probe_caddy "ntfy /v1/health" ntfy /v1/health 200
 
-# ── 2. Authenticated publish ─────────────────────────────────────────────────
+# ── 2. Auth is actually enforced ─────────────────────────────────────────────
+
+# server.exist.yml sets auth-default-access: deny-all — the whole reason this
+# service needs no manual step, per site/docs/services/ntfy.md, is that a
+# fresh install would otherwise accept every publish from anyone. A publish
+# with NO credentials at all must be rejected (verified against a real
+# v2.27.0 container: 403, not 401); a 200 here means that setting was lost
+# (server.yml not mounted, or reverted upstream) and the instance is silently
+# open to the internet if it's exposed through Caddy.
+NOAUTH_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 5 \
+    -d "exist.test.sh unauthenticated ping $(date +%s)" \
+    "${NTFY_URL}/exist-test-noauth" 2>/dev/null || echo "000")
+case "$NOAUTH_CODE" in
+    401 | 403) ok "ntfy rejects unauthenticated publish (deny-all enforced)" ;;
+    200) fail "ntfy rejects unauthenticated publish" \
+              "HTTP 200 — an unauthenticated publish succeeded, deny-all is NOT enforced" \
+              "docker exec ntfy cat /etc/ntfy/server.yml | grep auth-default-access; confirm ntfy-config/server.yml is mounted" ;;
+    000) fail "ntfy rejects unauthenticated publish" \
+              "no response" \
+              "docker logs ntfy" ;;
+    *)   fail "ntfy rejects unauthenticated publish" \
+              "unexpected HTTP $NOAUTH_CODE" \
+              "docker logs ntfy" ;;
+esac
+
+# ── 3. Authenticated publish ─────────────────────────────────────────────────
 
 AUTH_ARGS=()
 AUTH_KIND=""

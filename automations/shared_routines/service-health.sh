@@ -3,7 +3,8 @@
 #
 # Intended to run inside the main decree daemon (on the exist Docker network)
 # on a cron schedule. The decree afterEach hook automatically:
-#   - Pushes decree_run_success{instance="health-<service>"} to Prometheus
+#   - Pushes decree_run_success{instance="service-health"} to Prometheus
+#     (the instance label is the ROUTINE name, not SERVICE_NAME)
 #   - Ships the run log to Loki
 # so every execution is visible in Grafana with no extra wiring.
 #

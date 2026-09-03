@@ -23,10 +23,11 @@ Simple HTTP-based pub-sub notification service. Send notifications to your phone
 That is the whole setup. ntfy's `server.yml` denies every publish by default, so a fresh
 install would otherwise accept nothing until someone ran a manual command — which is exactly
 the sort of step that gets missed and then looks like a broken notification path. Its
-`entrypoint.sh` creates the admin user and the publishing bot on first boot from
-`EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` in `.env.shared`, and grants the bot read-write on
-`EXIST_NTFY_TOPICS`. It waits for ntfy to create its auth database first, since `ntfy user add`
-cannot run before that exists, and it is a no-op on every later start.
+`entrypoint.sh` creates two users on first boot: your admin login, from `NTFY_ADMIN_USER` /
+`NTFY_ADMIN_PASSWORD` in `services/ntfy/.env`, and the publishing bot, from `EXIST_NTFY_USER` /
+`EXIST_NTFY_PASSWORD` in `.env.shared` — granted read-write on `EXIST_NTFY_TOPICS`. It waits for
+ntfy to create its auth database first, since `ntfy user add` cannot run before that exists, and
+it is a no-op on every later start.
 
 Decree publishes as that user, so automations report in with no further configuration.
 
@@ -45,26 +46,6 @@ a 401, and because the token wins, the working user/password path is never tried
 ### Customization
 
 Ntfy emojis: https://docs.ntfy.sh/emojis/
-
-## User Setup
-
-### Compute password hash for admin
-
-```bash
-echo -n 'YourAdminPass' | docker run --rm -i httpd:2-alpine htpasswd -niB pick_a_name
-```
-
-### Compute password hash for bot
-
-```bash
-echo -n 'MyS3cret' | docker run --rm -i httpd:2-alpine htpasswd -niB bot
-```
-
-### Generate bot token
-
-```bash
-echo "tk_$(tr -dc 'a-z0-9' </dev/urandom | head -c 29)"
-```
 
 ## API Usage
 

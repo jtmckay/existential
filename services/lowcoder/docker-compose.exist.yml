@@ -8,7 +8,11 @@ services:
     image: "mongo:7.0"
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # MongoDB maps its working set into memory.
+    # Verified: mongo:7.0 starts clean under an arbitrary user: (no built-in-uid
+    # requirement like postgres has — see honcho-postgres). MongoDB maps its
+    # working set (WiredTiger cache) into memory; measured ~95MiB idle on a
+    # fresh single-org install, so 512M leaves real growth room as apps/data
+    # accumulate without being a worst-case number.
     deploy:
       resources:
         limits:
@@ -18,8 +22,18 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${LOWCODER_MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${LOWCODER_MONGO_ROOT_PASSWORD}
     volumes:
-      # MongoDB — db: true (NFS corrupts WiredTiger).
-      # TODO: mongodump → volumes/lowcoder_mongo_backup (not wired up yet).
+      # MongoDB — db: true (NFS corrupts WiredTiger). MONGO_INITDB_ROOT_* only
+      # seed the root user on a genuinely empty /data/db (official mongo image
+      # behavior) — regenerating LOWCODER_MONGO_ROOT_PASSWORD without resetting
+      # this volume leaves .env and the running server out of step; see
+      # .claude/reference/volumes.md.
+      #
+      # Backup IS wired up: copy lowcoder-db-backup-{nightly,weekly}.md from
+      # services/decree/decree-backup/cron.example/ into cron/ and restart
+      # decree-backup (mongodump straight to ${EXIST_BACKUP_RCLONE_REMOTE}, same
+      # as every other db-backup — there is no local *_backup volume for any of
+      # them, see volumes.md). lowcoder-volume-backup-{nightly,weekly}.md covers
+      # lowcoder_data + lowcoder_assets_data the same way.
       - lowcoder_mongo_data:/data/db
       # mongo declares VOLUME for BOTH /data/db and /data/configdb. Mounting only
       # the first leaves Docker to make an anonymous volume for the second.
@@ -44,7 +58,6 @@ services:
   lowcoder-redis:
     container_name: lowcoder-redis
     image: redis:7-alpine
-    platform: linux/amd64 # Forces the x86 version (use linux/arm64 if you are on ARM but pulling x86)
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     # Disable RDB persistence — Redis is a session/query cache here, not a
     # primary store. Mounting /data host-owned below is what makes that safe:
@@ -55,7 +68,10 @@ services:
     volumes:
       - lowcoder_redis_cache:/data
     restart: unless-stopped
-    # Session store.
+    # Session store, not app data — bundled per-service redis like immich-redis,
+    # separate from the shared nas/redis (which only serves nextcloud). Measured
+    # ~3.5MiB idle; 128M matches the floor used for every other bundled redis in
+    # this repo rather than the (much smaller) measured number.
     deploy:
       resources:
         limits:
@@ -75,11 +91,16 @@ services:
     container_name: lowcoder-api-service
     image: lowcoderorg/lowcoder-ce-api-service:2.7.6
     restart: unless-stopped
-    # JVM. Give the heap somewhere to live or it is OOM-killed under load.
+    # JVM: sizes its default heap off the cgroup limit (container-aware since
+    # Java 10), so raising this changes what the JVM claims, not just a ceiling.
+    # Measured ~760MiB idle on a fresh single-org install with nothing built yet
+    # (74% of 1G) — too little headroom for real usage before hitting swap
+    # (memory.swap.max == memory.max, see CLAUDE.md), so this is 1536M rather
+    # than the 1G upstream's compose leaves unbounded.
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 1536M
     # Enabled ports to be able to access backend from host
     # ports:
     #   - "8080:8080"
@@ -123,9 +144,13 @@ services:
       LOWCODER_ADMIN_SMTP_STARTTLS_REQUIRED: "true"
       # Email used as sender in lost password email
       LOWCODER_EMAIL_NOTIFICATIONS_SENDER: info@localhost
-      # Lowcoder superuser details
+      # Lowcoder superuser details. Verified: unlike LOWCODER_MONGO_ROOT_PASSWORD
+      # above, this one is NOT bootstrap-only — api-service re-applies it to the
+      # existing superuser account on every boot (confirmed by changing it against
+      # an already-initialised volume and diffing the stored password hash before
+      # and after a restart). If left blank, a password is generated and written
+      # into the api-service log instead.
       LOWCODER_SUPERUSER_USERNAME: "${LOWCODER_SUPERUSER_USERNAME}"
-      # If left blank, a password will be generated and written into api-service log
       LOWCODER_SUPERUSER_PASSWORD: "${LOWCODER_SUPERUSER_PASSWORD}"
     depends_on:
       lowcoder-mongodb:
@@ -159,7 +184,9 @@ services:
     # Node service for query execution. 1G, not 512M: V8 sizes its heap from the
     # cgroup limit and at 512M this crash-loops on startup with
     # "FatalProcessOutOfMemory" before it ever listens on 6060 — which then
-    # blocks lowcoder-frontend, whose depends_on requires it healthy.
+    # blocks lowcoder-frontend, whose depends_on requires it healthy. Measured
+    # ~410MiB idle at 1G (41%) once up, so unlike api-service the limit here is
+    # set by the startup floor, not idle headroom.
     deploy:
       resources:
         limits:
@@ -199,7 +226,11 @@ services:
       LOWCODER_API_SERVICE_URL: "http://lowcoder-api-service:8080"
       LOWCODER_NODE_SERVICE_URL: "http://lowcoder-node-service:6060"
     restart: unless-stopped
-    # nginx serving the built app.
+    # nginx serving the built app. No user: override (root) — verified: the image
+    # ships no USER, and its own /docker-entrypoint.d/00-change-nginx-user.sh
+    # needs root to usermod/chown the "lowcoder" account to LOWCODER_PUID/PGID;
+    # nginx's master process then stays root while workers drop to that
+    # remapped uid (`user lowcoder;` in nginx-http.conf). Measured ~2.4MiB idle.
     deploy:
       resources:
         limits:

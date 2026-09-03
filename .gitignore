@@ -16,14 +16,11 @@
 **/minio_data
 **/n8n_data
 **/nextcloud_data
-**/openwebui_data
 **/nextcloudsql_data
-**/ollama_data
 **/pg_data
 **/qdrant_data
 **/redis_data
 **/speaches_data
-**/uptime-kuma_data
 
 **/node_modules
 
@@ -45,10 +42,13 @@
 # Caddy
 **/Caddyfile
 
-# Caddy TLS certs (hosting/caddy/certs/) — only the *.exist.pem templates are tracked.
+# Caddy TLS certs (hosting/caddy/certs/) — nothing in there is tracked.
 # Cloudflare origin pair (user-supplied):
 **/cloudflare-key.pem
 **/cloudflare.pem
+# Your own public-domain wildcard pair (Caddyfile.frontdoor-public.example):
+**/public-key.pem
+**/public.pem
 # Stable *.internal cert + CA, minted by caddy/exist.initial.sh (keys are secret;
 # certs are host-local generated artifacts — none are committed):
 **/internal-ca-key.pem
@@ -117,8 +117,6 @@ automations/outbox/
 **/decree/lib/*
 **/decree/runs/*
 
-# Hermes
-**/hermes/data
 
 # LightRAG
 **/lightrag/rag_storage
@@ -144,9 +142,6 @@ automations/outbox/
 
 # Honcho
 **/honcho/config.toml
-
-# Ollama
-**/ollama/entrypoint.sh
 
 # Playwright MCP scratch output (screenshots, traces)
 **/.playwright-mcp/
@@ -187,12 +182,10 @@ volumes_local/
 
 # Service-dir scratch that is NOT a volume: hermes' runtime, extracted from the
 # image by its exist.initial.sh.
-**/hermes_agent_src
 **/hermes_install
 **/model-cache
 **/caddy_config
 **/ntfy_cache
-**/etc-pihole
 
 # OS / editor droppings
 .DS_Store

@@ -7,29 +7,32 @@ services:
     label: Actual Budget
   - var: EXIST_IS_SERVICES_MEALIE
     label: Mealie
-copies:
-  - src: services/actual-budget/decree/cron.example/actual-budget-volume-backup-nightly.md
-    dst: services/actual-budget/decree/cron/
-    label: "actual-budget: volume-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
-  - src: services/actual-budget/decree/cron.example/actual-budget-volume-backup-weekly.md
-    dst: services/actual-budget/decree/cron/
-    label: "actual-budget: volume-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_ACTUAL_BUDGET
-  - src: services/mealie/decree/cron.example/mealie-db-backup-nightly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie: db-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_MEALIE
-  - src: services/mealie/decree/cron.example/mealie-db-backup-weekly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie: db-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_MEALIE
-  - src: services/mealie/decree/cron.example/mealie-volume-backup-nightly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie: volume-backup-nightly.md"
-    requires: EXIST_IS_SERVICES_MEALIE
-  - src: services/mealie/decree/cron.example/mealie-volume-backup-weekly.md
-    dst: services/mealie/decree/cron/
-    label: "mealie: volume-backup-weekly.md"
-    requires: EXIST_IS_SERVICES_MEALIE
 ---
+
+Actual Budget's whole database lives in one volume; Mealie is a Postgres
+database plus an uploads volume. Both back up through decree-backup — copy
+only the crons for what you enabled:
+
+  mkdir -p services/decree/decree-backup/cron/
+
+  # Actual Budget — nightly volume backup
+  cp services/decree/decree-backup/cron.example/actual-budget-volume-backup-nightly.md \
+     services/decree/decree-backup/cron/
+
+  # Mealie — nightly DB dump + volume backup
+  cp services/decree/decree-backup/cron.example/mealie-db-backup-nightly.md \
+     services/decree/decree-backup/cron.example/mealie-volume-backup-nightly.md \
+     services/decree/decree-backup/cron/
+
+  docker compose restart decree-backup
+
+Weekly backups (kept 28 days, vs. 7 for nightly) sit alongside these — copy
+the matching `-weekly.md` file the same way if you want longer retention.
+
+Actual Budget needs one more one-time step the first time you use it: open
+https://actual-budget.<domain> and create a budget file, or run
+`./existential.sh run actual-budget setup` to bootstrap it non-interactively.
+
+Manual trigger:
+  docker exec decree-backup decree run db-backup
+  docker exec decree-backup decree run volume-backup

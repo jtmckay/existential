@@ -5,16 +5,16 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: services/decree/decree/cron.example/check-versions.md
-    dst: services/decree/decree/cron/
-    label: "decree: check-versions.md (weekly Monday 9am)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Adds a weekly cron to Decree that queries upstream registries and sends
 an ntfy notification listing any services with newer image tags available.
 Silent when everything is current.
+
+Activate it:
+  mkdir -p services/decree/decree/cron/
+  cp services/decree/decree/cron.example/check-versions.md services/decree/decree/cron/
+  docker compose restart decree
 
 How it works:
   - Every Monday at 09:00 Decree runs check-versions

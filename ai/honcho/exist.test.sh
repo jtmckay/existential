@@ -25,4 +25,32 @@ tcp_probe "honcho-postgres:5432" honcho-postgres 5432
 pg_auth_probe "honcho-postgres auth" honcho-postgres 5432 \
               honcho "${HONCHO_POSTGRES_PASSWORD:-}" honcho
 
+# The deriver is a separate container and nothing depends_on it, so a dead
+# honcho-deriver is invisible: the API keeps answering /health and keeps
+# enqueueing work that no one consumes, and the user representation quietly
+# stops growing. The queue table is the only place that shows it. Read-only.
+#
+# One hour, not minutes: the deriver makes a real LLM call per task, so a
+# genuine backlog on a small card is normal. Nothing at all consumed in an hour
+# is not — the worker polls every second (30s max backoff).
+#
+# This probe is only honest while config.toml keeps FLUSH_ENABLED = true. With
+# upstream's default (false) the deriver ignores any representation work unit
+# holding under REPRESENTATION_BATCH_MAX_TOKENS, so a short finished session
+# sits unprocessed forever and this warns forever about a backlog that cannot
+# drain. If you turn flushing off, delete this probe with it.
+_stale=$(PGPASSWORD="${HONCHO_POSTGRES_PASSWORD:-}" PGCONNECT_TIMEOUT=5 \
+         psql -h honcho-postgres -p 5432 -U honcho -d honcho -tAc \
+         "select count(*) from queue where processed = false
+           and created_at < now() - interval '1 hour'" 2>/dev/null || echo "")
+if [ -z "$_stale" ]; then
+    skip "honcho-deriver consuming queue" "could not read the queue table"
+elif [ "$_stale" -gt 0 ]; then
+    warn "honcho-deriver consuming queue" \
+         "${_stale} queue task(s) unprocessed for over an hour" \
+         "honcho-deriver is not running: docker compose up -d honcho-deriver (logs: docker logs honcho-deriver)"
+else
+    ok "honcho-deriver consuming queue"
+fi
+
 finish

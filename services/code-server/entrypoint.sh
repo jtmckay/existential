@@ -18,6 +18,42 @@ DEFAULT_EXTENSIONS=(
     bradlc.vscode-tailwindcss
 )
 
+# $HOME (/home/decree, baked in by automations/Dockerfile for the shared
+# decree/decree-backup image) is the container's throwaway layer, NOT this
+# service's code_server_data volume. Left alone, npm-global installs AND every
+# dotfile the AI CLIs write live there: claude-code's account/session state
+# (~/.claude.json, ~/.claude/ — confirmed by running `claude config list` in
+# this image, which creates both) and opencode's credentials (confirmed via
+# `opencode auth list`: "Credentials ~/.local/share/opencode/auth.json"). A
+# container recreation (docker compose down/up, an image rebuild,
+# `existential.sh reset`) starts from an empty /home/decree, so both CLIs
+# reinstall from npm AND the user has to re-authenticate each one — silently,
+# since nothing here fails, it just forgets.
+#
+# Fix by symlinking the specific dirs/file each tool writes into onto the
+# volume, in place, rather than moving $HOME or NPM_CONFIG_PREFIX: a login
+# shell (code-server's integrated terminal) gets its PATH reset by
+# /etc/profile and then rebuilt by the image's /etc/profile.d/npm-global.sh,
+# which hardcodes /home/decree/.npm-global/bin — confirmed with
+# `bash -l -c 'echo $PATH'` in this image. That file is root-owned (644) and
+# this entrypoint runs as the unprivileged host user, so it can't be edited;
+# the only way to relocate what it points at without breaking terminal PATH
+# is a symlink at the same path.
+PERSIST_HOME="$INSTALL_PREFIX/home"
+for _dotdir in .npm-global .npm .config .local .cache .claude; do
+    # Target must exist as a real dir first: mkdir -p through a dangling
+    # symlink fails EEXIST on the symlink itself before it ever reaches the
+    # missing target.
+    mkdir -p "$PERSIST_HOME/$_dotdir"
+    if [[ -e "/home/decree/$_dotdir" && ! -L "/home/decree/$_dotdir" ]]; then
+        rm -rf "/home/decree/$_dotdir"
+    fi
+    [[ -e "/home/decree/$_dotdir" ]] || ln -s "$PERSIST_HOME/$_dotdir" "/home/decree/$_dotdir"
+done
+if [[ ! -e /home/decree/.claude.json && ! -L /home/decree/.claude.json ]]; then
+    ln -s "$PERSIST_HOME/claude.json" /home/decree/.claude.json
+fi
+
 if [[ ! -x "$CODE_SERVER_BIN" ]]; then
     echo "[code-server] Installing code-server (standalone)..."
     curl -fsSL https://code-server.dev/install.sh \

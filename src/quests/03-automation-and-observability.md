@@ -11,11 +11,6 @@ services:
     label: Loki
   - var: EXIST_IS_HOSTING_PROMETHEUS
     label: Prometheus
-copies:
-  - src: services/decree/decree/cron.example/clean-runs.md
-    dst: services/decree/decree/cron/
-    label: "decree: clean-runs.md"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Decree is the automation engine that runs routines on a schedule, responds
@@ -36,6 +31,9 @@ Observe it via:
   - Grafana:     https://grafana.x.internal
   - Prometheus:  https://prometheus.x.internal
 
-The clean-runs cron (copied above) prunes old run logs weekly.
-Restart decree after copies to activate:
+Activate the clean-runs cron (prunes old run logs weekly) — this is the
+general pattern for every decree cron: copy the .example template into the
+live cron/ dir, then restart the daemon that owns it:
+  mkdir -p services/decree/decree/cron/
+  cp services/decree/decree/cron.example/clean-runs.md services/decree/decree/cron/
   docker compose restart decree

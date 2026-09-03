@@ -2,13 +2,43 @@ services:
   dashy:
     container_name: dashy
     image: "lissy93/dashy:4.5.0"
+    # The image runs USER node (uid/gid 1000, confirmed via docker inspect + `id`
+    # inside the image) and owns nothing outside /app that this service ever
+    # writes to — the config mount is :ro and preventWriteToDisk kills the one
+    # in-app write path (see below) — so it tolerates the arbitrary host uid
+    # here just as well (verified: --user 1234:1234 against the same image
+    # starts, validates config and serves fine). Plain `user:` is the right
+    # mechanism, not a PUID/PGID env — this is not an s6/root-then-drop image.
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Static dashboard with status pings; ~35 MiB idle.
+    # Static dashboard with status pings; ~45 MiB idle (measured: `docker stats`
+    # against lissy93/dashy:4.5.0 with this conf.yml mounted, no browser open).
+    # Status-check requests run server-side in this same process (see the
+    # statusCheckAllowInsecure note below) but are small proxied HTTP calls —
+    # 15 of them in parallel moved memory under 1 MiB. 128M leaves ~2.8x.
     deploy:
       resources:
         limits:
           memory: 128M
+    # The image's baked healthcheck (`node services/healthcheck.js`, 300s
+    # interval) only hits /healthz, which is a hardcoded 200 registered before
+    # any config or static-file logic runs (services/app.js:226) — it cannot
+    # detect a broken config mount. Verified: with conf.yml unreadable to the
+    # container's uid (e.g. a host-side permission/SELinux-label mismatch on
+    # the :Z mount below), /healthz and / both keep returning 200 while
+    # /conf.yml — the actual mounted file, served by express.static — 404s and
+    # the dashboard silently shows nothing. Hit that instead, at a tighter
+    # interval than the baked 300s. 127.0.0.1, not localhost: this image's
+    # HOST=0.0.0.0 binds IPv4 only, and wget resolves bare `localhost` to ::1
+    # first and gets ECONNREFUSED (confirmed against this image; the baked
+    # healthcheck avoids it by literally requesting host 0.0.0.0, which the
+    # HTTP client resolves back to 127.0.0.1).
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/conf.yml"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     volumes:
       # Read-only on purpose. dashy-conf.yml is regenerated on every
       # ./existential.sh run (see _ALWAYS_RENDER in src/templates.sh), so Dashy's

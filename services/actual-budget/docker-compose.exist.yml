@@ -2,13 +2,18 @@ services:
   actual-budget:
     container_name: actual-budget
     image: actualbudget/actual-server:26.8.1
+    # Image ships no USER (runs root by default) and no entrypoint script — tini
+    # execs `node app.js` directly. /data is baked actual:actual (1001:1001), but
+    # that's irrelevant once it's a bind mount: verified this image starts and
+    # serves fine as an arbitrary host uid with an empty, host-owned /data.
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Node budgeting server with a SQLite file.
+    # Node budgeting server + SQLite (WAL) files in /data. ~90-105 MiB RSS at
+    # rest and under light concurrent load (26.8.1, /metrics, empty budget).
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 256M
     networks:
       - exist
     # ports disabled — access via https://actual-budget.<domain> (Caddy + pihole required)
@@ -17,11 +22,30 @@ services:
     #     - '45006:5006'
     volumes:
       # SQLite budget files + sync server — db: true (NFS breaks WAL locking).
+      # Backup: copy actual-budget-volume-backup-{nightly,weekly}.md from
+      # services/decree/decree-backup/cron.example/ into cron/ and restart it.
       - actual_budget_data:/data
-    environment:
-      - ACTUAL_BUDGET_PASSWORD=${ACTUAL_BUDGET_PASSWORD}
-    #   - ACTUAL_BUDGET_HTTPS_KEY=/data/key.key # Uncomment and provide path if using HTTPS
-    #   - ACTUAL_BUDGET_HTTPS_CERT=/data/cert.crt # Uncomment and provide path if using HTTPS
+    # No ACTUAL_BUDGET_PASSWORD here on purpose: the server has no env var for
+    # its login password (checked packages/sync-server/src/load-config.js in the
+    # 26.8.1 image — the convict schema has no password field, and nothing in
+    # app.js/chunks/*.js reads process.env for one). It is set exactly once via
+    # POST /account/bootstrap, which the web UI calls on its first visit; after
+    # that, `docker exec -it actual-budget node bin/actual-server.js
+    # --reset-password` changes it interactively. ./existential.sh run
+    # actual-budget setup bootstraps it non-interactively — see exist.setup.sh.
+    # environment:
+    #   - ACTUAL_HTTPS_KEY=/data/key.key   # Uncomment and provide path if using HTTPS
+    #   - ACTUAL_HTTPS_CERT=/data/cert.crt # Uncomment and provide path if using HTTPS
+    healthcheck:
+      # actual-server ships no HEALTHCHECK and no curl/wget (Debian-slim base) —
+      # but it does ship this exact probe script (scripts/health-check.js): GETs
+      # its own /health and exits 1 unless {"status":"UP"}. Confirmed exit 0 on
+      # a healthy 26.8.1 container.
+      test: ["CMD", "node", "/app/scripts/health-check.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 x-exist-volumes:
   actual_budget_data: { db: true }

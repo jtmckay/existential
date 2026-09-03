@@ -6,6 +6,10 @@
 #
 # Services:
 #   honcho           — FastAPI memory server (port 8000)
+#   honcho-deriver   — background queue worker (the "deriver"). Separate process
+#                      by upstream's design: the API only enqueues, it never
+#                      derives. Without it the `queue` table grows forever and
+#                      the user representation is never built.
 #   honcho-postgres  — PostgreSQL + pgvector for vector storage
 #
 # Volumes:
@@ -65,11 +69,56 @@ services:
       retries: 5
       start_period: 60s
 
+  # The queue worker. `fastapi run` (what the honcho container starts) serves the
+  # API and enqueues work; nothing in its lifespan starts a deriver — upstream
+  # runs `python -m src.deriver` as its own container, which is why their
+  # docker/prometheus.yml scrapes `api:8000` and `deriver:9090` separately.
+  # Same image, same config.toml, same database.
+  honcho-deriver:
+    container_name: honcho-deriver
+    image: ghcr.io/plastic-labs/honcho:latest@sha256:4143c868f94796ad504ba529be3e08ac4bbe32a7a2a0a2c0a361f2ba9135e613
+    restart: unless-stopped
+    # One worker (DERIVER.WORKERS default) holding up to 25k input tokens per
+    # call plus its own DB pool — same shape as the API container.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - exist
+    # No user: override — same image as honcho, which ships USER app (uid 100)
+    # and writes nothing to a bind mount.
+    working_dir: /app
+    # No /entrypoint.sh here: it chains to the image's entrypoint, which hardcodes
+    # `fastapi run`. The schema work it does is already done by the honcho
+    # container, which this one waits on — so go straight to the worker.
+    entrypoint: ["/app/.venv/bin/python", "-m", "src.deriver"]
+    environment:
+      DB_CONNECTION_URI: "postgresql+psycopg://honcho:${HONCHO_POSTGRES_PASSWORD}@honcho-postgres:5432/honcho"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+    depends_on:
+      # honcho, not honcho-postgres: the deriver runs the same
+      # validate_embedding_schema gate the API does and exits if the pgvector
+      # columns do not match VECTOR_DIMENSIONS. Waiting for the API to be healthy
+      # means entrypoint.sh has already migrated and resized them.
+      honcho:
+        condition: service_healthy
+    # No healthcheck: the worker has no HTTP surface (METRICS.ENABLED is false,
+    # so upstream's :9090 is not listening) and a PID-1 process check is
+    # tautological — if the worker dies the container is already down.
+    # exist.test.sh watches the queue backlog instead, which is the real signal.
+
   honcho-postgres:
     container_name: honcho-postgres
-    image: pgvector/pgvector:pg17
+    # 0.8.6-pg17, not the floating pg17: the extension version is what the
+    # stored HNSW indexes are built against. NOTE the pg17 half is a MAJOR
+    # postgres pin — bumping it to pg18 is NOT a tag swap, it needs pg_upgrade
+    # or a dump/restore of volumes/honcho_postgres_data.
+    image: pgvector/pgvector:0.8.6-pg17
     restart: unless-stopped
-    # Postgres with pgvector; ~29 MiB idle at this scale.
+    # Postgres with pgvector; ~49 MiB idle at this scale (shared_buffers is
+    # the stock 128M, i.e. half this limit — raise the limit before raising it).
     deploy:
       resources:
         limits:
@@ -87,8 +136,8 @@ services:
     volumes:
       # Postgres + pgvector data — db: true (WAL/flock; never NFS).
       - honcho_postgres_data:/var/lib/postgresql/data
-      # TODO: no backup yet — add a db-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # Backup: copy honcho-db-backup-{nightly,weekly}.md from
+      # services/decree/decree-backup/cron.example/ into cron/ and restart it.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 5s

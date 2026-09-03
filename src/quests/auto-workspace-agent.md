@@ -13,19 +13,6 @@ services:
     label: OpenViking
   - var: EXIST_IS_AI_FIRECRAWL
     label: Firecrawl
-copies:
-  - src: automations/lib/file-processors.example/agent-handoff.sh
-    dst: automations/lib/file-processors/
-    label: "file-processors: agent-handoff.sh (flag unresolved notes and hand them to an agent)"
-    requires: EXIST_IS_SERVICES_DECREE
-  - src: services/decree/decree/migrations.example/22-minio-create-workspace-bucket.md
-    dst: services/decree/decree/migrations/
-    label: "migration: create the workspace bucket"
-    requires: EXIST_IS_NAS_MINIO
-  - src: services/decree/decree-backup/cron.example/workspace-sync.md
-    dst: services/decree/decree-backup/cron/
-    label: "cron: mirror workspace/ into MinIO every 10 minutes"
-    requires: EXIST_IS_NAS_MINIO
 ---
 
 Edit a file in `workspace/` and, if it matches one of your criteria, an agent
@@ -56,31 +43,42 @@ The loop break — the one thing worth understanding:
 
 Setup:
 
-  1. Enable the services above and run:
+  1. Copy the templates this needs — the workspace-bucket migration and the
+     mirror cron (both MinIO-side), and the agent-handoff processor:
+       mkdir -p services/decree/decree/migrations/ services/decree/decree-backup/cron/ \
+                automations/lib/file-processors/
+       cp services/decree/decree/migrations.example/22-minio-create-workspace-bucket.md \
+          services/decree/decree/migrations/
+       cp services/decree/decree-backup/cron.example/workspace-sync.md \
+          services/decree/decree-backup/cron/
+       cp automations/lib/file-processors.example/agent-handoff.sh \
+          automations/lib/file-processors/
+
+  2. Enable the services above and run:
        ./existential.sh
        docker compose up -d
 
-  2. Enable the routines. In services/decree/decree/config.yml set
+  3. Enable the routines. In services/decree/decree/config.yml set
      `minio-router`, `file-processor` and `agent-task` to enabled: true.
      `workspace-sync` is already on in services/decree/decree-backup/config.yml.
      Both daemons restart themselves when their config changes.
 
-  3. The bucket is created by the migration above on the next
-     `docker compose up -d`. Confirm it exists:
+  4. The bucket is created by the migration you copied in step 1, on the
+     `docker compose up -d` you just ran. Confirm it exists:
        docker exec decree-backup rclone lsd minio:
 
-  4. Sync ONCE, before subscribing. The first pass uploads the whole workspace;
+  5. Sync ONCE, before subscribing. The first pass uploads the whole workspace;
      against a subscribed bucket that arrives as one event per file. Drop a
      message in the backup daemon's inbox and wait for it to finish:
        printf -- '---\nroutine: workspace-sync\n---\n' \
          > services/decree/decree-backup/inbox/sync-once.md
        docker logs -f decree-backup
 
-  5. NOW subscribe the bucket to the webhook:
+  6. NOW subscribe the bucket to the webhook:
        docker exec minio mc event add minio/workspace \
          arn:minio:sqs::DECREE:webhook --event put,delete
 
-  6. Check the agent half works before relying on it:
+  7. Check the agent half works before relying on it:
        docker exec decree opencode run "reply with the word ready"
 
 Then write your own matches. Copy any file in

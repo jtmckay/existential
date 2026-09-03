@@ -27,7 +27,22 @@ if [[ -z "${IN_CONTAINER:-}" ]]; then
         existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}" "$@"
 fi
 
-OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# existential.sh exports .env.shared before dispatching, but this script is also
+# run directly. Source it ourselves so both paths resolve the same endpoint.
+if [ -f "${REPO_DIR}/.env.shared" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "${REPO_DIR}/.env.shared"
+    set +a
+fi
+
+# Address comes from the role resolver, not a private fallback — benchmarking
+# http://ollama:11434 on an install pointed at another box measured nothing.
+# shellcheck source=../../src/utils/model-endpoints.sh
+. "${REPO_DIR}/src/utils/model-endpoints.sh"
+OLLAMA_URL="${OLLAMA_URL:-$(endpoint_for chat)}"
 MODEL="${1:-}"
 
 hr() { printf '%0.s─' {1..64}; echo; }

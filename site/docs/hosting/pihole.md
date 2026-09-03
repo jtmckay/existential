@@ -14,10 +14,11 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 
 | Service | Port |
 |---|---|
-| DNS | 53 (TCP + UDP) |
-| Web UI | 42480 (HTTP), 42443 (HTTPS) |
-| DHCP (optional) | 67 |
-| NTP (optional) | 123 |
+| DNS | 53 (TCP + UDP) — published on the host |
+| Web UI | 80, reached only through Caddy at `https://pihole.<domain>` |
+| Web UI direct (optional) | 80/443 — uncomment in the compose template to bypass Caddy |
+| DHCP (optional) | 67 — uncomment in the compose template |
+| NTP (optional) | 123 — uncomment in the compose template |
 
 ## Setup
 
@@ -34,6 +35,18 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 Pi-hole then resolves the whole of `EXIST_DOMAIN` locally via a single wildcard record, which
 removes the stack's dependency on public DNS. It is an upgrade, not a requirement — see
 [How It Works](../how-it-works).
+
+## Upstream resolution and blocklists
+
+Anything not covered by the wildcard record or a blocklist is forwarded upstream. Out of the
+box that's Google DNS (`8.8.8.8`, `8.8.4.4`) — the image's own default, no config needed. Override
+it with `FTLCONF_dns_upstreams` in `docker-compose.exist.yml` if you'd rather use another
+resolver (e.g. Cloudflare's `1.1.1.1`).
+
+The container ships its own cron, so blocklists (gravity) update **weekly, Sunday 04:15**
+(container time — see `PIHOLE_TZ`) with no setup required; the query log flushes daily at
+midnight. Trigger an update manually with `docker exec pihole pihole -g`, or manage blocklists
+at `https://pihole.<domain>/admin/lists`.
 
 ## Debugging
 

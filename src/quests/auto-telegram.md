@@ -5,11 +5,6 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: services/decree/decree/cron.example/telegram-poll.md
-    dst: services/decree/decree/cron/
-    label: "decree: telegram-poll.md"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Create a Telegram bot and wire it to Decree. Once connected, Decree can
@@ -27,5 +22,8 @@ Setup:
 
   4. Add TELEGRAM_CHAT_ID to the credentials file.
 
-The telegram-poll cron (copied above) polls for new photo messages
-every 30 minutes and routes them to MinIO for downstream processing.
+  5. Activate the poller — checks for new photo messages every 30 minutes
+     and routes them to MinIO for downstream processing:
+       mkdir -p services/decree/decree/cron/
+       cp services/decree/decree/cron.example/telegram-poll.md services/decree/decree/cron/
+       docker compose restart decree

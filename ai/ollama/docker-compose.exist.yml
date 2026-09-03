@@ -36,17 +36,12 @@ services:
       # VRAM guards. The stack targets an 8 GB card, where chat + embeddings
       # together already fill most of it; without these ollama will happily load
       # a third model on the next request and OOM the GPU mid-generation.
-      #
-      # 2 = the chat model and the embedding model, both resident. Raise this
-      # (and the models in .env.shared's Model Selection block) on a bigger card.
-      OLLAMA_MAX_LOADED_MODELS: "${EXIST_OLLAMA_MAX_LOADED_MODELS:-2}"
-      # How long an idle model stays in VRAM. Long enough that back-to-back
-      # requests don't pay the reload, short enough that a one-off vision or
-      # transcription job hands the memory back.
-      OLLAMA_KEEP_ALIVE: "${EXIST_OLLAMA_KEEP_ALIVE:-10m}"
-      # One generation at a time. Parallel requests each get their own KV cache,
-      # which is what actually blows the budget on a small card.
-      OLLAMA_NUM_PARALLEL: "${EXIST_OLLAMA_NUM_PARALLEL:-1}"
+      # Values and their rationale live in this service's .env.exist — these are
+      # per-service knobs, so they carry the OLLAMA_ prefix, not EXIST_.
+      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-2}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-1}"
+      OLLAMA_KV_CACHE_TYPE: "${OLLAMA_KV_CACHE_TYPE:-f16}"
     # ports disabled — access via https://ollama.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:

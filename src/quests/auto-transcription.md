@@ -11,11 +11,6 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_DECREE
     label: Decree
-copies:
-  - src: automations/lib/file-processors.example/whisperx-transcribe.sh
-    dst: automations/lib/file-processors/
-    label: "file-processors: whisperx-transcribe.sh (diarized transcript of mp3/mp4/wav)"
-    requires: EXIST_IS_SERVICES_DECREE
 ---
 
 Drop a recording into Nextcloud and Decree transcribes it with WhisperX,
@@ -41,8 +36,7 @@ Processor convention (whisperx-transcribe.sh):
 Setup:
   1. Diarization needs a HuggingFace token. The WhisperX setup prompts for it
      (WHISPERX_HF_TOKEN); first accept the gated model terms while logged in:
-       https://huggingface.co/pyannote/speaker-diarization-3.1
-       https://huggingface.co/pyannote/segmentation-3.0
+       https://huggingface.co/pyannote/speaker-diarization-community-1
 
   2. Enable the routines in services/decree/decree/config.yml:
        file-processor:
@@ -50,8 +44,10 @@ Setup:
        minio-router:
          enabled: true
 
-  3. The quest copies whisperx-transcribe.sh into automations/lib/file-processors/.
-     Processor scripts are bind-mounted live into decree — no restart needed for them.
+  3. Copy the processor in. Processor scripts are bind-mounted live into
+     decree — no restart needed for this one:
+       cp automations/lib/file-processors.example/whisperx-transcribe.sh \
+          automations/lib/file-processors/
 
   4. Restart decree to pick up config changes:
        docker compose restart decree

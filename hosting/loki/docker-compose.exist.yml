@@ -1,9 +1,9 @@
 services:
   loki:
     container_name: loki
-    image: grafana/loki:3.2.0
+    image: grafana/loki:3.7.7
     restart: unless-stopped
-    # ~120 MiB measured, including loki-config.yaml's 100 MB embedded results
+    # ~157 MiB measured, including loki-config.yaml's 100 MB embedded results
     # cache. A wide Grafana time range costs more; that spill goes to swap, which
     # is the right trade for a query you run occasionally.
     deploy:
@@ -13,42 +13,68 @@ services:
     # loki runs as uid 10001 internally; run as the host user instead so it can
     # write the host-owned bind-mounted loki_data (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # No healthcheck: the image ships nothing to run one with (verified —
+    # `docker export` on grafana/loki:3.7.7 lists exactly one file,
+    # /usr/bin/loki; no shell, no wget/curl). exist.test.sh's /ready probe is
+    # the readiness signal instead.
     networks:
       - exist
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
-      # boltdb-shipper index + chunks — must be local; NFS locking is unreliable.
+      # TSDB index (schema v13) + chunks — must be local; NFS locking is unreliable.
       # TODO: no backup yet — add an opt-in volume-backup cron in
       # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
-  loki-promtail:
-    container_name: loki-promtail
-    image: grafana/promtail:3.2.0
+  loki-alloy:
+    container_name: loki-alloy
+    # Replaces grafana/promtail, which grafana declared feature-complete and
+    # EOL'd in March 2026 (frozen at 3.6.11, no 3.7.x).
+    image: grafana/alloy:v1.19.2
     restart: unless-stopped
-    # Tails decree's run logs and ships them. Steady ~50-80 MB.
+    # Tails decree's run logs *and* every container's json-file log. ~42 MiB
+    # idle, ~65 MiB while backfilling a cold positions file.
     deploy:
       resources:
         limits:
           memory: 192M
+    # No `user:` — alloy must read /var/lib/docker/containers, which is
+    # root-owned (0700) and not chown-able. Root is structurally required for
+    # the docker_containers scrape job.
+    # No healthcheck: verified against grafana/alloy:v1.19.2 — the image has
+    # no wget/curl/nc (only a shell). exist.test.sh's /-/ready probe, plus its
+    # check that logs actually land in loki, is the readiness signal instead.
     networks:
       - exist
     volumes:
-      - ./loki-promtail-config.yaml:/etc/promtail/config.yml:ro
+      - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
       - ../../automations/runs:/runs:ro
-      # promtail scrapes the on-disk json logs directly (static_configs in
-      # loki-promtail-config.yaml) — there is no docker_sd_configs, so the
-      # daemon socket is not needed. Mounting /var/run/docker.sock would grant
-      # promtail full Docker API access (= host root), so it is deliberately
-      # omitted.
+      # Alloy keeps its file offsets under --storage.path; without persisting it
+      # every restart re-tails every log from byte 0 and re-ships it.
+      - loki_alloy_data:/var/lib/alloy/data
+      # alloy reads the on-disk json logs directly (loki.source.file, not
+      # discovery.docker) so the daemon socket is not needed. Mounting
+      # /var/run/docker.sock would grant it full Docker API access (= host
+      # root), so it is deliberately omitted.
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/config.yml
+    # Same as the image CMD except: the default listen-addr is 127.0.0.1:12345,
+    # which exist.test.sh cannot reach from another container, and reporting
+    # phones usage stats home.
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --disable-reporting
     depends_on:
       - loki
 
 x-exist-volumes:
   loki_data: { db: true }
+  # alloy's storage path — file offsets, not a db. Host-local by nature: it
+  # tracks byte offsets into this host's docker log files.
+  loki_alloy_data: {}
 
 networks:
   exist:

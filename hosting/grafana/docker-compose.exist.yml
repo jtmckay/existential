@@ -2,13 +2,13 @@ services:
   # Grafana dashboards at http://localhost:43010
   grafana:
     container_name: grafana
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.2.1
     restart: unless-stopped
-    # ~60 MiB measured; open dashboards push it up transiently.
+    # ~300 MiB measured idle on 13.2 (11.x sat at ~110 MiB).
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 640M
     # grafana runs as uid 472 internally; run as the host user instead so it can
     # write the host-owned bind-mounted grafana_data (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
@@ -27,7 +27,12 @@ services:
       # TODO: no backup yet — add a volume-backup cron in
       # services/decree/decree-backup/cron.example/ (nothing else is needed).
       - grafana_data:/var/lib/grafana
-      - ./provisioning:/etc/grafana/provisioning:ro
+      # Mount the two subdirs we own, not the parent: mounting
+      # /etc/grafana/provisioning wholesale hides the image's empty alerting/,
+      # plugins/, notifiers/ and access-control/ dirs, and grafana logs a
+      # level=error for each missing one on every boot.
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
 
 x-exist-volumes:
   grafana_data: { db: true }

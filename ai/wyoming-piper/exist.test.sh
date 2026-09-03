@@ -18,11 +18,22 @@ tcp_probe "wyoming-piper:10200" wyoming-piper 10200
 # Wyoming handshake: a `describe` event returns an `info` event listing the
 # loaded voices. This is what Home Assistant issues when you add the
 # integration, so a pass here means HA will see the service too.
-#
-# Wire format is a JSON header line, then optional data/payload bytes. We only
-# need the header of the reply.
-RESP=$(printf '{"type": "describe"}\n' \
-        | timeout 10 bash -c 'cat >&3; head -c 4096 <&3' 3<>/dev/tcp/wyoming-piper/10200 2>/dev/null || true)
+# Wyoming frames each event as a JSON header LINE followed by exactly
+# data_length bytes of payload; the voices list lives in that payload. A fixed
+# `head -c 4096` blocks forever waiting for bytes the server never sends —
+# handle_event() returns after the info reply without closing the connection
+# (wyoming_piper/handler.py:120-124), and one voice's info is nowhere near
+# 4096 bytes — so timeout killed it and the captured output was empty, failing
+# this check on every install while the service was perfectly healthy. Read
+# the header line, then exactly the payload it declares.
+RESP=$(timeout 10 bash -c '
+    exec 3<>/dev/tcp/wyoming-piper/10200 || exit 1
+    printf "{\"type\": \"describe\"}\n" >&3
+    IFS= read -r header <&3 || exit 1
+    printf "%s\n" "$header"
+    len=$(printf "%s" "$header" | sed -n "s/.*\"data_length\"[[:space:]]*:[[:space:]]*\\([0-9]*\\).*/\\1/p")
+    [ -n "$len" ] && [ "$len" -gt 0 ] && head -c "$len" <&3
+' 2>/dev/null || true)
 
 if printf '%s' "$RESP" | grep -q '"type"[[:space:]]*:[[:space:]]*"info"'; then
     ok "wyoming-piper describe"

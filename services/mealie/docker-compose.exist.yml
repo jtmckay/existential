@@ -2,13 +2,26 @@ services:
   mealie:
     container_name: mealie
     image: ghcr.io/mealie-recipes/mealie:v3.23.1
+    # The image's own entrypoint (/app/run.sh) is a gosu/PUID-style init: it
+    # only chowns /app and re-execs via gosu when it starts as root (uid 0) or
+    # when the running uid already equals $PUID (default 911). Neither branch
+    # fires under a plain `user:` override at a uid that is *not* 911 — but
+    # that's fine here, verified against the real image: run.sh falls through
+    # both checks and continues straight to `exec mealie` as whatever uid we
+    # set, and the only path mealie writes at runtime is the bind-mounted
+    # /app/data — which generate-compose.ts creates already owned by
+    # EXIST_PUID:EXIST_PGID. No root step is needed.
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Python API plus recipe scraping.
+    # Python API plus recipe scraping (BeautifulSoup/recipe-scrapers + NLTK for
+    # ingredient parsing — no torch/playwright in this image). Measured against
+    # the real image (v3.23.1, postgres backend): ~260-300MiB idle after first
+    # boot settles, ~295MiB after scraping several recipe URLs with images
+    # (thumbnails are generated on import). 768M keeps ~2.5x that headroom.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
     networks:
       - exist
     depends_on:
@@ -20,6 +33,22 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - 49009:9000
+    #
+    # No `healthcheck:` here on purpose — the image already bakes one (verified
+    # via `docker inspect`: CMD-SHELL $MEALIE_HOME/healthcheck.sh, which curls
+    # the same /api/app/about that exist.test.sh probes), so a compose-level
+    # override would just duplicate it.
+    #
+    # AI-powered recipe parsing (v3's "AI Providers" feature — default/audio/
+    # image roles, used for import-from-image and import-from-video/audio) is
+    # NOT wired here on purpose: verified against the real image's settings.py
+    # that as of v3.23.1 upstream moved this off environment variables — the
+    # only OpenAI-related env var left is OPENAI_CUSTOM_PROMPT_DIR (a prompt
+    # override path). Providers (base_url/api_key/model, per role) are created
+    # through Admin > AI Providers in the UI and stored per-group in postgres
+    # (migration 2187537c52b8_add_table_for_ai_providers), so there is no
+    # `.env.exist.shared` model-role key for this service to read — see
+    # site/docs/services/mealie.md for how to point it at ollama manually.
     environment:
       ALLOW_SIGNUP: "false"
       LOG_LEVEL: "INFO"
@@ -47,7 +76,9 @@ services:
     image: postgres:17
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Postgres at recipe-library scale.
+    # Measured against the real image on a freshly initialized volume: ~93-100MiB
+    # idle (stock 128MB shared_buffers is over half this limit — raise the limit
+    # before raising that). 256M is ~2.5x measured idle at recipe-library scale.
     deploy:
       resources:
         limits:

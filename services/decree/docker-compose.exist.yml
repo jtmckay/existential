@@ -18,6 +18,10 @@ services:
       # triage runs every service test in here; hermes reads this to know
       # whether a real inference is affordable on this host.
       - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
+      # whisperx-transcribe.ts must send device/compute_type on every request —
+      # whisperx's async endpoints default to cuda/float16 regardless of the
+      # service's own env — so it needs the same vendor answer generate-compose uses.
+      - EXIST_GPU_VENDOR=${EXIST_GPU_VENDOR:-}
       - DECREE_INTERVAL=2
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
@@ -60,6 +64,12 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
       - MINIO_NEXTCLOUD_ACCESS_KEY=${MINIO_NEXTCLOUD_ACCESS_KEY:-}
       - MINIO_NEXTCLOUD_SECRET_KEY=${MINIO_NEXTCLOUD_SECRET_KEY:-}
+      # nextcloud-richdocuments talks to Nextcloud's own OCS/provisioning API as
+      # admin (no docker socket here, so `occ` is not reachable — see the
+      # routine for the exact endpoints, verified against nextcloud:34.0.3).
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER:-}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-}
+      - COLLABORA_URL=https://${COLLABORA_DOMAIN:-collabora.$EXIST_DOMAIN}
       # openviking-index-dir authenticates to the OpenViking REST API.
       - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
       # The fallback for any role with no endpoint of its own.

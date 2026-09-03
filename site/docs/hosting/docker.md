@@ -33,3 +33,16 @@ Apply immediately:
 ```bash
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80
 ```
+
+## Log Rotation
+
+Docker Engine's default `json-file` driver never rotates, so a chatty container can fill the
+disk. `hosting/docker-daemon/daemon.json` caps it at 50 MB × 3 files:
+
+```bash
+./existential.sh run docker-daemon log-rotation
+```
+
+It merges into any existing `/etc/docker/daemon.json` (an NVIDIA host keeps its `runtimes`
+block) and then offers to restart the daemon — the log settings only apply to containers
+created after the restart.

@@ -1,8 +1,12 @@
 services:
   open-webui:
     container_name: open-webui
-    image: ghcr.io/open-webui/open-webui:v0.11.1
-    # open-webui starts as root then drops to UID/GID — user: breaks its startup script
+    image: ghcr.io/open-webui/open-webui:v0.11.3
+    # Runs as root and stays root: the image is built with USER 0:0 and /app owned
+    # by root, and start.sh has no UID/GID or gosu handling at all (verified in
+    # v0.11.x). A `user:` override therefore cannot read /app/backend/open_webui/
+    # static and the server 500s on every asset. Files under the data volume are
+    # root-owned as a result — `./existential.sh run fix-permissions` if needed.
     restart: unless-stopped
     deploy:
       resources:
@@ -23,8 +27,6 @@ services:
     #   ports:
     #     - "11488:8080"
     environment:
-      UID: "${EXIST_PUID:-1000}"
-      GID: "${EXIST_PGID:-1000}"
       WEBUI_ADMIN_NAME: ${OPEN_WEBUI_ADMIN_NAME}
       WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
@@ -33,6 +35,10 @@ services:
       OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-}"
       # Disable direct Ollama integration — hermes-agent is the primary backend
       ENABLE_OLLAMA_API: "false"
+      # Seeded on first boot only (persisted config wins afterwards): the admin is
+      # created from WEBUI_ADMIN_* above, so open signup would just hand a public
+      # account — with every model behind it — to anyone who reaches the Caddy host.
+      ENABLE_SIGNUP: "false"
       # Point STT at the WhisperX service (OpenAI-compatible /v1 endpoint) instead
       # of running a second STT instance. Voice input is single-speaker, so it uses
       # the plain transcription path — diarization is for the automations pipeline.

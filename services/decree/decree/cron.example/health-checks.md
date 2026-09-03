@@ -18,8 +18,10 @@ exactly what a default of `grafana` used to do on every Core install (Core does
 not include grafana). Results appear in Grafana via
 Prometheus (decree_run_success metric) and Loki (routine logs).
 
-Prometheus alert: decree_run_success{instance="health-<SERVICE_NAME>"} == 0
-fires when a check has been failing. See hosting/prometheus/alerts.yml.
+The pushed instance label is the routine name ("service-health"), not
+SERVICE_NAME — every copy of this cron shares one series. The per-service
+alert in hosting/prometheus/alerts.yml rides triage's exist_service_healthy
+gauge instead, which needs no cron file at all.
 
 Example service URLs (container:port/health-path):
   http://ollama:11434/api/tags            - ollama

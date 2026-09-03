@@ -14,6 +14,8 @@
 //   WHISPERX_URL          base URL (default http://whisperx:8000)
 //   WHISPERX_MODEL        whisper model (default large-v3; match the service env)
 //   WHISPERX_LANGUAGE     ISO 639-1 language hint (default en)
+//   WHISPERX_DEVICE       cuda | cpu (default: derived from EXIST_GPU_VENDOR)
+//   WHISPERX_COMPUTE_TYPE int8 | float16 | float32 (default int8)
 //   WHISPERX_MIN_SPEAKERS / WHISPERX_MAX_SPEAKERS  diarization speaker bounds
 //   WHISPERX_TIMEOUT_SEC  max seconds to wait for the task (default 1800)
 //   WHISPERX_POLL_SEC     poll interval in seconds (default 5)
@@ -27,6 +29,24 @@ const model = env.WHISPERX_MODEL || env.WHISPER_MODEL || "large-v3";
 const language = env.WHISPERX_LANGUAGE || "en";
 const timeoutSec = Number(env.WHISPERX_TIMEOUT_SEC ?? 1800);
 const pollSec = Number(env.WHISPERX_POLL_SEC ?? 5);
+
+// WhisperX's async endpoints do NOT read the service's DEVICE/COMPUTE_TYPE env —
+// those only reach the OpenAI-compatible /v1 path. Every WhisperModelParams field
+// is a query param with a hardcoded default (device=cuda, compute_type=float16),
+// so not sending them means a GPU-less host fails every task with "CUDA driver
+// version is insufficient for CUDA runtime version" while /health still says ok.
+// Mirrors resolveGpuVendor in src/generate-compose.ts: the vendor is authoritative,
+// a blank vendor falls back to what VRAM implied, and both blank means the question
+// was never asked (fresh clone / CI / e2e) — which is CPU.
+const vendor = (env.EXIST_GPU_VENDOR ?? "").trim().toLowerCase();
+const vram = (env.EXIST_VRAM_GB ?? "").trim();
+const isNvidia = vendor ? vendor === "nvidia" : vram !== "" && vram !== "0";
+// CTranslate2 has CUDA and CPU backends and no ROCm one, so amd is CPU here too —
+// the same reason ai/whisperx/docker-compose.exist.yml's x-exist-gpu.amd sets DEVICE=cpu.
+const device = env.WHISPERX_DEVICE || (isNvidia ? "cuda" : "cpu");
+// int8 is the only compute type valid on both backends, and matches the service's
+// own COMPUTE_TYPE. float16 on CPU errors outright.
+const computeType = env.WHISPERX_COMPUTE_TYPE || "int8";
 
 const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 
@@ -61,9 +81,9 @@ function formatTranscript(segments: Segment[]): string {
     process.exit(1);
   }
 
-  // Kick off the async diarized pipeline. model/language/speaker bounds are query
-  // params; the audio URL is the multipart form field.
-  const qs = new URLSearchParams({ model, language });
+  // Kick off the async diarized pipeline. model/language/device/compute_type and
+  // the speaker bounds are query params; the audio URL is the multipart form field.
+  const qs = new URLSearchParams({ model, language, device, compute_type: computeType });
   if (env.WHISPERX_MIN_SPEAKERS) qs.set("min_speakers", env.WHISPERX_MIN_SPEAKERS);
   if (env.WHISPERX_MAX_SPEAKERS) qs.set("max_speakers", env.WHISPERX_MAX_SPEAKERS);
 

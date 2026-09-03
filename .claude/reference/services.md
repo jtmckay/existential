@@ -44,7 +44,7 @@ On demand:
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
-| `exist.test.sh` | Always. Every service ships one. Also what triage and the migration gate run. See `testing.md`. |
+| `exist.test.sh` | Every service with a container ships one. Also what triage and the migration gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
 then `exec`s the image's real entrypoint. Reach for this when a setting is *derived from
@@ -116,8 +116,9 @@ works for a user who isn't `1000:1000` (LDAP, a second account, a server) withou
 **Pick the right mechanism, not always `user:`:** images with an s6/`PUID`-style init (it starts
 as root then drops) break under `user:` — set their `PUID`/`PGID` (or `UID`/`GID`,
 `HERMES_UID`/`GID`, …) **env** to `${EXIST_PUID:-1000}`/`${EXIST_PGID:-1000}` instead (lowcoder,
-open-webui, hermes-agent do this). Use plain `user:` only for images that tolerate an arbitrary
-uid.
+hermes-agent do this). Use plain `user:` only for images that tolerate an arbitrary uid — and
+check the image really does drop: open-webui *looks* like this case and is not one (it is built
+`USER 0:0` with a root-owned `/app` and never drops), so it stays root with a comment saying so.
 
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
 `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`; the only blanket
@@ -125,7 +126,8 @@ Root is expected for: privileged-port binders that can't take a cap (use `cap_ad
 below), pihole (NET_ADMIN),
 portainer (docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images
 managed by an internal supervisor (appsmith, lowcoder, nextcloud), and images caching into
-`/root` (whisperx, mcp).
+`/root` (whisperx — it is built with no `USER`, sets no `HF_HOME`, and so writes its
+HuggingFace and torch model caches to `/root/.cache`, which is the volume it mounts).
 
 ## GPU vendor wiring
 
@@ -138,6 +140,7 @@ majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else f
 | `nvidia` | nothing, beyond dropping the `x-exist-gpu` key                                  |
 | `amd`    | strips the nvidia reservation, merges `x-exist-gpu.amd`                         |
 | `none`   | strips the nvidia reservation, merges `x-exist-gpu.none`; `EXIST_VRAM_GB` is 0  |
+| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another machine |
 
 The strip is not tidiness. Docker refuses to create a container whose device driver it cannot
 satisfy (`could not select device driver … with capabilities: [[gpu]]`), and compose fails the

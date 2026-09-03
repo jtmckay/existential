@@ -164,14 +164,28 @@ if [[ -d "$PROFILE_DEFS" ]]; then
 fi
 
 # ── hand off ownership to the hermes user ────────────────────────────────────
-# s6-overlay chowns /opt/data on the very first start (using .venv as a
-# sentinel to skip on subsequent starts).  Chown our tools explicitly so they
-# are accessible after s6 drops to HERMES_UID:HERMES_GID.
+# Everything above ran as root, so whatever it created is root-owned: the
+# rustup/cargo/npm trees, the profiles, and — the one that is easy to miss —
+# /opt/data/logs/{agent,errors}.log, which the `hermes profile create` call
+# opens on its way past.
+#
+# Nothing downstream heals that last one. stage2-hook.sh gates its targeted
+# chown on /opt/data itself not being hermes-owned, and generate-compose.ts
+# already creates volumes/hermes_agent_data as the host uid — so the gate never
+# fires, and its unconditional heals cover profiles/, cron/ and logs/gateways
+# but not logs/*.log. On a *fresh* install the gateway then drops to
+# HERMES_UID and dies in a respawn loop on
+#   PermissionError: [Errno 13] Permission denied: '/opt/data/logs/agent.log'
+# An already-provisioned volume hides it: those files are already host-owned
+# from an earlier boot, and open() on an existing writable file succeeds.
+#
+# So chown what is actually root-owned rather than a list of dirs we
+# remembered. -prune keeps this off /opt/data/workspace, the user's own
+# bind mount (same filesystem as volumes/, so -xdev would not skip it).
 HERMES_UID="${HERMES_UID:-1000}"
 HERMES_GID="${HERMES_GID:-1000}"
-for _owned in "$TOOLS_DIR" "$PROFILES_DIR"; do
-    [[ -d "$_owned" ]] && chown -R "${HERMES_UID}:${HERMES_GID}" "$_owned"
-done
+find /opt/data -path /opt/data/workspace -prune -o \
+    \( -uid 0 -o -gid 0 \) -exec chown "${HERMES_UID}:${HERMES_GID}" {} + 2>/dev/null || true
 
 # ── chain to s6-overlay ───────────────────────────────────────────────────────
 # /init is the s6 entrypoint baked into the hermes-agent image.  It runs the
