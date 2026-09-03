@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Actual Budget — first-time setup
+# Actual Budget — connect Decree to your Actual Budget server
 #
-# Connects to your Actual Budget server, lets you select a budget, and saves
-# credentials to services/decree/secrets/actual-budget/credentials.env for use
-# in decree routines.
+# Sets the server's login password if it doesn't have one yet (actual-server
+# has no env var for this — see the comment above `environment:` in
+# docker-compose.exist.yml), then connects with @actual-app/api, lets you
+# select a budget, and saves credentials to
+# services/decree/secrets/actual-budget/credentials.env for use in decree
+# routines.
 #
-# Auto-run by `./existential.sh` once when EXIST_IS_SERVICES_ACTUAL_BUDGET=true
-# and the .existential.initialized sentinel is missing. Re-run manually with:
-#   ./existential.sh run actual-budget
+# This is a manual step, not auto-run by `./existential.sh` — there is no
+# sentinel for it. Run it once `docker compose up -d` has actual-budget and
+# decree running, and re-run any time (e.g. after adding accounts) with:
+#   ./existential.sh run actual-budget setup
 #
 # Runs on the host (uses `docker exec decree`). Requires: docker.
 
@@ -28,7 +32,7 @@ if ! docker inspect decree --format '{{.State.Running}}' 2>/dev/null | grep -q t
     echo "  Start containers, then complete setup with:"
     echo ""
     echo "    docker compose up -d"
-    echo "    ./existential.sh run actual-budget"
+    echo "    ./existential.sh run actual-budget setup"
     echo ""
     exit 0
 fi
@@ -55,6 +59,37 @@ echo ""
 echo ""
 
 [ -n "$ACTUAL_PASSWORD" ] || die "Server password is required."
+
+# ── Bootstrap the server password if it doesn't have one yet ──────────────────
+# actual-server sets its login password exactly once, via POST /account/bootstrap
+# — normally triggered by the web UI's first visit. Do that here too, so this
+# script alone is enough for a server nobody has opened in a browser yet.
+# /account/needs-bootstrap runs a real `SELECT * FROM auth` against the account
+# DB (not a canned response), and bootstrapping an already-bootstrapped server
+# is a safe no-op (400 "already-bootstrapped") — confirmed against a live
+# actualbudget/actual-server:26.8.1 container.
+
+NEEDS_BOOTSTRAP=$(docker exec decree curl -sS --max-time 5 "${ACTUAL_URL}/account/needs-bootstrap" 2>/dev/null \
+    | grep -o '"bootstrapped":[a-z]*' | cut -d: -f2)
+
+case "$NEEDS_BOOTSTRAP" in
+    false)
+        echo "  Server already has a password set."
+        ;;
+    true)
+        echo "  Setting the server password..."
+        docker exec -e ACTUAL_URL="$ACTUAL_URL" -e ACTUAL_PASSWORD="$ACTUAL_PASSWORD" decree sh -c '
+            payload=$(jq -n --arg pw "$ACTUAL_PASSWORD" "{password: \$pw}")
+            curl -sS -f -X POST "$ACTUAL_URL/account/bootstrap" \
+                -H "Content-Type: application/json" -d "$payload" >/dev/null
+        ' || die "Failed to set the server password. Is ${ACTUAL_URL} reachable from decree?"
+        echo "  Password set."
+        ;;
+    *)
+        die "Could not reach ${ACTUAL_URL}/account/needs-bootstrap — is the actual-budget container running?"
+        ;;
+esac
+echo ""
 
 # ── Install @actual-app/api in decree container if needed ─────────────────────
 
@@ -92,5 +127,5 @@ hr
 echo ""
 echo "  Done. Restart decree to apply:"
 echo ""
-echo "    docker compose -f services/decree/docker-compose.yml restart decree"
+echo "    docker compose restart decree   # from the repo root"
 echo ""

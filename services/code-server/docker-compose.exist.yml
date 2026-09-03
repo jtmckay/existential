@@ -17,11 +17,39 @@ services:
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # A full VS Code server — extensions and language servers are the cost.
+    # Measured against this image (v4.135.0): a fresh install (code-server
+    # binary extraction, 4 extensions, npm i -g of claude-code + opencode-ai)
+    # peaks around 850MB under a 1G cgroup limit — mostly reclaimable page
+    # cache, since actual RSS across both node processes is ~200MB once the
+    # kernel is under pressure to reclaim it, and it settles under 300MB idle
+    # with no client connected. But nothing here bounds an actual editing
+    # session: each extension's language server (eslint, tsserver via the
+    # bundled TS support, gitlens) is its own process, and this container also
+    # runs whatever the integrated terminal launches (claude/opencode agent
+    # sessions, builds). 1G leaves those no headroom at all on top of the
+    # idle baseline, so size for the realistic-use case, not the idle one.
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
+    # The image's baked HEALTHCHECK (automations/Dockerfile) is
+    # `grep -q decree /proc/1/comm`, written for the decree daemons where PID 1
+    # execs `decree daemon`. This entrypoint execs code-server instead, whose
+    # PID 1 /proc/1/comm is `MainThread` (verified: `docker exec code-server
+    # cat /proc/1/comm`) — the baked check can never match and the container
+    # sits "unhealthy" forever. /healthz is unauthenticated (verified: returns
+    # 200 with no cookie/password, unlike / which 302s to /login) and answers
+    # as soon as the HTTP server is listening, so it doesn't need code-server's
+    # own auth wired through a healthcheck.
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # First boot installs the code-server binary, 4 extensions and two npm
+      # globals (claude-code, opencode-ai) before anything binds :8080 —
+      # measured ~70s on a fast connection; generous for a slow one.
+      start_period: 180s
     entrypoint: ["/entrypoint.sh"]
     networks:
       - exist
@@ -35,7 +63,12 @@ services:
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       - ./opencode.json:/opencode.exist.json:ro
-      # code-server standalone install — a _cache — not backed up
+      # code-server's standalone install + extensions (reinstallable — just
+      # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, the
+      # claude-code/opencode-ai npm installs plus their login/auth state
+      # (~/.claude, ~/.claude.json, ~/.local/share/opencode/auth.json) — not
+      # just a disposable cache, hence the _data suffix. Not backed up: worst
+      # case is re-running `claude login` / `opencode auth login`.
       - code_server_data:/code-server-data
       # Repo top-level workspace — shared with hermes-agent's /opt/data/workspace
       # so both containers operate on the same files.

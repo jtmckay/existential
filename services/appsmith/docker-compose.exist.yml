@@ -3,30 +3,64 @@ services:
     container_name: appsmith
     image: index.docker.io/appsmith/appsmith-ce:v2.3
     restart: unless-stopped
-    # Bundles its own JVM backend, Mongo client and nginx in one container.
+    # One container, six supervisord-managed processes (`supervisorctl status`
+    # inside a running container): the Java backend (`backend`, Spring on
+    # :8080), the Node realtime service (`rts`), the bundled Caddy that serves
+    # the SPA and reverse-proxies /api to the backend on :80 (`editor` — not
+    # nginx), and three embedded, LOCAL-ONLY datastores: MongoDB (a real
+    # single-node replica set at 127.0.0.1:27017 — not a client to anything
+    # external), Redis (session/pubsub, 127.0.0.1:6379), and Postgres (backs
+    # only the optional "mockdb" sample datasource, 127.0.0.1:5432). All of
+    # this needs root: entrypoint.sh's init_postgres() hard-exits if `id -u`
+    # isn't 0 ("embedded PostgreSQL cannot be used" as non-root), so no user:
+    # override here — this is the documented root exception for a
+    # supervisor-managed multi-process image (services.md).
+    #
+    # The image's own HEALTHCHECK (CMD-SHELL /opt/appsmith/healthcheck.sh,
+    # baked in — no override needed to get it) has a real blind spot, verified
+    # by stopping each embedded process in a running container: it only checks
+    # that `editor`/`rts`/`backend` are RUNNING under supervisord plus a plain
+    # GET to http://localhost/ (Caddy's static shell, 200 whether or not the
+    # backend is up). Its script *looks* like it also pings mongo/redis and
+    # curls the backend's /api/v1/health, but those branches match on process
+    # names "mongo"/"redis"/"server" — supervisord's actual names are
+    # "mongodb"/"redis"/"backend", so they never fire. Stopping mongod or
+    # redis-server left `docker inspect` reporting "healthy" throughout, even
+    # though every real API call was 500/408. exist.test.sh's probe of
+    # /api/v1/users/me (proxied through Caddy to the backend) is what actually
+    # catches that — see the comment there.
     deploy:
       resources:
         limits:
-          memory: 1G
+          # Measured (docker stats) on a fresh v2.3 install, no apps, no users:
+          # boot peaks ~1.28GiB before settling to ~1.03-1.05GiB idle under a 2G
+          # cap (the JVM sizes its heap off the cgroup limit — 25% ergonomic
+          # default, so a smaller cap shrinks the heap too, not just the
+          # headroom). Under the old 1G limit the boot transient hit
+          # 1004/1024MiB — a few percent from the swap threshold before a
+          # single real user ever logged in. 2.5G gives real headroom above
+          # measured idle for the heaviest single container in the stack
+          # (JVM + 3 embedded datastores + Node + Caddy) without sizing to a
+          # worst case.
+          memory: 2.5G
     networks:
       - exist
     # ports disabled — access via https://appsmith.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "44080:80"
+    environment:
+      # Grants instance-admin on signup to this email (Appsmith's `admin.emails`
+      # property, application-ce.properties: `admin.emails = ${APPSMITH_ADMIN_EMAILS:}`).
+      # Must be listed here explicitly — compose does not auto-inject a
+      # service's .env.exist values into its container, only environment:/
+      # env_file: entries reach it, and this service had neither before.
+      APPSMITH_ADMIN_EMAILS: ${APPSMITH_ADMIN_EMAILS}
     volumes:
-      # Bundles MongoDB + Redis internally — must be local (NFS corrupts WiredTiger).
+      # Bundles MongoDB + Redis + Postgres internally, all under one directory
+      # tree (data/mongodb, data/redis, data/postgres) — must be local (NFS
+      # corrupts MongoDB's WiredTiger storage and breaks Postgres's file locks).
       - appsmith_data:/appsmith-stacks
-
-  # nuke:
-  #   image: node:24-alpine
-  #   entrypoint: >
-  #     sh -c '
-  #       sleep 500
-  #     '
-  #   restart: "no"
-  #   volumes:
-  #     - appsmith_data:/appsmith-stacks
 
 x-exist-volumes:
   appsmith_data: { db: true }
