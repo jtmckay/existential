@@ -90,6 +90,11 @@ shared_routines:
     enabled: false
   notify:
     enabled: true
+  # Reference example — named by cron.example/rss-poll.md. Polls a feed,
+  # filters deterministically, and chains into notify (or any routine) via
+  # fwd_ params.
+  rss-poll:
+    enabled: false
   # On by default, and it quiets itself as the stack stays green — see the
   # routine's header. The person who most needs triage is the one who does not
   # know it exists, so it cannot be opt-in.
