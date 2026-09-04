@@ -60,20 +60,23 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 Decree routines are shell scripts in `automation/shared_routines/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
-### The routines that ship
+### The routine that ships
 
-Three are already written, registered in `services/automation/decree/config.exist.yml` and off by default:
+One routine, `comfy`, is already written and registered in
+`services/automation/decree/config.exist.yml` (off by default). Its `type` parameter picks the
+subroutine — and workflow template — that runs:
 
-| Routine | Workflow | Needs |
+| `type` | Workflow | Needs |
 |---|---|---|
-| `comfy-image-text` | `automation/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
-| `comfy-image-text-image` | `automation/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
-| `comfy-video-i2v` | `automation/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
+| `image-text` | `automation/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
+| `image-text-image` | `automation/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
+| `video-i2v` | `automation/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
 
-Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip a routine's `enabled: true`, restart automation, then:
+Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip `comfy`'s `enabled: true`, restart automation, then:
 
 ```bash
-printf -- '---\nroutine: comfy-image-text\n---\n' > automation/inbox/comfy-image-text.md
+printf -- '---\nroutine: comfy\ntype: image-text\noutput_prefix: test\n---\na sunset over mountains\n' \
+  > automation/inbox/comfy-image-text.md
 ```
 
 Write your own the same way: POST the workflow to `/api/prompt`, poll `/history/{id}` until `outputs` appears, then fetch the file from `/view`.

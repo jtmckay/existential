@@ -90,8 +90,8 @@ in the UI, or place .safetensors files directly in:
 
 Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 
-The comfy-image-* and comfy-video-i2v decree routines need Flux2 and Wan 2.2
-instead; the HuggingFace URLs are in each workflow in automation/lib/comfy/,
+The comfy decree routine's image-text-image and video-i2v subroutines need
+Flux2 and Wan 2.2 instead; the HuggingFace URLs are in each workflow in automation/lib/comfy/,
 and they go under .../models/{diffusion_models,text_encoders,vae,loras}/.
 
 ── OpenViking: your knowledgebase ────────────────────────────────────────

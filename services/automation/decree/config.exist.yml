@@ -24,16 +24,18 @@ shared_routines:
     enabled: true
   clean-runs:
     enabled: true
-  comfy-image-text:
-    enabled: false
-  comfy-image-text-image:
-    enabled: false
-  comfy-video-i2v:
+  comfy:
     enabled: false
   develop:
     enabled: false
   agent-task:
     enabled: false
+  # Reads the registry via `decree routine` and writes it to workspace/ai/ —
+  # hermes has no mount into automation/, so this is how it learns what's
+  # runnable. Needs no credentials and touches nothing but its own output
+  # file, so it's safe on by default like check-versions/service-health.
+  routines-snapshot:
+    enabled: true
   # Routing: hermes-router picks a department and queues hermes-dept for it.
   # route-failed is the catch-all and is on by default — it is what decree
   # falls back to, so disabling it would strand unroutable messages.
