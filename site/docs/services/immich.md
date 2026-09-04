@@ -64,8 +64,8 @@ must stay local (Postgres, never NFS).
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
 `immich-volume-backup-{nightly,weekly}.md` from `services/automation/backup/cron.example/`
-into `cron/` and restart `decree-backup`. The volume backup only reaches the default
-`UPLOAD_LOCATION` (`./volumes/immich_library`) — `decree-backup` mounts the repo's `volumes/`
+into `cron/` and restart `automation-backup`. The volume backup only reaches the default
+`UPLOAD_LOCATION` (`./volumes/immich_library`) — `automation-backup` mounts the repo's `volumes/`
 directory wholesale, so a library moved to NFS or another host path falls outside it and needs
 its own backup story (the cron skips cleanly rather than failing).
 

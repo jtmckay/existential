@@ -79,21 +79,24 @@ Run these steps in order. Each builds on the previous one.
 If you haven't already authorized Gmail access:
 
 ```bash
-./existential.sh run gmail
+./existential.sh run automation gmail-sync
 ```
 
-This grants Decree read-only Gmail access and automatically saves your label list to `/secrets/gmail/labels.json`. See [Gmail](../integrations/gmail) for full instructions.
+This grants Decree read-only Gmail access and, as its last step, automatically saves your label
+list to `/secrets/gmail/labels.json` (`automation/secrets/gmail/labels.json` on the host). See
+[Gmail](../integrations/gmail) for full instructions.
 
-If you've already set up Gmail but need to refresh the label cache (e.g. you added a new label):
+If you've already authorized Gmail but need to refresh just the label cache (e.g. you added a
+new label):
 
 ```bash
-./existential.sh run gmail-labels
+./existential.sh run automation gmail-labels
 ```
 
 ### Step 2 — Actual Budget credentials
 
 ```bash
-./existential.sh run actual-budget
+./existential.sh run actual-budget setup
 ```
 
 Connect to your Actual Budget server, select a budget, and save credentials. At the end, the script prints all your accounts with their IDs and saves them to `/secrets/actual-budget/accounts.json` for use in the next step.
@@ -103,7 +106,7 @@ See [Actual Budget](../integrations/actual-budget) for full instructions.
 ### Step 3 — Create the cron
 
 ```bash
-./existential.sh run gmail-transactions-cron
+./existential.sh run automation gmail-transactions-cron
 ```
 
 An interactive prompt will:

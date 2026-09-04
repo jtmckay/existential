@@ -6,7 +6,7 @@ ENV NODE_VERSION=24.16.0
 COPY --from=builder /usr/local/cargo/bin/decree /usr/local/bin/decree
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        poppler-utils curl jq dnsutils xz-utils fzf \
+        poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
         postgresql-client default-mysql-client sqlite3 gnupg ca-certificates \
         git python3 \
     && curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.deb -o /tmp/rclone.deb \
@@ -58,6 +58,12 @@ ENV HOME=/home/decree \
 ENV PATH=/home/decree/.npm-global/bin:$PATH
 RUN mkdir -p /home/decree/.npm /home/decree/.npm-global \
     && chmod -R 0777 /home/decree
+# /etc/passwd has no entry for EXIST_PUID (unknown at build time, same reason
+# as the 0777 above) — OpenSSH's getpwuid() lookup hard-refuses to run at all
+# without one ("No user exists for uid N"), which breaks notes-pull's
+# ssh/rsync path entirely. World-writable so entrypoint.sh (already running
+# as the non-root runtime uid by then, never root) can append its own line.
+RUN chmod 0666 /etc/passwd
 # /etc/profile unconditionally overwrites PATH for non-root login shells
 # (code-server's integrated terminal launches one), dropping the npm-global
 # dir set above. profile.d runs after that reset, so re-prepend it there too.

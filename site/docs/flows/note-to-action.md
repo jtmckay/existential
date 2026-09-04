@@ -169,7 +169,7 @@ It records your vault as seen *without* triaging. Turning this on with a 5,000-n
 should not fire 5,000 model calls. To scan the backlog once:
 
 ```bash
-docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
+printf -- '---\nroutine: note-triage\nTRIAGE_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
 ```
 :::
 
@@ -177,7 +177,7 @@ docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP
 
 ```bash
 docker exec automation decree routine note-triage       # the routine's own pre-check
-docker exec automation decree run --routine note-triage --param TRIAGE_DRY_RUN=true
+printf -- '---\nroutine: note-triage\nTRIAGE_DRY_RUN: true\n---\n' > automation/inbox/dry-run.md
 ```
 
 A dry run prints a verdict per note and chains nothing. Read a few days of that output before
@@ -291,10 +291,11 @@ name; every input below reduces to the same message. **Only the first step chang
 
 ### Email
 
-`gmail-sync` polls Gmail on a cron and archives messages into
-`services/automation/decree/emails/`. Point `NOTES_DIR` at that directory and the same triage runs
-over your inbox — the criteria becomes "a customer complaint worth escalating" or whatever you
-actually want caught. See [Gmail](../integrations/gmail).
+`gmail-sync` polls Gmail on a cron and archives messages into `automation/emails/` (the
+`EMAILS_DIR` default, `/work/.decree/emails` inside the container — `automation/` at the repo
+root is the main daemon's whole project dir). Point `NOTES_DIR` at that directory and the same
+triage runs over your inbox — the criteria becomes "a customer complaint worth escalating" or
+whatever you actually want caught. See [Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
@@ -346,8 +347,11 @@ run away with your GPU.
 | `TRIAGE_LEDGER_MAX` | `100` | How many past ideas that check sees |
 | `TRIAGE_MAX_NOTES` | `20` | Ceiling per run |
 | `TRIAGE_MIN_CHARS` | `120` | Below this a note is skipped without a model call |
+| `TRIAGE_MAX_CHARS` | `6000` | Note text is truncated to this many characters before judging |
 | `TRIAGE_MODEL` | *(gateway default)* | Pin a specific model |
 | `TRIAGE_API_URL` | `http://hermes-agent:8642/v1` | Point at Ollama to skip hermes for triage |
+| `TRIAGE_TIMEOUT` | `120` | Seconds per model call before it's treated as no verdict |
+| `TRIAGE_API_KEY` | *(falls back to `HERMES_API_KEY`)* | Override the gateway credential |
 | `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note-develop`'s draft is copied, e.g. `nextcloud:Notes` |
 | `FIRECRAWL_URL` | *(unset)* | Set to `http://firecrawl:3002` for `note-develop` web research |
 

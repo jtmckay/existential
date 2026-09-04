@@ -169,6 +169,10 @@ cat > "${OUTBOX_DIR}/hermes-dept-${_matched}-$(date +%s%N).md" << EOF
 ---
 routine: hermes-dept
 profile: ${_matched}
+# Same value as profile, different question: subroutine is the generic
+# "which sub-thing did this run actually do" convention afterEach.sh surfaces
+# to Grafana's Subroutine column — see minio-router.sh for the other producer.
+subroutine: ${_matched}
 routed_by: hermes-router
 route_reason: $(jq -rn --arg v "routed to ${_matched} by the ${ROUTER_PROFILE} profile" '$v|@json')
 source_file: $(jq -rn --arg v "${source_file:-}" '$v|@json')

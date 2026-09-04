@@ -21,7 +21,7 @@
 #
 #   * The departments write to /workspace/ai, and only the MAIN decree daemon
 #     has a writable /workspace. Enable idea-workup and hermes-dept in
-#     services/automation/decree/config.yml — not in decree-backup.
+#     services/automation/decree/config.yml — not in automation-backup.
 #   * The profiles must exist. hermes' entrypoint provisions them from
 #     ai/hermes/profiles/ on boot, so this is only a question after adding a
 #     new department: restart hermes. Without a profile every department call
@@ -31,9 +31,9 @@
 # Decree runs messages one at a time and AGENT_TIMEOUT defaults to 900s, so a
 # fan-out of three can take the better part of an hour. It is not stuck.
 #
-# Manual invocation:
-#   docker exec automation decree run --routine idea-workup \
-#     --param note_path=ideas/tool-rental.md
+# Manual invocation — decree has no `run` subcommand; drop a message instead:
+#   printf -- '---\nroutine: idea-workup\nnote_path: ideas/tool-rental.md\n---\n' \
+#     > automation/inbox/idea-workup.md
 
 set -euo pipefail
 

@@ -205,15 +205,13 @@ Full detail in [File Change Processing](./decree/file-change-processing).
 
 ### By hand — for testing, and for one-offs
 
-```bash
-docker exec automation decree run my-routine
-docker exec automation decree run --routine my-routine --param my_param=value
-```
-
-Or drop the message file yourself:
+Decree has no `run` subcommand — the only way to trigger a routine manually is dropping a
+message straight into the inbox it drains. For the main daemon that's the repo-root
+`automation/inbox/` (it wholesale-mounts `automation/` as its whole project); for
+`automation-backup` it's `services/automation/backup/inbox/`.
 
 ```bash
-printf -- '---\nroutine: my-routine\n---\n' > services/automation/decree/inbox/once.md
+printf -- '---\nroutine: my-routine\nmy_param: value\n---\n' > automation/inbox/once.md
 ```
 
 ## Chaining: one routine handing work to the next
@@ -255,7 +253,7 @@ routine that queues itself will stop rather than run forever.
 docker exec automation decree routine my-routine
 
 # 2. Run it for real
-docker exec automation decree run my-routine
+printf -- '---\nroutine: my-routine\n---\n' > automation/inbox/once.md
 
 # 3. Read what happened
 ls automation/runs/                       # one directory per message

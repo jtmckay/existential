@@ -41,8 +41,8 @@ You can also add the bot to a group and use the group's chat ID (negative number
 ### 3. Save credentials
 
 ```bash
-mkdir -p services/automation/secrets/telegram
-cat > services/automation/secrets/telegram/credentials.env << 'EOF'
+mkdir -p automation/secrets/telegram
+cat > automation/secrets/telegram/credentials.env << 'EOF'
 TELEGRAM_BOT_TOKEN=your-bot-token-here
 TELEGRAM_CHAT_ID=your-chat-id-here
 EOF
@@ -52,17 +52,11 @@ The secrets directory is bind-mounted into the decree container at `/secrets/tel
 
 ## Enabling Routines
 
-Telegram features are opt-in. Enable the routines you need in `automation/config.yml`:
-
-```yaml
-shared_routines:
-  telegram-notify:
-    enabled: true    # sends transaction alerts (requires actual-budget)
-  telegram-receipt:
-    enabled: true    # polls for receipt photos and "no" replies
-```
-
-Activate the receipt polling cron:
+`telegram-notify` and `telegram-receipt` are already enabled by default in
+`services/automation/decree/config.yml` — there's nothing to flip there. What
+actually gates them is the credentials file above (`telegram-notify` is chained
+from `actual-budget`'s outbox and does nothing without it) and, for receipt
+polling, activating its cron:
 
 ```bash
 cp automation-examples/cron/telegram-receipt-poll.md \
@@ -95,12 +89,12 @@ curl -s "https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>&text=
 Decree stores pending transaction and split state in `/secrets/telegram/state.json`. This file is read and written by `telegram-notify` and `telegram-receipt`. You can inspect it at any time:
 
 ```bash
-cat services/automation/secrets/telegram/state.json | jq .
+cat automation/secrets/telegram/state.json | jq .
 ```
 
 To clear all pending state (e.g. after testing):
 
 ```bash
 echo '{"pending":{},"splits":{},"last_pending_message_id":null}' \
-  > services/automation/secrets/telegram/state.json
+  > automation/secrets/telegram/state.json
 ```

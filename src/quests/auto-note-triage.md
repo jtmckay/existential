@@ -39,7 +39,7 @@ IMPORTANT — the first run is a no-op by design. It records the vault as seen
 without triaging, so turning this on with a 5,000-note vault does not fire
 5,000 model calls. To scan the backlog once:
 
-  docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
+  printf -- '---\nroutine: note-triage\nTRIAGE_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
 
 Prerequisites:
   - Notes landing in /data/notes — activate the auto-notes quest, or point

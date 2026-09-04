@@ -69,18 +69,18 @@ Instead of downloading the file, `file-processor` calls `rclone link` to generat
 
 ### 6. Transcript saved next to the original
 
-The bash processor pipes the transcription text through `rclone rcat` directly into Nextcloud at the same path as the audio file, with `.transcription.txt` appended:
+The bash processor pipes the transcription text through `rclone rcat` directly into Nextcloud at the same path as the audio file, with `.transcript.txt` appended:
 
 ```
 recordings/2026-04-22 Meeting.mp3
-recordings/2026-04-22 Meeting.mp3.transcription.txt   ← created automatically
+recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 ```
 
 ## Prerequisites
 
 - **Nextcloud** running with MinIO configured as S3 external storage
 - **MinIO** webhook sending `ObjectCreated` events to the Decree webhook endpoint (see [File Processor](../decree/file-change-processing))
-- **Whisper** container running and reachable at `http://whisper:8000`
+- **WhisperX** container running and reachable at `http://whisperx:8000`
 - **rclone** configured with a `nextcloud` remote (or whichever remote matches your `rclone_src` webhook setting)
 - **Nextcloud mobile app** with auto-upload enabled for your recordings folder
 
@@ -100,19 +100,21 @@ Ensure your rclone config has a remote that can access the files MinIO is receiv
 
 The remote name must match `rclone_src` in `services/automation/webhook/config.yml` (default: `nextcloud`).
 
-### Step 3 — Enable Whisper
+### Step 3 — Enable WhisperX
 
-Start the Whisper container if it isn't already running:
+Start the WhisperX container if it isn't already running (all compose commands run from the
+repo root against the generated `docker-compose.yml` — never `-f` into a service's own
+directory):
 
 ```bash
-docker compose -f ai/whisper/docker-compose.yml up -d
+docker compose up -d whisperx
 ```
 
-Whisper will download the default model on first use. No further configuration is required — the `whisper-transcribe` processor defaults to letting Whisper pick its own model.
+WhisperX will download the default model on first use. No further configuration is required — the `whisperx-transcribe` processor defaults to letting WhisperX pick its own model.
 
 ### Step 4 — Confirm the processor is active
 
-The `whisper-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. Verify the pre-checks pass:
+The `whisperx-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. Verify the pre-checks pass:
 
 ```bash
 docker exec automation decree routine file-processor
@@ -128,9 +130,12 @@ Override any of these in the processor script or pass them as frontmatter params
 
 | Variable | Default | Description |
 |---|---|---|
-| `FILE_SUFFIX` | `.transcription.txt` | Suffix appended to the audio file path for the output |
+| `FILE_SUFFIX` | `.transcript.txt` | Suffix appended to the audio file path for the output |
 | `OUTPUT_RCLONE` | `nextcloud` | rclone remote where the transcript is saved |
-| `WHISPER_MODEL` | *(empty — Whisper default)* | Model name passed to the transcription API |
+| `WHISPERX_MODEL` | *(empty — WhisperX default)* | Model name passed to the transcription API |
+| `WHISPERX_MIN_SPEAKERS` | *(empty — auto-detect)* | Lower bound on diarized speaker count |
+| `WHISPERX_MAX_SPEAKERS` | *(empty — auto-detect)* | Upper bound on diarized speaker count |
+| `WHISPERX_URL` | `http://whisperx:8000` | WhisperX API base URL |
 
 ## Testing
 

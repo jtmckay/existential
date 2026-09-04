@@ -149,15 +149,17 @@ something and *choose* to send it.
 Create the bot via [@BotFather](https://t.me/BotFather) with `/newbot` and copy the token, then:
 
 ```bash
-mkdir -p services/automation/secrets/telegram
-cat > services/automation/secrets/telegram/credentials.env << 'EOF'
+mkdir -p automation/secrets/telegram
+cat > automation/secrets/telegram/credentials.env << 'EOF'
 TELEGRAM_BOT_TOKEN=your-token-here
 EOF
 ```
 
 The secrets directory is bind-mounted into the decree container at `/secrets/telegram/`.
 
-Enable `telegram-ingest` in `automation/config.yml`:
+Enable `telegram-ingest` in `services/automation/decree/config.yml` (the rendered, gitignored
+config the daemon actually reads — not `automation/config.yml`, which is an empty
+Docker-created mountpoint placeholder and has no effect):
 
 ```yaml
 shared_routines:
@@ -188,7 +190,7 @@ For scanners, batch imports, or anything already on disk:
 
 ```bash
 rclone copyto /path/to/scan.jpg minio:documents/scan.jpg \
-  --config services/automation/secrets/rclone/rclone.conf
+  --config automation/secrets/rclone/rclone.conf
 ```
 
 ## Customization
@@ -207,7 +209,7 @@ Drop a test image straight into the bucket to bypass whichever capture route you
 
 ```bash
 rclone copyto /path/to/test.jpg nextcloud:S3/telegram/test.jpg \
-  --config services/automation/secrets/rclone/rclone.conf
+  --config automation/secrets/rclone/rclone.conf
 ```
 
 Then send a synthetic MinIO event:

@@ -16,10 +16,20 @@ Point the `collabora` subdomain in your DNS to Caddy, and ensure Caddy proxies t
 
 ## Setup with Nextcloud
 
-1. In Nextcloud → Apps → search for **Nextcloud Office** (not "Collabora Online - Built-in CODE Server")
+**Automatic**, if you copy `automation-examples/migrations/22-nextcloud-richdocuments.md`
+into `automation/migrations/` — the `nextcloud-richdocuments` routine installs the app and
+points it at this container for you (not part of Core's own copies, since Collabora isn't a
+Core service — copy it yourself once both Nextcloud and Collabora are enabled). See
+[Nextcloud → Collabora](./nextcloud#collabora-office-document-editing) for what that migration
+does.
+
+By hand instead:
+
+1. In Nextcloud → Apps → search for **Nextcloud Office** (app id `richdocuments`; not
+   "Collabora Online - Built-in CODE Server")
 2. Install it
 3. Go to Administration settings → **Office** → "Use your own server"
-4. URL (and Port) of Collabora Online-server: `https://collabora.example.com`
+4. URL (and Port) of Collabora Online-server: `https://collabora.<domain>`
 
 Nextcloud's own admin page also warns if its WOPI allow-list (`wopi_allowlist`) isn't set — that
 restricts which IPs may call *Nextcloud's* WOPI endpoints and is configured on the Nextcloud side,

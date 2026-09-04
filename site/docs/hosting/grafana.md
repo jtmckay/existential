@@ -26,10 +26,17 @@ Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON 
 
 ## Decree Overview dashboard
 
-Covers the Decree automation engine with panels for:
+Covers the Decree automation engine, filterable by `routine` and `trigger_type` template
+variables, with panels for:
 
-- **Current Status** — last run success/failure per routine (Prometheus gauges)
-- **Run logs** — live log stream from Loki, filterable by routine and trigger type
+- **Current Status** — last run success/failure per routine (Prometheus gauge)
+- **Recent Run Events** — a table of every run (Loki), one row per attempt: message ID
+  (linking to the Run Detail dashboard below), routine, **subroutine** (which specific
+  file processor / department / etc. a routine dispatched to, when it says so — sparse by
+  design), trigger, exit code, attempts, duration, and whether it was the final attempt
+- **Trends** — success/failure, duration, and attempts-per-run over time (Prometheus,
+  timeseries)
+- **Logs** — a raw, filterable Loki log stream of routine output
 
 This is the main place to check when a Decree automation fails or behaves unexpectedly.
 

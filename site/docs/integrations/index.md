@@ -6,11 +6,14 @@ sidebar_position: 1
 
 Integrations are optional services that connect Existential to external platforms. Each one requires an interactive setup step — they can't be configured automatically during the initial `./existential.sh` run.
 
-All integration setup scripts run inside the `decree-adhoc` container, so nothing needs to be installed on your host machine.
+All integration setup scripts run inside the `existential-adhoc` container, so nothing needs to be installed on your host machine.
 
 ```bash
-./existential.sh run <name>
+./existential.sh run <slug> <action>    # e.g. run automation gmail-sync
+./existential.sh run <name>             # general utilities, e.g. run rclone
 ```
+
+Exact commands differ per integration — see each page below.
 
 | Integration | What it does |
 |---|---|

@@ -30,7 +30,7 @@ Alloy is mounted read-only on `automation/runs/` and watches `**/routine.log` an
 
 It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines carry no container-name label, only the 64-hex container id in `filename` — resolving that to a name would mean either the Docker socket (deliberately not mounted — that's full API access, i.e. host root) or parsing the undocumented internal `config.v2.json` next to each log file, which was rejected as a worse trade than an id you can `docker inspect` by hand. So it's a catch-all grep, not a per-service view.
 
-In addition, the `afterEach` hook pushes a structured summary line to Loki after each Decree run — one event per attempt with `routine`, `trigger`, `exit_code`, `attempts`, `duration_s`, and `final` fields.
+In addition, the `afterEach` hook pushes a structured summary line to Loki after each Decree run — one event per attempt with `message_id`, `routine`, `subroutine`, `trigger`, `exit_code`, `attempts`, `duration_s`, and `final` fields. `subroutine` is sparse by design: empty unless the routine's message frontmatter set one (e.g. which file processor actually ran), surfaced as its own column in [Grafana](./grafana)'s Decree Overview dashboard.
 
 ## Storage
 

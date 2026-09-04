@@ -34,5 +34,5 @@ https://actual-budget.<domain> and create a budget file, or run
 `./existential.sh run actual-budget setup` to bootstrap it non-interactively.
 
 Manual trigger:
-  docker exec automation-backup decree run db-backup
-  docker exec automation-backup decree run volume-backup
+  printf -- '---\nroutine: db-backup\n---\n' > services/automation/backup/inbox/db-backup.md
+  printf -- '---\nroutine: volume-backup\n---\n' > services/automation/backup/inbox/volume-backup.md

@@ -66,13 +66,14 @@ built rather than a preference.
 
 ## Upgrading
 
-The `hermes-agent-src` volume caches the agent Python source. After pulling a new image, remove it before restarting:
-
 ```bash
-docker compose down
-docker volume rm hermes_hermes-agent-src
 docker compose pull && docker compose up -d
 ```
+
+`hermes_agent_data` (mounted at `/opt/data`) is a host bind mount, not a Docker-managed
+volume — there's nothing to `docker volume rm`. The entrypoint's provisioning is idempotent
+and re-runs on every start, so a fresh image is picked up on the next restart with no manual
+cache-clearing step.
 
 ## Debugging
 

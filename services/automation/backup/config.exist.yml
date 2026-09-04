@@ -25,6 +25,10 @@ shared_routines:
   # because the chain has to stay inside this daemon's own outbox/inbox.
   minio-bucket-webhook:
     enabled: true
+  # Opt-in — needs a real external source (NOTES_PULL_SOURCE) before it
+  # does anything useful. Not in Core's copies list for the same reason.
+  notes-pull:
+    enabled: false
   notify:
     enabled: true
   clean-runs:

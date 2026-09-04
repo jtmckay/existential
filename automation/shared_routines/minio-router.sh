@@ -113,11 +113,18 @@ for _processor in "$_processors_dir"/*.sh; do
         _raw_crit=$(grep -m1 '^CRITERIA=' "$_processor" || true)
         _criteria=$(echo "$_raw_crit" | sed "s/^CRITERIA=[\"']\(.*\)[\"']$/\1/")
 
+        # subroutine duplicates processor on purpose: processor is file-processor's
+        # own dispatch input, subroutine is the generic "which sub-thing did this
+        # run actually do" convention afterEach.sh surfaces to Grafana. Same value
+        # here, but they answer different questions and a future routine's
+        # subroutine won't always equal some other field it also happens to set.
+
         cat > "$_outbox_file" << EOF
 ---
 routine: file-processor
 rclone_path: $(jq -rn --arg v "${_file_source}" '$v|@json')
 processor: ${_processor_name}
+subroutine: ${_processor_name}
 file_action: ${_file_action}
 is_pre_signed: ${_is_pre_signed:-false}
 criteria: $(jq -rn --arg v "${_criteria}" '$v|@json')

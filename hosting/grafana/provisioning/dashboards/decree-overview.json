@@ -187,6 +187,7 @@
               "Time": "Time",
               "message_id": "Message ID",
               "routine": "Routine",
+              "subroutine": "Subroutine",
               "trigger": "Trigger",
               "exit_code": "Exit Code",
               "attempts": "Attempts",
@@ -197,11 +198,12 @@
               "Time": 0,
               "message_id": 1,
               "routine": 2,
-              "trigger": 3,
-              "exit_code": 4,
-              "attempts": 5,
-              "duration_s": 6,
-              "final": 7
+              "subroutine": 3,
+              "trigger": 4,
+              "exit_code": 5,
+              "attempts": 6,
+              "duration_s": 7,
+              "final": 8
             }
           }
         }

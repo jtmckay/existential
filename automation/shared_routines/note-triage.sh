@@ -18,8 +18,8 @@
 # so enabling this on an existing vault does not fire a thousand model calls.
 # Set TRIAGE_BOOTSTRAP=true for one run if you do want the backlog scanned.
 #
-# Manual invocation:
-#   docker exec automation decree run note-triage
+# Manual invocation — decree has no `run` subcommand; drop a message instead:
+#   printf -- '---\nroutine: note-triage\n---\n' > automation/inbox/note-triage.md
 
 set -euo pipefail
 

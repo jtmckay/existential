@@ -57,3 +57,13 @@ Not available during `afterEach` — it is written after the hook completes.
 
 Decree also writes `[decree] start <timestamp>` and `[decree] duration <N>s end <timestamp>`
 to `routine.log` during execution — these are available to hooks before `run.json` exists.
+
+## The `subroutine` Convention
+
+Not a decree field — a convention this repo's `afterEach` hook (`automation/lib/hooks/afterEach.sh`)
+looks for. If a message's frontmatter sets `subroutine: <value>`, it shows up as its own
+"Subroutine" column in Grafana's Decree Overview dashboard, alongside "Routine". Use it whenever
+a routine dispatches to some more specific sub-thing worth telling apart in the run history —
+`minio-router` sets it to the matched file processor's name on the `file-processor` message it
+queues, so the table shows *which* processor ran, not just that `file-processor` did. Leave it
+unset for routines with no such distinction; the column is sparse by design.

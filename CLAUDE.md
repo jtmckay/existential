@@ -74,8 +74,9 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 One root dir holds *the user's own content* rather than service state, so it is gitignored but
 does **not** live under `volumes/`: `workspace/` — shared by hermes and code-server, indexed
-into openviking, and synced to MinIO (minus `workspace/ai/`, which is where the agent
-automations write).
+into openviking, and bidirectionally synced with the `workspace/` subfolder of the `nextcloud`
+MinIO bucket (minus `workspace/ai/`, which is where the agent automations write). User-facing
+detail: `site/docs/getting-started.md#workspace`.
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.

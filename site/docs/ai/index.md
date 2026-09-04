@@ -18,3 +18,5 @@ The AI stack provides local model hosting, chat interfaces, transcription, and t
 | [Firecrawl](./firecrawl) | Web scraping and crawling API for agents |
 | [Honcho](./honcho) | Cross-session memory for Hermes |
 | [OpenViking](./openviking) | Context database — memory, resources, and skills |
+| [wyoming-whisper](./wyoming-whisper) | Speech to text for Home Assistant voice, on CPU |
+| [wyoming-piper](./wyoming-piper) | Text to speech for Home Assistant voice, on CPU |

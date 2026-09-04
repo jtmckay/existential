@@ -24,7 +24,11 @@ The `routine:` field is **required** — always set it explicitly even when a de
 
 ## Placement
 
-New migration files belong in `.decree/migrations/`. Choose the next available numeric
+New migration files belong in `.decree/migrations/` — in this repo that's the top-level
+`automation/migrations/` (gitignored; part of the wholesale mount into the `automation`
+daemon, the only one that runs migrations — `automation-backup` does not). Tracked
+templates live separately, in `automation-examples/migrations/`; copy one in to activate
+it, the same way `cron.example/` → `cron/` works. Choose the next available numeric
 prefix to maintain ordering. Never place them in `.decree/processed.md` or elsewhere.
 
 ## Acceptance Criteria

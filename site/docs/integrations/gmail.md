@@ -9,7 +9,7 @@ Grants Decree read-only access to your Gmail inbox via OAuth 2.0. Once configure
 ## Setup
 
 ```bash
-./existential.sh run gmail
+./existential.sh run automation gmail-sync
 ```
 
 The script will:
@@ -19,7 +19,7 @@ The script will:
 3. After you authorize, your browser redirects to `http://localhost:8803?code=...` and shows a connection error — that's expected
 4. Copy the full URL from the address bar and paste it back into the terminal
 
-Credentials are saved to `services/automation/secrets/gmail/credentials.env` and the `gmail-sync` routine is enabled in `automation/config.yml` automatically.
+Credentials are saved to `automation/secrets/gmail/credentials.env` and the `gmail-sync` routine is enabled in `services/automation/decree/config.yml` automatically.
 
 ## Google Cloud Setup
 

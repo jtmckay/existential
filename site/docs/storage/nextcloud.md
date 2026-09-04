@@ -88,6 +88,10 @@ it by hand:
    - Check "Enable Path Style"
    - Paste MinIO access key and secret key (`nas/minio/.env`, `MINIO_NEXTCLOUD_ACCESS_KEY`/`_SECRET_KEY`)
 
+With MinIO enabled, this `/S3` folder also holds a `workspace/` subfolder kept in live sync
+with the repo-root `workspace/` directory — see [MinIO](./minio#workspace-lives-in-the-same-bucket)
+and [Getting Started → Workspace](../getting-started#workspace).
+
 ## Collabora (office document editing)
 
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be

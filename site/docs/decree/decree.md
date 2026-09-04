@@ -24,29 +24,32 @@ variable. That is the whole model.
 
 ## Running Decree
 
+Two daemons run it, not one per service — `automation` (routing, AI work, every
+service's one-time migrations) and `automation-backup` (backups only). Neither is
+called `decree`; that's the binary inside them, not a container name.
+
 ### Connect to a running container
 
 ```bash
-docker compose run automation bash
+docker exec -it automation bash
 ```
 
-### One-off run (without daemon)
+### Manually trigger a routine
+
+Decree has no `run` subcommand — drop a message into the inbox it drains instead:
 
 ```bash
-docker compose run --rm decree decree process
+printf -- '---\nroutine: <name>\n---\n' > automation/inbox/once.md
 ```
 
 ## Integrations
 
 Gmail and rclone are configured through interactive setup scripts. See [Integrations](../integrations/) for setup instructions.
 
-## Configure S3
+## S3 / MinIO
 
-Set your MinIO (or AWS S3) credentials in `services/automation/.env`:
-
-```bash
-S3_ENDPOINT=http://minio:9000
-S3_ACCESS_KEY=your_access_key
-S3_SECRET_KEY=your_secret_key
-S3_BUCKET=your_bucket
-```
+No manual credential setup — `automation`'s compose env already carries `MINIO_ROOT_USER` /
+`MINIO_ROOT_PASSWORD`, and routines that need a bucket-scoped identity instead (not admin
+credentials) get one from a `minio-service-account` migration, which renders its own
+`MINIO_<BUCKET>_ACCESS_KEY` / `_SECRET_KEY` pair. See [MinIO](../storage/minio) for the bucket
+side and [File Change Processing](./file-change-processing) for how routines reach it via rclone.

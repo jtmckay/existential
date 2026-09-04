@@ -3,8 +3,8 @@ services:
     container_name: existential-adhoc
     build:
       context: ./services/automation/decree
-    # Canonical build of the decree image. Tagged so the main decree daemon and
-    # decree and decree-backup can reference it via `image:` instead of each
+    # Canonical build of the decree image. Tagged so both daemons — automation
+    # and automation-backup — can reference it via `image:` instead of each
     # re-building decree/Dockerfile into its own per-project image.
     image: existential/decree:local
     pull_policy: never

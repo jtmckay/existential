@@ -131,11 +131,14 @@ Follow the [Telegram integration guide](../integrations/telegram) to:
 
 1. Create a bot with @BotFather
 2. Get your chat ID
-3. Save credentials to `services/automation/secrets/telegram/credentials.env`
+3. Save credentials to `automation/secrets/telegram/credentials.env` (mounted into the
+   container at `/secrets/telegram/credentials.env`)
 
 ### Step 2 — Enable routines
 
-In `automation/config.yml`:
+In `services/automation/decree/config.yml` (the rendered, gitignored config the daemon actually
+reads — not `automation/config.yml`, which is an empty Docker-created mountpoint placeholder and
+has no effect):
 
 ```yaml
 shared_routines:
@@ -171,11 +174,8 @@ docker exec automation decree routine telegram-receipt
 Send a test notification manually:
 
 ```bash
-docker exec automation decree run --routine telegram-notify \
-  --param transaction_id=test-123 \
-  --param amount_cents=-4723 \
-  --param payee_name="Whole Foods Market" \
-  --param date=2026-04-22
+printf -- '---\nroutine: telegram-notify\ntransaction_id: test-123\namount_cents: -4723\npayee_name: "Whole Foods Market"\ndate: 2026-04-22\n---\n' \
+  > automation/inbox/test-notify.md
 ```
 
 ## Customization
@@ -188,15 +188,17 @@ docker exec automation decree run --routine telegram-notify \
 
 ## State File
 
-All pending notifications and active splits are tracked in `/secrets/telegram/state.json`. Inspect it at any time:
+All pending notifications and active splits are tracked in `/secrets/telegram/state.json`
+inside the container — `automation/secrets/telegram/state.json` on the host. Inspect it at any
+time:
 
 ```bash
-cat services/automation/secrets/telegram/state.json | jq .
+cat automation/secrets/telegram/state.json | jq .
 ```
 
 To reset state (e.g. after testing):
 
 ```bash
 echo '{"pending":{},"splits":{},"last_pending_message_id":null}' \
-  > services/automation/secrets/telegram/state.json
+  > automation/secrets/telegram/state.json
 ```

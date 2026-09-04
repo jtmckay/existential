@@ -30,8 +30,10 @@ service, decide which side it is on and wire it accordingly.
   2. exist.initial.sh Pre-startup, idempotent, every run. No sentinels — check state, skip if done.
 docker compose up -d  (user runs)
   3. entrypoint.sh    Inside the container, before the service starts. Trues up config it owns.
-  4. exist.test.sh    Sidecar retries until this passes (service healthy)
-  5. decree process   Runs pending one-time migrations from <service>/decree/migrations/
+  4. exist.test.sh    Every enabled service's own probe; automation's entrypoint
+                       (migration-gate.sh) retries until every one it migrates passes
+  5. decree process   Runs pending one-time migrations from automation/migrations/
+                       (the automation daemon only — automation-backup runs no migrations)
 On demand:
   exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented as quest
   exist.test.sh       ./existential.sh run <slug> test — read-only validation
@@ -181,7 +183,7 @@ both non-nvidia vendors because CTranslate2 has no ROCm backend — without it t
 and then dies on the first request), and an `x-exist-gpu.<vendor>: {}` is a legitimate way to
 record "considered, nothing to do" rather than leaving the case looking forgotten.
 
-`decree-backup` runs as the host user like everything else — the volume data it tars is
+`automation-backup` runs as the host user like everything else — the volume data it tars is
 host-owned by the `volumes/` convention, so it needs no extra privilege. **DB/cache
 images** (postgres, mariadb, mongo, redis) also run as the host user, but the data volume must be
 owned by that uid first — pinning `user:` on a dir already initialized under the image's old
@@ -190,11 +192,11 @@ service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0
 ## Decree image & daemons
 
 The decree image is built **once** from `services/automation/decree/Dockerfile` by
-`existential-adhoc`, tagged `existential/decree:local`; both `decree` and `decree-backup`
+`existential-adhoc`, tagged `existential/decree:local`; both `automation` and `automation-backup`
 reference it via `image:` (not rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked
-healthcheck: `grep -q decree /proc/1/comm` with a long `start-period` (330s) so a daemon running
-as `bash` during its migration wait shows `starting`, not `unhealthy`. Adhoc disables the
-healthcheck.
+healthcheck: `grep -q decree /proc/1/comm` (checking for the `decree` *process*, not a container
+name) with a long `start-period` (330s) so a daemon running as `bash` during its migration wait
+shows `starting`, not `unhealthy`. Adhoc disables the healthcheck.
 
 **There are exactly two daemons, and services do not get their own.** Both are defined in
 `services/automation/docker-compose.exist.yml`, container names `automation` and
@@ -235,9 +237,9 @@ ran the routine.
 | AI CLI | `DECREE_AI` from `.env` (opencode) | none — `DECREE_AI=` blanked to override `env_file` |
 
 The split is the whole design. Backups need every volume and every DB credential; nothing else
-does, and the container that runs an agent with terminal access must not have them. So `decree`
-gets breadth of *reach* (it talks to services over the bridge, which needs no volume at all) and
-`decree-backup` gets breadth of *data*, and neither gets both.
+does, and the container that runs an agent with terminal access must not have them. So
+`automation` gets breadth of *reach* (it talks to services over the bridge, which needs no volume
+at all) and `automation-backup` gets breadth of *data*, and neither gets both.
 
 This replaced a `<slug>-decree` sidecar per backup-eligible service. Those isolated each service
 to its own volumes and creds, which was stricter — the trade was deliberate: ten sidecars meant a
@@ -248,10 +250,10 @@ service is adding a folder. Now a new service's backup is one cron file in
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
 **Migration ordering.** `entrypoint.sh` gates `decree process` on `/work/exist.test.sh` passing,
-retrying for `DECREE_MIGRATE_TIMEOUT` (300s). `decree`'s migrations target *other* services, so
+retrying for `DECREE_MIGRATE_TIMEOUT` (300s). `automation`'s migrations target *other* services, so
 that file is `services/automation/migration-gate.sh`, which probes each service it migrates and skips
 the ones whose `EXIST_IS_*` flag is false. Add a migration for a new service and you add its probe
-there. `decree-backup` mounts no such file, so it correctly skips the wait entirely.
+there. `automation-backup` mounts no such file, so it correctly skips the wait entirely.
 
 **`automation-webhook` does not use this image.** It is a static Go binary
 (`services/automation/webhook/`) on `distroless`, built by compose from its own `Dockerfile` rather

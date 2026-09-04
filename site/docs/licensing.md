@@ -22,13 +22,9 @@ current version and get counsel before launch. Re-run this audit on every versio
 
 ## The platform itself is the easy part
 
-[Coolify](https://github.com/coollabsio/coolify/blob/v4.x/LICENSE) (the deployment control
-plane) is plain **Apache-2.0** with no custom clauses: commercial use, reselling, and
-multi-tenant operation are all permitted, and there is no "offer as a service" copyleft.
-The only constraints are (1) **no trademark grant** — you can't brand your product
-"Coolify" — and (2) preserve notices if you redistribute it (you don't; it stays on your
-control-plane host). The maintainers *ask* (non-binding) that you not resell Coolify as
-your own product; using it as infrastructure to host other apps does not conflict with that.
+The deployment control plane here is `./existential.sh` — first-party shell/TypeScript this
+repo ships, not a third-party app you're redistributing. There's no license question to
+audit for your own code; write and change it freely.
 
 **The real exposure is the hosted catalog below.**
 
@@ -51,12 +47,16 @@ across the network.
 |---|---|---|---|---|
 | Chatterbox | [chatterbox-tts](https://github.com/devnen/Chatterbox-TTS-Server) (Resemble AI) | MIT | 🟢 | Model and server both MIT. |
 | ComfyUI | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | GPL-3.0 | 🟢 | GPL has no SaaS clause — safe to host. |
+| Firecrawl | [firecrawl](https://github.com/firecrawl/firecrawl) | AGPL-3.0 | 🟡 | Run unmodified; link to source. |
 | Hermes | [hermes-agent](https://github.com/NousResearch/hermes-agent) | MIT | 🟢 | Custom existential service. |
-| LightRAG | [LightRAG](https://github.com/HKUDS/LightRAG) | MIT | 🟢 | |
+| Honcho | [honcho](https://github.com/plastic-labs/honcho) | AGPL-3.0 | 🟡 | Run unmodified; link to source. |
 | MCP | custom (Node base) | Your code | 🟢 | First-party. |
 | Ollama | [ollama](https://github.com/ollama/ollama) | MIT | 🟢 | |
 | Open WebUI | [open-webui](https://github.com/open-webui/open-webui) | BSD-3 + **branding clause** | 🔴 | For **>50 users** (rolling 30 days) you must **keep "Open WebUI" branding** or buy an enterprise license. White-label = enterprise license required. Hosting *with* branding intact is allowed. |
+| OpenViking | [OpenViking](https://github.com/volcengine/OpenViking) | AGPL-3.0 (main project) | 🟡 | `crates/ov_cli` and `examples/` are Apache-2.0; the server component the stack runs is AGPL — run unmodified, link to source. |
 | WhisperX | [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) | MIT | 🟢 | |
+| wyoming-piper | [wyoming-piper](https://github.com/rhasspy/wyoming-piper) | MIT | 🟢 | |
+| wyoming-whisper | [wyoming-faster-whisper](https://github.com/rhasspy/wyoming-faster-whisper) | MIT | 🟢 | |
 
 ## Productivity & services
 
@@ -64,6 +64,7 @@ across the network.
 |---|---|---|---|---|
 | Actual Budget | [actual](https://github.com/actualbudget/actual) | MIT | 🟢 | |
 | Appsmith | [appsmith](https://github.com/appsmithorg/appsmith) (CE) | Apache-2.0 | 🟢 | |
+| code-server | [code-server](https://github.com/coder/code-server) | MIT | 🟢 | Runs inside the shared decree base image, not the upstream Docker image — same MIT software either way. |
 | Dashy | [dashy](https://github.com/Lissy93/dashy) | MIT | 🟢 | |
 | Decree | custom / cloned | Your code | 🟢 | First-party automation. |
 | Home Assistant | [core](https://github.com/home-assistant/core) | Apache-2.0 | 🟢 | |
@@ -100,7 +101,6 @@ is given network access to that specific instance (e.g. you hand them a Grafana 
 | Portainer CE | zlib | 🟢 | |
 | Prometheus | Apache-2.0 | 🟢 | |
 | Uptime Kuma | MIT | 🟢 | |
-| Coolify | Apache-2.0 | 🟢 | Don't use the Coolify name/branding for your product. |
 
 ## Supporting databases
 
@@ -120,14 +120,13 @@ Bundled *inside* app stacks, not offered as standalone database services.
 - [ ] The [Open Source Notices](./open-source-notices) page is exposed to tenants, linking each AGPL app's running source.
 - [ ] **Open WebUI**: branding kept intact, *or* an enterprise license obtained for white-label.
 - [ ] **MongoDB/Redis** not exposed as standalone database services; Redis license option chosen (AGPLv3/RSALv2).
-- [ ] No **Coolify** trademark in your product's name or branding.
 - [ ] Audit re-run on every app version bump — licenses change without notice.
 
 ## Bottom line
 
 Most of the catalog is 🟢 and hostable without ceremony. The 🟡 AGPL apps (Nextcloud,
-Immich, Mealie, NocoDB, Lowcoder, MinIO, Grafana/Loki) are compliant as
-long as you run them unmodified and offer your tenants the source — the
+Immich, Mealie, NocoDB, Lowcoder, MinIO, Grafana/Loki, Firecrawl, Honcho, OpenViking) are
+compliant as long as you run them unmodified and offer your tenants the source — the
 [Open Source Notices](./open-source-notices) page covers it. The only genuine 🔴 is
 **Open WebUI's branding clause**: keep their branding or buy an enterprise license. Resolve
 that one and the catalog is clear for commercial hosting.

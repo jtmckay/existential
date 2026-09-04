@@ -18,8 +18,8 @@ successor to the LightRAG approach of indexing a notes vault.
 |---|---|
 | `openviking` | REST API, MCP server, and Web Studio (port 1933) |
 
-The knowledgebase indexer cron runs in the main `decree` daemon, and the backup of
-`openviking_data` in `decree-backup` — OpenViking ships no container of its own for either.
+The knowledgebase indexer cron runs in the main `automation` daemon, and the backup of
+`openviking_data` in `automation-backup` — OpenViking ships no container of its own for either.
 
 ## Access
 
@@ -46,7 +46,7 @@ The `openviking-index-dir` routine uploads it into `viking://resources/workspace
 old copy, and files you delete on disk leave the index on the next run. A first pass over
 a large tree takes a while — each file is embedded on the way in.
 
-The directory is mounted on the **decree daemon**, not on `openviking`. OpenViking's HTTP
+The directory is mounted on the **automation daemon**, not on `openviking`. OpenViking's HTTP
 and MCP APIs both refuse host filesystem paths outright, so content only ever reaches it by
 upload — which is also why there is no watched-directory setup.
 

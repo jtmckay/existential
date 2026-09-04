@@ -17,7 +17,7 @@ The first run records the vault as seen WITHOUT triaging, so enabling this on an
 existing vault does not fire a model call per note. To scan the backlog once, run
 it by hand with TRIAGE_BOOTSTRAP=true:
 
-  docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
+  printf -- '---\nroutine: note-triage\nTRIAGE_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
 
 TRIAGE_CRITERIA is the part worth rewriting — it is the whole judgment. Try
 TRIAGE_DRY_RUN=true for a few runs to see what it would have flagged before it

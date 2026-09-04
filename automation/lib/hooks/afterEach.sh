@@ -14,6 +14,14 @@ routine="${routine:-unknown}"
 trigger="${trigger:-unknown}"
 trigger_type="${trigger%%:*}"
 
+# Optional, sparse: whichever "sub thing" this run actually did, in whatever
+# terms the routine itself finds useful — e.g. minio-router writes
+# `subroutine: <processor-name>` onto the file-processor message it queues, so
+# the Grafana table can show which processor ran, not just that file-processor
+# ran. Empty for routines that have no such distinction. Not a decree field —
+# purely a convention any routine's message frontmatter can opt into.
+subroutine=$(grep -m1 '^subroutine:' "${message_file}" 2>/dev/null | sed 's/^subroutine:[[:space:]]*//' || true)
+
 exit_code="${DECREE_ROUTINE_EXIT_CODE:-1}"
 attempt="${DECREE_ATTEMPT:-1}"
 final="${DECREE_FINAL_ATTEMPT:-false}"
@@ -46,7 +54,7 @@ decree_run_attempts{trigger_type="%s"} %s
 # --- Loki structured summary log ---
 now_ns=$(date +%s%N)
 msg_id=$(basename "${message_dir}")
-log_line="message_id=${msg_id} routine=${routine} trigger=${trigger} exit_code=${exit_code} attempts=${attempt} duration_s=${duration} final=${final}"
+log_line="message_id=${msg_id} routine=${routine} subroutine=${subroutine} trigger=${trigger} exit_code=${exit_code} attempts=${attempt} duration_s=${duration} final=${final}"
 
 printf '{"streams":[{"stream":{"job":"decree","routine":"%s","trigger_type":"%s","exit_code":"%s"},"values":[["%s","%s"]]}]}' \
     "$routine" "$trigger_type" "$exit_code" "$now_ns" "$log_line" \

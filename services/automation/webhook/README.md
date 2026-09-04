@@ -3,7 +3,7 @@
 An authenticated HTTP receiver that turns a POST into a decree inbox message.
 
 It does not run any work itself. Each accepted request becomes one markdown file
-in the decree inbox (`services/automation/decree/inbox/`, mounted at `/inbox`); the
+in the decree inbox (the repo-root `automation/inbox/`, mounted at `/inbox`); the
 decree daemon picks that file up and runs the routine named in its frontmatter.
 
 ```

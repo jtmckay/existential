@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# EXIST_PUID/PGID is only known at container start, not at build — /etc/passwd
+# ships with no entry for it, and OpenSSH's getpwuid() refuses to run at all
+# ("No user exists for uid N") without one, breaking notes-pull's ssh/rsync
+# path. The Dockerfile makes /etc/passwd world-writable for exactly this.
+if ! getent passwd "$(id -u)" >/dev/null 2>&1; then
+  echo "decree:x:$(id -u):$(id -g):decree:${HOME:-/home/decree}:/bin/bash" >> /etc/passwd
+fi
+
 # Default DECREE_CONTAINER to hostname (Docker sets this to 12-char container ID)
 DECREE_CONTAINER="${DECREE_CONTAINER:-$HOSTNAME}"
 export DECREE_CONTAINER

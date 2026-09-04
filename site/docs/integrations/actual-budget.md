@@ -15,7 +15,7 @@ Your Actual Budget server must be running and reachable from the Decree containe
 ## Setup
 
 ```bash
-./existential.sh run actual-budget
+./existential.sh run actual-budget setup
 ```
 
 The script will:
@@ -25,15 +25,15 @@ The script will:
 3. Let you select a budget and optionally enter its encryption password
 4. Verify credentials by downloading the budget
 5. Display all accounts with their IDs
-6. Save credentials to `services/automation/secrets/actual-budget/credentials.env`
-7. Save the account list to `services/automation/secrets/actual-budget/accounts.json`
-8. Enable the `actual-budget` and `actual-budget-parse` routines in `automation/config.yml`
+6. Save credentials to `automation/secrets/actual-budget/credentials.env`
+7. Save the account list to `automation/secrets/actual-budget/accounts.json`
+8. Enable the `actual-budget` and `actual-budget-parse` routines in `services/automation/decree/config.yml`
 
 ## Account IDs
 
 After setup, account IDs are printed to the terminal and saved to `accounts.json`. You'll need an account ID when configuring any automation that imports transactions — it tells Decree which account to post to.
 
-If you add accounts later, re-run `./existential.sh run actual-budget` to refresh credentials and the account list.
+If you add accounts later, re-run `./existential.sh run actual-budget setup` to refresh credentials and the account list.
 
 ## Next Steps
 

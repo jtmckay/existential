@@ -67,4 +67,8 @@ Obsidian's own paid sync is not required — Nextcloud handles it.
 4. Set up two-way sync between the Nextcloud vault directory and the directory Obsidian can
    access
 
+This is about reading and editing your vault from other devices. To make it part of what the
+AI agent actually knows — searchable, citable — pull it into `workspace/notes/` instead; see
+[Workspace](../getting-started#workspace).
+
 See [Nextcloud](../storage/nextcloud) for the server side.

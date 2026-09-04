@@ -147,6 +147,15 @@ Decree picks up the new file immediately — no restart needed.
 
 ## MinIO Setup
 
+:::note[Already done for the default topology]
+If you're using the `nextcloud` bucket (Nextcloud's `/S3` mount, MinIO enabled via Core), all
+three steps below already happened for you: the webhook target renders from env in
+`nas/minio/docker-compose.yml`, `workspace-sync` subscribes the bucket itself (see
+[Triggering on workspace edits](#triggering-on-workspace-edits)), and the
+`nextcloud-rclone-remote` migration configures rclone. Read on if you're wiring up a
+**different** bucket, or want to know what's happening under the hood.
+:::
+
 ### Step 1 — Configure the webhook notification target
 
 In the MinIO console go to **Administrator → Events** and add a new webhook endpoint:
@@ -281,12 +290,14 @@ which points at `http://hermes-agent:8642/v1`.
 ## Triggering on workspace edits
 
 MinIO fires events for objects written through its own API. Editing a file in
-`workspace/` writes to a bind mount, which fires nothing — so the Workspace Agent
-quest (`src/quests/auto-workspace-agent.md`) adds a `workspace-sync` routine that
-bisyncs `workspace/` with a `workspace/` subfolder of the `nextcloud` bucket (the
-same one Nextcloud mounts at `/S3`) on a cron. The sync is what produces the
-events — in both directions, since it's a two-way `rclone bisync`, not a
-one-way mirror.
+`workspace/` writes to a bind mount, which fires nothing — so a `workspace-sync`
+routine bisyncs `workspace/` with a `workspace/` subfolder of the `nextcloud`
+bucket (the same one Nextcloud mounts at `/S3`) on a cron. The sync is what
+produces the events — in both directions, since it's a two-way `rclone bisync`,
+not a one-way mirror. This is on by default: the Core quest activates the cron
+whenever MinIO is enabled (see [Getting Started](../getting-started#workspace)),
+and `workspace-sync` itself subscribes the bucket to the webhook — no manual
+setup either way.
 
 That sync excludes `workspace/ai/`, and the exclusion is load-bearing:
 `workspace/ai/` is where `agent-task` writes, so syncing it would make every
@@ -294,8 +305,16 @@ answer an event and every event another run. OpenViking indexes it straight off
 disk regardless, so past output stays searchable — it simply cannot trigger
 anything.
 
-Two ordering rules follow from the sync being a full mirror:
+Two things worth knowing about that cron:
 
-1. **Sync once before subscribing the bucket.** The first pass uploads the whole
-   workspace, and against a subscribed bucket that arrives as one event per file.
-2. **Detection is a poll.** A change takes up to one cron interval to be noticed.
+1. **The first run subscribes itself, safely.** With no prior sync state, the
+   first pass uploads the whole workspace in one go (`rclone bisync --resync`)
+   *before* anything is subscribed to the webhook — subscribing first would
+   turn that bulk upload into one event per file. `workspace-sync` queues the
+   subscription as a follow-up message only once that first sync succeeds, so
+   the ordering can't be gotten wrong by hand.
+2. **Detection is a poll.** A change on the local side takes up to one cron
+   interval to be noticed. A change on the MinIO/Nextcloud side is not a
+   poll — it reaches `workspace/` within about a second, live, via the
+   `workspace-pull` file processor (also on by default; see its own header
+   comment at `automation/lib/file-processors.example/workspace-pull.sh`).

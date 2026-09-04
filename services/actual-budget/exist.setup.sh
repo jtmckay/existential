@@ -5,7 +5,7 @@
 # has no env var for this — see the comment above `environment:` in
 # docker-compose.exist.yml), then connects with @actual-app/api, lets you
 # select a budget, and saves credentials to
-# services/automation/secrets/actual-budget/credentials.env for use in decree
+# automation/secrets/actual-budget/credentials.env for use in decree
 # routines.
 #
 # This is a manual step, not auto-run by `./existential.sh` — there is no
@@ -19,7 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-SECRETS_DIR="${REPO_DIR}/services/automation/secrets"
+SECRETS_DIR="${REPO_DIR}/automation/secrets"
 CREDENTIALS="${SECRETS_DIR}/actual-budget/credentials.env"
 
 hr() { printf '%0.s─' {1..56}; echo; }
@@ -78,7 +78,7 @@ case "$NEEDS_BOOTSTRAP" in
         ;;
     true)
         echo "  Setting the server password..."
-        docker exec -e ACTUAL_URL="$ACTUAL_URL" -e ACTUAL_PASSWORD="$ACTUAL_PASSWORD" decree sh -c '
+        docker exec -e ACTUAL_URL="$ACTUAL_URL" -e ACTUAL_PASSWORD="$ACTUAL_PASSWORD" automation sh -c '
             payload=$(jq -n --arg pw "$ACTUAL_PASSWORD" "{password: \$pw}")
             curl -sS -f -X POST "$ACTUAL_URL/account/bootstrap" \
                 -H "Content-Type: application/json" -d "$payload" >/dev/null
@@ -108,18 +108,22 @@ docker exec -it \
     -e ACTUAL_URL="$ACTUAL_URL" \
     -e ACTUAL_PASSWORD="$ACTUAL_PASSWORD" \
     -e SECRETS_DIR="/secrets/actual-budget" \
-    decree /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/actual-budget/setup.ts
+    automation /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/actual-budget/setup.ts
 
 # ── Enable routine in config.yml ─────────────────────────────────────────────
+# The rendered config lives with the decree image build, not at the repo-root
+# automation/ (which is wholesale-mounted read-write into the container, but
+# config.yml is deliberately layered in from here instead — see
+# .claude/skills/decree/SKILL.md for why).
 
-CONFIG="${REPO_DIR}/automation/config.yml"
+CONFIG="${REPO_DIR}/services/automation/decree/config.yml"
 if [ -f "$CONFIG" ]; then
     awk '
         /^  actual-budget:$/ { found=1 }
         found && /enabled:/ { sub(/enabled: .*/, "enabled: true"); found=0 }
         { print }
     ' "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
-    echo "  Routine 'actual-budget' enabled in automation/config.yml."
+    echo "  Routine 'actual-budget' enabled in services/automation/decree/config.yml."
 fi
 
 echo ""

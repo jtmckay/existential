@@ -76,7 +76,7 @@ What a profile costs:
   docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
     /opt/hermes/.venv/bin/hermes prompt-size
 
-And route something. Drop this in services/automation/decree/inbox/:
+And route something. Drop this in automation/inbox/:
 
   ---
   routine: hermes-router

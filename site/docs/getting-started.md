@@ -118,13 +118,57 @@ point:
 Decree's **triage** routine runs the same checks on a schedule and notifies you when something
 breaks or recovers, backing off as the stack stays green.
 
+## Workspace
+
+`workspace/` at the repo root is *your* directory — the same tree [Hermes](./ai/hermes) mounts
+at `/opt/data/workspace` and [code-server](./services/code-server) mounts at `/workspace`. Put
+notes, plans, reference material — anything you want the agent to know about — there. Use it.
+
+It's more than a shared folder:
+
+- **It's the agent's knowledgebase.** [OpenViking](./ai/openviking) indexes everything in it
+  every 15 minutes, and Hermes reaches that index as an MCP tool — so anything you put in
+  `workspace/` is something the agent can find and cite, no upload step required.
+- **It's synced both ways with MinIO/Nextcloud.** With MinIO and Nextcloud enabled (on by
+  default with Core), `workspace/` bisyncs with the `workspace/` folder inside Nextcloud's `/S3`
+  external storage — edit a file on this machine, in Nextcloud's web UI, or directly in MinIO,
+  and the other two converge on it, usually within seconds. See
+  [File Processor](./decree/file-change-processing#triggering-on-workspace-edits) for exactly
+  how.
+- **Syncing fires webhook events.** Every change that lands in the bucket is a MinIO event
+  Decree can react to — that's how the Workspace Agent quest (`./existential.sh quest`, or
+  `src/quests/auto-workspace-agent.md`) turns "you edited a note" into "an agent went and did
+  something about it."
+- **`workspace/ai/`** is where agent output lands (`agent-task`'s answers, for instance). It's
+  indexed like everything else, so an agent can build on a previous run's output — but it's
+  deliberately excluded from the MinIO sync, which is what stops an agent's own answer from
+  triggering another run.
+- **Excluding your own files:** drop a `.syncignore` at `workspace/.syncignore` — one glob
+  pattern per line, same syntax as `.gitignore` — for anything you don't want leaving this
+  machine.
+
+### Bringing in real notes (e.g. an Obsidian vault)
+
+Two different mechanisms, for two different jobs:
+
+- [Obsidian](./services/obsidian) already documents syncing a vault through **Nextcloud**, for
+  reading and editing it on your other devices. That's about *your* access to the vault.
+- To make an existing vault part of the agent's knowledgebase, pull it into
+  `workspace/notes/` instead: copy `services/automation/backup/cron.example/notes-pull.md` to
+  `services/automation/backup/cron/`, set `NOTES_PULL_SOURCE` to an `rsync`-over-SSH path (e.g.
+  `user@nas:/path/to/vault/`), and drop a matching SSH key at
+  `automation/secrets/notes-pull/id_ed25519`. It's opt-in and off by default (it needs your real
+  source), pulls are additive by default (nothing is deleted locally unless you set
+  `NOTES_PULL_DELETE=true`), and once it lands in `workspace/notes/` — an ordinary subdirectory —
+  everything above (indexing, sync, webhooks) already applies to it with no extra setup.
+
 ## Integrations
 
 Some services require additional OAuth or configuration steps:
 
 ```bash
-./existential.sh run gmail    # Gmail OAuth
-./existential.sh run rclone   # Remote file storage
+./existential.sh run automation gmail-sync   # Gmail OAuth
+./existential.sh run rclone                  # Remote file storage
 ```
 
 See [Integrations](./integrations/) for setup details. For the full command list, run `./existential.sh run` with no arguments — it prints every available action.

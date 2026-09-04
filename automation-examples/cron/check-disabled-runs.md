@@ -7,4 +7,4 @@ Check the last 24 hours of run directories for cron triggers that fired but
 produced no routine.log — meaning the routine was disabled when the cron fired.
 Exits non-zero to surface the failure in the dashboard.
 
-Copy to decree/cron/ to activate.
+Copy to automation/cron/ and restart automation to activate.

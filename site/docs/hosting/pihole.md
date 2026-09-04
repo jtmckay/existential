@@ -7,6 +7,7 @@ sidebar_position: 12
 - Source: https://github.com/pi-hole/pi-hole
 - License: [EUPL-1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
 - UI: `https://pihole.<domain>`
+- Credentials: web UI password is `EXIST_PASSWORD` (rendered into `PIHOLE_PASSWORD`)
 
 Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and malicious domains for all devices on the network by acting as the primary DNS resolver.
 
@@ -15,8 +16,8 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 | Service | Port |
 |---|---|
 | DNS | 53 (TCP + UDP) — published on the host |
-| Web UI | 80, reached only through Caddy at `https://pihole.<domain>` |
-| Web UI direct (optional) | 80/443 — uncomment in the compose template to bypass Caddy |
+| Web UI | 80 (container-internal), reached only through Caddy at `https://pihole.<domain>` |
+| Web UI direct (optional) | host `42480`→`80`, `42443`→`443` — uncomment in the compose template to bypass Caddy |
 | DHCP (optional) | 67 — uncomment in the compose template |
 | NTP (optional) | 123 — uncomment in the compose template |
 

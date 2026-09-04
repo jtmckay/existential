@@ -7,13 +7,16 @@ sidebar_position: 2
 - Source: https://github.com/minio/minio
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Ceph, SeaweedFS, Garage, Amazon S3
+- UI: `https://minio.<domain>` (the admin console — bucket browsing, users, event
+  notification targets)
 
 S3-compatible object storage. Provides an S3 interface to all files — replaceable with Amazon S3 if needed.
 
 ## Benefits of S3 Interface
 
 - Uniform file API across all services
-- Native hooks for automations (integrates with NSQ/RabbitMQ)
+- Native S3 event notifications for automations — this stack wires them to a plain HTTP
+  webhook (see [File Event Hooks](#file-event-hooks) below), not a message queue
 - Swap backing storage without changing integrations
 
 ## Connect to Nextcloud
@@ -59,6 +62,32 @@ docker exec -u www-data nextcloud php occ files_external:config <id> secret <the
 ```
 
 Step 3 must come after step 2 — the identity has to exist in MinIO before Nextcloud tries it.
+
+## workspace/ lives in the same bucket
+
+With MinIO enabled, the repo-root `workspace/` directory — the agent's knowledgebase, see
+[Getting Started → Workspace](../getting-started#workspace) — bidirectionally syncs with the
+`workspace/` subfolder of this same `nextcloud` bucket, via the `workspace-sync` routine
+(`rclone bisync`, every 10 minutes). Because it's the same bucket Nextcloud mounts at `/S3`,
+editing a file on this machine, in MinIO directly, or in Nextcloud's web UI all converge —
+there's no second bucket or second mount to keep in step.
+
+Three more pieces make this self-configuring, with nothing to set up by hand on a fresh
+install (all Core-default when MinIO is enabled):
+
+- **`nextcloud-rclone-remote` migration** — configures the rclone WebDAV remote that file
+  downloads go through, from the already-rendered Nextcloud admin credentials.
+- **`minio-bucket-webhook` routine** — subscribes the bucket to the Decree webhook (see
+  below), chained automatically by `workspace-sync` itself right after its first successful
+  sync, never manually — subscribing before that first bulk upload would turn it into one
+  event per file arriving at once.
+- **`workspace-pull` file processor** — the live half: a MinIO- or Nextcloud-side edit shows
+  up in `workspace/` in about a second, instead of waiting for the next `workspace-sync` tick.
+
+Because the bucket is shared with Nextcloud's own storage, subscribing it to the webhook means
+*every* Nextcloud file event fires it too, not just `workspace/` ones — see
+[File Processor](../decree/file-change-processing) for how `PATTERN` matching keeps that from
+mattering.
 
 ## File Event Hooks
 

@@ -18,7 +18,7 @@ Setup:
          TELEGRAM_BOT_TOKEN=<your-token>
 
   3. Get your chat ID: send a message to your bot, then run:
-         docker exec automation decree run telegram-ingest
+         printf -- '---\nroutine: telegram-ingest\n---\n' > automation/inbox/telegram-ingest.md
 
   4. Add TELEGRAM_CHAT_ID to the credentials file.
 

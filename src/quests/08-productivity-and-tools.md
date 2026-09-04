@@ -41,8 +41,8 @@ Weekly backups (kept 28 days) sit alongside the nightly ones — same idea,
 copy the matching `-weekly.md` file instead of (or as well as) `-nightly.md`.
 
 Manual trigger:
-  docker exec automation-backup decree run db-backup
-  docker exec automation-backup decree run volume-backup
+  printf -- '---\nroutine: db-backup\n---\n' > services/automation/backup/inbox/db-backup.md
+  printf -- '---\nroutine: volume-backup\n---\n' > services/automation/backup/inbox/volume-backup.md
 
 Restore:
   ./existential.sh run backup-restore

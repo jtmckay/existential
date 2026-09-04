@@ -14,8 +14,12 @@ For the commercial-risk view of these same licenses, see the
 
 ## How this software is run
 
-- **Unmodified upstream images.** Every component runs from its official upstream container
-  image. We do not fork or patch application source.
+- **Unmodified upstream software.** Every component runs unmodified application source. We
+  do not fork or patch it. Nearly every component also runs from its official upstream
+  container image; the one exception is code-server, installed unmodified from its own
+  release artifact into this stack's shared base image rather than run from
+  `codercom/code-server`'s image — the software offered as source below is identical either
+  way.
 - **Versions are pinned and public.** The exact image tag of every component is recorded in
   that service's `docker-compose.yml` in the public source repository:
   **https://github.com/jtmckay/existential**
@@ -49,7 +53,9 @@ written request and we will provide it: **[insert contact email]**.
 | Collabora Online (CODE) | MPL-2.0 | https://github.com/CollaboraOnline/online |
 | Redis (`redis:8.10.1-alpine3.23`) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |
-| OpenViking | AGPL-3.0 | https://github.com/volcengine/OpenViking |
+| OpenViking | AGPL-3.0 (main project) | https://github.com/volcengine/OpenViking |
+| Honcho | AGPL-3.0 | https://github.com/plastic-labs/honcho |
+| Firecrawl | AGPL-3.0 | https://github.com/firecrawl/firecrawl |
 | Proxmox VE (host hypervisor) | AGPL-3.0 | https://git.proxmox.com |
 
 ## Permissive components (attribution)
@@ -68,9 +74,11 @@ offer is required; attribution is given here.
 | Chatterbox TTS | MIT | https://github.com/devnen/Chatterbox-TTS-Server |
 | ComfyUI | GPL-3.0 | https://github.com/comfyanonymous/ComfyUI |
 | Hermes (agent + workspace) | MIT | https://github.com/NousResearch/hermes-agent |
-| LightRAG | MIT | https://github.com/HKUDS/LightRAG |
 | Ollama | MIT | https://github.com/ollama/ollama |
 | WhisperX (whisperX-FastAPI) | MIT | https://github.com/pavelzbornik/whisperX-FastAPI |
+| wyoming-piper | MIT | https://github.com/rhasspy/wyoming-piper |
+| wyoming-whisper (wyoming-faster-whisper) | MIT | https://github.com/rhasspy/wyoming-faster-whisper |
+| code-server | MIT | https://github.com/coder/code-server |
 | Open WebUI | BSD-3 + branding clause | https://github.com/open-webui/open-webui |
 | Caddy | Apache-2.0 | https://github.com/caddyserver/caddy |
 | Docker Engine / Moby | Apache-2.0 | https://github.com/moby/moby |
@@ -81,7 +89,6 @@ offer is required; attribution is given here.
 | PostgreSQL | PostgreSQL License | https://github.com/postgres/postgres |
 | MariaDB | GPL-2.0 | https://github.com/MariaDB/server |
 | Valkey | BSD-3 | https://github.com/valkey-io/valkey |
-| Coolify (control plane) | Apache-2.0 | https://github.com/coollabsio/coolify |
 
 ## Screenshots
 
@@ -104,9 +111,9 @@ The Obsidian, Dashy and Grafana screenshots are of this stack's own deployment.
   Obsidian name, logo and app icon are trademarks of Dynalist Inc.; they are used here for
   identification only, and the Obsidian logo and app icon are not used as brand assets of
   this project.
-- **Coolify**, **Nextcloud**, **Immich**, and all other product names and logos are
-  trademarks of their respective owners and are used here for identification only. No
-  affiliation or endorsement is implied.
+- **Nextcloud**, **Immich**, and all other product names and logos are trademarks of their
+  respective owners and are used here for identification only. No affiliation or
+  endorsement is implied.
 
 ## Per-component detail
 

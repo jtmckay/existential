@@ -224,15 +224,21 @@ echo ""
 echo "    echo '${HISTORY_ID}' > ${GMAIL_DIR}/history_id"
 echo ""
 
-# Enable the gmail-sync routine in config.yml
-_CONFIG="${DECREE_DIR:-/work/.decree}/config.yml"
+# Enable the gmail-sync routine in config.yml. This runs inside
+# existential-adhoc, which mounts automation/ wholesale at /work/.decree —
+# but config.yml is deliberately NOT part of that mount (it's layered in
+# separately for the real "automation" daemon, see .claude/skills/decree/SKILL.md),
+# so ${DECREE_DIR}/config.yml here would silently hit the dead 0-byte
+# automation/config.yml placeholder instead. Reach it through the /repo mount
+# (the whole repo root, also mounted into this container) instead.
+_CONFIG="/repo/services/automation/decree/config.yml"
 if [ -f "$_CONFIG" ]; then
     awk '
         /^  gmail-sync:$/ { found=1 }
         found && /enabled:/ { sub(/enabled: .*/, "enabled: true"); found=0 }
         { print }
     ' "$_CONFIG" > "${_CONFIG}.tmp" && mv "${_CONFIG}.tmp" "$_CONFIG"
-    echo "Routine 'gmail-sync' enabled in config.yml."
+    echo "Routine 'gmail-sync' enabled in services/automation/decree/config.yml."
     echo "Restart the daemon to apply: docker compose restart automation"
 fi
 

@@ -107,7 +107,9 @@ docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
 
 ## Sending work
 
-Drop a message in `services/automation/decree/inbox/`:
+Drop a message in `automation/inbox/` (the main daemon wholesale-mounts the repo-root
+`automation/` directory as its whole project — `services/automation/decree/` is only the
+image build, not the running project's files):
 
 ```
 ---

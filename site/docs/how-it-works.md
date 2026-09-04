@@ -248,9 +248,11 @@ rest of the stack.
 Rendered non-`.env` files are skipped the same way. If `hosting/caddy/Caddyfile` predates a
 service you now have enabled, it has no site block for it — copy the missing block across
 from `Caddyfile.exist.Caddyfile` by hand, or run `./existential.sh reset` to archive every
-rendered file and render the lot fresh. Reset lists exactly what it will move and asks
-first, and it never touches your `_data` or `_backup` volumes — it only offers to delete the
-`*_cache` ones, which the stack refetches on the next start.
+rendered file and render the lot fresh. Reset also archives Decree's own runtime state —
+`automation/runs/` (every run's logs) and `automation/processed.md` (the migration ledger) —
+so a fresh render starts with a clean history too, not just clean config. Reset lists exactly
+what it will move and asks first, and it never touches your `_data` or `_backup` volumes — it
+only offers to delete the `*_cache` ones, which the stack refetches on the next start.
 
 If a command instead complains about permissions — `rm: Permission denied` during setup, or a
 reset that can't write `archive/` — some path in the repo is owned by root. Docker does this: a

@@ -73,26 +73,26 @@ Three are already written, registered in `services/automation/decree/config.exis
 Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip a routine's `enabled: true`, restart automation, then:
 
 ```bash
-docker exec automation decree run comfy-image-text
+printf -- '---\nroutine: comfy-image-text\n---\n' > automation/inbox/comfy-image-text.md
 ```
 
 Write your own the same way: POST the workflow to `/api/prompt`, poll `/history/{id}` until `outputs` appears, then fetch the file from `/view`.
 
 ## Telegram → ComfyUI Workflow
 
-A common pattern: a Telegram message triggers image generation and the result comes back as a photo in the chat.
+Nothing wires Telegram to ComfyUI out of the box — the shipped `telegram-ingest` routine
+(`automation/shared_routines/telegram-ingest.sh`) polls for inbound *photo* messages and
+routes them into the OCR pipeline, not text commands. A `/imagine <prompt>` workflow is
+something you'd write yourself, following the same shape:
 
 ```
 User sends: /imagine a sunset over mountains
         │
         ▼
-telegram-poll picks up the message
+your routine polls the Telegram Bot API (see telegram-ingest.sh for the pattern)
         │
         ▼
-Extracts the prompt, calls comfyui-generate
-        │
-        ▼
-comfyui-generate POSTs workflow to comfyui:8188/prompt
+Extracts the prompt, POSTs the workflow to comfyui:8188/prompt
         │
         ▼
 Polls /history/{id} until "outputs" appears
@@ -104,9 +104,9 @@ Downloads image via /view?filename=...&type=output
 Sends image back to the Telegram chat via Bot API
 ```
 
-The `telegram-poll` routine in `automation/shared_routines/telegram-poll.sh` handles inbound messages. Wire ComfyUI into it by checking the message body for a command prefix (e.g. `/imagine`) and dispatching to `comfyui-generate`.
-
-See [Telegram integration](../integrations/telegram) for bot credentials setup.
+See [Telegram integration](../integrations/telegram) for bot credentials setup, and
+[Writing a Routine](../writing-a-routine) for how a new routine gets registered and run
+on a schedule.
 
 ## Designing Workflows
 
