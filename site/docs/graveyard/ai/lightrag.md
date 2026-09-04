@@ -95,7 +95,7 @@ A Decree cron job (`automations/cron/lightrag-rescan.md`) runs `lightrag-rescan`
 nightly at 03:00. Manual trigger:
 
 ```bash
-docker exec decree decree run lightrag-rescan
+docker exec automation decree run lightrag-rescan
 ```
 
 ## Authentication

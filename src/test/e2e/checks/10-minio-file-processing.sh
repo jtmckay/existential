@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../../../../automations/lib/precheck.sh
+    # shellcheck source=../../../../automation/lib/precheck.sh
     source "${SCRIPT_DIR}/../lib/precheck.sh"
     command -v mc >/dev/null 2>&1 || precheck_fail "e2e-minio-file-processing" "mc not found"
     [ -n "${MINIO_ROOT_USER:-}" ] || precheck_fail "e2e-minio-file-processing" "MINIO_ROOT_USER not set"

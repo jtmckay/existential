@@ -42,5 +42,5 @@ moment the DB is unreachable.
 
 **Backup.** Copy `nocodb-db-backup-{nightly,weekly}.md` (dumps `nocodb-postgres`) and
 `nocodb-volume-backup-{nightly,weekly}.md` (tars `nocodb_data` — attachments and other files
-NocoDB writes outside Postgres) from `services/decree/decree-backup/cron.example/` into
+NocoDB writes outside Postgres) from `services/automation/backup/cron.example/` into
 `cron/` and restart `decree-backup` to activate.

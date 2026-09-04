@@ -122,7 +122,7 @@ yet — a routine on disk is invisible until it is listed.
 
 ### 2. Enable the routines
 
-In `services/decree/decree/config.yml`:
+In `services/automation/decree/config.yml`:
 
 ```yaml
 note-triage:
@@ -161,7 +161,7 @@ does not borrow the default profile's credential, so an unprovisioned one return
 ### 4. Restart, then watch it do nothing
 
 ```bash
-docker compose restart decree
+docker compose restart automation
 ```
 
 :::warning[The first run does nothing, on purpose]
@@ -169,15 +169,15 @@ It records your vault as seen *without* triaging. Turning this on with a 5,000-n
 should not fire 5,000 model calls. To scan the backlog once:
 
 ```bash
-docker exec decree decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
+docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
 ```
 :::
 
 ### 5. Check it before trusting it
 
 ```bash
-docker exec decree decree routine note-triage       # the routine's own pre-check
-docker exec decree decree run --routine note-triage --param TRIAGE_DRY_RUN=true
+docker exec automation decree routine note-triage       # the routine's own pre-check
+docker exec automation decree run --routine note-triage --param TRIAGE_DRY_RUN=true
 ```
 
 A dry run prints a verdict per note and chains nothing. Read a few days of that output before
@@ -292,7 +292,7 @@ name; every input below reduces to the same message. **Only the first step chang
 ### Email
 
 `gmail-sync` polls Gmail on a cron and archives messages into
-`services/decree/decree/emails/`. Point `NOTES_DIR` at that directory and the same triage runs
+`services/automation/decree/emails/`. Point `NOTES_DIR` at that directory and the same triage runs
 over your inbox — the criteria becomes "a customer complaint worth escalating" or whatever you
 actually want caught. See [Gmail](../integrations/gmail).
 
@@ -327,7 +327,7 @@ being an object write, they become the file trigger above. See
 
 Decree runs one message at a time, and the department timeout (`AGENT_TIMEOUT`) defaults to 900
 seconds. A three-question fan-out can therefore take the better part of an hour. It is not
-stuck — check `automations/runs/` or the Grafana **Decree Overview** dashboard, where each
+stuck — check `automation/runs/` or the Grafana **Decree Overview** dashboard, where each
 question appears as its own run.
 
 The per-note cost of triage itself is deliberately small: one short call to judge, one more to

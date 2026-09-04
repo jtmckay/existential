@@ -13,18 +13,18 @@ Actual Budget's whole database lives in one volume; Mealie is a Postgres
 database plus an uploads volume. Both back up through decree-backup — copy
 only the crons for what you enabled:
 
-  mkdir -p services/decree/decree-backup/cron/
+  mkdir -p services/automation/backup/cron/
 
   # Actual Budget — nightly volume backup
-  cp services/decree/decree-backup/cron.example/actual-budget-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/actual-budget-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Mealie — nightly DB dump + volume backup
-  cp services/decree/decree-backup/cron.example/mealie-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/mealie-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/mealie-db-backup-nightly.md \
+     services/automation/backup/cron.example/mealie-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
-  docker compose restart decree-backup
+  docker compose restart automation-backup
 
 Weekly backups (kept 28 days, vs. 7 for nightly) sit alongside these — copy
 the matching `-weekly.md` file the same way if you want longer retention.
@@ -34,5 +34,5 @@ https://actual-budget.<domain> and create a budget file, or run
 `./existential.sh run actual-budget setup` to bootstrap it non-interactively.
 
 Manual trigger:
-  docker exec decree-backup decree run db-backup
-  docker exec decree-backup decree run volume-backup
+  docker exec automation-backup decree run db-backup
+  docker exec automation-backup decree run volume-backup

@@ -19,7 +19,7 @@ flowchart LR
     minio -->|"S3 ObjectCreated\nwebhook"| webhook
 
     subgraph decree["Decree"]
-        webhook["decree-webhook\n/minio endpoint"]
+        webhook["automation-webhook\n/minio endpoint"]
         router["minio-router\nmatch .mp3 / .mp4 / .wav"]
         processor["file-processor\nrclone link → PRE_SIGNED_URL"]
         transcriber["whisperx-transcribe\nPOST /speech-to-text-url → poll /task"]
@@ -45,7 +45,7 @@ When the file lands in MinIO, it POSTs an `s3:ObjectCreated` event to the Decree
 
 ### 3. minio-router matches the file
 
-`minio-router` scans every processor script in `automations/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
+`minio-router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
 
 ```bash
 PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
@@ -98,7 +98,7 @@ Ensure your rclone config has a remote that can access the files MinIO is receiv
 ./existential.sh run rclone
 ```
 
-The remote name must match `rclone_src` in `services/decree/webhook/config.yml` (default: `nextcloud`).
+The remote name must match `rclone_src` in `services/automation/webhook/config.yml` (default: `nextcloud`).
 
 ### Step 3 — Enable Whisper
 
@@ -112,10 +112,10 @@ Whisper will download the default model on first use. No further configuration i
 
 ### Step 4 — Confirm the processor is active
 
-The `whisper-transcribe` processor is auto-discovered from `automations/lib/file-processors/`. No registration step is needed. Verify the pre-checks pass:
+The `whisper-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. Verify the pre-checks pass:
 
 ```bash
-docker exec decree decree routine file-processor
+docker exec automation decree routine file-processor
 ```
 
 ### Step 5 — Configure Nextcloud mobile auto-upload
@@ -137,9 +137,9 @@ Override any of these in the processor script or pass them as frontmatter params
 Send a synthetic MinIO event to trigger the flow end-to-end:
 
 ```bash
-# decree-webhook publishes no host port — it is reached over the exist
+# automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec decree curl -X POST http://decree-webhook:8801/minio \
+docker exec automation curl -X POST http://automation-webhook:8801/minio \
   -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"recordings/test.mp3","Records":[]}'
@@ -148,12 +148,12 @@ docker exec decree curl -X POST http://decree-webhook:8801/minio \
 Watch processing in real time:
 
 ```bash
-docker logs -f decree
+docker logs -f automation
 ```
 
 Inspect the completed run:
 
 ```bash
-docker exec decree decree status
-docker exec decree decree log <id-prefix>
+docker exec automation decree status
+docker exec automation decree log <id-prefix>
 ```

@@ -149,15 +149,15 @@ something and *choose* to send it.
 Create the bot via [@BotFather](https://t.me/BotFather) with `/newbot` and copy the token, then:
 
 ```bash
-mkdir -p services/decree/secrets/telegram
-cat > services/decree/secrets/telegram/credentials.env << 'EOF'
+mkdir -p services/automation/secrets/telegram
+cat > services/automation/secrets/telegram/credentials.env << 'EOF'
 TELEGRAM_BOT_TOKEN=your-token-here
 EOF
 ```
 
 The secrets directory is bind-mounted into the decree container at `/secrets/telegram/`.
 
-Enable `telegram-ingest` in `automations/config.yml`:
+Enable `telegram-ingest` in `automation/config.yml`:
 
 ```yaml
 shared_routines:
@@ -168,8 +168,8 @@ shared_routines:
 Copy and activate the example cron:
 
 ```bash
-cp services/decree/decree/cron.example/telegram-poll.md \
-   services/decree/decree/cron/
+cp automation-examples/cron/telegram-poll.md \
+   automation/cron/
 ```
 
 `telegram-ingest` polls `getUpdates` every minute, tracks a cursor in
@@ -179,7 +179,7 @@ flow above takes over. Cron frontmatter is read when the daemon starts, so resta
 the new schedule up:
 
 ```bash
-docker compose restart decree
+docker compose restart automation
 ```
 
 #### Option C — rclone
@@ -188,7 +188,7 @@ For scanners, batch imports, or anything already on disk:
 
 ```bash
 rclone copyto /path/to/scan.jpg minio:documents/scan.jpg \
-  --config services/decree/secrets/rclone/rclone.conf
+  --config services/automation/secrets/rclone/rclone.conf
 ```
 
 ## Customization
@@ -207,15 +207,15 @@ Drop a test image straight into the bucket to bypass whichever capture route you
 
 ```bash
 rclone copyto /path/to/test.jpg nextcloud:S3/telegram/test.jpg \
-  --config services/decree/secrets/rclone/rclone.conf
+  --config services/automation/secrets/rclone/rclone.conf
 ```
 
 Then send a synthetic MinIO event:
 
 ```bash
-# decree-webhook publishes no host port — it is reached over the exist
+# automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec decree curl -X POST http://decree-webhook:8801/minio \
+docker exec automation curl -X POST http://automation-webhook:8801/minio \
   -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"telegram/test.jpg","Records":[]}'
@@ -224,9 +224,9 @@ docker exec decree curl -X POST http://decree-webhook:8801/minio \
 Watch the run complete:
 
 ```bash
-docker logs -f decree
-docker exec decree decree status
-docker exec decree decree log <id-prefix>
+docker logs -f automation
+docker exec automation decree status
+docker exec automation decree log <id-prefix>
 ```
 
 ## Reusing the OCR function

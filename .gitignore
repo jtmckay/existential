@@ -68,54 +68,55 @@ workspace
 **/dashy-conf.yml
 
 # Decree
-**/decree/webhook/config.yml
+services/automation/webhook/config.yml
 # throwaway binary built by webhook/difftest.sh
-**/decree/webhook/.difftest-webhook
+services/automation/webhook/.difftest-webhook
 # `go build` in webhook/ drops the compiled binary here (named for the module).
 # The image builds it from source in a multi-stage Dockerfile and .dockerignore
 # denies it from the build context, so a committed copy is pure dead weight.
-**/decree/webhook/decree-webhook
-automations/lib/file-processors/*
-automations/runs/*
-automations/secrets/*
-# Per-decree-daemon runtime state. There are two daemon project dirs, both under
-# services/decree/: decree/ (the main daemon) and decree-backup/ (backups), so
-# each pattern below is repeated for decree-backup/.
-**/decree/config.yml
-**/decree-backup/config.yml
-**/decree-backup/config.hash
-**/decree-backup/cron/*
-**/decree-backup/migrations/*
-**/decree-backup/data/*
-**/decree-backup/inbox/*
-**/decree-backup/outbox/
-**/decree-backup/processed.md
-**/decree-backup/precheck.log
-**/decree-backup/shared_routines/*
-**/decree-backup/lib/*
-**/decree-backup/runs/*
-**/decree/config.hash
-**/decree/cron/*
-# Activated migrations are the user's copies of migrations.example/ — same
-# contract as cron/: the example is tracked, the activated copy is local.
-**/decree/migrations/*
-**/decree/data/*
-**/decree/emails/
-**/decree/inbox/*
-**/decree/outbox/
-**/decree/processed.md
-# Per-daemon runtime output. precheck.log records which routines passed their
-# DECREE_PRE_CHECK at startup, so it is regenerated on every boot.
-**/decree/precheck.log
-# The host-side outbox some routines write to when they run outside a container.
-# Its dead/ holds FULL message bodies — user content and model output — and it
-# sits outside the **/decree/ patterns above, so it needs naming.
-automations/outbox/
+services/automation/webhook/decree-webhook
+# The root automation/ dir is wholesale-mounted into the `automation` daemon as
+# /work/.decree, so this is the one place its runtime state actually lives —
+# not nested under any services/automation/<project>/ dir.
+automation/lib/file-processors/*
+automation/cron/*
+automation/migrations/*
+automation/runs/*
+automation/secrets/*
+automation/data/*
+automation/emails/
+automation/inbox/*
+automation/outbox/
+automation/processed.md
+# precheck.log records which routines passed their DECREE_PRE_CHECK at startup,
+# so it is regenerated on every boot.
+automation/precheck.log
+# config.exist.yml/config.yml stay in services/automation/decree/ (not the
+# root) — the render pipeline and validate-conventions.ts both look specifically
+# for <slug>/decree/config.exist.yml, so moving the rendered file would silently
+# stop it from being rendered or validated. decree/ also now holds the image
+# build (Dockerfile, entrypoint.sh, package.json, pnpm-lock.yaml) — tracked
+# normally, only the rendered config is ignored. config.hash, though, is written
+# by the decree binary itself next to config.yml *inside the container* —
+# since only config.yml is layered in from decree/, config.hash lands wherever
+# /work/.decree resolves on the host, which is the wholesale-mounted root.
+services/automation/decree/config.yml
+automation/config.hash
+# The backup daemon's project dir keeps the classic cron.example/ + cron/
+# pair since its crons are per-instance, not mounted shared content.
+services/automation/backup/config.yml
+services/automation/backup/config.hash
+services/automation/backup/cron/*
+services/automation/backup/data/*
+services/automation/backup/inbox/*
+services/automation/backup/outbox/
+services/automation/backup/processed.md
+services/automation/backup/precheck.log
 # Nested bind-mount points — dirs tracked (.gitkeep force-added), content ignored.
 # These must exist before first `docker compose up` so Docker doesn't auto-create them as root.
-**/decree/shared_routines/*
-**/decree/lib/*
-**/decree/runs/*
+services/automation/backup/shared_routines/*
+services/automation/backup/lib/*
+services/automation/backup/runs/*
 
 
 # LightRAG
@@ -146,10 +147,10 @@ automations/outbox/
 # Playwright MCP scratch output (screenshots, traces)
 **/.playwright-mcp/
 node_modules/
-/automations/playwright/test-results/
-/automations/playwright/playwright-report/
-/automations/playwright/blob-report/
-/automations/playwright/playwright/.cache/
+/automation/playwright/test-results/
+/automation/playwright/playwright-report/
+/automation/playwright/blob-report/
+/automation/playwright/playwright/.cache/
 
 # Portainer
 **/portainer/portainer_password*

@@ -190,7 +190,7 @@ _ensure_host_access() {
 
 decree_is_enabled() {
     _load_env_shared
-    [[ "${EXIST_IS_SERVICES_DECREE:-false}" == "true" ]]
+    [[ "${EXIST_IS_SERVICES_AUTOMATION:-false}" == "true" ]]
 }
 
 # True when the user has enabled ANYTHING beyond what ships enabled by default.

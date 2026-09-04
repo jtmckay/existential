@@ -33,7 +33,7 @@ end up as this. Learn this one shape and every trigger below is the same trigger
 
 ## Anatomy of a routine
 
-Routines live in `automations/shared_routines/<name>.sh`. The filename minus `.sh` is the
+Routines live in `automation/shared_routines/<name>.sh`. The filename minus `.sh` is the
 routine name. Here is the whole structure, in order — `service-health.sh` is a good short one
 to read next to this:
 
@@ -90,9 +90,9 @@ dead-letters it. That retry is only useful if your script actually fails when a 
 
 Gate it on `DECREE_PRE_CHECK=true`, put it **after** the standard variables and **before** your
 own settings, and exit non-zero with a message naming what is missing. `precheck_fail` in
-`automations/lib/precheck.sh` formats it consistently.
+`automation/lib/precheck.sh` formats it consistently.
 
-This is what `docker exec decree decree routine <name>` runs, and it is the fastest way to find
+This is what `docker exec automation decree routine <name>` runs, and it is the fastest way to find
 out why an automation is quietly doing nothing. Check for the things that are actually absent
 in a fresh install — a missing binary, an unset key, a directory the upstream routine was
 supposed to create — and say in the message how to fix it, not just what is wrong:
@@ -160,8 +160,8 @@ Four ways in. All of them produce the same message.
 
 ### Cron — on a schedule
 
-Add a file to `<service>/decree/cron.example/<name>.md` (tracked), then copy it into `cron/`
-(active, gitignored, mounted read-only) and restart the daemon:
+Add a file to `automation-examples/cron/<name>.md` (tracked), then copy it into
+`automation/cron/` (active, gitignored, mounted into the daemon) and restart it:
 
 ```markdown
 ---
@@ -174,8 +174,8 @@ What this schedule is for. The body is free text.
 ```
 
 ```bash
-cp services/decree/decree/cron.example/my-routine.md services/decree/decree/cron/
-docker compose restart decree
+cp automation-examples/cron/my-routine.md automation/cron/
+docker compose restart automation
 ```
 
 The copy-to-activate split is deliberate: examples ship for everyone, and nothing runs on your
@@ -184,15 +184,15 @@ means restarting the daemon.
 
 ### Webhook — when something out there happens
 
-`decree-webhook` turns an HTTP POST into an inbox message. Endpoints are configuration only —
-add one to `services/decree/webhook/config.exist.yml`, re-render, restart. Each carries its own
+`automation-webhook` turns an HTTP POST into an inbox message. Endpoints are configuration only —
+add one to `services/automation/webhook/config.exist.yml`, re-render, restart. Each carries its own
 bearer token. This is how Home Assistant, a phone shortcut, or any external service reaches the
 stack. See [Build On It](./build-on-it) for the request contract.
 
 ### An object landing in storage — when a file shows up
 
 MinIO fires an event on write → the webhook → `minio-router` → your **file processor**. A
-processor is a small script in `automations/lib/file-processors/` that declares what it matches:
+processor is a small script in `automation/lib/file-processors/` that declares what it matches:
 
 ```bash
 PATTERN="minio:workspace/.*\.md$"
@@ -206,14 +206,14 @@ Full detail in [File Change Processing](./decree/file-change-processing).
 ### By hand — for testing, and for one-offs
 
 ```bash
-docker exec decree decree run my-routine
-docker exec decree decree run --routine my-routine --param my_param=value
+docker exec automation decree run my-routine
+docker exec automation decree run --routine my-routine --param my_param=value
 ```
 
 Or drop the message file yourself:
 
 ```bash
-printf -- '---\nroutine: my-routine\n---\n' > services/decree/decree/inbox/once.md
+printf -- '---\nroutine: my-routine\n---\n' > services/automation/decree/inbox/once.md
 ```
 
 ## Chaining: one routine handing work to the next
@@ -252,15 +252,15 @@ routine that queues itself will stop rather than run forever.
 
 ```bash
 # 1. The pre-check — does it think it can run?
-docker exec decree decree routine my-routine
+docker exec automation decree routine my-routine
 
 # 2. Run it for real
-docker exec decree decree run my-routine
+docker exec automation decree run my-routine
 
 # 3. Read what happened
-ls automations/runs/                       # one directory per message
-cat automations/runs/<id>/run.json         # status, timing, exit code
-cat automations/runs/<id>/routine.log      # full output, written live
+ls automation/runs/                       # one directory per message
+cat automation/runs/<id>/run.json         # status, timing, exit code
+cat automation/runs/<id>/routine.log      # full output, written live
 ```
 
 Every run also ships metrics to Prometheus and its log to Loki automatically — the `afterEach`

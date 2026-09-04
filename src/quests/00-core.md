@@ -20,7 +20,7 @@ services:
     label: MinIO (S3 + file events)
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant (the house)
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree (automation engine)
   - var: EXIST_IS_SERVICES_NTFY
     label: ntfy (push notifications — where automations report in)
@@ -50,50 +50,50 @@ copies:
   # Ollama models. Without these migrations ollama starts with NO models and
   # every other AI service fails its first request — the single most common
   # "I enabled it and nothing works" cause.
-  - src: services/decree/decree/migrations.example/10-ollama-pull-chat-model.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/10-ollama-pull-chat-model.md
+    dst: automation/migrations/
     label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/11-ollama-set-chat-context.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/11-ollama-set-chat-context.md
+    dst: automation/migrations/
     label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/12-ollama-pull-extract-model.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/12-ollama-pull-extract-model.md
+    dst: automation/migrations/
     label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/13-ollama-pull-embed-model.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/13-ollama-pull-embed-model.md
+    dst: automation/migrations/
     label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
     requires: EXIST_IS_AI_OLLAMA
-  - src: services/decree/decree/migrations.example/14-ollama-pull-vision-model.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/14-ollama-pull-vision-model.md
+    dst: automation/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
   # MinIO's bucket for nextcloud's /S3 folder. Without it the external storage
   # mount points at a bucket that does not exist.
-  - src: services/decree/decree/migrations.example/20-minio-create-nextcloud-bucket.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/20-minio-create-nextcloud-bucket.md
+    dst: automation/migrations/
     label: "minio: create the nextcloud bucket"
     requires: EXIST_IS_NAS_MINIO
-  - src: services/decree/decree/migrations.example/21-minio-create-nextcloud-service-account.md
-    dst: services/decree/decree/migrations/
+  - src: automation-examples/migrations/21-minio-create-nextcloud-service-account.md
+    dst: automation/migrations/
     label: "minio: create the nextcloud service account"
     requires: EXIST_IS_NAS_MINIO
-  - src: services/decree/decree/cron.example/clean-runs.md
-    dst: services/decree/decree/cron/
+  - src: automation-examples/cron/clean-runs.md
+    dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
-    requires: EXIST_IS_SERVICES_DECREE
-  - src: services/decree/decree/cron.example/health-checks.md
-    dst: services/decree/decree/cron/
+    requires: EXIST_IS_SERVICES_AUTOMATION
+  - src: automation-examples/cron/health-checks.md
+    dst: automation/cron/
     label: "decree: health-checks.md"
-    requires: EXIST_IS_SERVICES_DECREE
+    requires: EXIST_IS_SERVICES_AUTOMATION
   # Keeps workspace/ searchable. Core installs openviking as the agent's context
   # database, but nothing puts anything IN it — without this cron hermes answers
   # from the model alone and the "it knows your material" half of Core is inert.
   # Same tree hermes and code-server already share, so there is nothing to place.
-  - src: services/decree/decree/cron.example/openviking-index-knowledgebase.md
-    dst: services/decree/decree/cron/
+  - src: automation-examples/cron/openviking-index-knowledgebase.md
+    dst: automation/cron/
     label: "decree: openviking-index-knowledgebase.md (index workspace/ every 15m)"
     requires: EXIST_IS_AI_OPENVIKING
 ---
@@ -151,12 +151,12 @@ on and the OpenViking + Firecrawl MCP servers registered. Models pull
 themselves: the ollama migrations you just copied run in the decree daemon as
 soon as ollama is healthy (~5.5 GB at the 8 GB default, a few minutes).
 
-  Watch the pulls:  docker logs -f decree
+  Watch the pulls:  docker logs -f automation
   Check everything: ./existential.sh test services
 
 Grafana comes up with the Loki and Prometheus datasources already wired and two
 Decree dashboards already loaded — an overview and a per-run detail view. When a
-routine misbehaves, that is where you look, rather than in `docker logs decree`:
+routine misbehaves, that is where you look, rather than in `docker logs automation`:
 alloy labels every run log with its message_id, chain and seq, so a routed
 chain reads end to end. Grafana's credentials are generated for you, in
 hosting/grafana/.env.

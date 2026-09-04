@@ -2,9 +2,9 @@
 # ollama — manual model pull, driven by the global model selection.
 #
 # This is a manual fallback. Under normal operation the decree daemon's ollama
-# migrations (services/decree/decree/migrations.example/1*-ollama-*) do exactly
+# migrations (automation-examples/migrations/1*-ollama-*) do exactly
 # this after ollama passes its health check — copy them into
-# services/decree/decree/migrations/ and they run once.
+# automation/migrations/ and they run once.
 #
 # Which models get pulled is NOT decided here: it comes from the "Model
 # Selection" block in .env.shared (EXIST_MODEL_CHAT, EXIST_MODEL_EXTRACT,
@@ -169,7 +169,7 @@ done
 if [ -n "$MODEL_CHAT_NUM_CTX" ]; then
     echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} at ${CHAT_URL}..."
     # Structured fields, not the retired flat `modelfile` string — current ollama
-    # rejects the latter with a 400. Keep in step with automations/shared_routines/ollama-pull.sh.
+    # rejects the latter with a 400. Keep in step with automation/shared_routines/ollama-pull.sh.
     jq -nc --arg m "$MODEL_CHAT" --arg f "$MODEL_CHAT" \
            --argjson c "$MODEL_CHAT_NUM_CTX" \
            '{model: $m, from: $f, parameters: {num_ctx: $c}}' \

@@ -5,7 +5,7 @@
 # has no env var for this — see the comment above `environment:` in
 # docker-compose.exist.yml), then connects with @actual-app/api, lets you
 # select a budget, and saves credentials to
-# services/decree/secrets/actual-budget/credentials.env for use in decree
+# services/automation/secrets/actual-budget/credentials.env for use in decree
 # routines.
 #
 # This is a manual step, not auto-run by `./existential.sh` — there is no
@@ -13,13 +13,13 @@
 # decree running, and re-run any time (e.g. after adding accounts) with:
 #   ./existential.sh run actual-budget setup
 #
-# Runs on the host (uses `docker exec decree`). Requires: docker.
+# Runs on the host (uses `docker exec automation`). Requires: docker.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-SECRETS_DIR="${REPO_DIR}/services/decree/secrets"
+SECRETS_DIR="${REPO_DIR}/services/automation/secrets"
 CREDENTIALS="${SECRETS_DIR}/actual-budget/credentials.env"
 
 hr() { printf '%0.s─' {1..56}; echo; }
@@ -27,7 +27,7 @@ die() { echo "Error: $*" >&2; exit 1; }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
 
-if ! docker inspect decree --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+if ! docker inspect automation --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
     echo "  actual-budget credential setup requires decree to be running."
     echo "  Start containers, then complete setup with:"
     echo ""
@@ -69,7 +69,7 @@ echo ""
 # is a safe no-op (400 "already-bootstrapped") — confirmed against a live
 # actualbudget/actual-server:26.8.1 container.
 
-NEEDS_BOOTSTRAP=$(docker exec decree curl -sS --max-time 5 "${ACTUAL_URL}/account/needs-bootstrap" 2>/dev/null \
+NEEDS_BOOTSTRAP=$(docker exec automation curl -sS --max-time 5 "${ACTUAL_URL}/account/needs-bootstrap" 2>/dev/null \
     | grep -o '"bootstrapped":[a-z]*' | cut -d: -f2)
 
 case "$NEEDS_BOOTSTRAP" in
@@ -94,9 +94,9 @@ echo ""
 # ── Install @actual-app/api in decree container if needed ─────────────────────
 
 echo "  Checking dependencies..."
-if ! docker exec decree /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1; then
+if ! docker exec automation /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1; then
     echo "  Installing dependencies into /work/.decree/lib/..."
-    docker exec decree sh -c "cd /work/.decree/lib && npm install 2>&1" \
+    docker exec automation sh -c "cd /work/.decree/lib && npm install 2>&1" \
         || die "Failed to install dependencies"
     echo "  Installed."
 fi
@@ -112,14 +112,14 @@ docker exec -it \
 
 # ── Enable routine in config.yml ─────────────────────────────────────────────
 
-CONFIG="${REPO_DIR}/automations/config.yml"
+CONFIG="${REPO_DIR}/automation/config.yml"
 if [ -f "$CONFIG" ]; then
     awk '
         /^  actual-budget:$/ { found=1 }
         found && /enabled:/ { sub(/enabled: .*/, "enabled: true"); found=0 }
         { print }
     ' "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
-    echo "  Routine 'actual-budget' enabled in automations/config.yml."
+    echo "  Routine 'actual-budget' enabled in automation/config.yml."
 fi
 
 echo ""
@@ -127,5 +127,5 @@ hr
 echo ""
 echo "  Done. Restart decree to apply:"
 echo ""
-echo "    docker compose restart decree   # from the repo root"
+echo "    docker compose restart automation   # from the repo root"
 echo ""

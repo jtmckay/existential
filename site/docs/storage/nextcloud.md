@@ -91,9 +91,9 @@ it by hand:
 ## Collabora (office document editing)
 
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
-installed and pointed at it. `services/decree/decree/migrations.example/22-nextcloud-richdocuments.md`
+installed and pointed at it. `automation-examples/migrations/22-nextcloud-richdocuments.md`
 does this the same way the MinIO bucket gets created: copy it to
-`services/decree/decree/migrations/` and restart `decree` to activate. It also sets
+`automation/migrations/` and restart `decree` to activate. It also sets
 `richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
 Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
 just the actual Collabora container.

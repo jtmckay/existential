@@ -119,7 +119,7 @@ fi
 echo ""
 hr
 echo ""
-echo "  Re-render and restart decree to apply:"
+echo "  Re-render and restart automation to apply:"
 echo ""
 echo "    ./existential.sh && docker compose up -d decree"
 echo ""

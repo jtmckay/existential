@@ -3,7 +3,7 @@ name: Weekly Version Updates
 tagline: Get notified when image updates are available for your services
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -12,9 +12,9 @@ an ntfy notification listing any services with newer image tags available.
 Silent when everything is current.
 
 Activate it:
-  mkdir -p services/decree/decree/cron/
-  cp services/decree/decree/cron.example/check-versions.md services/decree/decree/cron/
-  docker compose restart decree
+  mkdir -p automation/cron/
+  cp automation-examples/cron/check-versions.md automation/cron/
+  docker compose restart automation
 
 How it works:
   - Every Monday at 09:00 Decree runs check-versions

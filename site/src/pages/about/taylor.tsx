@@ -50,7 +50,7 @@ const PROJECTS = [
   },
   {
     name: "Decree",
-    href: "https://github.com/jtmckay/existential/tree/main/services/decree",
+    href: "https://github.com/jtmckay/existential/tree/main/services/automation",
     description:
       "Automation engine at the heart of the Existential stack. Runs routines, syncs Gmail, manages rclone remotes, and exposes webhooks — all from a single container with no external dependencies.",
     tags: ["Docker", "Shell", "rclone", "OAuth", "Webhooks"],

@@ -18,7 +18,7 @@ DEFAULT_EXTENSIONS=(
     bradlc.vscode-tailwindcss
 )
 
-# $HOME (/home/decree, baked in by automations/Dockerfile for the shared
+# $HOME (/home/decree, baked in by automation/Dockerfile for the shared
 # decree/decree-backup image) is the container's throwaway layer, NOT this
 # service's code_server_data volume. Left alone, npm-global installs AND every
 # dotfile the AI CLIs write live there: claude-code's account/session state

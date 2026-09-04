@@ -37,7 +37,7 @@ services:
       - ./alerts.yml:/etc/prometheus/alerts.yml:ro
       # TSDB — must be local; mmap + POSIX locks are unsupported on NFS (corruption).
       # TODO: no backup yet — add an opt-in backup cron in
-      # services/decree/decree-backup/cron.example/ (prometheus has a snapshot API).
+      # services/automation/backup/cron.example/ (prometheus has a snapshot API).
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

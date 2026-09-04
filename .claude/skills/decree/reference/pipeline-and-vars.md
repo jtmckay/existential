@@ -4,7 +4,7 @@
 
 Messages enter the inbox from three sources:
 - **Cron** — decree fires a message on schedule from `cron/`
-- **Webhook** — decree-webhook drops a file into `inbox/` when an HTTP request arrives
+- **Webhook** — automation-webhook drops a file into `inbox/` when an HTTP request arrives
 - **Outbox relay** — routines write follow-ups to `outbox/`; decree moves them to `inbox/`
 
 Processing steps:
@@ -12,7 +12,7 @@ Processing steps:
 2. Each message is normalized — missing fields filled in, routine selected
 3. Lifecycle hooks run (`beforeEach`)
 4. The selected routine executes with parameters as environment variables
-5. On success: `afterEach` runs, message deleted from inbox, `run.json` written to `automations/runs/`
+5. On success: `afterEach` runs, message deleted from inbox, `run.json` written to `automation/runs/`
 6. On failure: retry strategy applies. If the log contains "usage limit" + "reset", Decree waits until the reset time then retries from scratch
 7. After all retries: message is dead-lettered
 8. Follow-up messages from routines (outbox) are processed depth-first

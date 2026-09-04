@@ -211,7 +211,7 @@ applicable_checks() {
 # what a user's quest copies from: test code has no business in the product tree.
 stage_checks() {
     local work="$1" md sh st cfg r
-    cfg="$work/services/decree/decree/config.exist.yml"
+    cfg="$work/services/automation/decree/config.exist.yml"
     [ -f "$cfg" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
     sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
 
@@ -220,7 +220,7 @@ stage_checks() {
         [ -n "$md" ] || continue
         sh="${md%.md}.sh"
         if [ -f "$sh" ]; then
-            cp "$sh" "$work/automations/shared_routines/$(e2e_fm_get "$md" routine).sh"
+            cp "$sh" "$work/automation/shared_routines/$(e2e_fm_get "$md" routine).sh"
             enable+=("$(e2e_fm_get "$md" routine)")
         fi
         # needs_routines is a space-separated list, so splitting is the point.
@@ -255,7 +255,7 @@ stage_checks() {
 # after anything decree put there itself.
 drop_checks() {
     local work="$1" md n=0
-    local inbox="$work/services/decree/decree/inbox"
+    local inbox="$work/services/automation/decree/inbox"
     [ -d "$inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
     # Wait for the daemon phase before dropping anything. decree's entrypoint
@@ -266,7 +266,7 @@ drop_checks() {
     # health-wait and migrations, and `decree` once the daemon is up, which is the
     # same signal the image's own healthcheck uses.
     local deadline=$(( $(date +%s) + 600 ))
-    until docker exec decree grep -q decree /proc/1/comm 2>/dev/null; do
+    until docker exec automation grep -q decree /proc/1/comm 2>/dev/null; do
         if [ "$(date +%s)" -ge "$deadline" ]; then
             log "  decree never reached its daemon phase — nothing can run the checks"
             return 1
@@ -294,7 +294,7 @@ drop_checks() {
 # check can see that. Nothing may be left stuck, from any routine.
 await_checks() {
     local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
-    local inbox="$work/services/decree/decree/inbox"
+    local inbox="$work/services/automation/decree/inbox"
     local deadline=$(( $(date +%s) + timeout )) left
     log "Waiting for checks to drain (up to ${timeout}s)..."
     while [ "$(date +%s)" -lt "$deadline" ]; do
@@ -318,8 +318,8 @@ collect_quest_results() {
     slug="$(printf '%s' "$quest" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
     out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
 
-    collect_results "$work/automations/runs" \
-                    "$work/services/decree/decree/inbox/dead" "$out" || rc=1
+    collect_results "$work/automation/runs" \
+                    "$work/services/automation/decree/inbox/dead" "$out" || rc=1
 
     # Logs for anything the health gate would be unhappy about.
     mkdir -p "$out/logs"
@@ -335,10 +335,10 @@ collect_quest_results() {
     # Messages still queued when the evidence was taken. Not a verdict — the
     # daemon is live by now and its crons queue work of their own — but a check
     # whose chain stalled leaves its trace here, and the clone is about to go.
-    stuck=$(find "$work/services/decree/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+    stuck=$(find "$work/services/automation/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
     if [ "${stuck:-0}" -gt 0 ]; then
         mkdir -p "$out/stuck"
-        find "$work/services/decree/decree/inbox" -maxdepth 1 -name '*.md' \
+        find "$work/services/automation/decree/inbox" -maxdepth 1 -name '*.md' \
             -exec cp {} "$out/stuck/" \; 2>/dev/null || true
         log "  ${stuck} message(s) still queued in the inbox — see ${out#"${REPO_DIR}/"}/stuck/"
     fi
@@ -355,7 +355,7 @@ WORK=""; QUEST_LABEL=""; COLLECTED=0
 cleanup() {
     # Collect first, if the run did not get that far itself — a crash, a failed
     # `up`, or a Ctrl+C is the case that most needs its evidence.
-    if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$WORK/automations/runs" ]; then
+    if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$WORK/automation/runs" ]; then
         collect_quest_results "$WORK" "${QUEST_LABEL:-interrupted}" || true
         COLLECTED=1
     fi
@@ -418,7 +418,7 @@ run_quest() {
     #    the checks RUN, and four e2e-able quests do not list it, which would
     #    render a stack with nothing able to test it.
     log "Enabling services..."
-    sed -i 's|^EXIST_IS_SERVICES_DECREE=false|EXIST_IS_SERVICES_DECREE=true|' "$WORK/.env.shared"
+    sed -i 's|^EXIST_IS_SERVICES_AUTOMATION=false|EXIST_IS_SERVICES_AUTOMATION=true|' "$WORK/.env.shared"
     vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
     for var in $(quest_vars "$yaml"); do
         # The quest lists what it wants; the vendor answer outranks it, the same
@@ -471,8 +471,8 @@ run_quest() {
     #     not the exit code) and the notify it queues follows it. What a cron
     #     does on a schedule is triage's job on the real stack, continuously —
     #     which is exactly why e2e stopped running a per-service tier at all.
-    rm -f "$WORK/services/decree/decree/cron/"*.md \
-          "$WORK/services/decree/decree-backup/cron/"*.md
+    rm -f "$WORK/automation/cron/"*.md \
+          "$WORK/services/automation/backup/cron/"*.md
 
     # 7. $WORK is passed as the host-side repo root so the generated bind-mount
     #    paths resolve on the host, not inside adhoc.

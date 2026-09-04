@@ -20,7 +20,7 @@ Two containers work together:
 
 [Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.
 
-Alloy is mounted read-only on `automations/runs/` and watches `**/routine.log` and `**/message.md`. It parses the path to extract labels from the run ID format (`D<day>-<time>-<routine>-<seq>`):
+Alloy is mounted read-only on `automation/runs/` and watches `**/routine.log` and `**/message.md`. It parses the path to extract labels from the run ID format (`D<day>-<time>-<routine>-<seq>`):
 
 | Label | Example |
 |---|---|

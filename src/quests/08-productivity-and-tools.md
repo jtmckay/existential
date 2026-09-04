@@ -19,30 +19,30 @@ shares nas/redis or nas/nextcloud. IT Tools is stateless (no backup needed).
 Nightly backups (kept 7 days) run in decree-backup once you copy their cron
 files in. Copy only the ones for what you enabled:
 
-  mkdir -p services/decree/decree-backup/cron/
+  mkdir -p services/automation/backup/cron/
 
   # NocoDB — Postgres + upload volume
-  cp services/decree/decree-backup/cron.example/nocodb-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/nocodb-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/nocodb-db-backup-nightly.md \
+     services/automation/backup/cron.example/nocodb-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Appsmith — embedded Mongo/Redis/Postgres live inside its one volume
-  cp services/decree/decree-backup/cron.example/appsmith-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/appsmith-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Lowcoder — Mongo + its own volume
-  cp services/decree/decree-backup/cron.example/lowcoder-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/lowcoder-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/lowcoder-db-backup-nightly.md \
+     services/automation/backup/cron.example/lowcoder-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
-  docker compose restart decree-backup
+  docker compose restart automation-backup
 
 Weekly backups (kept 28 days) sit alongside the nightly ones — same idea,
 copy the matching `-weekly.md` file instead of (or as well as) `-nightly.md`.
 
 Manual trigger:
-  docker exec decree-backup decree run db-backup
-  docker exec decree-backup decree run volume-backup
+  docker exec automation-backup decree run db-backup
+  docker exec automation-backup decree run volume-backup
 
 Restore:
   ./existential.sh run backup-restore

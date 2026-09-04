@@ -248,8 +248,8 @@ declare -a CHECKS=(
     "firecrawl-pw	ai/firecrawl/docker-compose.exist.yml	ghcr.io/firecrawl/playwright-service	digest		"
     "firecrawl-rabbitmq	ai/firecrawl/docker-compose.exist.yml	rabbitmq	hub_clean	library/rabbitmq	-management"
     "firecrawl-redis	ai/firecrawl/docker-compose.exist.yml	redis	hub_clean	library/redis	-alpine3.23"
-    "decree-wh-go	services/decree/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
-    "decree-wh-base	services/decree/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
+    "decree-wh-go	services/automation/webhook/Dockerfile	golang	hub_clean	library/golang	-alpine3.23"
+    "decree-wh-base	services/automation/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
     # digest, not github: upstream stopped tagging images at v2.0.3 while the
     # server in :latest reports 3.0.9, so :latest@sha256 is the only real pin.
     "honcho	ai/honcho/docker-compose.exist.yml	ghcr.io/plastic-labs/honcho	digest		"

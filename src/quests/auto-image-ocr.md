@@ -9,7 +9,7 @@ services:
     label: MinIO
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -19,7 +19,7 @@ original file.
 
 The pipeline:
   Image synced to Nextcloud → MinIO S3 event
-    → POST http://decree-webhook:8801/minio  (pre-configured in MinIO compose)
+    → POST http://automation-webhook:8801/minio  (pre-configured in MinIO compose)
     → minio-router matches PATTERN against the rclone path
     → ollama-ocr.sh: PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
     → IS_PRE_SIGNED=false — image downloaded locally, base64-encoded, sent to Ollama
@@ -35,7 +35,7 @@ Processor convention (ollama-ocr.sh):
   PROMPT        optional system prompt to guide extraction (default: auto)
 
 Setup:
-  1. Enable the routines in services/decree/decree/config.yml:
+  1. Enable the routines in services/automation/decree/config.yml:
        file-processor:
          enabled: true
        minio-router:
@@ -46,15 +46,15 @@ Setup:
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
      decree — no restart needed for this one:
-       cp automations/lib/file-processors.example/ollama-ocr.sh \
-          automations/lib/file-processors/
+       cp automation/lib/file-processors.example/ollama-ocr.sh \
+          automation/lib/file-processors/
 
   4. Restart decree to pick up config changes:
-       docker compose restart decree
+       docker compose restart automation
 
   5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
        MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
+       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://automation-webhook:8801/minio
 
   6. In MinIO, subscribe your bucket to the webhook:
        docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
@@ -65,5 +65,5 @@ Telegram OCR flow:
   already ingested into MinIO by telegram-poll. The ollama-ocr processor picks
   them up automatically — no extra steps.
 
-Logs for each run land in automations/runs/ and are queryable in Grafana
+Logs for each run land in automation/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

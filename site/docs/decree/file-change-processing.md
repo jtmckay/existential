@@ -45,7 +45,7 @@ flowchart LR
 
 ### 1. MinIO fires the event
 
-When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs an S3-compatible JSON payload to `http://decree-webhook:8801/minio`:
+When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs an S3-compatible JSON payload to `http://automation-webhook:8801/minio`:
 
 ```json
 {
@@ -59,11 +59,11 @@ The request includes `Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOK
 
 ### 2. minio-router — match and fan out
 
-`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<rclone_prefix>/<object-key>` (e.g. `nextcloud:S3/documents/report.pdf`), and scans every script in `automations/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
+`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<rclone_prefix>/<object-key>` (e.g. `nextcloud:S3/documents/report.pdf`), and scans every script in `automation/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
 
 :::note The S3 bucket is not part of `FILE_SOURCE`
 
-The router drops the bucket and puts `rclone_prefix` in its place. That is deliberate: in the default topology the bucket *is* a Nextcloud external mount, so the file is reached through the `nextcloud` remote at the mount's path, not through S3. If you point a processor at MinIO directly through an `s3` remote, the first path segment must be the bucket — so set `rclone_prefix` to the bucket name in `services/decree/webhook/config.yml`.
+The router drops the bucket and puts `rclone_prefix` in its place. That is deliberate: in the default topology the bucket *is* a Nextcloud external mount, so the file is reached through the `nextcloud` remote at the mount's path, not through S3. If you point a processor at MinIO directly through an `s3` remote, the first path segment must be the bucket — so set `rclone_prefix` to the bucket name in `services/automation/webhook/config.yml`.
 
 :::
 
@@ -91,7 +91,7 @@ Multiple processors can match the same file — each runs independently as a sep
 
 ## Adding a File Processor
 
-Create `automations/lib/file-processors/<name>.sh`:
+Create `automation/lib/file-processors/<name>.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -154,7 +154,7 @@ In the MinIO console go to **Administrator → Events** and add a new webhook en
 | Field | Value |
 |---|---|
 | Identifier | `DECREE` |
-| Endpoint | `http://decree-webhook:8801/minio` |
+| Endpoint | `http://automation-webhook:8801/minio` |
 | Auth Token | your `EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN` value |
 
 Save and verify the target shows as reachable. The identifier `DECREE` is used in the next step — MinIO will expose the ARN `arn:minio:sqs::DECREE:webhook`.
@@ -186,16 +186,16 @@ The decree container uses `/secrets/rclone/rclone.conf` for all rclone operation
 ./existential.sh run rclone
 ```
 
-Name the remote `minio` (or update `rclone_src` in `services/decree/webhook/config.yml` to match your remote name).
+Name the remote `minio` (or update `rclone_src` in `services/automation/webhook/config.yml` to match your remote name).
 
 ## Testing
 
 Send a test event directly to the webhook to verify routing without needing a real MinIO event:
 
 ```bash
-# decree-webhook publishes no host port — it is reached over the exist
+# automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec decree curl -X POST http://decree-webhook:8801/minio \
+docker exec automation curl -X POST http://automation-webhook:8801/minio \
   -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"mybucket/documents/hello.txt","Records":[]}'
@@ -204,27 +204,27 @@ docker exec decree curl -X POST http://decree-webhook:8801/minio \
 Watch the routing happen in real time:
 
 ```bash
-docker logs -f decree
+docker logs -f automation
 ```
 
 Inspect the run log after it completes:
 
 ```bash
-docker exec decree decree status
-docker exec decree decree log <id-prefix>
+docker exec automation decree status
+docker exec automation decree log <id-prefix>
 ```
 
 To test just the routing stage (without rclone), check the inbox after the curl — `minio-router` will have written outbox messages even if `file-processor` fails:
 
 ```bash
-ls automations/runs/
+ls automation/runs/
 ```
 
 ## Verifying Routine Pre-checks
 
 ```bash
-docker exec decree decree routine minio-router
-docker exec decree decree routine file-processor
+docker exec automation decree routine minio-router
+docker exec automation decree routine file-processor
 ```
 
 ## Matching on content, not just path
@@ -274,8 +274,8 @@ loop — it inherits every MCP server hermes has registered: OpenViking search,
 Firecrawl web search, Playwright. The prompt does not name tools; it says what it
 wants, and hermes decides what to reach for.
 
-`agent-task` needs `DECREE_AI=opencode` (already set in
-`services/decree/.env.exist`) and the rendered `services/decree/opencode.json`,
+`agent-task` needs `AUTOMATION_AI=opencode` (already set in
+`services/automation/.env.exist`) and the rendered `services/automation/opencode.json`,
 which points at `http://hermes-agent:8642/v1`.
 
 ## Triggering on workspace edits

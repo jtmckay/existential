@@ -29,9 +29,9 @@
 # of their own: redis, honcho (internal API only), wyoming-whisper and
 # wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki
 # (Grafana is the window onto it), decree (background daemon), and caddy
-# itself. Has an endpoint but nothing a browser tile can show: decree-webhook
+# itself. Has an endpoint but nothing a browser tile can show: automation-webhook
 # is a POST-only, bearer-authed inbox receiver with no GET route worth linking
-# (services/decree/webhook/README.md). Firecrawl gets a tile below, but its
+# (services/automation/webhook/README.md). Firecrawl gets a tile below, but its
 # active block points at the docs page, not the live service — see the item
 # for why.
 #

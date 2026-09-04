@@ -41,8 +41,8 @@ You can also add the bot to a group and use the group's chat ID (negative number
 ### 3. Save credentials
 
 ```bash
-mkdir -p services/decree/secrets/telegram
-cat > services/decree/secrets/telegram/credentials.env << 'EOF'
+mkdir -p services/automation/secrets/telegram
+cat > services/automation/secrets/telegram/credentials.env << 'EOF'
 TELEGRAM_BOT_TOKEN=your-bot-token-here
 TELEGRAM_CHAT_ID=your-chat-id-here
 EOF
@@ -52,7 +52,7 @@ The secrets directory is bind-mounted into the decree container at `/secrets/tel
 
 ## Enabling Routines
 
-Telegram features are opt-in. Enable the routines you need in `automations/config.yml`:
+Telegram features are opt-in. Enable the routines you need in `automation/config.yml`:
 
 ```yaml
 shared_routines:
@@ -65,14 +65,14 @@ shared_routines:
 Activate the receipt polling cron:
 
 ```bash
-cp services/decree/decree/cron.example/telegram-receipt-poll.md \
-   services/decree/decree/cron/
+cp automation-examples/cron/telegram-receipt-poll.md \
+   automation/cron/
 ```
 
 Cron frontmatter is read when the daemon starts, so restart it to pick the new schedule up:
 
 ```bash
-docker compose restart decree
+docker compose restart automation
 ```
 
 ## Verifying
@@ -80,8 +80,8 @@ docker compose restart decree
 Check the routines pass pre-checks:
 
 ```bash
-docker exec decree decree routine telegram-notify
-docker exec decree decree routine telegram-receipt
+docker exec automation decree routine telegram-notify
+docker exec automation decree routine telegram-receipt
 ```
 
 Send a test message from your bot to confirm the chat ID is correct:
@@ -95,12 +95,12 @@ curl -s "https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>&text=
 Decree stores pending transaction and split state in `/secrets/telegram/state.json`. This file is read and written by `telegram-notify` and `telegram-receipt`. You can inspect it at any time:
 
 ```bash
-cat services/decree/secrets/telegram/state.json | jq .
+cat services/automation/secrets/telegram/state.json | jq .
 ```
 
 To clear all pending state (e.g. after testing):
 
 ```bash
 echo '{"pending":{},"splits":{},"last_pending_message_id":null}' \
-  > services/decree/secrets/telegram/state.json
+  > services/automation/secrets/telegram/state.json
 ```

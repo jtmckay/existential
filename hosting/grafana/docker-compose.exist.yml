@@ -25,7 +25,7 @@ services:
     volumes:
       # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
       # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - grafana_data:/var/lib/grafana
       # Mount the two subdirs we own, not the parent: mounting
       # /etc/grafana/provisioning wholesale hides the image's empty alerting/,

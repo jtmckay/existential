@@ -183,7 +183,7 @@ Everything enabled joins one Docker bridge network named `exist`, and reaches ev
 by container name:
 
 ```
-http://ollama:11434     http://firecrawl:3002     http://decree-webhook:8801
+http://ollama:11434     http://firecrawl:3002     http://automation-webhook:8801
 ```
 
 No service discovery, no ports published to the host unless you ask. Browser access goes

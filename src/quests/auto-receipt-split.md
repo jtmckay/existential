@@ -5,7 +5,7 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
     label: Actual Budget
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -21,6 +21,6 @@ Prerequisites:
 Activate the poller — checks for receipt-photo replies every 30 minutes,
 matches them to outstanding transactions, and triggers the split via the
 actual-budget routine:
-  mkdir -p services/decree/decree/cron/
-  cp services/decree/decree/cron.example/telegram-receipt-poll.md services/decree/decree/cron/
-  docker compose restart decree
+  mkdir -p automation/cron/
+  cp automation-examples/cron/telegram-receipt-poll.md automation/cron/
+  docker compose restart automation

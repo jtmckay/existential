@@ -12,7 +12,7 @@
 # a role, which must never disagree:
 #   src/utils/model-endpoints.sh  — scripts (hermes, openviking, models.sh)
 #   src/templates.sh              — rendered configs (honcho's config.toml)
-#   automations/shared_routines/ollama-pull.sh — migrations, which pull the model
+#   automation/shared_routines/ollama-pull.sh — migrations, which pull the model
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +25,7 @@ REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 ENDPOINTS="${SRC_DIR}/utils/model-endpoints.sh"
 TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
-PULL="${REPO_DIR}/automations/shared_routines/ollama-pull.sh"
+PULL="${REPO_DIR}/automation/shared_routines/ollama-pull.sh"
 HONCHO="${REPO_DIR}/ai/honcho/config.exist.toml"
 
 # Speech has no endpoint keys on purpose — wyoming-whisper and wyoming-piper are

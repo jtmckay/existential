@@ -50,7 +50,7 @@ services:
     command: ["serve"]
     volumes:
       # Downloaded models — re-pullable, a _cache (not backed up). The model
-      # pulls are decree migrations (services/decree/decree/migrations.example/
+      # pulls are decree migrations (automation-examples/migrations/
       # 1*-ollama-*), which reach this container over the API.
       - ollama_cache:/root/.ollama
 

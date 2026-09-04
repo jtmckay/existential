@@ -56,7 +56,7 @@ docker exec -it hermes-agent hermes memory setup honcho
 
 Its Postgres volume is `volumes/honcho_postgres_data`, declared `db: true` — pgvector on an
 embedded database, so local only and never NFS. Back it up by copying
-`honcho-db-backup-{nightly,weekly}.md` from `services/decree/decree-backup/cron.example/`
+`honcho-db-backup-{nightly,weekly}.md` from `services/automation/backup/cron.example/`
 into `cron/` and restarting `decree-backup`.
 
 The embedding dimension is not free to change. `EXIST_MODEL_EMBED_DIM` becomes the

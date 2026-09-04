@@ -5,7 +5,7 @@ e2e: false
 services:
   - var: EXIST_IS_AI_HERMES
     label: Hermes
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -52,7 +52,7 @@ the default.
 
 ── 2. Enable the routines ────────────────────────────────────────────────
 
-In services/decree/decree/config.yml:
+In services/automation/decree/config.yml:
 
   hermes-router:
     enabled: true
@@ -76,7 +76,7 @@ What a profile costs:
   docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
     /opt/hermes/.venv/bin/hermes prompt-size
 
-And route something. Drop this in services/decree/decree/inbox/:
+And route something. Drop this in services/automation/decree/inbox/:
 
   ---
   routine: hermes-router

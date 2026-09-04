@@ -46,7 +46,7 @@ services:
       - ./portainer_password.txt:/run/portainer/admin_password:ro
       # bbolt (portainer.db) — must be local; NFS breaks flock/mmap.
       # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - portainer_data:/data
     security_opt:
       - no-new-privileges:true

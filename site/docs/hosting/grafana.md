@@ -47,7 +47,7 @@ Decree run
        ├─ Pushgateway → Prometheus (metrics: success, duration, attempts)
        └─ Loki push API (log: structured summary line)
 
-automations/runs/**/routine.log
+automation/runs/**/routine.log
   └─ Alloy → Loki (full routine output, labeled by message_id/chain/seq)
 
 Grafana

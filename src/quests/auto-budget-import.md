@@ -5,7 +5,7 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
     label: Actual Budget
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -23,13 +23,13 @@ Setup:
      a filter to apply it automatically.
 
   2. Add or copy a parser for your bank in:
-         automations/shared_routines/actual-budget-parse.sh
+         automation/shared_routines/actual-budget-parse.sh
 
   3. Configure Actual Budget credentials:
-         ./existential.sh run decree gmail-labels
-     (sets GMAIL_LABEL_ID in automations/secrets/gmail/)
+         ./existential.sh run automation gmail-labels
+     (sets GMAIL_LABEL_ID in automation/secrets/gmail/)
 
-  4. Enable the routines in services/decree/decree/config.yml:
+  4. Enable the routines in services/automation/decree/config.yml:
          actual-budget: enabled: true
          actual-budget-parse: enabled: true
          gmail-sync: enabled: true

@@ -23,7 +23,7 @@ services:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       # TSDB index (schema v13) + chunks — must be local; NFS locking is unreliable.
       # TODO: no backup yet — add an opt-in volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
@@ -49,7 +49,7 @@ services:
       - exist
     volumes:
       - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
-      - ../../automations/runs:/runs:ro
+      - ../../automation/runs:/runs:ro
       # Alloy keeps its file offsets under --storage.path; without persisting it
       # every restart re-tails every log from byte 0 and re-ships it.
       - loki_alloy_data:/var/lib/alloy/data

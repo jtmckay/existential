@@ -70,7 +70,7 @@ services are deliberately absent:
 - **No HTTP endpoint of their own**: redis, honcho (internal API only), wyoming-whisper and
   wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki (Grafana is the
   window onto it), decree (the background daemon has no UI), and caddy itself.
-- **Has an endpoint, but nothing a tile can show**: `decree-webhook` is a POST-only,
+- **Has an endpoint, but nothing a tile can show**: `automation-webhook` is a POST-only,
   bearer-authed inbox receiver with no GET route worth linking.
 - **Firecrawl** does get a tile, but its active block points at the docs page rather than
   `firecrawl.<domain>` — Caddy 401s every request there without

@@ -45,8 +45,8 @@ services:
       # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
       # TODO: no backup cron wired up yet. Add a volume-backup cron.example entry
       # for `homeassistant_data homeassistant` (same shape as
-      # services/decree/decree-backup/cron.example/mealie-volume-backup-*.md) —
-      # out of scope for this directory, see services/decree/decree-backup/.
+      # services/automation/backup/cron.example/mealie-volume-backup-*.md) —
+      # out of scope for this directory, see services/automation/backup/.
       - homeassistant_data:/config
       - ./entrypoint.sh:/entrypoint.sh:ro
     # Bridge network (`exist`), not `network_mode: host`. Upstream's own docs

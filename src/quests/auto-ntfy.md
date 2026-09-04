@@ -5,7 +5,7 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_NTFY
     label: ntfy
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 

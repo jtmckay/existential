@@ -66,7 +66,7 @@ Values come from message frontmatter fields of the same name.
 ## Nested Routines
 
 ```
-automations/shared_routines/
+automation/shared_routines/
 ├── db-backup.sh         # routine: db-backup
 ├── volume-backup.sh     # routine: volume-backup
 ├── file-processor.sh    # routine: file-processor
@@ -74,7 +74,7 @@ automations/shared_routines/
 
 ## Registry & Shared Routines
 
-In this repo all routines live in `automations/shared_routines/` (mounted as
+In this repo all routines live in `automation/shared_routines/` (mounted as
 `/work/.decree/shared_routines`). They are registered per-daemon in `config.exist.yml`:
 
 ```yaml

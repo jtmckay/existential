@@ -63,7 +63,7 @@ services:
     volumes:
       # SQLite (webui.db) + Chroma vector store — must be local; NFS breaks both.
       # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - open_webui_data:/app/backend/data
 
 x-exist-volumes:

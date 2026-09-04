@@ -2,10 +2,10 @@ services:
   existential-adhoc:
     container_name: existential-adhoc
     build:
-      context: ./automations
+      context: ./services/automation/decree
     # Canonical build of the decree image. Tagged so the main decree daemon and
     # decree and decree-backup can reference it via `image:` instead of each
-    # re-building automations/Dockerfile into its own per-project image.
+    # re-building decree/Dockerfile into its own per-project image.
     image: existential/decree:local
     pull_policy: never
     restart: "no"
@@ -21,10 +21,8 @@ services:
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN:-}
       - NTFY_URL=${EXIST_NTFY_URL:-}
     volumes:
-      - ./automations/lib:/work/.decree/lib:ro,z
-      - ./automations/shared_routines:/work/.decree/shared_routines:ro,z
-      - ./automations/runs:/work/.decree/runs:z
-      - ./automations/secrets:/secrets:z
+      - ./automation:/work/.decree:z
+      - ./automation/secrets:/secrets:z
       - ./src:/src:z
       - .:/repo:z
 

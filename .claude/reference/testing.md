@@ -167,7 +167,7 @@ Docker-free self-tests.
 
 ## Go services
 
-Go services carry their own `go test` suite (e.g. `services/decree/webhook/main_test.go`). Adhoc
+Go services carry their own `go test` suite (e.g. `services/automation/webhook/main_test.go`). Adhoc
 has no Go toolchain, so they are **not** part of `./existential.sh test` — run them from the
 service dir, or in a container:
 

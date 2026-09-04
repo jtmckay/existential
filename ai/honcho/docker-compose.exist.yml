@@ -137,7 +137,7 @@ services:
       # Postgres + pgvector data — db: true (WAL/flock; never NFS).
       - honcho_postgres_data:/var/lib/postgresql/data
       # Backup: copy honcho-db-backup-{nightly,weekly}.md from
-      # services/decree/decree-backup/cron.example/ into cron/ and restart it.
+      # services/automation/backup/cron.example/ into cron/ and restart it.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 5s

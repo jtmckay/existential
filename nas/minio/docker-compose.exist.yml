@@ -1,7 +1,7 @@
 services:
   # S3-compatible object storage. Backs Nextcloud's /S3 external-storage mount
-  # (nas/nextcloud) and the workspace-sync -> decree-webhook file-event pipeline
-  # (automations/shared_routines/workspace-sync.sh). Console UI is reached via
+  # (nas/nextcloud) and the workspace-sync -> automation-webhook file-event pipeline
+  # (automation/shared_routines/workspace-sync.sh). Console UI is reached via
   # https://minio.<domain> by default -- ports below are disabled, so
   # http://localhost:49001 only works once you uncomment them.
   minio:
@@ -23,7 +23,7 @@ services:
     #     - "49001:9001"
     volumes:
       # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - minio_data:/data
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
@@ -31,14 +31,14 @@ services:
       - MINIO_DOMAIN=${MINIO_DOMAIN}
       - MINIO_SERVER_URL=${MINIO_SERVER_URL}
       - MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-      # 8801 is decree-webhook's listen port and is not configurable --
+      # 8801 is automation-webhook's listen port and is not configurable --
       # see the comment on its environment: block. This pointed at 48880
       # for a while, which refuses connections, so no bucket event ever
       # reached decree. Nothing caught it: decree's own exist.test.sh
       # probes 8801 directly, so the webhook looked healthy from the one
       # side that was never wrong. src/test/e2e/e2e.sh now walks the real
       # chain (write object -> event -> inbox -> run) instead.
-      - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
+      - MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://automation-webhook:8801/minio
       - MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN_DECREE=${MINIO_DECREE_WEBHOOK_AUTH_TOKEN}
     command: server /data --console-address :9001
     # /minio/health/live is registered unauthenticated (cmd/healthcheck-router.go)

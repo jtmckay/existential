@@ -3,7 +3,7 @@ name: Workspace Agent
 tagline: Files you edit in workspace/ are matched against criteria and handed to an agent
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
   - var: EXIST_IS_NAS_MINIO
     label: MinIO
@@ -22,7 +22,7 @@ files the answer back in `workspace/ai/`.
 The pipeline:
   You edit workspace/notes/plan.md
     → workspace-sync mirrors workspace/ into the minio:workspace bucket (cron)
-    → MinIO fires an S3 event → POST http://decree-webhook:8801/minio
+    → MinIO fires an S3 event → POST http://automation-webhook:8801/minio
     → minio-router matches PATTERN against the rclone path      (free)
     → file-processor downloads it, then puts CRITERIA to hermes  (one call)
     → agent-handoff.sh queues agent-task for what passed both
@@ -45,44 +45,44 @@ Setup:
 
   1. Copy the templates this needs — the workspace-bucket migration and the
      mirror cron (both MinIO-side), and the agent-handoff processor:
-       mkdir -p services/decree/decree/migrations/ services/decree/decree-backup/cron/ \
-                automations/lib/file-processors/
-       cp services/decree/decree/migrations.example/22-minio-create-workspace-bucket.md \
-          services/decree/decree/migrations/
-       cp services/decree/decree-backup/cron.example/workspace-sync.md \
-          services/decree/decree-backup/cron/
-       cp automations/lib/file-processors.example/agent-handoff.sh \
-          automations/lib/file-processors/
+       mkdir -p automation/migrations/ services/automation/backup/cron/ \
+                automation/lib/file-processors/
+       cp automation-examples/migrations/22-minio-create-workspace-bucket.md \
+          automation/migrations/
+       cp services/automation/backup/cron.example/workspace-sync.md \
+          services/automation/backup/cron/
+       cp automation/lib/file-processors.example/agent-handoff.sh \
+          automation/lib/file-processors/
 
   2. Enable the services above and run:
        ./existential.sh
        docker compose up -d
 
-  3. Enable the routines. In services/decree/decree/config.yml set
+  3. Enable the routines. In services/automation/decree/config.yml set
      `minio-router`, `file-processor` and `agent-task` to enabled: true.
-     `workspace-sync` is already on in services/decree/decree-backup/config.yml.
+     `workspace-sync` is already on in services/automation/backup/config.yml.
      Both daemons restart themselves when their config changes.
 
   4. The bucket is created by the migration you copied in step 1, on the
      `docker compose up -d` you just ran. Confirm it exists:
-       docker exec decree-backup rclone lsd minio:
+       docker exec automation-backup rclone lsd minio:
 
   5. Sync ONCE, before subscribing. The first pass uploads the whole workspace;
      against a subscribed bucket that arrives as one event per file. Drop a
      message in the backup daemon's inbox and wait for it to finish:
        printf -- '---\nroutine: workspace-sync\n---\n' \
-         > services/decree/decree-backup/inbox/sync-once.md
-       docker logs -f decree-backup
+         > services/automation/backup/inbox/sync-once.md
+       docker logs -f automation-backup
 
   6. NOW subscribe the bucket to the webhook:
        docker exec minio mc event add minio/workspace \
          arn:minio:sqs::DECREE:webhook --event put,delete
 
   7. Check the agent half works before relying on it:
-       docker exec decree opencode run "reply with the word ready"
+       docker exec automation opencode run "reply with the word ready"
 
 Then write your own matches. Copy any file in
-automations/lib/file-processors.example/ into automations/lib/file-processors/
+automation/lib/file-processors.example/ into automation/lib/file-processors/
 and edit its PATTERN and CRITERIA — no restart needed, minio-router reads the
 directory per event.
 
@@ -95,5 +95,5 @@ Detection is a poll, not a watch, so a change takes up to ten minutes to be
 noticed — MinIO fires events for objects written through its own API, and edits
 to the workspace bind mount are not that.
 
-Logs for each run land in automations/runs/ and are queryable in Grafana via the
+Logs for each run land in automation/runs/ and are queryable in Grafana via the
 Decree Overview dashboard.

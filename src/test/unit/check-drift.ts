@@ -280,7 +280,7 @@ function findTemplates(root: string): string[] {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch (err) {
       // Runtime state dirs can be root-owned/unreadable by the adhoc user (uid
-      // 1000) — e.g. automations/secrets/gmail (0700). They never hold templates,
+      // 1000) — e.g. automation/secrets/gmail (0700). They never hold templates,
       // so skip rather than crash. Surface anything unexpected.
       if ((err as NodeJS.ErrnoException).code === 'EACCES') return;
       throw err;

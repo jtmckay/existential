@@ -38,7 +38,7 @@ case "$MISSING" in
     "?") fail "comfyui core node classes" "/object_info did not return JSON" \
               "Check: docker logs comfyui" ;;
     *)   fail "comfyui core node classes" "missing: $MISSING" \
-              "The image is older than the workflows in automations/lib/comfy/. Bump the pin: ./existential.sh run check-versions" ;;
+              "The image is older than the workflows in automation/lib/comfy/. Bump the pin: ./existential.sh run check-versions" ;;
 esac
 
 finish

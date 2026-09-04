@@ -748,19 +748,19 @@ if [ "${#_auto_initials[@]}" -gt 0 ]; then
 fi
 echo ""
 
-_has_decree=0; will_be_active EXIST_IS_SERVICES_DECREE        && _has_decree=1 || true
+_has_decree=0; will_be_active EXIST_IS_SERVICES_AUTOMATION        && _has_decree=1 || true
 _has_budget=0; will_be_active EXIST_IS_SERVICES_ACTUAL_BUDGET && _has_budget=1 || true
 _has_pihole=0; will_be_active EXIST_IS_HOSTING_PIHOLE         && _has_pihole=1 || true
 
 _run_steps=()
 if [[ "$_has_decree" -eq 1 ]]; then
     _run_steps+=("── Decree integrations (run after decree starts) ──────────────────")
-    _run_steps+=("  ./existential.sh run decree gmail-sync")
+    _run_steps+=("  ./existential.sh run automation gmail-sync")
     _run_steps+=("    Connect a Gmail account so Decree can read and route emails.")
-    _run_steps+=("  ./existential.sh run decree gmail-labels")
+    _run_steps+=("  ./existential.sh run automation gmail-labels")
     _run_steps+=("    Sync your Gmail label list — re-run after adding or renaming labels.")
     if [[ "$_has_budget" -eq 1 ]]; then
-        _run_steps+=("  ./existential.sh run decree gmail-transactions-cron")
+        _run_steps+=("  ./existential.sh run automation gmail-transactions-cron")
         _run_steps+=("    Wire Gmail receipt parsing → Actual Budget import.")
     fi
     _run_steps+=("")
@@ -828,21 +828,31 @@ fi
 
 # ── Remaining cron templates (informational) ──────────────────────────────────
 
-# Cron templates live in the decree service's two project dirs (decree/ for the
-# daemon, decree-backup/ for backups), so this walks those rather than every
-# enabled service — nothing else ships a cron.example/ any more.
+# The main `decree` daemon's cron templates live top-level (they're not mounted,
+# so they don't belong under automation/): automation-examples/cron/ → the
+# activated copy goes to automation/cron/. `decree-backup` keeps its own
+# per-project cron.example/ → cron/ pair since its crons aren't shared content.
 _remaining=()
-if will_be_active EXIST_IS_SERVICES_DECREE; then
-    for _proj in decree decree-backup; do
-        _cron_ex="${REPO_DIR}/services/decree/${_proj}/cron.example"
-        [ -d "$_cron_ex" ] || continue
-        _dst_dir="${REPO_DIR}/services/decree/${_proj}/cron/"
+if will_be_active EXIST_IS_SERVICES_AUTOMATION; then
+    _cron_ex="${REPO_DIR}/automation-examples/cron"
+    _dst_dir="${REPO_DIR}/automation/cron/"
+    if [ -d "$_cron_ex" ]; then
         while IFS= read -r _cf; do
             _fname="${_cf##*/}"
             [ -f "${_dst_dir}${_fname}" ] && continue
-            _remaining+=("${_proj}: services/decree/${_proj}/cron.example/${_fname}")
+            _remaining+=("decree: automation-examples/cron/${_fname}")
         done < <(find "$_cron_ex" -maxdepth 1 -name '*.md' -type f 2>/dev/null | sort)
-    done
+    fi
+
+    _cron_ex="${REPO_DIR}/services/automation/backup/cron.example"
+    _dst_dir="${REPO_DIR}/services/automation/backup/cron/"
+    if [ -d "$_cron_ex" ]; then
+        while IFS= read -r _cf; do
+            _fname="${_cf##*/}"
+            [ -f "${_dst_dir}${_fname}" ] && continue
+            _remaining+=("decree-backup: services/automation/backup/cron.example/${_fname}")
+        done < <(find "$_cron_ex" -maxdepth 1 -name '*.md' -type f 2>/dev/null | sort)
+    fi
 fi
 
 if [ "${#_remaining[@]}" -gt 0 ]; then
@@ -853,7 +863,11 @@ if [ "${#_remaining[@]}" -gt 0 ]; then
     echo ""
     for _r in "${_remaining[@]}"; do echo "  ${_r}"; done
     echo ""
-    echo "  Activate one: cp <the file above> services/decree/<decree|decree-backup>/cron/"
-    echo "                docker compose restart <decree|decree-backup>"
+    echo "  Activate one:"
+    echo "    decree:         cp automation-examples/cron/<name>.md automation/cron/"
+    echo "                    docker compose restart automation"
+    echo "    decree-backup:  cp services/automation/backup/cron.example/<name>.md \\"
+    echo "                       services/automation/backup/cron/"
+    echo "                    docker compose restart automation-backup"
     echo ""
 fi

@@ -15,7 +15,7 @@ services:
     label: Uptime Kuma
   - var: EXIST_IS_SERVICES_DASHY
     label: Dashy
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -24,11 +24,11 @@ dashboards, logs and metrics; Uptime Kuma watches uptime from the outside;
 Dashy is one page linking to all of the above.
 
 If you enabled Decree, activate the one cron worth having on by default —
-it prunes old run logs weekly so automations/runs/ doesn't grow forever:
+it prunes old run logs weekly so automation/runs/ doesn't grow forever:
 
-  mkdir -p services/decree/decree/cron/
-  cp services/decree/decree/cron.example/clean-runs.md services/decree/decree/cron/
-  docker compose restart decree
+  mkdir -p automation/cron/
+  cp automation-examples/cron/clean-runs.md automation/cron/
+  docker compose restart automation
 
 Everything else here (Portainer, Grafana, Prometheus, Loki, Uptime Kuma,
 Dashy) needs no activation step — each comes up configured after

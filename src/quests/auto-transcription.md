@@ -9,7 +9,7 @@ services:
     label: MinIO
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -18,7 +18,7 @@ saving a speaker-labelled transcript next to the original file — no manual ste
 
 The pipeline:
   File synced to Nextcloud → MinIO S3 event
-    → POST http://decree-webhook:8801/minio  (pre-configured in MinIO compose)
+    → POST http://automation-webhook:8801/minio  (pre-configured in MinIO compose)
     → minio-router matches PATTERN against the rclone path
     → whisperx-transcribe.sh: PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
     → IS_PRE_SIGNED=true — MinIO generates a signed URL; WhisperX fetches it directly
@@ -38,7 +38,7 @@ Setup:
      (WHISPERX_HF_TOKEN); first accept the gated model terms while logged in:
        https://huggingface.co/pyannote/speaker-diarization-community-1
 
-  2. Enable the routines in services/decree/decree/config.yml:
+  2. Enable the routines in services/automation/decree/config.yml:
        file-processor:
          enabled: true
        minio-router:
@@ -46,15 +46,15 @@ Setup:
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
      decree — no restart needed for this one:
-       cp automations/lib/file-processors.example/whisperx-transcribe.sh \
-          automations/lib/file-processors/
+       cp automation/lib/file-processors.example/whisperx-transcribe.sh \
+          automation/lib/file-processors/
 
   4. Restart decree to pick up config changes:
-       docker compose restart decree
+       docker compose restart automation
 
   5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
        MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://decree-webhook:8801/minio
+       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://automation-webhook:8801/minio
 
   6. In MinIO, subscribe your bucket to the webhook:
        docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
@@ -64,5 +64,5 @@ Setup:
      named <filename>.mp3.transcript.txt, with each line prefixed by its speaker
      (e.g. "[SPEAKER_00] …"). Diarized runs take longer than plain transcription.
 
-Logs for each run land in automations/runs/ and are queryable in Grafana
+Logs for each run land in automation/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

@@ -37,10 +37,15 @@ All hooks receive the standard variables plus:
 
 ## Cron Scheduling
 
-Each decree daemon has two paired directories:
+Every daemon has a templates-directory + active-directory pair, though the two live in
+different places depending on the daemon:
 
-- **`cron.example/`** — tracked templates (copy to activate)
-- **`cron/`** — active triggers (gitignored, read-only mount into container)
+- **`automation` (main daemon)** — templates in the top-level `automation-examples/cron/`
+  (tracked), active triggers in the top-level `automation/cron/` (gitignored; part of the
+  wholesale mount into the container, not a separate read-only overlay)
+- **`automation-backup`** — both stay in its own project dir:
+  `services/automation/backup/cron.example/` (tracked) and
+  `services/automation/backup/cron/` (gitignored, read-only mount)
 
 Cron files are `.md` files with a `cron` frontmatter field. Extra keys are passed
 as environment variables to the routine:

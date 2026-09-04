@@ -3,7 +3,7 @@ name: Telegram Bot
 tagline: Connect a Telegram bot to Decree for notifications and image ingestion
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
 ---
 
@@ -14,16 +14,16 @@ Docs: https://existential.company/docs/integrations/telegram
 Setup:
   1. Message @BotFather on Telegram to create a bot. Copy the token.
 
-  2. Write the token to automations/secrets/telegram/credentials.env:
+  2. Write the token to automation/secrets/telegram/credentials.env:
          TELEGRAM_BOT_TOKEN=<your-token>
 
   3. Get your chat ID: send a message to your bot, then run:
-         docker exec decree decree run telegram-ingest
+         docker exec automation decree run telegram-ingest
 
   4. Add TELEGRAM_CHAT_ID to the credentials file.
 
   5. Activate the poller — checks for new photo messages every 30 minutes
      and routes them to MinIO for downstream processing:
-       mkdir -p services/decree/decree/cron/
-       cp services/decree/decree/cron.example/telegram-poll.md services/decree/decree/cron/
-       docker compose restart decree
+       mkdir -p automation/cron/
+       cp automation-examples/cron/telegram-poll.md automation/cron/
+       docker compose restart automation

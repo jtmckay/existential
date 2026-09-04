@@ -162,10 +162,10 @@ dashy.{$CADDY_DOMAIN} {
   reverse_proxy dashy:8080
 }
 
-decree-webhook.{$CADDY_DOMAIN} {
+automation-webhook.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
-  reverse_proxy decree-webhook:8801
+  reverse_proxy automation-webhook:8801
 }
 
 homeassistant.{$CADDY_DOMAIN} {

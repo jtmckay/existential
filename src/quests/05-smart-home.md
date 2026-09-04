@@ -5,7 +5,7 @@ e2e: true
 services:
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
   - var: EXIST_IS_SERVICES_NTFY
     label: ntfy
@@ -18,24 +18,24 @@ None of the crons below are required to use Home Assistant on its own — only
 copy the ones for automations you actually want. All of them live in the same
 decree project, so one restart picks up everything you copied:
 
-  mkdir -p services/decree/decree/cron/
+  mkdir -p automation/cron/
 
   # Prune old run logs weekly — worth having no matter what else you enable
-  cp services/decree/decree/cron.example/clean-runs.md services/decree/decree/cron/
+  cp automation-examples/cron/clean-runs.md automation/cron/
 
   # Gmail sync — only if you're wiring up email-driven automations
   # (full setup: the auto-gmail quest)
-  cp services/decree/decree/cron.example/gmail-sync.md services/decree/decree/cron/
+  cp automation-examples/cron/gmail-sync.md automation/cron/
 
   # Telegram bot polling — only if you connected a bot
   # (full setup: the auto-telegram quest)
-  cp services/decree/decree/cron.example/telegram-poll.md services/decree/decree/cron/
+  cp automation-examples/cron/telegram-poll.md automation/cron/
 
   # Telegram receipt-photo polling — only if you're using receipt-split
   # (full setup: the auto-receipt-split quest)
-  cp services/decree/decree/cron.example/telegram-receipt-poll.md services/decree/decree/cron/
+  cp automation-examples/cron/telegram-receipt-poll.md automation/cron/
 
-  docker compose restart decree
+  docker compose restart automation
 
 The Gmail and Telegram crons on their own do nothing useful yet — they poll
 for messages, but nothing is wired to act on what they find until you set up

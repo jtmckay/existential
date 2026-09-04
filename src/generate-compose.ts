@@ -40,7 +40,7 @@ function loadEnv(filePath: string): Record<string, string> {
 
 // ── Service discovery ──────────────────────────────────────────────────────────
 
-const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automations', 'node_modules', 'volumes']);
+const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automation', 'automation-examples', 'node_modules', 'volumes']);
 
 function serviceEnvKey(relPath: string): string {
   return 'EXIST_IS_' + relPath.toUpperCase().replace(/[^A-Z0-9]/g, '_');

@@ -76,7 +76,7 @@ Write `description` as the answer to *"when should work come here?"*. It is the 
 router sees, so a vague one produces vague routing.
 
 The one thing that is not automatic: `hermes-dept` must be enabled in
-`services/decree/decree/config.yml` (shared routines are invisible until listed). Enable it
+`services/automation/decree/config.yml` (shared routines are invisible until listed). Enable it
 once and every department you add afterwards works with no further change.
 
 ## Provisioning the profiles
@@ -107,7 +107,7 @@ docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
 
 ## Sending work
 
-Drop a message in `services/decree/decree/inbox/`:
+Drop a message in `services/automation/decree/inbox/`:
 
 ```
 ---

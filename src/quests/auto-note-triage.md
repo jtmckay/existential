@@ -3,7 +3,7 @@ name: Note Triage
 tagline: Watch your notes for ideas worth acting on, then research and draft them
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
   - var: EXIST_IS_AI_HERMES
     label: Hermes
@@ -39,7 +39,7 @@ IMPORTANT — the first run is a no-op by design. It records the vault as seen
 without triaging, so turning this on with a 5,000-note vault does not fire
 5,000 model calls. To scan the backlog once:
 
-  docker exec decree decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
+  docker exec automation decree run --routine note-triage --param TRIAGE_BOOTSTRAP=true
 
 Prerequisites:
   - Notes landing in /data/notes — activate the auto-notes quest, or point
@@ -47,7 +47,7 @@ Prerequisites:
   - Hermes running (the gateway the routines call), or set
     TRIAGE_API_URL=http://ollama:11434/v1 in the cron frontmatter to talk to
     Ollama directly
-  - Enable the routines you want in services/decree/decree/config.yml:
+  - Enable the routines you want in services/automation/decree/config.yml:
       note-triage:
         enabled: true
       note-develop:
@@ -86,9 +86,9 @@ Making it yours — everything below is cron frontmatter, no code changes:
                     instead of inventing a market.
 
 Activate the hourly scan:
-  mkdir -p services/decree/decree/cron/
-  cp services/decree/decree/cron.example/note-triage.md services/decree/decree/cron/
-  docker compose restart decree
+  mkdir -p automation/cron/
+  cp automation-examples/cron/note-triage.md automation/cron/
+  docker compose restart automation
 
-Logs for each run land in automations/runs/ and are queryable in Grafana
+Logs for each run land in automation/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

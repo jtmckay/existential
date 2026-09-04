@@ -29,7 +29,7 @@ services:
       # .claude/reference/volumes.md.
       #
       # Backup IS wired up: copy lowcoder-db-backup-{nightly,weekly}.md from
-      # services/decree/decree-backup/cron.example/ into cron/ and restart
+      # services/automation/backup/cron.example/ into cron/ and restart
       # decree-backup (mongodump straight to ${EXIST_BACKUP_RCLONE_REMOTE}, same
       # as every other db-backup — there is no local *_backup volume for any of
       # them, see volumes.md). lowcoder-volume-backup-{nightly,weekly}.md covers

@@ -58,22 +58,22 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 ## Using ComfyUI from Decree
 
-Decree routines are shell scripts in `automations/shared_routines/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
+Decree routines are shell scripts in `automation/shared_routines/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
 ### The routines that ship
 
-Three are already written, registered in `services/decree/decree/config.exist.yml` and off by default:
+Three are already written, registered in `services/automation/decree/config.exist.yml` and off by default:
 
 | Routine | Workflow | Needs |
 |---|---|---|
-| `comfy-image-text` | `automations/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
-| `comfy-image-text-image` | `automations/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
-| `comfy-video-i2v` | `automations/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
+| `comfy-image-text` | `automation/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
+| `comfy-image-text-image` | `automation/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
+| `comfy-video-i2v` | `automation/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
 
-Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip a routine's `enabled: true`, restart decree, then:
+Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip a routine's `enabled: true`, restart automation, then:
 
 ```bash
-docker exec decree decree run comfy-image-text
+docker exec automation decree run comfy-image-text
 ```
 
 Write your own the same way: POST the workflow to `/api/prompt`, poll `/history/{id}` until `outputs` appears, then fetch the file from `/view`.
@@ -104,7 +104,7 @@ Downloads image via /view?filename=...&type=output
 Sends image back to the Telegram chat via Bot API
 ```
 
-The `telegram-poll` routine in `automations/shared_routines/telegram-poll.sh` handles inbound messages. Wire ComfyUI into it by checking the message body for a command prefix (e.g. `/imagine`) and dispatching to `comfyui-generate`.
+The `telegram-poll` routine in `automation/shared_routines/telegram-poll.sh` handles inbound messages. Wire ComfyUI into it by checking the message body for a command prefix (e.g. `/imagine`) and dispatching to `comfyui-generate`.
 
 See [Telegram integration](../integrations/telegram) for bot credentials setup.
 

@@ -7,7 +7,7 @@ enumerates them.
 A check *is* a [decree migration](../../../../.claude/skills/decree/reference/migrations.md):
 YAML frontmatter naming a routine, then prose explaining what it proves.
 `e2e.sh` copies the applicable ones into the clone's
-`services/decree/decree/migrations/` **before the stack comes up**; decree
+`automation/migrations/` **before the stack comes up**; decree
 applies them during its boot, alongside the product's own migrations, and writes
 `runs/<id>/{message.md,routine.log,run.json}` for each; `e2e.sh` copies that out
 to `e2e-out/` and grades it.
@@ -44,7 +44,7 @@ decree's own contract — it is how a check passes configuration to its routine.
 ## The sibling `.sh`
 
 A check with no `.sh` reuses a routine the stack already ships. A check with one
-gets it staged into the clone's `automations/shared_routines/` and registered,
+gets it staged into the clone's `automation/shared_routines/` and registered,
 so test code never appears in a user's `config.yml`. Write it as an ordinary
 routine (`.claude/skills/decree/reference/routines.md`): `DECREE_PRE_CHECK`
 block, `set -euo pipefail`, non-zero to fail.

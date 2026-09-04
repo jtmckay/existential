@@ -132,7 +132,7 @@ services:
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
       # MariaDB — db: true. Backup: copy nextcloud-db-backup-{nightly,weekly}.md
-      # from services/decree/decree-backup/cron.example/ into cron/ and restart it.
+      # from services/automation/backup/cron.example/ into cron/ and restart it.
       - nextcloud_sql_data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${NEXTCLOUD_ROOT_PASSWORD}

@@ -16,7 +16,7 @@ WORK="${WORK:?}"
 BUCKET="e2e-flow"
 
 grep -q '^EXIST_IS_NAS_MINIO=true' "$WORK/.env.shared" || exit 0
-WCFG="$WORK/services/decree/webhook/config.exist.yml"
+WCFG="$WORK/services/automation/webhook/config.exist.yml"
 [ -f "$WCFG" ] || exit 0
 
 # ── The probe processor ──────────────────────────────────────────────────────
@@ -27,9 +27,9 @@ WCFG="$WORK/services/decree/webhook/config.exist.yml"
 # chain exits non-zero and e2e's every-run-is-graded rule turns that into a red
 # row. That assertion is the only thing this check needs a processor to do, and
 # a generated near-copy of the example was 17 lines of drift waiting to happen.
-mkdir -p "$WORK/automations/lib/file-processors"
-cp "$WORK/automations/lib/file-processors.example/example.sh" \
-   "$WORK/automations/lib/file-processors/"
+mkdir -p "$WORK/automation/lib/file-processors"
+cp "$WORK/automation/lib/file-processors.example/example.sh" \
+   "$WORK/automation/lib/file-processors/"
 
 # ── The webhook's rclone_prefix ──────────────────────────────────────────────
 #

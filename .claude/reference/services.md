@@ -189,19 +189,45 @@ service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0
 
 ## Decree image & daemons
 
-The decree image is built **once** from `automations/Dockerfile` by `existential-adhoc`, tagged
-`existential/decree:local`; both `decree` and `decree-backup` reference it via `image:` (not
-rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked healthcheck: `grep -q decree
-/proc/1/comm` with a long `start-period` (330s) so a daemon running as `bash` during its
-migration wait shows `starting`, not `unhealthy`. Adhoc disables the healthcheck.
+The decree image is built **once** from `services/automation/decree/Dockerfile` by
+`existential-adhoc`, tagged `existential/decree:local`; both `decree` and `decree-backup`
+reference it via `image:` (not rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked
+healthcheck: `grep -q decree /proc/1/comm` with a long `start-period` (330s) so a daemon running
+as `bash` during its migration wait shows `starting`, not `unhealthy`. Adhoc disables the
+healthcheck.
 
-**There are exactly two daemons, and services do not get their own.** Both live in
-`services/decree/`, one project dir each — the dir name *is* the container name, which is what
-`quest.sh`'s `_decree_container_for` keys off. Each mirrors the same shape (`config.exist.yml` +
-`routine_source`, `cron.example/`, gitignored runtime dirs), and both mount `automations/`'s
-`shared_routines/`, `lib/` and `runs/`, so logs from either land in one audit trail.
+**There are exactly two daemons, and services do not get their own.** Both are defined in
+`services/automation/docker-compose.exist.yml`, container names `automation` and
+`automation-backup` (the `services/automation/` slug is the required prefix; see
+`validate conventions`'s container-naming rule). Their project directories keep the shorter
+`decree`/`backup` names instead — `automation`'s is `services/automation/decree/` (which also
+holds the image build now — Dockerfile, entrypoint.sh, package.json), `automation-backup`'s is
+`services/automation/backup/`. The two are mounted very differently:
 
-| | `decree` (`decree/`) | `decree-backup` (`decree-backup/`) |
+- **`automation`** wholesale-mounts the repo-root `automation/` directory as `/work/.decree` —
+  `runs/`, `secrets/`, `cron/`, `migrations/`, `inbox/`, `outbox/`, `processed.md`, `router.md`
+  all come from there in one bind mount. `shared_routines/` and `lib/` are the same host
+  directories but layered back in **read-only** on top of that mount: this container runs
+  `agent-task` with terminal and write access, so the routine code itself must not be writable
+  from inside a routine. `cron/`, `migrations/`, and `router.md` get the same read-only
+  treatment for a simpler reason — nothing at runtime ever writes to them (they're only ever
+  populated from the host, before the container starts), so there's no reason to leave them
+  writable. What that leaves genuinely writable: `inbox/`, `outbox/`, `runs/`, `secrets/`,
+  `processed.md`, `precheck.log`, `config.hash`. Its own project dir
+  (`services/automation/decree/`) contributes only `config.yml`, also read-only, layered in at
+  `/work/.decree/config.yml` — the render pipeline and `validate-conventions.ts` both require
+  `config.exist.yml` to live at `<slug>/decree/config.exist.yml`, so it couldn't move to the
+  root without those tools losing track of it.
+- **`automation-backup`** mounts `automation/shared_routines/`, `automation/lib/`,
+  `automation/runs/` individually (read-only) into its own project dir
+  (`services/automation/backup/`, wholesale-mounted as `/work/.decree`), and keeps a
+  conventional `cron.example/` + `cron/` pair there too, since its crons are per-instance, not
+  shared mounted content.
+
+Logs from either daemon land in `automation/runs/` — one audit trail regardless of which daemon
+ran the routine.
+
+| | `automation` (`decree/`) | `automation-backup` (`backup/`) |
 |---|---|---|
 | Runs | routing, notes, triage, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync` |
 | Sees | `/repo` read-only, `/workspace` read-write, `decree_data` | `volumes/` read-write, `/workspace` read-only |
@@ -218,17 +244,17 @@ to its own volumes and creds, which was stricter — the trade was deliberate: t
 `decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
 volume and credential YAML **per service**, against a repo whose whole claim is that adding a
 service is adding a folder. Now a new service's backup is one cron file in
-`decree-backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
+`services/automation/backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
 **Migration ordering.** `entrypoint.sh` gates `decree process` on `/work/exist.test.sh` passing,
 retrying for `DECREE_MIGRATE_TIMEOUT` (300s). `decree`'s migrations target *other* services, so
-that file is `services/decree/migration-gate.sh`, which probes each service it migrates and skips
+that file is `services/automation/migration-gate.sh`, which probes each service it migrates and skips
 the ones whose `EXIST_IS_*` flag is false. Add a migration for a new service and you add its probe
 there. `decree-backup` mounts no such file, so it correctly skips the wait entirely.
 
-**`decree-webhook` does not use this image.** It is a static Go binary
-(`services/decree/webhook/`) on `distroless`, built by compose from its own `Dockerfile` rather
+**`automation-webhook` does not use this image.** It is a static Go binary
+(`services/automation/webhook/`) on `distroless`, built by compose from its own `Dockerfile` rather
 than by `existential-adhoc`, and shares nothing with the daemon but the inbox bind mount.
 Because distroless ships no shell, curl or wget, its healthcheck is the binary probing itself
 (`/webhook -healthcheck`). Its `README.md` documents the config-driven route table and the

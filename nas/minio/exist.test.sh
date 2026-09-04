@@ -25,7 +25,7 @@ probe_caddy_any "minio console" minio / "^(200|301|302|307)$"
 
 # Root credentials actually authenticate. Uses the MC_HOST_<alias> env form
 # (URL-embedded creds, no ~/.mc/config.json alias written) -- the same
-# pattern automations/shared_routines/minio-service-account.sh uses. `mc ls`
+# pattern automation/shared_routines/minio-service-account.sh uses. `mc ls`
 # is a read-only ListBuckets call, so this proves the live .env values work
 # without writing anything to the service.
 if command -v mc >/dev/null 2>&1; then

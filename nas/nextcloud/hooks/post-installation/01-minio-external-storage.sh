@@ -8,7 +8,7 @@
 # bit: run_path skips scripts that lack it.
 #
 # Object keys under this mount are real file paths, which is what
-# automations/shared_routines/minio-router.sh assumes when it turns a MinIO
+# automation/shared_routines/minio-router.sh assumes when it turns a MinIO
 # webhook event into "${rclone_src}:${prefix}${object_key}". Primary object
 # storage (OBJECTSTORE_S3_*) would be less code here but stores opaque
 # urn:oid:N keys and would break that pipeline.

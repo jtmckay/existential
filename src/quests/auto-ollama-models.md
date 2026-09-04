@@ -15,31 +15,31 @@ services:
     label: Open WebUI
 ---
 
-Copy migration files into services/decree/decree/migrations/, one per role
+Copy migration files into automation/migrations/, one per role
 — only the roles the services you enabled actually need. After
 `docker compose up -d`, the decree daemon waits for Ollama to be healthy,
 then runs each migration once, in order — no further manual steps.
 
-  mkdir -p services/decree/decree/migrations/
+  mkdir -p automation/migrations/
 
   # Always, if Ollama is enabled — the chat model and its context window
-  cp services/decree/decree/migrations.example/10-ollama-pull-chat-model.md \
-     services/decree/decree/migrations.example/11-ollama-set-chat-context.md \
-     services/decree/decree/migrations/
+  cp automation-examples/migrations/10-ollama-pull-chat-model.md \
+     automation-examples/migrations/11-ollama-set-chat-context.md \
+     automation/migrations/
 
   # Only if Honcho is enabled — the extraction model it uses for memory work
-  cp services/decree/decree/migrations.example/12-ollama-pull-extract-model.md \
-     services/decree/decree/migrations/
+  cp automation-examples/migrations/12-ollama-pull-extract-model.md \
+     automation/migrations/
 
   # Only if OpenViking is enabled — the embedding model for its vector store
-  cp services/decree/decree/migrations.example/13-ollama-pull-embed-model.md \
-     services/decree/decree/migrations/
+  cp automation-examples/migrations/13-ollama-pull-embed-model.md \
+     automation/migrations/
 
   # Always, if Ollama is enabled — skips itself at runtime if EXIST_MODEL_VISION is blank
-  cp services/decree/decree/migrations.example/14-ollama-pull-vision-model.md \
-     services/decree/decree/migrations/
+  cp automation-examples/migrations/14-ollama-pull-vision-model.md \
+     automation/migrations/
 
-  docker compose restart decree
+  docker compose restart automation
 
 These migrations do NOT name a model. They name a ROLE, and the routine
 resolves it against the "Model Selection" block in .env.shared. Change a

@@ -32,7 +32,7 @@ services:
       resources:
         limits:
           memory: 2G
-    # The image's baked HEALTHCHECK (automations/Dockerfile) is
+    # The image's baked HEALTHCHECK (automation/Dockerfile) is
     # `grep -q decree /proc/1/comm`, written for the decree daemons where PID 1
     # execs `decree daemon`. This entrypoint execs code-server instead, whose
     # PID 1 /proc/1/comm is `MainThread` (verified: `docker exec code-server

@@ -1,7 +1,7 @@
 ---
 routine: triage
 e2e_check: 00-services
-requires: EXIST_IS_SERVICES_DECREE
+requires: EXIST_IS_SERVICES_AUTOMATION
 TRIAGE_ALWAYS: "true"
 TRIAGE_STRICT: "true"
 TRIAGE_NOTIFY: "false"

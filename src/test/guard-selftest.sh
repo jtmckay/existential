@@ -100,9 +100,9 @@ hook_rc "server.pem"                  "$FAKE_PEM"; check "private key in server.
 hook_rc "cloudflare-key.exist.pem"    "$FAKE_PEM"; check "private key in *.exist.pem (placeholder)" allow
 hook_rc "deploy.example"              "$FAKE_PEM"; check "private key in *.example (placeholder)"    allow
 hook_rc "config.yml"                  "key=$FAKE_AWS"; check "AWS key in config.yml"        block
-hook_rc "services/decree/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/decree/webhook/config.exist.yml"
+hook_rc "services/automation/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/automation/webhook/config.exist.yml"
 check "rendered webhook config.yml (content matches no pattern)"                             block
-hook_rc "services/decree/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
+hook_rc "services/automation/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
 check "webhook config.exist.yml template"                                                    allow
 hook_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "upstream *-config.yaml (no *.exist.* template) still committable"                     allow
@@ -119,9 +119,9 @@ scanner_rc "cloudflare-key.exist.pem" "$FAKE_PEM"; check "tracked private key in
 scanner_rc "cloudflare-key.pem.example" "$FAKE_PEM"; check "tracked private key in *.example"       allow
 scanner_rc "notes.txt"                "k=$FAKE_AWS"; check "tracked AWS-shaped key"                block
 scanner_rc ".env"                     "X=1";       check "tracked rendered .env"                   block
-scanner_rc "services/decree/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/decree/webhook/config.exist.yml"
+scanner_rc "services/automation/webhook/config.yml" "secret: $FAKE_WEBHOOK_SECRET" "services/automation/webhook/config.exist.yml"
 check "tracked rendered webhook config.yml"                                                        block
-scanner_rc "services/decree/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
+scanner_rc "services/automation/webhook/config.exist.yml" "secret: EXIST_32_CHAR_HEX_KEY"
 check "tracked webhook config.exist.yml template"                                                  allow
 scanner_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "tracked upstream *-config.yaml (no template)"                                               allow

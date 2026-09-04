@@ -2,7 +2,7 @@
 # DB / volume backup restore — runs on the host (needs bash + docker only).
 #
 # DB restores replay a logical dump over a live connection inside the
-# decree-backup container (which holds every service's credentials in its
+# automation-backup container (which holds every service's credentials in its
 # environment and mounts every volume).
 # Volume restores wipe the target volume before extracting — stop consumer
 # containers manually before running this script and restart them yourself.
@@ -39,7 +39,7 @@ command -v "$DOCKER_CMD" >/dev/null 2>&1 || die "${DOCKER_CMD} not found on PATH
 
 # Every backup for every service runs in one daemon, so there is nothing to
 # pick: rclone, the credentials and the volumes all live here.
-SIDECAR="decree-backup"
+SIDECAR="automation-backup"
 
 rclone_in() {
     local ctr="$1"; shift
@@ -102,7 +102,7 @@ $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -qx "$SIDECAR" \
 
 if [ "$KIND" = "db" ]; then
     TARGETS=$(collect_targets db-backup "$TIER")
-    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — copy a template from services/decree/decree-backup/cron.example/ into services/decree/decree-backup/cron/"
+    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation/backup/cron.example/ into services/automation/backup/cron/"
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
@@ -250,7 +250,7 @@ fi
 [ "$KIND" = "sqlite" ] || exit 0
 
 TARGETS=$(collect_targets sqlite-backup "$TIER")
-[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — copy a template from services/decree/decree-backup/cron.example/ into services/decree/decree-backup/cron/"
+[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation/backup/cron.example/ into services/automation/backup/cron/"
 
 echo ""
 echo "SQLite databases with backups in ${REMOTE}/${TIER}/sqlite/:"

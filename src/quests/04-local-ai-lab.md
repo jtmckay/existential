@@ -37,14 +37,14 @@ Or let Decree do it unattended, in the background, as soon as ollama is
 healthy — each migration below pulls (or configures) one role. Same
 mechanism Core uses; copy only what this quest actually needs:
 
-  mkdir -p services/decree/decree/migrations/
-  cp services/decree/decree/migrations.example/10-ollama-pull-chat-model.md \
-     services/decree/decree/migrations.example/11-ollama-set-chat-context.md \
-     services/decree/decree/migrations.example/12-ollama-pull-extract-model.md \
-     services/decree/decree/migrations.example/13-ollama-pull-embed-model.md \
-     services/decree/decree/migrations.example/14-ollama-pull-vision-model.md \
-     services/decree/decree/migrations/
-  docker compose restart decree
+  mkdir -p automation/migrations/
+  cp automation-examples/migrations/10-ollama-pull-chat-model.md \
+     automation-examples/migrations/11-ollama-set-chat-context.md \
+     automation-examples/migrations/12-ollama-pull-extract-model.md \
+     automation-examples/migrations/13-ollama-pull-embed-model.md \
+     automation-examples/migrations/14-ollama-pull-vision-model.md \
+     automation/migrations/
+  docker compose restart automation
 
 Migrations run once each, in order, the first time decree sees them — no
 cron, no restart needed after the first one. At the defaults (~4 GB total)
@@ -76,10 +76,10 @@ The seeding never overwrites: anything already in config.yaml wins.
 If you enabled Hermes, its volume (config + skills) is worth backing up —
 nightly by default, weekly optional:
 
-  mkdir -p services/decree/decree-backup/cron/
-  cp services/decree/decree-backup/cron.example/hermes-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
-  docker compose restart decree-backup
+  mkdir -p services/automation/backup/cron/
+  cp services/automation/backup/cron.example/hermes-volume-backup-nightly.md \
+     services/automation/backup/cron/
+  docker compose restart automation-backup
 
 ── ComfyUI: download checkpoints ─────────────────────────────────────────
 
@@ -91,7 +91,7 @@ in the UI, or place .safetensors files directly in:
 Recommended starting model: SDXL base (6.9 GB from civitai.com or HuggingFace).
 
 The comfy-image-* and comfy-video-i2v decree routines need Flux2 and Wan 2.2
-instead; the HuggingFace URLs are in each workflow in automations/lib/comfy/,
+instead; the HuggingFace URLs are in each workflow in automation/lib/comfy/,
 and they go under .../models/{diffusion_models,text_encoders,vae,loras}/.
 
 ── OpenViking: your knowledgebase ────────────────────────────────────────
@@ -101,10 +101,10 @@ tree hermes and code-server share, so everything you work on is indexed
 without a second directory to keep in step. ./existential.sh creates it, but
 nothing indexes it until you activate the cron:
 
-  mkdir -p services/decree/decree/cron/
-  cp services/decree/decree/cron.example/openviking-index-knowledgebase.md \
-     services/decree/decree/cron/
-  docker compose restart decree
+  mkdir -p automation/cron/
+  cp automation-examples/cron/openviking-index-knowledgebase.md \
+     automation/cron/
+  docker compose restart automation
 
 That indexes every 15 minutes: workspace/ (including workspace/ai/, the
 output of the agent automations, so an agent can find what an earlier run
@@ -116,6 +116,6 @@ give it its own INDEX_DIR and INDEX_PREFIX in the frontmatter.
 
 OpenViking's own volume (the vector index) is worth backing up too:
 
-  cp services/decree/decree-backup/cron.example/openviking-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
-  docker compose restart decree-backup
+  cp services/automation/backup/cron.example/openviking-volume-backup-nightly.md \
+     services/automation/backup/cron/
+  docker compose restart automation-backup

@@ -27,7 +27,7 @@ variable. That is the whole model.
 ### Connect to a running container
 
 ```bash
-docker compose run decree bash
+docker compose run automation bash
 ```
 
 ### One-off run (without daemon)
@@ -42,7 +42,7 @@ Gmail and rclone are configured through interactive setup scripts. See [Integrat
 
 ## Configure S3
 
-Set your MinIO (or AWS S3) credentials in `services/decree/.env`:
+Set your MinIO (or AWS S3) credentials in `services/automation/.env`:
 
 ```bash
 S3_ENDPOINT=http://minio:9000

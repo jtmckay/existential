@@ -50,7 +50,7 @@ services:
       # WhisperModelParams field is a query param with a *hardcoded* default
       # (model=tiny, device=cuda, compute_type=float16 — app/schemas.py:334), so
       # a caller must send its own or a CPU-only host fails every task with
-      # "CUDA driver version is insufficient". automations/lib/whisperx-transcribe.ts
+      # "CUDA driver version is insufficient". automation/lib/whisperx-transcribe.ts
       # sends them.
       WHISPER_MODEL: large-v3
       DEVICE: cuda
@@ -80,7 +80,7 @@ services:
       - whisperx_cache:/root/.cache                             # HF + torch model cache — a _cache, re-downloadable
       # SQLite tasks + speaker-embedding DB — db: true (NFS breaks WAL locking).
       # TODO: no backup yet — add a volume-backup cron in
-      # services/decree/decree-backup/cron.example/ (nothing else is needed).
+      # services/automation/backup/cron.example/ (nothing else is needed).
       - whisperx_db_data:/data/db
 
 x-exist-volumes:

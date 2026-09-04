@@ -171,7 +171,7 @@ make_fake_repo() {
     mkdir -p "${root}/hosting/pihole"
     mkdir -p "${root}/ai/hermes"
     mkdir -p "${root}/ai/ollama"
-    mkdir -p "${root}/services/decree"
+    mkdir -p "${root}/services/automation"
     mkdir -p "${root}/services/mealie"
     mkdir -p "${root}/nas/nextcloud"
     mkdir -p "${root}/src/lib"
@@ -197,9 +197,9 @@ assert_eq "_enable_var_for ai/hermes → EXIST_IS_AI_HERMES" \
     "EXIST_IS_AI_HERMES" \
     "$(_run_enable_var_for "${FAKE_REPO}/ai/hermes")"
 
-assert_eq "_enable_var_for services/decree → EXIST_IS_SERVICES_DECREE" \
-    "EXIST_IS_SERVICES_DECREE" \
-    "$(_run_enable_var_for "${FAKE_REPO}/services/decree")"
+assert_eq "_enable_var_for services/automation → EXIST_IS_SERVICES_AUTOMATION" \
+    "EXIST_IS_SERVICES_AUTOMATION" \
+    "$(_run_enable_var_for "${FAKE_REPO}/services/automation")"
 
 assert_eq "_enable_var_for hosting/caddy → EXIST_IS_HOSTING_CADDY" \
     "EXIST_IS_HOSTING_CADDY" \
@@ -236,9 +236,9 @@ assert_eq "_find_service_dir_for_slug caddy → hosting/caddy path" \
     "${FAKE_FIND}/hosting/caddy" \
     "$(_run_find_slug "caddy")"
 
-assert_eq "_find_service_dir_for_slug decree → services/decree path" \
-    "${FAKE_FIND}/services/decree" \
-    "$(_run_find_slug "decree")"
+assert_eq "_find_service_dir_for_slug automation → services/automation path" \
+    "${FAKE_FIND}/services/automation" \
+    "$(_run_find_slug "automation")"
 
 # Unknown slug: function should exit non-zero (returns 1 in sub-shell)
 _slug_missing_rc=0
@@ -276,14 +276,14 @@ else
 fi
 
 # Multiple entries, one true
-if _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_DECREE=true'; then
+if _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_AUTOMATION=true'; then
     _ok "_has_any_enabled: mixed entries with one true → exits 0"
 else
     _fail "_has_any_enabled: mixed entries with one true → exits 0" "returned non-zero"
 fi
 
 # All false → should return non-zero
-if ! _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_DECREE=false'; then
+if ! _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_AUTOMATION=false'; then
     _ok "_has_any_enabled: all false → exits non-zero"
 else
     _fail "_has_any_enabled: all false → exits non-zero" "unexpectedly returned 0"

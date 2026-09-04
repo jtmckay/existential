@@ -56,7 +56,7 @@ Give each bank its own distinct label — the label is how Decree knows which em
 
 ### 1. Cron trigger
 
-`automations/cron/gmail-transactions-<label>.md` fires the `gmail-sync` routine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual-budget-parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
+`automation/cron/gmail-transactions-<label>.md` fires the `gmail-sync` routine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual-budget-parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
 
 ### 2. gmail-sync
 
@@ -112,7 +112,7 @@ An interactive prompt will:
 2. List available parse scripts — select the one matching your bank
 3. List your open Actual Budget accounts — select the one to post transactions to
 4. Confirm the schedule (default: `*/5 * * * *`)
-5. Write `automations/cron/gmail-transactions-<label>.md`
+5. Write `automation/cron/gmail-transactions-<label>.md`
 
 No restart needed — Decree picks up new cron files on the next tick.
 
@@ -121,21 +121,21 @@ No restart needed — Decree picks up new cron files on the next tick.
 Check that the routines are registered and passing pre-checks:
 
 ```bash
-docker exec decree decree routine actual-budget-parse
-docker exec decree decree routine actual-budget
+docker exec automation decree routine actual-budget-parse
+docker exec automation decree routine actual-budget
 ```
 
 Watch the next cron fire and inspect the run log:
 
 ```bash
-docker exec decree decree status
-docker exec decree decree log <id-prefix>
+docker exec automation decree status
+docker exec automation decree log <id-prefix>
 ```
 
 To test immediately without waiting for the cron, drop a message manually:
 
 ```bash
-cat > automations/inbox/test-transaction.md << 'EOF'
+cat > automation/inbox/test-transaction.md << 'EOF'
 ---
 routine: actual-budget-parse
 subject: 'You made a $42.00 transaction with WHOLE FOODS'
@@ -156,5 +156,5 @@ Each bank gets its own parse script. `actual-budget-parse` accepts any `parse_sc
 
 To add a new bank:
 
-1. Create `automations/lib/actual-budget/parse-<bank>.ts` following the same interface as `parse-chase.ts`
+1. Create `automation/lib/actual-budget/parse-<bank>.ts` following the same interface as `parse-chase.ts`
 2. Run `./existential.sh run gmail-transactions-cron` again — it will discover the new script automatically

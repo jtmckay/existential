@@ -3,7 +3,7 @@ name: Service Health Monitoring
 tagline: HTTP health probes for your services, visible in Grafana and alerting via ntfy
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
   - var: EXIST_IS_HOSTING_PROMETHEUS
     label: Prometheus
@@ -23,15 +23,15 @@ probes a service URL every 15 minutes. Results flow automatically to:
 Setup — for each service you want to monitor:
 
   1. Copy the cron template:
-       cp services/decree/decree/cron.example/health-checks.md \
-          services/decree/decree/cron/health-check-<slug>.md
+       cp automation-examples/cron/health-checks.md \
+          automation/cron/health-check-<slug>.md
 
   2. Edit the copy and set:
        SERVICE_NAME: <slug>          # display name in the run log
        SERVICE_URL:  http://<container>:<port>/<health-path>
 
   3. Restart decree:
-       docker compose restart decree
+       docker compose restart automation
 
 Example health endpoints per service:
   http://ollama:11434/api/tags              ollama

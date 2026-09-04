@@ -131,11 +131,11 @@ Follow the [Telegram integration guide](../integrations/telegram) to:
 
 1. Create a bot with @BotFather
 2. Get your chat ID
-3. Save credentials to `services/decree/secrets/telegram/credentials.env`
+3. Save credentials to `services/automation/secrets/telegram/credentials.env`
 
 ### Step 2 — Enable routines
 
-In `automations/config.yml`:
+In `automation/config.yml`:
 
 ```yaml
 shared_routines:
@@ -148,15 +148,15 @@ shared_routines:
 ### Step 3 — Activate the receipt polling cron
 
 ```bash
-cp services/decree/decree/cron.example/telegram-receipt-poll.md \
-   services/decree/decree/cron/
+cp automation-examples/cron/telegram-receipt-poll.md \
+   automation/cron/
 ```
 
 This schedules `telegram-receipt` to run every minute. Cron frontmatter is read when the daemon
 starts, so restart it to pick the new schedule up:
 
 ```bash
-docker compose restart decree
+docker compose restart automation
 ```
 
 ### Step 4 — Verify
@@ -164,14 +164,14 @@ docker compose restart decree
 Check all pre-checks pass:
 
 ```bash
-docker exec decree decree routine telegram-notify
-docker exec decree decree routine telegram-receipt
+docker exec automation decree routine telegram-notify
+docker exec automation decree routine telegram-receipt
 ```
 
 Send a test notification manually:
 
 ```bash
-docker exec decree decree run --routine telegram-notify \
+docker exec automation decree run --routine telegram-notify \
   --param transaction_id=test-123 \
   --param amount_cents=-4723 \
   --param payee_name="Whole Foods Market" \
@@ -191,12 +191,12 @@ docker exec decree decree run --routine telegram-notify \
 All pending notifications and active splits are tracked in `/secrets/telegram/state.json`. Inspect it at any time:
 
 ```bash
-cat services/decree/secrets/telegram/state.json | jq .
+cat services/automation/secrets/telegram/state.json | jq .
 ```
 
 To reset state (e.g. after testing):
 
 ```bash
 echo '{"pending":{},"splits":{},"last_pending_message_id":null}' \
-  > services/decree/secrets/telegram/state.json
+  > services/automation/secrets/telegram/state.json
 ```

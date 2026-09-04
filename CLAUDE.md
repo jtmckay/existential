@@ -18,7 +18,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
 | change `existential.sh`, `reset`, a quest, or an e2e check | `.claude/reference/setup.md` |
 | change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
-| work on automations/decree | the `/decree` skill (it reads the live files) |
+| work on automation/decree | the `/decree` skill (it reads the live files) |
 
 ---
 
@@ -44,7 +44,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 1. **Before building anything, ask: does this already exist?** This stack is deliberately
    curated; every tool added must be maintained. Check for a stack service (hermes skills,
-   decree routines), a Unix one-liner, an existing `automations/` helper, an npm package/CLI/API.
+   decree routines), a Unix one-liner, an existing `automation/` helper, an npm package/CLI/API.
    **If something exists and works, use it — don't convert, reimplement, or "standardize"
    working code without a concrete problem to solve.**
 2. **Custom logic is bash (preferred), TypeScript via `tsx`, or Go. Never Python for code we
@@ -54,9 +54,9 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    `.claude/reference/testing.md`). External tooling (hermes skills, upstream configs) stays in
    whatever language it shipped in.
 3. **Configuration is YAML.** `.env` is for secrets/host-specific values only.
-4. **`src/` = host-run scripts. `automations/` = scheduled/webhook/decree-triggered work.**
-   Shared routine code in `automations/shared_routines/`; shared helpers in `automations/lib/`.
-5. **Repeatable work is a decree routine** (`automations/shared_routines/`), not host cron or
+4. **`src/` = host-run scripts. `automation/` = scheduled/webhook/decree-triggered work.**
+   Shared routine code in `automation/shared_routines/`; shared helpers in `automation/lib/`.
+5. **Repeatable work is a decree routine** (`automation/shared_routines/`), not host cron or
    one-off `docker exec`. One-shots stay as `exist.<action>.sh`.
 6. **Services set themselves up deterministically.** Host-side pre-startup work →
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
@@ -102,8 +102,8 @@ automations write).
 `./existential.sh` renders templates → runs `exist.initial.sh` (pre-startup, idempotent, every
 run, no sentinels). Then the user runs `docker compose up -d`; each service's `entrypoint.sh`
 trues up the config only it can reach; the `decree` daemon waits on
-`services/decree/migration-gate.sh` (which probes each service it migrates) and then applies any
-pending one-time migrations from `services/decree/decree/migrations/`. On demand:
+`services/automation/migration-gate.sh` (which probes each service it migrates) and then applies any
+pending one-time migrations from `automation/migrations/`. On demand:
 `./existential.sh run <slug> <action>` → `exist.<action>.sh`.
 
 Which script to write for what, container privileges, the decree image and its two daemons, and
@@ -216,11 +216,15 @@ from the repo root against the generated `docker-compose.yml`.
 For deeper decree work use the `/decree` skill (it reads the live files). Two non-obvious rules
 worth keeping here:
 
-**Two daemons, not one per service:** `decree` (`services/decree/decree/`) runs everything that
-reasons, routes or reaches a service API — including every service's one-time migrations —
-and `decree-backup` (`services/decree/decree-backup/`) runs the backup routines, mounting
-`volumes/` wholesale and taking the master `.env`. A service gets **no** `*-decree` sidecar; a
-new backup is one cron file. Why, and what each can reach: `.claude/reference/services.md`.
+**Two daemons, not one per service:** `automation` (project dir `services/automation/decree/`,
+which also holds the image build) runs everything that reasons, routes or reaches a service API
+— including every service's one-time migrations — and `automation-backup` (project dir
+`services/automation/backup/`) runs the backup routines, mounting `volumes/` wholesale and
+taking the master `.env`. `automation` wholesale-mounts the repo-root `automation/` directory as
+its whole `/work/.decree` project; `automation-backup` mounts the same shared code
+(`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into its own project dir instead.
+A service gets **no** `*-decree` sidecar; a new backup is one cron file. Why, and what each can
+reach: `.claude/reference/services.md`.
 
 **Routine registration:** both daemons use `shared_routines` via `routine_source`, so routines
 default to **disabled** unless listed in `shared_routines` in `config.exist.yml` (the whitelist).

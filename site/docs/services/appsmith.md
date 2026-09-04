@@ -44,4 +44,4 @@ email on signup — Appsmith's `admin.emails` property. Comma-separate more than
 ## Back it up
 
 Copy `appsmith-volume-backup-{nightly,weekly}.md` from
-`services/decree/decree-backup/cron.example/` into `cron/` and restart `decree-backup`.
+`services/automation/backup/cron.example/` into `cron/` and restart `decree-backup`.

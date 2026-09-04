@@ -5,11 +5,11 @@
     "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
-    "typeRoots": ["./automations/node_modules/@types"],
+    "typeRoots": ["./services/automation/decree/node_modules/@types"],
     "paths": {
-      "js-yaml": ["./automations/node_modules/js-yaml/index.js"]
+      "js-yaml": ["./services/automation/decree/node_modules/js-yaml/index.js"]
     }
   },
-  "include": ["src/**/*.ts", "automations/**/*.ts", "services/decree/src/**/*.ts"],
+  "include": ["src/**/*.ts", "automation/**/*.ts", "services/automation/src/**/*.ts"],
   "exclude": ["node_modules", "site"]
 }

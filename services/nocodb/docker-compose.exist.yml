@@ -18,7 +18,7 @@ services:
       POSTGRES_USER: ${NOCODB_POSTGRES_USER}
     volumes:
       # Postgres — db: true. Backup: copy nocodb-db-backup-{nightly,weekly}.md from
-      # services/decree/decree-backup/cron.example/ into cron/ and restart it.
+      # services/automation/backup/cron.example/ into cron/ and restart it.
       - nocodb_pg_data:/var/lib/postgresql/data
       # - ./ncpg_data:/var/lib/postgresql/data # Local volume for Postgres data
     healthcheck:

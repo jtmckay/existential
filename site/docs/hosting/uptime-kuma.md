@@ -30,5 +30,5 @@ type *ntfy*, server URL `http://ntfy:80`, and the topic you want.
 
 v2 removed *Settings → Backup & Restore*, so the whole configuration lives in
 `volumes/uptime_kuma_data/kuma.db` and nowhere else. Activate a backup by copying
-`services/decree/decree-backup/cron.example/uptime-kuma-sqlite-backup-*.md` into
-`services/decree/decree-backup/cron/` and restarting `decree-backup`.
+`services/automation/backup/cron.example/uptime-kuma-sqlite-backup-*.md` into
+`services/automation/backup/cron/` and restarting `decree-backup`.

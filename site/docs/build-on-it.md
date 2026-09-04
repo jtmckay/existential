@@ -24,10 +24,10 @@ layout beyond what's below — is free to change. Don't build against it.
 
 ## 1. Send something in
 
-`decree-webhook` turns an HTTP POST into work. It is the only inbound entry point you need.
+`automation-webhook` turns an HTTP POST into work. It is the only inbound entry point you need.
 
 ```bash
-curl -X POST https://decree-webhook.$EXIST_DOMAIN/notify/Backup%20done \
+curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup%20done \
   -H "Authorization: Bearer $SECRET" \
   -d 'disk 3 is full'
 ```
@@ -56,7 +56,7 @@ drop work. Retry with a jitter if you're sending in bursts.
 ### Adding your own endpoint
 
 Routes are configuration, not code. Add an entry to
-`services/decree/webhook/config.exist.yml`, re-run `./existential.sh`, and the route exists:
+`services/automation/webhook/config.exist.yml`, re-run `./existential.sh`, and the route exists:
 
 ```yaml
 endpoints:
@@ -118,7 +118,7 @@ off disk — they're mid-write, and NFS or a concurrent reader will corrupt or m
 
 ## 4. Read the result
 
-Every run writes to `automations/runs/<message-id>/`, from every daemon in the stack, in one
+Every run writes to `automation/runs/<message-id>/`, from every daemon in the stack, in one
 audit trail.
 
 `run.json` lands there once the run finishes:

@@ -26,7 +26,7 @@ Prometheus scrapes all three (itself, Pushgateway, node-exporter) every 15s and 
 
 ## How metrics get in
 
-The `afterEach` hook in `automations/lib/hooks/afterEach.sh` fires after every Decree run and pushes three gauges to Pushgateway:
+The `afterEach` hook in `automation/lib/hooks/afterEach.sh` fires after every Decree run and pushes three gauges to Pushgateway:
 
 | Metric | Labels |
 |---|---|

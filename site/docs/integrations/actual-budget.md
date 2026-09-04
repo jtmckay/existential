@@ -25,9 +25,9 @@ The script will:
 3. Let you select a budget and optionally enter its encryption password
 4. Verify credentials by downloading the budget
 5. Display all accounts with their IDs
-6. Save credentials to `services/decree/secrets/actual-budget/credentials.env`
-7. Save the account list to `services/decree/secrets/actual-budget/accounts.json`
-8. Enable the `actual-budget` and `actual-budget-parse` routines in `automations/config.yml`
+6. Save credentials to `services/automation/secrets/actual-budget/credentials.env`
+7. Save the account list to `services/automation/secrets/actual-budget/accounts.json`
+8. Enable the `actual-budget` and `actual-budget-parse` routines in `automation/config.yml`
 
 ## Account IDs
 

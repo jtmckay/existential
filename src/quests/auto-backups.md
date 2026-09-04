@@ -3,7 +3,7 @@ name: Automated Backups
 tagline: Nightly database and volume backups from the decree-backup daemon
 e2e: false
 services:
-  - var: EXIST_IS_SERVICES_DECREE
+  - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree (runs the backups)
   - var: EXIST_IS_SERVICES_MEALIE
     label: Mealie
@@ -38,50 +38,50 @@ What gets backed up (nightly, kept for 7 days):
 
 Copy only the crons for services you actually enabled:
 
-  mkdir -p services/decree/decree-backup/cron/
+  mkdir -p services/automation/backup/cron/
 
   # Mealie — Postgres + uploads volume
-  cp services/decree/decree-backup/cron.example/mealie-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/mealie-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/mealie-db-backup-nightly.md \
+     services/automation/backup/cron.example/mealie-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # NocoDB — Postgres + uploads volume
-  cp services/decree/decree-backup/cron.example/nocodb-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/nocodb-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/nocodb-db-backup-nightly.md \
+     services/automation/backup/cron.example/nocodb-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Lowcoder — Mongo + its own volume
-  cp services/decree/decree-backup/cron.example/lowcoder-db-backup-nightly.md \
-     services/decree/decree-backup/cron.example/lowcoder-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/lowcoder-db-backup-nightly.md \
+     services/automation/backup/cron.example/lowcoder-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Actual Budget — whole DB lives in one volume, no separate db-backup
-  cp services/decree/decree-backup/cron.example/actual-budget-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/actual-budget-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Appsmith — embedded Mongo/Redis/Postgres live inside its one volume
-  cp services/decree/decree-backup/cron.example/appsmith-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/appsmith-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Nextcloud — DB only (files already live on your NFS/nas volume separately)
-  cp services/decree/decree-backup/cron.example/nextcloud-db-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/nextcloud-db-backup-nightly.md \
+     services/automation/backup/cron/
 
   # Hermes — config + skills volume
-  cp services/decree/decree-backup/cron.example/hermes-volume-backup-nightly.md \
-     services/decree/decree-backup/cron/
+  cp services/automation/backup/cron.example/hermes-volume-backup-nightly.md \
+     services/automation/backup/cron/
 
-  docker compose restart decree-backup
+  docker compose restart automation-backup
 
 Weekly backups (kept 28 days) sit alongside them — copy the *-weekly.md
 files if you want longer-lived snapshots:
-  cp services/decree/decree-backup/cron.example/<name>-weekly.md \
-     services/decree/decree-backup/cron/
-  docker compose restart decree-backup
+  cp services/automation/backup/cron.example/<name>-weekly.md \
+     services/automation/backup/cron/
+  docker compose restart automation-backup
 
 Manual trigger (for any service):
-  docker exec decree-backup decree run db-backup
-  docker exec decree-backup decree run volume-backup
+  docker exec automation-backup decree run db-backup
+  docker exec automation-backup decree run volume-backup
 
 Restore:
   ./existential.sh run backup-restore
