@@ -302,7 +302,7 @@ Anything written through MinIO fires an object event → the webhook → `minio-
 matches your **file processor** on a path regex and an optional content gate:
 
 ```bash
-PATTERN="minio:workspace/.*\.md$"
+PATTERN="nextcloud:S3/workspace/.*\.md$"
 CRITERIA="a business idea"
 ```
 

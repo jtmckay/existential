@@ -20,6 +20,11 @@ shared_routines:
     enabled: true
   workspace-sync:
     enabled: true
+  # Chained by workspace-sync's own first successful run, never by hand —
+  # see that script's header. Registered here, not in decree's config,
+  # because the chain has to stay inside this daemon's own outbox/inbox.
+  minio-bucket-webhook:
+    enabled: true
   notify:
     enabled: true
   clean-runs:

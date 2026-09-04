@@ -195,7 +195,7 @@ MinIO fires an event on write → the webhook → `minio-router` → your **file
 processor is a small script in `automation/lib/file-processors/` that declares what it matches:
 
 ```bash
-PATTERN="minio:workspace/.*\.md$"
+PATTERN="nextcloud:S3/workspace/.*\.md$"
 CRITERIA="an open question the author has not resolved"
 ```
 

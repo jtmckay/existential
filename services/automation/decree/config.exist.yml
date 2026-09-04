@@ -46,14 +46,16 @@ shared_routines:
   hermes-dept:
     enabled: false
   file-processor:
-    enabled: false
+    enabled: true
   minio-bucket:
     enabled: true
   minio-service-account:
     enabled: true
   minio-router:
-    enabled: false
+    enabled: true
   nextcloud-richdocuments:
+    enabled: true
+  nextcloud-rclone-remote:
     enabled: true
   gmail:
     enabled: false

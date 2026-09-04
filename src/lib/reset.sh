@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# reset.sh — archive everything existential rendered, so the next run starts clean.
+# reset.sh — archive everything existential rendered and decree's own runtime
+# state, so the next run starts clean.
 #
 #   ./existential.sh reset
 #
@@ -8,7 +9,7 @@
 # will move, moves it into archive/<timestamp>/ with paths preserved, and leaves
 # the next `./existential.sh` to render everything fresh.
 #
-# CONFIG ONLY. Volumes are never touched — not moved, not copied, not deleted.
+# CONFIG (+ decree run history). Volumes are never touched — not moved, not copied, not deleted.
 # Your files, photos, databases and models stay exactly where they are. The one
 # thing reset does about data is tell you where it lives.
 #
@@ -80,6 +81,19 @@ _generated_files() {
     done < <(find "$REPO_DIR" -maxdepth 1 -name 'docker-compose-*.yml' 2>/dev/null | sort)
 }
 
+# decree's own runtime state: every run's logs (automation/runs/, shared by both
+# daemons) and the migration ledger (automation/processed.md). Neither is
+# rendered from a template or in volumes/ — they're gitignored runtime output
+# that piles up the same way rendered config does, and a reset that leaves them
+# behind means the next fresh install starts with someone else's run history and
+# a processed.md that skips migrations decree hasn't actually run yet here.
+_automation_state_files() {
+    local f
+    for f in automation/runs automation/processed.md; do
+        [[ -e "${REPO_DIR}/${f}" ]] && printf '%s\n' "$f"
+    done
+}
+
 # Cron and migration templates the user activated by copying them out of
 # cron.example/ and migrations.example/. The examples themselves are tracked and
 # never touched; only the activated copies are.
@@ -98,8 +112,9 @@ _activated_files() {
 mapfile -t RENDERED  < <(_rendered_files)
 mapfile -t GENERATED < <(_generated_files)
 mapfile -t ACTIVATED < <(_activated_files)
+mapfile -t AUTO_STATE < <(_automation_state_files)
 
-TOTAL=$(( ${#RENDERED[@]} + ${#GENERATED[@]} + ${#ACTIVATED[@]} ))
+TOTAL=$(( ${#RENDERED[@]} + ${#GENERATED[@]} + ${#ACTIVATED[@]} + ${#AUTO_STATE[@]} ))
 
 echo ""
 hr
@@ -129,6 +144,7 @@ _show() {
 _show "Rendered from templates"      ${RENDERED[@]+"${RENDERED[@]}"}
 _show "Generated"                    ${GENERATED[@]+"${GENERATED[@]}"}
 _show "Activated cron / migrations"  ${ACTIVATED[@]+"${ACTIVATED[@]}"}
+_show "Decree runtime state"         ${AUTO_STATE[@]+"${AUTO_STATE[@]}"}
 
 STAMP="$(date -u +%Y-%m-%d_%H-%M-%S)"
 DEST="archive/${STAMP}"
@@ -223,7 +239,7 @@ fi
 
 _moved=0
 _failed=0
-for rel in ${RENDERED[@]+"${RENDERED[@]}"} ${GENERATED[@]+"${GENERATED[@]}"} ${ACTIVATED[@]+"${ACTIVATED[@]}"}; do
+for rel in ${RENDERED[@]+"${RENDERED[@]}"} ${GENERATED[@]+"${GENERATED[@]}"} ${ACTIVATED[@]+"${ACTIVATED[@]}"} ${AUTO_STATE[@]+"${AUTO_STATE[@]}"}; do
     src="${REPO_DIR}/${rel}"
     [[ -e "$src" ]] || continue
     dst="${REPO_DIR}/${DEST}/${rel}"

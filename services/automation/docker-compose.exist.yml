@@ -114,7 +114,11 @@ services:
       # specifically for <slug>/decree/config.exist.yml — moving it to the root
       # would silently stop it from ever being rendered or validated. Layered
       # on top of the wholesale mount above, same pattern as opencode.json below.
-      - ./decree/config.yml:/work/.decree/config.yml:ro,z
+      # Must stay read-write: `decree routine`/`routine-sync` (called from
+      # `decree process` and `decree daemon`) rewrites config.yml's routine
+      # registry on every sync — ro here makes every one of those calls fail
+      # with "Read-only file system" and the daemon crash-loops.
+      - ./decree/config.yml:/work/.decree/config.yml:z
       # Also mounted at the conventional /secrets path — SECRETS_DIR=/secrets
       # is relied on directly by precheck.sh and friends.
       - ../../automation/secrets:/secrets:z
@@ -184,8 +188,9 @@ services:
       # themselves only ever read (tar, dump), but `./existential.sh run
       # backup-restore` extracts into these paths from this container.
       - ../../volumes:/volumes:z
-      # workspace-sync mirrors the workspace into the MinIO bucket; it only reads.
-      - ../../workspace:/workspace:ro
+      # workspace-sync bisyncs the workspace both ways with MinIO, so it needs
+      # to write files pulled down from the bucket, not just read them up.
+      - ../../workspace:/workspace:z
     # No /work/exist.test.sh mount: this daemon owns no migrations, so the
     # entrypoint's health-wait branch is correctly skipped.
     tty: false

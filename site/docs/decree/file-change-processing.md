@@ -233,7 +233,7 @@ Add a `CRITERIA` line and `file-processor` puts the downloaded file to the model
 before running your script:
 
 ```bash
-PATTERN="minio:workspace/.*\.md$"
+PATTERN="nextcloud:S3/workspace/.*\.md$"
 CRITERIA="an open question the author has not resolved"
 ```
 
@@ -283,8 +283,10 @@ which points at `http://hermes-agent:8642/v1`.
 MinIO fires events for objects written through its own API. Editing a file in
 `workspace/` writes to a bind mount, which fires nothing — so the Workspace Agent
 quest (`src/quests/auto-workspace-agent.md`) adds a `workspace-sync` routine that
-mirrors `workspace/` into a `workspace` bucket on a cron. The mirror is what
-produces the events.
+bisyncs `workspace/` with a `workspace/` subfolder of the `nextcloud` bucket (the
+same one Nextcloud mounts at `/S3`) on a cron. The sync is what produces the
+events — in both directions, since it's a two-way `rclone bisync`, not a
+one-way mirror.
 
 That sync excludes `workspace/ai/`, and the exclusion is load-bearing:
 `workspace/ai/` is where `agent-task` writes, so syncing it would make every

@@ -21,7 +21,8 @@ files the answer back in `workspace/ai/`.
 
 The pipeline:
   You edit workspace/notes/plan.md
-    → workspace-sync mirrors workspace/ into the minio:workspace bucket (cron)
+    → workspace-sync bisyncs workspace/ with the workspace/ subfolder of the
+      nextcloud MinIO bucket (cron) — the same bucket Nextcloud mounts at /S3
     → MinIO fires an S3 event → POST http://automation-webhook:8801/minio
     → minio-router matches PATTERN against the rclone path      (free)
     → file-processor downloads it, then puts CRITERIA to hermes  (one call)
@@ -35,6 +36,12 @@ Why workspace/ is the knowledgebase: it is the same tree hermes mounts at
 every 15 minutes, so everything you work on is searchable without a second
 directory to keep in step.
 
+Because the bucket doubles as Nextcloud's own storage, subscribing it to the
+webhook (step 5 below) means every Nextcloud file event fires it too — not
+just workspace/ ones. `minio-router`'s PATTERN match is what keeps that from
+mattering: give your processor a PATTERN scoped to `nextcloud:S3/workspace/`
+if you only want it reacting to workspace edits.
+
 The loop break — the one thing worth understanding:
   workspace/ai/ IS indexed into OpenViking, so an agent can find and build on
   what an earlier run produced. It is NOT synced to MinIO, so nothing written
@@ -43,42 +50,31 @@ The loop break — the one thing worth understanding:
 
 Setup:
 
-  1. Copy the templates this needs — the workspace-bucket migration and the
-     mirror cron (both MinIO-side), and the agent-handoff processor:
-       mkdir -p automation/migrations/ services/automation/backup/cron/ \
-                automation/lib/file-processors/
-       cp automation-examples/migrations/22-minio-create-workspace-bucket.md \
-          automation/migrations/
-       cp services/automation/backup/cron.example/workspace-sync.md \
-          services/automation/backup/cron/
+  If you ran the Core quest with MinIO, Nextcloud and Decree enabled, most of
+  this already happened for you: the bucket, the workspace-sync cron, the
+  nextcloud rclone remote, and minio-router/file-processor enabled — Core
+  self-subscribes the bucket to the webhook the first time workspace-sync
+  syncs, so there is nothing to do by hand for any of that. What Core does
+  NOT set up is the agent half, since it's specific to this quest:
+
+  1. Copy the agent-handoff processor:
+       mkdir -p automation/lib/file-processors/
        cp automation/lib/file-processors.example/agent-handoff.sh \
           automation/lib/file-processors/
 
-  2. Enable the services above and run:
-       ./existential.sh
-       docker compose up -d
+  2. Enable `agent-task` in services/automation/decree/config.yml
+     (`minio-router` and `file-processor` are already on by default). The
+     daemon restarts itself when its config changes.
 
-  3. Enable the routines. In services/automation/decree/config.yml set
-     `minio-router`, `file-processor` and `agent-task` to enabled: true.
-     `workspace-sync` is already on in services/automation/backup/config.yml.
-     Both daemons restart themselves when their config changes.
+  3. If you did NOT run Core with these services enabled, you need the
+     pieces above too — enable the services listed at the top of this quest,
+     run `./existential.sh && docker compose up -d`, then copy
+     services/automation/backup/cron.example/workspace-sync.md to
+     services/automation/backup/cron/ and
+     automation-examples/migrations/23-nextcloud-rclone-remote.md to
+     automation/migrations/.
 
-  4. The bucket is created by the migration you copied in step 1, on the
-     `docker compose up -d` you just ran. Confirm it exists:
-       docker exec automation-backup rclone lsd minio:
-
-  5. Sync ONCE, before subscribing. The first pass uploads the whole workspace;
-     against a subscribed bucket that arrives as one event per file. Drop a
-     message in the backup daemon's inbox and wait for it to finish:
-       printf -- '---\nroutine: workspace-sync\n---\n' \
-         > services/automation/backup/inbox/sync-once.md
-       docker logs -f automation-backup
-
-  6. NOW subscribe the bucket to the webhook:
-       docker exec minio mc event add minio/workspace \
-         arn:minio:sqs::DECREE:webhook --event put,delete
-
-  7. Check the agent half works before relying on it:
+  4. Check the agent half works before relying on it:
        docker exec automation opencode run "reply with the word ready"
 
 Then write your own matches. Copy any file in

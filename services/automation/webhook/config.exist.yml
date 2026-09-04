@@ -44,7 +44,9 @@ endpoints:
     frontmatter:
       routine: minio-router
       rclone_src: nextcloud # Name of the remote in rclone config
-      rclone_prefix: ''     # Directory prefix within the remote, e.g. "S3"
+      rclone_prefix: 'S3'   # Directory prefix within the remote — the Nextcloud
+                             # external-storage mount point for the MinIO bucket
+                             # (see nas/nextcloud/hooks/post-installation/01-minio-external-storage.sh)
 
   # Dynamic route params — values must match [A-Za-z0-9_\-!]+ (default)
   # Use `params` to add a stricter per-param pattern (anchored automatically)

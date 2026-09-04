@@ -80,6 +80,27 @@ copies:
     dst: automation/migrations/
     label: "minio: create the nextcloud service account"
     requires: EXIST_IS_NAS_MINIO
+  # Bidirectional workspace/ <-> the nextcloud bucket's workspace/ subfolder.
+  # Same bucket as the two migrations above, so it rides the same requires.
+  - src: services/automation/backup/cron.example/workspace-sync.md
+    dst: services/automation/backup/cron/
+    label: "decree: workspace-sync.md (bisync workspace/ with MinIO every 10m)"
+    requires: EXIST_IS_NAS_MINIO
+  # file-processor's download step for anything reached through Nextcloud's
+  # WebDAV (rclone_src: nextcloud) — including workspace-pull below. Without
+  # it every such download fails with "didn't find section in config file".
+  - src: automation-examples/migrations/23-nextcloud-rclone-remote.md
+    dst: automation/migrations/
+    label: "nextcloud: configure the rclone remote (WebDAV, admin creds)"
+    requires: EXIST_IS_NAS_MINIO
+  # The live half of workspace-sync's MinIO -> local direction: a bucket-side
+  # edit reaches workspace/ in ~1s via the webhook instead of waiting for the
+  # cron. minio-router/file-processor are already on by default in
+  # services/automation/decree/config.exist.yml — nothing else to enable.
+  - src: automation/lib/file-processors.example/workspace-pull.sh
+    dst: automation/lib/file-processors/
+    label: "decree: workspace-pull.sh (live MinIO -> workspace/ file processor)"
+    requires: EXIST_IS_NAS_MINIO
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
