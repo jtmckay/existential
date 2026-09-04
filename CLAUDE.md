@@ -220,12 +220,17 @@ worth keeping here:
 **Two daemons, not one per service:** `automation` (project dir `services/automation/decree/`,
 which also holds the image build) runs everything that reasons, routes or reaches a service API
 — including every service's one-time migrations — and `automation-backup` (project dir
-`services/automation/backup/`) runs the backup routines, mounting `volumes/` wholesale and
-taking the master `.env`. `automation` wholesale-mounts the repo-root `automation/` directory as
-its whole `/work/.decree` project; `automation-backup` mounts the same shared code
-(`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into its own project dir instead.
-A service gets **no** `*-decree` sidecar; a new backup is one cron file. Why, and what each can
-reach: `.claude/reference/services.md`.
+`services/automation/backup/`) mounts `volumes/` wholesale and takes the master `.env`. Despite
+the name, `automation-backup` isn't backups-only: it runs the three backup routines
+(`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that needs that same
+bulk data/credential access and does no reasoning, routing, or AI call —
+`workspace-sync` is the standing example, kept here for its master MinIO credentials and
+read-write `/workspace` mount, not because it backs anything up. Reasoning, routing, and AI stay
+in `automation` even when the routine touches the same data. `automation` wholesale-mounts the
+repo-root `automation/` directory as its whole `/work/.decree` project; `automation-backup`
+mounts the same shared code (`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into
+its own project dir instead. A service gets **no** `*-decree` sidecar; a new backup is one cron
+file. Why, and what each can reach: `.claude/reference/services.md`.
 
 **Routine registration:** both daemons use `shared_routines` via `routine_source`, so routines
 default to **disabled** unless listed in `shared_routines` in `config.exist.yml` (the whitelist).

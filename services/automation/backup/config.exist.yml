@@ -9,8 +9,12 @@ hooks:
   afterAll: ""
   beforeEach: /work/.decree/lib/hooks/config-watch.sh
   afterEach: /work/.decree/lib/hooks/afterEach.sh
-# Backups only. This daemon sees every volume and every credential, so nothing
-# that reasons, routes, or reaches an AI belongs here — that stays in `decree`.
+# Not backups-only, despite the container name: this daemon sees every volume
+# and every credential, so anything that needs THAT (bulk volumes/, master
+# .env) lands here — but nothing that reasons, routes, or reaches an AI does;
+# that stays in `decree` even if it touches the same data. workspace-sync
+# below is the standing example: not a backup, kept here for the credentials
+# and mount, not the purpose.
 shared_routines:
   volume-backup:
     enabled: true
