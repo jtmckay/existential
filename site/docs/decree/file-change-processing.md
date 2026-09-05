@@ -318,3 +318,48 @@ Two things worth knowing about that cron:
    poll — it reaches `workspace/` within about a second, live, via the
    `workspace-pull` file processor (also on by default; see its own header
    comment at `automation/lib/file-processors.example/workspace-pull.sh`).
+
+## Triggering decree from workspace/ — the outbox
+
+Hermes (and anything else confined to `workspace/`) has no mount into
+`automation/` and shouldn't get one — routine scripts are read-only from
+inside the decree daemon on purpose. `workspace/outbox/` is the one supported
+way in: drop a markdown file there and it becomes a real decree message,
+relayed by the `outbox-relay` file processor over the same webhook path
+`workspace-pull` uses (on by default whenever MinIO is enabled, no separate
+setup).
+
+```markdown
+---
+routine: agent-task
+prompt: Summarize this week's notes.
+correlation_id: D0002-1939-triage-0
+---
+```
+
+`routine` is required — `workspace/ai/decree-routines.md` (kept current by the
+`routines-snapshot` routine) lists what's enabled and its parameters. Any
+other frontmatter field is forwarded as a parameter to that routine.
+`correlation_id` is optional and free-form: a routine invoked from a decree
+workflow has one in its environment (see `agent-task.sh`), and passing it
+along lets whatever eventually reads the result trace it back to what started
+the flow. It is not decree's own `chain` — every relayed message still gets
+its own fresh chain — just a plain tag carried between messages. It is also
+picked up by decree's own Loki logging whenever a message sets it, so
+`{job="decree"} |= "correlation_id=<value>"` in Grafana shows every step of
+one flow even though each step ran as its own separate chain.
+
+A few things worth knowing about the relay itself:
+
+- **It runs at most once per message.** Once a file is relayed, its path and
+  content are remembered for a day; a repeat of the exact same file (a
+  redelivered webhook event, for instance) is skipped, not run again. Drop the
+  same routine with different content at the same filename and it still runs
+  — the guarantee is against replaying identical work, not against reusing a
+  name.
+- **It cleans up after itself.** A successfully relayed file is deleted from
+  `workspace/outbox/` on both the local and MinIO side, so the directory is a
+  real outbox — empty once its mail is sent — rather than an accumulating log.
+- **A malformed or non-message file is skipped, not run.** Only a file whose
+  first line is `---` is treated as a message; a plain note or a README that
+  merely shows an example format is left alone.

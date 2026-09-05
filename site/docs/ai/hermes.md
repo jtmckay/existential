@@ -60,6 +60,16 @@ That only applies while the block still points at a local model server (`provide
 line is left alone from then on, except `context_length`, which is a fact about how the model was
 built rather than a preference.
 
+## Triggering automation
+
+Hermes has no mount into `automation/` and shouldn't be given one — decree's
+routine scripts are read-only from inside the daemon on purpose. If a task
+calls for running a decree routine (now, or as a scheduled follow-up), the
+supported path is `workspace/outbox/`, which Hermes already has file access
+to: see [Triggering decree from workspace/](../decree/file-change-processing#triggering-decree-from-workspace--the-outbox).
+`agent-task`, which is what answers most Hermes-routed work, already tells the
+model this in its system prompt.
+
 ## Authentication
 
 `HERMES_API_KEY` in `ai/hermes/.env.exist` is the shared secret for the gateway. It is the gateway's `API_SERVER_KEY`; Open WebUI sends it as `OPENAI_API_KEY`.

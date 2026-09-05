@@ -101,6 +101,13 @@ copies:
     dst: automation/lib/file-processors/
     label: "decree: workspace-pull.sh (live MinIO -> workspace/ file processor)"
     requires: EXIST_IS_NAS_MINIO
+  # The one door from workspace/ into decree's inbox: an agent confined to
+  # workspace/ (hermes, OpenCode) drops a message in workspace/outbox/ instead
+  # of ever touching automation/ directly. Same live path as workspace-pull.
+  - src: automation/lib/file-processors.example/outbox-relay.sh
+    dst: automation/lib/file-processors/
+    label: "decree: outbox-relay.sh (workspace/outbox/ -> decree inbox)"
+    requires: EXIST_IS_NAS_MINIO
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"

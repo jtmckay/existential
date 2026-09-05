@@ -10,6 +10,7 @@
 #   hermes_chat <system> <user> <max_tokens>   → assistant text on stdout
 #   hermes_gate <criteria> <text>              → 0 = YES, 1 = NO, 2 = no verdict
 #   hermes_profile_url <profile>               → base URL for a named profile
+#   hermes_correlation_notice <correlation_id> → system-prompt paragraph on stdout
 #
 # hermes_gate's exit codes matter to the caller: 1 is a real verdict (the content
 # does not match, move on) while 2 means the model never answered — a gateway
@@ -37,6 +38,24 @@ hermes_profile_url() {
         ""|default) printf '%s/v1\n' "$base" ;;
         *)          printf '%s/p/%s/v1\n' "$base" "$profile" ;;
     esac
+}
+
+# System-prompt paragraph telling hermes how to trigger follow-up automation.
+# Hermes is a remote gateway, so an exported CORRELATION_ID env var never
+# reaches it — this text is the only channel. See workspace/outbox/README.md
+# for the format it's pointing at, and outbox-relay.sh for what reads it.
+hermes_correlation_notice() {
+    local correlation_id="$1"
+    cat <<EOF
+If this task calls for follow-up automation (running another routine now, or
+later on a schedule), write a markdown file to workspace/outbox/ — see
+workspace/outbox/README.md for the format. Never write to automation/
+directly; you have no access to it. This flow's correlation_id is
+${correlation_id} — include it as \`correlation_id: ${correlation_id}\` in any
+message you write, so whatever eventually reads it can trace it back to this
+flow (it's a plain tag carried between messages, not something decree tracks
+on its own).
+EOF
 }
 
 hermes_chat() {

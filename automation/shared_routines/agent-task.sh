@@ -17,6 +17,11 @@
 # `profile` picks which hermes profile answers (default: the default profile).
 # The dept-<name> routines are this same call bound to one profile each.
 #
+# hermes is told its correlation_id (this chain's own $chain, or an explicit
+# `correlation_id` field if the message set one) and that any follow-up work
+# goes to workspace/outbox/, never automation/ — hermes has no mount into the
+# latter, and shouldn't. See workspace/outbox/README.md and outbox-relay.sh.
+#
 # Chained by a file processor, or run by hand by dropping a message in the inbox
 # (services/automation/decree/inbox/<name>.md):
 #
@@ -54,6 +59,12 @@ prompt="${prompt:-}"
 profile="${profile:-}"
 file_path="${file_path:-}"
 output_name="${output_name:-}"
+# The identifier of whatever message started this flow — an explicit
+# correlation_id (set by whoever queued this task) wins, otherwise it's just
+# this chain's own id. Every decree-triggered run has one; a standalone
+# manual run still gets a fresh chain from decree, so this is never empty.
+correlation_id="${correlation_id:-$chain}"
+export CORRELATION_ID="$correlation_id"
 AGENT_OUTPUT_DIR="${AGENT_OUTPUT_DIR:-/workspace/ai}"
 AGENT_TIMEOUT="${agent_timeout:-${AGENT_TIMEOUT:-900}}"
 AGENT_NOTIFY="${AGENT_NOTIFY:-true}"
@@ -67,6 +78,9 @@ if [ -z "$prompt" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/hermes.sh
+source "${SCRIPT_DIR}/../lib/hermes.sh"
+
 # --- Build the full prompt -------------------------------------------------
 
 # Said plainly rather than as tool wiring: hermes decides for itself when to
@@ -75,6 +89,7 @@ system_prompt="You have search over this workspace's knowledgebase (OpenViking)
 and over the web. Use them where they would change the answer, and say plainly
 where you could not find something rather than inventing it.
 
+$(hermes_correlation_notice "$correlation_id")
 Write markdown. Be concrete and brief — no preamble, no encouragement."
 
 full_prompt="${prompt}"
@@ -100,8 +115,6 @@ echo "Asking the ${profile:-default} profile (timeout ${AGENT_TIMEOUT}s)..."
 _raw="$(mktemp "${message_dir:-/tmp}/agent-task.XXXXXX")"
 trap 'rm -f "$_raw"' EXIT
 
-# shellcheck source=../lib/hermes.sh
-source "${SCRIPT_DIR}/../lib/hermes.sh"
 HERMES_API_URL="$(hermes_profile_url "$profile")"
 HERMES_TIMEOUT="$AGENT_TIMEOUT"
 export HERMES_API_URL HERMES_TIMEOUT

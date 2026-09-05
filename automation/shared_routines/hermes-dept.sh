@@ -58,6 +58,14 @@ timeout_s="${agent_timeout:-${AGENT_TIMEOUT:-900}}"
 outbox="${OUTBOX_DIR:-/work/.decree/outbox}"
 mkdir -p "$outbox"   # decree reads the outbox but never creates it
 
+# shellcheck source=../lib/hermes.sh
+source "${SCRIPT_DIR}/../lib/hermes.sh"
+
+# The identifier of whatever message started this flow — see agent-task.sh,
+# which carries the same one.
+correlation_id="${correlation_id:-$chain}"
+export CORRELATION_ID="$correlation_id"
+
 # The task text is the message body, with the frontmatter stripped.
 body="$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' \
     "$message_file" | sed '/./,$!d')"
@@ -74,6 +82,7 @@ system="You are the ${profile} department. Use the tools and knowledgebase
 available to you where they would change the answer, and say plainly where you
 could not find something rather than inventing it.
 
+$(hermes_correlation_notice "$correlation_id")
 Write markdown. Be concrete and brief — no preamble, no encouragement."
 
 name="${output_name:-${message_id:-${profile}-$(date +%s)}}"
@@ -90,8 +99,6 @@ raw="$(mktemp "${message_dir:-/tmp}/dept.XXXXXX")"
 # shellcheck disable=SC2064  # expand raw now, not at trap time
 trap "rm -f '$raw'" EXIT
 
-# shellcheck source=../lib/hermes.sh
-source "${SCRIPT_DIR}/../lib/hermes.sh"
 HERMES_API_URL="$(hermes_profile_url "$profile")"
 HERMES_TIMEOUT="$timeout_s"
 export HERMES_API_URL HERMES_TIMEOUT

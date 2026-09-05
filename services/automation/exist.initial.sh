@@ -23,3 +23,81 @@ if [[ -f "${CRON_SRC}" && ! -e "${CRON_DST}" ]]; then
     cp "${CRON_SRC}" "${CRON_DST}"
     echo "[decree] triage cron activated."
 fi
+
+# workspace/README.md — the orientation doc. An agent confined to workspace/
+# (hermes, OpenCode) has no other way to discover that ai/ and outbox/ are
+# special: a bare directory listing shows three folders with nothing to tell
+# it to go read either README. This is what a first listing should surface.
+WORKSPACE_DIR="${SCRIPT_DIR}/../../workspace"
+WORKSPACE_README="${WORKSPACE_DIR}/README.md"
+if [[ ! -e "${WORKSPACE_README}" ]]; then
+    mkdir -p "${WORKSPACE_DIR}"
+    cat > "${WORKSPACE_README}" << 'WORKSPACEEOF'
+# workspace/
+
+Shared with every agent (Hermes at `/opt/data/workspace`, code-server at
+`/workspace`) and indexed into OpenViking, so anything here is searchable and
+citable. Two subdirectories mean something specific; everything else is
+ordinary content — notes, plans, reference material, whatever you want an
+agent to know about.
+
+- **`outbox/`** — drop a markdown file here to run a decree routine. See
+  `outbox/README.md` for the message format and `ai/decree-routines.md` for
+  what's currently enabled and its parameters. This is the only supported way
+  to trigger automation from inside workspace/ — there is no mount into
+  `automation/` from here, and there deliberately never will be.
+- **`ai/`** — automation output, not yours to write to. See `ai/README.md`.
+
+This file is gitignored and nothing regenerates it — delete it once you have
+your bearings.
+WORKSPACEEOF
+    echo "[decree] workspace/README.md created."
+fi
+
+# workspace/outbox/ — the one door from workspace/ into decree's inbox. An
+# agent confined to workspace/ (hermes, OpenCode) has no mount into
+# automation/ and must never be given one, so this README is how it learns
+# where messages actually go. Relayed by lib/file-processors/outbox-relay.sh
+# once EXIST_IS_NAS_MINIO is enabled (Core quest activates it); until then the
+# directory just sits there, harmlessly.
+OUTBOX_README="${WORKSPACE_DIR}/outbox/README.md"
+if [[ ! -e "${OUTBOX_README}" ]]; then
+    mkdir -p "${WORKSPACE_DIR}/outbox"
+    cat > "${OUTBOX_README}" << 'OUTBOXEOF'
+# workspace/outbox/ — trigger decree from here
+
+Drop a markdown file here to run a decree routine. Never write to `automation/`
+directly — you (an agent reading this from inside workspace/) have no mount
+into it, and that is deliberate: routine scripts are read-only from inside the
+decree daemon on purpose, so the only supported way in is this directory.
+
+```markdown
+---
+routine: agent-task
+prompt: Summarize this week's notes.
+correlation_id: D0002-1939-triage-0
+---
+```
+
+`routine` is required — see `workspace/ai/decree-routines.md` (refreshed by the
+`routines-snapshot` routine) for the current list, its description, and its
+parameters. Any other frontmatter field becomes a parameter for that routine.
+
+`correlation_id` is optional. If this task was itself triggered by a decree
+workflow, that workflow's identifier is in your environment — include it here
+so whatever eventually reads this message can trace it back to what started
+the flow. It's a plain tag, not something decree groups by on its own: this
+message still gets its own fresh chain either way. Leave it out for a
+standalone request.
+
+Setting it also makes the flow findable in Grafana — decree's own logging
+picks up `correlation_id` from any message that sets it and puts it in the
+Loki log line, so `{job="decree"} |= "correlation_id=<value>"` shows every
+step of one flow across however many separate chains it actually ran as.
+
+A file dropped here is picked up within about a second (via the MinIO webhook,
+not a poll) and relayed into decree's real inbox. This file is gitignored and
+nothing regenerates it — delete it once you have your bearings.
+OUTBOXEOF
+    echo "[decree] workspace/outbox/ instructions created."
+fi

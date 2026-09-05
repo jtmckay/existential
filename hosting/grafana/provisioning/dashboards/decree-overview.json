@@ -186,9 +186,11 @@
             "renameByName": {
               "Time": "Time",
               "message_id": "Message ID",
+              "chain": "Chain",
               "routine": "Routine",
               "subroutine": "Subroutine",
               "trigger": "Trigger",
+              "correlation_id": "Correlation ID",
               "exit_code": "Exit Code",
               "attempts": "Attempts",
               "duration_s": "Duration",
@@ -197,13 +199,15 @@
             "indexByName": {
               "Time": 0,
               "message_id": 1,
-              "routine": 2,
-              "subroutine": 3,
-              "trigger": 4,
-              "exit_code": 5,
-              "attempts": 6,
-              "duration_s": 7,
-              "final": 8
+              "chain": 2,
+              "routine": 3,
+              "subroutine": 4,
+              "trigger": 5,
+              "correlation_id": 6,
+              "exit_code": 7,
+              "attempts": 8,
+              "duration_s": 9,
+              "final": 10
             }
           }
         }

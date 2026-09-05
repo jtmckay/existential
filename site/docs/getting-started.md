@@ -143,6 +143,10 @@ It's more than a shared folder:
   indexed like everything else, so an agent can build on a previous run's output — but it's
   deliberately excluded from the MinIO sync, which is what stops an agent's own answer from
   triggering another run.
+- **`workspace/outbox/`** is the other direction: drop a markdown file there to run a decree
+  routine. It's how Hermes (which has no access to `automation/`, by design) triggers
+  automation — see
+  [Triggering decree from workspace/](./decree/file-change-processing#triggering-decree-from-workspace--the-outbox).
 - **Excluding your own files:** drop a `.syncignore` at `workspace/.syncignore` — one glob
   pattern per line, same syntax as `.gitignore` — for anything you don't want leaving this
   machine.
