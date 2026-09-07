@@ -115,6 +115,35 @@ docker exec -u www-data nextcloud php /var/www/html/occ config:app:set richdocum
 Collabora's own admin console lives at `https://collabora.<domain>`, gated by
 `COLLABORA_USERNAME`/`COLLABORA_PASSWORD` (`nas/collabora/.env`).
 
+## Calendar
+
+Nextcloud ships CalDAV enabled regardless (the `dav` app), but the Calendar app itself —
+the UI at `/apps/calendar`, and the "Personal"/"Contact birthdays" calendars it auto-creates
+per user — has to be turned on. `automation-examples/migrations/24-nextcloud-calendar.md` does
+that the same way `richdocuments` above gets installed: copy it to `automation/migrations/` and
+restart `decree` to activate.
+
+To do it by hand instead:
+
+```bash
+docker exec -u www-data nextcloud php /var/www/html/occ app:install calendar
+```
+
+### Indexed by OpenViking, answerable by hermes
+
+A calendar app on its own is just a UI — nothing about it is searchable by the stack. Copy
+`automation-examples/cron/calendar-extract.md` to `automation/cron/` (restart `automation`) and
+every event, recent-past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, gets mirrored into
+`workspace/ai/calendar/<calendar>/` as one markdown note per event. That's the same tree
+`openviking-index-knowledgebase` already indexes, so a hermes department with OpenViking access
+can answer "what's on my calendar" or "when's Leon's birthday" the way it answers anything else
+in `workspace/` — no new tool, no new integration, just more notes in the same knowledgebase.
+
+The mirror is full-refresh, not append-only: a cancelled or deleted event's note disappears on
+the next run, and the directory only ever reflects what's really scheduled. See
+`automation/shared_routines/calendar-extract.sh` for the CalDAV details (verified live against
+nextcloud:34.0.3, including its `expand` support for recurring events).
+
 ## Maintenance
 
 ```bash

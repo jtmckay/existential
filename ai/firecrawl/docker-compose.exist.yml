@@ -131,7 +131,17 @@ services:
           memory: 128M
     networks:
       - exist
-    command: redis-server --bind 0.0.0.0
+    # --save "" disables RDB snapshotting. Required, not cosmetic: this image
+    # declares /data owned by its built-in uid 999 (mode 755, group has no
+    # write bit), but the container runs as EXIST_PUID:PGID (1000:1000) per
+    # this repo's least-privilege convention, so BGSAVE gets EACCES writing
+    # the temp RDB file. Redis then sets stop-writes-on-bgsave-error and
+    # refuses every subsequent write (MISCONF), which is a firecrawl-wide
+    # outage — every worker's first Redis write throws and the process exits
+    # within ~2s. No volume is mounted here (this is a disposable cache, see
+    # above), so there's no host-owned dir to chown into either — disabling
+    # persistence is the fix, same pattern as lowcoder-redis.
+    command: redis-server --bind 0.0.0.0 --save ""
 
   firecrawl-rabbitmq:
     container_name: firecrawl-rabbitmq

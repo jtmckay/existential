@@ -59,6 +59,13 @@ shared_routines:
     enabled: true
   nextcloud-rclone-remote:
     enabled: true
+  nextcloud-calendar:
+    enabled: true
+  # Named by cron.example/calendar-extract.md — same reasoning as
+  # openviking-index-dir above: unlisted, the cron fires and decree declines
+  # the routine while looking perfectly healthy.
+  calendar-extract:
+    enabled: true
   gmail:
     enabled: false
   gmail-sync:
@@ -90,6 +97,15 @@ shared_routines:
   # research and sales departments, so hermes-dept must be on for it to land.
   idea-workup:
     enabled: false
+  # A different question than note-triage: not "is this worth acting on" but
+  # "does anything you already know connect to this". Calls the research
+  # hermes profile directly for its OpenViking access, so hermes and
+  # openviking must both be enabled for it to find anything. On by default
+  # like notify/triage below: harmless with no cron file present. Core's
+  # `copies:` block is what actually turns it on, by dropping
+  # note-connect.md into automation/cron/ — delete that file to opt out.
+  note-connect:
+    enabled: true
   notify:
     enabled: true
   # Reference example — named by cron.example/rss-poll.md. Polls a feed,

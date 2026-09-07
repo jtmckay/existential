@@ -124,6 +124,15 @@ copies:
     dst: automation/cron/
     label: "decree: openviking-index-knowledgebase.md (index workspace/ every 15m)"
     requires: EXIST_IS_AI_OPENVIKING
+  # Needs the same index the entry above builds, so it rides the same requires.
+  # note-connect.sh defaults NOTES_DIR to /workspace, so this needs nothing
+  # else Core doesn't already provide. To opt out later, delete
+  # automation/cron/note-connect.md — enabled: true in config.yml with no
+  # cron file behind it never fires.
+  - src: automation-examples/cron/note-connect.md
+    dst: automation/cron/
+    label: "decree: note-connect.md (surface connections to what you already know, hourly)"
+    requires: EXIST_IS_AI_OPENVIKING
 ---
 
 Core is the whole system in one pass: your files, your house, a local agent

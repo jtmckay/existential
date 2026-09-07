@@ -25,7 +25,7 @@
  * Kept as hand-written TS rather than parsed from the Dashy YAML on purpose: the site
  * build has no YAML dependency (`js-yaml` runs in the adhoc container, not in
  * Docusaurus), and every other section of this site declares its content inline the
- * same way — see HomepageLevels.
+ * same way — see HomepageWho.
  *
  * `docs` paths must resolve to a real page: the site sets `onBrokenLinks: 'throw'`,
  * so a typo here fails `npm run build`. Note the docs tree uses `storage/` where the

@@ -69,3 +69,9 @@
   border: 1px solid var(--ifm-color-emphasis-300);
   overflow-x: auto;
 }
+
+.closingFaq {
+  margin: 1.5rem 0 0;
+  font-size: 0.95rem;
+  color: var(--ifm-color-emphasis-700);
+}

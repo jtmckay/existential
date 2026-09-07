@@ -4,9 +4,10 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
+import HomepageCapabilities from '@site/src/components/HomepageCapabilities';
+import HomepageHow from '@site/src/components/HomepageHow';
+import HomepageWho from '@site/src/components/HomepageWho';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
-import HomepageBrain from '@site/src/components/HomepageBrain';
-import HomepageLevels from '@site/src/components/HomepageLevels';
 
 import styles from './index.module.css';
 
@@ -25,10 +26,7 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          There's an app for that, and it's free open source.
-          Existential runs it all as <em>one</em> connected system on your own
-          hardware — your files in Nextcloud, your house in Home Assistant, and
-          a local agent in the middle that reads both.
+          Everything: easier or unnecessary.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -47,18 +45,15 @@ function HomepageHeader() {
   );
 }
 
-function HomepageClosing() {
+export function HomepageClosing() {
   return (
     <section className={styles.closing}>
       <div className="container">
         <Heading as="h2" className={styles.closingTitle}>
-          It's a homelab. You already have the hardware.
+          Are you ready for data sovereignty?
         </Heading>
         <p className={styles.closingLede}>
-          One machine, Docker, and an evening. Start with Core — files, your
-          house, the agent, its memory and voice, plus notifications and
-          monitoring — or pick service by service. Either way it comes up wired
-          together.
+          One evening, mostly spent waiting on Docker.
         </p>
         <div className={styles.closingCode}>
           <pre>
@@ -66,7 +61,7 @@ function HomepageClosing() {
               {'git clone https://github.com/jtmckay/existential.git\n'}
               {'cd existential\n'}
               {'\n'}
-              {'./existential.sh quest      # say yes to Core, or pick your own\n'}
+              {'./existential.sh     # say yes to Core, or pick your own\n'}
               {'docker compose up -d\n'}
             </code>
           </pre>
@@ -81,6 +76,9 @@ function HomepageClosing() {
             Take a tour
           </Link>
         </div>
+        <p className={styles.closingFaq}>
+          Skeptical? <Link to="/docs/faq">Read the FAQ</Link>.
+        </p>
       </div>
     </section>
   );
@@ -91,12 +89,13 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="A personal cloud you run yourself. Curated open source, set up once, with one local AI behind conversation, coding and automation.">
+      description="Software that works together, remembers you, and handles the boring parts — and is still, plainly, yours. Existential is a homelab stack you run on your own hardware.">
       <HomepageHeader />
       <main>
+        <HomepageHow />
+        <HomepageWho />
+        <HomepageCapabilities />
         <HomepageFeatures />
-        <HomepageBrain />
-        <HomepageLevels />
         <HomepageClosing />
       </main>
     </Layout>

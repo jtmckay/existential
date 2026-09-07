@@ -70,6 +70,7 @@ destination each time.
 
 - [Camera → OCR](./image-ocr) — photograph something, get back its text
 - [Note → Action](./note-to-action) — a thought worth chasing gets chased, and comes back with the right questions
+- [Note → Connection](./note-connect) — a new note gets checked against everything you already know, and the interesting links come back to you unasked
 
 ### Voice → action
 
