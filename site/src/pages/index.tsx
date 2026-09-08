@@ -27,19 +27,24 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          The software already exists. The hard part is connecting twenty different things together — self-hosted,
-          wired together, instead of paying for subscriptions that don't play nice together.
+          The software already exists. The hard part is connecting twenty things together
+          in a meaningful way.
         </p>
         <div className={styles.buttons}>
           <Link
-            className="button button--secondary button--lg"
+            className="button button--outline button--secondary button--lg"
             to="/docs/intro">
-            Get Started
+            Overview
           </Link>
           <Link
             className="button button--outline button--secondary button--lg"
             to="/tour">
             Take a tour
+          </Link>
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/getting-started">
+            Get Started
           </Link>
         </div>
       </div>
@@ -52,7 +57,7 @@ export function HomepageClosing() {
     <section className={styles.closing}>
       <div className="container">
         <Heading as="h2" className={styles.closingTitle}>
-          Are you ready for data sovereignty?
+          Take ownership of your digital life
         </Heading>
         <p className={styles.closingLede}>
           One evening, mostly spent waiting on Docker.
@@ -69,13 +74,13 @@ export function HomepageClosing() {
           </pre>
         </div>
         <div className={styles.buttons}>
-          <Link className="button button--primary button--lg" to="/docs/getting-started">
-            Getting Started
-          </Link>
           <Link
             className="button button--outline button--primary button--lg"
             to="/tour">
             Take a tour
+          </Link>
+          <Link className="button button--primary button--lg" to="/docs/getting-started">
+            Getting Started
           </Link>
         </div>
         <p className={styles.closingFaq}>

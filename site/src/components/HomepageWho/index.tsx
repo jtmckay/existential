@@ -7,6 +7,8 @@ const Traits: string[] = [
   "You want a connected system.",
   "You love automating things.",
   "You hate subscriptions, and lock-in.",
+  "You care about privacy.",
+  "You want or already have a homelab.",
 ];
 
 export default function HomepageWho(): ReactNode {
