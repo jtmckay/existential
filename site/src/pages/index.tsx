@@ -95,8 +95,8 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <HomepageWhy />
-        <HomepageHow />
         <HomepageWho />
+        <HomepageHow />
         <HomepageCapabilities />
         <HomepageFeatures />
         <HomepageClosing />

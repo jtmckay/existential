@@ -3,10 +3,10 @@ import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 const Traits: string[] = [
-  "You hate subscriptions.",
+  "You have a lot of stuff to keep straight.",
   "You want a connected system.",
   "You love automating things.",
-  "You have a computer and don't want to rent someone else's.",
+  "You hate subscriptions, and lock-in.",
 ];
 
 export default function HomepageWho(): ReactNode {
