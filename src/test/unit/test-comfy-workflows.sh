@@ -121,6 +121,10 @@ else
     _ok "no orphan workflows"
 fi
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→exit path is verified by run-all.sh's selfcheck tier.
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 printf '\n  %d passed, %d failed\n' "$PASS" "$FAIL"
 if [ "$FAIL" -gt 0 ]; then
     printf '  Failed: %s\n' "${FAIL_NAMES[*]}"
