@@ -1,0 +1,33 @@
+# WAN 2.2 14B image-to-video. The message body is the prompt.
+workflow: video_i2v_wan2.2_14B_long.json
+params:
+  prompt:
+    required: true
+    bind:
+      - { node: 93, input: text, widget: 0 }
+  input_image:
+    type: image
+    required: true
+    bind:
+      - { node: 97, input: image, widget: 0 }
+  width:
+    type: int
+    align: 16
+    default: 640
+    bind:
+      - { node: 98, input: width, widget: 0 }
+  height:
+    type: int
+    align: 16
+    default: 640
+    bind:
+      - { node: 98, input: height, widget: 1 }
+  # Frame count, not seconds. 133 frames is the template's own length.
+  length:
+    type: int
+    bind:
+      - { node: 98, input: length, widget: 2 }
+  output_prefix:
+    required: true
+    bind:
+      - { node: 108, input: filename_prefix, widget: 0 }

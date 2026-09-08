@@ -94,6 +94,9 @@ services:
       - EXIST_OLLAMA_URL_EXTRACT=${EXIST_OLLAMA_URL_EXTRACT:-}
       - EXIST_OLLAMA_URL_EMBED=${EXIST_OLLAMA_URL_EMBED:-}
       - EXIST_OLLAMA_URL_VISION=${EXIST_OLLAMA_URL_VISION:-}
+      # Where the comfy routine POSTs its workflows — the local container by
+      # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
+      - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
     volumes:
       # The whole root automation/ dir, wholesale — runs, secrets, cron,
       # migrations, inbox, outbox, processed.md, router.md. This IS

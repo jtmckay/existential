@@ -14,6 +14,22 @@ Node-based Stable Diffusion UI for local, GPU-accelerated image generation. Work
 
 ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (LAN, via Caddy) and `http://comfyui:8188` (Docker internal DNS, for container-to-container calls). It queues and executes image generation jobs via its web UI or HTTP API. No cloud involved — everything runs on the local GPU.
 
+## Using a ComfyUI you already run
+
+The GPU does not have to be in this machine. `EXIST_COMFYUI_URL` in `.env.shared` is the one
+address the stack uses — the `comfy` routine POSTs there, `comfyui.EXIST_DOMAIN` proxies there,
+and `exist.test.sh` checks it — so pointing it elsewhere and turning the local container off is
+the whole job:
+
+```bash
+EXIST_COMFYUI_URL=http://bigbox:8188
+EXIST_IS_AI_COMFYUI=false
+```
+
+Then `./existential.sh && docker compose up -d`. Everything below about models, volumes and
+workflows is then that machine's business, not this one's — the workflows still live here, in
+`automation/lib/comfy/workflows/`, but the checkpoints they name must exist over there.
+
 ## First Run
 
 After `docker compose up -d`, open `https://comfyui.EXIST_DOMAIN`.
@@ -63,23 +79,63 @@ Decree routines are shell scripts in `automation/shared_routines/`. They call Co
 ### The routine that ships
 
 One routine, `comfy`, is already written and registered in
-`services/automation/decree/config.exist.yml` (off by default). Its `type` parameter picks the
-subroutine — and workflow template — that runs:
+`services/automation/decree/config.exist.yml` (off by default). Its `type` parameter names a
+workflow in `automation/lib/comfy/workflows/`:
 
-| `type` | Workflow | Needs |
+| `type` | Model | Needs |
 |---|---|---|
-| `image-text` | `automation/lib/comfy/image_flux2_text_landscape.json` | Flux2-dev |
-| `image-text-image` | `automation/lib/comfy/image_flux2_text_image.json` | Flux2-dev, plus a reference image |
-| `video-i2v` | `automation/lib/comfy/video_i2v_wan2.2_14B_long.json` | Wan 2.2 I2V 14B |
+| `image-text` | Flux2-dev | — |
+| `image-text-image` | Flux2-dev | `input_image` |
+| `image-qwen-angles` | Qwen-Image-Edit 2511 | `input_image`, and a list of items (below) |
+| `video-i2v` | Wan 2.2 I2V 14B | `input_image` |
+| `video-ltx-text` | LTX-2.5 | — |
+| `video-ltx-image` | LTX-2.5 | `input_image` |
+| `video-ltx-first-last` | LTX-2.5 | `input_image`, `last_image` |
 
-Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. Flip `comfy`'s `enabled: true`, restart automation, then:
+Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. The shipped graphs have their prompts blanked to `prompt text` — you always supply your own, so there is nothing to inherit.
+
+There is a ready-made message per flow in `automation-examples/inbox/`. Flip `comfy`'s `enabled: true`, restart automation, then copy one and edit it:
 
 ```bash
-printf -- '---\nroutine: comfy\ntype: image-text\noutput_prefix: test\n---\na sunset over mountains\n' \
-  > automation/inbox/comfy-image-text.md
+cp automation-examples/inbox/comfy-image-text.md automation/inbox/
 ```
 
-Write your own the same way: POST the workflow to `/api/prompt`, poll `/history/{id}` until `outputs` appears, then fetch the file from `/view`.
+The message body is the prompt, and `output_prefix` is the filename prefix ComfyUI writes under.
+Everything else a workflow exposes is an env-style message parameter of the same name — set one
+to override the workflow's own value, leave it out to keep it:
+
+| Parameter | Applies to |
+|---|---|
+| `width`, `height` | the Flux, Wan and LTX first/last flows — and an override on the other two LTX flows |
+| `aspect_ratio`, `megapixels` | `video-ltx-text` and `video-ltx-image`, which size themselves through a `ResolutionSelector` |
+| `duration`, `fps` | the LTX flows — `duration` is seconds, not frames |
+| `length` | `video-i2v`, in frames |
+| `seed` | any flow with a sampler; randomized when unset |
+| `enhance_prompt` | the LTX flows — rewrites the prompt through a local LLM before encoding |
+
+`image-qwen-angles` is the batch flow: one input image, up to eight edits of it in a single
+queue. Its body is a YAML list instead of prompt text, so a prompt sits next to the name its
+output gets (`automation-examples/inbox/comfy-image-qwen-angles.md`):
+
+```yaml
+---
+routine: comfy
+type: image-qwen-angles
+input_image: example.png
+---
+- prompt: prompt text
+  output: images/example-1
+- prompt: prompt text
+  output: images/example-2
+```
+
+Fewer than eight entries prunes the unused branches out of the submitted graph, so they cost no
+GPU time. There is no size parameter for this flow — the output resolution follows `input_image`.
+Long lists can live in a file instead of the body, via `items_file`.
+
+Every flow is fire-and-forget: the routine POSTs and exits on the HTTP code, and ComfyUI writes
+the result into its own `output/`. To do something with the file afterwards, poll `/history/{id}`
+until `outputs` appears and fetch it from `/view`.
 
 ## Telegram → ComfyUI Workflow
 
@@ -113,18 +169,29 @@ on a schedule.
 
 ## Designing Workflows
 
-The recommended workflow authoring loop:
+Adding a flow to the `comfy` routine is adding two files to
+`automation/lib/comfy/workflows/` — a graph and a binding. No shell is written:
 
-1. Open `https://comfyui.EXIST_DOMAIN` and build the workflow visually
-2. Click **Save (API format)** — this exports the node graph as the flat JSON that `/prompt` accepts (distinct from the regular save format, which includes UI layout metadata)
-3. Paste the exported JSON into your routine as the `WORKFLOW` heredoc
-4. Replace hardcoded values (prompt text, seed, dimensions) with variables the routine controls
+1. Open `https://comfyui.EXIST_DOMAIN`, build the workflow visually, and run it once so you know
+   it works.
+2. Export it as **`Workflow → Export (API)`** — the flat node map `/prompt` accepts, distinct
+   from the regular save format, which is UI layout. Subgraphs are flattened on the way out, so
+   node ids in the export do not match the ids you see on the canvas. Save it into
+   `workflows/`. (Copying the browser's `POST /api/prompt` request body out of devtools works
+   too, and keeps the UI graph so generated files re-open as a working workflow.)
+3. Write `workflows/<type>.yml` beside it, naming each parameter you want to control and the node
+   and input it writes to. Copy the closest existing binding — `video-ltx-text.yml` for a plain
+   flow, `image-qwen-angles.yml` for a batch one.
+4. `./existential.sh test unit` — `test-comfy-workflows.sh` checks every binding against its
+   graph.
 
-Use a random seed rather than a fixed `42` to get different images each run:
+Node ids are the fragile part: re-exporting a workflow renumbers everything, and a binding that
+points at a node which no longer exists would otherwise submit the untouched template and return
+an image of somebody else's prompt. Both `patch.ts` and the unit test refuse a binding that does
+not resolve, so a re-export fails loudly instead.
 
-```bash
-SEED=$(od -A n -t u4 -N 4 /dev/urandom | tr -d ' ')
-```
+Seeds are randomized by default, so a re-run of the same message gives fresh images. Pass an
+explicit `seed` when you want to reproduce one.
 
 ## Tips
 

@@ -68,7 +68,7 @@
     },
     "93": {
       "inputs": {
-        "text": "ancient warrior kneels down at the solid gold plates he is carrying",
+        "text": "prompt text",
         "clip": ["84", 0]
       },
       "class_type": "CLIPTextEncode",
@@ -96,7 +96,7 @@
       "_meta": { "title": "Load Diffusion Model" }
     },
     "97": {
-      "inputs": { "image": "moroni_00001_.png" },
+      "inputs": { "image": "example.png" },
       "class_type": "LoadImage",
       "_meta": { "title": "Load Image" }
     },
@@ -144,7 +144,7 @@
     },
     "108": {
       "inputs": {
-        "filename_prefix": "video/2026.02.22_wan",
+        "filename_prefix": "video/example",
         "format": "auto",
         "codec": "auto",
         "video": ["94", 0]
@@ -358,7 +358,7 @@
               }
             },
             "widgets_values": [
-              "The white dragon warrior stands still, eyes full of determination and strength. The camera slowly moves closer or circles around the warrior, highlighting the powerful presence and heroic spirit of the character."
+              "prompt text"
             ],
             "color": "#232",
             "bgcolor": "#353"
@@ -1288,7 +1288,7 @@
                 "input_ue_unconnectable": {}
               }
             },
-            "widgets_values": ["video/2026.02.22_wan", "auto", "auto"]
+            "widgets_values": ["video/example", "auto", "auto"]
           },
           {
             "id": 97,
@@ -1318,7 +1318,7 @@
                 "input_ue_unconnectable": {}
               }
             },
-            "widgets_values": ["moroni_00001_.png", "image"]
+            "widgets_values": ["example.png", "image"]
           },
           {
             "id": 93,
@@ -1349,7 +1349,7 @@
               }
             },
             "widgets_values": [
-              "ancient warrior kneels down at the solid gold plates he is carrying"
+              "prompt text"
             ],
             "color": "#232",
             "bgcolor": "#353"

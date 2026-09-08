@@ -174,6 +174,18 @@ evicting it. Re-run `./existential.sh` to propagate, then
 same vocabulary `ollama-pull` uses, so a migration pulls each model **to the machine that will
 serve it** with no per-migration edits.
 
+Image and video generation moves the same way. `EXIST_COMFYUI_URL` (default
+`http://comfyui:8188`) is where the `comfy` routine POSTs its workflows and where
+`comfyui.EXIST_DOMAIN` proxies to, so pointing it at a ComfyUI you already run elsewhere is the
+whole change:
+
+```bash
+EXIST_COMFYUI_URL=http://bigbox:8188
+EXIST_IS_AI_COMFYUI=false                  # nothing local to start
+```
+
+`./existential.sh test services` then checks that address instead of the container.
+
 Two things do not follow the block:
 
 - Hermes stores the endpoint in its own `config.yaml`, so `exist.initial.sh` reconciles that

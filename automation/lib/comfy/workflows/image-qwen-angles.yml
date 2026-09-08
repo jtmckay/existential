@@ -1,0 +1,50 @@
+# Qwen-Image-Edit 2511 batch: one character image edited eight ways at once.
+#
+# This is the batch flow — the message body is a YAML list of {prompt, output}
+# rather than prompt text, one entry per image you want back:
+#
+#   - prompt: Move camera facing subject, close up angle. Remove background.
+#     output: hero/front
+#   - prompt: Move camera to aerial view of subject. Remove background.
+#     output: hero/top
+#
+# One to eight entries. Fewer than eight prunes the unused branches, so they cost
+# no GPU time. Each entry may also carry its own `seed`; without one it is
+# randomized, so re-running the same batch gives fresh images.
+#
+# There is no size param: FluxKontextImageScale derives the output resolution
+# from input_image.
+workflow: images_qwen_text_image.json
+params:
+  input_image:
+    type: image
+    required: true
+    bind:
+      - { node: "25", input: image }
+items:
+  max: 8
+  branches:
+    - prompt: { node: "427:221:151", input: prompt }
+      output: { node: "373", input: filename_prefix }
+      seed: { node: "427:221:169", input: seed, default: random }
+    - prompt: { node: "427:246:228", input: prompt }
+      output: { node: "374", input: filename_prefix }
+      seed: { node: "427:246:242", input: seed, default: random }
+    - prompt: { node: "427:271:253", input: prompt }
+      output: { node: "376", input: filename_prefix }
+      seed: { node: "427:271:267", input: seed, default: random }
+    - prompt: { node: "427:296:278", input: prompt }
+      output: { node: "379", input: filename_prefix }
+      seed: { node: "427:296:292", input: seed, default: random }
+    - prompt: { node: "427:321:303", input: prompt }
+      output: { node: "380", input: filename_prefix }
+      seed: { node: "427:321:317", input: seed, default: random }
+    - prompt: { node: "427:346:328", input: prompt }
+      output: { node: "377", input: filename_prefix }
+      seed: { node: "427:346:342", input: seed, default: random }
+    - prompt: { node: "427:371:353", input: prompt }
+      output: { node: "381", input: filename_prefix }
+      seed: { node: "427:371:367", input: seed, default: random }
+    - prompt: { node: "427:423:405", input: prompt }
+      output: { node: "424", input: filename_prefix }
+      seed: { node: "427:423:419", input: seed, default: random }

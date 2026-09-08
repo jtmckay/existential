@@ -83,6 +83,15 @@ nightly by default, weekly optional:
 
 ── ComfyUI: download checkpoints ─────────────────────────────────────────
 
+Already have a ComfyUI on another machine? Point the stack at it instead of
+running a second one — one line in .env.shared, then re-run ./existential.sh:
+
+  EXIST_COMFYUI_URL=http://bigbox:8188
+  EXIST_IS_AI_COMFYUI=false
+
+The comfy routine, https://comfyui.x.internal and the comfyui test all follow
+that address. The rest of this section is then that machine's business.
+
 ComfyUI runs at https://comfyui.x.internal after containers are up.
 It ships with no models — download one via the ComfyUI Manager node
 in the UI, or place .safetensors files directly in:

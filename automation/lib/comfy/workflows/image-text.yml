@@ -1,0 +1,34 @@
+# FLUX2 text-to-image. The message body is the prompt.
+workflow: image_flux2_text_landscape.json
+params:
+  prompt:
+    required: true
+    bind:
+      - { node: 6, input: text, widget: 0 }
+  width:
+    type: int
+    align: 16
+    default: 400
+    bind:
+      - { node: 47, input: width, widget: 0 }
+      - { node: 48, input: width, widget: 1 }
+      - { node: 50, widget: 0 }
+  height:
+    type: int
+    align: 16
+    default: 400
+    bind:
+      - { node: 47, input: height, widget: 1 }
+      - { node: 48, input: height, widget: 2 }
+      - { node: 51, widget: 0 }
+  seed:
+    type: int
+    default: random
+    bind:
+      - { node: 25, input: noise_seed, widget: 0 }
+    mode_bind:
+      - { node: 25, widget: 1 }
+  output_prefix:
+    required: true
+    bind:
+      - { node: 9, input: filename_prefix, widget: 0 }

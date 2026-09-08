@@ -1,0 +1,56 @@
+# LTX-2.5 image-to-video (with audio): input_image is the first frame.
+# The message body is the prompt. Size comes from the ResolutionSelector, and a
+# width/height override replaces its link — see video-ltx-text.yml.
+workflow: video_ltx2_5_image.json
+params:
+  prompt:
+    required: true
+    bind:
+      - { node: "398:376", input: value }
+  input_image:
+    type: image
+    required: true
+    bind:
+      - { node: "395", input: image }
+  aspect_ratio:
+    bind:
+      - { node: "403", input: aspect_ratio }
+  megapixels:
+    type: float
+    bind:
+      - { node: "403", input: megapixels }
+  multiple:
+    type: int
+    bind:
+      - { node: "403", input: multiple }
+  width:
+    type: int
+    align: 32
+    bind:
+      - { node: "398:372", input: value }
+  height:
+    type: int
+    align: 32
+    bind:
+      - { node: "398:360", input: value }
+  duration:
+    type: int
+    bind:
+      - { node: "398:362", input: value }
+  fps:
+    type: int
+    bind:
+      - { node: "398:361", input: value }
+  enhance_prompt:
+    type: bool
+    bind:
+      - { node: "398:383", input: value }
+  seed:
+    type: int
+    default: random
+    bind:
+      - { node: "398:339", input: noise_seed }
+  output_prefix:
+    required: true
+    bind:
+      - { node: "75", input: filename_prefix }

@@ -58,6 +58,9 @@ services:
       # which turns ollama.<domain> into a live check of whether the
       # configured endpoint is reachable, instead of a guaranteed 502.
       - CADDY_OLLAMA_UPSTREAM=${EXIST_OLLAMA_URL:-http://ollama:11434}
+      # Same deal for comfyui.<domain>: EXIST_COMFYUI_URL may name a ComfyUI on
+      # another machine, in which case no local container is started.
+      - CADDY_COMFYUI_UPSTREAM=${EXIST_COMFYUI_URL:-http://comfyui:8188}
       # Firecrawl has no auth of its own (see the firecrawl block in the
       # Caddyfile) -- caddy is where the bearer key is enforced. Blank when
       # firecrawl is disabled, which fails that host closed.

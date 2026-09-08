@@ -2,9 +2,6 @@
 # Shared helpers for the comfy routine's subroutines (see
 # ../../shared_routines/comfy.sh). Sourced, never run directly.
 
-# Align to nearest multiple of 16 (required by diffusion models)
-comfy_align16() { echo $(( (($1 + 8) / 16) * 16 )); }
-
 # Strip YAML frontmatter (--- delimited) and leading blank lines.
 # If no frontmatter is present, returns the entire file.
 comfy_read_body() {

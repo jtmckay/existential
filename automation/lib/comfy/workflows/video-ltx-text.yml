@@ -1,0 +1,56 @@
+# LTX-2.5 text-to-video (with audio). The message body is the prompt.
+#
+# Size comes from the ResolutionSelector, which is how the graph itself computes
+# it: pick an aspect_ratio and a megapixels budget. Setting width/height instead
+# replaces the selector's link with a literal — aligned to 32 so an override
+# lands on the same grid the selector's own `multiple` would have produced.
+workflow: video_ltx2_5_text.json
+params:
+  prompt:
+    required: true
+    bind:
+      - { node: "405:376", input: value }
+  aspect_ratio:
+    bind:
+      - { node: "409", input: aspect_ratio }
+  megapixels:
+    type: float
+    bind:
+      - { node: "409", input: megapixels }
+  multiple:
+    type: int
+    bind:
+      - { node: "409", input: multiple }
+  width:
+    type: int
+    align: 32
+    bind:
+      - { node: "405:372", input: value }
+  height:
+    type: int
+    align: 32
+    bind:
+      - { node: "405:360", input: value }
+  # Seconds, not frames — the graph derives the frame count from duration × fps.
+  duration:
+    type: int
+    bind:
+      - { node: "405:362", input: value }
+  fps:
+    type: int
+    bind:
+      - { node: "405:361", input: value }
+  # Rewrites the prompt through a local LLM before encoding it.
+  enhance_prompt:
+    type: bool
+    bind:
+      - { node: "405:383", input: value }
+  seed:
+    type: int
+    default: random
+    bind:
+      - { node: "405:339", input: noise_seed }
+  output_prefix:
+    required: true
+    bind:
+      - { node: "75", input: filename_prefix }

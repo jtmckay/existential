@@ -60,10 +60,12 @@ chatterbox.{$CADDY_DOMAIN} {
   reverse_proxy chatterbox:8000
 }
 
+# Follows EXIST_COMFYUI_URL, passed in as CADDY_COMFYUI_UPSTREAM, for the same
+# reason as the ollama block below: the server may live on another machine.
 comfyui.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
-  reverse_proxy comfyui:8188
+  reverse_proxy {$CADDY_COMFYUI_UPSTREAM:http://comfyui:8188}
 }
 
 hermes-agent.{$CADDY_DOMAIN} {

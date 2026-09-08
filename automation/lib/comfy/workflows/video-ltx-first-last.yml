@@ -1,0 +1,51 @@
+# LTX-2.5 first-and-last-frame to video (with audio): input_image anchors the
+# first frame, last_image the final one. The message body is the prompt.
+#
+# This graph has no ResolutionSelector — width/height are the size knob, and
+# nothing quantizes them, so they are not aligned here either: the workflow ships
+# 1280x720 and 720 is not a multiple of 32. What you ask for is what it gets.
+workflow: video_ltx2_5_first_last.json
+params:
+  prompt:
+    required: true
+    bind:
+      - { node: "251:252", input: value }
+  input_image:
+    type: image
+    required: true
+    bind:
+      - { node: "31", input: image }
+  last_image:
+    type: image
+    required: true
+    bind:
+      - { node: "39", input: image }
+  width:
+    type: int
+    bind:
+      - { node: "251:215", input: value }
+  height:
+    type: int
+    bind:
+      - { node: "251:216", input: value }
+  duration:
+    type: int
+    bind:
+      - { node: "251:198", input: value }
+  fps:
+    type: int
+    bind:
+      - { node: "251:205", input: value }
+  enhance_prompt:
+    type: bool
+    bind:
+      - { node: "251:250", input: value }
+  seed:
+    type: int
+    default: random
+    bind:
+      - { node: "251:196", input: noise_seed }
+  output_prefix:
+    required: true
+    bind:
+      - { node: "68", input: filename_prefix }
