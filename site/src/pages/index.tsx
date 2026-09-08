@@ -7,6 +7,7 @@ import Heading from '@theme/Heading';
 import HomepageCapabilities from '@site/src/components/HomepageCapabilities';
 import HomepageHow from '@site/src/components/HomepageHow';
 import HomepageWho from '@site/src/components/HomepageWho';
+import HomepageWhy from '@site/src/components/HomepageWhy';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 
 import styles from './index.module.css';
@@ -26,7 +27,8 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          Everything: easier or unnecessary.
+          The software already exists. The hard part is connecting twenty different things together — self-hosted,
+          wired together, instead of paying for subscriptions that don't play nice together.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -92,6 +94,7 @@ export default function Home(): ReactNode {
       description="Software that works together, remembers you, and handles the boring parts — and is still, plainly, yours. Existential is a homelab stack you run on your own hardware.">
       <HomepageHeader />
       <main>
+        <HomepageWhy />
         <HomepageHow />
         <HomepageWho />
         <HomepageCapabilities />
