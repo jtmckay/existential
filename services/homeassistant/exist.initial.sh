@@ -45,6 +45,49 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_DIR="${REPO_DIR}/volumes/homeassistant_data"
 CONFIG="${CONFIG_DIR}/configuration.yaml"
 
+# extended_openai_conversation lets HA's conversation agent point at an
+# OpenAI-compatible endpoint (Hermes) instead of real OpenAI — HA's own
+# built-in "OpenAI Conversation" integration has no such option (verified
+# against its 2026.8.2 source: no base_url field anywhere in its config flow).
+# Installed by direct download rather than HACS: HACS exists to manage many
+# integrations' updates, and we only need this one, pinned, so the whole
+# indirection — plus HACS's own GitHub device-code login — buys nothing.
+#
+# Pinned to 3.0.0-beta11, not "latest release": GitHub's releases/latest API
+# skips prereleases, so it resolves to 2.0.2, whose manifest requires
+# `openai~=2.21.0` — incompatible with the `openai==2.45.0` HA core itself
+# pins for its own built-in openai_conversation integration, so HA's own
+# requirement installer refuses to install it (verified against a real
+# 2026.8.2 container: RequirementsNotFound, survives a restart, needs the
+# package downgraded by hand). 3.0.0-beta11 loosened its own pin to
+# `openai>=2.21.0`, which HA's already-installed 2.45.0 satisfies.
+#
+# On a fresh install this lands before HA's first boot, so it just works with
+# no restart. On an existing install, HA needs one restart to pick it up —
+# nothing here can trigger that from outside the container.
+_install_extended_openai_conversation() {
+    local eoc_version="3.0.0-beta11"
+    local custom_components="${CONFIG_DIR}/custom_components"
+    local eoc_dir="${custom_components}/extended_openai_conversation"
+    [ -d "$eoc_dir" ] && return 0
+
+    mkdir -p "$custom_components"
+    local tmp_tar tmp_extract
+    tmp_tar="$(mktemp)"
+    if ! curl -fsSL "https://github.com/jekalmin/extended_openai_conversation/archive/refs/tags/${eoc_version}.tar.gz" -o "$tmp_tar"; then
+        rm -f "$tmp_tar"
+        echo "  homeassistant: NOTE — could not download extended_openai_conversation ${eoc_version};" >&2
+        echo "                 the Hermes conversation-agent migration will not find it." >&2
+        return 0
+    fi
+    tmp_extract="$(mktemp -d)"
+    tar xzf "$tmp_tar" -C "$tmp_extract"
+    cp -r "${tmp_extract}/extended_openai_conversation-${eoc_version}/custom_components/extended_openai_conversation" "$custom_components/"
+    rm -rf "$tmp_tar" "$tmp_extract"
+    echo "  homeassistant: installed extended_openai_conversation ${eoc_version} (conversation agent -> Hermes)"
+}
+_install_extended_openai_conversation
+
 # Whether the YAML block is already present. This gates only the append below —
 # it must NOT short-circuit the whole script with an early `exit 0` (an earlier
 # shape of this file did exactly that). entrypoint.sh's storage repair lives in

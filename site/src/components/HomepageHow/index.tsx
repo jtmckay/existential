@@ -19,7 +19,7 @@ const FeatureList: FeatureItem[] = [
     ),
     description: (
       <>
-        Notes, photos, receipts, voice memos — captured the moment they happen, from whatever
+        Notes, photos, voice memos, voice assistant — captured the moment they happen, from whatever
         app is already open.
       </>
     ),

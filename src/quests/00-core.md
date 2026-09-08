@@ -93,6 +93,20 @@ copies:
     dst: automation/migrations/
     label: "nextcloud: configure the rclone remote (WebDAV, admin creds)"
     requires: EXIST_IS_NAS_MINIO
+  # Without this, https://homeassistant.<domain> redirects every page to the
+  # setup wizard until a human creates an admin account by hand.
+  - src: automation-examples/migrations/25-homeassistant-onboarding.md
+    dst: automation/migrations/
+    label: "homeassistant: create the admin account (EXIST_USERNAME login)"
+    requires: EXIST_IS_SERVICES_HOMEASSISTANT
+  # Wyoming STT/TTS + a conversation-agent entry pointed at Hermes (not raw
+  # OpenAI — see exist.initial.sh's extended_openai_conversation install) +
+  # the Assist pipeline tying them together. Needs the migration above to
+  # have created an account first.
+  - src: automation-examples/migrations/26-homeassistant-wyoming-hermes.md
+    dst: automation/migrations/
+    label: "homeassistant: wire up Wyoming STT/TTS + Hermes as the Assist pipeline"
+    requires: EXIST_IS_SERVICES_HOMEASSISTANT
   # The live half of workspace-sync's MinIO -> local direction: a bucket-side
   # edit reaches workspace/ in ~1s via the webhook instead of waiting for the
   # cron. minio-router/file-processor are already on by default in
@@ -209,17 +223,9 @@ Then open https://dashy.<domain> — that is your landing page, with a link and 
 live status dot for every core service. ./existential.sh prints the URL when it
 finishes.
 
-Two things genuinely need you, because they happen inside another app's UI:
+One thing genuinely needs you, because it happens inside another app's UI:
 
-1. Home Assistant voice. Open https://homeassistant.<domain>, finish the
-   onboarding wizard, then add TWO Wyoming integrations:
-     Settings → Devices & Services → Add Integration → Wyoming Protocol
-       host: wyoming-whisper   port: 10300     (speech to text)
-       host: wyoming-piper     port: 10200     (text to speech)
-   Then Settings → Voice assistants → create a pipeline using those two, and
-   set the conversation agent to Ollama (http://ollama:11434).
-
-2. Nextcloud's admin credentials were generated for you — they are in
+1. Nextcloud's admin credentials were generated for you — they are in
    nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
    installs itself and lands on a login page; the MinIO bucket is already
    mounted as an "S3" folder in Files. Open WebUI's credentials work the same

@@ -61,6 +61,10 @@ shared_routines:
     enabled: true
   nextcloud-calendar:
     enabled: true
+  homeassistant-onboarding:
+    enabled: true
+  homeassistant-wyoming-hermes:
+    enabled: true
   # Named by cron.example/calendar-extract.md — same reasoning as
   # openviking-index-dir above: unlisted, the cron fires and decree declines
   # the routine while looking perfectly healthy.

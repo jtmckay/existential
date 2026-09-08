@@ -25,7 +25,10 @@ See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing
    ```bash
    docker compose up -d homeassistant
    ```
-4. Open `https://homeassistant.EXIST_DOMAIN` and complete the onboarding wizard to create your admin account
+4. Log in at `https://homeassistant.EXIST_DOMAIN` with your `EXIST_USERNAME` login — the
+   `homeassistant-onboarding` decree migration creates the admin account for you (see
+   `services/homeassistant/.env` for the generated password), so there's no setup wizard to
+   click through
 
 Home Assistant generates its own `configuration.yaml` on first boot inside the `homeassistant_data` volume — no manual pre-configuration needed.
 
@@ -84,20 +87,23 @@ spoken reply needs to land immediately anyway.
 
 ### Wiring it up
 
-Neither service has a web UI or a `<slug>.<domain>` hostname — Wyoming is raw
-TCP, so there is nothing for Caddy to front. You add them inside HA:
+The `homeassistant-wyoming-hermes` decree migration does this for you: both Wyoming
+integrations, a conversation-agent entry pointed at [Hermes](../ai/hermes) (not raw
+OpenAI — HA's own built-in OpenAI Conversation integration has no custom-endpoint
+option, so this uses the `extended_openai_conversation` custom component that
+`exist.initial.sh` installs instead), and an Assist pipeline tying all three together
+as the preferred one. Nothing to click through.
 
-1. **Settings → Devices & Services → Add Integration → Wyoming Protocol**
-   - Host `wyoming-whisper`, port `10300`
-   - Repeat for host `wyoming-piper`, port `10200`
-2. **Settings → Voice assistants → Add assistant**
-   - Speech-to-text: the wyoming-whisper entry
-   - Text-to-speech: the wyoming-piper entry
-   - Conversation agent: **Ollama**, pointed at `http://ollama:11434`
+On a fresh install this all lands before HA's first boot. If you're adding it to an
+already-running instance, restart the `homeassistant` container once first — HA only
+picks up a new `custom_components/` folder on boot, and the migration fails loudly
+with that exact instruction if it isn't loaded yet.
 
-The models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
+The STT/TTS models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
 `EXIST_MODEL_STT_LANGUAGE` and `EXIST_MODEL_TTS_VOICE`. See
-[How it works](../how-it-works) for the full model-selection block.
+[How it works](../how-it-works) for the full model-selection block. The
+conversation brain is whatever Hermes itself is configured to answer with —
+see Hermes's own [Model configuration](../ai/hermes#model-configuration).
 
 ## Long-Lived Access Token
 
