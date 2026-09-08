@@ -25,6 +25,7 @@
 **/node_modules
 
 **/docker-compose.yml
+!site/docker-compose.yml
 /docker-compose-*.yml
 
 # `./existential.sh reset` moves rendered config here, paths preserved.
