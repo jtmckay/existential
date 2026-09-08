@@ -65,8 +65,15 @@ CONFIG="${CONFIG_DIR}/configuration.yaml"
 # On a fresh install this lands before HA's first boot, so it just works with
 # no restart. On an existing install, HA needs one restart to pick it up —
 # nothing here can trigger that from outside the container.
+#
+# eoc_sha256 pins the exact tarball content, not just the tag: a GitHub tag is
+# a mutable ref (unlike a commit), so a re-tag — malicious or accidental —
+# would otherwise be downloaded and run inside HA with no signal. Recorded via
+# `curl -fsSL <url> | sha256sum` against this exact version; recompute it the
+# same way any time eoc_version is bumped, deliberately, as part of that change.
 _install_extended_openai_conversation() {
     local eoc_version="3.0.0-beta11"
+    local eoc_sha256="b1d97e7897bdca6f1ef9e08b1a179ce18ce8d7df7d4253fca1f848968cd0a499"
     local custom_components="${CONFIG_DIR}/custom_components"
     local eoc_dir="${custom_components}/extended_openai_conversation"
     [ -d "$eoc_dir" ] && return 0
@@ -78,6 +85,16 @@ _install_extended_openai_conversation() {
         rm -f "$tmp_tar"
         echo "  homeassistant: NOTE — could not download extended_openai_conversation ${eoc_version};" >&2
         echo "                 the Hermes conversation-agent migration will not find it." >&2
+        return 0
+    fi
+    local actual_sha256
+    actual_sha256="$(sha256sum "$tmp_tar" | cut -d' ' -f1)"
+    if [ "$actual_sha256" != "$eoc_sha256" ]; then
+        rm -f "$tmp_tar"
+        echo "  homeassistant: WARNING — extended_openai_conversation ${eoc_version} download" >&2
+        echo "                 does not match its pinned checksum (got ${actual_sha256});" >&2
+        echo "                 refusing to install it. The tag may have moved — verify by hand" >&2
+        echo "                 before updating eoc_sha256 in this script." >&2
         return 0
     fi
     tmp_extract="$(mktemp -d)"
