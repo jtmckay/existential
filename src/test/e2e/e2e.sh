@@ -427,7 +427,16 @@ run_quest() {
             log "  skipping ${var} — EXIST_GPU_VENDOR=${vendor}"
             continue
         fi
+        # Verified, not fired and forgotten. This sed is a silent no-op when the
+        # key is absent from the fixture, and the fixture had drifted seven keys
+        # behind .env.exist.shared — so Core quietly came up WITHOUT openviking,
+        # firecrawl, wyoming-whisper and wyoming-piper, and stayed green because
+        # nothing checked. Rendering then appends the missing key as `false`,
+        # which is why the stack looked deliberate rather than broken. Adding a
+        # service must not be able to rot this fixture in silence.
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
+        grep -q "^${var}=true" "$WORK/.env.shared" \
+            || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
     # 4. The quest's copies: — its migrations and cron files. requires: is

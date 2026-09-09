@@ -7,6 +7,8 @@ services:
     label: Immich
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
+  - var: EXIST_IS_NAS_REDIS
+    label: Redis (Nextcloud cache — required by Nextcloud)
   - var: EXIST_IS_NAS_SEAWEEDFS
     label: SeaweedFS
   - var: EXIST_IS_NAS_COLLABORA

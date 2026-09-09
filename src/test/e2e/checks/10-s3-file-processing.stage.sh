@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-side setup for 90-s3-file-processing, run by e2e.sh's stage_checks
+# Host-side setup for 10-s3-file-processing, run by e2e.sh's stage_checks
 # before the stack boots.
 #
 # Only three things live here, and all for the same reason: they are read once at

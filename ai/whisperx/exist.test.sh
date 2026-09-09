@@ -23,6 +23,20 @@ probe_service "whisperx /speakers"     whisperx 8000 /speakers     200
 # because without it the transcribe and align steps succeed and only the diarize
 # step 401s: the task fails, every health route stays green, and the whole point
 # of running whisperx over wyoming-whisper (speaker labels) is silently gone.
-env_var_set "whisperx HF token" WHISPERX_HF_TOKEN
+#
+# warn, not fail. The token comes from huggingface.co and no quest can render it,
+# so a fresh install always starts without one — and as a failure that made e2e
+# report a working stack as broken for a step the quest guide asks the user to do
+# by hand (it is prompted for at render time via EXIST_CLI, and left blank when
+# nobody is at the keyboard). A warning still says it on every triage pass, which
+# is what the silent-diarization-loss argument above actually needs.
+load_env_exist
+if [ -n "${WHISPERX_HF_TOKEN:-}" ]; then
+    ok "env WHISPERX_HF_TOKEN set"
+else
+    warn "env WHISPERX_HF_TOKEN set" \
+         "unset — transcription works, speaker diarization will 401" \
+         "Accept pyannote/speaker-diarization-community-1 on huggingface.co, then set WHISPERX_HF_TOKEN in ai/whisperx/.env"
+fi
 
 finish

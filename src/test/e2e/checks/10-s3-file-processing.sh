@@ -2,7 +2,7 @@
 # e2e-s3-file-processing — the object store → webhook → router → processor chain.
 #
 # Staged into the clone's shared_routines/ by e2e.sh and triggered by the
-# migration in 90-s3-file-processing.md. Runs inside decree, so it reaches
+# migration in 10-s3-file-processing.md. Runs inside decree, so it reaches
 # seaweedfs over the exist bridge with rclone and reads the rendered stack at
 # /repo. Every write lands in the disposable e2e clone.
 #

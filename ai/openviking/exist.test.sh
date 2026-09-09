@@ -115,6 +115,17 @@ else
                  "ov.conf says ${WANT_DIM}, ${EMBED_MODEL} returns ${GOT_DIM} — every vector is dropped, so search returns nothing" \
                  "Set EXIST_MODEL_EMBED_DIM=${GOT_DIM} in .env.shared, delete volumes/openviking_data/ov.conf and the stale index, then ./existential.sh run openviking"
         fi
+    elif ! printf '%s' "${TAGS}" | grep -q '"name"'; then
+        # ollama is up but holds NO models at all, so the pull step has not been
+        # run yet — a setup state, not a fault, and the same distinction
+        # ai/ollama/exist.test.sh draws. Only the Core quest copies the ollama
+        # migrations; the Local AI Lab quest hands pulling to the user, so a
+        # fresh install of it legitimately has an empty ollama and failing here
+        # reported a working stack as broken. A wrong model with others present
+        # still fails below, which is the drift this check exists for.
+        warn "openviking embedding model available" \
+             "ollama has no models pulled yet, so ${EMBED_MODEL} cannot be there" \
+             "./existential.sh run ollama pull-models"
     else
         fail "openviking embedding model available" \
              "${EMBED_MODEL} is not pulled on ${EMBED_BASE%/v1} — uploads succeed but nothing is embedded, so search returns nothing" \

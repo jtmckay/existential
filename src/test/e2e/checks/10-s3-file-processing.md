@@ -1,6 +1,6 @@
 ---
 routine: e2e-s3-file-processing
-e2e_check: 90-s3-file-processing
+e2e_check: 10-s3-file-processing
 requires: EXIST_IS_NAS_SEAWEEDFS EXIST_IS_SERVICES_AUTOMATION
 needs_routines: s3-router file-processor
 ---
@@ -21,8 +21,11 @@ its compose environment as `S3_*`, `/repo` is mounted read-only, and it shares
 the `exist` bridge with every service. The host-side version had to `docker
 exec` into the store for each step.
 
-Numbered `90-` so it lands after the product's own migrations (10-14 ollama):
-those pull the models, and a probe that halted the pass would take them with it.
+The number is a sort key among checks, nothing more. Checks used to be staged
+as migrations, where the prefix decided whether a probe ran before or after the
+product's own 10-14 ollama pulls; they are inbox messages now, dropped after the
+health gate, so ordering is `drop_checks`'s read order and the prefix only keeps
+this file next to its siblings.
 
 Three pieces stay on the host in `stage_checks`, because they are read at boot
 and so cannot be changed by something the daemon is already running: the shipped

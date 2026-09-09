@@ -65,19 +65,30 @@ probe_caddy "ollama /api/tags" ollama /api/tags 200
 
 # ── 2. Model presence ────────────────────────────────────────────────────────
 
-if echo "$TAGS" | python3 -c "
-import sys, json
-tags = json.load(sys.stdin)
-names = [m['name'] for m in tags.get('models', [])]
-m = sys.argv[1]
-if not any(n == m or n.split(':')[0] == m.split(':')[0] for n in names):
-    sys.exit(1)
-" "$MODEL" 2>/dev/null; then
+# jq, not python3: CLAUDE.md rules Python out for code we own, and every other
+# probe in this repo already reads JSON with jq.
+NAMES=$(echo "$TAGS" | jq -r '.models[]?.name // empty' 2>/dev/null || true)
+
+if [ -z "$NAMES" ]; then
+    # No models AT ALL is the pull step not having run yet, not a fault. Only the
+    # Core quest copies the ollama migrations; the Local AI Lab quest deliberately
+    # leaves pulling to the user (`./existential.sh run ollama pull-models`), so a
+    # fresh install of it legitimately has an empty ollama. Failing here reported
+    # a working stack as broken. Drift is still caught: one model present and the
+    # configured one missing falls through to the fail below.
+    skip "model '${MODEL}' present" \
+         "no models pulled yet — ./existential.sh run ollama pull-models"
+    finish
+fi
+
+# Exact tag, or any tag sharing the base name before the colon, so a pulled
+# "llama3.2:3b" satisfies a configured "llama3.2" and vice versa.
+if printf '%s\n' "$NAMES" | awk -F: -v base="${MODEL%%:*}" -v full="$MODEL" \
+        '$0 == full || $1 == base { found = 1 } END { exit !found }'; then
     ok "model '${MODEL}' present"
 else
-    AVAILABLE=$(echo "$TAGS" | python3 -c "import sys,json; print(', '.join(m['name'] for m in json.load(sys.stdin).get('models',[])) or 'none')" 2>/dev/null)
     fail "model '${MODEL}' present" \
-         "available: ${AVAILABLE}" \
+         "available: $(printf '%s\n' "$NAMES" | paste -sd, - | sed 's/,/, /g')" \
          "ollama pull ${MODEL}   (or update OLLAMA_MODEL)"
     finish
 fi
@@ -96,17 +107,10 @@ MODEL_INFO=$(curl -sS "${OLLAMA_URL}/api/show" -d "{\"name\":\"${MODEL}\"}" 2>/d
 # the cold fallback.
 PS_JSON=$(curl -sS --max-time 5 "${OLLAMA_URL}/api/ps" 2>/dev/null || true)
 read -r LOADED_CTX LOADED_SIZE LOADED_VRAM <<EOF
-$(echo "$PS_JSON" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    want = sys.argv[1]
-    for m in d.get('models', []):
-        if m.get('model') == want or m.get('name') == want:
-            print(m.get('context_length') or 0, m.get('size') or 0, m.get('size_vram') or 0); break
-    else: print(0, 0, 0)
-except Exception: print(0, 0, 0)
-" "$MODEL" 2>/dev/null || echo "0 0 0")
+$(echo "$PS_JSON" | jq -r --arg want "$MODEL" '
+    first(.models[]? | select(.model == $want or .name == $want)
+          | "\(.context_length // 0) \(.size // 0) \(.size_vram // 0)")
+    // "0 0 0"' 2>/dev/null || echo "0 0 0")
 EOF
 LOADED_CTX="${LOADED_CTX:-0}"; LOADED_SIZE="${LOADED_SIZE:-0}"; LOADED_VRAM="${LOADED_VRAM:-0}"
 
@@ -127,16 +131,10 @@ else
     ok "resident: ${MODEL} not currently loaded (ollama loads on first request)"
 fi
 
-BAKED_CTX=$(echo "$MODEL_INFO" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    for line in d.get('parameters','').splitlines():
-        p = line.split()
-        if len(p)==2 and p[0]=='num_ctx': print(p[1]); break
-    else: print(0)
-except Exception: print(0)
-" 2>/dev/null || echo "0")
+# jq reads the JSON; awk reads .parameters, which is a plain "key value" block
+# rather than JSON, so parsing it as text is what it actually is.
+BAKED_CTX=$(echo "$MODEL_INFO" | jq -r '.parameters // ""' 2>/dev/null \
+    | awk '$1 == "num_ctx" { print $2; found = 1; exit } END { if (!found) print 0 }')
 BAKED_CTX="${BAKED_CTX:-0}"
 
 # Prefer what is actually being served; fall back to the baked value when cold.
@@ -185,23 +183,19 @@ if [ "$AVAIL_KB" -gt 0 ] && [ "$NUM_CTX" -gt 0 ]; then
     # so match on the suffix. bytes is 2 for the default f16 cache.
     # This is an upper bound: sliding-window models (the gemma4 tiers) hold full
     # cache on only a fraction of layers, so their real cost is lower.
-    KV_MB=$(echo "$MODEL_INFO" | python3 -c "
-import sys, json
-try:
-    info = json.load(sys.stdin).get('model_info', {})
-    def get(suffix):
-        for k, v in info.items():
-            if k.endswith('.' + suffix) and isinstance(v, int): return v
-        return 0
-    layers = get('block_count')
-    kv     = get('attention.head_count_kv')
-    klen   = get('attention.key_length')
-    vlen   = get('attention.value_length')
-    ctx    = int(sys.argv[1])
-    if not (layers and kv and klen and vlen): print(0)
-    else: print(layers * kv * (klen + vlen) * ctx * 2 // (1024 * 1024))
-except Exception: print(0)
-" "$NUM_CTX" 2>/dev/null || echo "0")
+    KV_MB=$(echo "$MODEL_INFO" | jq -r --argjson ctx "$NUM_CTX" '
+        (.model_info // {}) as $i
+        | ( [ $i | to_entries[] | select(.key | endswith(".block_count"))
+              | select(.value | type == "number") | .value ] | first // 0 ) as $layers
+        | ( [ $i | to_entries[] | select(.key | endswith(".attention.head_count_kv"))
+              | select(.value | type == "number") | .value ] | first // 0 ) as $kv
+        | ( [ $i | to_entries[] | select(.key | endswith(".attention.key_length"))
+              | select(.value | type == "number") | .value ] | first // 0 ) as $klen
+        | ( [ $i | to_entries[] | select(.key | endswith(".attention.value_length"))
+              | select(.value | type == "number") | .value ] | first // 0 ) as $vlen
+        | if ($layers > 0 and $kv > 0 and $klen > 0 and $vlen > 0)
+          then ($layers * $kv * ($klen + $vlen) * $ctx * 2 / 1048576 | floor)
+          else 0 end' 2>/dev/null || echo 0)
     KV_MB="${KV_MB:-0}"
 
     # Sub-GB values must not render as "0GB" — at the small end this number is
@@ -238,14 +232,10 @@ if [ -z "$BENCH" ]; then
          "no response from /api/generate within 60s" \
          "docker logs ollama; ollama ps"
 else
-    RATE=$(echo "$BENCH" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    ns = d.get('eval_duration', 0); n = d.get('eval_count', 0)
-    print(f'{n/(ns/1e9):.1f}' if ns and n else 'unknown')
-except Exception: print('unknown')
-" 2>/dev/null || echo "unknown")
+    RATE=$(echo "$BENCH" | jq -r '
+        if (.eval_duration // 0) > 0 and (.eval_count // 0) > 0
+        then (.eval_count / (.eval_duration / 1000000000) * 10 | round / 10 | tostring)
+        else "unknown" end' 2>/dev/null || echo "unknown")
     ok "generation rate: ${RATE} tok/s"
 fi
 

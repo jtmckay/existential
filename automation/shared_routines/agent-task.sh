@@ -23,7 +23,7 @@
 # latter, and shouldn't. See workspace/outbox/README.md and outbox-relay.sh.
 #
 # Chained by a file processor, or run by hand by dropping a message in the inbox
-# (services/automation/decree/inbox/<name>.md):
+# (automation/inbox/<name>.md):
 #
 #   ---
 #   routine: agent-task
