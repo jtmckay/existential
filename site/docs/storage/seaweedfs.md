@@ -12,7 +12,7 @@ sidebar_position: 2
 
 S3-compatible object storage. Provides an S3 interface to all files — replaceable with Amazon
 S3 if needed. It replaced MinIO, whose open-source repository was archived in February 2026;
-see [the graveyard entry](../graveyard/storage/seaweedfs) for what changed.
+see [the graveyard entry](../graveyard/storage/minio) for what changed.
 
 One container runs the whole thing. `weed mini` starts the master, volume server, filer, S3
 gateway, WebDAV gateway and Admin UI in a single process, which is the right shape for one

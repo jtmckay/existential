@@ -91,7 +91,7 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ### Step 1 — object-store webhook
 
-Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to register the Decree webhook target and subscribe your recordings bucket to `ObjectCreated` events.
+Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to register the Decree webhook target and add your recordings path to `path_prefixes` in `notification.toml`. If recordings land in the `nextcloud` bucket, both are already done for you.
 
 ### Step 2 — rclone remote
 

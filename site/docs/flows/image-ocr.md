@@ -125,7 +125,7 @@ Any Ollama-compatible vision model works. `llava` is a solid general-purpose cho
 
 ### Step 2 — object-store webhook and rclone
 
-Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to subscribe your image bucket to `ObjectCreated` events, and ensure your rclone `nextcloud` remote is configured:
+Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to add your image path to `path_prefixes` in `notification.toml` (already done for the `nextcloud` bucket), and ensure your rclone `nextcloud` remote is configured:
 
 ```bash
 ./existential.sh run rclone
