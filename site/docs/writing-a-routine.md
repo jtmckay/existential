@@ -86,6 +86,13 @@ exist first, what it writes and where, and the failure that will confuse them.
 Decree treats a non-zero exit as failure and retries the message up to `max_attempts`, then
 dead-letters it. That retry is only useful if your script actually fails when a step fails.
 
+Exiting non-zero is also how your routine gets you a notification. Dead-lettering fires the
+`onDeadLetter` hook, which sends an ntfy alert naming the routine, the message, and the last
+few log lines — for every routine, with nothing to wire up. Repeats are rate-limited to one
+alert per routine per 6 hours (`DECREE_ALERT_COOLDOWN_MIN`), and a routine that succeeds again
+resets that, so the next failure alerts immediately. A routine that swallows its own errors and
+exits 0 opts out of all of this.
+
 ### The pre-check gate is your self-test
 
 Gate it on `DECREE_PRE_CHECK=true`, put it **after** the standard variables and **before** your

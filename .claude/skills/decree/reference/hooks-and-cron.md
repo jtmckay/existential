@@ -35,6 +35,38 @@ All hooks receive the standard variables plus:
 `onDeadLetter` also receives `DECREE_ATTEMPT` (= `max_retries`), `DECREE_MAX_RETRIES`,
 `DECREE_ROUTINE_EXIT_CODE`, and `DECREE_TRIGGER`.
 
+### What This Repo Wires
+
+Both daemons point at the same three scripts in `automation/lib/hooks/` — there are no
+per-daemon or per-routine hooks, and a new routine inherits all of this for free:
+
+| Hook           | Script              | Does |
+|----------------|---------------------|------|
+| `beforeEach`   | `config-watch.sh`   | Restarts the container when `config.yml` changed under it |
+| `afterEach`    | `afterEach.sh`      | Pushes metrics to Pushgateway + a summary line to Loki; clears the alert marker on success |
+| `onDeadLetter` | `onDeadLetter.sh`   | Queues an ntfy alert (via the `notify` routine) when a routine exhausts its retries |
+
+`onDeadLetter.sh` is the only alerting path for "a routine gave up", and two things about it are
+load-bearing:
+
+- **It writes to `outbox/`, like everything else the daemon produces — never `inbox/`.** The
+  relay is what gives the alert a real chain and seq, keeps it inside the depth accounting, and
+  leaves it chainable by a later routine. The trade-off is latency: the outbox is relayed as
+  part of a *later* run, so an alert waits for the next routine to fire on that daemon (~10
+  minutes on the backup daemon, whose busiest cron is `workspace-sync` at `*/10`). Tighten a
+  cron if that is too slow.
+- **It exits early when the dead-lettered routine is `notify` itself.** Otherwise an unreachable
+  ntfy would have every failed alert queue another alert.
+
+Repeat failures are rate-limited to one alert per routine per `DECREE_ALERT_COOLDOWN_MIN`
+(default 360). The marker lives at `runs/.alert-state/<routine>` and `afterEach.sh` deletes it on
+any success, so a routine that recovers and breaks again alerts immediately. Recovery itself is
+not announced.
+
+Because `notify` does the delivery, both daemons need `NTFY_*` (and the optional `TELEGRAM_*`
+fallback) in their environment — see the two `environment:` blocks in
+`services/automation/docker-compose.exist.yml`.
+
 ## Cron Scheduling
 
 Every daemon has a templates-directory + active-directory pair, though the two live in

@@ -15,6 +15,7 @@ hooks:
   afterAll: ""
   beforeEach: /work/.decree/lib/hooks/config-watch.sh
   afterEach: /work/.decree/lib/hooks/afterEach.sh
+  onDeadLetter: /work/.decree/lib/hooks/onDeadLetter.sh
 shared_routines:
   actual-budget:
     enabled: false

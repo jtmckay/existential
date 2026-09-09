@@ -191,6 +191,16 @@ services:
       - S3_URL=${SEAWEEDFS_URL:-http://seaweedfs:8333}
       - S3_ACCESS_KEY=${SEAWEEDFS_ROOT_USER:-}
       - S3_SECRET_KEY=${SEAWEEDFS_ROOT_PASSWORD:-}
+      # Same six as the daemon above, and for one reason: the onDeadLetter hook
+      # queues `notify` when a routine exhausts its retries, and this daemon's
+      # routines are exactly the ones nobody is watching. env_file brings in the
+      # master .env, but notify.sh reads these unprefixed.
+      - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
+      - NTFY_URL=${EXIST_NTFY_URL}
+      - NTFY_USER=${EXIST_NTFY_USER:-}
+      - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
+      - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
     volumes:
       - ./backup:/work/.decree:z
       - ../../automation/shared_routines:/work/.decree/shared_routines:ro,z

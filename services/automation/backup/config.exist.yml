@@ -9,6 +9,7 @@ hooks:
   afterAll: ""
   beforeEach: /work/.decree/lib/hooks/config-watch.sh
   afterEach: /work/.decree/lib/hooks/afterEach.sh
+  onDeadLetter: /work/.decree/lib/hooks/onDeadLetter.sh
 # Not backups-only, despite the container name: this daemon sees every volume
 # and every credential, so anything that needs THAT (bulk volumes/, master
 # .env) lands here — but nothing that reasons, routes, or reaches an AI does;

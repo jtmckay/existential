@@ -45,6 +45,17 @@ final="${DECREE_FINAL_ATTEMPT:-false}"
 success=0
 [ "$exit_code" = "0" ] && success=1
 
+# Clear this routine's dead-letter alert marker on any success, so the next
+# time it dies you hear about it immediately instead of waiting out
+# onDeadLetter.sh's cooldown. Recovery itself is deliberately not announced:
+# the alert says something is broken, and a stack that also chirps when things
+# work is one you stop reading.
+if [ "$success" = "1" ]; then
+    _routine_safe=$(printf '%s' "$routine" | tr -cd 'A-Za-z0-9_-')
+    [ -n "$_routine_safe" ] && rm -f \
+        "${DECREE_ALERT_STATE_DIR:-/work/.decree/runs/.alert-state}/${_routine_safe}" 2>/dev/null
+fi
+
 duration=0
 if [ -f "${message_dir}/routine.log" ]; then
     # decree's own format_duration() writes plain seconds under a minute
