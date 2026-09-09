@@ -72,6 +72,15 @@ WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** 
 # User-editable excludes, .gitignore-style: one rclone glob pattern per line.
 # Optional — skipped entirely if the file doesn't exist.
 WORKSPACE_SYNC_IGNORE_FILE="${WORKSPACE_SYNC_IGNORE_FILE:-${WORKSPACE_DIR}/.syncignore}"
+# Percent of files that may disappear from one side before bisync aborts.
+# rclone's default is 50, which is meaningless on a workspace this small —
+# deleting two of three files trips it — and the abort is not self-healing:
+# it never commits the new listings, so the same deletes are re-detected every
+# run and the sync stays wedged until someone passes --force by hand. The real
+# backstop for "the mount vanished / the bucket got wiped" is bisync's separate
+# empty-listing check, handled below with --resync. Lower this if you want a
+# ratio guard back.
+WORKSPACE_SYNC_MAX_DELETE="${WORKSPACE_SYNC_MAX_DELETE:-100}"
 
 if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     command -v rclone >/dev/null 2>&1     || { echo "rclone not found" >&2; exit 1; }
@@ -115,6 +124,7 @@ _bisync() {
     rclone bisync "${WORKSPACE_DIR}" "${_remote}" \
         "${_excludes[@]}" \
         --workdir "${WORKSPACE_BISYNC_WORKDIR}" \
+        --max-delete "${WORKSPACE_SYNC_MAX_DELETE}" \
         --conflict-resolve newer \
         --resilient \
         --recover \
