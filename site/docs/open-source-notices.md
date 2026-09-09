@@ -46,7 +46,7 @@ written request and we will provide it: **[insert contact email]**.
 | Mealie | AGPL-3.0 | https://github.com/mealie-recipes/mealie |
 | NocoDB | AGPL-3.0 | https://github.com/nocodb/nocodb |
 | Lowcoder | AGPL-3.0 | https://github.com/lowcoder-org/lowcoder |
-| MinIO | AGPL-3.0 | https://github.com/minio/minio |
+| SeaweedFS | Apache-2.0 | https://github.com/seaweedfs/seaweedfs |
 | Grafana | AGPL-3.0 | https://github.com/grafana/grafana |
 | Loki | AGPL-3.0 | https://github.com/grafana/loki |
 | Alloy | Apache-2.0 | https://github.com/grafana/alloy |

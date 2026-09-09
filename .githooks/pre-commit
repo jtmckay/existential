@@ -12,6 +12,11 @@ set -euo pipefail
 fail=0
 note() { echo "  ✗ $*" >&2; fail=1; }
 
+# Resolved from THIS script's location, not the working repo: guard-selftest runs
+# this hook against throwaway fixture repos that contain no src/ tree.
+# shellcheck source=../src/utils/rendered-paths.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/src/utils/rendered-paths.sh"
+
 # Staged files (added/copied/modified), NUL-safe.
 mapfile -d '' -t staged < <(git diff --cached --name-only --diff-filter=ACM -z)
 [ "${#staged[@]}" -gt 0 ] || exit 0
@@ -25,21 +30,23 @@ for f in "${staged[@]}"; do
             note "rendered secret file staged: $f (only .env.exist* templates belong in git)" ;;
         cloudflare-key.pem|cloudflare.pem|public-key.pem|*_password.txt)
             note "rendered credential file staged: $f" ;;
-        # Rendered config files hold webhook bearer tokens / daemon credentials.
-        # Their values are bare hex or UUIDs, so the content patterns below
-        # cannot see them — the filename is the only signal. Only *.exist.*
-        # templates and *.example belong in git.
-        #
-        # What makes it a secret is being RENDERED, not the extension: a
-        # sibling *.exist.* template is the tell. hosting/loki/loki-config.yaml
-        # is hand-committed upstream config with no template, so it stays
-        # committable; ai/chatterbox's rendered config.yaml does not.
-        config.yml|*-config.yml|config.yaml|*-config.yaml)
-            case "$base" in
-                *.yml) tmpl="${f%.yml}.exist.yml" ;;
-                *)     tmpl="${f%.yaml}.exist.yaml" ;;
-            esac
-            [ -e "$tmpl" ] && note "rendered config with credentials staged: $f (commit $tmpl instead)" ;;
+    esac
+
+    # Anything a *.exist.* template renders INTO is rendered, and carries whatever
+    # its placeholders resolved to -- bare hex tokens and passwords the content
+    # patterns below cannot see, so the template is the only signal.
+    #
+    # Checked structurally rather than by extension. This used to be a case arm
+    # listing config.yml/config.yaml, which meant seaweedfs' rendered s3.json (both
+    # S3 identities) and notification.toml (the decree bearer token) were invisible
+    # to it. hosting/loki/loki-config.yaml is hand-committed upstream config with
+    # no template, so it stays committable.
+    case "$f" in
+        graveyard/*|*.exist.*|*.exist|*.example) ;;
+        *)
+            if tmpl="$(template_for_rendered "$f")"; then
+                note "rendered file staged: $f (commit $tmpl instead)"
+            fi ;;
     esac
     case "$f" in
         */secrets/*)

@@ -75,7 +75,7 @@ collect_results() {
         # EVERY run counts, not only the checks e2e staged itself. The work a
         # check triggers — a router matching, a processor running — lands here as
         # its own run, and grading only the named checks let a live run report
-        # PASS while minio-router was failing on every event it routed.
+        # PASS while s3-router was failing on every event it routed.
         #
         # e2e_check just supplies a friendly name; anything else is named by the
         # routine it ran, which is what makes the failure legible in results.md.

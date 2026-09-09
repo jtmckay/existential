@@ -17,6 +17,7 @@ Evaluated alternatives — kept here for reference.
 | LibreChat | AI | RIP |
 | Linkwarden | Tools | RIP no eject |
 | LocalAI | AI | RIP AMD Linux issues |
+| MinIO | Storage | RIP archived upstream Feb 2026 |
 | N8N | Automation | RIP closed source licensing |
 | Ngrok | Tools | Unnecessary with VPN |
 | Nightlio | Notes | RIP broken Docker images |

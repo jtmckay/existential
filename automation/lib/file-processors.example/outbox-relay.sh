@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # PATTERN/CRITERIA/IS_PRE_SIGNED are read out of this
-# file's source by minio-router and file-processor, not by sourcing it.
+# file's source by s3-router and file-processor, not by sourcing it.
 # Outbox relay — turn a workspace/outbox/ file into a real decree message.
 #
 # This is the ONLY door from workspace/ into decree's inbox. Hermes/OpenCode
 # (or anything else confined to workspace/) has no mount into automation/ and
 # must never be given one — shared_routines/ is read-only from inside the main
 # daemon on purpose (see .claude/reference/services.md). Drop a message here
-# instead, and the MinIO webhook (via workspace-sync) does the rest:
+# instead, and the object-store webhook (via workspace-sync) does the rest:
 #
 # A relayed message deletes itself from workspace/outbox/ on success — both
 # the local copy (directly, here) and the remote one — a real outbox empties
@@ -18,7 +18,7 @@
 # there, waiting its turn behind other messages" reads to bisync as an
 # ordinary new local file — it would re-upload it, undoing the delete.
 #
-# Nothing here controls how many times MinIO fires for one object regardless
+# Nothing here controls how many times the object store fires for one object regardless
 # (a webhook redelivery, for instance), so the delete is tidiness either way,
 # not the guarantee against running the target routine twice: this (path,
 # content) pair, once relayed, is recorded in /data/outbox-relay/seen (same
@@ -36,7 +36,7 @@
 #
 # correlation_id is optional and is NOT decree's own chain — decree's
 # collect_outbox always stamps a relayed message with the chain of whoever is
-# currently draining the outbox (here, minio-router's own webhook-fan-out
+# currently draining the outbox (here, s3-router's own webhook-fan-out
 # chain), discarding any chain/seq the dropped file names, so there is no way
 # for this relay to make decree treat the result as a continuation of an
 # earlier chain. correlation_id is instead a plain custom field: it survives
@@ -45,7 +45,7 @@
 # correlation_id="${correlation_id:-$chain}" (see agent-task.sh) to keep
 # tracing this flow across hops that each get their own fresh decree chain.
 #
-# Copy to lib/file-processors/ to activate — no restart needed; minio-router
+# Copy to lib/file-processors/ to activate — no restart needed; s3-router
 # reads the directory per event.
 PATTERN="nextcloud:S3/workspace/outbox/.*\.md$"
 CRITERIA=""
@@ -65,7 +65,7 @@ mkdir -p "$OUTBOX_DIR"
 
 # The actual guarantee against a double-run: workspace/outbox/ is a one-shot
 # mailbox, not a stable resource, so this exact (path, content) pair is never
-# relayed twice within SEEN_TTL_SECONDS — regardless of why the same MinIO
+# relayed twice within SEEN_TTL_SECONDS — regardless of why the same object-store
 # event happened twice. /data survives container restarts (it's decree_data,
 # not the runs/ dir clean-runs prunes), so this holds across a daemon restart.
 #

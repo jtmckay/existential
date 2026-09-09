@@ -30,7 +30,7 @@ opencode config — not content.
 `workspace/ai/` is deliberately NOT excluded. That directory holds the output of
 the agent automations, and indexing it is what lets a later run find and build on
 an earlier one. The loop is broken elsewhere: `workspace-sync` excludes `ai/`, so
-that output never becomes a MinIO event and never triggers another run.
+that output never becomes an object-store event and never triggers another run.
 
 To index a second directory, copy this file with a new name and give it its own
 INDEX_DIR and INDEX_PREFIX. The two keep separate manifests.

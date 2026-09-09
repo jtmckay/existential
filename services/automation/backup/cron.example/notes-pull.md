@@ -13,9 +13,9 @@ that lands in `workspace/notes/` is a normal file under `workspace/`, so it
 automatically:
   - gets indexed by OpenViking and becomes searchable/citable context for
     every hermes agent (see openviking-index-knowledgebase.md)
-  - gets bisynced to the `nextcloud` MinIO bucket by workspace-sync, and from
+  - gets bisynced to the `nextcloud` seaweedfs bucket by workspace-sync, and from
     there is browsable through Nextcloud's own /S3 folder
-  - fires MinIO webhook events once workspace-sync has subscribed the bucket
+  - fires object-store webhook events once workspace-sync has subscribed the bucket
     (its own first-run behavior — see workspace-sync.sh) — if any file
     processor is active with a broad enough PATTERN, your notes can trigger it
 

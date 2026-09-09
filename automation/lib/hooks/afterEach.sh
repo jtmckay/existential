@@ -22,7 +22,7 @@ trigger="${trigger:-unknown}"
 trigger_type="${trigger%%:*}"
 
 # Optional, sparse: whichever "sub thing" this run actually did, in whatever
-# terms the routine itself finds useful — e.g. minio-router writes
+# terms the routine itself finds useful — e.g. s3-router writes
 # `subroutine: <processor-name>` onto the file-processor message it queues, so
 # the Grafana table can show which processor ran, not just that file-processor
 # ran. Empty for routines that have no such distinction. Not a decree field —

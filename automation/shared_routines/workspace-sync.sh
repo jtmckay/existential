@@ -2,26 +2,27 @@
 # Workspace Sync
 #
 # Bidirectionally syncs workspace/ with a workspace/ subfolder of the `nextcloud`
-# MinIO bucket, so edits on either side — the host filesystem or the bucket
+# seaweedfs bucket, so edits on either side — the host filesystem or the bucket
 # (including through Nextcloud's own /S3 external-storage mount, since that
 # bucket is what backs it) — show up on the other, and so that changes there
 # become S3 events the decree webhook can route to matched file processors.
 #
 # Why the nextcloud bucket and not a dedicated one: it is already mounted into
 # Nextcloud at /S3, so nothing written here needs a second mount to be browsable
-# there. The trade is that subscribing this bucket to MinIO's webhook (done
-# automatically below, once, right after the first successful sync) means
-# EVERY file event in it fires the webhook, not just ones under workspace/ —
-# including ordinary Nextcloud usage. That is intentional here, not an
-# oversight.
+# there. The trade is that the whole bucket is subscribed, so EVERY file event in
+# it fires the webhook, not just ones under workspace/ — including ordinary
+# Nextcloud usage. That is intentional, not an oversight: seaweedfs CAN scope the
+# subscription by path (path_prefixes in nas/seaweedfs/notification.toml), but
+# narrowing it to workspace/ would also silence the telegram and whisperx flows,
+# which watch other prefixes of this same bucket.
 #
-# Why a sync and not a watch: writes to the workspace bind mount fire no S3
-# events, and MinIO's single-drive mode writes xl.meta per object, so its drive
+# Why a sync and not a watch: writes to the workspace bind mount fire no events,
+# and seaweedfs stores objects as needles inside its own volume files, so its data
 # path cannot simply be pointed at workspace/. Copying the tree in is what makes
-# MinIO's own notification machinery apply to files you edit by hand.
+# the object store's own notification machinery apply to files you edit by hand.
 #
 # Why bisync and not sync: sync is one-way and would either overwrite whatever
-# lands in MinIO (S3 -> local) or silently discard it (local -> S3). bisync
+# lands in the bucket (S3 -> local) or silently discard it (local -> S3). bisync
 # tracks each side's prior state so it can tell which side actually changed.
 # A file changed on both sides between runs becomes a numbered conflict copy
 # rather than one side clobbering the other.
@@ -38,13 +39,14 @@
 # (one glob pattern per line, same syntax as rclone --exclude, '#' comments) —
 # no restart needed, it's read fresh every run.
 #
-# FIRST RUN: bisync has no prior state yet, so the first pass runs with
-# --resync (below) and uploads the whole workspace in one go. Subscribing the
-# bucket to the webhook BEFORE that would turn that bulk upload into one event
-# per file arriving at once — so the subscription is queued as a follow-up
-# message (via minio-bucket-webhook) only after that first sync succeeds,
-# never before. Nothing to do by hand; this is what makes it safe for
-# workspace-sync's cron to just be on from the start.
+# FIRST RUN: bisync has no prior state yet, so the first pass runs with --resync
+# (below) and uploads the whole workspace in one go. Under minIO the webhook
+# subscription was an admin-API call this routine had to defer until after that
+# upload, or the baseline became one event per file. Seaweedfs subscribes from a
+# static config file read at boot, so there is nothing to defer and nothing to
+# queue — and the baseline therefore DOES fire an event per file. On a fresh
+# install workspace/ is near-empty and the active processors match narrow
+# patterns, so that is inbox churn rather than work. Nothing to do by hand.
 #
 #   ---
 #   cron: "*/10 * * * *"
@@ -70,32 +72,41 @@ WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** 
 # User-editable excludes, .gitignore-style: one rclone glob pattern per line.
 # Optional — skipped entirely if the file doesn't exist.
 WORKSPACE_SYNC_IGNORE_FILE="${WORKSPACE_SYNC_IGNORE_FILE:-${WORKSPACE_DIR}/.syncignore}"
+# Percent of files that may disappear from one side before bisync aborts.
+# rclone's default is 50, which is meaningless on a workspace this small —
+# deleting two of three files trips it — and the abort is not self-healing:
+# it never commits the new listings, so the same deletes are re-detected every
+# run and the sync stays wedged until someone passes --force by hand. The real
+# backstop for "the mount vanished / the bucket got wiped" is bisync's separate
+# empty-listing check, handled below with --resync. Lower this if you want a
+# ratio guard back.
+WORKSPACE_SYNC_MAX_DELETE="${WORKSPACE_SYNC_MAX_DELETE:-100}"
 
 if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     command -v rclone >/dev/null 2>&1     || { echo "rclone not found" >&2; exit 1; }
     [[ -d "${WORKSPACE_DIR}" ]]           || { echo "${WORKSPACE_DIR} is not a directory — is ../../workspace mounted read-write into decree-backup?" >&2; exit 1; }
-    [[ -n "${MINIO_ROOT_USER:-}" ]]       || { echo "MINIO_ROOT_USER not set" >&2; exit 1; }
-    [[ -n "${MINIO_ROOT_PASSWORD:-}" ]]   || { echo "MINIO_ROOT_PASSWORD not set" >&2; exit 1; }
+    [[ -n "${S3_ACCESS_KEY:-}" ]]         || { echo "S3_ACCESS_KEY not set" >&2; exit 1; }
+    [[ -n "${S3_SECRET_KEY:-}" ]]         || { echo "S3_SECRET_KEY not set" >&2; exit 1; }
     exit 0
 fi
 
-# Configured entirely from env, the way minio-bucket does it, so nothing has to
+# Configured entirely from env, so nothing has to
 # be written into automation/secrets/rclone/rclone.conf.
-export RCLONE_CONFIG_MINIO_TYPE=s3
-export RCLONE_CONFIG_MINIO_PROVIDER=Minio
-export RCLONE_CONFIG_MINIO_ENV_AUTH=false
-export RCLONE_CONFIG_MINIO_ENDPOINT="${MINIO_URL:-http://minio:9000}"
-export RCLONE_CONFIG_MINIO_REGION="${MINIO_REGION:-us-east-1}"
-export RCLONE_CONFIG_MINIO_ACCESS_KEY_ID="${MINIO_ROOT_USER}"
-export RCLONE_CONFIG_MINIO_SECRET_ACCESS_KEY="${MINIO_ROOT_PASSWORD}"
+export RCLONE_CONFIG_S3_TYPE=s3
+export RCLONE_CONFIG_S3_PROVIDER=Other
+export RCLONE_CONFIG_S3_ENV_AUTH=false
+export RCLONE_CONFIG_S3_ENDPOINT="${S3_URL:-http://seaweedfs:8333}"
+export RCLONE_CONFIG_S3_REGION="${S3_REGION:-us-east-1}"
+export RCLONE_CONFIG_S3_ACCESS_KEY_ID="${S3_ACCESS_KEY}"
+export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="${S3_SECRET_KEY}"
 
-_remote="minio:${WORKSPACE_S3_BUCKET}/${WORKSPACE_S3_PREFIX}"
+_remote="s3:${WORKSPACE_S3_BUCKET}/${WORKSPACE_S3_PREFIX}"
 
-if ! rclone lsd "minio:${WORKSPACE_S3_BUCKET}" >/dev/null 2>&1; then
+if ! rclone lsd "s3:${WORKSPACE_S3_BUCKET}" >/dev/null 2>&1; then
     echo "Bucket '${WORKSPACE_S3_BUCKET}' does not exist."
     echo "It should already exist as Nextcloud's external-storage bucket — check"
-    echo "EXIST_IS_NAS_MINIO / EXIST_IS_NAS_NEXTCLOUD are both enabled and the"
-    echo "01-minio-create-nextcloud-bucket migration has run."
+    echo "EXIST_IS_NAS_SEAWEEDFS is enabled — seaweedfs pre-creates this bucket on"
+    echo "startup via its -bucket flag (nas/seaweedfs/docker-compose.exist.yml)."
     exit 1
 fi
 
@@ -113,6 +124,7 @@ _bisync() {
     rclone bisync "${WORKSPACE_DIR}" "${_remote}" \
         "${_excludes[@]}" \
         --workdir "${WORKSPACE_BISYNC_WORKDIR}" \
+        --max-delete "${WORKSPACE_SYNC_MAX_DELETE}" \
         --conflict-resolve newer \
         --resilient \
         --recover \
@@ -155,20 +167,6 @@ elif grep -qi 'first bisync run\|cannot find prior\|empty.*listing' "$_log"; the
     fi
     grep -E 'Copied|Deleted|Updated|Transferred' "$_log" || true
 
-    # Only safe to subscribe now that the bulk baseline upload above is done —
-    # see the FIRST RUN note at the top of this file. minio-bucket-webhook is
-    # idempotent, so it's fine that this branch (and therefore this queue) can
-    # in principle run again later too (any run that hits an empty-listing
-    # guard takes this same path, not only the true first run).
-    _outbox="${OUTBOX_DIR:-/work/.decree/outbox}"
-    mkdir -p "$_outbox"
-    cat > "${_outbox}/workspace-sync-subscribe-$(date +%s%N).md" << EOF
----
-routine: minio-bucket-webhook
-BUCKET: ${WORKSPACE_S3_BUCKET}
----
-EOF
-    echo "Queued: subscribe ${WORKSPACE_S3_BUCKET} to the decree webhook."
 else
     echo "bisync failed — see above." >&2
     exit 1

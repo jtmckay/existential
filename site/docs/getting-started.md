@@ -29,7 +29,7 @@ its memory and voice, plus notifications and monitoring:
 | | |
 |---|---|
 | **Front door** | Caddy (TLS + hostnames), Dashy (the dashboard) |
-| **Files** | Nextcloud, Redis, MinIO (S3 + file events) |
+| **Files** | Nextcloud, Redis, SeaweedFS (S3 + file events) |
 | **House** | Home Assistant |
 | **Automation** | Decree, ntfy (where automations report in) |
 | **Monitoring** | Loki, Prometheus, Grafana — Decree's run logs and dashboards |
@@ -146,19 +146,19 @@ It's more than a shared folder:
 - **It's the agent's knowledgebase.** [OpenViking](./ai/openviking) indexes everything in it
   every 15 minutes, and Hermes reaches that index as an MCP tool — so anything you put in
   `workspace/` is something the agent can find and cite, no upload step required.
-- **It's synced both ways with MinIO/Nextcloud.** With MinIO and Nextcloud enabled (on by
+- **It's synced both ways with SeaweedFS/Nextcloud.** With SeaweedFS and Nextcloud enabled (on by
   default with Core), `workspace/` bisyncs with the `workspace/` folder inside Nextcloud's `/S3`
-  external storage — edit a file on this machine, in Nextcloud's web UI, or directly in MinIO,
+  external storage — edit a file on this machine, in Nextcloud's web UI, or directly in the bucket,
   and the other two converge on it, usually within seconds. See
   [File Processor](./decree/file-change-processing#triggering-on-workspace-edits) for exactly
   how.
-- **Syncing fires webhook events.** Every change that lands in the bucket is a MinIO event
+- **Syncing fires webhook events.** Every change that lands in the bucket is a file event
   Decree can react to — that's how the Workspace Agent quest (`./existential.sh quest`, or
   `src/quests/auto-workspace-agent.md`) turns "you edited a note" into "an agent went and did
   something about it."
 - **`workspace/ai/`** is where agent output lands (`agent-task`'s answers, for instance). It's
   indexed like everything else, so an agent can build on a previous run's output — but it's
-  deliberately excluded from the MinIO sync, which is what stops an agent's own answer from
+  deliberately excluded from the bucket sync, which is what stops an agent's own answer from
   triggering another run.
 - **`workspace/outbox/`** is the other direction: drop a markdown file there to run a decree
   routine. It's how Hermes (which has no access to `automation/`, by design) triggers

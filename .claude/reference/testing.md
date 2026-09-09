@@ -52,11 +52,11 @@ dropped into the clone's inbox *after* the container-health gate and run by the 
 Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
 
 - `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
-  quest with no migrations and no MinIO verifies **nothing**: five of the eight copy only cron
+  quest with no migrations and no object store verifies **nothing**: five of the eight copy only cron
   files (nightly/weekly backups, `clean-runs`, `gmail-sync`), none of which can fire inside a run
   that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
 - A check with a sibling `.sh` gets it staged into the clone's `shared_routines/` and registered,
-  so test code never lands in a user's `config.yml`. It runs **inside `decree`**: `mc`, `rclone`,
+  so test code never lands in a user's `config.yml`. It runs **inside `decree`**: `rclone`,
   `jq`, `yq`, `curl`, `tsx`, service credentials, `/repo` read-only, DNS to every container — but
   no Docker socket. Anything needing one stays on the host in `e2e.sh`.
 - **Messages, not migrations, and dropped after the gate.** `decree process` stops at the first
@@ -126,7 +126,13 @@ A test silently swallowing a failure is worse than no test. The opposites (all o
 need git/bash, no adhoc; part of `test` (all) and run early in `pre-push`):
 
 - **`no-tracked-secrets.sh`** (`test secrets`) — asserts this public repo tracks no rendered
-  secrets.
+  secrets. What counts as "rendered" is structural, not a list of extensions: if a sibling
+  `*.exist.*` template would render INTO a file, that file is rendered and must not be tracked.
+  Both guards share that rule via `src/utils/rendered-paths.sh`, so they cannot drift and a new
+  rendered file type is covered the day it is added. (It was an extension list once, which is
+  why seaweedfs' rendered `s3.json` and `notification.toml` were invisible to it.) A file with
+  no template — `hosting/loki/loki-config.yaml`, hand-committed upstream config — stays
+  committable.
 - **`guard-selftest.sh`** (`test guards`) — plants secret-shaped fixtures in throwaway repos and
   asserts `pre-commit` **and** `no-tracked-secrets.sh` actually trip (incl. the `*.exist.*` /
   `*.example` exemptions). New secret-guard logic ⇒ add a fixture here.

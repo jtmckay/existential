@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Recording → Transcription
 
-Automatically transcribe any audio or video recording dropped into Nextcloud. The moment a file lands in MinIO, Decree generates a pre-signed URL, hands it to WhisperX, and saves a **speaker-labelled** transcript next to the original file — no manual steps, no intermediate storage.
+Automatically transcribe any audio or video recording dropped into Nextcloud. The moment a file lands in the bucket, Decree generates a pre-signed URL, hands it to WhisperX, and saves a **speaker-labelled** transcript next to the original file — no manual steps, no intermediate storage.
 
 ```mermaid
 flowchart LR
@@ -12,15 +12,18 @@ flowchart LR
 
     subgraph storage["Storage"]
         nc["Nextcloud\nFiles"]
-        minio["MinIO\nS3 external storage"]
-        nc <-->|"external storage"| minio
+        seaweedfs["SeaweedFS
+S3 external storage"]
+        nc <-->|"external storage"| seaweedfs
     end
 
-    minio -->|"S3 ObjectCreated\nwebhook"| webhook
+    seaweedfs -->|"file create
+webhook"| webhook
 
     subgraph decree["Decree"]
-        webhook["automation-webhook\n/minio endpoint"]
-        router["minio-router\nmatch .mp3 / .mp4 / .wav"]
+        webhook["automation-webhook
+/s3 endpoint"]
+        router["s3-router\nmatch .mp3 / .mp4 / .wav"]
         processor["file-processor\nrclone link → PRE_SIGNED_URL"]
         transcriber["whisperx-transcribe\nPOST /speech-to-text-url → poll /task"]
         webhook --> router
@@ -37,15 +40,15 @@ flowchart LR
 
 ### 1. Phone uploads the recording
 
-The Nextcloud mobile app auto-syncs your phone's recordings folder to Nextcloud. Any `.mp3`, `.mp4`, or `.wav` file uploaded this way flows into MinIO via Nextcloud's S3 external storage.
+The Nextcloud mobile app auto-syncs your phone's recordings folder to Nextcloud. Any `.mp3`, `.mp4`, or `.wav` file uploaded this way flows into SeaweedFS via Nextcloud's S3 external storage.
 
-### 2. MinIO fires the webhook
+### 2. SeaweedFS fires the webhook
 
-When the file lands in MinIO, it POSTs an `s3:ObjectCreated` event to the Decree webhook endpoint. The `rclone_src` and `rclone_prefix` in the webhook config tell `minio-router` how to construct the rclone path used in all subsequent steps.
+When the file lands in the bucket, it POSTs an `s3:ObjectCreated` event to the Decree webhook endpoint. The `rclone_src` and `rclone_prefix` in the webhook config tell `s3-router` how to construct the rclone path used in all subsequent steps.
 
-### 3. minio-router matches the file
+### 3. s3-router matches the file
 
-`minio-router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
+`s3-router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
 
 ```bash
 PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
@@ -78,21 +81,21 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** running with MinIO configured as S3 external storage
-- **MinIO** webhook sending `ObjectCreated` events to the Decree webhook endpoint (see [File Processor](../decree/file-change-processing))
+- **Nextcloud** running with SeaweedFS configured as S3 external storage
+- **SeaweedFS** webhook sending file events to the Decree webhook endpoint (see [File Processor](../decree/file-change-processing))
 - **WhisperX** container running and reachable at `http://whisperx:8000`
 - **rclone** configured with a `nextcloud` remote (or whichever remote matches your `rclone_src` webhook setting)
 - **Nextcloud mobile app** with auto-upload enabled for your recordings folder
 
 ## Setup
 
-### Step 1 — MinIO webhook
+### Step 1 — object-store webhook
 
-Follow the MinIO setup in [File Processor](../decree/file-change-processing#minio-setup) to register the Decree webhook target and subscribe your recordings bucket to `ObjectCreated` events.
+Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to register the Decree webhook target and add your recordings path to `path_prefixes` in `notification.toml`. If recordings land in the `nextcloud` bucket, both are already done for you.
 
 ### Step 2 — rclone remote
 
-Ensure your rclone config has a remote that can access the files MinIO is receiving events for:
+Ensure your rclone config has a remote that can access the files SeaweedFS is receiving events for:
 
 ```bash
 ./existential.sh run rclone
@@ -122,7 +125,7 @@ docker exec automation decree routine file-processor
 
 ### Step 5 — Configure Nextcloud mobile auto-upload
 
-In the Nextcloud mobile app, enable auto-upload for your phone's voice recordings or screen recordings folder. Files are uploaded to Nextcloud, synced to MinIO, and the transcription flow triggers automatically.
+In the Nextcloud mobile app, enable auto-upload for your phone's voice recordings or screen recordings folder. Files are uploaded to Nextcloud, synced to the bucket, and the transcription flow triggers automatically.
 
 ## Customization
 
@@ -139,13 +142,13 @@ Override any of these in the processor script or pass them as frontmatter params
 
 ## Testing
 
-Send a synthetic MinIO event to trigger the flow end-to-end:
+Send a synthetic file event to trigger the flow end-to-end:
 
 ```bash
 # automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec automation curl -X POST http://automation-webhook:8801/minio \
-  -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
+docker exec automation curl -X POST http://automation-webhook:8801/s3 \
+  -H "Authorization: Bearer <EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"recordings/test.mp3","Records":[]}'
 ```

@@ -58,7 +58,7 @@ fi
 # agent confined to workspace/ (hermes, OpenCode) has no mount into
 # automation/ and must never be given one, so this README is how it learns
 # where messages actually go. Relayed by lib/file-processors/outbox-relay.sh
-# once EXIST_IS_NAS_MINIO is enabled (Core quest activates it); until then the
+# once EXIST_IS_NAS_SEAWEEDFS is enabled (Core quest activates it); until then the
 # directory just sits there, harmlessly.
 OUTBOX_README="${WORKSPACE_DIR}/outbox/README.md"
 if [[ ! -e "${OUTBOX_README}" ]]; then
@@ -95,7 +95,7 @@ picks up `correlation_id` from any message that sets it and puts it in the
 Loki log line, so `{job="decree"} |= "correlation_id=<value>"` shows every
 step of one flow across however many separate chains it actually ran as.
 
-A file dropped here is picked up within about a second (via the MinIO webhook,
+A file dropped here is picked up within about a second (via the object-store webhook,
 not a poll) and relayed into decree's real inbox. This file is gitignored and
 nothing regenerates it — delete it once you have your bearings.
 OUTBOXEOF

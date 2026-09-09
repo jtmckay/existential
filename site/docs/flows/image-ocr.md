@@ -13,10 +13,10 @@ storage is a detail you choose; the OCR half is the same either way.
 ```mermaid
 flowchart LR
     cam["📷 Photograph<br/><i>receipt · document · whiteboard</i>"]
-    land["Image lands in storage<br/><i>MinIO / Nextcloud</i>"]
+    land["Image lands in storage<br/><i>SeaweedFS / Nextcloud</i>"]
 
     subgraph decree["Decree"]
-        route["minio-router<br/><i>matches image extensions</i>"]
+        route["s3-router<br/><i>matches image extensions</i>"]
         proc["file-processor<br/><i>downloads the image</i>"]
         ocr["ollama-ocr<br/><i>reads it</i>"]
         route --> proc --> ocr
@@ -52,9 +52,9 @@ use — the OCR pipeline does not care which one you chose, and you can run seve
 
 | Route | Good for | Setup |
 |---|---|---|
-| **Nextcloud auto-upload** | The default. Your phone's camera roll syncs, and every photo is OCR'd. No bot, no token. | Point the Nextcloud mobile app's auto-upload at a folder backed by MinIO |
+| **Nextcloud auto-upload** | The default. Your phone's camera roll syncs, and every photo is OCR'd. No bot, no token. | Point the Nextcloud mobile app's auto-upload at a folder backed by SeaweedFS |
 | **A Telegram bot** | Deliberate capture — you choose what gets sent, rather than everything you photograph | [Option B](#option-b--telegram-bot) |
-| **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg minio:bucket/path.jpg` |
+| **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg s3:bucket/path.jpg` |
 | **Any S3 client** | Other apps writing to the bucket directly | Nothing — the bucket event is the trigger |
 
 :::tip[Start with auto-upload]
@@ -70,13 +70,13 @@ worth it when you want a *deliberate* inbox rather than your whole camera roll.
 However it got there — camera sync, a bot, rclone, another app — the flow starts the moment
 the object exists. Nothing polls the image itself.
 
-### 2. MinIO fires the webhook
+### 2. SeaweedFS fires the webhook
 
-When the image file lands in MinIO, an `ObjectCreated` event is POSTed to the Decree webhook endpoint. This is the same pipeline used for any file arriving in a watched bucket.
+When the image file lands in the bucket, an `ObjectCreated` event is POSTed to the Decree webhook endpoint. This is the same pipeline used for any file arriving in a watched bucket.
 
-### 3. minio-router matches image extensions
+### 3. s3-router matches image extensions
 
-`minio-router` scans the `ollama-ocr` processor and reads its pattern:
+`s3-router` scans the `ollama-ocr` processor and reads its pattern:
 
 ```bash
 PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
@@ -106,8 +106,8 @@ telegram/1745000000_AgADjk.jpg.ocr.txt   ← created automatically
 
 ## Prerequisites
 
-- **MinIO** receiving `ObjectCreated` events and forwarding them to the Decree webhook (see [File Processor](../decree/file-change-processing))
-- **Nextcloud + MinIO** configured with MinIO as S3 external storage (so images land in both)
+- **SeaweedFS** receiving file events and forwarding them to the Decree webhook (see [File Processor](../decree/file-change-processing))
+- **Nextcloud + SeaweedFS** configured with SeaweedFS as S3 external storage (so images land in both)
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
@@ -123,9 +123,9 @@ docker exec ollama ollama pull llava
 
 Any Ollama-compatible vision model works. `llava` is a solid general-purpose choice; `llava-phi3` is faster on CPU.
 
-### Step 2 — MinIO webhook and rclone
+### Step 2 — object-store webhook and rclone
 
-Follow the MinIO setup in [File Processor](../decree/file-change-processing#minio-setup) to subscribe your image bucket to `ObjectCreated` events, and ensure your rclone `nextcloud` remote is configured:
+Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to add your image path to `path_prefixes` in `notification.toml` (already done for the `nextcloud` bucket), and ensure your rclone `nextcloud` remote is configured:
 
 ```bash
 ./existential.sh run rclone
@@ -138,7 +138,7 @@ That is the whole OCR pipeline. Now pick how images arrive.
 #### Option A — Nextcloud camera auto-upload
 
 In the Nextcloud mobile app, turn on **Auto upload** and target a folder that lives on the
-MinIO-backed external storage. Every photo you take syncs up and gets OCR'd. There is nothing
+SeaweedFS-backed external storage. Every photo you take syncs up and gets OCR'd. There is nothing
 else to configure — the bucket event is the trigger.
 
 #### Option B — Telegram bot
@@ -189,7 +189,7 @@ docker compose restart automation
 For scanners, batch imports, or anything already on disk:
 
 ```bash
-rclone copyto /path/to/scan.jpg minio:documents/scan.jpg \
+rclone copyto /path/to/scan.jpg s3:documents/scan.jpg \
   --config automation/secrets/rclone/rclone.conf
 ```
 
@@ -212,13 +212,13 @@ rclone copyto /path/to/test.jpg nextcloud:S3/telegram/test.jpg \
   --config automation/secrets/rclone/rclone.conf
 ```
 
-Then send a synthetic MinIO event:
+Then send a synthetic file event:
 
 ```bash
 # automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec automation curl -X POST http://automation-webhook:8801/minio \
-  -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
+docker exec automation curl -X POST http://automation-webhook:8801/s3 \
+  -H "Authorization: Bearer <EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"telegram/test.jpg","Records":[]}'
 ```

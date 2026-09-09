@@ -3,7 +3,7 @@
 #
 # Polls the Telegram Bot API for new photo and image-document messages, downloads
 # each file, and saves it to a rclone destination. Dropping the image into rclone
-# triggers the MinIO webhook → file-processor → ollama-ocr pipeline automatically.
+# triggers the object-store webhook → file-processor → ollama-ocr pipeline automatically.
 #
 # Tracks the last-seen update_id in a cursor file to avoid reprocessing.
 # Designed to run on a cron (e.g. every minute).

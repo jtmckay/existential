@@ -4,15 +4,17 @@
 move this repo already made for services, cron jobs and migrations. Nothing
 enumerates them.
 
-A check *is* a [decree migration](../../../../.claude/skills/decree/reference/migrations.md):
-YAML frontmatter naming a routine, then prose explaining what it proves.
-`e2e.sh` copies the applicable ones into the clone's
-`automation/migrations/` **before the stack comes up**; decree
-applies them during its boot, alongside the product's own migrations, and writes
-`runs/<id>/{message.md,routine.log,run.json}` for each; `e2e.sh` copies that out
-to `e2e-out/` and grades it.
+A check has the same shape as a [decree
+migration](../../../../.claude/skills/decree/reference/migrations.md): YAML
+frontmatter naming a routine, then prose explaining what it proves. It is
+delivered as a decree **message**, not a migration — `e2e.sh` drops the
+applicable ones into the clone's `automation/inbox/` **after** the
+container-health gate, the daemon drains them and writes
+`runs/<id>/{message.md,routine.log,run.json}` for each, and `e2e.sh` copies that
+out to `e2e-out/` and grades it. Why messages and why after the gate is the next
+section, and it is the whole reason this is not a migration.
 
-Checks are copied in rather than shipped in `migrations.example/` — that
+Checks are dropped in rather than shipped in `migrations.example/` — that
 directory is what a user's quest copies from, and test code has no business in
 the product tree.
 
@@ -49,7 +51,7 @@ so test code never appears in a user's `config.yml`. Write it as an ordinary
 routine (`.claude/skills/decree/reference/routines.md`): `DECREE_PRE_CHECK`
 block, `set -euo pipefail`, non-zero to fail.
 
-**It runs inside the `decree` container.** That buys `mc`, `rclone`, `jq`, `yq`,
+**It runs inside the `decree` container.** That buys `rclone`, `jq`, `yq`,
 `curl` and `tsx` from the image, service credentials from its compose
 environment, the rendered clone read-only at `/repo`, and DNS to every container
 on the `exist` bridge. It buys no Docker socket — anything needing one belongs
@@ -89,7 +91,7 @@ one line per run.
 **Every run in the clone is graded, not just the checks e2e staged.** The work a
 check triggers lands in `runs/` as its own run, and that is where its success or
 failure actually shows up — grading only the named checks once let a live run
-report PASS while `minio-router` was failing on every event it routed. The
+report PASS while `s3-router` was failing on every event it routed. The
 product's own migrations are graded on the same terms, which is the point of
 sharing their mechanism. Runs without an `e2e_check` key are named by their
 routine.

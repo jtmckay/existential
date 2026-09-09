@@ -29,11 +29,13 @@
 #
 # Env vars (passed through the decree container's compose env):
 #   HOMEASSISTANT_URL                           default http://homeassistant:8123
+#   HOMEASSISTANT_READY_TIMEOUT                 default 180 (seconds to wait for HA)
 #   HOMEASSISTANT_ADMIN_USER / HOMEASSISTANT_ADMIN_PASSWORD
 #   HERMES_API_KEY
 set -euo pipefail
 
 HOMEASSISTANT_URL="${HOMEASSISTANT_URL:-http://homeassistant:8123}"
+HOMEASSISTANT_READY_TIMEOUT="${HOMEASSISTANT_READY_TIMEOUT:-180}"
 CLIENT_ID="${HOMEASSISTANT_URL%/}/"
 WS_URL="${HOMEASSISTANT_URL/http/ws}/api/websocket"
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
@@ -52,13 +54,34 @@ fi
 # status itself: HA answers a bad flow step with a 2xx-shaped JSON error in
 # some cases and a plain-text 4xx/5xx in others (RequirementsNotFound is the
 # latter), so curl's own exit status alone would miss half of that.
+#
+# It also retries when curl fails at the TRANSPORT level, because this
+# migration runs while HA is still assembling itself (see _login_with_retry).
+# Logging in is not the slow part — measured on a fresh install, the login
+# succeeds immediately and the very next call, GET
+# /api/config/config_entries/flow_handlers, hangs for 10s with zero bytes: it
+# enumerates every integration's config flow, which is exactly the registry
+# `default_config` setup is busy rewriting. curl exits 28 and `set -e` took the
+# whole migration with it.
+#
+# Only transport failures are retried. An HTTP status that actually came back
+# is a real answer from HA and is returned as-is, so a genuine 400 still fails
+# on the first try instead of being sat on for three minutes.
 _api() {
     local method="$1" path="$2" data="${3:-}" code body args=()
+    local deadline=$(( SECONDS + HOMEASSISTANT_READY_TIMEOUT ))
     body=$(mktemp)
     args=(-sS --max-time 10 -o "$body" -w '%{http_code}' -X "$method" \
         -H "Authorization: Bearer ${ACCESS_TOKEN}" "${HOMEASSISTANT_URL}${path}")
     [[ -n "$data" ]] && args+=(-H "Content-Type: application/json" -d "$data")
-    code=$(curl "${args[@]}")
+    while ! code=$(curl "${args[@]}" 2>/dev/null); do
+        if (( SECONDS >= deadline )); then
+            echo "${method} ${path} -> Home Assistant did not respond within ${HOMEASSISTANT_READY_TIMEOUT}s" >&2
+            rm -f "$body"
+            return 1
+        fi
+        sleep 5
+    done
     if [[ "$code" != 2* ]]; then
         echo "${method} ${path} -> ${code}: $(cat "$body")" >&2
         rm -f "$body"
@@ -92,8 +115,45 @@ _login() {
         --data-urlencode "code=${code}" | jq -r .access_token
 }
 
-ACCESS_TOKEN=$(_login)
-[[ -n "$ACCESS_TOKEN" && "$ACCESS_TOKEN" != "null" ]] || { echo "Could not log in as ${HOMEASSISTANT_ADMIN_USER}" >&2; exit 1; }
+# HA stops answering the auth flow for tens of seconds right after onboarding,
+# and this migration runs immediately after it. Migration 25's last call, POST
+# /api/onboarding/integration, marks onboarding done, which makes HA set up
+# `default_config` — assist_pipeline, go2rtc, bluetooth, zeroconf, stream and the
+# rest of that bundle. HA acks the POST and returns before any of it starts, so
+# 25 reports success and 26 begins into a stack that is still assembling itself.
+# The request is accepted and then simply never answered: `curl (28) ... 0 bytes
+# received`, which under `set -e` killed this migration on its first call.
+#
+# Retry the real operation rather than probe for readiness. Measured on a fresh
+# install: /auth/providers and /manifest.json both answer in ~1ms while POST
+# /auth/login_flow hangs past 10s, so no cheap endpoint reports the state that
+# matters and a readiness probe just passes and hands the outage to the next
+# call. An abandoned login flow costs nothing — HA expires them.
+#
+# migration-gate.sh cannot cover this either: it runs once, before `decree
+# process`, and had passed long before migration 25 was even read.
+_login_with_retry() {
+    local deadline=$(( SECONDS + HOMEASSISTANT_READY_TIMEOUT )) token="" waited=0
+    while :; do
+        # `|| true`: _login runs under `set -e`, so a timed-out curl aborts it —
+        # in a command substitution that means an empty result, not a dead script.
+        token=$(_login 2>/dev/null || true)
+        if [ -n "$token" ] && [ "$token" != "null" ]; then
+            (( waited > 0 )) && echo "Logged in after ${waited}s of waiting for Home Assistant." >&2
+            printf '%s' "$token"
+            return 0
+        fi
+        (( SECONDS >= deadline )) && return 1
+        sleep 5
+        waited=$(( waited + 5 ))
+    done
+}
+
+ACCESS_TOKEN=$(_login_with_retry) || {
+    echo "Could not log in as ${HOMEASSISTANT_ADMIN_USER} within ${HOMEASSISTANT_READY_TIMEOUT}s." >&2
+    echo "Either the credentials are wrong, or Home Assistant never finished starting." >&2
+    exit 1
+}
 
 handlers=$(_api GET /api/config/config_entries/flow_handlers)
 if ! echo "$handlers" | jq -e 'index("extended_openai_conversation")' >/dev/null; then

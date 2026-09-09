@@ -359,7 +359,7 @@ nothing about them depends on it.
 
 | Service | Why it's complementary |
 |---|---|
-| **NAS** (Nextcloud, MinIO, Collabora, Redis) | The core stack reaches these over **rclone remotes and the S3 API** — a URL, not a container name. `redis` is used only by Nextcloud, inside the NAS group. |
+| **NAS** (Nextcloud, SeaweedFS, Collabora, Redis) | The core stack reaches these over **rclone remotes and the S3 API** — a URL, not a container name. `redis` is used only by Nextcloud, inside the NAS group. |
 | **Immich** | Nothing in the stack talks to it. It's a photo library that happens to be self-hosted alongside. |
 | **Home Assistant** | Nothing in the stack talks to it either. It usually wants to live on whichever machine has your Zigbee/Z-Wave dongles plugged in. |
 | **pi-hole** | LAN DNS. It serves your whole network, not the stack. No service calls it. |
@@ -375,7 +375,7 @@ nothing now and means moving one of them later is a config change rather than a 
 
 ```
 ┌─ NAS stack ──────────────┐   Storage and files.
-│  Nextcloud, MinIO,       │   Wants disks, not GPU.
+│  Nextcloud, SeaweedFS,   │   Wants disks, not GPU.
 │  Collabora, Redis        │   Reached over rclone / S3 URLs.
 └──────────────────────────┘
 

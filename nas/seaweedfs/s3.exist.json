@@ -1,0 +1,18 @@
+{
+  "identities": [
+    {
+      "name": "root",
+      "credentials": [
+        { "accessKey": "EXIST_USERNAME", "secretKey": "EXIST_PASSWORD" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    },
+    {
+      "name": "nextcloud",
+      "credentials": [
+        { "accessKey": "EXIST_S3_NEXTCLOUD_ACCESS_KEY", "secretKey": "EXIST_S3_NEXTCLOUD_SECRET_KEY" }
+      ],
+      "actions": ["Read:nextcloud", "Write:nextcloud", "List:nextcloud", "Tagging:nextcloud"]
+    }
+  ]
+}

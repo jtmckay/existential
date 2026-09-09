@@ -56,7 +56,7 @@ groups:
       # themselves). Covers all three backup routines in
       # automation/shared_routines/: volume-backup, db-backup, sqlite-backup.
       # workspace-sync is deliberately excluded — it mirrors workspace/ into
-      # MinIO to drive S3 events, not a backup (see the routine's own header).
+      # the object store to drive file events, not a backup (see the routine's own header).
       - alert: BackupNotRun
         expr: (time() - push_time_seconds{instance=~"db-backup|volume-backup|sqlite-backup"}) > 86400 * 2
         for: 0m

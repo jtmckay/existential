@@ -66,7 +66,7 @@ quest_vars() { quest_fm "$1" | grep '^\s*- var:' | awk '{print $3}'; }
 # The quest's `copies:` — the migrations and cron files quest.sh installs for a
 # real install. Emits "src<TAB>dst<TAB>requires". Parsed here rather than with
 # yq because e2e.sh runs on the HOST, which has no yq (quest.sh has one; it runs
-# in adhoc). Skipping this is how every ollama and minio migration came to be a
+# in adhoc). Skipping this is how every ollama migration came to be a
 # silent no-op under e2e.
 quest_copies() {
     quest_fm "$1" | awk '
@@ -182,7 +182,7 @@ wait_settled() {
 # cannot disagree about what the file says.
 
 # Checks whose `requires:` vars are all enabled in the clone. A quest without
-# minio must not get the minio probe: staging it anyway would fail a stack that
+# seaweedfs must not get the s3 probe: staging it anyway would fail a stack that
 # is behaving exactly as that quest asked.
 applicable_checks() {
     local work="$1" md var missing
@@ -255,7 +255,7 @@ stage_checks() {
 # after anything decree put there itself.
 drop_checks() {
     local work="$1" md n=0
-    local inbox="$work/services/automation/decree/inbox"
+    local inbox="$work/automation/inbox"
     [ -d "$inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
     # Wait for the daemon phase before dropping anything. decree's entrypoint
@@ -288,13 +288,13 @@ drop_checks() {
 # in flight; a dead letter does NOT end the wait, because the daemon carries on
 # past one and the remaining checks still have results to produce.
 #
-# This also asserts the property that used to be the MinIO flow's last two
+# This also asserts the property that used to be the S3 flow's last two
 # steps, and it belongs here rather than there: a message that runs but never
 # gets its run.json comes back on every tick forever, and nothing scoped to one
 # check can see that. Nothing may be left stuck, from any routine.
 await_checks() {
     local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
-    local inbox="$work/services/automation/decree/inbox"
+    local inbox="$work/automation/inbox"
     local deadline=$(( $(date +%s) + timeout )) left
     log "Waiting for checks to drain (up to ${timeout}s)..."
     while [ "$(date +%s)" -lt "$deadline" ]; do
@@ -319,7 +319,7 @@ collect_quest_results() {
     out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
 
     collect_results "$work/automation/runs" \
-                    "$work/services/automation/decree/inbox/dead" "$out" || rc=1
+                    "$work/automation/inbox/dead" "$out" || rc=1
 
     # Logs for anything the health gate would be unhappy about.
     mkdir -p "$out/logs"
@@ -335,10 +335,10 @@ collect_quest_results() {
     # Messages still queued when the evidence was taken. Not a verdict — the
     # daemon is live by now and its crons queue work of their own — but a check
     # whose chain stalled leaves its trace here, and the clone is about to go.
-    stuck=$(find "$work/services/automation/decree/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+    stuck=$(find "$work/automation/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
     if [ "${stuck:-0}" -gt 0 ]; then
         mkdir -p "$out/stuck"
-        find "$work/services/automation/decree/inbox" -maxdepth 1 -name '*.md' \
+        find "$work/automation/inbox" -maxdepth 1 -name '*.md' \
             -exec cp {} "$out/stuck/" \; 2>/dev/null || true
         log "  ${stuck} message(s) still queued in the inbox — see ${out#"${REPO_DIR}/"}/stuck/"
     fi
@@ -427,7 +427,16 @@ run_quest() {
             log "  skipping ${var} — EXIST_GPU_VENDOR=${vendor}"
             continue
         fi
+        # Verified, not fired and forgotten. This sed is a silent no-op when the
+        # key is absent from the fixture, and the fixture had drifted seven keys
+        # behind .env.exist.shared — so Core quietly came up WITHOUT openviking,
+        # firecrawl, wyoming-whisper and wyoming-piper, and stayed green because
+        # nothing checked. Rendering then appends the missing key as `false`,
+        # which is why the stack looked deliberate rather than broken. Adding a
+        # service must not be able to rot this fixture in silence.
         sed -i "s|^${var}=false|${var}=true|" "$WORK/.env.shared"
+        grep -q "^${var}=true" "$WORK/.env.shared" \
+            || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
     # 4. The quest's copies: — its migrations and cron files. requires: is

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # PATTERN, CRITERIA and IS_PRE_SIGNED are this file's
-# contract with minio-router and file-processor, which read them out of the source
+# contract with s3-router and file-processor, which read them out of the source
 # rather than by sourcing it. Nothing here consumes them.
 # Example file processor — copy/rename this file to add a new type.
 #
@@ -9,10 +9,10 @@
 #
 # PATTERN (required) is matched against FILE_SOURCE, the full rclone path:
 #   "<rclone_src>:<rclone_prefix>/<object-key>"  e.g. "nextcloud:S3/2024/img.jpg"
-# Note the S3 BUCKET is not in there — minio-router replaces it with the
+# Note the S3 BUCKET is not in there — s3-router replaces it with the
 # webhook's rclone_prefix, because the path has to be valid for the rclone
 # remote, not for S3. Match on the prefix and key, never on a bucket name.
-# It is a plain bash regex, evaluated by minio-router. Cheap and mechanical.
+# It is a plain bash regex, evaluated by s3-router. Cheap and mechanical.
 #
 # CRITERIA (optional) is a natural-language test of the file's CONTENT, put to
 # the model by file-processor after the download. Leave it empty — as this

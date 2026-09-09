@@ -20,6 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOOK="$ROOT/.githooks/pre-commit"
 SCANNER="$ROOT/src/test/no-tracked-secrets.sh"
+UTILS="$ROOT/src/utils/rendered-paths.sh"
 
 if ! command -v git >/dev/null 2>&1; then
     echo "  PASS  guard-selftest (no git — skipped)"
@@ -79,7 +80,9 @@ scanner_rc() {                     # $1=relpath  $2=content  [$3=template relpat
     local rel="$1" content="$2" tmpl="${3:-}" d rc=0
     d="$(newrepo)"; TMPS+=("$d")
     mkdir -p "$d/src/test" "$d/$(dirname "$rel")"
+    mkdir -p "$d/src/utils"
     cp "$SCANNER" "$d/src/test/no-tracked-secrets.sh"   # scanner pins ROOT to ../.. of its own path
+    cp "$UTILS" "$d/src/utils/rendered-paths.sh"        # ...and sources this from there
     printf '%s\n' "$content" > "$d/$rel"
     [ -n "$tmpl" ] && printf 'secret: EXIST_32_CHAR_HEX_KEY\n' > "$d/$tmpl"
     git -C "$d" add -fA
@@ -108,6 +111,14 @@ hook_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "upstream *-config.yaml (no *.exist.* template) still committable"                     allow
 hook_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
 check "rendered *-config.yaml (has a template) blocked like its .yml twin"                    block
+hook_rc "nas/seaweedfs/s3.json" '{"identities":[{"credentials":[{"secretKey":"deadbeefdeadbeefdeadbeefdeadbeef"}]}]}' "nas/seaweedfs/s3.exist.json"
+check "rendered s3.json (has a template; no extension the old guard listed)"                 block
+hook_rc "nas/seaweedfs/notification.toml" "bearer_token = \"$FAKE_WEBHOOK_SECRET\"" "nas/seaweedfs/notification.exist.toml"
+check "rendered notification.toml (has a template)"                                          block
+hook_rc "nas/seaweedfs/s3.exist.json" '{"secretKey":"EXIST_32_CHAR_HEX_KEY"}'
+check "s3.exist.json template itself"                                                        allow
+hook_rc "hosting/prometheus/alerts.yml" "groups: []"
+check "hand-committed alerts.yml (no template) still committable"                            allow
 hook_rc ".env"                        "X=1";       check "rendered .env staged"             block
 hook_rc "ai/foo/secrets/token"        "abc";       check "file under secrets/ staged"       block
 hook_rc "ai/foo/secrets/.gitkeep"     "";          check "secrets/.gitkeep staged"          allow
@@ -127,6 +138,14 @@ scanner_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "tracked upstream *-config.yaml (no template)"                                               allow
 scanner_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
 check "tracked rendered *-config.yaml (has a template)"                                            block
+scanner_rc "nas/seaweedfs/s3.json" '{"secretKey":"deadbeefdeadbeefdeadbeefdeadbeef"}' "nas/seaweedfs/s3.exist.json"
+check "tracked rendered s3.json (has a template)"                                                  block
+scanner_rc "nas/seaweedfs/notification.toml" "bearer_token = \"$FAKE_WEBHOOK_SECRET\"" "nas/seaweedfs/notification.exist.toml"
+check "tracked rendered notification.toml (has a template)"                                        block
+scanner_rc "nas/seaweedfs/s3.exist.json" '{"secretKey":"EXIST_32_CHAR_HEX_KEY"}'
+check "tracked s3.exist.json template itself"                                                      allow
+scanner_rc "hosting/prometheus/alerts.yml" "groups: []"
+check "tracked hand-committed alerts.yml (no template)"                                            allow
 scanner_rc "ai/foo/secrets/cred"      "abc";       check "tracked file under secrets/"             block
 scanner_rc "README.md"                "# hello";   check "clean tracked repo"                      allow
 

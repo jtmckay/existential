@@ -6,7 +6,7 @@ A service is **core** if something reaches it by bare container name over the `e
 It is **complementary** if it is reached over a URL/protocol you could point anywhere (rclone
 remote, S3 endpoint, DNS), or if nothing in the stack talks to it at all.
 
-Complementary today: **NAS** (nextcloud, minio, collabora, redis — the core reaches these via
+Complementary today: **NAS** (nextcloud, seaweedfs, collabora, redis — the core reaches these via
 rclone remotes and the S3 API; `redis` serves only nextcloud), **immich** (nothing references
 it), **homeassistant** (nothing references it either, and it is often bound to the host with the
 USB radios plugged in), **pihole** (LAN DNS), **monitoring** (grafana/loki/prometheus/uptime-kuma
@@ -98,7 +98,7 @@ Mount the hook directory specifically, not its parent, so the image's other hook
 Two rules. The scripts need the **exec bit** (`755`) — nextcloud's runner skips any that lack it,
 silently. And they must **exit 0 on every path**: a hook that fails can abort the install it was
 meant to finish. Guard the body and log a warning instead. See
-`nas/nextcloud/hooks/post-installation/01-minio-external-storage.sh`.
+`nas/nextcloud/hooks/post-installation/01-s3-external-storage.sh`.
 
 Scripts self-elevate into `existential-adhoc` when they need its tooling (`if [[ -z
 "$IN_CONTAINER" ]]; then exec docker compose run …`). Init order (`run_initials`):

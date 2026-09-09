@@ -58,12 +58,14 @@ services:
       # Enumerated rather than env_file: this container runs agent-task with
       # terminal and write access, so it gets exactly the keys it uses.
       #
-      # minio-bucket talks to the S3 API as root; minio-service-account needs
-      # root on the admin API to mint the scoped nextcloud identity.
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-}
-      - MINIO_NEXTCLOUD_ACCESS_KEY=${MINIO_NEXTCLOUD_ACCESS_KEY:-}
-      - MINIO_NEXTCLOUD_SECRET_KEY=${MINIO_NEXTCLOUD_SECRET_KEY:-}
+      # Object-store credentials, mapped product -> role on purpose: routines here
+      # are named s3-*, so swapping the store behind them is these four lines plus
+      # one service folder. The values come from nas/seaweedfs/.env.
+      - S3_URL=${SEAWEEDFS_URL:-http://seaweedfs:8333}
+      - S3_ACCESS_KEY=${SEAWEEDFS_ROOT_USER:-}
+      - S3_SECRET_KEY=${SEAWEEDFS_ROOT_PASSWORD:-}
+      - S3_NEXTCLOUD_ACCESS_KEY=${SEAWEEDFS_NEXTCLOUD_ACCESS_KEY:-}
+      - S3_NEXTCLOUD_SECRET_KEY=${SEAWEEDFS_NEXTCLOUD_SECRET_KEY:-}
       # nextcloud-richdocuments talks to Nextcloud's own OCS/provisioning API as
       # admin (no docker socket here, so `occ` is not reachable — see the
       # routine for the exact endpoints, verified against nextcloud:34.0.3).
@@ -183,6 +185,12 @@ services:
       # DECREE_AI=opencode for the main daemon, and the entrypoint would npm-i
       # an AI CLI into a container that runs tar and rclone. Nothing here reasons.
       - DECREE_AI=
+      # Same product -> role mapping as the daemon above: env_file brings in the
+      # master .env, where these are still named after the product. workspace-sync
+      # reads only the S3_ names, so it never has to know which store it is.
+      - S3_URL=${SEAWEEDFS_URL:-http://seaweedfs:8333}
+      - S3_ACCESS_KEY=${SEAWEEDFS_ROOT_USER:-}
+      - S3_SECRET_KEY=${SEAWEEDFS_ROOT_PASSWORD:-}
     volumes:
       - ./backup:/work/.decree:z
       - ../../automation/shared_routines:/work/.decree/shared_routines:ro,z
@@ -196,7 +204,7 @@ services:
       # themselves only ever read (tar, dump), but `./existential.sh run
       # backup-restore` extracts into these paths from this container.
       - ../../volumes:/volumes:z
-      # workspace-sync bisyncs the workspace both ways with MinIO, so it needs
+      # workspace-sync bisyncs the workspace both ways with the bucket, so it needs
       # to write files pulled down from the bucket, not just read them up.
       - ../../workspace:/workspace:z
     # No /work/exist.test.sh mount: this daemon owns no migrations, so the

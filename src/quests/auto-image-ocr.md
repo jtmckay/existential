@@ -5,8 +5,8 @@ e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama
-  - var: EXIST_IS_NAS_MINIO
-    label: MinIO
+  - var: EXIST_IS_NAS_SEAWEEDFS
+    label: SeaweedFS
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -18,9 +18,9 @@ runs OCR via an Ollama vision model, saving the extracted text next to the
 original file.
 
 The pipeline:
-  Image synced to Nextcloud → MinIO S3 event
-    → POST http://automation-webhook:8801/minio  (pre-configured in MinIO compose)
-    → minio-router matches PATTERN against the rclone path
+  Image synced to Nextcloud → seaweedfs file event
+    → POST http://automation-webhook:8801/s3  (pre-configured in notification.toml)
+    → s3-router matches PATTERN against the rclone path
     → ollama-ocr.sh: PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
     → IS_PRE_SIGNED=false — image downloaded locally, base64-encoded, sent to Ollama
     → OCR text saved to same rclone path + ".ocr.txt" suffix
@@ -38,7 +38,7 @@ Setup:
   1. Enable the routines in services/automation/decree/config.yml:
        file-processor:
          enabled: true
-       minio-router:
+       s3-router:
          enabled: true
 
   2. Make sure the llava model (or your chosen OCR_MODEL) is pulled in Ollama:
@@ -52,17 +52,18 @@ Setup:
   4. Restart decree to pick up config changes:
        docker compose restart automation
 
-  5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
-       MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://automation-webhook:8801/minio
+  5. Nothing to subscribe. The webhook is declared once in
+     nas/seaweedfs/notification.toml and read at boot, and it already covers the
+     whole nextcloud bucket:
+       endpoint      = "http://automation-webhook:8801/s3"
+       path_prefixes = ["/buckets/nextcloud"]
 
-  6. In MinIO, subscribe your bucket to the webhook:
-       docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
-         --event put,delete
+     Using a DIFFERENT bucket? Add it to path_prefixes and restart seaweedfs —
+     that file is the only place a bucket is subscribed.
 
 Telegram OCR flow:
   If the auto-telegram quest is active, photos sent to your Telegram bot are
-  already ingested into MinIO by telegram-poll. The ollama-ocr processor picks
+  already ingested into the bucket by telegram-poll. The ollama-ocr processor picks
   them up automatically — no extra steps.
 
 Logs for each run land in automation/runs/ and are queryable in Grafana

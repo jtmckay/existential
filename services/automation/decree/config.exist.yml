@@ -49,11 +49,7 @@ shared_routines:
     enabled: false
   file-processor:
     enabled: true
-  minio-bucket:
-    enabled: true
-  minio-service-account:
-    enabled: true
-  minio-router:
+  s3-router:
     enabled: true
   nextcloud-richdocuments:
     enabled: true
@@ -123,7 +119,7 @@ shared_routines:
   triage:
     enabled: true
   # No cron names these three: they run only when a MIGRATION does. Left
-  # disabled/unlisted they made every ollama and minio migration a no-op --
+  # disabled/unlisted they made every ollama migration a no-op --
   # decree created the run, declined the routine, and `decree process` stopped
   # at that first dead letter, hiding every migration behind it.
   ollama-pull:

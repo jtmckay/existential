@@ -136,13 +136,13 @@ sections:
         statusCheckAllowInsecure: true
         description: File sync + collaboration
 
-      - title: MinIO Console
-        url: https://minio.EXIST_DOMAIN
-        # url: https://existential.company/docs/storage/minio
-        icon: si-minio
+      - title: SeaweedFS
+        url: https://seaweedfs.EXIST_DOMAIN
+        # url: https://existential.company/docs/storage/seaweedfs
+        icon: fas fa-database
         statusCheck: true
         statusCheckAllowInsecure: true
-        description: S3-compatible object store (web console)
+        description: S3-compatible object store (admin UI)
 
   # ── what it's doing ───────────────────────────────────────────────────────
   - name: Observability

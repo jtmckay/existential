@@ -6,7 +6,7 @@
 # /work/exist.test.sh every 10s, up to DECREE_MIGRATE_TIMEOUT, and only then
 # runs migrations. For a per-service sidecar that file was the service's own
 # exist.test.sh. This daemon's migrations target OTHER services — ollama's model
-# pulls, minio's buckets and service account — so its gate is a probe of each of
+# pulls, home assistant's onboarding — so its gate is a probe of each of
 # those, and a service that is disabled is simply not waited for.
 #
 # Read-only, no writes anywhere. Exits 0 once every enabled target answers.
@@ -38,9 +38,6 @@ gate() {
 
 # ollama — migrations 10-14 pull models through this API.
 gate ai/ollama "${EXIST_OLLAMA_URL:-http://ollama:11434}/api/tags" ollama
-
-# minio — migrations 20-22 create buckets and the nextcloud service account.
-gate nas/minio "http://minio:9000/minio/health/live" minio
 
 # homeassistant — migrations 25/26 complete onboarding and wire wyoming/hermes
 # through its HTTP/websocket API. On a truly fresh volume (no .storage/http

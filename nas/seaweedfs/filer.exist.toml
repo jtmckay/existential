@@ -1,0 +1,6 @@
+# Filer metadata store. Kept off /data on purpose: /data is append-only needle files
+# and may live on the NAS export (x-exist-volumes: nfs), while leveldb2 is an embedded
+# database and NFS corrupts those. See .claude/reference/volumes.md.
+[leveldb2]
+enabled = true
+dir = "/meta/filer"

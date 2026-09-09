@@ -49,9 +49,10 @@ curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup%20done \
 
 `GET /healthz` returns `{"ok": true}` and is never rate limited.
 
-Two requests to the same routine within the same second collide and the second gets a `500`.
-That's deliberate — message identity comes from the filename, so overwriting would silently
-drop work. Retry with a jitter if you're sending in bursts.
+Two requests to the same routine within the same second get distinct filenames, so bursts are
+safe to send. Message identity comes from the filename and overwriting would silently drop
+work, so the file is opened `O_EXCL` and the loser retries with a discriminator rather than
+clobbering. You do not need to jitter.
 
 ### Adding your own endpoint
 
@@ -105,7 +106,7 @@ Two locations, both plain host directories you can read directly.
 | What | Where | Use it for |
 |---|---|---|
 | **Bulk user data** | `volumes/<name>/` | Files, photos, attachments, recordings, documents |
-| **Object storage** | MinIO, S3 API | Anything you'd rather reach over a network than a mount |
+| **Object storage** | SeaweedFS, S3 API | Anything you'd rather reach over a network than a mount |
 
 Everything under `volumes/` is a host bind mount owned by your user — no Docker-managed
 volumes, nothing opaque, nothing requiring root to read. Point your front end at the

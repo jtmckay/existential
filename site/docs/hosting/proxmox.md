@@ -93,7 +93,7 @@ sudo systemctl isolate graphical.target && sudo reboot
 
 ## CPU
 
-If you see errors starting MinIO, try changing the VM CPU type from `KVM` to `host`.
+If you see errors starting SeaweedFS, try changing the VM CPU type from `KVM` to `host`.
 
 ## Update Main VM
 

@@ -29,24 +29,24 @@ endpoints:
       routine: notify
       priority: high
 
-  # minIO S3 event notifications — configure minIO to POST to this endpoint with:
-  #   Authorization: Bearer <secret>   (set as a custom header in minIO notification target config)
+  # SeaweedFS filer webhook events — nas/seaweedfs/notification.toml posts here with:
+  #   Authorization: Bearer <secret>   (bearer_token in that file)
   #
-  # minio-router parses the S3 event, matches FILE_SOURCE ("rclone_src:bucket/key")
+  # s3-router parses the filer event, matches FILE_SOURCE ("rclone_src:bucket/key")
   # against each processor's PATTERN in automation/lib/file-processors/, and
   # enqueues one file-processor message per match. file-processor downloads the
   # file, runs the processor, then deletes the temp file.
   #
   # To add a new file type: copy automation/lib/file-processors/example.sh,
   # set PATTERN="<regex>" (matched against the full rclone path), and implement.
-  - path: /minio
-    secret: EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN
+  - path: /s3
+    secret: EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN
     frontmatter:
-      routine: minio-router
+      routine: s3-router
       rclone_src: nextcloud # Name of the remote in rclone config
       rclone_prefix: 'S3'   # Directory prefix within the remote — the Nextcloud
-                             # external-storage mount point for the MinIO bucket
-                             # (see nas/nextcloud/hooks/post-installation/01-minio-external-storage.sh)
+                             # external-storage mount point for the seaweedfs bucket
+                             # (see nas/nextcloud/hooks/post-installation/01-s3-external-storage.sh)
 
   # Dynamic route params — values must match [A-Za-z0-9_\-!]+ (default)
   # Use `params` to add a stricter per-param pattern (anchored automatically)
