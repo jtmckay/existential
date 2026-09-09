@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Host-side setup for 90-minio-file-processing, run by e2e.sh's stage_checks
+# Host-side setup for 90-s3-file-processing, run by e2e.sh's stage_checks
 # before the stack boots.
 #
-# Only two things live here, and both for the same reason: they are read once at
+# Only three things live here, and all for the same reason: they are read once at
 # container start, so nothing running inside the daemon can change them. Anything
-# that can wait until the check itself runs belongs in the routine, where MinIO's
-# credentials actually exist — the rclone remote is written there for exactly
-# that reason.
+# that can wait until the check itself runs belongs in the routine, where the
+# object store's credentials actually exist — the rclone remote is written there
+# for exactly that reason.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -15,7 +15,7 @@ set -euo pipefail
 WORK="${WORK:?}"
 BUCKET="e2e-flow"
 
-grep -q '^EXIST_IS_NAS_MINIO=true' "$WORK/.env.shared" || exit 0
+grep -q '^EXIST_IS_NAS_SEAWEEDFS=true' "$WORK/.env.shared" || exit 0
 WCFG="$WORK/services/automation/webhook/config.exist.yml"
 [ -f "$WCFG" ] || exit 0
 
@@ -33,17 +33,29 @@ cp "$WORK/automation/lib/file-processors.example/example.sh" \
 
 # ── The webhook's rclone_prefix ──────────────────────────────────────────────
 #
-# minio-router DROPS the S3 bucket when it builds FILE_SOURCE — it emits
+# s3-router DROPS the bucket when it builds FILE_SOURCE — it emits
 # "<rclone_src>:<rclone_prefix>/<key>". That is right for the topology it was
 # written for, where the bucket IS a nextcloud external mount and the
-# nextcloud-side path is the prefix. This check talks to MinIO directly through
-# an s3 remote, where the first path segment must be the bucket — so the prefix
-# is where the bucket has to go.
+# nextcloud-side path is the prefix. This check talks to the object store
+# directly through an s3 remote, where the first path segment must be the bucket
+# — so the prefix is where the bucket has to go.
 awk -v b="$BUCKET" '
-    /^  - path: \/minio$/ { inblock = 1 }
+    /^  - path: \/s3$/ { inblock = 1 }
     inblock && /^      rclone_prefix:/ { print "      rclone_prefix: " b; inblock = 0; next }
     { print }
 ' "$WCFG" > "${WCFG}.tmp" && mv "${WCFG}.tmp" "$WCFG"
 grep -q "rclone_prefix: ${BUCKET}" "$WCFG" || { echo "could not set rclone_prefix" >&2; exit 1; }
 
-echo "  staged the example file-processor + rclone_prefix=${BUCKET}"
+# ── The notification path_prefixes ───────────────────────────────────────────
+#
+# New under seaweedfs and load-bearing. minIO subscribed per bucket at runtime,
+# so a test bucket could opt itself in with one `mc event add`. Seaweedfs filters
+# by FILER PATH in a file read at boot, and the shipped value watches only
+# /buckets/nextcloud — so without this line the probe bucket fires no events at
+# all and the check fails on a chain that is perfectly healthy.
+NCFG="$WORK/nas/seaweedfs/notification.exist.toml"
+[ -f "$NCFG" ] || { echo "no ${NCFG}" >&2; exit 1; }
+sed -i "s|^path_prefixes = \[\"/buckets/nextcloud\"\]$|path_prefixes = [\"/buckets/nextcloud\", \"/buckets/${BUCKET}\"]|" "$NCFG"
+grep -q "/buckets/${BUCKET}" "$NCFG" || { echo "could not add ${BUCKET} to path_prefixes" >&2; exit 1; }
+
+echo "  staged the example file-processor + rclone_prefix=${BUCKET} + path_prefixes"

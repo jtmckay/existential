@@ -191,7 +191,7 @@ stack. See [Build On It](./build-on-it) for the request contract.
 
 ### An object landing in storage — when a file shows up
 
-MinIO fires an event on write → the webhook → `minio-router` → your **file processor**. A
+SeaweedFS fires an event on write → the webhook → `s3-router` → your **file processor**. A
 processor is a small script in `automation/lib/file-processors/` that declares what it matches:
 
 ```bash

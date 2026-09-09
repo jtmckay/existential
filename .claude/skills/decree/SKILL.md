@@ -33,7 +33,7 @@ daemon's project needs, and nothing that isn't:
 ```
 automation/
 ├── shared_routines/    Routine shell scripts, shared with the backup daemon
-├── lib/                Shared helpers (precheck.sh, minio.sh, telegram.sh) + hooks/
+├── lib/                Shared helpers (precheck.sh, s3.sh, telegram.sh) + hooks/
 ├── runs/                Execution logs — both daemons write here (gitignored)
 ├── secrets/             rclone config, API keys (gitignored; also mounted separately at /secrets)
 ├── cron/                Active cron triggers (gitignored)
@@ -142,7 +142,7 @@ Cron files use YAML frontmatter. Extra frontmatter keys are passed as env vars t
 cron: "0 2 * * *"
 routine: volume-backup
 VOLUMES: "my_volume_name"
-TARGETS: "minio:9000"
+TARGETS: "seaweedfs:8333"
 ---
 ```
 

@@ -11,16 +11,17 @@ running routine. If you are here to see what the system *does*, start at
 [Build On It](../build-on-it) are the pages you want.
 :::
 
-React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `minio-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a signed URL if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
+React to files being created, updated, or deleted in S3-compatible storage. When a file event arrives at the Decree webhook, `s3-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a signed URL if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
 A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file-processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
 
 ```mermaid
 flowchart LR
-    A["📦 MinIO\nbucket event"] -->|POST /minio| B
+    A["📦 SeaweedFS
+file event"] -->|POST /s3| B
 
     subgraph decree["Decree"]
-        B["minio-router\nPATTERN on the path"]
+        B["s3-router\nPATTERN on the path"]
         C["file-processor\ndownload via rclone"]
         G{"CRITERIA\nmatch?"}
         D1["processor A"]
@@ -43,27 +44,35 @@ flowchart LR
 
 ## How It Works
 
-### 1. MinIO fires the event
+### 1. SeaweedFS fires the event
 
-When a file is created, updated, or deleted in a subscribed bucket, MinIO POSTs an S3-compatible JSON payload to `http://automation-webhook:8801/minio`:
+When a file is created, updated, renamed or deleted under a watched path, SeaweedFS POSTs a
+filer event to `http://automation-webhook:8801/s3`:
 
 ```json
 {
-  "EventName": "s3:ObjectCreated:Put",
-  "Key": "mybucket/documents/report.pdf",
-  "Records": [...]
+  "event_type": "create",
+  "key": "/buckets/mybucket/documents/report.pdf",
+  "message": { "new_entry": { "name": "report.pdf", "attributes": { "file_size": 12345 } } }
 }
 ```
 
-The request includes `Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN>` — set as a custom header in the MinIO notification target config.
+This is a **filer** event, not an S3 bucket notification — SeaweedFS does not implement the
+latter at all. So `key` is a filer path under `/buckets/`, `event_type` is one of `create`,
+`update`, `delete`, `rename`, and directories raise events of their own carrying
+`is_directory: true`. `s3-router` strips the prefix, maps `create`/`update` to `created` and
+`delete` to `removed`, splits a `rename` into a removal of the old path plus a creation of the
+new one, and drops directory events.
 
-### 2. minio-router — match and fan out
+The request includes `Authorization: Bearer <EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN>` — `bearer_token` in `nas/seaweedfs/notification.toml`.
 
-`minio-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<rclone_prefix>/<object-key>` (e.g. `nextcloud:S3/documents/report.pdf`), and scans every script in `automation/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
+### 2. s3-router — match and fan out
+
+`s3-router` parses the event, constructs `FILE_SOURCE` as `<rclone_src>:<rclone_prefix>/<object-key>` (e.g. `nextcloud:S3/documents/report.pdf`), and scans every script in `automation/lib/file-processors/` for a `PATTERN=` regex match. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
 
 :::note The S3 bucket is not part of `FILE_SOURCE`
 
-The router drops the bucket and puts `rclone_prefix` in its place. That is deliberate: in the default topology the bucket *is* a Nextcloud external mount, so the file is reached through the `nextcloud` remote at the mount's path, not through S3. If you point a processor at MinIO directly through an `s3` remote, the first path segment must be the bucket — so set `rclone_prefix` to the bucket name in `services/automation/webhook/config.yml`.
+The router drops the bucket and puts `rclone_prefix` in its place. That is deliberate: in the default topology the bucket *is* a Nextcloud external mount, so the file is reached through the `nextcloud` remote at the mount's path, not through S3. If you point a processor at the object store directly through an `s3` remote, the first path segment must be the bucket — so set `rclone_prefix` to the bucket name in `services/automation/webhook/config.yml`.
 
 :::
 
@@ -72,7 +81,7 @@ For each matching processor it writes one message to the Decree outbox:
 ```yaml
 ---
 routine: file-processor
-rclone_path: minio:mybucket/documents/report.pdf
+rclone_path: s3:mybucket/documents/report.pdf
 processor: my-processor
 file_action: created
 is_pre_signed: false
@@ -96,7 +105,7 @@ Create `automation/lib/file-processors/<name>.sh`:
 ```bash
 #!/usr/bin/env bash
 # PATTERN is matched against FILE_SOURCE: "<rclone_src>:<rclone_prefix>/<object-key>"
-PATTERN="minio:documents/.*\.pdf$"
+PATTERN="s3:documents/.*\.pdf$"
 # CRITERIA is optional. Empty = the path match is the whole test.
 CRITERIA=""
 IS_PRE_SIGNED=false
@@ -119,7 +128,7 @@ echo "Processing $FILE_PATH"
 
 | Variable | Example | Description |
 |---|---|---|
-| `FILE_SOURCE` | `minio:mybucket/docs/file.pdf` | Full rclone source path |
+| `FILE_SOURCE` | `s3:mybucket/docs/file.pdf` | Full rclone source path |
 | `FILE_KEY` | `mybucket/docs/file.pdf` | Path after the `remote:` prefix |
 | `FILE_ACTION` | `created` \| `removed` | Event type |
 | `FILE_PATH` | `/tmp/file.pdf.xK3rQp` | Local temp file (empty for `removed` or when `IS_PRE_SIGNED=true`) |
@@ -137,75 +146,78 @@ echo "Processing $FILE_PATH"
 **Pattern tips:**
 
 ```bash
-PATTERN="minio:photos/.*\.(jpg|jpeg|png)$"   # specific bucket + extension
-PATTERN="minio:.*\.pdf$"                      # any bucket, PDFs only
-PATTERN="minio:invoices/.*"                   # everything in the invoices bucket
+PATTERN="s3:photos/.*\.(jpg|jpeg|png)$"   # specific bucket + extension
+PATTERN="s3:.*\.pdf$"                      # any bucket, PDFs only
+PATTERN="s3:invoices/.*"                   # everything in the invoices bucket
 PATTERN=".*\.csv$"                            # any rclone remote, CSVs
 ```
 
 Decree picks up the new file immediately — no restart needed.
 
-## MinIO Setup
+## SeaweedFS Setup
 
 :::note[Already done for the default topology]
-If you're using the `nextcloud` bucket (Nextcloud's `/S3` mount, MinIO enabled via Core), all
-three steps below already happened for you: the webhook target renders from env in
-`nas/minio/docker-compose.yml`, `workspace-sync` subscribes the bucket itself (see
-[Triggering on workspace edits](#triggering-on-workspace-edits)), and the
-`nextcloud-rclone-remote` migration configures rclone. Read on if you're wiring up a
-**different** bucket, or want to know what's happening under the hood.
+If you're using the `nextcloud` bucket (Nextcloud's `/S3` mount, SeaweedFS enabled via Core),
+both steps below already happened for you: the subscription renders from
+`nas/seaweedfs/notification.exist.toml`, and the `nextcloud-rclone-remote` migration configures
+rclone. Read on if you're wiring up a **different** bucket, or want to know what's happening
+under the hood.
 :::
 
-### Step 1 — Configure the webhook notification target
+### Step 1 — Subscribe the path
 
-In the MinIO console go to **Administrator → Events** and add a new webhook endpoint:
+SeaweedFS does not implement `PutBucketNotificationConfiguration`, so there is no per-bucket
+subscription to make and no console step. The entire subscription is one file,
+`nas/seaweedfs/notification.toml`, read by the filer at boot:
 
-| Field | Value |
-|---|---|
-| Identifier | `DECREE` |
-| Endpoint | `http://automation-webhook:8801/minio` |
-| Auth Token | your `EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN` value |
+```toml
+[notification.webhook]
+enabled = true
+endpoint = "http://automation-webhook:8801/s3"
+bearer_token = "<your EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN value>"
+event_types = ["create", "update", "delete", "rename"]
+path_prefixes = ["/buckets/nextcloud"]
+```
 
-Save and verify the target shows as reachable. The identifier `DECREE` is used in the next step — MinIO will expose the ARN `arn:minio:sqs::DECREE:webhook`.
+To watch another bucket, add it to `path_prefixes` as `/buckets/<name>` and restart seaweedfs.
+Filtering is by **filer path prefix**, so `"/buckets/nextcloud/uploads"` narrows to one folder —
+the equivalent of MinIO's per-subscription prefix filter. There is no suffix filter; that job
+belongs to a processor's `PATTERN`, which is where it already was.
 
-:::warning[One target is not enough]
-Adding the webhook target under **Events** only registers the endpoint. MinIO will not send any events until you subscribe individual buckets to it in the next step.
+:::warning[Only one endpoint]
+The webhook block supports a single target. Filter with `event_types` and `path_prefixes`
+rather than adding a second one. If you genuinely need to fan out to several consumers, that is
+what `s3-router` and its processors are for.
 :::
 
-### Step 2 — Subscribe buckets to events
+Two things behave differently from MinIO, and both are handled for you in `s3-router`:
 
-For each bucket you want to monitor:
+- **`key` is a filer path**, `/buckets/<bucket>/<object key>` — not a bare `<bucket>/<key>`.
+- **Directories raise their own events**, carrying `is_directory: true`. The router drops them,
+  so a folder rename does not queue a processor run against a directory path.
 
-1. Go to **Buckets → [bucket name] → Events**
-2. Click **Subscribe to Event**
-3. Select the ARN `arn:minio:sqs::DECREE:webhook`
-4. Configure the subscription:
-   - **Prefix** — optional path filter (e.g. `uploads/` to only watch that folder)
-   - **Suffix** — optional extension filter (e.g. `.pdf`)
-   - **Events** — check `PUT` for creates/updates, `DELETE` for deletions
-5. Save
+### Step 2 — Configure rclone
 
-Repeat for each bucket. Each bucket subscription sends events independently to the same webhook endpoint.
-
-### Step 3 — Configure rclone
-
-The decree container uses `/secrets/rclone/rclone.conf` for all rclone operations. Add a MinIO remote if you haven't already:
+The decree container uses `/secrets/rclone/rclone.conf` for all rclone operations. Add a remote
+if you haven't already:
 
 ```bash
 ./existential.sh run rclone
 ```
 
-Name the remote `minio` (or update `rclone_src` in `services/automation/webhook/config.yml` to match your remote name).
-
+Name the remote `nextcloud` (or update `rclone_src` in
+`services/automation/webhook/config.yml` to match your remote name). Talking to seaweedfs
+directly over `s3` rather than through Nextcloud's WebDAV? Use `provider = Other` with
+`force_path_style = true`.
 ## Testing
 
-Send a test event directly to the webhook to verify routing without needing a real MinIO event:
+Send a test event directly to the webhook to verify routing without needing a real file event:
 
 ```bash
 # automation-webhook publishes no host port — it is reached over the exist
 # bridge, so send the event from a container already on it.
-docker exec automation curl -X POST http://automation-webhook:8801/minio \
-  -H "Authorization: Bearer <EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN from .env.shared>" \
+docker exec automation curl -X POST http://automation-webhook:8801/s3 \
+  -H "Authorization: Bearer <EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN from .env.shared>" \
   -H "Content-Type: application/json" \
   -d '{"EventName":"s3:ObjectCreated:Put","Key":"mybucket/documents/hello.txt","Records":[]}'
 ```
@@ -223,7 +235,7 @@ docker exec automation decree status
 docker exec automation decree log <id-prefix>
 ```
 
-To test just the routing stage (without rclone), check the inbox after the curl — `minio-router` will have written outbox messages even if `file-processor` fails:
+To test just the routing stage (without rclone), check the inbox after the curl — `s3-router` will have written outbox messages even if `file-processor` fails:
 
 ```bash
 ls automation/runs/
@@ -232,7 +244,7 @@ ls automation/runs/
 ## Verifying Routine Pre-checks
 
 ```bash
-docker exec automation decree routine minio-router
+docker exec automation decree routine s3-router
 docker exec automation decree routine file-processor
 ```
 
@@ -289,13 +301,13 @@ which points at `http://hermes-agent:8642/v1`.
 
 ## Triggering on workspace edits
 
-MinIO fires events for objects written through its own API. Editing a file in
+SeaweedFS fires events for objects written through its own API. Editing a file in
 `workspace/` writes to a bind mount, which fires nothing — so a `workspace-sync`
 routine bisyncs `workspace/` with a `workspace/` subfolder of the `nextcloud`
 bucket (the same one Nextcloud mounts at `/S3`) on a cron. The sync is what
 produces the events — in both directions, since it's a two-way `rclone bisync`,
 not a one-way mirror. This is on by default: the Core quest activates the cron
-whenever MinIO is enabled (see [Getting Started](../getting-started#workspace)),
+whenever SeaweedFS is enabled (see [Getting Started](../getting-started#workspace)),
 and `workspace-sync` itself subscribes the bucket to the webhook — no manual
 setup either way.
 
@@ -314,7 +326,7 @@ Two things worth knowing about that cron:
    subscription as a follow-up message only once that first sync succeeds, so
    the ordering can't be gotten wrong by hand.
 2. **Detection is a poll.** A change on the local side takes up to one cron
-   interval to be noticed. A change on the MinIO/Nextcloud side is not a
+   interval to be noticed. A change on the SeaweedFS/Nextcloud side is not a
    poll — it reaches `workspace/` within about a second, live, via the
    `workspace-pull` file processor (also on by default; see its own header
    comment at `automation/lib/file-processors.example/workspace-pull.sh`).
@@ -326,7 +338,7 @@ Hermes (and anything else confined to `workspace/`) has no mount into
 inside the decree daemon on purpose. `workspace/outbox/` is the one supported
 way in: drop a markdown file there and it becomes a real decree message,
 relayed by the `outbox-relay` file processor over the same webhook path
-`workspace-pull` uses (on by default whenever MinIO is enabled, no separate
+`workspace-pull` uses (on by default whenever SeaweedFS is enabled, no separate
 setup).
 
 ```markdown
@@ -358,7 +370,7 @@ A few things worth knowing about the relay itself:
   — the guarantee is against replaying identical work, not against reusing a
   name.
 - **It cleans up after itself.** A successfully relayed file is deleted from
-  `workspace/outbox/` on both the local and MinIO side, so the directory is a
+  `workspace/outbox/` on both the local and bucket side, so the directory is a
   real outbox — empty once its mail is sent — rather than an accumulating log.
 - **A malformed or non-message file is skipped, not run.** Only a file whose
   first line is `---` is treated as a message; a plain note or a README that

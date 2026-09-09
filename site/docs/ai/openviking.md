@@ -52,7 +52,7 @@ upload — which is also why there is no watched-directory setup.
 
 `workspace/ai/` — where the agent automations write — is indexed like everything else, so
 an agent can find and build on what an earlier run produced. It is excluded from the
-MinIO sync instead, which is what stops that output from triggering more runs. See
+bucket sync instead, which is what stops that output from triggering more runs. See
 [File Processor](../decree/file-change-processing).
 
 ## What it stores

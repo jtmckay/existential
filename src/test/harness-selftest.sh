@@ -204,16 +204,16 @@ else
 fi
 
 # The work a check TRIGGERS carries no e2e_check key of its own, and grading only
-# the named checks let a live run report PASS while minio-router failed on every
+# the named checks let a live run report PASS while s3-router failed on every
 # event it routed. Every run in the clone has to count.
 d="$(mktmp)"; make_runs_tree "$d" pass
 mkdir -p "$d/runs/r-downstream"
-printf -- '---\nroutine: minio-router\n---\n' > "$d/runs/r-downstream/message.md"
+printf -- '---\nroutine: s3-router\n---\n' > "$d/runs/r-downstream/message.md"
 printf '{"exit_code":1,"duration_s":0}' > "$d/runs/r-downstream/run.json"
 rc=0; collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then pass "a failing run with no e2e_check → reports failure"
 else flunk "a failing downstream run was not graded (rc=$rc)"; fi
-if grep -q 'minio-router' "$d/out/results.md" 2>/dev/null; then
+if grep -q 's3-router' "$d/out/results.md" 2>/dev/null; then
     pass "an unnamed failing run is named by its routine in results.md"
 else
     flunk "results.md did not name the failing downstream run"

@@ -64,7 +64,7 @@ services:
       HF_TOKEN: ${WHISPERX_HF_TOKEN}
       # SSRF protection ships ON and blocks every RFC1918 range — including
       # 172.16/12, where the `exist` bridge lives. That silently defeats the whole
-      # point of /speech-to-text-url: the MinIO pre-signed URL the auto-transcription
+      # point of /speech-to-text-url: the pre-signed URL the auto-transcription
       # flow hands over resolves to a bridge or LAN address and comes back
       # 422 SSRF_BLOCKED. whisperx publishes no ports and is reachable only from
       # inside the stack, so the private ranges the stack itself uses are re-allowed;

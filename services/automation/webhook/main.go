@@ -156,14 +156,14 @@ func compileRoute(entry endpointConfig, defaultSecret string) (*route, error) {
 	// An unsubstituted placeholder is the dangerous case: templates.sh
 	// rewrites EXIST_* tokens at render time, and a config that skipped
 	// rendering would otherwise start with a *publicly known* secret.
-	// EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN is 37 chars, so a length check
+	// EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN is 34 chars, so a length check
 	// alone would wave it straight through.
 	if strings.HasPrefix(secret, "EXIST_") {
 		return nil, fmt.Errorf("%s: secret is an unrendered template placeholder (%s) — run ./existential.sh", entry.Path, secret)
 	}
 	if len(secret) < minSecretLength {
 		// Actionable on purpose: config.yml is gitignored and is not
-		// not re-rendered once written, so a deployment carrying a shorter
+		// re-rendered once written, so a deployment carrying a shorter
 		// secret from the Express service (floor 16) hits this on upgrade and
 		// crash-loops under `restart: unless-stopped`. Say how to fix it.
 		return nil, fmt.Errorf(
@@ -496,19 +496,8 @@ func (server *webhookServer) serve(writer http.ResponseWriter, request *http.Req
 		content += "\n"
 	}
 
-	// The trailing "-0" is the chain SEQUENCE number, and it is load-bearing.
-	// The daemon splits a message id on its last "-" into <chain>-<seq> and
-	// refuses anything with seq > 100 as runaway chain recursion. Without the
-	// suffix the time stamp itself became the seq, so every message enqueued
-	// after 00:01:40 was dead-lettered as "max depth exceeded" -- i.e. every
-	// webhook message, on every route, for all but the first 100 seconds of
-	// each day. A webhook message always starts a chain, so its seq is 0.
-	filename := fmt.Sprintf("%s-%s-0.md", matched.routineSlug, time.Now().Format("150405"))
-	fullPath := filepath.Join(server.inbox, filename)
-	if !strings.HasPrefix(fullPath, server.inbox+string(os.PathSeparator)) {
-		return writeError(writer, http.StatusInternalServerError, "path resolution failed")
-	}
-	if err := writeNewFile(fullPath, content); err != nil {
+	filename, err := enqueue(server.inbox, matched.routineSlug, content)
+	if err != nil {
 		logger.Error("write failed", "path", matched.path, "err", err)
 		return writeError(writer, http.StatusInternalServerError, "write failed")
 	}
@@ -517,12 +506,56 @@ func (server *webhookServer) serve(writer http.ResponseWriter, request *http.Req
 	return writeJSON(writer, http.StatusCreated, createdResponse{File: filename, Path: matched.path})
 }
 
-// writeNewFile creates a file that must not already exist.
+// maxEnqueueAttempts bounds the collision retry below. One routine producing
+// more than this many messages inside a single second is a runaway, not a burst.
+const maxEnqueueAttempts = 1000
+
+// enqueue writes one inbox message and returns the filename it chose.
 //
-// O_EXCL: two messages for the same routine within one second collide and the
-// second is rejected. Preserved deliberately — the daemon derives a message
-// identity from this filename, so silently overwriting would drop a message.
-// Changing it is a separate decision.
+// The trailing "-0" is the chain SEQUENCE number, and it is load-bearing. The
+// daemon splits a message id on its last "-" into <chain>-<seq> and refuses
+// anything with seq > 100 as runaway chain recursion. Without the suffix the
+// timestamp itself became the seq, so every message enqueued after 00:01:40 was
+// dead-lettered as "max depth exceeded" -- i.e. every webhook message, on every
+// route, for all but the first 100 seconds of each day. A webhook message always
+// starts a chain, so its seq is 0.
+//
+// The name is only second-resolution, so concurrent senders collide. O_EXCL
+// makes the loser fail rather than overwrite -- never relax that, the daemon
+// derives a message identity from this filename and an overwrite silently drops
+// a message. Instead the loser retries with a discriminator, which goes inside
+// the CHAIN half of the name and never after the "-0": appending there would
+// make the discriminator the sequence number and re-create the bug above.
+//
+// This used to return the collision to the caller as a 500. That was survivable
+// while the only senders were slow ones, but seaweedfs delivers file events from
+// several workers at once, so a bulk write landed three events in the same
+// millisecond and two were dead-lettered. Bursts are the normal path for a file
+// event source, so the collision is handled rather than reported.
+func enqueue(inbox, routineSlug, content string) (string, error) {
+	stamp := time.Now().Format("150405")
+	for attempt := 0; attempt < maxEnqueueAttempts; attempt++ {
+		chain := stamp
+		if attempt > 0 {
+			chain = fmt.Sprintf("%su%d", stamp, attempt)
+		}
+		filename := fmt.Sprintf("%s-%s-0.md", routineSlug, chain)
+		fullPath := filepath.Join(inbox, filename)
+		if !strings.HasPrefix(fullPath, inbox+string(os.PathSeparator)) {
+			return "", errors.New("path resolution failed")
+		}
+		err := writeNewFile(fullPath, content)
+		if err == nil {
+			return filename, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("inbox: %d name collisions in one second for routine %q", maxEnqueueAttempts, routineSlug)
+}
+
+// writeNewFile creates a file that must not already exist.
 func writeNewFile(path, content string) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, inboxFileMode)
 	if err != nil {

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Mount the MinIO bucket as a Nextcloud external storage folder.
+# Mount the seaweedfs bucket as a Nextcloud external storage folder.
 #
 # Runs INSIDE the nextcloud container, as root, exactly once — the image's
 # entrypoint calls run_path post-installation right after a successful
@@ -8,18 +8,18 @@
 # bit: run_path skips scripts that lack it.
 #
 # Object keys under this mount are real file paths, which is what
-# automation/shared_routines/minio-router.sh assumes when it turns a MinIO
+# automation/shared_routines/s3-router.sh assumes when it turns an object-store
 # webhook event into "${rclone_src}:${prefix}${object_key}". Primary object
 # storage (OBJECTSTORE_S3_*) would be less code here but stores opaque
 # urn:oid:N keys and would break that pipeline.
 #
-# Idempotent and non-fatal by design: it exits 0 on every path. A MinIO that is
-# disabled, slow or misconfigured must never take the Nextcloud install down
-# with it — an install that fails leaves the user staring at the setup wizard.
+# Idempotent and non-fatal by design: it exits 0 on every path. An object store
+# that is disabled, slow or misconfigured must never take the Nextcloud install
+# down with it — an install that fails leaves the user staring at the setup wizard.
 
 set -u
 
-# MinIO not enabled (or credentials not rendered) — nothing to mount.
+# Object store not enabled (or credentials not rendered) — nothing to mount.
 [ -n "${NEXTCLOUD_S3_KEY:-}" ] && [ -n "${NEXTCLOUD_S3_BUCKET:-}" ] || exit 0
 
 occ() { php /var/www/html/occ "$@"; }
@@ -38,8 +38,8 @@ fi
     [ -n "$id" ] || exit 1
 
     occ files_external:config "$id" bucket         "$NEXTCLOUD_S3_BUCKET"
-    occ files_external:config "$id" hostname       "${NEXTCLOUD_S3_HOST:-minio}"
-    occ files_external:config "$id" port           "${NEXTCLOUD_S3_PORT:-9000}"
+    occ files_external:config "$id" hostname       "${NEXTCLOUD_S3_HOST:-seaweedfs}"
+    occ files_external:config "$id" port           "${NEXTCLOUD_S3_PORT:-8333}"
     occ files_external:config "$id" region         "${NEXTCLOUD_S3_REGION:-us-east-1}"
     occ files_external:config "$id" use_ssl        false
     occ files_external:config "$id" use_path_style true
@@ -51,7 +51,7 @@ fi
     # --user nor --group is already applicable to All users (verify with
     # `occ files_external:list`), and --add-all is not a real option.
 
-    echo "==> Mounted MinIO bucket '$NEXTCLOUD_S3_BUCKET' at /S3 (mount $id)"
-} || echo "==> WARNING: could not configure the MinIO external storage; add it by hand in Settings -> External storage"
+    echo "==> Mounted seaweedfs bucket '$NEXTCLOUD_S3_BUCKET' at /S3 (mount $id)"
+} || echo "==> WARNING: could not configure the seaweedfs external storage; add it by hand in Settings -> External storage"
 
 exit 0

@@ -55,7 +55,7 @@ purpose:
 - It **is** indexed into OpenViking, along with the rest of `workspace/`. Past
   output is searchable, so an agent can find and build on what an earlier run
   produced.
-- It **is not** synced to MinIO. The `workspace-sync` routine excludes it, so
+- It **is not** synced to the object store. The `workspace-sync` routine excludes it, so
   nothing written here fires a storage event. That is the one thing standing
   between this setup and an infinite loop of runs triggering runs.
 

@@ -1,0 +1,85 @@
+services:
+  # S3-compatible object storage. Backs Nextcloud's /S3 external-storage mount
+  # (nas/nextcloud) and the workspace-sync -> automation-webhook file-event pipeline
+  # (automation/shared_routines/workspace-sync.sh). Admin UI is reached via
+  # https://seaweedfs.<domain>, the S3 API via https://seaweedfs-api.<domain> --
+  # ports below are disabled, so localhost only works once you uncomment them.
+  #
+  # Replaced minIO, whose repo was archived in Feb 2026 (see site/docs/graveyard/storage/minio.md).
+  seaweedfs:
+    container_name: seaweedfs
+    image: chrislusf/seaweedfs:4.46
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    # Object store; one process running master + volume + filer + S3 + WebDAV + admin.
+    # Measured at ~153 MiB settled on a near-empty bucket (it reads ~92 MiB for the
+    # first half-minute, before the heap grows -- do not size off that). The volume
+    # index is 16 bytes per file in RAM, so this grows with FILE COUNT, not bytes
+    # stored: a million objects is ~16 MiB more. 384M is ~2.5x settled idle.
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    networks:
+      - exist
+    # ports disabled -- access via https://seaweedfs.<domain> (Caddy + pihole required)
+    # Uncomment to expose directly:
+    #   ports:
+    #     - "48333:8333"   # S3 API
+    #     - "43646:23646"  # Admin UI
+    volumes:
+      # Append-only needle files only -- every embedded DB lives under /meta, which
+      # is what lets this half sit on the NAS export. See x-exist-volumes below.
+      # TODO: no backup yet -- add a volume-backup cron in
+      # services/automation/backup/cron.example/ (nothing else is needed).
+      - seaweedfs_data:/data
+      # master raft state, the filer's leveldb2 store, and the Admin UI's own config.
+      - seaweedfs_meta_data:/meta
+      # Rendered from *.exist.* templates in this folder. weed picks all three up by
+      # convention from /etc/seaweedfs -- no flag needed for filer/notification.
+      - ./s3.json:/etc/seaweedfs/s3.json:ro
+      - ./filer.toml:/etc/seaweedfs/filer.toml:ro
+      - ./notification.toml:/etc/seaweedfs/notification.toml:ro
+    environment:
+      # Admin UI login at https://seaweedfs.<domain>. Without these the UI is
+      # unauthenticated to anything that can reach Caddy.
+      - SEAWEEDFS_ROOT_USER=${SEAWEEDFS_ROOT_USER}
+      - SEAWEEDFS_ROOT_PASSWORD=${SEAWEEDFS_ROOT_PASSWORD}
+    # -bucket pre-creates the nextcloud bucket on startup, which is why this stack
+    # has no create-bucket routine or migration at all.
+    # -master.telemetry defaults to TRUE and posts cluster stats to
+    # telemetry.seaweedfs.com -- it is switched off deliberately, keep it that way.
+    # -master.dir / -admin.dataDir move the embedded DBs off /data; weed hard-fails
+    # at boot if they do not already exist, which is what exist.initial.sh creates.
+    # iceberg/lance ports are closed: nothing in this stack speaks either.
+    command: >
+      mini
+      -dir=/data
+      -ip=seaweedfs
+      -bucket=nextcloud
+      -s3.config=/etc/seaweedfs/s3.json
+      -master.dir=/meta/master
+      -admin.dataDir=/meta/admin
+      -master.telemetry=false
+      -s3.port.iceberg=0
+      -s3.port.lance=0
+      -admin.user=${SEAWEEDFS_ROOT_USER}
+      -admin.password=${SEAWEEDFS_ROOT_PASSWORD}
+    # /healthz answers 200 as soon as the S3 gateway accepts connections. Like
+    # minIO's old /minio/health/live it does NOT prove the object layer or the
+    # credentials work -- exist.test.sh's rclone probes are what do that.
+    # curl is in the image (verified on chrislusf/seaweedfs:4.46).
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8333/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+x-exist-volumes:
+  seaweedfs_data:      { nfs: true }
+  seaweedfs_meta_data: { db: true }
+
+networks:
+  exist:
+    external: true

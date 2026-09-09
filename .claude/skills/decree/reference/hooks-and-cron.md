@@ -55,7 +55,7 @@ as environment variables to the routine:
 cron: "0 2 * * *"
 routine: volume-backup
 VOLUMES: "my_volume_name"
-TARGETS: "minio:9000"
+TARGETS: "seaweedfs:8333"
 ---
 ```
 

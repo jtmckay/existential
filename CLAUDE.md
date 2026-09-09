@@ -75,7 +75,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 One root dir holds *the user's own content* rather than service state, so it is gitignored but
 does **not** live under `volumes/`: `workspace/` — shared by hermes and code-server, indexed
 into openviking, and bidirectionally synced with the `workspace/` subfolder of the `nextcloud`
-MinIO bucket (minus `workspace/ai/`, which is where the agent automations write). User-facing
+seaweedfs bucket (minus `workspace/ai/`, which is where the agent automations write). User-facing
 detail: `site/docs/getting-started.md#workspace`.
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
@@ -83,7 +83,9 @@ detail: `site/docs/getting-started.md#workspace`.
   `service-common.sh` is the single source of truth for service discovery/enablement
   (`SERVICE_CATEGORIES`, `_load_env_shared`, `service_is_enabled`, `_find_service_dirs`,
   `_enable_var_for`), used by both `existential.sh` and `src/templates.sh`, keyed off
-  `$SCRIPT_DIR`.
+  `$SCRIPT_DIR`. `rendered-paths.sh` is the same idea for the inverse question — which
+  `*.exist.*` template renders INTO a given path — and is what both secret guards use to decide
+  a file is rendered and must never be tracked.
 - `.githooks/` = `pre-commit` (secrets) and `pre-push` (the rest). Both detailed in
   `.claude/reference/testing.md`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
@@ -224,7 +226,7 @@ which also holds the image build) runs everything that reasons, routes or reache
 the name, `automation-backup` isn't backups-only: it runs the three backup routines
 (`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that needs that same
 bulk data/credential access and does no reasoning, routing, or AI call —
-`workspace-sync` is the standing example, kept here for its master MinIO credentials and
+`workspace-sync` is the standing example, kept here for its master object-store credentials and
 read-write `/workspace` mount, not because it backs anything up. Reasoning, routing, and AI stay
 in `automation` even when the routine touches the same data. `automation` wholesale-mounts the
 repo-root `automation/` directory as its whole `/work/.decree` project; `automation-backup`

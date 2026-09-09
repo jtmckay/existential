@@ -5,7 +5,7 @@
 #   * compose `image:` lines in *.exist.yml — tag only
 #   * Dockerfile `FROM` lines — tag + sha256 digest, updated together
 # An image with no semver tags (distroless) uses check type `digest`, which
-# reports whether the pinned digest still matches the tag it claims.
+# reports whether the pinned# check_type : github | hub | hub_clean | digest | skipstill matches the tag it claims.
 #
 # Usage (via existential.sh):
 #   ./existential.sh run check-versions            — show version table
@@ -82,23 +82,6 @@ latest_hub_clean() {
         | sort -V | tail -1
 }
 
-# latest_hub_release <org/image>
-# Newest MinIO-style RELEASE.<timestamp> tag from Docker Hub. The timestamp
-# format sorts lexically in chronological order, so a plain sort works. Excludes
-# microarch variants (-cpuv1) and floating latest/cicd tags. Needed because
-# MinIO stopped pushing newer RELEASE tags to Docker Hub while still cutting
-# GitHub releases — checking GitHub would point at a tag that isn't pullable.
-latest_hub_release() {
-    local path="$1"
-    curl -fsSL --max-time 15 \
-        "https://registry.hub.docker.com/v2/repositories/${path}/tags?page_size=100&ordering=last_updated" \
-        2>/dev/null \
-        | jq -r '.results[].name' 2>/dev/null \
-        | grep -E '^RELEASE\.' \
-        | grep -vE '(-cpuv|-cicd|latest)' \
-        | sort | tail -1
-}
-
 # latest_hub_dated <org/image> <family>
 # Newest <family>-YYYYMMDD tag from Docker Hub. Images that publish a dated,
 # immutable build per GPU flavour (yanwk/comfyui-boot: cu126-slim / rocm / cpu)
@@ -152,7 +135,7 @@ _registry_auth() {
 }
 
 # resolve_digest <prefix> <tag>
-# The manifest digest a tag currently points at, as "sha256:...". Empty on any
+# The manifest# check_type : github | hub | hub_clean | digest | skipa tag currently points at, as "sha256:...". Empty on any
 # failure — callers must treat that as "unknown", never as "changed", or a
 # transient network blip would rewrite a pin.
 resolve_digest() {
@@ -174,7 +157,7 @@ resolve_digest() {
 # Checks whether <image_prefix>:<tag> is actually pullable from the registry the
 # image comes from (GHCR for ghcr.io/* prefixes, else Docker Hub). This catches a
 # tag that exists upstream on GitHub but was never published to the pull registry
-# — minio's RELEASE.* tags read as "up to date" yet 404 on `docker pull`.
+# — a tag can read as "up to date" upstream yet 404 on `docker pull`.
 # Exit: 0 = exists (manifest 200), 1 = confirmed missing (404),
 #       2 = unverifiable (auth/network failure — caller should not hard-fail).
 image_exists() {
@@ -204,11 +187,11 @@ image_exists() {
 # Columns (tab-separated):
 #   display_name  file  image_prefix  check_type  check_arg  tag_format
 #
-# check_type : github | hub | hub_clean | hub_release | digest | skip
+# check_type : github | hub | hub_clean | digest | skip
 #   hub_dated → the image_prefix carries the tag family (repo:family), which is
 #               also how a file with one pinned tag per GPU vendor gets a row per
 #               vendor instead of three rows all matching the first image: line.
-#   digest    → the tag is a moving target (e.g. :latest); don't look for a newer
+#  # check_type : github | hub | hub_clean | digest | skip   → the tag is a moving target (e.g. :latest); don't look for a newer
 #               version, just re-resolve what the pinned tag points at now.
 # check_arg  : github → owner/repo   hub* → org/image (library/X for official)
 # tag_format : flavor suffix appended to the fetched (v-stripped) version
@@ -223,7 +206,7 @@ image_exists() {
 #
 # Choosing github vs hub*: check wherever the *image tag* comes from, which is
 # not always where the software is versioned. Projects that cut GitHub releases
-# for the source but tag their images on a different scheme (pihole, minio) must
+# for the source but tag their images on a different scheme (pihole) must
 # use a hub* type — checking GitHub there yields a version that is real upstream
 # but not pullable, which image_exists then reports as LATEST NOT PULLABLE.
 
@@ -262,11 +245,10 @@ declare -a CHECKS=(
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lowcoder	services/lowcoder/docker-compose.exist.yml	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"
     "loki	hosting/loki/docker-compose.exist.yml	grafana/loki	hub_clean	grafana/loki	bare"
-    # hub, not hub_clean: every alloy tag is v-prefixed, which hub_clean rejects.
+    # hub, not hub_clean: every alloy tag is v-prefixed, which# check_type : github | hub | hub_clean | digest | skiprejects.
     "loki-alloy	hosting/loki/docker-compose.exist.yml	grafana/alloy	hub	grafana/alloy	v"
     "mcp-playwright	ai/mcp/docker-compose.exist.yml	mcr.microsoft.com/playwright/mcp	github	microsoft/playwright-mcp	v"
     "mealie	services/mealie/docker-compose.exist.yml	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
-    "minio	nas/minio/docker-compose.exist.yml	minio/minio	hub_release	minio/minio	bare"
     "nextcloud	nas/nextcloud/docker-compose.exist.yml	nextcloud	hub_clean	library/nextcloud	bare"
     "nocodb	services/nocodb/docker-compose.exist.yml	nocodb/nocodb	github	nocodb/nocodb	bare"
     "ntfy	services/ntfy/docker-compose.exist.yml	binwiederhier/ntfy	github	binwiederhier/ntfy	v"
@@ -279,9 +261,10 @@ declare -a CHECKS=(
     "pihole	hosting/pihole/docker-compose.exist.yml	pihole/pihole	hub_clean	pihole/pihole	bare"
     "portainer	hosting/portainer/docker-compose.exist.yml	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
     # github, not hub*: every prom/prometheus tag is v-prefixed (so hub_clean
-    # matches nothing) and hub sorts the -busybox/-distroless flavours above the
+    # matches nothing) and# check_type : github | hub | hub_clean | digest | skipsorts the -busybox/-distroless flavours above the
     # plain tag. The GitHub release tag is the plain version.
     "prometheus	hosting/prometheus/docker-compose.exist.yml	prom/prometheus	github	prometheus/prometheus	v"
+    "seaweedfs	nas/seaweedfs/docker-compose.exist.yml	chrislusf/seaweedfs	github	seaweedfs/seaweedfs	bare"
     "uptime-kuma	hosting/uptime-kuma/docker-compose.exist.yml	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
     "whisperx	ai/whisperx/docker-compose.exist.yml	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
     "wyoming-piper	ai/wyoming-piper/docker-compose.exist.yml	rhasspy/wyoming-piper	github	OHF-Voice/wyoming-piper	bare"
@@ -347,9 +330,9 @@ for entry in "${CHECKS[@]}"; do
             continue
         fi
         raw_image=$(echo "$current_line" | sed 's/.*image:[[:space:]]*//' | tr -d "'\" ")
-        # A compose pin can carry a digest too (`image: repo:latest@sha256:…`).
+        # A compose pin can carry a# check_type : github | hub | hub_clean | digest | skiptoo (`image: repo:latest@sha256:…`).
         # Split it off first, exactly like the FROM branch above, or current_tag
-        # becomes the hex digest and a `digest` check compares against nothing.
+        # becomes the hex# check_type : github | hub | hub_clean | digest | skipand a `digest` check compares against nothing.
         [[ "$raw_image" == *@* ]] && current_digest="${raw_image#*@}"
         raw_notag="${raw_image%@*}"
         if [[ "$raw_notag" == *:* ]]; then
@@ -360,7 +343,7 @@ for entry in "${CHECKS[@]}"; do
     fi
 
     # Images with no semver tags (distroless: the Debian release is part of the
-    # repo name) are tracked for digest drift instead — "has the tag I pinned
+    # repo name) are tracked for# check_type : github | hub | hub_clean | digest | skipdrift instead — "has the tag I pinned
     # been re-pushed?" rather than "is there a newer version?".
     if [[ "$check_type" == "digest" ]]; then
         latest_digest=$(resolve_digest "$image_repo" "$current_tag" || true)
@@ -374,7 +357,7 @@ for entry in "${CHECKS[@]}"; do
             status="→ DIGEST DRIFT"
             if [[ "$UPDATE" == "true" ]]; then
                 # Match whatever the FROM line actually carries — tag+digest,
-                # tag only, or digest only — then VERIFY. An unverified sed
+                # tag only, or# check_type : github | hub | hub_clean | digest | skiponly — then VERIFY. An unverified sed
                 # reports success on a pin shape it never matched, and every
                 # later run then reports DIGEST DRIFT forever.
                 if [[ "$is_dockerfile" == "true" ]]; then
@@ -407,7 +390,6 @@ for entry in "${CHECKS[@]}"; do
         github)      latest_version=$(latest_github "$check_arg" || true) ;;
         hub)         latest_version=$(latest_hub "$check_arg" || true) ;;
         hub_clean)   latest_version=$(latest_hub_clean "$check_arg" || true) ;;
-        hub_release) latest_version=$(latest_hub_release "$check_arg" || true) ;;
         hub_dated)   latest_version=$(latest_hub_dated "$check_arg" "${current_tag%-*}" || true) ;;
     esac
 
@@ -436,7 +418,7 @@ for entry in "${CHECKS[@]}"; do
     # Compare and optionally patch
     if [[ "$current_tag" == "$latest_tag" ]]; then
         # "Up to date" — but the pinned tag must actually be pullable. A tag can
-        # exist upstream (GitHub) yet 404 on the pull registry (minio, whisper),
+        # exist upstream (GitHub) yet 404 on the pull registry (whisper),
         # which silently reads as up to date and then breaks `docker compose up`.
         if [[ "$current_tag" != "(none)" ]]; then
             # `|| exists=$?` keeps a non-zero return (1 missing / 2 unverifiable)
@@ -463,8 +445,8 @@ for entry in "${CHECKS[@]}"; do
 
         if [[ "$UPDATE" == "true" ]]; then
             if [[ "$is_dockerfile" == "true" ]]; then
-                # Tag and digest must move together, or the digest would keep
-                # pinning the old image and the tag would be a lie. A digest we
+                # Tag and# check_type : github | hub | hub_clean | digest | skipmust move together, or the digest would keep
+                # pinning the old image and the tag would be a lie. A# check_type : github | hub | hub_clean | digest | skipwe
                 # cannot resolve means we leave the pin alone.
                 new_digest=$(resolve_digest "$image_repo" "$latest_tag" || true)
                 if [[ -z "$new_digest" ]]; then

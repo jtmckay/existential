@@ -4,7 +4,7 @@
 # Opt-in: rsync-pulls notes (e.g. an Obsidian vault) from an external host
 # into workspace/notes/ (or wherever NOTES_PULL_SUBDIR points), so a vault
 # that lives somewhere else becomes part of the workspace/ knowledgebase —
-# indexed by OpenViking, bisynced to MinIO, and (if the live workspace-pull
+# indexed by OpenViking, bisynced to the bucket, and (if the live workspace-pull
 # processor and webhook subscription are active) event-triggering, exactly
 # like anything else under workspace/.
 #

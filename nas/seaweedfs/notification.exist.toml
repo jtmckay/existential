@@ -1,0 +1,21 @@
+# File events -> decree. SeaweedFS notifies on FILER paths, not S3 buckets: there is no
+# PutBucketNotificationConfiguration, so this file is the whole subscription and there
+# is no routine or migration that turns events on.
+#
+# 8801 is automation-webhook's listen port and is not configurable -- see the comment on
+# its environment: block in services/automation/docker-compose.exist.yml.
+#
+# path_prefixes covers the WHOLE nextcloud bucket, which matches what minIO did before
+# it. Narrow it to ["/buckets/nextcloud/workspace"] if you only ever want the workspace
+# pipeline -- but note the telegram flow writes to nextcloud:S3/telegram and the
+# whisperx processor matches audio anywhere in the mount, so both would stop firing.
+#
+# Only ONE endpoint is supported. Filter here, not by adding targets.
+[notification.webhook]
+enabled = true
+endpoint = "http://automation-webhook:8801/s3"
+bearer_token = "EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN"
+timeout_seconds = 10
+max_retries = 3
+event_types = ["create", "update", "delete", "rename"]
+path_prefixes = ["/buckets/nextcloud"]

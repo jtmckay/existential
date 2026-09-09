@@ -18,7 +18,7 @@ containers the health gate then found perfectly healthy. Migrations are setup;
 this is verification, and verification runs once the stack is up. e2e drops it
 after the container-health gate for exactly that reason.
 
-Without this, a quest with no migrations and no MinIO verifies *nothing*. Five of
+Without this, a quest with no migrations and no object store verifies *nothing*. Five of
 the eight — Productivity, Home Finance, Local AI Lab, Smart Home, Homelab
 Infrastructure — copy only cron files (nightly/weekly backups, `clean-runs`,
 `gmail-sync`), none of which can fire inside a run that lives for minutes. They

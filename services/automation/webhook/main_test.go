@@ -14,8 +14,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -502,18 +504,92 @@ func TestHealthzIsNotRateLimited(t *testing.T) {
 // Filenames carry a whole-second timestamp and are created O_EXCL, so a second
 // message for the same routine inside one second is rejected rather than
 // silently overwriting the first.
-func TestSameSecondCollisionIsRejected(t *testing.T) {
+// Two messages for one routine inside the same second must BOTH land, under
+// distinct names. This used to assert the opposite -- the second got a 500 --
+// which was survivable only while every sender was slow. Seaweedfs delivers file
+// events from several workers at once, so a bulk write put three events in the
+// same millisecond and the object store dead-lettered the two that lost.
+func TestSameSecondCollisionGetsUniqueName(t *testing.T) {
 	testServer, inbox := newTestServer(t, 1000, 1000)
 	first, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "a")
 	second, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "b")
 	if first != http.StatusCreated {
 		t.Fatalf("first = %d, want 201", first)
 	}
-	if second != http.StatusInternalServerError {
-		t.Fatalf("second = %d, want 500", second)
+	if second != http.StatusCreated {
+		t.Fatalf("second = %d, want 201", second)
 	}
-	if got := onlyFile(t, inbox); !strings.HasSuffix(got, "\na\n") {
-		t.Errorf("first message was overwritten: %q", got)
+	files := inboxFiles(t, inbox)
+	if len(files) != 2 {
+		t.Fatalf("expected 2 inbox files, got %d: %v", len(files), files)
+	}
+	// Neither may have overwritten the other.
+	var bodies []string
+	for _, file := range files {
+		contents, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodies = append(bodies, string(contents))
+	}
+	sort.Strings(bodies)
+	if !strings.HasSuffix(bodies[0], "\na\n") || !strings.HasSuffix(bodies[1], "\nb\n") {
+		t.Errorf("both messages should survive, got %q", bodies)
+	}
+}
+
+// The discriminator must land in the CHAIN half of the name. Appending it after
+// the "-0" would make it the sequence number, which the daemon reads as chain
+// recursion depth and rejects past 100 -- the same bug
+// TestFilenameEndsWithZeroSequence guards.
+func TestCollisionDiscriminatorKeepsZeroSequence(t *testing.T) {
+	testServer, inbox := newTestServer(t, 1000, 1000)
+	for i := 0; i < 5; i++ {
+		if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "x"); status != http.StatusCreated {
+			t.Fatalf("request %d = %d, want 201", i, status)
+		}
+	}
+	files := inboxFiles(t, inbox)
+	if len(files) != 5 {
+		t.Fatalf("expected 5 inbox files, got %d: %v", len(files), files)
+	}
+	for _, file := range files {
+		base := strings.TrimSuffix(filepath.Base(file), ".md")
+		index := strings.LastIndex(base, "-")
+		if index < 0 {
+			t.Fatalf("filename = %q, want a <chain>-<seq> form", base)
+		}
+		seq, err := strconv.Atoi(base[index+1:])
+		if err != nil {
+			t.Fatalf("filename = %q, seq %q is not a number", base, base[index+1:])
+		}
+		if seq != 0 {
+			t.Errorf("filename = %q, seq = %d, want 0", base, seq)
+		}
+	}
+}
+
+// The real shape of the failure: concurrent senders, not sequential ones.
+func TestConcurrentEnqueueLosesNothing(t *testing.T) {
+	testServer, inbox := newTestServer(t, 1000, 1000)
+	const senders = 12
+	var waitGroup sync.WaitGroup
+	statuses := make([]int, senders)
+	for i := 0; i < senders; i++ {
+		waitGroup.Add(1)
+		go func(index int) {
+			defer waitGroup.Done()
+			statuses[index], _ = sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "burst")
+		}(i)
+	}
+	waitGroup.Wait()
+	for i, status := range statuses {
+		if status != http.StatusCreated {
+			t.Errorf("sender %d = %d, want 201", i, status)
+		}
+	}
+	if files := inboxFiles(t, inbox); len(files) != senders {
+		t.Errorf("expected %d inbox files, got %d", senders, len(files))
 	}
 }
 
@@ -595,7 +671,7 @@ func TestConfigValidation(t *testing.T) {
 			// The dangerous case: long enough to pass a length check, but a
 			// publicly known string. An unrendered config must never serve.
 			name:      "unrendered placeholder that is long enough to pass length check",
-			config:    "secret: EXIST_DECREE_MINIO_WEBHOOK_AUTH_TOKEN\nendpoints:\n  - path: /a\n    frontmatter: {routine: x}\n",
+			config:    "secret: EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN\nendpoints:\n  - path: /a\n    frontmatter: {routine: x}\n",
 			wantError: "unrendered template placeholder",
 		},
 		{

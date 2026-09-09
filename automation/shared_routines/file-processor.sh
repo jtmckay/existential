@@ -3,19 +3,19 @@
 #
 # Downloads a file from any rclone remote, passes it to the named processor
 # in lib/file-processors/, then explicitly deletes the temp file.
-# Not minIO-specific — works with any rclone path.
+# Not object-store-specific — works with any rclone path.
 #
-# Enqueued by minio-router; not typically triggered directly.
+# Enqueued by s3-router; not typically triggered directly.
 #
 # When `criteria` is set, the downloaded content is put to the model before the
-# processor runs, and the processor is skipped unless it matches. minio-router
+# processor runs, and the processor is skipped unless it matches. s3-router
 # fills this in from the processor's own CRITERIA= line; an empty or absent
 # value means the path match was the whole test, which is how every processor
 # written before this behaved.
 #
 #   ---
 #   routine: file-processor
-#   rclone_path: minio:mybucket/path/to/file.pdf
+#   rclone_path: s3:mybucket/path/to/file.pdf
 #   processor: my-processor
 #   file_action: created
 #   is_pre_signed: false

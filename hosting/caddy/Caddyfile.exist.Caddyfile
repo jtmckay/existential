@@ -257,24 +257,24 @@ collabora.{$CADDY_DOMAIN} {
   reverse_proxy collabora:9980
 }
 
-# minio web console (port 9001)
-minio.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy minio:9001
-}
-
-# minio S3 API (port 9000)
-minio-api.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy minio:9000
-}
-
 nextcloud.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
   redir /.well-known/carddav /remote.php/dav/ 301
   redir /.well-known/caldav /remote.php/dav/ 301
   reverse_proxy nextcloud:80
+}
+
+# seaweedfs Admin UI (port 23646)
+seaweedfs.{$CADDY_DOMAIN} {
+  import internal_tls
+  import error_handling
+  reverse_proxy seaweedfs:23646
+}
+
+# seaweedfs S3 API (port 8333)
+seaweedfs-api.{$CADDY_DOMAIN} {
+  import internal_tls
+  import error_handling
+  reverse_proxy seaweedfs:8333
 }

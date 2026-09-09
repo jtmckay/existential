@@ -12,7 +12,7 @@ visible, host-owned, inspectable data.
 
 Point it at a NAS and the volumes that are safe to put there move to it.
 Only those: each service declares its volumes in an x-exist-volumes block,
-and just the ones marked `nfs: true` (bulk user files — Nextcloud, MinIO,
+and just the ones marked `nfs: true` (bulk user files — Nextcloud, SeaweedFS,
 media) relocate. Anything holding a database stays on local disk no matter
 what, because NFS corrupts an embedded DB's locking. You get redundancy and
 snapshots for the data that benefits, and no silent corruption for the rest.

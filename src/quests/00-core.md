@@ -16,8 +16,8 @@ services:
     label: Nextcloud (files)
   - var: EXIST_IS_NAS_REDIS
     label: Redis (Nextcloud cache — required by Nextcloud)
-  - var: EXIST_IS_NAS_MINIO
-    label: MinIO (S3 + file events)
+  - var: EXIST_IS_NAS_SEAWEEDFS
+    label: SeaweedFS (S3 + file events)
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant (the house)
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -70,29 +70,20 @@ copies:
     dst: automation/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
-  # MinIO's bucket for nextcloud's /S3 folder. Without it the external storage
-  # mount points at a bucket that does not exist.
-  - src: automation-examples/migrations/20-minio-create-nextcloud-bucket.md
-    dst: automation/migrations/
-    label: "minio: create the nextcloud bucket"
-    requires: EXIST_IS_NAS_MINIO
-  - src: automation-examples/migrations/21-minio-create-nextcloud-service-account.md
-    dst: automation/migrations/
-    label: "minio: create the nextcloud service account"
-    requires: EXIST_IS_NAS_MINIO
   # Bidirectional workspace/ <-> the nextcloud bucket's workspace/ subfolder.
-  # Same bucket as the two migrations above, so it rides the same requires.
+  # seaweedfs pre-creates that bucket itself (-bucket flag), so unlike the ollama
+  # rows above there is no migration to copy first.
   - src: services/automation/backup/cron.example/workspace-sync.md
     dst: services/automation/backup/cron/
-    label: "decree: workspace-sync.md (bisync workspace/ with MinIO every 10m)"
-    requires: EXIST_IS_NAS_MINIO
+    label: "decree: workspace-sync.md (bisync workspace/ with seaweedfs every 10m)"
+    requires: EXIST_IS_NAS_SEAWEEDFS
   # file-processor's download step for anything reached through Nextcloud's
   # WebDAV (rclone_src: nextcloud) — including workspace-pull below. Without
   # it every such download fails with "didn't find section in config file".
   - src: automation-examples/migrations/23-nextcloud-rclone-remote.md
     dst: automation/migrations/
     label: "nextcloud: configure the rclone remote (WebDAV, admin creds)"
-    requires: EXIST_IS_NAS_MINIO
+    requires: EXIST_IS_NAS_SEAWEEDFS
   # Without this, https://homeassistant.<domain> redirects every page to the
   # setup wizard until a human creates an admin account by hand.
   - src: automation-examples/migrations/25-homeassistant-onboarding.md
@@ -107,21 +98,21 @@ copies:
     dst: automation/migrations/
     label: "homeassistant: wire up Wyoming STT/TTS + Hermes as the Assist pipeline"
     requires: EXIST_IS_SERVICES_HOMEASSISTANT
-  # The live half of workspace-sync's MinIO -> local direction: a bucket-side
+  # The live half of workspace-sync's bucket -> local direction: a bucket-side
   # edit reaches workspace/ in ~1s via the webhook instead of waiting for the
-  # cron. minio-router/file-processor are already on by default in
+  # cron. s3-router/file-processor are already on by default in
   # services/automation/decree/config.exist.yml — nothing else to enable.
   - src: automation/lib/file-processors.example/workspace-pull.sh
     dst: automation/lib/file-processors/
-    label: "decree: workspace-pull.sh (live MinIO -> workspace/ file processor)"
-    requires: EXIST_IS_NAS_MINIO
+    label: "decree: workspace-pull.sh (live bucket -> workspace/ file processor)"
+    requires: EXIST_IS_NAS_SEAWEEDFS
   # The one door from workspace/ into decree's inbox: an agent confined to
   # workspace/ (hermes, OpenCode) drops a message in workspace/outbox/ instead
   # of ever touching automation/ directly. Same live path as workspace-pull.
   - src: automation/lib/file-processors.example/outbox-relay.sh
     dst: automation/lib/file-processors/
     label: "decree: outbox-relay.sh (workspace/outbox/ -> decree inbox)"
-    requires: EXIST_IS_NAS_MINIO
+    requires: EXIST_IS_NAS_SEAWEEDFS
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
@@ -154,7 +145,7 @@ that reads both, and a voice to talk to it. Everything below runs on your
 hardware — no API keys, no accounts, nothing leaving the box.
 
 What you get:
-  Nextcloud + MinIO      files, with the bucket mounted into Nextcloud as /S3,
+  Nextcloud + SeaweedFS  files, with the bucket mounted into Nextcloud as /S3,
                          and the S3 events that let Decree react to them
   Home Assistant         the house, plus voice via wyoming-whisper/piper
   Ollama                 the local models everything else talks to
@@ -227,7 +218,7 @@ One thing genuinely needs you, because it happens inside another app's UI:
 
 1. Nextcloud's admin credentials were generated for you — they are in
    nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
-   installs itself and lands on a login page; the MinIO bucket is already
+   installs itself and lands on a login page; the seaweedfs bucket is already
    mounted as an "S3" folder in Files. Open WebUI's credentials work the same
    way — ai/open-webui/.env, OPEN_WEBUI_ADMIN_EMAIL / OPEN_WEBUI_ADMIN_PASSWORD.
 

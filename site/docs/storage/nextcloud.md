@@ -70,11 +70,11 @@ Verify in Nextcloud: **Administration → Basic settings** — it should switch 
 docker exec -u www-data nextcloud php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=8
 ```
 
-## External Storage (MinIO/S3)
+## External Storage (SeaweedFS/S3)
 
-Automatic on a fresh install: `hooks/post-installation/01-minio-external-storage.sh` mounts the
-`nextcloud` MinIO bucket as an "S3" folder the moment `occ maintenance:install` finishes, using
-the scoped service identity minio's own migrations create (never the console login). If MinIO
+Automatic on a fresh install: `hooks/post-installation/01-s3-external-storage.sh` mounts the
+`nextcloud` seaweedfs bucket as an "S3" folder the moment `occ maintenance:install` finishes, using
+the scoped identity declared in seaweedfs's `s3.json` (never the admin login). If SeaweedFS
 was enabled *after* Nextcloud already existed — that hook only runs once, at first install — add
 it by hand:
 
@@ -82,21 +82,21 @@ it by hand:
 2. Go to **Administration settings → External storage**
 3. Add AmazonS3 type with Access key:
    - Bucket: `nextcloud`
-   - Hostname: `minio`
-   - Port: `9000`
+   - Hostname: `seaweedfs`
+   - Port: `8333`
    - Uncheck "Enable SSL"
    - Check "Enable Path Style"
-   - Paste MinIO access key and secret key (`nas/minio/.env`, `MINIO_NEXTCLOUD_ACCESS_KEY`/`_SECRET_KEY`)
+   - Paste the SeaweedFS access key and secret key (`nas/seaweedfs/.env`, `SEAWEEDFS_NEXTCLOUD_ACCESS_KEY`/`_SECRET_KEY`)
 
-With MinIO enabled, this `/S3` folder also holds a `workspace/` subfolder kept in live sync
-with the repo-root `workspace/` directory — see [MinIO](./minio#workspace-lives-in-the-same-bucket)
+With SeaweedFS enabled, this `/S3` folder also holds a `workspace/` subfolder kept in live sync
+with the repo-root `workspace/` directory — see [SeaweedFS](./seaweedfs#workspace-lives-in-the-same-bucket)
 and [Getting Started → Workspace](../getting-started#workspace).
 
 ## Collabora (office document editing)
 
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
 installed and pointed at it. `automation-examples/migrations/22-nextcloud-richdocuments.md`
-does this the same way the MinIO bucket gets created: copy it to
+does this the same way the seaweedfs bucket gets created: copy it to
 `automation/migrations/` and restart `decree` to activate. It also sets
 `richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
 Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
@@ -161,7 +161,7 @@ external storage (e.g. TrueNAS) — otherwise every bind mount is local and ordi
 `docker compose up -d` handles it:
 
 1. The NAS export
-2. MinIO
+2. SeaweedFS
 3. Nextcloud
 4. Everything else
 

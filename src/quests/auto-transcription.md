@@ -5,8 +5,8 @@ e2e: false
 services:
   - var: EXIST_IS_AI_WHISPERX
     label: WhisperX
-  - var: EXIST_IS_NAS_MINIO
-    label: MinIO
+  - var: EXIST_IS_NAS_SEAWEEDFS
+    label: SeaweedFS
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -17,11 +17,11 @@ Drop a recording into Nextcloud and Decree transcribes it with WhisperX,
 saving a speaker-labelled transcript next to the original file — no manual steps.
 
 The pipeline:
-  File synced to Nextcloud → MinIO S3 event
-    → POST http://automation-webhook:8801/minio  (pre-configured in MinIO compose)
-    → minio-router matches PATTERN against the rclone path
+  File synced to Nextcloud → seaweedfs file event
+    → POST http://automation-webhook:8801/s3  (pre-configured in notification.toml)
+    → s3-router matches PATTERN against the rclone path
     → whisperx-transcribe.sh: PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
-    → IS_PRE_SIGNED=true — MinIO generates a signed URL; WhisperX fetches it directly
+    → IS_PRE_SIGNED=true — rclone generates a signed URL; WhisperX fetches it directly
     → whisperx-transcribe.ts submits /speech-to-text-url, polls /task/{id} until done
     → transcript saved to same rclone path + ".transcript.txt" suffix
 
@@ -41,7 +41,7 @@ Setup:
   2. Enable the routines in services/automation/decree/config.yml:
        file-processor:
          enabled: true
-       minio-router:
+       s3-router:
          enabled: true
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
@@ -52,13 +52,14 @@ Setup:
   4. Restart decree to pick up config changes:
        docker compose restart automation
 
-  5. The webhook endpoint is already configured in nas/minio/docker-compose.exist.yml:
-       MINIO_NOTIFY_WEBHOOK_ENABLE_DECREE=on
-       MINIO_NOTIFY_WEBHOOK_ENDPOINT_DECREE=http://automation-webhook:8801/minio
+  5. Nothing to subscribe. The webhook is declared once in
+     nas/seaweedfs/notification.toml and read at boot, and it already covers the
+     whole nextcloud bucket:
+       endpoint      = "http://automation-webhook:8801/s3"
+       path_prefixes = ["/buckets/nextcloud"]
 
-  6. In MinIO, subscribe your bucket to the webhook:
-       docker exec minio mc event add minio/<bucket> arn:minio:sqs::DECREE:webhook \
-         --event put,delete
+     Using a DIFFERENT bucket? Add it to path_prefixes and restart seaweedfs —
+     that file is the only place a bucket is subscribed.
 
   7. Drop a recording into Nextcloud. The transcript appears in the same folder,
      named <filename>.mp3.transcript.txt, with each line prefixed by its speaker

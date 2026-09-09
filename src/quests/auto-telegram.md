@@ -23,7 +23,7 @@ Setup:
   4. Add TELEGRAM_CHAT_ID to the credentials file.
 
   5. Activate the poller — checks for new photo messages every 30 minutes
-     and routes them to MinIO for downstream processing:
+     and routes them to the bucket for downstream processing:
        mkdir -p automation/cron/
        cp automation-examples/cron/telegram-poll.md automation/cron/
        docker compose restart automation

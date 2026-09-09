@@ -299,7 +299,7 @@ whatever you actually want caught. See [Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
-Anything written through MinIO fires an object event → the webhook → `minio-router`, which
+Anything written through SeaweedFS fires an object event → the webhook → `s3-router`, which
 matches your **file processor** on a path regex and an optional content gate:
 
 ```bash

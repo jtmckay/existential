@@ -105,12 +105,12 @@ services:
       # when REDIS_HOST_PORT is absent (`getenv('REDIS_HOST')[0] != '/' ? 6379`).
       - REDIS_HOST_PORT=6379
       - REDIS_HOST_PASSWORD=${EXIST_REDIS_PASSWORD}
-      # MinIO external storage, mounted at /S3 by
-      # hooks/post-installation/01-minio-external-storage.sh. Blank key = the
-      # hook no-ops, so this is safe on an install without minio.
+      # seaweedfs external storage, mounted at /S3 by
+      # hooks/post-installation/01-s3-external-storage.sh. Blank key = the
+      # hook no-ops, so this is safe on an install without an object store.
       - NEXTCLOUD_S3_BUCKET=${NEXTCLOUD_S3_BUCKET:-}
-      - NEXTCLOUD_S3_HOST=minio
-      - NEXTCLOUD_S3_PORT=9000
+      - NEXTCLOUD_S3_HOST=seaweedfs
+      - NEXTCLOUD_S3_PORT=8333
       - NEXTCLOUD_S3_KEY=${NEXTCLOUD_S3_KEY:-}
       - NEXTCLOUD_S3_SECRET=${NEXTCLOUD_S3_SECRET:-}
 

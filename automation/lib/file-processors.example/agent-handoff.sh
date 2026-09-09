@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # PATTERN/CRITERIA/IS_PRE_SIGNED are read out of this
-# file's source by minio-router and file-processor, not by sourcing it.
+# file's source by s3-router and file-processor, not by sourcing it.
 # Agent handoff — the end-to-end example: match a file, judge it, hand it to an agent.
 #
 # This is the shape most matches want. The two tests do different jobs:
@@ -17,7 +17,7 @@
 # Rewrite CRITERIA. It is the whole judgment, and looking for the wrong thing is
 # the only way this setup wastes real work.
 #
-# Copy to lib/file-processors/ to activate — no restart needed; minio-router
+# Copy to lib/file-processors/ to activate — no restart needed; s3-router
 # reads the directory per event.
 PATTERN="nextcloud:S3/workspace/.*\.md$"
 CRITERIA="an open question or decision the author has not resolved — something where going and finding out would actually help them"

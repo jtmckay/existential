@@ -15,7 +15,7 @@
 # something you wrote, and workspace/ai/ is the established home for that —
 # see openviking-index-dir's cron (workspace/ai/ is deliberately NOT excluded
 # from indexing) and workspace-sync.sh (which DOES exclude it from the
-# Nextcloud/MinIO bisync, precisely so a note pulled *from* Nextcloud never
+# Nextcloud/bucket bisync, precisely so a note pulled *from* Nextcloud never
 # gets written back *into* Nextcloud as a "new" file and looped on forever).
 #
 # Full-mirror semantics, not an append log: every run recomputes exactly which

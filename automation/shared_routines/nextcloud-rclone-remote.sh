@@ -3,7 +3,7 @@
 # file-processor (and any file processor with rclone_src=nextcloud) uses to
 # download files reached through Nextcloud's WebDAV — including anything
 # under the /S3 external-storage mount, e.g. workspace-pull.sh's live
-# MinIO -> local pull for workspace/.
+# bucket -> local pull for workspace/.
 #
 # Runs as a decree migration (once). Idempotent: an existing [nextcloud]
 # stanza in rclone.conf is left alone — to rotate the password, delete that

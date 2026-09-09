@@ -86,7 +86,7 @@ placeholder.
 | `404` | Unknown path — **and any non-POST method** (see below) |
 | `413` | Body over the size limit |
 | `429` | Request or failure budget exhausted |
-| `500` | Could not write the file (includes the same-second collision below) |
+| `500` | Could not write the file |
 
 `GET /healthz` returns `{"ok": true}` and is exempt from rate limiting.
 
@@ -137,10 +137,18 @@ URL-decoding leniency and no sanitising fallback — reject, don't repair.
 slug is read off the *unsubstituted* frontmatter, so a `{{param}}` in `routine:`
 yields the literal placeholder rather than attacker-chosen text in a filename.
 
-**Two messages for the same routine in the same second collide, and the second
-one gets a 500.** The file is opened `O_EXCL` because the daemon derives message
-identity from the filename, so overwriting would silently drop a message.
-Failing loudly is the intended trade; changing it is a separate decision.
+**Two messages for the same routine in the same second get distinct filenames.**
+The name is only second-resolution, so concurrent senders collide. The file is
+opened `O_EXCL` because the daemon derives message identity from the filename and
+overwriting would silently drop one -- so the loser retries with a discriminator
+rather than overwriting. That discriminator goes inside the *chain* half of the
+name (`notify-150405u1-0.md`), never after the `-0`: the daemon reads the part
+after the last `-` as a chain sequence number and rejects anything over 100.
+
+This used to return the collision as a 500. That held while every sender was
+slow, but seaweedfs delivers file events from several workers at once, so one
+bulk write landed three events in the same millisecond and two were dead-lettered
+by the object store. Bursts are the normal path for a file-event source.
 
 **Rate limiting is global, not per-IP.** The service sits behind Caddy and sees
 one source address, so per-IP buckets would all be the same bucket. There are
@@ -188,7 +196,8 @@ docker run --rm -v "$PWD":/src -w /src golang:1.26.5-alpine3.23 go test ./...
 
 The suite is golden-file based: it asserts the exact bytes written to the inbox,
 so a formatting regression in the YAML output fails loudly. It also covers auth,
-param rejection, both rate limiters, file mode, the same-second collision, and
+param rejection, both rate limiters, file mode, same-second and concurrent
+collisions, and
 every startup config validation.
 
 Its golden frontmatter came from `difftest.sh`, the parity harness that ran this

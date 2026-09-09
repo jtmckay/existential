@@ -3,7 +3,7 @@
 #
 # Configures EXIST_BACKUP_RCLONE_REMOTE in the root .env.shared — the
 # destination the db-backup routine writes to. Any rclone remote works
-# (minio:exist-backups, dropbox:Existential/Backups, b2:my-bucket/db, …).
+# (seaweedfs:exist-backups, dropbox:Existential/Backups, b2:my-bucket/db, …).
 #
 # Prerequisite: rclone has at least one remote configured. If not, this
 # script offers to run `./existential.sh run rclone` first.
@@ -68,7 +68,7 @@ else
 fi
 echo ""
 echo "Enter the backup destination as <remote>:<path>"
-echo "  e.g. minio:exist-backups"
+echo "  e.g. seaweedfs:exist-backups"
 echo "       dropbox:Existential/Backups"
 echo "       b2:my-bucket/db"
 echo ""
