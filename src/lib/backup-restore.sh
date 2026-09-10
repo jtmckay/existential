@@ -15,17 +15,6 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 hr()  { printf '%0.s─' {1..56}; echo; }
 die() { echo "Error: $*" >&2; exit 1; }
 
-frontmatter_get() {
-    local key="$1" file="$2"
-    awk -v k="${key}:" '
-        /^---$/ { if (in_fm) exit; in_fm=1; next }
-        !in_fm  { next }
-        $0 ~ "^" k { found=1; next }
-        found && /^[^ ]/  { exit }
-        found   { sub(/^  /, ""); print }
-    ' "$file"
-}
-
 env_get() {
     local key="$1"
     grep -E "^${key}=" "${REPO_DIR}/.env.shared" 2>/dev/null | head -1 | cut -d= -f2-

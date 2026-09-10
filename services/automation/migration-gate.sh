@@ -78,4 +78,35 @@ gate_homeassistant() {
 }
 gate_homeassistant
 
+# nextcloud — migrations 22 (richdocuments/Collabora) and 24 (calendar) drive
+# its OCS API, and 23 configures an rclone remote against it. None of them
+# retries, and a first-run Nextcloud install takes minutes, so without this gate
+# they fire at an instance that is still installing and dead-letter. That halts
+# `decree process`, which takes every migration queued behind them down too.
+#
+# A 200 on /status.php is NOT readiness: an *uninstalled* Nextcloud answers 200
+# with "installed":false, which is exactly what a still-installing (or failed)
+# instance looks like. Match the body, the same way nas/nextcloud/exist.test.sh
+# does — that file is the reference for what "ready" means here.
+#
+# If this gate is what pushes a fresh install past DECREE_MIGRATE_TIMEOUT
+# (default 300s), the daemon now defers migrations rather than running them
+# blind; raise the timeout in services/automation/docker-compose.exist.yml, or
+# run `decree process` by hand once Nextcloud finishes.
+gate_nextcloud() {
+    local dir="nas/nextcloud" url="${NEXTCLOUD_URL:-http://nextcloud}/status.php"
+    service_is_enabled "${REPO_DIR}/${dir}" || return 0
+    local status
+    status=$(curl -sS --max-time 5 "$url" 2>/dev/null) || status=""
+    case "$status" in
+        *'"installed":true'*) return 0 ;;
+        *'"installed":false'*)
+            echo "[migration-gate] nextcloud not ready (still installing — ${url})" >&2 ;;
+        *)
+            echo "[migration-gate] nextcloud not ready (no answer from ${url})" >&2 ;;
+    esac
+    fail=1
+}
+gate_nextcloud
+
 exit "$fail"

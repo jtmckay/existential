@@ -31,5 +31,19 @@ shared_routines:
     enabled: false
   notify:
     enabled: true
+  # Triage lives here, not in `automation`, so the container that runs AI agents
+  # does not need the repo mounted — and with it the master .env, .env.shared and
+  # the Caddy CA private key. Triage is the reason that mount existed.
+  #
+  # It belongs here on the daemon's own terms: it observes and reports, it does
+  # no reasoning, no routing and makes no AI call. What it needs is exactly what
+  # this daemon is for — bulk read access to the repo and the credentials each
+  # service's exist.test.sh authenticates with.
+  #
+  # On by default, and it quiets itself as the stack stays green — see the
+  # routine's header. The person who most needs triage is the one who does not
+  # know it exists, so it cannot be opt-in.
+  triage:
+    enabled: true
   clean-runs:
     enabled: true

@@ -17,6 +17,23 @@ silently leaving it a version behind. It is **append-only** — existing values,
 are never touched. That is what makes the blank-means-not-yet-asked convention
 (`EXIST_VRAM_GB`, the per-role endpoint keys) survive an upgrade.
 
+## `archive/`
+
+Two different things live here, in two clearly separated shapes:
+
+| Path | Written by | When |
+|---|---|---|
+| `archive/<timestamp>/` | `reset` | once per reset, holding every rendered file with its paths preserved |
+| `archive/docker-compose/` | `generate-compose.ts` | the previous root `docker-compose.yml`, rotated on **every** run, last 3 kept |
+
+The compose rotations used to sit loose at the top of `archive/` next to the reset directories,
+which made a listing read as one muddle — nothing distinguished "a whole install, archived once"
+from "the previous compose file, rotated a minute ago". `generate-compose.ts` moves any loose
+ones into the subdirectory on its next run, so an existing install tidies itself.
+
+`src/test/unit/test-compose.sh` pins both halves: archives land in the subdirectory, and none
+are loose in `archive/` or in the repo root.
+
 ## `reset`
 
 Archives every rendered file to `archive/<timestamp>/`, paths preserved and gitignored, so the

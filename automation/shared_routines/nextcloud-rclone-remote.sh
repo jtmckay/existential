@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
 # nextcloud-rclone-remote — configure the "nextcloud" rclone remote that
 # file-processor (and any file processor with rclone_src=nextcloud) uses to
-# download files reached through Nextcloud's WebDAV — including anything
-# under the /S3 external-storage mount, e.g. workspace-pull.sh's live
-# bucket -> local pull for workspace/.
+# download files through Nextcloud's WebDAV — including anything
+# reached via Nextcloud's /S3 external-storage mount, e.g. workspace-pull.sh's
+# live bucket -> local pull for workspace/.
 #
-# Runs as a decree migration (once). Idempotent: an existing [nextcloud]
-# stanza in rclone.conf is left alone — to rotate the password, delete that
-# stanza first (or edit it with `rclone config password`) and re-run.
-#
-# Writes to rclone.conf directly (obscure + append) rather than going through
-# ./existential.sh run rclone's interactive wizard: that wizard exists for
-# accounts this stack has no other way to learn the credentials for (Dropbox,
-# a personal S3 bucket). This Nextcloud instance's admin credentials are
-# already fully rendered — there is nothing to ask the user.
+# Runs as a decree migration (once). An existing [nextcloud]
+# stanza in rclone.conf is replaced to allow updates to credentials or URLs.
 #
 # Env vars (passed through the decree container's compose env):
 #   NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD
-#   NEXTCLOUD_URL   default http://nextcloud
+#   NEXTCLOUD_URL         default http://nextcloud
+#   NEXTCLOUD_APP_PASSWORD (Optional: use for WebDAV auth)
+#
+# DECREE_PRE_CHECK: standard environment check.
 set -euo pipefail
 
 RCLONE_CONFIG="${SECRETS_DIR:-/secrets}/rclone/rclone.conf"
@@ -33,21 +29,26 @@ fi
 mkdir -p "$(dirname "${RCLONE_CONFIG}")"
 touch "${RCLONE_CONFIG}"
 
-if grep -q '^\[nextcloud\]' "${RCLONE_CONFIG}" 2>/dev/null; then
-    echo "rclone remote 'nextcloud' already configured — leaving it alone."
-    exit 0
-fi
+# Clear existing nextcloud block if it exists to ensure idempotency/updates
+sed -i '/^\[nextcloud\]/,/^mas/d' "${RCLONE_CONFIG}" 2>/dev/null || true
 
-_pass_obs="$(rclone obscure "${NEXTCLOUD_ADMIN_PASSWORD}")"
+# Determine the best password (App Password > Admin Password)
+PASS="${NEXTCLOUD_APP_PASSWORD:-${NEXTCLOUD_ADMIN_PASSWORD}}"
+_pass_obs=$(rclone obscure "$PASS")
 
-{
-    echo ""
-    echo "[nextcloud]"
-    echo "type = webdav"
-    echo "url = ${NEXTCLOUD_URL}/remote.php/dav/files/${NEXTCLOUD_ADMIN_USER}/"
-    echo "vendor = nextcloud"
-    echo "user = ${NEXTCLOUD_ADMIN_USER}"
-    echo "pass = ${_pass_obs}"
-} >> "${RCLONE_CONFIG}"
+# Construct the WebDAV URL
+# We ensure it points to the root of the user's files via /remote.php/dav/files/USER/
+WV_URL="${NEXTCLOUD_URL}/remote.php/dav/files/${NEXTCLOUD_ADMIN_USER}/"
 
-echo "Configured rclone remote 'nextcloud' -> ${NEXTCLOUD_URL}"
+cat <<EOF >> "${RCLONE_CONFIG}"
+
+[nextcloud]
+type = webdav
+url = ${WV_URL}
+vendor = nextcloud
+user = ${NEXTCLOUD_ADMIN_USER}
+pass = ${_pass_obs}
+
+EOF
+
+echo "Configured rclone remote 'nextcloud' -> ${WV_URL}"

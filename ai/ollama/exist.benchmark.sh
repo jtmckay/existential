@@ -19,13 +19,8 @@
 set -euo pipefail
 
 # Self-elevate into existential-adhoc if we're on the host.
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
-    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
-        --entrypoint "" -e IN_CONTAINER=1 \
-        existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}" "$@"
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
+adhoc_self_elevate "${BASH_SOURCE[0]}" "$@"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 

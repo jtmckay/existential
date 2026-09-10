@@ -91,9 +91,12 @@ TARGETS: "seaweedfs:8333"
 ---
 ```
 
-To activate: copy from `cron.example/` → `cron/`, then restart the decree container.
-Never edit `cron.example/` files directly — they are templates for users to copy and
-customise. The `.example_` suffix prevents `existential.sh` from auto-rendering them.
+To activate: copy a template into that daemon's `cron/`, then restart the container —
+`automation-examples/cron/` → `automation/cron/` for the `automation` daemon,
+`services/automation/backup/cron.example/` → `services/automation/backup/cron/` for
+`automation-backup`. Never edit the tracked templates directly; they are there to be copied and
+customised. Neither directory name matches `*.exist.*`, which is what stops `existential.sh`
+auto-rendering them.
 
 ### Common Expressions
 

@@ -177,7 +177,9 @@ wait_settled() {
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 #
-# A check is a decree MIGRATION in checks/ (see checks/README.md). Its
+# A check is a decree MESSAGE in checks/ (see checks/README.md) — NOT a migration,
+# and the three docs that say so are right: converting them was tried and reverted.
+# Its
 # frontmatter is read with e2e_fm_get — the same data decree reads, so the two
 # cannot disagree about what the file says.
 

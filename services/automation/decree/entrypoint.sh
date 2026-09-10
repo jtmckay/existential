@@ -39,23 +39,8 @@ if [[ -n "$DECREE_AI" ]]; then
         npm i -g @anthropic-ai/claude-code
       fi
       ;;
-    copilot)
-      if ! command -v gh &>/dev/null; then
-        echo "Installing GitHub CLI..."
-        ARCH=$(dpkg --print-architecture)
-        GH_VERSION=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
-          | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p')
-        curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.deb" \
-          -o /tmp/gh.deb
-        dpkg -i /tmp/gh.deb && rm /tmp/gh.deb
-      fi
-      if ! gh extension list 2>/dev/null | grep -q copilot; then
-        echo "Installing GitHub Copilot extension..."
-        gh extension install github/gh-copilot
-      fi
-      ;;
     *)
-      echo "WARNING: Unknown DECREE_AI value: $DECREE_AI (supported: opencode, claude, copilot)" >&2
+      echo "WARNING: Unknown DECREE_AI value: $DECREE_AI (supported: opencode, claude)" >&2
       ;;
   esac
 fi
@@ -84,27 +69,42 @@ DECREE_DAEMON="${DECREE_DAEMON:-true}"
 # to avoid overlapping with the decree state-dir bind mount.
 #
 # The loop retries for up to DECREE_MIGRATE_TIMEOUT seconds (default 300).
-# If the timeout is reached, the daemon logs a warning and starts anyway —
-# missing a migration on first boot is recoverable; blocking forever is not.
+# If the timeout is reached the daemon starts anyway but SKIPS migrations —
+# deferring a migration is recoverable, running it against a service that is not
+# ready is not, and blocking forever is not either.
 
 if [[ "$DECREE_DAEMON" == "true" && -f "/work/exist.test.sh" ]]; then
   _timeout="${DECREE_MIGRATE_TIMEOUT:-300}"
   _interval=10
   _elapsed=0
 
+  # True unless the timeout branch below fires. This flag is what makes the
+  # timeout mean what its message says: `break` alone left the loop and fell
+  # straight into `decree process`, so the log read "starting daemon without
+  # migrations" and the very next line ran them — firing every migration at
+  # services the gate had just proved were not ready. `decree process` halts at
+  # the first dead letter, so one slow service took down every migration queued
+  # behind it too.
+  _gate_passed=true
+
   echo "[decree] Waiting for service health check to pass..."
   until bash /work/exist.test.sh >/dev/null 2>&1; do
     _elapsed=$((_elapsed + _interval))
     if [[ $_elapsed -ge $_timeout ]]; then
-      echo "[decree] Health check timed out after ${_timeout}s — starting daemon without migrations" >&2
+      _gate_passed=false
+      echo "[decree] Health check timed out after ${_timeout}s — starting daemon WITHOUT running migrations." >&2
+      echo "[decree] Pending migrations stay pending; nothing is lost. Fix the unhealthy" >&2
+      echo "[decree] service, then run: docker exec ${DECREE_CONTAINER} decree process" >&2
       break
     fi
     echo "[decree] Not yet healthy, retrying in ${_interval}s (${_elapsed}/${_timeout}s)..."
     sleep "$_interval"
   done
 
-  echo "[decree] Running migrations..."
-  decree process --no-color 2>&1 || echo "[decree] WARNING: some migrations failed — check logs" >&2
+  if [[ "$_gate_passed" == "true" ]]; then
+    echo "[decree] Running migrations..."
+    decree process --no-color 2>&1 || echo "[decree] WARNING: some migrations failed — check logs" >&2
+  fi
 fi
 
 # ── Start daemon or interactive shell ─────────────────────────────────────────

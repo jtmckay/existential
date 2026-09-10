@@ -10,10 +10,7 @@
 
 set -euo pipefail
 
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    _REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
-        --entrypoint "" existential-adhoc bash "/repo/services/automation/exist.decree-ui.sh"
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
+adhoc_self_elevate "${BASH_SOURCE[0]}"
 
 tsx /repo/services/automation/src/decree-ui.ts

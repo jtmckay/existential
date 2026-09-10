@@ -103,6 +103,15 @@ automation/precheck.log
 # /work/.decree resolves on the host, which is the wholesale-mounted root.
 services/automation/decree/config.yml
 automation/config.hash
+# Docker creates a missing bind-mount TARGET as a root-owned empty file. The
+# decree daemon mounts services/automation/decree/config.yml onto
+# /work/.decree/config.yml, and /work/.decree IS the wholesale-mounted
+# automation/ dir — so an empty automation/config.yml appears on the host the
+# first time the stack comes up. It is a mount artifact, not a source file, and
+# it was tracked by accident until it wasn't. (Its sibling
+# automation/docker-compose.yml, created the same way by the compose mount, was
+# already covered by the docker-compose.yml rule above.)
+automation/config.yml
 # The backup daemon's project dir keeps the classic cron.example/ + cron/
 # pair since its crons are per-instance, not mounted shared content.
 services/automation/backup/config.yml
@@ -184,9 +193,6 @@ node_modules/
 # are actually enabled — so nothing inside is tracked and there are no .gitkeep
 # files to trip over when you delete a volume.
 volumes/
-# immich keeps its DB off NFS in a second tree, named in its own upstream-env
-# .env (DB_DATA_LOCATION) rather than in x-exist-volumes.
-volumes_local/
 
 # Service-dir scratch that is NOT a volume: hermes' runtime, extracted from the
 # image by its exist.initial.sh.

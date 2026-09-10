@@ -143,7 +143,7 @@ else
 fi
 
 TOTAL=0; COUNT=0; UNLIMITED=0; USED=0; USED_N=0
-OLLAMA_MIB=0; OLLAMA_N=0; OLLAMA_USED=0
+OLLAMA_MIB=0; OLLAMA_N=0
 declare -a ROWS=()
 
 while IFS= read -r dir; do
@@ -163,7 +163,6 @@ while IFS= read -r dir; do
         # the whole point of the `external` GPU vendor is not running it here.
         if [[ "$dir" == */ai/ollama ]]; then
             OLLAMA_MIB=$((OLLAMA_MIB + mib)); OLLAMA_N=$((OLLAMA_N + 1))
-            OLLAMA_USED=$((OLLAMA_USED + ${INUSE[$cn]:-0}))
         fi
         if [[ -n "${INUSE[$cn]:-}" ]]; then
             local_used=$((local_used + INUSE[$cn]))

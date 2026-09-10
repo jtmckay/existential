@@ -548,19 +548,50 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
 
 // How many timestamped docker-compose-<stamp>.yml archives to retain. The
 // previous compose is archived on every run; without a cap these accumulate
-// forever in the repo root.
+// forever.
 const KEEP_ARCHIVES = 3;
 
+// Compose archives live in their own subdirectory. They used to sit loose at the
+// top of archive/ alongside the timestamped directories `./existential.sh reset`
+// creates, which made a listing read as two unrelated things sharing a folder —
+// you could not tell at a glance which entries were "a whole install's rendered
+// files, archived once" and which were "the previous compose file, rotated on
+// every run".
+const ARCHIVE_SUBDIR = 'docker-compose';
+
+const composeArchiveDir = (repoRoot: string): string =>
+  path.join(repoRoot, 'archive', ARCHIVE_SUBDIR);
+
+const isComposeArchive = (f: string): boolean => /^docker-compose-[0-9].*\.yml$/.test(f);
+
+// Move any archives left loose in archive/ by an older version into the
+// subdirectory. Idempotent, and it runs before the prune so the retention count
+// is applied to the whole set rather than to whichever half had been moved.
+function migrateLooseArchives(repoRoot: string): void {
+  const archiveRoot = path.join(repoRoot, 'archive');
+  if (!fs.existsSync(archiveRoot)) return;
+  const loose = fs.readdirSync(archiveRoot).filter(isComposeArchive);
+  if (loose.length === 0) return;
+  const dest = composeArchiveDir(repoRoot);
+  fs.mkdirSync(dest, { recursive: true });
+  for (const f of loose) {
+    try {
+      fs.renameSync(path.join(archiveRoot, f), path.join(dest, f));
+    } catch { /* best-effort: a partially-moved set is still consistent */ }
+  }
+  process.stderr.write(`Moved ${loose.length} compose archive(s) into archive/${ARCHIVE_SUBDIR}/\n`);
+}
+
 function pruneArchives(repoRoot: string, keep: number): void {
-  const archiveDir = path.join(repoRoot, 'archive');
-  if (!fs.existsSync(archiveDir)) return;
-  const archives = fs.readdirSync(archiveDir)
-    .filter(f => /^docker-compose-[0-9].*\.yml$/.test(f))
+  const dir = composeArchiveDir(repoRoot);
+  if (!fs.existsSync(dir)) return;
+  const archives = fs.readdirSync(dir)
+    .filter(isComposeArchive)
     .sort();                       // lexical sort == chronological (ISO-ish stamp)
   for (const f of archives.slice(0, Math.max(0, archives.length - keep))) {
     try {
-      fs.unlinkSync(path.join(archiveDir, f));
-      process.stderr.write(`Pruned old archive: ${f}\n`);
+      fs.unlinkSync(path.join(dir, f));
+      process.stderr.write(`Pruned old archive: ${ARCHIVE_SUBDIR}/${f}\n`);
     } catch { /* best-effort */ }
   }
 }
@@ -614,13 +645,15 @@ function main(): void {
   if (fs.existsSync(outputPath)) {
     const now = new Date();
     const stamp = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
-    // Same archive/ directory  uses, so generated files
-    // never accumulate in the repo root.
-    const archiveDir = path.join(repoRoot, 'archive');
+    // Under archive/, the same root `./existential.sh reset` uses, so generated
+    // files never accumulate in the repo root — but in their own subdirectory,
+    // since these rotate on every run and reset's are one per reset.
+    migrateLooseArchives(repoRoot);
+    const archiveDir = composeArchiveDir(repoRoot);
     fs.mkdirSync(archiveDir, { recursive: true });
     const backup = path.join(archiveDir, `docker-compose-${stamp}.yml`);
     fs.renameSync(outputPath, backup);
-    process.stderr.write(`Archived: ${backup}\n`);
+    process.stderr.write(`Archived: ${path.relative(repoRoot, backup)}\n`);
     pruneArchives(repoRoot, KEEP_ARCHIVES);
   }
 

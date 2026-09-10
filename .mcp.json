@@ -8,7 +8,7 @@
         "--rm",
         "-i",
         "-v",
-        "/home/taylor/GitHub/existential:/repo:z",
+        "${PWD}:/repo:z",
         "--network",
         "existential_exist",
         "existential/decree:local",

@@ -73,8 +73,8 @@ placeholder.
 | `DECREE_WEBHOOK_CONFIG` | `/app/config.yml` | Config path |
 | `DECREE_WEBHOOK_MAX_BODY_BYTES` | `262144` | Request body limit |
 | `DECREE_WEBHOOK_RATE_WINDOW_MS` | `60000` | Rate limit window |
-| `DECREE_WEBHOOK_RATE_MAX` | `60` | Requests allowed per window |
-| `DECREE_WEBHOOK_RATE_FAIL_MAX` | `10` | Rejected requests allowed per window |
+| `DECREE_WEBHOOK_RATE_MAX` | `60` | **Authenticated** requests allowed per window |
+| `DECREE_WEBHOOK_RATE_FAIL_MAX` | `10` | **Unauthenticated / rejected** requests allowed per window |
 
 ### Responses
 
@@ -85,7 +85,7 @@ placeholder.
 | `401` | Missing, malformed, or wrong `Authorization: Bearer` header |
 | `404` | Unknown path — **and any non-POST method** (see below) |
 | `413` | Body over the size limit |
-| `429` | Request or failure budget exhausted |
+| `429` | Failure budget exhausted (unauthenticated) or request budget exhausted (authenticated) |
 | `500` | Could not write the file |
 
 `GET /healthz` returns `{"ok": true}` and is exempt from rate limiting.
@@ -150,11 +150,26 @@ slow, but seaweedfs delivers file events from several workers at once, so one
 bulk write landed three events in the same millisecond and two were dead-lettered
 by the object store. Bursts are the normal path for a file-event source.
 
-**Rate limiting is global, not per-IP.** The service sits behind Caddy and sees
-one source address, so per-IP buckets would all be the same bucket. There are
-two fixed windows: `all` (every request) and `failures`, which is only charged
-when a request is rejected — the brute-force brake that a busy legitimate caller
-never trips.
+**Rate limiting is global, not per-IP, and split by whether a request
+authenticates.** The service sits behind Caddy and sees one source address, so
+per-IP buckets would all be the same bucket. Instead the two fixed windows
+divide the traffic:
+
+- **`failures`** (`RATE_FAIL_MAX`, default 10) — charged only by requests that
+  fail authentication, hit an unknown path, or use a non-POST method. The
+  brute-force brake.
+- **`all`** (`RATE_MAX`, default 60) — charged only by requests that *did*
+  authenticate. A throughput cap so one client cannot flood the inbox.
+
+Authentication happens **before** either budget is consulted, and that ordering
+is the point. It used to be the other way round, which meant ten wrong-token
+requests from anyone who could reach the service returned 429 on every endpoint
+for the rest of the window — including callers holding the correct secret. Ten
+requests a minute took the whole pipeline down. Now neither half can starve the
+other: unauthenticated traffic cannot lock out real callers, and a busy real
+caller cannot trip the brute-force brake. A 400 from an authenticated caller is
+a client bug, not an attack, so it does not spend the failure budget either.
+`main_test.go` pins all three properties.
 
 **Auth is a static per-endpoint bearer token** compared in constant time, with a
 length check first so a wrong-length token cannot be distinguished by timing.
@@ -191,7 +206,7 @@ container has no Go toolchain. Run them from this directory:
 ```bash
 go test ./...
 # or, without Go on the host:
-docker run --rm -v "$PWD":/src -w /src golang:1.26.5-alpine3.23 go test ./...
+docker run --rm -v "$PWD":/src -w /src golang:1.26.6-alpine3.23 go test ./...
 ```
 
 The suite is golden-file based: it asserts the exact bytes written to the inbox,

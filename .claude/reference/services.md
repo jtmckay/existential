@@ -220,8 +220,9 @@ holds the image build now — Dockerfile, entrypoint.sh, package.json), `automat
   `/work/.decree/config.yml` — the render pipeline and `validate-conventions.ts` both require
   `config.exist.yml` to live at `<slug>/decree/config.exist.yml`, so it couldn't move to the
   root without those tools losing track of it.
-- **`automation-backup`** mounts `automation/shared_routines/`, `automation/lib/`,
-  `automation/runs/` individually (read-only) into its own project dir
+- **`automation-backup`** mounts `automation/shared_routines/` and `automation/lib/`
+  individually (read-only), plus `automation/runs/` read-**write** (both daemons write their
+  run logs and `runs/.alert-state/` there), into its own project dir
   (`services/automation/backup/`, wholesale-mounted as `/work/.decree`), and keeps a
   conventional `cron.example/` + `cron/` pair there too, since its crons are per-instance, not
   shared mounted content.
@@ -231,10 +232,27 @@ ran the routine.
 
 | | `automation` (`decree/`) | `automation-backup` (`backup/`) |
 |---|---|---|
-| Runs | routing, notes, triage, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync` |
-| Sees | `/repo` read-only, `/workspace` read-write, `decree_data` | `volumes/` read-write, `/workspace` read-only |
+| Runs | routing, notes, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync`, `notify`, `clean-runs`, **`triage`** (+ `notes-pull`, opt-in) |
+| Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its routines use | the **master `.env`** via `env_file` |
 | AI CLI | `DECREE_AI` from `.env` (opencode) | none — `DECREE_AI=` blanked to override `env_file` |
+
+**Why `triage` is on the backup side.** It reads the whole repo — every service's
+`exist.test.sh` plus `.env.shared` — and the credentials those tests authenticate with. That is
+the same bulk read access backups need, and it is the *only* thing that ever wanted `/repo`
+mounted, so the mount followed it. Putting it in `automation` meant the container that runs
+agent-task and an AI CLI held the master `.env`, `.env.shared` and
+`hosting/caddy/certs/internal-ca-key.pem` — the key that signs every `*.<domain>` cert. What a
+prompt injection can read is what that container can read, so it now reads four profile
+directories.
+
+Triage still qualifies for this daemon on its own terms: it observes and reports. No reasoning,
+no routing, no AI call. It enqueues one `notify` message, and `notify` runs here too.
+
+The one thing to know if you touch it: triage sets `EXIST_TEST_LIVENESS_ONLY=false` for each
+test it runs, because this daemon sets it `true` for its own routines' cheaper probes. Triage
+wants the **full** check, Caddy routing included — a broken reverse proxy is much of what it
+exists to catch. See `testing.md`.
 
 The split is the whole design. Backups need every volume and every DB credential; nothing else
 does, and the container that runs an agent with terminal access must not have them. So

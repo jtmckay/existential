@@ -102,16 +102,6 @@ sections:
         statusCheckAllowInsecure: true
         description: Local models (API — every other AI service talks to this)
 
-      - title: Firecrawl
-        # Points at the docs page, not firecrawl.<domain>, on purpose: Caddy
-        # 401s every request there without "Authorization: Bearer
-        # CADDY_FIRECRAWL_API_KEY" (hosting/caddy/Caddyfile.exist.Caddyfile),
-        # which a dashboard tile can't supply. A live/statusCheck block would
-        # read permanently down instead of just being an API with no UI.
-        url: https://existential.company/docs/ai/firecrawl
-        icon: fas fa-spider
-        description: Web scraping/crawling API for the agent — no browser UI, needs an API key
-
   # ── the house ─────────────────────────────────────────────────────────────
   - name: Home
     icon: fas fa-house

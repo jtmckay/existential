@@ -16,6 +16,13 @@ services:
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # The decree image is debian-based and ships setuid binaries (su, mount,
+    # passwd). Its /etc/passwd is world-writable so entrypoint.sh can add an
+    # entry for the runtime uid — see decree/Dockerfile. Without this, those
+    # two facts combine into container root, which is uid 0 against every
+    # bind mount. This neuters every setuid binary regardless of /etc/passwd.
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     # Measured against this image (v4.135.0): a fresh install (code-server
     # binary extraction, 4 extensions, npm i -g of claude-code + opencode-ai)

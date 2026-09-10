@@ -478,6 +478,62 @@ func TestFailureLimiterTripsBeforeTotalLimiter(t *testing.T) {
 	}
 }
 
+// The regression this pins: the failure budget used to be checked before
+// authentication, so anyone who could reach the service could spend it with
+// wrong-token requests and lock out every real caller on every endpoint.
+func TestExhaustedFailureBudgetDoesNotBlockAuthenticatedCallers(t *testing.T) {
+	testServer, inbox := newTestServer(t, 1000, 3)
+
+	// Burn the whole failure budget with unauthenticated requests, then some.
+	for attempt := 0; attempt < 6; attempt++ {
+		sendRequest(t, testServer, http.MethodPost, "/notify", "", "b")
+	}
+	if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", "", "b"); status != http.StatusTooManyRequests {
+		t.Fatalf("unauthenticated status = %d, want 429 — the brute-force brake should still be tripped", status)
+	}
+
+	// A caller holding the correct secret must be unaffected.
+	clearInbox(t, inbox)
+	status, body := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "b")
+	if status != http.StatusCreated {
+		t.Fatalf("authenticated status = %d (%s), want 201", status, body)
+	}
+	if files := inboxFiles(t, inbox); len(files) != 1 {
+		t.Fatalf("authenticated request wrote %d files, want 1", len(files))
+	}
+}
+
+// The other half: authenticated traffic must not spend the brute-force budget,
+// so a busy legitimate caller can never lock anyone out.
+func TestAuthenticatedTrafficDoesNotTripTheBruteForceBrake(t *testing.T) {
+	testServer, inbox := newTestServer(t, 1000, 2)
+	for attempt := 0; attempt < 10; attempt++ {
+		clearInbox(t, inbox)
+		if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, "b"); status != http.StatusCreated {
+			t.Fatalf("request %d: status = %d, want 201", attempt, status)
+		}
+	}
+	// An unauthenticated request should still get its 401 — the budget the
+	// authenticated traffic above did not touch.
+	if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", "", "b"); status != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 — authenticated traffic spent the failure budget", status)
+	}
+}
+
+// A bad request from an AUTHENTICATED caller is a client bug, not an attack: it
+// must not spend the brute-force budget either.
+func TestAuthenticatedBadRequestDoesNotSpendFailureBudget(t *testing.T) {
+	testServer, _ := newTestServer(t, 1000, 2)
+	for attempt := 0; attempt < 5; attempt++ {
+		if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", bearerHeader, ""); status != http.StatusBadRequest {
+			t.Fatalf("request %d: status = %d, want 400", attempt, status)
+		}
+	}
+	if status, _ := sendRequest(t, testServer, http.MethodPost, "/notify", "", "b"); status != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 — authenticated 400s spent the failure budget", status)
+	}
+}
+
 func TestSuccessDoesNotSpendFailureBudget(t *testing.T) {
 	testServer, inbox := newTestServer(t, 1000, 3)
 	for attempt := 0; attempt < 10; attempt++ {

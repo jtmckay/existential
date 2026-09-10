@@ -17,11 +17,9 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    REPO="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    exec docker compose -f "$REPO/existential-compose.yml" run --rm \
-        existential-adhoc bash /src/lib/check-versions.sh "$@"
-fi
+# shellcheck source=../utils/adhoc.sh
+. "${SCRIPT_DIR}/../utils/adhoc.sh"
+adhoc_self_elevate "${BASH_SOURCE[0]}" "$@"
 
 REPO="/repo"
 

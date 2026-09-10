@@ -20,13 +20,8 @@ set -euo pipefail
 # publishes no host port — the default endpoint is http://ollama:11434, a Docker
 # DNS name that only resolves on the exist network. adhoc is on that network,
 # and can equally reach a remote EXIST_OLLAMA_URL.
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
-    _tty=(-T); [[ -t 0 && -t 1 ]] && _tty=(-it)
-    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm "${_tty[@]}" \
-        --entrypoint "" existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}" "$@"
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
+adhoc_self_elevate "${BASH_SOURCE[0]}" "$@"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 

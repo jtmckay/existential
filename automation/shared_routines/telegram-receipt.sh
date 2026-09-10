@@ -159,7 +159,7 @@ for i in $(seq 0 $((_count - 1))); do
         # environment. ocr.ts read process.env.FILE_PATH, found nothing, and
         # exited: every receipt reported "OCR failed" regardless of the image.
         _ocr_raw=$(FILE_PATH="$_tmpfile" \
-                   OCR_MODEL="${OCR_MODEL:-llava}" \
+                   OCR_MODEL="${OCR_MODEL:-${EXIST_MODEL_VISION:-}}" \
                    OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}" \
                    $_tsx /work/.decree/lib/ocr.ts "$_ocr_prompt") || {
                 telegram_send_reply "$_notify_msg_id" "❌ OCR failed — could not read the receipt. Please try again."

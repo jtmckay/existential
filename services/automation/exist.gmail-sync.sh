@@ -13,12 +13,10 @@ set -euo pipefail
 
 # Self-elevate into existential-adhoc (with port 8803 published for the OAuth
 # redirect) if we're on the host.
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    _SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    _REPO="$(cd "$(dirname "$_SCRIPT")/../.." && pwd)"
-    exec docker compose -f "${_REPO}/existential-compose.yml" run --rm -it \
-        --entrypoint "" -p 8803:8803 existential-adhoc bash "/repo${_SCRIPT#"$_REPO"}"
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
+# 8803 published for the OAuth redirect this script listens on.
+ADHOC_EXTRA_FLAGS=(-p 8803:8803)
+adhoc_self_elevate "${BASH_SOURCE[0]}"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 

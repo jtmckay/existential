@@ -11,7 +11,7 @@ IS_PRE_SIGNED=false
 # Configuration — override via env or message frontmatter
 FILE_SUFFIX="${FILE_SUFFIX:-.ocr.txt}"
 OUTPUT_RCLONE="${OUTPUT_RCLONE:-nextcloud}"
-export OCR_MODEL="${OCR_MODEL:-llava}"
+export OCR_MODEL="${OCR_MODEL:-${EXIST_MODEL_VISION:-}}"
 export OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 PROMPT="${PROMPT:-}"
 

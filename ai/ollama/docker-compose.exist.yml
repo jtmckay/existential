@@ -30,6 +30,22 @@ services:
               count: all # or a number, e.g. 1
               capabilities: [gpu]
     restart: unless-stopped
+    # The image ships no curl, wget or nc (verified against ollama/ollama:0.32.14
+    # — the only probe binary in it is ollama itself), so the server probes
+    # itself over its own API. Verified both ways: `ollama list` exits 0 against
+    # a running `ollama serve` and 1 when nothing is listening.
+    #
+    # This matters more here than elsewhere: services/automation/migration-gate.sh
+    # gates every model-pull migration on ollama, and the container-state gate
+    # only ever looks for `unhealthy` — so with no healthcheck at all, a wedged
+    # ollama reads as "running" and nothing notices.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Cold start on a large model can be slow; don't flap during it.
+      start_period: 60s
     networks:
       - exist
     environment:

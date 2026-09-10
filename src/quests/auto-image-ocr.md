@@ -30,7 +30,7 @@ Processor convention (ollama-ocr.sh):
   IS_PRE_SIGNED false — file is downloaded to a temp path; Ollama reads base64
   FILE_SUFFIX   output filename suffix (default: .ocr.txt)
   OUTPUT_RCLONE rclone remote to write the text (default: nextcloud)
-  OCR_MODEL     Ollama vision model to use (default: llava)
+  OCR_MODEL     Ollama vision model to use (default: EXIST_MODEL_VISION)
   OLLAMA_URL    Ollama API base URL (default: http://ollama:11434)
   PROMPT        optional system prompt to guide extraction (default: auto)
 
@@ -41,8 +41,12 @@ Setup:
        s3-router:
          enabled: true
 
-  2. Make sure the llava model (or your chosen OCR_MODEL) is pulled in Ollama:
-       docker exec ollama ollama pull llava
+  2. Make sure the vision model is pulled in Ollama. It is chosen globally as
+     EXIST_MODEL_VISION in .env.shared, and migration 14 pulls it for you:
+       cp automation-examples/migrations/14-ollama-pull-vision-model.md \
+          automation/migrations/
+     Or pull it by hand:
+       docker exec ollama ollama pull "$(grep ^EXIST_MODEL_VISION= .env.shared | cut -d= -f2)"
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
      decree — no restart needed for this one:

@@ -4,6 +4,13 @@ services:
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # The decree image is debian-based and ships setuid binaries (su, mount,
+    # passwd). Its /etc/passwd is world-writable so entrypoint.sh can add an
+    # entry for the runtime uid — see decree/Dockerfile. Without this, those
+    # two facts combine into container root, which is uid 0 against every
+    # bind mount. This neuters every setuid binary regardless of /etc/passwd.
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     # The automation daemon. ~45 MiB idle, but it runs opencode and tsx in-process.
     deploy:
@@ -137,12 +144,23 @@ services:
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
       - decree_data:/data:z
       - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
-      # The repo, read-only, so triage can run each enabled service's own
-      # exist.test.sh — they live with their services, not in this directory.
-      # Read-only on purpose: triage observes, it never repairs.
-      - ../../:/repo:ro
+      # NOT the whole repo. This container runs agent-task and the AI CLI, so
+      # what it can read is what a prompt injection can read. The whole-repo
+      # mount that used to be here existed for triage, and carried the master
+      # .env (every DB password and admin credential), .env.shared, and
+      # hosting/caddy/certs/internal-ca-key.pem — the key that signs every
+      # *.<domain> cert, i.e. a ready-made interception primitive.
+      #
+      # Triage moved to automation-backup, which does no reasoning and runs no
+      # agent, and the mount went with it. All that is left here is what
+      # hermes-router actually reads: the profile definitions, which hold no
+      # secrets. Keep it that way — if something here starts wanting /repo,
+      # mount the subtree it needs, not the root.
+      - ../../ai/hermes/profiles:/repo/ai/hermes/profiles:ro
       # The shared workspace, read-write: agent-task files its output in
-      # workspace/ai/. This is the only container that writes there.
+      # workspace/ai/. It is the only container that writes workspace/ai/ —
+      # automation-backup also mounts /workspace read-write for workspace-sync,
+      # which bisyncs everything EXCEPT ai/ (workspace-sync.sh's exclude list).
       - ../../workspace:/workspace:z
       # OpenCode pointed at hermes, so agent-task inherits hermes' MCP
       # servers (openviking, firecrawl, playwright) with no wiring here.
@@ -159,6 +177,13 @@ services:
     image: existential/decree:local  # shared image, built by existential-adhoc
     pull_policy: never
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # The decree image is debian-based and ships setuid binaries (su, mount,
+    # passwd). Its /etc/passwd is world-writable so entrypoint.sh can add an
+    # entry for the runtime uid — see decree/Dockerfile. Without this, those
+    # two facts combine into container root, which is uid 0 against every
+    # bind mount. This neuters every setuid binary regardless of /etc/passwd.
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     # Backup daemon: tar, pg_dump/mysqldump/mongodump, rclone. Idle between crons.
     deploy:
@@ -170,15 +195,22 @@ services:
     # The master env, deliberately. db-backup reads a different credential pair
     # per service, so enumerating them here would reintroduce exactly the
     # per-service wiring this container exists to delete. The trade is real and
-    # bounded: this daemon runs six fixed backup routines, no agent and no
+    # bounded: this daemon runs a fixed whitelist of seven routines, no agent and no
     # router, and the master env stays out of `decree`, which does run agents.
     env_file:
       - ../../.env
     environment:
       - DECREE_DAEMON=true
-      # Marks THIS daemon, not `decree`, as the one with no /repo and no routing
-      # stack: exist.test.sh skips its flag lookup and Caddy probes here only.
+      # Identifies which daemon dead-lettered a message (lib/hooks/onDeadLetter.sh
+      # turns this into the container name in the alert). It no longer gates any
+      # test behaviour — that moved to EXIST_TEST_LIVENESS_ONLY below, because
+      # "which daemon am I" stopped answering "what can I reach" once triage
+      # moved here and brought the /repo mount with it.
       - DECREE_BACKUP=true
+      # This daemon's own routines just need "is the service up" — they cannot
+      # reach the routing stack the way a full check does. Triage also runs here
+      # and explicitly clears this per test, because it DOES want the full check.
+      - EXIST_TEST_LIVENESS_ONLY=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
       # Blanked on purpose, and this is why env_file needs watching: .env sets
@@ -217,6 +249,20 @@ services:
       # workspace-sync bisyncs the workspace both ways with the bucket, so it needs
       # to write files pulled down from the bucket, not just read them up.
       - ../../workspace:/workspace:z
+      # Triage's backoff state and status report live at /data/triage — the same
+      # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
+      # subtrees, one volume, so moving triage here keeps its existing state
+      # (volumes/decree_data/triage/) instead of resetting the green streak.
+      - decree_data:/data:z
+      # The repo, read-only, so triage can run each enabled service's own
+      # exist.test.sh — they live with their services, not in this directory —
+      # and read .env.shared to know which services are enabled. Read-only on
+      # purpose: triage observes, it never repairs.
+      #
+      # This is the credential-heaviest mount in the stack, which is why it is
+      # here rather than in `automation`: this daemon runs a fixed whitelist, no
+      # agent and no router, so nothing here interprets untrusted input.
+      - ../../:/repo:ro
     # No /work/exist.test.sh mount: this daemon owns no migrations, so the
     # entrypoint's health-wait branch is correctly skipped.
     tty: false

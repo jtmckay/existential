@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# decree — pre-startup init: activate the triage cron.
+# automation — pre-startup init: activate the triage cron (and migrate it off the
+# `automation` daemon for installs that predate the move).
 #
 # Runs on the host (and in adhoc — it is a plain file copy inside the repo).
 # Called every `./existential.sh` for an enabled decree; skips silently once the
@@ -8,20 +9,90 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# triage is `enabled: true` in config.exist.yml and deliberately not opt-in — a
-# stack nobody is watching is exactly the one that needs it. But automation/cron/
-# is gitignored (it is the user's active set), so the tracked template in
-# automation-examples/cron/ is the only copy in git and the routine never ticks
-# until something puts it in place. No quest owns this: 18 quests can enable
-# decree, and triage has to work from all of them. Guarded on absence: edit or
-# delete the active copy and it stays that way; the real opt-out is `triage:
-# enabled: false` in the rendered config.yml, which this never touches.
-CRON_SRC="${SCRIPT_DIR}/../../automation-examples/cron/triage.md"
-CRON_DST="${SCRIPT_DIR}/../../automation/cron/triage.md"
+# triage is `enabled: true` in the backup daemon's config.exist.yml and
+# deliberately not opt-in — a stack nobody is watching is exactly the one that
+# needs it. But cron/ is gitignored (it is the user's active set), so the tracked
+# template is the only copy in git and the routine never ticks until something
+# puts it in place. No quest owns this: 18 quests can enable automation, and
+# triage has to work from all of them. Guarded on absence: edit or delete the
+# active copy and it stays that way.
+#
+# triage runs in automation-backup, not automation — it needs the read-only
+# /repo mount, and that mount is deliberately kept out of the container that
+# runs an AI CLI. See .claude/reference/services.md.
+CRON_SRC="${SCRIPT_DIR}/backup/cron.example/triage.md"
+CRON_DST="${SCRIPT_DIR}/backup/cron/triage.md"
+CRON_OLD="${SCRIPT_DIR}/../../automation/cron/triage.md"
+
+# ── Migration: triage used to run in the `automation` daemon ─────────────────
+#
+# An install created before the move has the cron in automation/cron/ and the
+# whitelists the wrong way round in the two RENDERED config.yml files, which are
+# written once and never re-rendered — so nothing else will ever fix them. Left
+# alone, triage would fire in a daemon that no longer has /repo (pre-check fails)
+# while the daemon that does have it declines the routine as unlisted.
+#
+# Scoped to the exact pre-move fingerprint: only act when decree still says
+# `true` AND backup still says `false`. A user who has deliberately turned triage
+# off since is left alone, and re-running this is a no-op.
+_triage_enabled_in() {   # <rendered config.yml> -> echoes true|false|missing
+    local f="$1"
+    [[ -f "$f" ]] || { echo missing; return; }
+    awk '/^  triage:/ {found=1; next} found && /^    enabled:/ {print $2; exit}' "$f" \
+        | grep -qE '^true$' && echo true || echo false
+}
+_set_triage_in() {       # <rendered config.yml> <true|false>
+    local f="$1" want="$2"
+    [[ -f "$f" ]] || return 0
+    awk -v want="$want" '
+        /^  triage:/ { print; intriage=1; next }
+        intriage && /^    enabled:/ { print "    enabled: " want; intriage=0; next }
+        { print }
+    ' "$f" > "${f}.tmp" && cat "${f}.tmp" > "$f" && rm -f "${f}.tmp"
+}
+
+_DECREE_CFG="${SCRIPT_DIR}/decree/config.yml"
+_BACKUP_CFG="${SCRIPT_DIR}/backup/config.yml"
+if [[ "$(_triage_enabled_in "$_DECREE_CFG")" == "true" \
+   && "$(_triage_enabled_in "$_BACKUP_CFG")" == "false" ]]; then
+    _set_triage_in "$_DECREE_CFG" false
+    _set_triage_in "$_BACKUP_CFG" true
+    echo "[automation] triage moved to the automation-backup daemon (rendered configs updated)."
+    if [[ -e "$CRON_OLD" && ! -e "$CRON_DST" ]]; then
+        mkdir -p "$(dirname "$CRON_DST")"
+        mv "$CRON_OLD" "$CRON_DST"
+        echo "[automation] triage cron moved to services/automation/backup/cron/."
+    else
+        rm -f "$CRON_OLD"
+    fi
+    echo "[automation] restart both daemons to pick this up: docker compose up -d"
+fi
+
+# ── Migration: clean-runs used to sweep once a day ───────────────────────────
+#
+# `keep: 10` is a bound on what is on disk, and a daily sweep only made it true
+# for one instant a day. workspace-sync fires every 10 minutes and triage every
+# 5, so the shared runs/ dir reached 53 workspace-sync and 96 triage directories
+# between passes. The routine itself was working — its last daily pass removed
+# 405 — it just ran 1/144th as often as the things it cleans up after.
+#
+# The tracked template now says */15. An active cron/ copy is gitignored and
+# never re-rendered, so without this an existing install keeps the daily
+# schedule forever. Scoped to the exact old value, so a deliberately customised
+# schedule is left alone, and idempotent once bumped.
+_CLEAN_CRON="${SCRIPT_DIR}/../../automation/cron/clean-runs.md"
+if [[ -f "$_CLEAN_CRON" ]] && grep -qF 'cron: "0 10 * * *"' "$_CLEAN_CRON"; then
+    _tmp="$(mktemp)"
+    sed 's|^cron: "0 10 \* \* \*"$|cron: "*/15 * * * *"|' "$_CLEAN_CRON" > "$_tmp"
+    cat "$_tmp" > "$_CLEAN_CRON"   # preserve inode: cron/ is a live bind mount
+    rm -f "$_tmp"
+    echo "[automation] clean-runs schedule bumped daily -> */15 (restart automation to apply)."
+fi
+
 if [[ -f "${CRON_SRC}" && ! -e "${CRON_DST}" ]]; then
     mkdir -p "$(dirname "${CRON_DST}")"
     cp "${CRON_SRC}" "${CRON_DST}"
-    echo "[decree] triage cron activated."
+    echo "[automation] triage cron activated."
 fi
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/

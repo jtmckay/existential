@@ -352,19 +352,30 @@ _assert_always_render_safe() {
     done
 }
 
-# Rendered files that hold secrets (DB passwords, API keys, private keys) must
-# not be world/group-readable. chmod 600 anything that looks like a credential
-# file so a fresh render never leaves secrets at the default umask (664/644).
-_secure_if_secret() {
-    local f="$1" base; base="$(basename "$f")"
-    case "$base" in
-        .env|.env.*|*.pem|*_password*.txt) chmod 600 "$f" 2>/dev/null || true ;;
-        # Rendered config files carry bearer tokens (decree-webhook) and daemon
-        # credentials (decree). Everything reaching this function was just
-        # rendered from a *.exist.* template, so both spellings are in scope —
-        # ai/chatterbox renders config.yaml, not config.yml.
-        config.yml|*-config.yml|config.yaml|*-config.yaml) chmod 600 "$f" 2>/dev/null || true ;;
-    esac
+# Every rendered file is chmod 600. Deny by default, with no extension list.
+#
+# This used to be an allowlist of names that "look like" credentials
+# (.env*, *.pem, *_password*.txt, config.y*ml). Three rendered destinations
+# carrying live secrets did not match it and sat at the umask default of 644:
+#   nas/seaweedfs/s3.json          — the S3 root and nextcloud secretKeys
+#   nas/seaweedfs/notification.toml — the decree /s3 webhook bearer token
+#   services/automation/opencode.json — the hermes API key
+# The same class of bug had already been found and fixed in the two secret
+# guards (see .githooks/pre-commit) and the lesson was not carried over here.
+# A list of names cannot be kept in sync with a growing set of templates, so
+# there is no list: if it was rendered, it is 600.
+#
+# Safe for every service because no container runs as a fixed non-root uid.
+# Each one is either `user: ${EXIST_PUID}:${EXIST_PGID}` — the uid that owns
+# these files — or has no `user:` and runs as root, which reads anything.
+# ai/chatterbox has been running its config.yaml at 600 since this function
+# existed, which is the working proof.
+#
+# If a rendered destination ever genuinely needs to be group- or world-readable,
+# widen it in that service's own exist.initial.sh, where the reason can live
+# next to the service that needs it.
+_secure_rendered() {
+    chmod 600 "$1" 2>/dev/null || true
 }
 
 # Marker line stamped at the top of every always-rendered file. check-drift.ts
@@ -526,9 +537,9 @@ _reconcile_env_keys() {
         printf '%s' "$_block"
     } >> "$dst"
 
-    # Fixes the mode on files rendered before _secure_if_secret existed, and costs
+    # Fixes the mode on files rendered before _secure_rendered existed, and costs
     # nothing on the ones already at 600.
-    _secure_if_secret "$dst"
+    _secure_rendered "$dst"
 
     _STATS_KEYS_ADDED=$(( _STATS_KEYS_ADDED + ${#_new[@]} ))
     echo "  updated: ${dst#"$REPO_DIR/"} — ${#_new[@]} new key(s) from the template"
@@ -590,7 +601,7 @@ _process_one_template() {
                 exit 1
             fi
             printf '%s\n' "$rendered" > "$f"
-            _secure_if_secret "$f"
+            _secure_rendered "$f"
         done < <(find "$dst" -type f 2>/dev/null)
     else
         # Resolve every placeholder in memory, then write the destination once.
@@ -620,7 +631,7 @@ _process_one_template() {
         # archive-then-rename pattern generate-compose.ts uses for the root
         # compose file here.
         printf '%s\n' "$rendered" > "$dst"
-        _secure_if_secret "$dst"
+        _secure_rendered "$dst"
         # Every volume becomes a host bind mount in generate-compose.ts
         # from each service's x-exist-volumes block: ${EXIST_NFS_HOST_MOUNT}/<name> for nfs-marked
         # volumes when a host mount is set, else volumes/<name>/. The top-level

@@ -12,6 +12,15 @@ services:
     # grafana runs as uid 472 internally; run as the host user instead so it can
     # write the host-owned bind-mounted grafana_data (declared db: true — never NFS).
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # grafana/grafana:13.2.1 ships wget and answers /api/health with the
+    # database status (verified against the running container). Without this the
+    # container had no health signal at all, from the image or from here.
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - exist
     # ports disabled — access via https://grafana.<domain> (Caddy + pihole required)

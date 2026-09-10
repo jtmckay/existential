@@ -188,33 +188,77 @@ _create_hermes_conversation() {
     echo "Created the Hermes conversation-agent entry."
 }
 
-_create_wyoming wyoming-whisper 10300 whisper
-_create_wyoming wyoming-piper 10200 piper
-_create_hermes_conversation
-
-STT_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("whisper";"i")) | .entry_id' | head -1)
-TTS_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("piper";"i")) | .entry_id' | head -1)
-CONV_ENTRY_ID=$(_entries extended_openai_conversation | jq -r '.[0].entry_id')
-
 # entity_id for the entity registered against a config entry, filtered to one
 # domain — robust against whatever title wyoming picked, unlike guessing a
 # slug from the hostname.
 _entity_for_entry() {
     local entry_id="$1" domain="$2"
+    [[ -z "$entry_id" || "$entry_id" == "null" ]] && return 0
     _ws '{"type":"config/entity_registry/list"}' \
         | jq -r --arg cid "$entry_id" --arg dom "$domain" \
             '.[] | select(.config_entry_id==$cid and (.entity_id | startswith($dom+"."))) | .entity_id' \
         | head -1
 }
 
-STT_ENTITY=$(_entity_for_entry "$STT_ENTRY_ID" stt)
-TTS_ENTITY=$(_entity_for_entry "$TTS_ENTRY_ID" tts)
-CONV_ENTITY=$(_entity_for_entry "$CONV_ENTRY_ID" conversation)
+# Create the three config entries and resolve their entity ids, retrying until
+# all three are present or the deadline passes.
+#
+# Home Assistant assembles itself asynchronously, which the two retry loops
+# above (_api, _login_with_retry) already account for — this step did not, and
+# it is the same race. Two distinct lags bite here:
+#
+#   1. A config entry is not visible on /config_entries the instant its flow
+#      POST returns. Observed on a fresh install: the conversation flow was
+#      posted and reported created, and moments later the entry was not there
+#      at all — the next run's existence guard found zero and created it again.
+#   2. Even once the entry exists, HA registers its ENTITIES afterwards. The
+#      same fresh install resolved stt and tts on the first look and had no
+#      conversation entity yet.
+#
+# So the loop re-runs creation as well as resolution. Every _create_* is guarded
+# by its own existence check, so a repeat is a no-op once the entry has really
+# materialised and cannot produce a duplicate.
+#
+# Without this the migration exits 1 with the Wyoming and Hermes entries created
+# and no pipeline — a half-configured Home Assistant. It also dead-letters, and
+# `decree process` stops at the first dead letter, so it takes every migration
+# numbered after it down as well.
+_ensure_voice_wiring() {
+    local deadline=$(( SECONDS + HOMEASSISTANT_READY_TIMEOUT )) waited=0
+    while :; do
+        _create_wyoming wyoming-whisper 10300 whisper
+        _create_wyoming wyoming-piper 10200 piper
+        _create_hermes_conversation
 
-if [[ -z "$STT_ENTITY" || -z "$TTS_ENTITY" || -z "$CONV_ENTITY" ]]; then
-    echo "Could not resolve entity ids (stt=${STT_ENTITY:-?} tts=${TTS_ENTITY:-?} conversation=${CONV_ENTITY:-?})" >&2
-    exit 1
-fi
+        STT_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("whisper";"i")) | .entry_id' | head -1)
+        TTS_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("piper";"i")) | .entry_id' | head -1)
+        # `// empty`: jq prints the string "null" for a missing field, which is
+        # not falsy in bash and would be passed on as a real entry id.
+        CONV_ENTRY_ID=$(_entries extended_openai_conversation | jq -r '.[0].entry_id // empty')
+
+        STT_ENTITY=$(_entity_for_entry "$STT_ENTRY_ID" stt)
+        TTS_ENTITY=$(_entity_for_entry "$TTS_ENTRY_ID" tts)
+        CONV_ENTITY=$(_entity_for_entry "$CONV_ENTRY_ID" conversation)
+
+        if [[ -n "$STT_ENTITY" && -n "$TTS_ENTITY" && -n "$CONV_ENTITY" ]]; then
+            (( waited > 0 )) && echo "Entities registered after ${waited}s of waiting." >&2
+            return 0
+        fi
+
+        if (( SECONDS >= deadline )); then
+            echo "Could not resolve entity ids after ${HOMEASSISTANT_READY_TIMEOUT}s" >&2
+            echo "  stt=${STT_ENTITY:-?} tts=${TTS_ENTITY:-?} conversation=${CONV_ENTITY:-?}" >&2
+            echo "  Nothing is half-applied that a re-run will not finish: every entry" >&2
+            echo "  is created behind an existence check and the pipeline behind a" >&2
+            echo "  name check. Re-run once Home Assistant has settled." >&2
+            return 1
+        fi
+        sleep 5
+        waited=$(( waited + 5 ))
+    done
+}
+
+_ensure_voice_wiring || exit 1
 
 # Idempotent by name: the pipeline store has no unique constraint on name, so
 # check first rather than accumulate a duplicate on every re-run.

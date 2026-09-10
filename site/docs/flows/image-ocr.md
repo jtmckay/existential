@@ -200,7 +200,7 @@ rclone copyto /path/to/scan.jpg s3:documents/scan.jpg \
 | `TELEGRAM_RCLONE_DEST` | `nextcloud:S3/telegram` | *Telegram route only* — where downloaded images are stored (triggers the OCR pipeline) |
 | `FILE_SUFFIX` | `.ocr.txt` | Suffix appended to the image path for the OCR output |
 | `OUTPUT_RCLONE` | `nextcloud` | rclone remote where the OCR result is saved |
-| `OCR_MODEL` | `llava` | Ollama vision model used for text extraction |
+| `OCR_MODEL` | `EXIST_MODEL_VISION` | Ollama vision model used for text extraction. Chosen globally in `.env.shared`, not per-flow. |
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama API base URL |
 
 ## Testing

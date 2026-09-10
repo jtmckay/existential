@@ -28,24 +28,6 @@ fi
 export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
 export COMPOSE_IGNORE_ORPHANS=1
 
-# ── Container runtime ─────────────────────────────────────────────────────────
-
-ROOTLESS_PODMAN=false
-if podman --version &>/dev/null 2>&1; then
-    DOCKER_CMD=podman
-    podman info 2>/dev/null | grep -q 'rootless: true' && ROOTLESS_PODMAN=true
-elif distrobox-host-exec podman --version &>/dev/null 2>&1; then
-    podman() { distrobox-host-exec podman "$@"; }
-    DOCKER_CMD=podman
-    podman info 2>/dev/null | grep -q 'rootless: true' && ROOTLESS_PODMAN=true
-elif docker --version &>/dev/null 2>&1; then
-    DOCKER_CMD=docker
-else
-    echo "Error: neither docker nor podman found." >&2
-    echo "Install Docker: https://docs.docker.com/engine/install/" >&2
-    exit 1
-fi
-
 # Point git at the repo's committed hooks (.githooks/pre-commit blocks secrets
 # from entering this public repo — see src/test/no-tracked-secrets.sh). Idempotent;
 # no-op outside a git checkout. Local config, so it never fights a user override.
@@ -60,33 +42,15 @@ ensure_git_hooks() {
     fi
 }
 
-# Build the adhoc image if not present; all interactive setup runs inside it.
-ensure_adhoc_built() {
-    if ! $DOCKER_CMD image inspect existential/decree:local &>/dev/null 2>&1; then
-        echo "Building existential-adhoc (first run)..."
-        $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" build existential-adhoc
-    fi
-}
-
-# Run a command inside the adhoc container (TTY-aware).
-run_adhoc() {
-    # `docker compose run` allocates a pseudo-TTY by default (keyed off stdout),
-    # which fails with "the input device is not a TTY" when stdin isn't one — e.g.
-    # a git-push pre-push hook: stdout is the terminal, stdin is git's pipe. Default
-    # to -T (no TTY) and only opt into -it when BOTH ends are real TTYs.
-    local tty_flags=(-T)
-    [[ -t 0 && -t 1 ]] && tty_flags=(-it)
-    # Rootless Podman user-namespace fix: --user uid:gid maps the process to a
-    # sub-uid range, not the host user, so bind-mount writes fail. In rootless
-    # Podman, container root (UID 0) already maps to the host user, so omitting
-    # --user lets writes succeed. Docker Engine has no namespace remapping and
-    # needs --user to produce host-owned files.
-    local user_flags=(--user "$(id -u):$(id -g)")
-    $ROOTLESS_PODMAN && user_flags=()
-    $DOCKER_CMD compose -f "${SCRIPT_DIR}/existential-compose.yml" run --rm "${tty_flags[@]}" \
-        "${user_flags[@]}" \
-        --entrypoint "" existential-adhoc "$@"
-}
+# ensure_adhoc_built and run_adhoc live in src/utils/adhoc.sh so the service
+# scripts that need them can source the same implementation instead of each
+# hand-rolling a `docker compose run` — nine of them did, and all nine dropped
+# the conditional --user, writing root-owned files into the repo. Guarded the
+# same way service-common.sh is, for test-existential.sh's process substitution.
+if [[ -f "${SCRIPT_DIR}/src/utils/adhoc.sh" ]]; then
+    # shellcheck source=src/utils/adhoc.sh
+    . "${SCRIPT_DIR}/src/utils/adhoc.sh"
+fi
 
 # Record the host's uid/gid in .env.shared so compose can run every container as
 # the host user (EXIST_PUID/EXIST_PGID, referenced as ${EXIST_PUID:-1000} in service
@@ -188,11 +152,6 @@ _ensure_host_access() {
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
 # (sourced near the top). The helpers below are specific to this entry point.
 
-decree_is_enabled() {
-    _load_env_shared
-    [[ "${EXIST_IS_SERVICES_AUTOMATION:-false}" == "true" ]]
-}
-
 # True when the user has enabled ANYTHING beyond what ships enabled by default.
 #
 # A bare "is any flag true?" is not the question: caddy ships as
@@ -281,6 +240,11 @@ _warn_if_no_gateway() {
 # Host-side on purpose. `reset` itself runs inside existential-adhoc, which has
 # no docker socket and so cannot see a running container, let alone stop one.
 _offer_stack_down() {
+    # Detect here, not at source time: this file is also run INSIDE the adhoc
+    # container (src/test/unit/test-existential.sh drives its CLI there), where
+    # there is no docker and eager detection killed every invocation, --help
+    # included.
+    adhoc_detect_runtime
     local compose="${SCRIPT_DIR}/docker-compose.yml"
     [[ -f "$compose" ]] || return 0
 
@@ -506,7 +470,8 @@ Actions:
                       every enabled service's exist.test.sh. 'secrets' asserts no
                       rendered secrets are tracked; 'guards'/'harness' prove the
                       secret guards / test plumbing trip on bad input; 'lint'
-                      shellchecks every tracked shell script; 'selfcheck'
+                      shellchecks every tracked shell script; 'typecheck' runs
+                      tsc --noEmit over the TypeScript; 'selfcheck'
                       proves each unit suite fails on a forced assertion;
                       'unit'/'integration'/'services' run those suites. Anything
                       else is a service slug.
@@ -634,8 +599,12 @@ case "$action" in
                 # Static shell lint (throwaway shellcheck container). Placed with the
                 # host-side checks: it needs Docker but not a running stack.
                 bash "${SCRIPT_DIR}/src/test/lint-shell.sh" || _rc=1
+                # The same gate for TypeScript. tsx strips types without checking
+                # them, so without this `"strict": true` means nothing.
+                bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" || _rc=1
                 # Host-side container-state gate next (adhoc has no docker socket,
                 # so this is the only place daemon crash-loops are visible).
+                adhoc_detect_runtime
                 DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/integration/container-health.sh" \
                     "${SCRIPT_DIR}/docker-compose.yml" || _rc=1
                 run_adhoc bash /src/test/run-all.sh all || _rc=1
@@ -645,6 +614,7 @@ case "$action" in
             guards)      bash "${SCRIPT_DIR}/src/test/guard-selftest.sh" ;;
             harness)     bash "${SCRIPT_DIR}/src/test/harness-selftest.sh" ;;
             lint)        bash "${SCRIPT_DIR}/src/test/lint-shell.sh" ;;
+            typecheck)   bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" ;;
             selfcheck)   run_adhoc bash /src/test/run-all.sh selfcheck ;;
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
             integration) run_adhoc bash /src/test/run-all.sh integration ;;

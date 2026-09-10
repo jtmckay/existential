@@ -1,15 +1,38 @@
 FROM rust:slim-bookworm AS builder
-RUN cargo install decree --version 0.4.2
+# --locked: build against the versions decree's own Cargo.lock pins. Without it
+# `cargo install` re-resolves every transitive dependency at build time, so the
+# same --version can produce a different binary on two different days.
+RUN cargo install decree --version 0.4.2 --locked
 
 FROM debian:bookworm-slim
-ENV NODE_VERSION=24.16.0
+# Third-party binaries installed as root. Each is pinned to a version AND
+# verified against a checksum recorded here, because a version alone only says
+# what we asked for, not what we got. Bumping any of these means bumping its
+# checksum in the same commit — get it from the vendor:
+#   rclone  https://github.com/rclone/rclone/releases/download/v<V>/SHA256SUMS
+#   yq      https://github.com/mikefarah/yq/releases/download/v<V>/checksums
+#   node    https://nodejs.org/dist/v<V>/SHASUMS256.txt
+#
+# ARG, not ENV, and that is load-bearing: rclone reads every RCLONE_* variable in
+# its environment as a flag override, so a persisted `RCLONE_VERSION=1.75.1`
+# lands on its boolean --version flag and every rclone call in the container
+# dies with "invalid argument for --version". ARG is build-scope only, so
+# nothing leaks into the running container. None of these is needed at runtime.
+ARG NODE_VERSION=24.16.0
+ARG NODE_SHA256=d804845d34eddc21dc1092b519d643ef40b1f58ec5dec5c22b1f4bd8fabde6c9
+ARG RCLONE_VERSION=1.75.1
+ARG RCLONE_SHA256=09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb15
+ARG YQ_VERSION=4.44.3
+ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
 COPY --from=builder /usr/local/cargo/bin/decree /usr/local/bin/decree
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
         postgresql-client default-mysql-client sqlite3 gnupg ca-certificates \
         git python3 \
-    && curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.deb -o /tmp/rclone.deb \
+    && curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.deb" \
+        -o /tmp/rclone.deb \
+    && echo "${RCLONE_SHA256}  /tmp/rclone.deb" | sha256sum -c - \
     && dpkg -i /tmp/rclone.deb \
     && rm /tmp/rclone.deb \
     && curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc \
@@ -20,11 +43,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends mongodb-database-tools \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64" \
+    && curl -fsSL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64" \
         -o /usr/local/bin/yq \
+    && echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum -c - \
     && chmod +x /usr/local/bin/yq \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
         -o /tmp/node.tar.xz \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && npm install -g npm@11.16.0 \
@@ -33,9 +58,10 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /opt/decree/
 # Reproducible, integrity-checked install via pnpm (version pinned by package.json's
 # packageManager field, provisioned by corepack). The committed pnpm-lock.yaml pins the
 # full tree; --frozen-lockfile fails the build if package.json drifts from it. pnpm runs
-# NO dependency build scripts except the allowlist in package.json's
-# pnpm.onlyBuiltDependencies (better-sqlite3, esbuild) — closing the install-script
-# supply-chain hole that `npm install` left open. node-linker=hoisted (.npmrc) keeps the
+# NO dependency build scripts except the allowlist in pnpm-workspace.yaml's
+# `allowBuilds` (better-sqlite3, esbuild) — pnpm 11 reads that setting there, not
+# from a "pnpm" field in package.json. Closes the install-script supply-chain
+# hole that `npm install` left open. node-linker=hoisted (.npmrc) keeps the
 # flat node_modules layout that NODE_PATH below relies on.
 RUN cd /opt/decree \
     && corepack enable \

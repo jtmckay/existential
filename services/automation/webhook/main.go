@@ -402,26 +402,48 @@ type webhookServer struct {
 	failureLimiter *fixedWindowLimiter
 }
 
+// handler splits traffic by whether it authenticates, and applies a different
+// budget to each half. That split is the whole point.
+//
+// Both limiters are global, because Caddy hides the real client address and
+// per-IP buckets would all be the same bucket. That is fine as long as one
+// half's traffic cannot exhaust the other's budget. It used to: the failure
+// budget was checked BEFORE authentication, so ten wrong-token requests from
+// anyone reachable turned every endpoint into a 429 for the rest of the window,
+// including callers holding the correct secret. Ten requests a minute, and the
+// whole automation pipeline was down.
+//
+// So: unauthenticated traffic pays only the failure budget (the brute-force
+// brake), authenticated traffic pays only the request budget (a throughput cap
+// so one client cannot flood the inbox), and neither can starve the other.
 func (server *webhookServer) handler(matched *route) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		// Limiters run before the method check: in the Express service the
-		// rate-limit middleware was registered ahead of the 404 handler, so a
-		// flood of wrong-method requests still charged both budgets.
-		if !server.requestLimiter.allow() || server.failureLimiter.exhausted() {
+		// Routes are registered without a method, so a GET lands here rather
+		// than letting ServeMux answer 405 — callers of the Express version
+		// saw 404 for a wrong method and some may depend on it. A wrong method
+		// is counted with the unauthenticated half: it is not a real caller.
+		if request.Method != http.MethodPost || !authorized(request, matched) {
+			if server.failureLimiter.exhausted() {
+				writeError(writer, http.StatusTooManyRequests, "too many requests")
+				return
+			}
+			server.failureLimiter.allow()
+			if request.Method != http.MethodPost {
+				writeError(writer, http.StatusNotFound, "not found")
+				return
+			}
+			writeError(writer, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+
+		if !server.requestLimiter.allow() {
 			writeError(writer, http.StatusTooManyRequests, "too many requests")
 			return
 		}
-		// Routes are registered without a method, so a GET lands here rather
-		// than letting ServeMux answer 405 — callers of the Express version
-		// saw 404 for a wrong method and some may depend on it.
-		if request.Method != http.MethodPost {
-			server.failureLimiter.allow()
-			writeError(writer, http.StatusNotFound, "not found")
-			return
-		}
-		if server.serve(writer, request, matched) >= http.StatusBadRequest {
-			server.failureLimiter.allow()
-		}
+		// A malformed body or a bad param from an authenticated caller is a
+		// client bug, not an attack, so it does not spend the brute-force
+		// budget and cannot lock anyone out.
+		server.serve(writer, request, matched)
 	}
 }
 
@@ -464,6 +486,9 @@ func (matched *route) pathParameters(request *http.Request) (map[string]string, 
 // serve returns the status it wrote, so failure accounting needs no
 // ResponseWriter wrapper.
 func (server *webhookServer) serve(writer http.ResponseWriter, request *http.Request, matched *route) int {
+	// Deliberately redundant: handler has already authenticated, so this never
+	// fires today. It stays because this is an auth boundary and serve writes to
+	// the inbox — a second call site added later must not be able to skip it.
 	if !authorized(request, matched) {
 		return writeError(writer, http.StatusUnauthorized, "unauthorized")
 	}
@@ -587,8 +612,10 @@ func newMux(server *webhookServer, routes []*route) (http.Handler, error) {
 	// Unknown paths sat behind the rate-limit middleware in the Express
 	// service. Leaving them outside it here would mean a flood of `/` never
 	// trips the brute-force brake — the one thing the failure budget is for.
+	// Nothing here can authenticate (there is no route and so no secret), so it
+	// is charged to the failure budget only, matching handler's unauth half.
 	mux.HandleFunc("/", func(writer http.ResponseWriter, _ *http.Request) {
-		if !server.requestLimiter.allow() || server.failureLimiter.exhausted() {
+		if server.failureLimiter.exhausted() {
 			writeError(writer, http.StatusTooManyRequests, "too many requests")
 			return
 		}
@@ -693,9 +720,16 @@ func main() {
 
 	logger.Info("listening", "port", port, "inbox", inbox, "endpoints", len(routes))
 	httpServer := &http.Server{
-		Addr:              ":" + port,
-		Handler:           handler,
+		Addr:    ":" + port,
+		Handler: handler,
+		// MaxBytesReader caps how MUCH body a client can send; these cap how
+		// LONG it can take. Without them a client that opens a connection and
+		// dribbles a byte at a time holds a goroutine and a socket for as long
+		// as it likes, which the size cap does nothing about.
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	if err := httpServer.ListenAndServe(); err != nil {
 		fatal("listen failed", "err", err)
@@ -711,7 +745,12 @@ func hasHealthcheckFlag(arguments []string) bool {
 // healthcheckExitCode probes the already-running process over the loopback
 // interface and maps the result to a process exit code.
 func healthcheckExitCode(port string) int {
-	response, err := http.Get("http://127.0.0.1:" + port + "/healthz")
+	// http.DefaultClient has no timeout: a server that accepts the connection
+	// and then never answers would hang the probe forever. Docker's own
+	// `timeout: 3s` bounds it in practice, but a probe that cannot fail on its
+	// own is not a probe.
+	client := &http.Client{Timeout: 3 * time.Second}
+	response, err := client.Get("http://127.0.0.1:" + port + "/healthz")
 	if err != nil {
 		return 1
 	}

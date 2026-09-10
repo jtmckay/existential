@@ -128,11 +128,17 @@ repo="$(new_repo)"
 printf 'EXIST_IS_SERVICES_FOO=true\n' > "$repo/.env.shared"
 tsx "$GC" "$repo" docker-compose.yml >/dev/null 2>&1 || true   # first write
 tsx "$GC" "$repo" docker-compose.yml >/dev/null 2>&1 || true   # second → archive first
-# Archives live under archive/, the same directory `./existential.sh reset`
-# uses — not loose in the repo root, where they used to accumulate.
-archived="$(find "$repo/archive" -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
+# Archives live under archive/docker-compose/, NOT loose in archive/ and not in
+# the repo root. Their own subdirectory because they rotate on every run, while
+# `./existential.sh reset` writes one archive/<timestamp>/ directory per reset —
+# two different things that read as one muddle when they share a folder.
+archived="$(find "$repo/archive/docker-compose" -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
 if [[ -n "$archived" ]]; then _ok "previous compose archived on regeneration"
-else _fail "previous compose archived on regeneration" "no archive/docker-compose-*.yml found"; fi
+else _fail "previous compose archived on regeneration" "no archive/docker-compose/docker-compose-*.yml found"; fi
+
+loose="$(find "$repo/archive" -maxdepth 1 -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
+if [[ -z "$loose" ]]; then _ok "compose archives are not loose in archive/"
+else _fail "compose archives are not loose in archive/" "found ${loose}"; fi
 
 stray="$(find "$repo" -maxdepth 1 -name 'docker-compose-*.yml' -type f 2>/dev/null | head -1)"
 if [[ -z "$stray" ]]; then _ok "archives do not land in the repo root"

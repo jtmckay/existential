@@ -114,11 +114,6 @@ shared_routines:
   # fwd_ params.
   rss-poll:
     enabled: false
-  # On by default, and it quiets itself as the stack stays green — see the
-  # routine's header. The person who most needs triage is the one who does not
-  # know it exists, so it cannot be opt-in.
-  triage:
-    enabled: true
   # No cron names these three: they run only when a MIGRATION does. Left
   # disabled/unlisted they made every ollama migration a no-op --
   # decree created the run, declined the routine, and `decree process` stopped

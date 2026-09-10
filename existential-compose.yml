@@ -8,6 +8,11 @@ services:
     # re-building decree/Dockerfile into its own per-project image.
     image: existential/decree:local
     pull_policy: never
+    # Same debian base and setuid binaries as the daemons (see
+    # services/automation/docker-compose.exist.yml). Nothing run through adhoc
+    # escalates — the one sudo in the repo, exist.log-rotation.sh, is host-side.
+    security_opt:
+      - no-new-privileges:true
     restart: "no"
     # adhoc runs ephemeral one-shots (--entrypoint ""), never the decree daemon,
     # so the image's daemon HEALTHCHECK (PID 1 == decree) never applies here.

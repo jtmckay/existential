@@ -137,6 +137,122 @@ Every flow is fire-and-forget: the routine POSTs and exits on the HTTP code, and
 the result into its own `output/`. To do something with the file afterwards, poll `/history/{id}`
 until `outputs` appears and fetch it from `/view`.
 
+## Running a batch of prompts
+
+Every prompt against every reference image, with no new code. There is no separate
+"working directory" to set up — ComfyUI's own `input/` folder **is** it, and on the host that
+is a plain bind mount at `volumes/comfyui_data/ComfyUI/input/`. Anything you drop there,
+ComfyUI knows by name immediately.
+
+**1. Put your reference images somewhere under `input/`.** A subfolder keeps a project together:
+
+```bash
+mkdir -p volumes/comfyui_data/ComfyUI/input/hero
+cp ~/refs/*.png volumes/comfyui_data/ComfyUI/input/hero/
+```
+
+**2. Write your prompts, one per line,** in a file anywhere — this one is not a decree message,
+just a list. Blank lines are skipped:
+
+```
+a portrait on the front steps at golden hour
+the same subject in heavy fog, wide shot
+```
+
+**3. Fan them out.** From the repo root, this writes one inbox message per
+(prompt × image) — the cross product:
+
+```bash
+DIR=volumes/comfyui_data/ComfyUI/input/hero; STAMP=$(date +%H%M%S); n=0
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  for img in "$DIR"/*.png; do
+    n=$((n+1))
+    cat > "automation/inbox/comfy-$STAMP-$n.md" <<EOF
+---
+routine: comfy
+type: image-text-image
+input_image: "hero/$(basename "$img")"
+output_prefix: hero/out-$n
+---
+$p
+EOF
+  done
+done < prompts.md
+```
+
+Drop the inner `for` loop, the `input_image` line, and `$DIR` for `type: image-text` — that flow
+takes no reference image, so it is one message per prompt.
+
+**4. Watch it go.** Results land in `volumes/comfyui_data/ComfyUI/output/hero/`, and the queue is
+visible in ComfyUI's own UI.
+
+```bash
+docker logs -f automation
+```
+
+Two things to know before you point this at a large folder. The routine POSTs and exits, so
+twenty messages become twenty ComfyUI queue entries in about a second — the depth is ComfyUI's
+problem, not decree's, and a few hundred is an unattended GPU night. And nothing here dedupes:
+re-running the loop queues the whole cross product again, which is usually what you want (seeds
+are randomized) but is worth knowing.
+
+## Triggering over HTTP
+
+Two endpoints ship in `services/automation/webhook/config.exist.yml`, so anything that can POST
+can queue a generation. The request body is the prompt:
+
+```bash
+# No reference image
+curl -X POST https://automation-webhook.EXIST_DOMAIN/comfy/image-text/sunset \
+  -H "Authorization: Bearer $SECRET" \
+  -d 'a sunset over mountains'
+
+# With one — "ref.png" must already be in ComfyUI's input/
+curl -X POST https://automation-webhook.EXIST_DOMAIN/comfy/image-text-image/edit1/ref.png \
+  -H "Authorization: Bearer $SECRET" \
+  -d 'the same scene at night'
+
+# With two — video-ltx-first-last anchors the first and last frames
+curl -X POST https://automation-webhook.EXIST_DOMAIN/comfy/video-ltx-first-last/pan/a.png/b.png \
+  -H "Authorization: Bearer $SECRET" \
+  -d 'a slow camera push between the two frames'
+```
+
+The secret is the top-level `secret:` in the rendered `services/automation/webhook/config.yml`.
+Output goes to `output/comfy/<name>/`.
+
+The shape is dictated by two deliberate properties of the webhook, both documented in
+`services/automation/webhook/README.md`: **the body is never parsed** — it is opaque bytes
+copied into the message body verbatim — and
+**frontmatter is fixed per endpoint**. So the prompt is the body and everything else has to be a
+path parameter. That has two consequences worth internalising:
+
+- **A path parameter cannot contain `/`**, so these routes reach only images sitting directly in
+  `input/`, never in a subfolder. That is not fixable by adding a `{sub}` segment: the resulting
+  `/comfy/{type}/{name}/{sub}/{image}` is the same *shape* as the two-image route, routes are
+  registered on a `ServeMux`, and it panics on conflicting patterns — a fatal startup error. The
+  `params:` regexes cannot separate them either, because they are applied after routing, not
+  during it. Keep webhook reference images flat in `input/`; use the batch loop above for
+  subfolders.
+- **There is no optional parameter**, which is why each image count is its own route. Every
+  additional knob (`width`, `duration`, `seed`, …) would likewise be another path segment or
+  another endpoint with the value baked in — for anything more elaborate, write the inbox message
+  directly, as the batch loop above does. That applies especially to `video-ltx-first-last`,
+  which reaches its real settings (`duration`, `fps`, `width`, `height`) only that way.
+
+Both routes set an explicit `params:` pattern. The default parameter charset is
+`[A-Za-z0-9_\-!]+`, which has no `.`, so `ref.png` would be rejected with a `400` without one.
+
+:::warning Editing the config needs a recreate, not a restart
+The service polls `config.yml` and exits on change so its restart policy reloads it — but it
+compares the **mtime of the inode it already holds**, and `config.yml` is a single-file bind
+mount. An editor that writes to a temp file and renames it (most of them) leaves that inode
+untouched, so the running process never notices, and `docker cp` will happily show you the new
+content while the process serves the old. Use `docker compose up -d --force-recreate
+automation-webhook` and confirm the route count in `docker logs automation-webhook`.
+:::
+
 ## Telegram → ComfyUI Workflow
 
 Nothing wires Telegram to ComfyUI out of the box — the shipped `telegram-ingest` routine

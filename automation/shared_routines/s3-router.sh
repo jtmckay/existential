@@ -128,7 +128,6 @@ _matched=0
 for _pair in "${_pairs[@]}"; do
     _file_action="${_pair%%|*}"
     _bucket_and_key="${_pair#*|}"
-    _bucket="${_bucket_and_key%%/*}"
     _object_key="${_bucket_and_key#*/}"
     _prefix="${rclone_prefix:+${rclone_prefix%/}/}"
     _file_source="${rclone_src}:${_prefix}${_object_key}"

@@ -1,0 +1,94 @@
+# CI — runs the gates .githooks/pre-push already runs, plus the two suites that
+# had no trigger at all.
+#
+# Why this exists: pre-push is local-only, is installed as a side effect of the
+# first ./existential.sh run, is bypassable with --no-verify, and never sees a
+# pull request. Every check below was already written and already passing; none
+# of it ran anywhere but one machine.
+#
+# Keep this in step with .githooks/pre-push. If a gate is added there, add it
+# here — the hook is the fast local copy, this is the one that is not optional.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first — these jobs build a
+# container image and there is no point paying for a superseded run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Docker-free and fast, so a broken guard fails within a minute rather than
+  # after the image build. `secrets` is the scan of the actual index and needs
+  # git history, which is why the checkout below is unshallow.
+  guards:
+    name: Secret guards and harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret-guard self-test
+        run: ./existential.sh test guards
+      - name: No tracked secrets
+        run: ./existential.sh test secrets
+      - name: Harness self-test
+        run: ./existential.sh test harness
+
+  lint:
+    name: Shell lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pulls the digest-pinned shellcheck image named in src/test/lint-shell.sh.
+      - name: shellcheck
+        run: ./existential.sh test lint
+
+  # The webhook module carries 21 tests that nothing has ever run: they sit
+  # outside ./existential.sh test by design, and the documented way to run them
+  # is a docker one-liner someone has to remember.
+  go:
+    name: Webhook Go tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/automation/webhook
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          # Matches the builder stage in webhook/Dockerfile. go.mod's `go 1.22`
+          # is the floor, not the build version.
+          go-version: '1.26.6'
+          cache-dependency-path: services/automation/webhook/go.sum
+      - run: go vet ./...
+      - run: go test ./...
+
+  # Builds the adhoc image, which is the slow one (cargo install + node +
+  # database clients). Everything that needs tsx or the container lives here.
+  unit:
+    name: Unit suite and conventions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      # Nothing below renders templates, so this runs against the tracked tree
+      # exactly as a fresh clone has it. `validate conventions` is a soft gate
+      # that tolerates an unrendered docker-compose.yml.
+      - name: Build adhoc image
+        run: docker compose -f existential-compose.yml build existential-adhoc
+      - name: TypeScript typecheck
+        run: ./existential.sh test typecheck
+      - name: Unit tests
+        run: ./existential.sh test unit
+      - name: Suite self-check
+        run: ./existential.sh test selfcheck
+      - name: Conventions
+        run: ./existential.sh validate conventions

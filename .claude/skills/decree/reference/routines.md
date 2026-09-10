@@ -24,7 +24,10 @@ seq="${seq:-}"
 
 # Pre-check (required — exit 0 if ready, non-zero if not):
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    command -v claude >/dev/null 2>&1 || { echo "claude not found" >&2; exit 1; }
+    # shellcheck source=../lib/precheck.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+    command -v opencode >/dev/null 2>&1 || precheck_fail "my-routine" "opencode not found"
+    precheck_pass "my-routine"
     exit 0
 fi
 
@@ -32,25 +35,41 @@ fi
 my_param="${my_param:-default}"
 
 # --- Implementation ---
-claude -p "Read ${message_file} and implement the requirements.
+opencode run "Read ${message_file} and implement the requirements.
 Previous attempt logs (if any) are in ${message_dir} for context."
 ```
 
-Routines call AI tools directly:
+**Use `opencode`.** It is what the stack installs: `services/automation/.env.exist`
+sets `AUTOMATION_AI=opencode`, the compose file passes it as `DECREE_AI`, and the
+entrypoint installs that one CLI. `claude` is the only other accepted value and
+is not installed by default; no routine in `automation/shared_routines/` invokes
+anything else. A routine that shells out to a CLI the container does not have
+fails its pre-check and is declined, silently, forever.
 
-```bash
-claude   -p "Read ${message_file} and implement the requirements."
-copilot  -p "Read ${message_file} and implement the requirements."
-opencode run "Read ${message_file} and implement the requirements."
-```
+The `automation-backup` daemon blanks `DECREE_AI=` on purpose and has **no** AI
+CLI at all, which is why no routine that reasons belongs there.
 
 ## Pre-Check
 
 Every routine must include a pre-check gate:
 - Gate on `DECREE_PRE_CHECK=true`
 - Place after standard params, before custom params
-- Exit 0 = ready; non-zero = not ready (print missing dependency to stderr)
+- Exit 0 = ready; non-zero = not ready
 - Used by `decree routine <name>` and `decree verify`
+
+**Report through `automation/lib/precheck.sh`, not bare `echo`/`exit`.** 32 of the
+41 shared routines source it, and it is the house convention:
+
+```bash
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
+precheck_fail "<routine>" "<what is missing>"   # logs, prints to stderr, exits non-zero
+precheck_pass "<routine>"                       # logs the OK
+```
+
+Both append to `PRECHECK_LOG` (`/work/.decree/precheck.log`, gitignored and
+rewritten every boot), so one file shows which routines came up ready after a
+daemon restart. A routine that fails its pre-check quietly is the failure mode
+this exists to make visible.
 
 ## Custom Parameter Discovery
 

@@ -55,6 +55,17 @@ if [ -z "$processor" ]; then
     echo "processor is required."
     exit 1
 fi
+# `processor` is frontmatter, and frontmatter is attacker-shaped input — it
+# reaches decree from webhooks, from email, and from outbox-relay, which exists
+# to hand agent-authored files back into this inbox. It is interpolated into a
+# path that is then `bash`ed a few lines down, so a value like
+# `../../../../workspace/evil` executes a file the confined agent can write, in
+# the daemon that deliberately keeps agent-task disabled. Same guard, same
+# reason, as automation/lib/hooks/onDeadLetter.sh.
+if ! printf '%s' "$processor" | grep -qE '^[A-Za-z0-9_-]+$'; then
+    echo "Invalid processor name: must match [A-Za-z0-9_-]+"
+    exit 1
+fi
 
 _processor_script="$(dirname "${BASH_SOURCE[0]}")/../lib/file-processors/${processor}.sh"
 if [ ! -f "$_processor_script" ]; then

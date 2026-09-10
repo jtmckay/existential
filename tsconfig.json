@@ -5,11 +5,19 @@
     "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
-    "typeRoots": ["./services/automation/decree/node_modules/@types"],
-    "paths": {
-      "js-yaml": ["./services/automation/decree/node_modules/js-yaml/index.js"]
-    }
+    "noEmit": true,
+    // Third-party .d.ts is not our code and not our bug. Note this does NOT
+    // cover a dependency that ships .ts SOURCE — @actual-app/api does, and its
+    // own source does not compile under strict — which is why the gate
+    // (src/test/typecheck-ts.sh) reports only errors outside node_modules.
+    "skipLibCheck": true
   },
+  // No typeRoots/paths: they used to hardcode
+  // ./services/automation/decree/node_modules, a directory that exists only if
+  // someone happened to run pnpm install there. Inside the adhoc container the
+  // tree is at /opt/decree/node_modules, so every ambient type silently failed
+  // to resolve and `process` was an undefined name in all 15 files. The gate
+  // links the real tree to /node_modules instead and lets normal resolution work.
   "include": ["src/**/*.ts", "automation/**/*.ts", "services/automation/src/**/*.ts"],
   "exclude": ["node_modules", "site"]
 }

@@ -183,7 +183,7 @@ printf -- '---\nroutine: telegram-notify\ntransaction_id: test-123\namount_cents
 | Variable | Default | Description |
 |---|---|---|
 | `TELEGRAM_RCLONE_DEST` | `nextcloud:S3/telegram` | Where non-receipt photos are saved (generic uploads) |
-| `OCR_MODEL` | `llava` | Ollama vision model used for receipt OCR |
+| `OCR_MODEL` | `EXIST_MODEL_VISION` | Ollama vision model used for receipt OCR. Chosen globally in `.env.shared`, not per-flow. |
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama API base URL |
 
 ## State File

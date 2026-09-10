@@ -32,7 +32,7 @@ services:
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:
       - exist
-    # ports disabled — access via https://immich-server.<domain> (Caddy + pihole required)
+    # ports disabled — access via https://immich.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:
     #     - "2283:2283"
@@ -47,10 +47,26 @@ services:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
     volumes:
-      # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
-      - ${UPLOAD_LOCATION}:/data:Z
+      # The photo library. Upstream mounts a raw host path from ${UPLOAD_LOCATION};
+      # here it is a declared volume like every other service's storage, so
+      # generate-compose.ts creates the directory, `x-exist-volumes` decides
+      # whether it lands on the NFS host mount, and automation-backup — which
+      # mounts volumes/ wholesale — can actually see it. Under the old raw-path
+      # form it could not, which meant the most valuable data in the stack was
+      # the only data no backup routine could reach.
+      #
+      # `.env.exist`'s convention-exempt marker covers upstream KEY NAMES, not
+      # where storage lives.
+      - immich_data:/data:Z
       - /etc/localtime:/etc/localtime:ro
-      - ${EXTERNAL_READ_ONLY_FILES}:/mnt/media/external_photos:ro
+      # An existing photo collection to index read-only, e.g. a Nextcloud sync
+      # dir. Commented out because there is no sensible default: the placeholder
+      # that used to be here (/home/my_user/Nextcloud/Photos) does not exist on
+      # any real host, so docker created it as root OUTSIDE the repo, where
+      # `./existential.sh run fix-permissions` can never reach it.
+      # Uncomment both this and EXTERNAL_READ_ONLY_FILES in .env, and point it
+      # at a directory you already have.
+      #- ${EXTERNAL_READ_ONLY_FILES}:/mnt/media/external_photos:ro
     env_file:
       - .env
     depends_on:
@@ -168,8 +184,12 @@ services:
       # Uncomment the DB_STORAGE_TYPE: 'HDD' var if your database isn't stored on SSDs
       # DB_STORAGE_TYPE: 'HDD'
     volumes:
-      # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
-      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data:Z
+      # Was ${DB_DATA_LOCATION}, pointing at a second volume root (volumes_local/)
+      # that .claude/reference/volumes.md explicitly forbids — and that
+      # automation-backup could not see, so db-backup could never reach it.
+      # `db: true` below is what keeps it off NFS, which immich upstream requires
+      # and which validate-conventions now enforces rather than trusting a comment.
+      - immich_pg_data:/var/lib/postgresql/data:Z
     shm_size: 128mb
     # Override the image's own healthcheck.sh (pg_isready + a checksum-failure
     # scan of pg_stat_database — correct, but on a 300s interval and 300s
@@ -186,6 +206,14 @@ services:
 
 x-exist-volumes:
   immich_model_cache: {}
+  # The photo library: bulk user data, so it may live on the NFS host mount when
+  # EXIST_NFS_HOST_MOUNT is set. That is the sanctioned way to put it on the NAS
+  # — it replaces the old "point UPLOAD_LOCATION at /mnt/nfs/..." instruction.
+  immich_data: { nfs: true }
+  # Postgres. NEVER nfs — immich upstream does not support a network share for
+  # the database, and `db: true` together with `nfs: true` is a hard error in
+  # validate-conventions, so this is enforced rather than merely documented.
+  immich_pg_data: { db: true }
 
 networks:
   exist:

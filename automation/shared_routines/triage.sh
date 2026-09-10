@@ -131,7 +131,12 @@ for _t in "${TRIAGE_REPO}"/{ai,services,nas,hosting}/*/exist.test.sh; do
         continue
     fi
 
-    _out="$(cd "$_dir" && timeout 120 bash "$_t" 2>&1)" && _rc=0 || _rc=$?
+    # Triage wants the FULL check, Caddy routing included — catching a broken
+    # reverse proxy is a large part of what it is for. It runs inside the backup
+    # daemon, which sets EXIST_TEST_LIVENESS_ONLY=true for its own routines'
+    # cheaper "is it up" probes, so clear it explicitly for the children rather
+    # than inheriting a weaker check by accident.
+    _out="$(cd "$_dir" && EXIST_TEST_LIVENESS_ONLY=false timeout 120 bash "$_t" 2>&1)" && _rc=0 || _rc=$?
     if [ "$_rc" -eq 0 ]; then
         PASSED+=("$_slug")
         echo "  ok    ${_slug}"

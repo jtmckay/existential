@@ -54,20 +54,32 @@ this ahead of what your phones have installed, and see
 [immich's upgrade guide](https://docs.immich.app/install/upgrading) before crossing a major
 version on an existing install (a fresh install has no such constraint).
 
-**Storage paths are raw host paths, not `x-exist-volumes`.** `UPLOAD_LOCATION` (your photo
-library) and `DB_DATA_LOCATION` (the Postgres data dir) live in `.env` under their upstream
-names — that file is `convention-exempt: upstream-env`, so `generate-compose.ts` can't see them
-by the usual bare-name mechanism. `exist.initial.sh` creates both, host-owned, before `docker
-compose up` can create them as root (which breaks Postgres' first `initdb` and the ML model
-cache). `UPLOAD_LOCATION` is bulk user data — point it at NFS if you like; `DB_DATA_LOCATION`
-must stay local (Postgres, never NFS).
+**Storage is declared like every other service.** The photo library is the `immich_data`
+volume and the Postgres data directory is `immich_pg_data`, both in the compose file's
+`x-exist-volumes` block, both under `volumes/`. To put the library on your NAS, set
+`EXIST_NFS_HOST_MOUNT` — `immich_data` is marked `nfs: true`, so that is all it takes.
+`immich_pg_data` is marked `db: true`, which keeps it off NFS; Immich upstream does not support
+a network share for the database, and marking a volume both `db` and `nfs` is a hard error in
+`./existential.sh validate conventions` rather than a comment nobody reads.
+
+This used to be two raw host paths (`UPLOAD_LOCATION`, `DB_DATA_LOCATION`) set in `.env`, with
+the database living in a second volume root called `volumes_local/`. Those keys no longer do
+anything. If you are upgrading, `exist.initial.sh` detects data at the old paths and stops the
+run with the two `mv` commands to run — nothing is moved for you, because a script that
+relocates a photo library unattended is a script that can lose one.
+
+To index an existing photo collection read-only, set `EXTERNAL_READ_ONLY_FILES` in `.env` and
+uncomment the matching mount in `docker-compose.exist.yml`. It ships commented out because the
+old placeholder path did not exist on any real host, so Docker created it as root outside the
+repo.
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
 `immich-volume-backup-{nightly,weekly}.md` from `services/automation/backup/cron.example/`
-into `cron/` and restart `automation-backup`. The volume backup only reaches the default
-`UPLOAD_LOCATION` (`./volumes/immich_library`) — `automation-backup` mounts the repo's `volumes/`
-directory wholesale, so a library moved to NFS or another host path falls outside it and needs
-its own backup story (the cron skips cleanly rather than failing).
+into `cron/` and restart `automation-backup`. Both now reach the real data: `automation-backup`
+mounts `volumes/` wholesale, and that is where both volumes live — including when the library
+is on the NFS host mount. Under the old raw-path layout the volume backup could not see the
+library at all, which meant the most valuable data in the stack was the only data no backup
+routine could reach.
 
 **Containers run as the host user** (`EXIST_PUID`/`EXIST_PGID`), including `immich-server` and
 `immich-machine-learning` — both images run root by default but need no capability it grants;

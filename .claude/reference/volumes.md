@@ -120,7 +120,14 @@ skips a destination that has a sibling `<name>.exist.*` template for the same re
 Neither defence repairs a checkout that already went wrong: `./existential.sh run fix-permissions`
 does that, borrowing root from a throwaway container rather than asking for sudo.
 
-## Moving tiers
+## Moving a volume
 
-A one-time **host** data move (`mv volumes/<name> volumes_local/<name>`), called out in the
-migration note — never done to live data automatically.
+Renaming or relocating a volume is a one-time **host** data move (`mv volumes/<old>
+volumes/<new>`) with the stack down. Never done to live data automatically — a script that
+relocates a photo library or a postgres data dir unattended is a script that can lose them.
+Ship the detection in the service's `exist.initial.sh` and have it refuse to continue with the
+two commands printed, the way `services/immich/exist.initial.sh` does.
+
+There is no second volume root. `volumes_local/` used to exist for immich's database and is
+gone: `db: true` keeps a volume off NFS without needing a separate tree, and anything outside
+`volumes/` is invisible to `automation-backup`, which mounts that directory wholesale.

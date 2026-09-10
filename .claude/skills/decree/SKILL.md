@@ -14,10 +14,19 @@ description: >
 Decree is an automation orchestrator. It processes inbox messages through configurable
 routines, with lifecycle hooks and cron scheduling. In this repo decree runs as:
 
-- **`decree`** (`services/automation/decree/`) — AI workflows, gmail, telegram, webhook-triggered
-  tasks, service-health/triage, and **every service's one-time migrations**
-- **`decree-backup`** (`services/automation/backup/`) — backups only: `volume-backup`,
-  `db-backup`, `sqlite-backup`, `workspace-sync`
+- **`automation`** (project dir `services/automation/decree/`) — AI workflows, gmail, telegram,
+  webhook-triggered tasks, service-health, and **every service's one-time migrations**
+- **`automation-backup`** (project dir `services/automation/backup/`) — despite the name, not
+  backups only. It runs the three backup routines (`volume-backup`, `db-backup`,
+  `sqlite-backup`) *plus* any routine that needs the same bulk data or master-credential access
+  and does no reasoning, routing or AI call: `workspace-sync`, `notify`, `clean-runs`, `triage`
+  (which is why the read-only `/repo` mount lives here, not in `automation`), and `notes-pull`
+  (opt-in). Anything that reasons, routes or calls a model stays in `automation`
+  even when it touches the same data.
+
+The **container** names are `automation` and `automation-backup` — the slug-prefix convention,
+enforced by `validate-conventions.ts`. The directory names under `services/automation/` are
+`decree/` and `backup/`, and those two things are deliberately not the same.
 
 That is the complete list. Services do **not** get their own `*-decree` sidecar any more; don't
 add one. See `.claude/reference/services.md` for why, and for what each daemon can reach.
@@ -33,7 +42,7 @@ daemon's project needs, and nothing that isn't:
 ```
 automation/
 ├── shared_routines/    Routine shell scripts, shared with the backup daemon
-├── lib/                Shared helpers (precheck.sh, s3.sh, telegram.sh) + hooks/
+├── lib/                Shared helpers (precheck.sh, telegram.sh, hermes.sh) + hooks/
 ├── runs/                Execution logs — both daemons write here (gitignored)
 ├── secrets/             rclone config, API keys (gitignored; also mounted separately at /secrets)
 ├── cron/                Active cron triggers (gitignored)
@@ -78,7 +87,7 @@ that used to live there moved out to the root.
 
 ### The backup daemon: per-subdirectory mounts, own project dir
 
-`decree-backup` doesn't get the wholesale treatment — its crons are per-instance, not shared
+`automation-backup` doesn't get the wholesale treatment — its crons are per-instance, not shared
 mounted content, so `services/automation/backup/` keeps the classic shape:
 
 ```
@@ -87,13 +96,16 @@ services/automation/backup/
 ├── config.yml          Rendered config (gitignored — user overrides go here)
 ├── cron.example/       Cron templates (tracked, manually copied to activate)
 ├── cron/               Active cron triggers (gitignored)
-├── lib/, shared_routines/, runs/   Mount points for automation/lib, /shared_routines, /runs (ro)
+├── lib/, shared_routines/   Mount points for automation/lib, /shared_routines (read-only)
+├── runs/               Mount point for automation/runs (read-WRITE — run logs land here)
 └── inbox/              Message queue (gitignored — .gitkeep tracked)
 ```
 
-It mounts `automation/shared_routines/`, `automation/lib/`, `automation/runs/` individually
-(read-only) and `automation/secrets/` at `/secrets` (read-only) — the same shared code the main
-daemon uses, just not wholesale.
+It mounts `automation/shared_routines/` and `automation/lib/` individually (read-only) and
+`automation/secrets/` at `/secrets` (read-only) — the same shared code the main daemon uses,
+just not wholesale. `automation/runs/` is mounted read-**write**: both daemons write their run
+logs and `runs/.alert-state/` there, which is what keeps one audit trail regardless of which
+daemon ran the routine.
 
 ## Core Rules
 
@@ -125,12 +137,12 @@ shared_routines:
 ## Activating a Cron Job
 
 ```bash
-# decree (main daemon) — templates and active crons are both top-level
+# automation (main daemon) — templates and active crons are both top-level
 cp automation-examples/cron/<name>.md automation/cron/<name>.md
 # edit the copy to set schedule and parameters, then:
 docker compose restart automation
 
-# decree-backup — templates and active crons stay in its own project dir
+# automation-backup — templates and active crons stay in its own project dir
 cp services/automation/backup/cron.example/<name>.md services/automation/backup/cron/<name>.md
 docker compose restart automation-backup
 ```
@@ -148,7 +160,7 @@ TARGETS: "seaweedfs:8333"
 
 ## Backups
 
-All of them run in `decree-backup`, which mounts `volumes/` wholesale and takes the master
+All of them run in `automation-backup`, which mounts `volumes/` wholesale and takes the master
 `.env` via `env_file` (with `DECREE_AI=` blanked — it installs no AI CLI). So **adding a backup
 for a new service is one cron file** in `services/automation/backup/cron.example/`: no
 sidecar, no volume mount, no credential plumbing.

@@ -86,7 +86,9 @@ detail: `site/docs/getting-started.md#workspace`.
   `$SCRIPT_DIR`. `rendered-paths.sh` is the same idea for the inverse question — which
   `*.exist.*` template renders INTO a given path — and is what both secret guards use to decide
   a file is rendered and must never be tracked.
-- `.githooks/` = `pre-commit` (secrets) and `pre-push` (the rest). Both detailed in
+- `.githooks/` = `pre-commit` (secrets) and `pre-push` (the rest), mirrored by
+  `.github/workflows/ci.yml`, which runs the same gates on push and PR. The hook is the fast
+  local copy and is bypassable; CI is not. **Add a gate to both.** Detailed in
   `.claude/reference/testing.md`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
 - **`.sh` exec bit:** default `644` — `existential.sh` and the decree daemon `bash <script>`
@@ -222,12 +224,15 @@ worth keeping here:
 **Two daemons, not one per service:** `automation` (project dir `services/automation/decree/`,
 which also holds the image build) runs everything that reasons, routes or reaches a service API
 — including every service's one-time migrations — and `automation-backup` (project dir
-`services/automation/backup/`) mounts `volumes/` wholesale and takes the master `.env`. Despite
-the name, `automation-backup` isn't backups-only: it runs the three backup routines
-(`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that needs that same
-bulk data/credential access and does no reasoning, routing, or AI call —
-`workspace-sync` is the standing example, kept here for its master object-store credentials and
-read-write `/workspace` mount, not because it backs anything up. Reasoning, routing, and AI stay
+`services/automation/backup/`) mounts `volumes/` wholesale, **the repo read-only**, and takes
+the master `.env`. Despite the name, `automation-backup` isn't backups-only: it runs the three
+backup routines (`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that
+needs that same bulk data/credential access and does no reasoning, routing, or AI call —
+`workspace-sync` and **`triage`** are the standing examples, kept here for their master
+credentials and bulk mounts, not because they back anything up. **`/repo` is mounted there and
+nowhere else.** Triage is the only thing that ever wanted it, and `automation` runs an AI CLI,
+so what that container can read is what a prompt injection can read; it now gets only
+`ai/hermes/profiles`, which hermes-router needs and which holds no secrets. Reasoning, routing, and AI stay
 in `automation` even when the routine touches the same data. `automation` wholesale-mounts the
 repo-root `automation/` directory as its whole `/work/.decree` project; `automation-backup`
 mounts the same shared code (`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into
@@ -240,10 +245,13 @@ When adding a routine, add it to whichever `config.exist.yml` should see it — 
 for on-by-default, `false` for opt-in; unlisted = invisible. Rendered `config.yml` (gitignored)
 is the user override.
 
-**Cron activation:** each daemon has `cron/` (active, gitignored) + `cron.example/` (tracked; the
-`.example_` suffix deliberately avoids `*.exist.*` so existential.sh never auto-renders them).
-Activate by copying example → `cron/` and restarting that daemon; the project dir name *is* the
-container name. Frontmatter (`cron:`, `routine:`, extra keys → env vars) is parsed on restart.
+**Cron activation:** each daemon has its own `cron/` (active, gitignored). Tracked templates
+live in **two** places, one per daemon: `automation-examples/cron/` (repo root) for `automation`,
+and `services/automation/backup/cron.example/` for `automation-backup`. Neither path matches
+`*.exist.*`, so existential.sh never auto-renders them. Activate by copying a template → that
+daemon's `cron/` and restarting it; the project dir name *is* the container name. Frontmatter
+(`cron:`, `routine:`, extra keys → env vars) is parsed on restart. `automation-examples/` also
+holds tracked `migrations/` and `inbox/` templates, copied in the same way.
 
 ---
 

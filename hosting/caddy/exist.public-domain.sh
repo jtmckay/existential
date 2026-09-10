@@ -24,12 +24,8 @@
 set -euo pipefail
 
 # Self-elevate into existential-adhoc so /repo is at /repo and we have curl.
-if [[ -z "${IN_CONTAINER:-}" ]]; then
-    _D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    _R="$(cd "$_D/../.." && pwd)"
-    exec docker compose -f "${_R}/existential-compose.yml" run --rm -it \
-        --entrypoint "" existential-adhoc bash "/repo${_D#"$_R"}/${BASH_SOURCE[0]##*/}"
-fi
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
+adhoc_self_elevate "${BASH_SOURCE[0]}"
 
 REPO_DIR=/repo
 ENV_EXIST="${REPO_DIR}/.env.shared"

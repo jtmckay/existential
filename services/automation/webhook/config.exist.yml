@@ -29,6 +29,67 @@ endpoints:
       routine: notify
       priority: high
 
+  # ComfyUI generation from anything that can POST. The request body is the
+  # prompt; everything else has to be a path parameter, because the body is
+  # never parsed (see README.md) and frontmatter is fixed per endpoint.
+  #
+  #   curl -X POST https://automation-webhook.<domain>/comfy/image-text/sunset \
+  #     -H "Authorization: Bearer <secret>" -d 'a sunset over mountains'
+  #
+  # `type` names a workflow binding in automation/lib/comfy/workflows/; `name`
+  # becomes the output filename prefix, written under ComfyUI's output/comfy/.
+  # Both need an explicit params: pattern — the default charset is
+  # [A-Za-z0-9_\-!]+, which has no ".", so "ref.png" would 400 without one.
+  - path: /comfy/{type}/{name}
+    params:
+      type: '[a-z0-9-]+'
+      name: '[A-Za-z0-9_.\-]+'
+    frontmatter:
+      routine: comfy
+      type: '{{type}}'
+      output_prefix: 'comfy/{{name}}'
+
+  # The reference-image form, for the flows that need an input_image. It is a
+  # second path rather than an optional parameter because the webhook has no
+  # notion of one. `image` is a filename ComfyUI ALREADY knows — anything in
+  # its input/ folder (volumes/comfyui_data/ComfyUI/input/ on the host). A path
+  # parameter cannot contain "/", so this reaches only images sitting directly
+  # in input/ — see the next route for why a {sub} segment cannot fix that.
+  - path: /comfy/{type}/{name}/{image}
+    params:
+      type: '[a-z0-9-]+'
+      name: '[A-Za-z0-9_.\-]+'
+      image: '[A-Za-z0-9_.\-]+'
+    frontmatter:
+      routine: comfy
+      type: '{{type}}'
+      output_prefix: 'comfy/{{name}}'
+      input_image: '{{image}}'
+
+  # The two-image form. video-ltx-first-last is the only flow that needs it —
+  # input_image anchors the first frame, last_image the final one, and both are
+  # required — so without this route that flow has no HTTP path at all.
+  #
+  # This is also why neither route above grew a {sub} segment for a reference
+  # image in a subfolder: /comfy/{type}/{name}/{sub}/{image} is the same SHAPE
+  # as this one, registerRoutes registers both on a ServeMux, and ServeMux
+  # panics on conflicting patterns — a fatal startup error. The params: regexes
+  # below cannot disambiguate them either; they are applied after routing, not
+  # during it. Keep reference images flat in input/ when driving this over
+  # HTTP, and use the batch loop in site/docs/ai/comfyui.md for subfolders.
+  - path: /comfy/{type}/{name}/{image}/{last}
+    params:
+      type: '[a-z0-9-]+'
+      name: '[A-Za-z0-9_.\-]+'
+      image: '[A-Za-z0-9_.\-]+'
+      last: '[A-Za-z0-9_.\-]+'
+    frontmatter:
+      routine: comfy
+      type: '{{type}}'
+      output_prefix: 'comfy/{{name}}'
+      input_image: '{{image}}'
+      last_image: '{{last}}'
+
   # SeaweedFS filer webhook events — nas/seaweedfs/notification.toml posts here with:
   #   Authorization: Bearer <secret>   (bearer_token in that file)
   #
@@ -37,14 +98,14 @@ endpoints:
   # enqueues one file-processor message per match. file-processor downloads the
   # file, runs the processor, then deletes the temp file.
   #
-  # To add a new file type: copy automation/lib/file-processors/example.sh,
+  # To add a new file type: copy automation/lib/file-processors.example/example.sh,
   # set PATTERN="<regex>" (matched against the full rclone path), and implement.
   - path: /s3
     secret: EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN
     frontmatter:
       routine: s3-router
       rclone_src: nextcloud # Name of the remote in rclone config
-      rclone_prefix: 'S3'   # Directory prefix within the remote — the Nextcloud
+      rclone_prefix: '/S3'   # Directory prefix within the remote — the Nextcloud
                              # external-storage mount point for the seaweedfs bucket
                              # (see nas/nextcloud/hooks/post-installation/01-s3-external-storage.sh)
 

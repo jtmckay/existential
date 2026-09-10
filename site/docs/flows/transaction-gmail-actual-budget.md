@@ -160,4 +160,4 @@ Each bank gets its own parse script. `actual-budget-parse` accepts any `parse_sc
 To add a new bank:
 
 1. Create `automation/lib/actual-budget/parse-<bank>.ts` following the same interface as `parse-chase.ts`
-2. Run `./existential.sh run gmail-transactions-cron` again — it will discover the new script automatically
+2. Run `./existential.sh run automation gmail-transactions-cron` again — it will discover the new script automatically

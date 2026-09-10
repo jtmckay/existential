@@ -17,13 +17,15 @@ failure.
 - **Service-scoped** — flag missing deps, don't recurse.
 - **Exit non-zero on failure.**
 - **Skip cleanly when disabled** (`EXIST_IS_<CAT>_<SLUG>` false → exit 0).
-- Inside the **backup** daemon (`DECREE_BACKUP=true`), `skip_if_disabled` and `probe_caddy` are
-  no-ops. Not in `decree`: triage runs there against a mounted `/repo`, and the Caddy probe is
-  what separates "service down" from "routing broken".
+- When the caller sets `EXIST_TEST_LIVENESS_ONLY=true`, `skip_if_disabled` and `probe_caddy`
+  are no-ops — it means "just tell me the service is up". The backup daemon sets it for its own
+  routines. **Triage clears it per test**, because the Caddy probe is what separates "service
+  down" from "routing broken", and catching the latter is much of triage's value. Do not key
+  this off the daemon: triage runs in the backup daemon and wants the full check.
 - Suggested output: `[<slug>] <check>  OK|FAIL` with `observed:`/`fix:` lines.
 
 It is also what the health gates run: `triage` executes every enabled service's copy off the
-`decree` daemon's read-only `/repo` mount every 5 minutes, and `migration-gate.sh` uses the same
+`automation-backup` daemon's read-only `/repo` mount every 5 minutes, and `migration-gate.sh` uses the same
 idea to hold migrations back until their target service answers.
 
 ## End-to-end
@@ -123,7 +125,8 @@ the quest on trip). e2e always uses `--build` so it never tests a stale image.
 ## Every test mechanism has an opposite
 
 A test silently swallowing a failure is worse than no test. The opposites (all on the **host**,
-need git/bash, no adhoc; part of `test` (all) and run early in `pre-push`):
+need git/bash, no adhoc; part of `test` (all), run early in `pre-push`, and the `guards` job
+in CI):
 
 - **`no-tracked-secrets.sh`** (`test secrets`) — asserts this public repo tracks no rendered
   secrets. What counts as "rendered" is structural, not a list of extensions: if a sibling
@@ -171,15 +174,40 @@ of the command inside it, so `ocr.ts` never received `FILE_PATH`).
 Wired into `test` (all) and `pre-push`, grouped with the Docker-needing gates rather than the
 Docker-free self-tests.
 
+## TypeScript
+
+`src/test/typecheck-ts.sh` (`test typecheck`) runs `tsc --noEmit -p tsconfig.json` in the adhoc
+container. Everything in this repo executes through `tsx`, which strips types **without
+checking them**, so `"strict": true` in `tsconfig.json` did nothing until this existed.
+
+Two things about it are deliberate and easy to break:
+
+- It links `/opt/decree/node_modules` to `/repo/node_modules` before running. The deps are not
+  on the resolution path for a file under `/repo` otherwise, and the container is unprivileged
+  so it cannot link at `/`. The link is gitignored and removed on exit.
+- It reports only errors under `src/`, `automation/` and `services/automation/src/`.
+  `@actual-app/api` ships `.ts` source that does not compile under strict, `skipLibCheck` does
+  not cover that (it is `.d.ts` only), and it is not ours to fix. The canary is what stops that
+  filter becoming a way to hide real findings: it plants a type error in `src/`, and a run that
+  does not report it fails as "tsc is not running".
+
+The canary must not be a dotfile — tsconfig's `src/**/*.ts` does not match a leading dot, and a
+dotfile canary is silently never compiled.
+
 ## Go services
 
 Go services carry their own `go test` suite (e.g. `services/automation/webhook/main_test.go`). Adhoc
-has no Go toolchain, so they are **not** part of `./existential.sh test` — run them from the
-service dir, or in a container:
+has no Go toolchain, so they are **not** part of `./existential.sh test`. **CI runs them** — the
+`go` job in `.github/workflows/ci.yml` — which is the only automatic trigger they have. Locally,
+run them from the service dir, or in a container:
 
 ```bash
-docker run --rm -v "$PWD":/src -w /src golang:1.26.5-alpine3.23 go test ./...
+docker run --rm -v "$PWD":/src -w /src golang:1.26.6-alpine3.23 go test ./...
 ```
+
+Keep that tag matching the builder stage in `services/automation/webhook/Dockerfile`, not
+`go.mod` — `go.mod` records the language floor (1.22, where `ServeMux` gained `{param}`
+patterns), which is deliberately older than what builds the binary.
 
 ## Git hooks
 
@@ -187,8 +215,27 @@ docker run --rm -v "$PWD":/src -w /src golang:1.26.5-alpine3.23 go test ./...
 
 - **`pre-commit`** blocks secrets from entering the public repo — lean/fast, the one
   irreversible failure.
-- **`pre-push`** runs the host-side opposites first (`test guards`, `test harness` — cheap, no
-  Docker, fail fast) then `test unit`, `test selfcheck`, and `validate conventions` (heavier,
-  needs Docker — gated once per push, not per commit).
+- **`pre-push`** runs the host-side opposites first (`test guards`, `test secrets`,
+  `test harness` — cheap, no Docker, fail fast) then `test lint`, `test typecheck`, `test unit`,
+  `test selfcheck`, and `validate conventions` (heavier, needs Docker — gated once per push,
+  not per commit).
 
 Bypass either with `--no-verify`.
+
+## CI
+
+`.github/workflows/ci.yml` runs the same gates as `pre-push`, on push to `main` and on every
+pull request. It exists because a hook is local-only, is installed as a side effect of the
+first `./existential.sh` run, is bypassable with `--no-verify`, and never sees a PR — so the
+gates ran on one machine and nowhere else.
+
+Four jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`,
+`go` (the webhook module's `go vet` + `go test`, which nothing else triggers — see below), and
+`unit` (builds the adhoc image, then `test unit`, `test selfcheck`, `validate conventions`).
+
+Nothing in CI renders templates, so it runs against the tracked tree as a fresh clone has it.
+`validate conventions` is a soft gate that tolerates an unrendered `docker-compose.yml`, which
+is what makes that safe.
+
+**`pre-push` and this workflow must stay in step.** The hook is the fast local copy; the
+workflow is the one that is not optional. Add a gate to both.

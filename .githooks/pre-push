@@ -5,12 +5,15 @@
 # here — once per push — instead of on every commit. pre-commit stays lean (the
 # secret guard, the one irreversible failure on a public repo). Installed via
 # core.hooksPath=.githooks (see existential.sh). Bypass with: git push --no-verify
+#
+# This is the fast local copy of .github/workflows/ci.yml, which runs the same
+# gates on push and pull request and cannot be bypassed. Add a gate to both.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-echo "pre-push: self-tests + unit tests + convention checks (skip with: git push --no-verify)"
+echo "pre-push: secret guards + self-tests + unit tests + convention checks (skip with: git push --no-verify)"
 
 # Cheap, host-side, no Docker — run first so a disarmed secret guard fails fast,
 # before the heavier adhoc-container unit tier. push == publication, so this is
@@ -19,6 +22,18 @@ if ! ./existential.sh test guards; then
     echo "" >&2
     echo "pre-push blocked: secret-guard self-test failed (a guard may be disarmed)." >&2
     echo "Fix it — do not bypass this on a public repo unless you are certain." >&2
+    exit 1
+fi
+
+# The guard self-test above proves the guards would TRIP; this is the scan of the
+# actual index. no-tracked-secrets.sh calls itself the standing backstop "so the
+# leak is caught before push" — it was only reached by a bare `./existential.sh
+# test`, which is not what push runs. Host-side and Docker-free, so it costs
+# nothing here.
+if ! ./existential.sh test secrets; then
+    echo "" >&2
+    echo "pre-push blocked: a rendered secret is tracked in the index." >&2
+    echo "Do not bypass this on a public repo." >&2
     exit 1
 fi
 
@@ -35,6 +50,14 @@ fi
 if ! ./existential.sh test lint; then
     echo "" >&2
     echo "pre-push blocked: shellcheck found issues (fix, or 'git push --no-verify')." >&2
+    exit 1
+fi
+
+# Same idea as `test lint`, for the other half of the codebase: tsx strips types
+# without checking them, so this is the only thing that reads tsconfig's strict.
+if ! ./existential.sh test typecheck; then
+    echo "" >&2
+    echo "pre-push blocked: TypeScript does not typecheck." >&2
     exit 1
 fi
 

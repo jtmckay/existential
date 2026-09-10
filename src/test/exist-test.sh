@@ -35,12 +35,16 @@ _ENABLE_VAR=""
 # uses BASH_SOURCE[1] to find the caller's path.
 exist_self_elevate() {
     [ -n "${IN_CONTAINER:-}" ] && return 0
-    local script repo in_repo_path
-    script="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)/$(basename "${BASH_SOURCE[1]}")"
-    repo="$(cd "$(dirname "$script")/../.." && pwd)"
-    in_repo_path="/repo${script#"$repo"}"
-    exec docker compose -f "${repo}/existential-compose.yml" run --rm \
-        --entrypoint "" existential-adhoc bash "$in_repo_path"
+    # BASH_SOURCE[1] is the service's exist.test.sh, which is what must be
+    # re-exec'd — not this shared harness. adhoc.sh owns the rest: the
+    # conditional --user (this copy had none, so every test ran as root) and the
+    # TTY detection (this copy had none either, so `./existential.sh test <slug>`
+    # got compose's default pseudo-TTY and failed whenever stdin was a pipe).
+    local repo
+    repo="$(cd "$(dirname "${BASH_SOURCE[1]}")/../.." && pwd)"
+    # shellcheck source=../utils/adhoc.sh
+    . "${repo}/src/utils/adhoc.sh"
+    adhoc_self_elevate "${BASH_SOURCE[1]}"
 }
 
 # ── Identity ─────────────────────────────────────────────────────────────────
@@ -71,12 +75,21 @@ load_env_exist() {
     _env_loaded=1
 }
 
+# EXIST_TEST_LIVENESS_ONLY — the caller only wants "is this service up", not a
+# full check. It turns off the enablement skip (the flags may not be readable)
+# and the Caddy routing probes (the routing stack may not be reachable).
+#
+# It replaces a test on which DAEMON was running, which stopped being the same
+# question the moment triage moved into the backup daemon: triage runs there now,
+# but it mounts /repo, it can reach Caddy, and it wants the full check. So the
+# variable names the CAPABILITY the caller wants instead of inferring it from the
+# container. The backup daemon sets it in compose; triage clears it per test.
+_liveness_only() { [ "${EXIST_TEST_LIVENESS_ONLY:-false}" = "true" ]; }
+
 skip_if_disabled() {
-    # Inside the backup daemon the flags aren't readable — /repo is the only copy
-    # and it isn't mounted there. Probe the service instead of skipping it.
-    # NOT DECREE_DAEMON: that is true in `decree` too, which is exactly where
-    # triage runs every service test with /repo mounted and Caddy reachable.
-    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
+    # A liveness-only caller may not be able to read the enablement flags at all
+    # (/repo is the only copy of .env.shared). Probe the service instead.
+    _liveness_only && return 0
     load_env_exist
     local val="${!_ENABLE_VAR:-false}"
     if [ "$val" != "true" ]; then
@@ -273,18 +286,17 @@ probe_pihole() {
 # a single hostname. Caller pairs this with their own http_probe for the
 # direct leg.
 probe_caddy() {
-    # Skip Caddy routing checks inside the backup daemon — the daemon only needs
-    # to confirm the service itself is up, not the full routing stack.
-    # NOT DECREE_DAEMON: that is true in `decree` too, which is exactly where
-    # triage runs every service test with /repo mounted and Caddy reachable.
-    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
+    # A liveness-only caller wants to know the service itself is up, not that the
+    # whole routing stack in front of it is. Triage is NOT such a caller — it
+    # clears the flag precisely so a broken reverse proxy still gets caught.
+    _liveness_only && return 0
     local name="$1" host="$2" path="${3:-/}" expect="${4:-200}" timeout="${5:-5}"
     _probe_caddy_paths exact "$name" "$host" "$path" "$expect" "$timeout"
 }
 
 # probe_caddy_any NAME HOST [PATH=/] [PATTERN=^200$] [TIMEOUT=5]
 probe_caddy_any() {
-    [ "${DECREE_BACKUP:-}" = "true" ] && return 0
+    _liveness_only && return 0
     local name="$1" host="$2" path="${3:-/}" pattern="${4:-^200$}" timeout="${5:-5}"
     _probe_caddy_paths regex "$name" "$host" "$path" "$pattern" "$timeout"
 }
