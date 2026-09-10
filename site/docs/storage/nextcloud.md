@@ -97,7 +97,7 @@ and [Getting Started → Workspace](../getting-started#workspace).
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
 installed and pointed at it. `automation-examples/migrations/22-nextcloud-richdocuments.md`
 does this the same way the seaweedfs bucket gets created: copy it to
-`automation/migrations/` and restart `decree` to activate. It also sets
+`automation/migrations/` and restart `automation` to activate. It also sets
 `richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
 Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
 just the actual Collabora container.
@@ -121,7 +121,7 @@ Nextcloud ships CalDAV enabled regardless (the `dav` app), but the Calendar app 
 the UI at `/apps/calendar`, and the "Personal"/"Contact birthdays" calendars it auto-creates
 per user — has to be turned on. `automation-examples/migrations/24-nextcloud-calendar.md` does
 that the same way `richdocuments` above gets installed: copy it to `automation/migrations/` and
-restart `decree` to activate.
+restart `automation` to activate.
 
 To do it by hand instead:
 

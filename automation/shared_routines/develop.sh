@@ -5,6 +5,15 @@
 # Reads the task message, prompts the AI to implement all
 # requirements, then verifies acceptance criteria are met.
 #
+# Both passes hand opencode a terminal and the second one tells it to run
+# tests, so raw command output is what fills this routine's context window.
+# Against a local model at 65536 context, one verbose test run or
+# `docker compose logs` can crowd out the task itself mid-run — the routine
+# doesn't fail, it forgets. RTK (https://github.com/rtk-ai/rtk) filters that
+# output before the agent reads it and has an opencode plugin; it is not
+# installed here. Where it would go, and whether it's worth it:
+# site/docs/writing-a-routine.md → "Routines that hand an agent a terminal".
+#
 # Example inbox message (.decree/inbox/my-task.md):
 #
 #   ---

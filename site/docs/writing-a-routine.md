@@ -147,18 +147,28 @@ shared_routines:
 - **Unlisted means invisible.** Not disabled — absent.
 - `enabled: false` means the routine is known and off. That is the right default for anything
   opt-in; the user flips it on.
-- Add it to **every** daemon that should see it. Sidecars each have their own config.
+- Add it to **every** daemon that should see it — there are two, and each has its own config.
 - `config.exist.yml` is the tracked template. `./existential.sh` renders it once to
   `config.yml`, which is gitignored and is where the user's own overrides live — so edit the
   template *and*, if `config.yml` already exists, the rendered copy too.
 
 :::warning[Which daemon?]
-There are two, and they are not interchangeable. `decree` is where anything that reasons,
-routes, calls a service API or writes to `workspace/` belongs — it alone has a writable
-`/workspace` and the read-only `/repo` mount. `decree-backup` is where anything that reads
-volume data belongs — it alone mounts `volumes/` and carries every service's credentials, and
-it deliberately has no AI CLI installed. A routine that needs both is a routine that should be
-two.
+There are two and they are not interchangeable: **`automation`** (project dir
+`services/automation/decree/`) and **`automation-backup`** (`services/automation/backup/`).
+Neither container is called `decree` — that's the binary inside them.
+
+`automation` is where anything that **reasons, routes, calls a service API, or runs a service's
+one-time migrations** belongs. It alone has the read-only `/repo` mount, and it alone has an AI
+CLI (`DECREE_AI`, blanked on purpose in the other).
+
+`automation-backup` is where anything that needs **bulk volume data or every credential at
+once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. Despite the
+name it is not backups-only — `workspace-sync` lives there for exactly that access, not because
+it backs anything up. What it must never do is reason, route, or make an AI call; that stays in
+`automation` even when it touches the same data.
+
+Both have a writable `/workspace`. A routine that wants an AI *and* bulk volume access is a
+routine that should be two.
 :::
 
 ## Choosing a trigger
@@ -252,6 +262,84 @@ Three rules:
 
 Fan-out is just writing more than one message. Chains are bounded by `max_depth` (100), so a
 routine that queues itself will stop rather than run forever.
+
+## Routines that hand an agent a terminal
+
+Most routines run commands and read the output themselves. A few — `develop`, and anything else
+that calls `opencode run` or `claude` — hand a terminal to a **model** and let it decide what to
+run next. Those have a failure mode the others don't: raw command output becomes prompt.
+
+`develop`'s second pass literally says *"Run any tests"*. A full jest run, a `docker compose
+logs`, a `git diff` of a big change — each one lands in the agent's context in full. Against a
+local model at `EXIST_MODEL_CHAT_NUM_CTX` (65536) that is enough to crowd out the task itself
+halfway through, so the routine doesn't fail loudly; it forgets what it was doing.
+
+[RTK](https://github.com/rtk-ai/rtk) is one answer. It's a single Rust binary that filters and
+dedupes command output — showing only the failures from a test run, grouping files, collapsing
+repeated log lines, with the full output still retrievable via `rtk recall`.
+
+### How it actually attaches
+
+Nothing tells the agent to type `rtk`. Two pieces do it behind the agent's back:
+
+1. **The binary**, on `PATH` inside the container.
+2. **A plugin file** at `~/.config/opencode/plugins/rtk.ts`, which `rtk init -g --opencode`
+   writes for you.
+
+The plugin hooks opencode's `tool.execute.before`. On every `bash`/`shell` tool call it pipes
+the command string through `rtk rewrite` and swaps the result back into `args.command` in
+place — so the agent asks for `git status`, what runs is `rtk git status`, and what comes back
+is the filtered output. The agent is never told, and no routine changes.
+
+Both failure paths are quiet by design: no `rtk` on `PATH` and the plugin disables itself with a
+warning; a failing `rtk rewrite` and the original command passes through untouched. The worst
+case is no savings, not a broken run.
+
+### Wiring it into the daemon
+
+`services/automation/decree/entrypoint.sh`, in the `opencode)` case that already installs the
+CLI per `DECREE_AI`:
+
+```bash
+opencode)
+  if ! command -v opencode &>/dev/null; then
+    echo "Installing opencode-ai..."
+    npm i -g opencode-ai
+  fi
+  if ! command -v rtk &>/dev/null; then
+    echo "Installing rtk..."
+    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+  fi
+  rtk init -g --opencode      # idempotent; writes ~/.config/opencode/plugins/rtk.ts
+  ;;
+```
+
+That is the only durable place. `HOME=/home/decree` is baked into the image (world-writable, no
+volume behind it — `services/automation/decree/Dockerfile:52`), so the binary and the plugin
+both live in the container's writable layer: they survive `docker compose restart` and vanish on
+recreate. That is exactly the lifecycle `opencode` itself has, which is why the `command -v`
+guard above it exists — copy the pattern rather than inventing a sentinel.
+
+Three things worth knowing before you do it:
+
+- **`opencode.exist.json` stays as it is.** The plugin is discovered from `~/.config`, not from
+  config; that template renders to the read-only `/work/opencode.json` mount and needs no entry.
+- **Some filters shell out to ripgrep**, which this image does not install. Without `rg` on
+  `PATH` those filters warn and degrade; add `ripgrep` to the `apt-get install` list in the
+  Dockerfile if you care about them.
+- **Only the shell tool is intercepted.** Opencode's own file-read and search tools bypass the
+  plugin entirely, so output that arrives that way is unfiltered.
+
+### Is it worth carrying?
+
+`develop` and `agent-task` both ship `enabled: false`, so on a default install RTK would be
+filtering nothing. If you have turned `develop` on and it loses the thread on long runs, this is
+the first thing to try. If you haven't, it's a dependency with no job.
+
+:::note[It only helps when a model reads the output]
+A routine that runs a script and checks its exit code gains nothing from RTK — there is no
+context window involved. The win is specific to output that becomes prompt.
+:::
 
 ## Verifying it
 
