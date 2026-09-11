@@ -153,6 +153,7 @@ services/automation/backup/runs/*
 
 # Honcho
 **/honcho/config.toml
+**/honcho/honcho.json
 
 # SeaweedFS — rendered from *.exist.* templates and carrying real credentials:
 # s3.json holds both S3 identities, notification.toml the decree bearer token.

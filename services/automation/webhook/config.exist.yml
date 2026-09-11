@@ -105,7 +105,7 @@ endpoints:
     frontmatter:
       routine: s3-router
       rclone_src: nextcloud # Name of the remote in rclone config
-      rclone_prefix: '/S3'   # Directory prefix within the remote — the Nextcloud
+      rclone_prefix: 'S3'   # Directory prefix within the remote — the Nextcloud
                              # external-storage mount point for the seaweedfs bucket
                              # (see nas/nextcloud/hooks/post-installation/01-s3-external-storage.sh)
 
