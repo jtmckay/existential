@@ -25,7 +25,7 @@ fi
 # On fresh clone or after a new image pull: re-extracts and chowns on the host
 # (~1 min, much faster than overlayfs chown inside the container).
 _ensure_hermes_install() {
-    local cache_dir="${SCRIPT_DIR}/hermes_install"
+    local cache_dir="${SCRIPT_DIR}/../../volumes/hermes_install_cache"
     local image
     image=$(grep -m1 'image:.*hermes-agent' "${SCRIPT_DIR}/docker-compose.yml" \
             | sed 's/[[:space:]]*image:[[:space:]]*//')
@@ -62,7 +62,7 @@ _ensure_hermes_install() {
     local _p
     for _p in "$cache_dir" "${cache_dir}/.venv" "${cache_dir}/ui-tui" \
               "${cache_dir}/gateway" "${cache_dir}/node_modules"; do
-        [[ -e "$_p" && ! -w "$_p" ]] && _stuck+=("${_p#"${SCRIPT_DIR}/"}")
+        [[ -e "$_p" && ! -w "$_p" ]] && _stuck+=("${_p#"${SCRIPT_DIR}/../../"}")
     done
     if [[ "${#_stuck[@]}" -gt 0 ]]; then
         echo "[hermes] Cannot write to the build cache — these are owned by another user:" >&2
@@ -116,7 +116,7 @@ _ensure_hermes_install() {
     local gid="${EXIST_PGID:-$(id -g)}"
     echo "[hermes] Chowning cache to ${uid}:${gid}..."
     if ! chown -R "${uid}:${gid}" "$cache_dir" 2>/dev/null; then
-        echo "[hermes] Could not chown ${cache_dir#"${SCRIPT_DIR}/"} to ${uid}:${gid}." >&2
+        echo "[hermes] Could not chown ${cache_dir#"${SCRIPT_DIR}/../../"} to ${uid}:${gid}." >&2
         echo "[hermes] Run: ./existential.sh run fix-permissions" >&2
         return 1
     fi
@@ -132,7 +132,7 @@ _ensure_hermes_install
 # well before this script runs, so its presence alone proves nothing; see the
 # non-emptiness check below.
 _ensure_honcho_ai() {
-    local venv="${SCRIPT_DIR}/hermes_install/.venv"
+    local venv="${SCRIPT_DIR}/../../volumes/hermes_install_cache/.venv"
     # Non-empty, not merely present: generate-compose.ts pre-creates .venv as an
     # empty directory at render time (ensureBindSource), before this script ever
     # runs — the same reason _ensure_hermes_install above uses `ls -A` as its own

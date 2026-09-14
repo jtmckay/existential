@@ -183,10 +183,12 @@ from the repo root against the generated `docker-compose.yml`.
   limit is where swapping starts, not a ceiling. `./existential.sh run footprint` compares limits
   against live usage. Model servers are the exception — there the limit *is* the model.
 - **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
-  `volumes/<name>`, referenced by bare name and declared in the service's top-level
-  `x-exist-volumes:` block (`nfs` / `db` / `backup`); an undeclared name is a hard error. The
-  name's suffix is enforced and says whether it is safe to delete: `_data`, `_backup`, `_cache`.
-  An embedded DB (SQLite, bbolt, TSDB) is `db: true` and must **never** be `nfs: true`. **No
+  `volumes/<name>`, referenced by bare name (optionally with a subpath into it,
+  `hermes_install_cache/.venv`) and declared in the service's top-level `x-exist-volumes:` block
+  (`nfs` / `db` / `backup`); an undeclared name is a hard error. The name's suffix is enforced and
+  says whether it is safe to delete: `_data`, `_backup`, `_cache`. An embedded DB (SQLite, bbolt,
+  TSDB) is `db: true` and must **never** be `nfs: true`. **Anything gitignored is a volume** — a
+  relative bind source is for tracked config only, never for state, however regenerable. **No
   `.gitkeep`** — `generate-compose.ts` creates the dirs for enabled services. → `volumes.md`
 - **Addressing.** Browser/cross-machine → `https://<slug>.<domain>` through Caddy;
   container-to-container → `http://<container>:<port>` over Docker DNS. Caddy's

@@ -4,11 +4,23 @@
 on NFS). Every volume is a **host bind mount**: visible, inspectable, correctly-owned.
 
 A template refers to a volume by **bare name** and declares it in `x-exist-volumes` (below);
-`generate-compose.ts` materialises that into an absolute host path. Paths that are not volumes —
-a mounted config file, a service-dir directory — stay relative and are only normalised
-(`../../<dir>` → `./<dir>`, prepending the service dir). The **generated** `docker-compose.yml`
-therefore contains no bare names and no top-level `volumes:` block, so `docker volume ls` stays
-empty; `validate conventions` enforces that on the generated file.
+`generate-compose.ts` materialises that into an absolute host path. A bare name may carry a
+**subpath** into the volume (`hermes_install_cache/.venv`) — for images that need several
+sibling directories mounted into a tree they also populate themselves. The **generated**
+`docker-compose.yml` therefore contains no bare names and no top-level `volumes:` block, so
+`docker volume ls` stays empty; `validate conventions` enforces that on the generated file.
+
+A relative bind source is for **tracked config only** — a mounted config file, or a directory of
+them (`./hooks/`, `./provisioning/`). It is normalised (`../../<dir>` → `./<dir>`, prepending the
+service dir) and nothing more.
+
+**Anything gitignored is a volume.** If a directory is not tracked, it is state — regenerable or
+not — and it belongs in `volumes/<name>` with a declaration, never in the service folder. There
+is no "service-dir scratch" tier: that exemption is what let hermes' four build trees live in
+`ai/hermes/hermes_install/` for a year, outside `automation-backup`'s reach and invisible to
+`reset`, which only knows how to offer deleting a `_cache` **volume**. The two roots outside
+`volumes/` are `workspace/` (the user's own content, named in CLAUDE.md) and the decree project
+dir `automation/`; both are architectural and neither is a service folder.
 
 ## One directory, declared properties
 
@@ -104,7 +116,7 @@ This is not cosmetic. When a bind-mount source does not exist, the daemon create
 `root:root` directory, and three things follow:
 
 - The container sees an **empty directory** where the image had files. `ai/hermes` mounts
-  `hermes_install/{.venv,ui-tui,gateway,node_modules}`, which its own `exist.initial.sh` extracts
+  `hermes_install_cache/{.venv,ui-tui,gateway,node_modules}` by subpath, which its own `exist.initial.sh` extracts
   from the image — a `docker compose up` that beats the renderer shadows hermes' binaries and it
   restarts forever with exit 127.
 - The next render can't clean up: `rm -rf` on a root-owned dir fails for the host user, and under

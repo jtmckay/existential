@@ -131,6 +131,31 @@ function hasTemplateFor(abs: string): boolean {
   });
 }
 
+// Every mkdir below races the Docker daemon for the same path, and the daemon
+// wins by creating it root:root (see ensureBindSource). Once it has, this
+// process — which runs as the host uid:gid — cannot mkdir a sibling, and the
+// raw EACCES surfaces as a Node stack trace in the middle of a render that has
+// already half-written its output. The repair is a real command, so name it.
+function mkdirOwned(abs: string): void {
+  try {
+    fs.mkdirSync(abs, { recursive: true });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== 'EACCES' && code !== 'EPERM') throw err;
+    process.stderr.write(
+      `ERROR: cannot create '${abs}' — a parent directory is not owned by this user.\n` +
+      `  The Docker daemon creates a missing bind-mount source as root:root, and from\n` +
+      `  then on the render cannot write beside it.\n\n` +
+      `  Repair it, then re-run:\n` +
+      `    ./existential.sh run fix-permissions --dry-run   # review\n` +
+      `    ./existential.sh run fix-permissions\n\n` +
+      `  Bring the stack down first (docker compose down) — see that command's\n` +
+      `  warning about services that own their data as root on purpose.\n`,
+    );
+    process.exit(1);
+  }
+}
+
 // A relative bind-mount source that does not exist yet is a trap: `docker compose
 // up` asks the daemon for a path that is not there, and the daemon creates it as
 // an empty root:root directory. That shadows whatever the image had at the mount
@@ -164,7 +189,7 @@ function ensureBindSource(rel: string, ctx: VolumeContext): void {
   // repo's own record that this destination is a rendered file, so ask it.
   if (hasTemplateFor(abs)) return;
 
-  fs.mkdirSync(abs, { recursive: true });
+  mkdirOwned(abs);
 }
 
 function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
@@ -189,10 +214,20 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
   // Absolute path — leave unchanged.
   if (src.startsWith('/')) return vol;
 
-  // Named volume (no leading dot, no path separator) — materialise as a host
-  // bind mount, placed by its x-exist-volumes declaration.
-  if (!src.startsWith('.') && !src.includes('/')) {
-    const name = src;
+  // Named volume — a bare name, optionally followed by a subpath into it
+  // (`hermes_install_cache/.venv`). Materialise as a host bind mount, placed by
+  // its x-exist-volumes declaration.
+  //
+  // The subpath exists for images that need several SIBLING directories mounted
+  // into a tree they also populate themselves: hermes mounts .venv, ui-tui,
+  // gateway and node_modules into /opt/hermes, whose other contents are the
+  // image's own. Without it those four would have to be four declared volumes,
+  // which is why they used to be a gitignored directory in the service folder
+  // instead — the one thing volumes.md no longer allows.
+  if (!src.startsWith('.')) {
+    const slash = src.indexOf('/');
+    const name = slash === -1 ? src : src.slice(0, slash);
+    const sub = slash === -1 ? '' : src.slice(slash + 1);
     const spec = ctx.volumeSpec[name];
 
     // An undeclared name is not a Docker-managed volume by default — that is the
@@ -208,6 +243,15 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
       process.exit(1);
     }
 
+    // A subpath is a path INTO the volume, never a way back out of it. Normalise
+    // first so '.venv/../../etc' is caught rather than passed through.
+    if (sub && (path.posix.normalize(sub).startsWith('..') || path.posix.isAbsolute(sub))) {
+      process.stderr.write(
+        `ERROR: volume subpath '${src}' in ${ctx.servicePrefix} escapes the volume.\n`,
+      );
+      process.exit(1);
+    }
+
     let hostPath: string;
     if (spec.nfs && ctx.nfsHostMount) {
       // Lives on the NAS export, which the host mounts (fstab/autofs). Create the
@@ -215,13 +259,15 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
       // only when the mountpoint itself is present. Creating it while the export
       // is unmounted would quietly write to the empty local mountpoint, and the
       // data would vanish the moment it mounted.
-      hostPath = `${ctx.nfsHostMount}/${name}`;
+      hostPath = sub ? `${ctx.nfsHostMount}/${name}/${sub}` : `${ctx.nfsHostMount}/${name}`;
       if (fs.existsSync(ctx.nfsHostMount)) {
-        fs.mkdirSync(hostPath, { recursive: true });
+        mkdirOwned(hostPath);
       }
     } else {
-      hostPath = `${ctx.hostRepoRoot}/volumes/${name}`;
-      fs.mkdirSync(path.join(ctx.repoRoot, 'volumes', name), { recursive: true });
+      hostPath = sub
+        ? `${ctx.hostRepoRoot}/volumes/${name}/${sub}`
+        : `${ctx.hostRepoRoot}/volumes/${name}`;
+      mkdirOwned(path.join(ctx.repoRoot, 'volumes', name, sub));
     }
     parts[0] = hostPath;
     return parts.join(':');

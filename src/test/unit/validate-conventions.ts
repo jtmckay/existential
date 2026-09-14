@@ -360,9 +360,11 @@ function checkVolumeSpecs(): string[] {
         for (const entry of ((svc ?? {})['volumes'] ?? []) as unknown[]) {
           if (typeof entry !== 'string') continue;
           const src = entry.replace(/^['"]|['"]$/g, '').split(':')[0];
+          // A bare name may carry a subpath into the volume (`name/.venv`) — the
+          // volume being declared is the first segment.
           const isBareNamed = src.length > 0 && !src.startsWith('/') &&
-            !src.startsWith('.') && !src.startsWith('$') && !src.includes('/');
-          if (isBareNamed) mounted.add(src);
+            !src.startsWith('.') && !src.startsWith('$');
+          if (isBareNamed) mounted.add(src.split('/')[0]);
         }
       }
 

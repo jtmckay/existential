@@ -195,13 +195,6 @@ node_modules/
 # files to trip over when you delete a volume.
 volumes/
 
-# Service-dir scratch that is NOT a volume: hermes' runtime, extracted from the
-# image by its exist.initial.sh.
-**/hermes_install
-**/model-cache
-**/caddy_config
-**/ntfy_cache
-
 # OS / editor droppings
 .DS_Store
 Thumbs.db

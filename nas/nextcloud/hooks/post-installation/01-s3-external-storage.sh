@@ -47,6 +47,19 @@ fi
     occ files_external:config "$id" key            "$NEXTCLOUD_S3_KEY"
     occ files_external:config "$id" secret         "$NEXTCLOUD_S3_SECRET"
 
+    # Without this the mount is invisible to anything that writes to the bucket
+    # directly — rsync, the workspace-sync bisync, a whisperx drop. Nextcloud
+    # lists /S3 out of oc_filecache, not out of a live bucket listing, and the
+    # watcher that would refresh that cache defaults to CHECK_NEVER
+    # (config.sample.php's filesystem_check_changes, "Never check the filesystem
+    # for outside changes"). Its docs say it does not apply to external storage,
+    # and that is true of the *system* value — Common::getWatcher reads the
+    # per-mount option first and only falls back to the global one, so this is
+    # the lever that works for a files_external mount. AmazonS3::hasUpdated
+    # returns true for any directory, so once the watcher is allowed to ask, the
+    # scanner re-lists the prefix and out-of-band objects appear.
+    occ files_external:option "$id" filesystem_check_changes 1
+
     # No files_external:applicable call: a system mount created with neither
     # --user nor --group is already applicable to All users (verify with
     # `occ files_external:list`), and --add-all is not a real option.
