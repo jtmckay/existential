@@ -27,7 +27,7 @@ The pipeline:
     → s3-router matches PATTERN against the rclone path      (free)
     → file-processor downloads it, then puts CRITERIA to hermes  (one call)
     → agent-handoff.sh queues agent-task for what passed both
-    → agent-task runs `opencode run` against hermes, which reaches
+    → agent-task calls the hermes gateway, which reaches
       OpenViking and Firecrawl through its own MCP servers
     → the answer lands in workspace/ai/plan-followup.md
 
@@ -74,8 +74,11 @@ Setup:
      automation-examples/migrations/23-nextcloud-rclone-remote.md to
      automation/migrations/.
 
-  4. Check the agent half works before relying on it:
-       docker exec automation opencode run "reply with the word ready"
+  4. Check the agent half works before relying on it — the gateway answers
+     the automation container:
+       docker exec automation sh -c 'curl -sf \
+         -H "Authorization: Bearer $HERMES_API_KEY" \
+         http://hermes-agent:8642/v1/models'
 
 Then write your own matches. Copy any file in
 automation/lib/file-processors.example/ into automation/lib/file-processors/

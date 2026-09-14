@@ -60,3 +60,14 @@ Actively changing — it's a curated stack, not a frozen product, and services g
 replaced, or moved to the [graveyard](./graveyard/) when something better comes along. The
 [flows](./flows/) documented here are the ones that ship and run today; nothing on this site is
 aspirational.
+
+### Can I use the stack's own agent to change the stack?
+
+Not recommended at 64k context or less — use a dedicated coding agent against a frontier model, on the machine that holds the repo.
+Hermes is an agent running its own tool loop behind an OpenAI-compatible endpoint, which is the
+wrong shape for a coding agent to drive (the concrete failure:
+[Why not OpenCode](./decree/routing#why-not-opencode)), and a local model at 64k context is the
+wrong size for editing a repo this large.
+
+Hermes earns its keep on the other side of that line: inside a container, on `workspace/` — the
+[agent automations](./flows/note-to-action) that write into `workspace/ai/`, not the repo.

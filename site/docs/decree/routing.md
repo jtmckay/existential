@@ -149,4 +149,9 @@ Departments call the hermes endpoint directly rather than going through OpenCode
 itself an agent running its own tool loop against its own MCP servers, so OpenCode would be an
 agent wrapping an agent — and OpenCode's streaming parser rejects hermes' custom
 `event: hermes.tool.progress` SSE frames outright, which fails every turn where hermes actually
-uses a tool. Coding work that genuinely wants a repo-editing agent still goes to `develop`.
+uses a tool.
+
+That is the same reason OpenCode-over-hermes is not the way to work on this stack. `develop` —
+the one routine that does drive OpenCode against the gateway — ships `enabled: false` and inherits
+the limitation. Change the stack with a dedicated coding agent against a frontier model, on the
+machine that holds the repo; leave the gateway the work it is good at, on `workspace/`.

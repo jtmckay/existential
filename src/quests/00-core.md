@@ -18,6 +18,8 @@ services:
     label: Redis (Nextcloud cache — required by Nextcloud)
   - var: EXIST_IS_NAS_SEAWEEDFS
     label: SeaweedFS (S3 + file events)
+  - var: EXIST_IS_SERVICES_CODE_SERVER
+    label: code-server (editor + terminal over workspace/)
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant (the house)
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -147,6 +149,8 @@ hardware — no API keys, no accounts, nothing leaving the box.
 What you get:
   Nextcloud + SeaweedFS  files, with the bucket mounted into Nextcloud as /S3,
                          and the S3 events that let Decree react to them
+  code-server            editor and terminal over workspace/ — the tree the
+                         agent works in, from any browser
   Home Assistant         the house, plus voice via wyoming-whisper/piper
   Ollama                 the local models everything else talks to
   Hermes                 the agent — the thing you actually converse with
@@ -163,12 +167,19 @@ What you get:
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 
-Roughly 34 containers. The observability half is seven of them and costs about
+Roughly 35 containers. The observability half is seven of them and costs about
 1 GB in practice; every one carries a memory limit, so a runaway query cannot
 take the box down with it. The models are sized to the VRAM you picked at the
 start: one multimodal model handles chat, background memory work and images,
 with bge-m3 alongside it for embeddings. Speech-to-text and text-to-speech
 run on CPU so they never evict the LLM mid-answer.
+
+code-server idles around 200 MB with nobody connected; its 2 GB limit is
+headroom for an actual editing session (language servers, a terminal, an AI
+CLI), not the resting cost. Its first boot installs the editor, four
+extensions and two npm globals before it answers — a couple of minutes on a
+fresh install, and the only core container that makes you wait for a download
+that isn't a model.
 
 Re-size any time with `./existential.sh run models`, or edit the "Model
 Selection" block in .env.shared directly:

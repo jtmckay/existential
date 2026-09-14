@@ -55,15 +55,14 @@ from a service folder.
 
 ## How it fits together
 
-Everything reaches the AI the same way — voice, browser, editor and automation all hit one
+Everything reaches the AI the same way — voice, browser and automation all hit one
 OpenAI-compatible endpoint, so the model, key, skills and memory are configured once instead of
-four times.
+three times.
 
 ```mermaid
 flowchart TB
     ha["Home Assistant<br/>voice, in the house"]
     owui["Open WebUI<br/>chat in a browser"]
-    oc["opencode<br/>editor and terminal"]
     dec["decree<br/>routines, nobody present"]
 
     hermes["Hermes — the one endpoint<br/>OpenAI-compatible · sessions · skills"]
@@ -80,7 +79,6 @@ flowchart TB
 
     ha --> hermes
     owui --> hermes
-    oc --> hermes
     dec --> hermes
     ha --> stt
     ha --> tts
@@ -97,7 +95,7 @@ flowchart TB
     classDef model fill:#f4f4f4,stroke:#999,color:#333
     classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
     classDef reach fill:#fdf6e8,stroke:#c98a1b,color:#333
-    class ha,owui,oc,dec surface
+    class ha,owui,dec surface
     class hermes gateway
     class ollama,stt,tts,apps model
     class viking,honcho,craw reach

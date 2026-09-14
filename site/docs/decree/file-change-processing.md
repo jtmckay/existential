@@ -276,8 +276,8 @@ Three things to know:
 ## Handing off to an agent
 
 A processor's real job is usually to decide *that* something should happen, not
-to do it. `agent-task` is the routine that does it: it runs `opencode run`
-against hermes and files the answer in `workspace/ai/`.
+to do it. `agent-task` is the routine that does it: it calls the hermes gateway
+and files the answer in `workspace/ai/`.
 
 ```bash
 cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" << MSG
@@ -290,14 +290,14 @@ prompt: Read this note and work out what can be settled without the author.
 MSG
 ```
 
-Because OpenCode is pointed at hermes — an agent gateway that runs its own tool
-loop — it inherits every MCP server hermes has registered: OpenViking search,
-Firecrawl web search, Playwright. The prompt does not name tools; it says what it
-wants, and hermes decides what to reach for.
+Because hermes is an agent gateway that runs its own tool loop, the task inherits
+every MCP server hermes has registered: OpenViking search, Firecrawl web search,
+Playwright. The prompt does not name tools; it says what it wants, and hermes
+decides what to reach for. The gateway is called directly rather than through
+OpenCode — [why](./routing#why-not-opencode).
 
-`agent-task` needs `AUTOMATION_AI=opencode` (already set in
-`services/automation/.env.exist`) and the rendered `services/automation/opencode.json`,
-which points at `http://hermes-agent:8642/v1`.
+`agent-task` needs `HERMES_API_KEY` (passed through once hermes is enabled), `curl`
+and `jq`, and `/workspace/ai` mounted into the decree container.
 
 ## Triggering on workspace edits
 

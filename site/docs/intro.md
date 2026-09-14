@@ -74,7 +74,7 @@ the same way:
 | You want to… | You get… |
 |---|---|
 | **Ask for something out loud** | A conversation, anywhere in the house, in a voice you chose |
-| **Write code** | The same assistant in your editor and terminal, with your machine in reach |
+| **Hand off a piece of work** | An agent that reads your notes and the web and files the answer back in your workspace |
 | **Not do a chore again** | A routine that runs on a trigger and only speaks up when it matters |
 
 All three are the same brain behind one local endpoint. Swap what's behind it — a bigger

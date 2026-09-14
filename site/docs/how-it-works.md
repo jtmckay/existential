@@ -19,7 +19,6 @@ This is where the real names appear. Everything on this page is a replaceable ch
 flowchart TB
     ha["Home Assistant<br/><i>voice, in the house</i>"]
     owui["Open WebUI<br/><i>chat in a browser</i>"]
-    oc["opencode<br/><i>editor and terminal</i>"]
     dec["decree<br/><i>routines, nobody present</i>"]
 
     hermes["<b>Hermes</b> — the one endpoint<br/><i>OpenAI-compatible · sessions · skills</i>"]
@@ -36,7 +35,6 @@ flowchart TB
 
     ha --> hermes
     owui --> hermes
-    oc --> hermes
     dec --> hermes
     ha --> stt
     ha --> tts
@@ -53,7 +51,7 @@ flowchart TB
     classDef model fill:#f4f4f4,stroke:#999,color:#333
     classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
     classDef reach fill:#fdf6e8,stroke:#c98a1b,color:#333
-    class ha,owui,oc,dec surface
+    class ha,owui,dec surface
     class hermes gateway
     class ollama,stt,tts,apps model
     class viking,honcho,craw reach
@@ -62,7 +60,7 @@ flowchart TB
 
 ### Reading that in three lines
 
-1. **Everything talks to Hermes.** Voice, browser, editor and automation all hit one
+1. **Everything talks to Hermes.** Voice, browser and automation all hit one
    OpenAI-compatible endpoint. Nothing else knows which model is loaded.
 2. **decree is the hands.** It watches for things happening and runs routines against your
    apps and your data — calling Hermes when the work needs judgment.
@@ -84,12 +82,19 @@ flowchart TB
 | **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. |
-| **Coding front end** | [opencode](./ai/ollama#opencode-integration) | Configured with the Hermes URL as its OpenAI endpoint, so it shares the same models and skills. |
 | **No-human surface** | [decree](./decree/) | The automation engine. Routines call the gateway exactly like you would. |
 
 The reason for the gateway is the whole thesis in miniature: **figure the model, the key, the
-skills and the memory out once, and four surfaces inherit it.** Without it you would configure
+skills and the memory out once, and three surfaces inherit it.** Without it you would configure
 each one separately and they would drift.
+
+:::caution[Editing the stack is not one of the surfaces]
+Hermes is not a coding backend for this repo — it is an agent running its own tool loop, and
+opencode's streaming parser rejects its tool-progress frames
+([why](./decree/routing#why-not-opencode)). Change the stack with a dedicated coding agent on
+the host, against a frontier model. Hermes' agent work stays where it works: in a container, on
+`workspace/` — see [agent-task](./decree/) and [code-server](./services/code-server).
+:::
 
 ## How it's assembled
 

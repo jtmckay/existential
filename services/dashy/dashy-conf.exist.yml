@@ -134,6 +134,14 @@ sections:
         statusCheckAllowInsecure: true
         description: S3-compatible object store (admin UI)
 
+      - title: code-server
+        url: https://code-server.EXIST_DOMAIN
+        # url: https://existential.company/docs/services/code-server
+        icon: si-visualstudiocode
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Editor and terminal over the shared workspace — the same tree the agent works in
+
   # ── what it's doing ───────────────────────────────────────────────────────
   - name: Observability
     icon: fas fa-chart-line

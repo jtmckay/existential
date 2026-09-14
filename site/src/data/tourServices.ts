@@ -149,7 +149,7 @@ export const TOUR: TourSection[] = [
         slug: 'hermes-agent-dashboard',
         name: 'Hermes',
         blurb: 'The agent everything else plugs into',
-        what: 'The middle of the whole diagram. Your notes, files and house state go in; the chat window, the editor and the voice assistant all come out of it. One OpenAI-compatible endpoint holding the models, the tools and the skills, with a dashboard for watching what it actually did.',
+        what: 'The middle of the whole diagram. Your notes, files and house state go in; the chat window, the voice assistant and every automation all come out of it. One OpenAI-compatible endpoint holding the models, the tools and the skills, with a dashboard for watching what it actually did.',
         shot: '/img/services/hermes-agent-dashboard.webp',
         docs: '/docs/ai/hermes',
         source: 'https://github.com/NousResearch/hermes-agent',
@@ -232,8 +232,17 @@ export const TOUR: TourSection[] = [
     kicker: 'Where you see it and where it reaches you',
     kind: 'hosted',
     tier: 'core',
-    lede: 'One page linking everything above, and one channel every automation reports back on.',
+    lede: 'One page linking everything above, one channel every automation reports back on, and an editor over the files the agent works in.',
     services: [
+      {
+        slug: 'code-server',
+        name: 'code-server',
+        blurb: 'The editor, in a browser tab',
+        what: 'The full editor in a browser tab, reachable from a tablet or a phone. It mounts the shared workspace, so what you edit here is the same tree the agent works in — and the terminal ships the claude and opencode CLIs, logged in to whatever account you give them.',
+        shot: '/img/services/code-server.webp',
+        docs: '/docs/services/code-server',
+        source: 'https://github.com/coder/code-server',
+      },
       {
         slug: 'ntfy',
         name: 'Ntfy',
@@ -300,15 +309,6 @@ export const TOUR: TourSection[] = [
     tier: 'extra',
     lede: 'None of these is required and nothing in Core depends on them. Each one gives the agent a capability it does not otherwise have, or you another door into it.',
     services: [
-      {
-        slug: 'code-server',
-        name: 'code-server',
-        blurb: 'Coding against your own agent',
-        what: 'The full editor in a browser tab, reachable from a tablet or a phone. Run opencode inside it and point it at Hermes as its OpenAI endpoint, and the coding assistant shares the same models, skills and memory as everything else here.',
-        shot: '/img/services/code-server.webp',
-        docs: '/docs/services/code-server',
-        source: 'https://github.com/coder/code-server',
-      },
       {
         slug: 'comfyui',
         name: 'ComfyUI',

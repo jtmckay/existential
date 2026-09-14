@@ -15,9 +15,19 @@ AI agent gateway with an OpenAI-compatible API and a live dashboard.
 |---|---|
 | Hermes dashboard | Sessions, skills, and agent configuration |
 | [Open WebUI](./open-web-ui) | Day-to-day conversations |
-| opencode | Coding assistant — connect via Hermes gateway as the OpenAI API endpoint |
+| [decree](../decree/) routines | Work with nobody present — `agent-task` files the answer into `workspace/ai/` |
 
-Configure opencode to point at the Hermes gateway (`https://hermes-agent.<domain>/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
+Every surface points at the gateway (`https://hermes-agent.<domain>/v1`, `HERMES_API_KEY` as the
+API key), so they share the same models, skills and memory.
+
+:::caution[Not a coding backend]
+Don't point a coding agent at the gateway to work on this repo. Hermes is itself an agent running
+its own tool loop, and opencode's streaming parser rejects hermes' custom
+`event: hermes.tool.progress` frames outright — see
+[Why not OpenCode](../decree/routing#why-not-opencode). Edit the stack with a dedicated coding
+agent on the host, against a frontier model. Hermes' agent work belongs where it works: in a
+container, on `workspace/`.
+:::
 
 ## Services
 

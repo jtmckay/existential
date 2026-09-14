@@ -18,11 +18,19 @@ from a machine that isn't the one running it, including a tablet or phone.
 
 ## Enable
 
+Part of Core, so it is already on if you took that quest. Otherwise:
+
 ```bash
 EXIST_IS_SERVICES_CODE_SERVER=true
 ```
 
 Then `./existential.sh && docker compose up -d` from the repo root.
+
+First boot installs the code-server binary, four extensions and two npm globals before
+anything answers on `:8080` — a couple of minutes, and it reports `unhealthy` until then.
+Measured after that: ~210 MB idle with no client connected (58 MB of it real RSS, the rest
+reclaimable page cache), peaking at 1.3 GB during the install itself. The 2 GB limit is
+headroom for an editing session, not the resting cost.
 
 ## Shared workspace
 
@@ -45,6 +53,10 @@ silently forgetting and forcing you to re-authenticate.
 pointed at `hermes-agent` — see [Hermes](../ai/hermes). It's a one-time copy: if you edit
 `services/code-server/opencode.json` after that, the running container won't pick it up and
 `exist.test.sh`/the container log will warn that the two have drifted.
+
+That profile is for errands inside `workspace/` — it only mounts `workspace/`, and hermes
+[is not a coding backend](../ai/hermes#recommended-workflow). Editing the stack itself is a job
+for a dedicated coding agent against a frontier model, on the machine that holds the repo.
 
 ## Notes
 

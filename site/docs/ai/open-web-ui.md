@@ -19,9 +19,12 @@ Each tool in the stack has a distinct role:
 |---|---|
 | [Hermes dashboard](./hermes) | Managing sessions, skills, and agent configuration |
 | Open WebUI | Day-to-day conversations |
-| opencode | Coding assistant — connect via Hermes gateway as the OpenAI API endpoint |
+| [decree](../decree/) routines | Work with nobody present — `agent-task` files the answer into `workspace/ai/` |
 
-Configure opencode to point at the Hermes gateway (`https://hermes-agent.<domain>/v1`) with `HERMES_API_KEY` as the API key so all three surfaces share the same models and skills.
+Every surface points at the Hermes gateway (`https://hermes-agent.<domain>/v1`, `HERMES_API_KEY`
+as the API key), so they share the same models, skills and memory. Coding on the stack itself is
+not one of those surfaces — see
+[Hermes is not a coding backend](./hermes#recommended-workflow).
 
 ## Backend Wiring
 
