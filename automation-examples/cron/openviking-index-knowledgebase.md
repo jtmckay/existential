@@ -3,7 +3,7 @@ cron: "*/15 * * * *"
 routine: openviking-index-dir
 INDEX_DIR: /workspace
 INDEX_PREFIX: "viking://resources/workspace"
-INDEX_EXCLUDE: "(^|/)\\.git/|(^|/)node_modules/|(^|/)\\.venv/|^opencode\\.json$"
+INDEX_EXCLUDE: "(^|/)\\.git/|(^|/)node_modules/|(^|/)\\.venv/"
 # The upload manifest (sha256 → path) so unchanged files are not re-sent.
 # decree_data is the writable volume this container already has; losing it
 # costs one full re-index, nothing more.
@@ -24,8 +24,7 @@ removed from the index. A first run over a large directory takes a while (each
 file is embedded); later runs cost one hash per file.
 
 INDEX_EXCLUDE is an extended-regex matched against the path relative to
-INDEX_DIR. It skips churn — git internals, dependency trees, the rendered
-opencode config — not content.
+INDEX_DIR. It skips churn — git internals, dependency trees — not content.
 
 `workspace/ai/` is deliberately NOT excluded. That directory holds the output of
 the agent automations, and indexing it is what lets a later run find and build on

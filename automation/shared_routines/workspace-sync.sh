@@ -68,7 +68,7 @@ WORKSPACE_S3_PREFIX="${WORKSPACE_S3_PREFIX:-workspace}"
 WORKSPACE_BISYNC_WORKDIR="${WORKSPACE_BISYNC_WORKDIR:-/work/.decree/runs/.workspace-bisync}"
 # Space-separated rclone --exclude patterns. Override to sync more or less, but
 # keep ai/** unless you have broken the loop some other way.
-WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** .venv/** opencode.json}"
+WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** .venv/**}"
 # User-editable excludes, .gitignore-style: one rclone glob pattern per line.
 # Optional — skipped entirely if the file doesn't exist.
 WORKSPACE_SYNC_IGNORE_FILE="${WORKSPACE_SYNC_IGNORE_FILE:-${WORKSPACE_DIR}/.syncignore}"

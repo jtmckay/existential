@@ -68,8 +68,9 @@ RUN cd /opt/decree \
     && pnpm install --frozen-lockfile --prod
 ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
-# entrypoint.sh installs the chosen AI CLI at runtime via `npm i -g` (DECREE_AI=
-# opencode|claude). The container runs as the dynamic host user (EXIST_PUID — any
+# code-server's entrypoint installs the claude CLI at runtime via `npm i -g`
+# (the decree daemons install nothing — they reach hermes over HTTP). That
+# container runs as the dynamic host user (EXIST_PUID — any
 # uid), but the image's default HOME (/root) and global prefix (/usr/local) are
 # root-owned, so npm's cache and install both fail with EACCES. Point HOME, the
 # npm cache, and the npm global prefix at a world-writable dir (0777, since the

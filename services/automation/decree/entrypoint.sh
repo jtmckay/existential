@@ -23,26 +23,14 @@ if ! [[ "$DECREE_CONTAINER" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo "ERROR: DECREE_CONTAINER contains invalid characters (only [a-zA-Z0-9_-] allowed): $DECREE_CONTAINER" >&2; exit 1
 fi
 
-# Install AI tool if requested
-DECREE_AI="${DECREE_AI:-}"
-if [[ -n "$DECREE_AI" ]]; then
-  case "$DECREE_AI" in
-    opencode)
-      if ! command -v opencode &>/dev/null; then
-        echo "Installing opencode-ai..."
-        npm i -g opencode-ai
-      fi
-      ;;
-    claude)
-      if ! command -v claude &>/dev/null; then
-        echo "Installing claude-code..."
-        npm i -g @anthropic-ai/claude-code
-      fi
-      ;;
-    *)
-      echo "WARNING: Unknown DECREE_AI value: $DECREE_AI (supported: opencode, claude)" >&2
-      ;;
-  esac
+# No AI CLI is installed here. Routines reach a model through the hermes
+# gateway over HTTP (automation/lib/hermes.sh, or lib/hermes-cli.sh in command
+# shape) — hermes is itself an agent running its own tool loop, so wrapping it
+# in a second agent bought nothing and its streaming parser broke the ones that
+# tried. A leftover DECREE_AI in an older rendered .env is inert; say so rather
+# than installing something no routine calls.
+if [[ -n "${DECREE_AI:-}" ]]; then
+  echo "NOTE: DECREE_AI=${DECREE_AI} is ignored — no AI CLI is installed. Routines call hermes over HTTP; you can drop AUTOMATION_AI from services/automation/.env." >&2
 fi
 
 # Initialize decree if .decree/ doesn't exist

@@ -81,7 +81,7 @@ flowchart TB
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
 | **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
-| **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. |
+| **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. Opt-in, and not part of Core: Core talks to the agent by voice, from code-server's terminal (`hermes "..."`), and from automations. |
 | **No-human surface** | [decree](./decree/) | The automation engine. Routines call the gateway exactly like you would. |
 
 The reason for the gateway is the whole thesis in miniature: **figure the model, the key, the

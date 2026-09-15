@@ -26,7 +26,7 @@ seq="${seq:-}"
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     # shellcheck source=../lib/precheck.sh
     source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v opencode >/dev/null 2>&1 || precheck_fail "my-routine" "opencode not found"
+    [ -n "${HERMES_API_KEY:-}" ] || precheck_fail "my-routine" "HERMES_API_KEY is empty"
     precheck_pass "my-routine"
     exit 0
 fi
@@ -35,19 +35,22 @@ fi
 my_param="${my_param:-default}"
 
 # --- Implementation ---
-opencode run "Read ${message_file} and implement the requirements.
-Previous attempt logs (if any) are in ${message_dir} for context."
+# shellcheck source=../lib/hermes.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/hermes.sh"
+answer="$(hermes_chat "You are a helpful assistant." "$(cat "$message_file")" 2000)"
 ```
 
-**Use `opencode`.** It is what the stack installs: `services/automation/.env.exist`
-sets `AUTOMATION_AI=opencode`, the compose file passes it as `DECREE_AI`, and the
-entrypoint installs that one CLI. `claude` is the only other accepted value and
-is not installed by default; no routine in `automation/shared_routines/` invokes
-anything else. A routine that shells out to a CLI the container does not have
-fails its pre-check and is declined, silently, forever.
+**There is no AI CLI in the container.** A routine reaches a model exactly one
+way: the hermes gateway over HTTP, through `automation/lib/hermes.sh`
+(`hermes_chat`, `hermes_gate`, `hermes_profile_url`) — or `lib/hermes-cli.sh`
+when you want it in command shape. Hermes is itself an agent running its own tool
+loop against its own MCP servers, so there is no second agent to wrap around it.
+Work that needs a terminal is bash in the routine; work that needs follow-up
+automation comes back as a `workspace/outbox/` message.
 
-The `automation-backup` daemon blanks `DECREE_AI=` on purpose and has **no** AI
-CLI at all, which is why no routine that reasons belongs there.
+The `automation-backup` daemon has no gateway credential at all (its
+`commands` are `/bin/false`), which is why no routine that reasons belongs
+there.
 
 ## Pre-Check
 

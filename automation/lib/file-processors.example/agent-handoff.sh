@@ -9,8 +9,8 @@
 #   CRITERIA decides whether this particular note is worth a full agent run.
 #            One model call, and it answers NO unless it genuinely matches.
 #
-# What survives both gets handed to agent-task, which runs OpenCode against
-# hermes — so it can search OpenViking and the web without anything here saying
+# What survives both gets handed to agent-task, which calls the hermes gateway
+# — so it can search OpenViking and the web without anything here saying
 # how. The answer lands in workspace/ai/, which is indexed but never synced, so
 # it is searchable next time and cannot trigger another run.
 #

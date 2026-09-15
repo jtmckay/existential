@@ -78,8 +78,8 @@ What's left genuinely writable in `/work/.decree`: `inbox/`, `outbox/`, `runs/`,
 `processed.md`, `precheck.log`, `config.hash` — decree's own dequeue/tracking state and every
 routine's follow-up messages.
 
-`opencode.json` and `migration-gate.sh` (mounted as `exist.test.sh`) also stay outside the
-wholesale mount — they're compose-level integration files, not decree project content.
+`migration-gate.sh` (mounted as `exist.test.sh`) also stays outside the wholesale mount — it's a
+compose-level integration file, not decree project content.
 
 `services/automation/decree/` also holds the **image build** — `Dockerfile`, `entrypoint.sh`,
 `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — since the old per-project state dir
@@ -161,7 +161,7 @@ TARGETS: "seaweedfs:8333"
 ## Backups
 
 All of them run in `automation-backup`, which mounts `volumes/` wholesale and takes the master
-`.env` via `env_file` (with `DECREE_AI=` blanked — it installs no AI CLI). So **adding a backup
+`.env` via `env_file` (and no way to reach a model — nothing there reasons). So **adding a backup
 for a new service is one cron file** in `services/automation/backup/cron.example/`: no
 sidecar, no volume mount, no credential plumbing.
 
@@ -182,6 +182,6 @@ Read these when you need specifics — don't load all of them upfront:
 - **`reference/routines.md`** — routine script structure, pre-check, custom params, registry config
 - **`reference/hooks-and-cron.md`** — lifecycle hooks, firing semantics, cron scheduling
 - **`reference/pipeline-and-vars.md`** — processing pipeline, all environment variables, run.json fields
-- **`reference/migrations.md`** — migration format for AI development tasks (main decree only)
+- **`reference/migrations.md`** — migration format for one-time setup tasks (main decree only)
 
 Reference files are at `.claude/skills/decree/reference/` relative to the project root.

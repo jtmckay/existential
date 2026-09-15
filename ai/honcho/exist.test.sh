@@ -10,6 +10,25 @@ load_env_exist
 # Caddyfile.exist.Caddyfile has no honcho block, so there is no hostname to
 # route. Consumers (hermes) reach it at http://honcho:8000 over Docker DNS.
 
+# The honcho image ships `USER app` (uid 100), and src/templates.sh renders
+# every file at 0600 owned by ${EXIST_PUID} — so the container cannot read its
+# own config.toml unless exist.initial.sh has widened it. That failure is
+# silent: honcho logs "Failed to load config.toml: Permission denied" once at
+# boot, then runs on upstream defaults (openai/gpt-5.4-mini with no API key) and
+# answers /health perfectly while every model call fails. Read-only check of the
+# mode, which is the part that can regress — a re-render sets 600 again, and
+# exist.initial.sh is what puts it back.
+_cfg="/repo/ai/honcho/config.toml"
+if [ ! -f "$_cfg" ]; then
+    skip "honcho config.toml readable by uid 100" "not rendered yet — run ./existential.sh"
+elif [ "$(( $(stat -c '%a' "$_cfg") & 4 ))" -eq 4 ]; then
+    ok "honcho config.toml readable by uid 100"
+else
+    fail "honcho config.toml readable by uid 100" \
+         "mode $(stat -c '%a' "$_cfg") — honcho runs as uid 100 and will silently fall back to upstream model defaults" \
+         "Run ./existential.sh (ai/honcho/exist.initial.sh widens it to 0644), then: docker compose restart honcho honcho-deriver"
+fi
+
 # FastAPI health endpoint
 http_probe "honcho /health" "http://honcho:8000/health"
 

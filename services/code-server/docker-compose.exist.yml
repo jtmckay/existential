@@ -25,16 +25,15 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
     # Measured against this image (v4.135.0): a fresh install (code-server
-    # binary extraction, 4 extensions, npm i -g of claude-code + opencode-ai)
-    # peaks around 850MB under a 1G cgroup limit — mostly reclaimable page
+    # binary extraction, 4 extensions) peaks around 850MB under a 1G cgroup limit — mostly reclaimable page
     # cache, since actual RSS across both node processes is ~200MB once the
     # kernel is under pressure to reclaim it, and it settles under 300MB idle
     # with no client connected. But nothing here bounds an actual editing
     # session: each extension's language server (eslint, tsserver via the
     # bundled TS support, gitlens) is its own process, and this container also
-    # runs whatever the integrated terminal launches (claude/opencode agent
-    # sessions, builds). 1G leaves those no headroom at all on top of the
-    # idle baseline, so size for the realistic-use case, not the idle one.
+    # runs whatever the integrated terminal launches — an agent CLI you
+    # installed yourself, a build. 1G leaves those no headroom at all on top of
+    # the idle baseline, so size for the realistic-use case, not the idle one.
     deploy:
       resources:
         limits:
@@ -53,9 +52,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      # First boot installs the code-server binary, 4 extensions and two npm
-      # globals (claude-code, opencode-ai) before anything binds :8080 —
-      # measured ~70s on a fast connection; generous for a slow one.
+      # First boot installs the code-server binary and 4 extensions before
+      # anything binds :8080 — measured ~70s on a fast connection when it also
+      # npm-installed two CLIs; generous for a slow one.
       start_period: 180s
     entrypoint: ["/entrypoint.sh"]
     networks:
@@ -67,15 +66,22 @@ services:
     environment:
       - IN_CONTAINER=1
       - PASSWORD=${CODE_SERVER_PASSWORD}
+      # What the `hermes` command in the terminal authenticates with. Empty when
+      # hermes is disabled — the CLI then says so instead of failing obscurely.
+      - HERMES_API_KEY=${HERMES_API_KEY:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
-      - ./opencode.json:/opencode.exist.json:ro
+      # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
+      # sources. Tracked config, read-only, and the same two files the decree
+      # daemons run — so the editor's terminal and a routine reach the gateway
+      # through one implementation instead of two.
+      - ../../automation/lib/hermes-cli.sh:/opt/hermes/hermes-cli.sh:ro
+      - ../../automation/lib/hermes.sh:/opt/hermes/hermes.sh:ro
       # code-server's standalone install + extensions (reinstallable — just
-      # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, the
-      # claude-code/opencode-ai npm installs plus their login/auth state
-      # (~/.claude, ~/.claude.json, ~/.local/share/opencode/auth.json) — not
-      # just a disposable cache, hence the _data suffix. Not backed up: worst
-      # case is re-running `claude login` / `opencode auth login`.
+      # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, whatever
+      # you `npm i -g` in the terminal plus its login state — not just a
+      # disposable cache, hence the _data suffix. Not backed up: worst case is
+      # reinstalling those and logging back in.
       - code_server_data:/code-server-data
       # Repo top-level workspace — shared with hermes-agent's /opt/data/workspace
       # so both containers operate on the same files.

@@ -1,9 +1,18 @@
 routine_source: /work/.decree/shared_routines
+# decree requires both, and this daemon deliberately has no way to reach a
+# model: nothing here reasons, and it holds every volume and every credential.
+# /bin/false is the honest value — it fails loudly instead of naming a CLI that
+# was never installed. The gateway-backed version lives in the other daemon's
+# config.
 commands:
-  ai_router: opencode run {prompt}
-  ai_interactive: opencode
+  ai_router: /bin/false
+  ai_interactive: /bin/false
 max_attempts: 3
 max_log_size: 2097152
+# Without this decree falls back to its own built-in default, which names a
+# routine this repo does not have. route-failed logs what arrived and stops —
+# the same catch-all the other daemon uses, and it calls nothing.
+default_routine: route-failed
 hooks:
   beforeAll: ""
   afterAll: ""
@@ -17,6 +26,10 @@ hooks:
 # below is the standing example: not a backup, kept here for the credentials
 # and mount, not the purpose.
 shared_routines:
+  # The catch-all named by default_routine above: unlisted, decree would decline
+  # it and an unrouted message would dead-letter with no explanation.
+  route-failed:
+    enabled: true
   volume-backup:
     enabled: true
   db-backup:

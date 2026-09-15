@@ -122,6 +122,17 @@ hermes-agent do this). Use plain `user:` only for images that tolerate an arbitr
 check the image really does drop: open-webui *looks* like this case and is not one (it is built
 `USER 0:0` with a root-owned `/app` and never drops), so it stays root with a comment saying so.
 
+**An image with its own baked non-root `USER` cannot read the service's rendered config.**
+`src/templates.sh` writes every rendered file `0600`, owned by `EXIST_PUID`, on the assumption
+that a container is either that uid or root. honcho ships `USER app` (uid 100), so its
+`config.toml` was unreadable — and the failure is silent in the worst way: honcho logged one
+`Permission denied` line at boot, fell back to upstream model defaults (`openai/gpt-5.4-mini`,
+no key), and kept answering `/health` while every model call failed and hermes' cross-session
+memory quietly did nothing. The fix is that service's own `exist.initial.sh` widening that one
+file (`ai/honcho/exist.initial.sh` — templates.sh names this escape hatch), plus a mode
+assertion in its `exist.test.sh` so a re-render cannot undo it unnoticed. If you add a service
+whose image has its own `USER`, check what it can read before trusting a green healthcheck.
+
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
 `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`; the only blanket
 `privileged: true` in the repo lives in an `x-exist-gpu.amd` block, see *GPU vendor wiring*
@@ -210,8 +221,8 @@ holds the image build now — Dockerfile, entrypoint.sh, package.json), `automat
   `runs/`, `secrets/`, `cron/`, `migrations/`, `inbox/`, `outbox/`, `processed.md`, `router.md`
   all come from there in one bind mount. `shared_routines/` and `lib/` are the same host
   directories but layered back in **read-only** on top of that mount: this container runs
-  `agent-task` with terminal and write access, so the routine code itself must not be writable
-  from inside a routine. `cron/`, `migrations/`, and `router.md` get the same read-only
+  routines that write to `/workspace` and hand prompts to hermes, so the routine code itself
+  must not be writable from inside a routine. `cron/`, `migrations/`, and `router.md` get the same read-only
   treatment for a simpler reason — nothing at runtime ever writes to them (they're only ever
   populated from the host, before the container starts), so there's no reason to leave them
   writable. What that leaves genuinely writable: `inbox/`, `outbox/`, `runs/`, `secrets/`,
@@ -235,13 +246,13 @@ ran the routine.
 | Runs | routing, notes, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync`, `notify`, `clean-runs`, **`triage`** (+ `notes-pull`, opt-in) |
 | Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its routines use | the **master `.env`** via `env_file` |
-| AI CLI | `DECREE_AI` from `.env` (opencode) | none — `DECREE_AI=` blanked to override `env_file` |
+| Model access | the hermes gateway over HTTP (`lib/hermes.sh`, `lib/hermes-cli.sh`) | none — nothing here reasons |
 
 **Why `triage` is on the backup side.** It reads the whole repo — every service's
 `exist.test.sh` plus `.env.shared` — and the credentials those tests authenticate with. That is
 the same bulk read access backups need, and it is the *only* thing that ever wanted `/repo`
 mounted, so the mount followed it. Putting it in `automation` meant the container that runs
-agent-task and an AI CLI held the master `.env`, `.env.shared` and
+agent-task held the master `.env`, `.env.shared` and
 `hosting/caddy/certs/internal-ca-key.pem` — the key that signs every `*.<domain>` cert. What a
 prompt injection can read is what that container can read, so it now reads four profile
 directories.

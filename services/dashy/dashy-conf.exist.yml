@@ -66,18 +66,9 @@ appConfig:
   preventWriteToDisk: true
 
 sections:
-  # ── the agent ─────────────────────────────────────────────────────────────
-  - name: Agent
+  - name: Interface
     icon: fas fa-robot
     items:
-      - title: Open WebUI
-        url: https://open-webui.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/open-web-ui
-        icon: fas fa-comments
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Chat with the agent — this is the front door
-
       - title: Hermes
         url: https://hermes-agent-dashboard.EXIST_DOMAIN
         # url: https://existential.company/docs/ai/hermes
@@ -85,6 +76,46 @@ sections:
         statusCheck: true
         statusCheckAllowInsecure: true
         description: The agent — routing, sessions and ops dashboard
+
+      - title: Home Assistant
+        url: https://homeassistant.EXIST_DOMAIN
+        # url: https://existential.company/docs/services/homeassistant
+        icon: hl-home-assistant
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Smart home automation, plus voice via wyoming-whisper/piper
+      - title: Nextcloud
+        url: https://nextcloud.EXIST_DOMAIN
+        # url: https://existential.company/docs/storage/nextcloud
+        icon: si-nextcloud
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: File sync + collaboration
+
+      - title: code-server
+        url: https://code-server.EXIST_DOMAIN
+        # url: https://existential.company/docs/services/code-server
+        # si-coder, not si-visualstudiocode: dashy resolves si-* against the
+        # simple-icons package BUNDLED in its image (16.27.1 — verified by
+        # listing /app/node_modules/simple-icons/icons), and that set has no
+        # Microsoft/VS Code icon, so the tile rendered as a broken image. Coder
+        # is who makes code-server, and that icon is in the bundle.
+        icon: si-coder
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Editor and terminal over the shared workspace — the same tree the agent works in
+
+
+  - name: Infrastructure
+    icon: fas fa-hard-drive
+    items:
+      - title: Ollama
+        url: https://ollama.EXIST_DOMAIN
+        # url: https://existential.company/docs/ai/ollama
+        icon: si-ollama
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Local models (API — every other AI service talks to this)
 
       - title: OpenViking
         url: https://openviking.EXIST_DOMAIN
@@ -94,38 +125,6 @@ sections:
         statusCheckAllowInsecure: true
         description: Context database — notes, scraped resources, agent memory
 
-      - title: Ollama
-        url: https://ollama.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/ollama
-        icon: si-ollama
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Local models (API — every other AI service talks to this)
-
-  # ── the house ─────────────────────────────────────────────────────────────
-  - name: Home
-    icon: fas fa-house
-    items:
-      - title: Home Assistant
-        url: https://homeassistant.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/homeassistant
-        icon: hl-home-assistant
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Smart home automation, plus voice via wyoming-whisper/piper
-
-  # ── files ─────────────────────────────────────────────────────────────────
-  - name: Files
-    icon: fas fa-hard-drive
-    items:
-      - title: Nextcloud
-        url: https://nextcloud.EXIST_DOMAIN
-        # url: https://existential.company/docs/storage/nextcloud
-        icon: si-nextcloud
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: File sync + collaboration
-
       - title: SeaweedFS
         url: https://seaweedfs.EXIST_DOMAIN
         # url: https://existential.company/docs/storage/seaweedfs
@@ -134,15 +133,6 @@ sections:
         statusCheckAllowInsecure: true
         description: S3-compatible object store (admin UI)
 
-      - title: code-server
-        url: https://code-server.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/code-server
-        icon: si-visualstudiocode
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Editor and terminal over the shared workspace — the same tree the agent works in
-
-  # ── what it's doing ───────────────────────────────────────────────────────
   - name: Observability
     icon: fas fa-chart-line
     items:

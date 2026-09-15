@@ -48,6 +48,117 @@ loki.process "decree" {
 	}
 }
 
+// hermes' own log files. It logs to files under $HERMES_HOME/logs, never to
+// stdout, so the docker_containers job below cannot see it at all (`docker
+// logs hermes-agent` is empty) — without this job, hermes is the one core
+// service with no trace in grafana. What lands here: the cron scheduler's
+// start/tick lines per profile, `tool <name> completed` for every tool call
+// the agent makes, and the python tracebacks from errors.log.
+//
+// `gateways/**` is one subdirectory per multiplexed profile (default, router,
+// research, sales), so the profile name is in `filename` when you need it.
+loki.source.file "hermes" {
+	// Not a `*.log` glob, for two reasons: errors.log is a strict subset of
+	// agent.log (verified line for line — tailing both shows every error
+	// twice), and dashboard-auth.log is JSON, handled by its own job below.
+	targets = [
+		{ __path__ = "/hermes-logs/agent.log", job = "hermes" },
+		{ __path__ = "/hermes-logs/gateway*.log", job = "hermes" },
+		{ __path__ = "/hermes-logs/container-boot.log", job = "hermes" },
+		{ __path__ = "/hermes-logs/gui.log", job = "hermes" },
+		{ __path__ = "/hermes-logs/gateways/**/*.log", job = "hermes" },
+	]
+	forward_to = [loki.process.hermes.receiver]
+
+	file_match {
+		enabled = true
+	}
+}
+
+loki.process "hermes" {
+	forward_to = [loki.write.default.receiver]
+
+	// Python logging writes a traceback as N bare lines after the record that
+	// introduced it. Without this each frame is its own loki entry, and the one
+	// line naming the exception is separated from the one naming the file. A
+	// record always starts with its date, so anything else continues the one
+	// before it.
+	stage.multiline {
+		firstline = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
+	}
+
+	// `2026-09-14 23:32:16,318 INFO module.name: message`
+	stage.regex {
+		expression = "^(?P<ts>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}),\\d+ (?P<level>[A-Z]+) "
+	}
+
+	// Low cardinality and the whole point of the job — `{job="hermes",
+	// level="ERROR"}` is the query worth having. The module name is
+	// deliberately NOT a label: it is unbounded, and line-level filtering
+	// handles it.
+	stage.labels {
+		values = {
+			level = null,
+		}
+	}
+
+	// Without this every line carries its read time, so a first tail of an
+	// existing log file lands the whole backlog at "now". Comma-separated
+	// milliseconds are dropped by the regex above because Go's reference layout
+	// has no form for them — second precision is enough to order a log.
+	//
+	// Note loki rejects samples older than reject_old_samples_max_age (168h in
+	// loki-config.yaml), so lines older than a week are dropped rather than
+	// backdated. That only bites on a first tail of a long-lived file; alloy
+	// logs the rejection.
+	stage.timestamp {
+		source            = "ts"
+		format            = "2006-01-02 15:04:05"
+		action_on_failure = "skip"
+	}
+}
+
+// Who logged into the hermes dashboard, and from where. One JSON object per
+// line (`login_success`, `ws_ticket_minted`, … with user_id and ip), so it
+// needs its own pipeline rather than the python-text one above — same `job`,
+// separated by `log_type` the way the decree targets do it.
+loki.source.file "hermes_auth" {
+	targets = [
+		{ __path__ = "/hermes-logs/dashboard-auth.log", job = "hermes", log_type = "auth" },
+	]
+	forward_to = [loki.process.hermes_auth.receiver]
+
+	file_match {
+		enabled = true
+	}
+}
+
+loki.process "hermes_auth" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.json {
+		expressions = {
+			ts    = "ts",
+			event = "event",
+		}
+	}
+
+	// `event` is a fixed vocabulary, so it is safe as a label. user_id and ip
+	// are not labels on purpose: both are unbounded, and the line still has
+	// them for filtering.
+	stage.labels {
+		values = {
+			event = null,
+		}
+	}
+
+	stage.timestamp {
+		source            = "ts"
+		format            = "RFC3339"
+		action_on_failure = "skip"
+	}
+}
+
 // Every container's json-file log. No docker socket, so these carry only the
 // 64-hex container id in `filename` — a catch-all grep, not a per-service
 // view. The id *could* be resolved to a name without the socket (root can

@@ -26,7 +26,7 @@ file event"] -->|POST /s3| B
         G{"CRITERIA\nmatch?"}
         D1["processor A"]
         D2["processor B"]
-        E["agent-task\nopencode → hermes"]
+        E["agent-task\n→ hermes gateway"]
         B -->|"one outbox message\nper matching processor"| C
         C --> G
         G -->|"no criteria,\nor YES"| D1
@@ -121,7 +121,7 @@ fi
 # PRE_SIGNED_URL is set instead of FILE_PATH when IS_PRE_SIGNED=true.
 echo "Processing $FILE_PATH"
 
-# your logic here — call opencode, run a script, POST to an API, etc.
+# your logic here — ask hermes (lib/hermes.sh), run a script, POST to an API, etc.
 ```
 
 **Available env vars:**

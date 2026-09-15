@@ -1,14 +1,16 @@
 routine_source: /work/.decree/shared_routines
+# decree requires both, and neither is a CLI agent any more: hermes is itself an
+# agent running its own tool loop, so the one thing to hand a prompt to is the
+# gateway. lib/hermes-cli.sh is the same curl wrapper (lib/hermes.sh) every
+# routine here uses, in command shape.
 commands:
-  ai_router: opencode run {prompt}
-  ai_interactive: opencode
+  ai_router: /work/.decree/lib/hermes-cli.sh {prompt}
+  ai_interactive: /work/.decree/lib/hermes-cli.sh
 max_attempts: 3
 max_depth: 100
 max_log_size: 2097152
-# The catch-all, not develop. A message that arrives with no routine and no
-# router to pick one gets logged and dropped rather than handed to develop,
-# which would put an unrouted message in front of an agent with terminal and
-# write_file access.
+# The catch-all: a message that arrives with no routine and no router to pick
+# one gets logged and dropped rather than guessed at.
 default_routine: route-failed
 hooks:
   beforeAll: ""
@@ -26,8 +28,6 @@ shared_routines:
   clean-runs:
     enabled: true
   comfy:
-    enabled: false
-  develop:
     enabled: false
   agent-task:
     enabled: false

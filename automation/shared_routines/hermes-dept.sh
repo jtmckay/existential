@@ -16,12 +16,11 @@
 # message yourself bypasses the router entirely.
 #
 # The profile is called directly over its OpenAI-compatible endpoint at
-# /p/<profile>/v1. Hermes is itself an agent running its own tool loop against
-# its own MCP servers, so routing this through opencode would wrap an agent in
-# an agent — and opencode's streaming parser rejects hermes' custom
-# `event: hermes.tool.progress` SSE frames, which fails every profile that owns
-# tools. Coding work that genuinely wants a repo-editing agent still goes to
-# `develop`/`agent-task`.
+# /p/<profile>/v1, through lib/hermes.sh like every other routine here. Hermes
+# is itself an agent running its own tool loop against its own MCP servers, so
+# there is no second agent to wrap it in: the work an agent would do lands in
+# workspace/ via hermes' own tools, or comes back as a workspace/outbox/
+# message. `agent-task` is the same call without a department bound to it.
 #
 # Env vars:
 #   AGENT_OUTPUT_DIR  where answers are filed        (default /workspace/ai)

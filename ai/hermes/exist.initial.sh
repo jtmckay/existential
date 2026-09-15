@@ -377,6 +377,35 @@ EOF
         fi
     fi
 
+    # ── auxiliary tasks ──────────────────────────────────────────────────────
+    # Auto-titling off, and this is not a taste call. hermes runs session titles
+    # as an "auxiliary" task with its own short budget, and on a local model
+    # every attempt times out — measured here: `transient transport error
+    # (attempt 1/2)` then `(attempt 2/2)`, ~30s apart, against
+    # gemma4-128k. Worse is what it does when the custom endpoint cannot be
+    # resolved at all: the auxiliary fall-through order puts Nous Portal ahead of
+    # it, so a stack that promises local-only made an outbound call to a paid
+    # provider and logged `marking nous unhealthy (payment / credit error)`.
+    #
+    # A title is cosmetic (it names sessions in the dashboard), so the trade is
+    # one-sided. Point it at a fast endpoint and turn it back on if you want it:
+    #   auxiliary:
+    #     title_generation:
+    #       enabled: true
+    #       provider: custom
+    #       model: <something small>
+    # Only written when the whole `auxiliary:` key is absent, so any auxiliary
+    # config of your own is left alone.
+    if [[ -f "$cfg" ]] && ! grep -qE '^auxiliary:' "$cfg"; then
+        echo "[hermes] Disabling auto-title generation (local models are too slow for it)."
+        cat >> "$cfg" <<'AUXEOF'
+
+auxiliary:
+  title_generation:
+    enabled: false
+AUXEOF
+    fi
+
     # ── MCP servers ──────────────────────────────────────────────────────────
     # Only for services actually enabled — an MCP entry pointing at a container
     # that does not exist makes hermes retry a dead endpoint on every task.
@@ -439,15 +468,36 @@ EOF
             echo "[hermes] honcho.json already present — leaving it alone."
         else
             echo "[hermes] Enabling honcho memory..."
+            # timeout and dialecticReasoningLevel are the two plugin defaults a
+            # LOCAL model makes wrong, and both fail the same way: hermes logs
+            # "Honcho dialectic query failed: Request timed out after 30.0s" on
+            # every turn and answers with no memory, while honcho itself looks
+            # healthy.
+            #
+            #   timeout: 30 (plugin default) vs. a measured 30-70s per call for
+            #   a 64k-context model on this stack — honcho-deriver's own metrics
+            #   logged Llm Call Duration 65839 ms. 90s clears one call with
+            #   headroom; the turn is only delayed when honcho is actually slow.
+            #
+            #   dialecticReasoningLevel: "low" (plugin default) is MAX_TOOL
+            #   _ITERATIONS=5 on honcho's side — five sequential model calls, so
+            #   minutes on local hardware and no timeout can save it. "minimal"
+            #   is one iteration capped at 250 output tokens, which is the right
+            #   shape for "what do you already know about this person".
+            #
+            # Both are hermes' own keys (plugins/memory/honcho/config_schema.py),
+            # not invented here. A faster endpoint? Raise the level.
             cat > "$honcho_cfg" <<EOF
 {
   "baseUrl": "http://honcho:8000",
+  "timeout": 90,
   "hosts": {
     "hermes": {
       "enabled": true,
       "aiPeer": "hermes",
       "peerName": "${EXIST_USERNAME:-user}",
-      "workspace": "hermes"
+      "workspace": "hermes",
+      "dialecticReasoningLevel": "minimal"
     }
   }
 }

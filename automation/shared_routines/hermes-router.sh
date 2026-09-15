@@ -15,11 +15,10 @@
 # neither. That profile costs ~630 prompt tokens per call against ~40,000 for
 # the default one, which is the whole reason routing is split out.
 #
-# The profile is called directly over its OpenAI-compatible endpoint rather than
-# through opencode. Hermes runs its own tool loop, so opencode would be an agent
-# wrapping an agent — and its streaming parser rejects hermes' custom
-# `event: hermes.tool.progress` SSE frames outright, which breaks any profile
-# that owns tools. Direct, non-streaming calls have neither problem.
+# The profile is called directly over its OpenAI-compatible endpoint, through
+# lib/hermes.sh. Hermes runs its own tool loop, so there is nothing for a CLI
+# agent to add here — and a direct, non-streaming call is also the one shape
+# that never trips over hermes' custom `event: hermes.tool.progress` SSE frames.
 #
 # The reply is validated against the discovered list. Anything unrecognized —
 # a hallucinated department, an empty answer, a gateway failure — routes to

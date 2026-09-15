@@ -51,21 +51,3 @@ For GPU setup, see [Proxmox GPU](../hosting/proxmox#gpu).
 ./existential.sh run ollama benchmark   # decode speed as context grows
 ```
 
-## Opencode Integration
-
-Ollama works with [opencode](https://opencode.ai) for AI-assisted coding.
-
-```bash
-# Install (avoid 1.3.2)
-npm install -g opencode-ai@1.2.26
-# Optional: disable autoupdate checks
-# echo 'export OPENCODE_DISABLE_AUTOUPDATE=true' >> ~/.bashrc
-
-# Language servers
-npm install -g typescript-language-server typescript
-npm install -g pyright
-npm install -g vscode-langservers-extracted
-```
-
-Copy `ai/ollama/opencode.json.example` to `~/.config/opencode/opencode.json`, then set `baseURL`
-to your ollama host and the model key to whatever `EXIST_MODEL_CHAT` names.

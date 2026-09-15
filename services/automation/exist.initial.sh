@@ -96,7 +96,7 @@ if [[ -f "${CRON_SRC}" && ! -e "${CRON_DST}" ]]; then
 fi
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/
-# (hermes, OpenCode) has no other way to discover that ai/ and outbox/ are
+# (hermes) has no other way to discover that ai/ and outbox/ are
 # special: a bare directory listing shows three folders with nothing to tell
 # it to go read either README. This is what a first listing should surface.
 WORKSPACE_DIR="${SCRIPT_DIR}/../../workspace"
@@ -126,7 +126,7 @@ WORKSPACEEOF
 fi
 
 # workspace/outbox/ — the one door from workspace/ into decree's inbox. An
-# agent confined to workspace/ (hermes, OpenCode) has no mount into
+# agent confined to workspace/ (hermes) has no mount into
 # automation/ and must never be given one, so this README is how it learns
 # where messages actually go. Relayed by lib/file-processors/outbox-relay.sh
 # once EXIST_IS_NAS_SEAWEEDFS is enabled (Core quest activates it); until then the

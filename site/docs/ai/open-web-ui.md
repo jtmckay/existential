@@ -11,6 +11,19 @@ sidebar_position: 5
 
 Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible endpoint and [WhisperX](./whisperx) for speech-to-text.
 
+## Enable
+
+Not part of Core — Core reaches the agent by voice (Home Assistant), from code-server's terminal
+(`hermes "..."`), and from decree routines. Turn this on when you want a chat window in a browser
+tab: it is offered by the **Local AI Lab** quest, or set it yourself:
+
+```bash
+EXIST_IS_AI_OPEN_WEBUI=true
+```
+
+Then `./existential.sh && docker compose up -d` from the repo root. Admin credentials are
+generated into `ai/open-webui/.env` (`OPEN_WEBUI_ADMIN_EMAIL` / `OPEN_WEBUI_ADMIN_PASSWORD`).
+
 ## Recommended Workflow
 
 Each tool in the stack has a distinct role:

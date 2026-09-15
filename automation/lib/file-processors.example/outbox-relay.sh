@@ -3,7 +3,7 @@
 # file's source by s3-router and file-processor, not by sourcing it.
 # Outbox relay — turn a workspace/outbox/ file into a real decree message.
 #
-# This is the ONLY door from workspace/ into decree's inbox. Hermes/OpenCode
+# This is the ONLY door from workspace/ into decree's inbox. Hermes
 # (or anything else confined to workspace/) has no mount into automation/ and
 # must never be given one — shared_routines/ is read-only from inside the main
 # daemon on purpose (see .claude/reference/services.md). Drop a message here

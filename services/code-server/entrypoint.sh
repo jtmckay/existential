@@ -2,8 +2,9 @@
 # code-server entrypoint — installs code-server into the persistent cache
 # volume on first start, then launches it bound on :8080 behind password auth
 # ($PASSWORD, set by Caddy-fronted https://code-server.<domain>). A bare
-# shell in this container can read/write the whole workspace and run the
-# installed AI CLIs, so it's not just an editor — auth is load-bearing.
+# shell in this container can read/write the whole workspace, reach the hermes
+# gateway and run whatever you installed in it, so it's not just an editor —
+# auth is load-bearing.
 set -euo pipefail
 
 INSTALL_PREFIX="/code-server-data"
@@ -20,39 +21,48 @@ DEFAULT_EXTENSIONS=(
 
 # $HOME (/home/decree, baked in by automation/Dockerfile for the shared
 # decree/decree-backup image) is the container's throwaway layer, NOT this
-# service's code_server_data volume. Left alone, npm-global installs AND every
-# dotfile the AI CLIs write live there: claude-code's account/session state
-# (~/.claude.json, ~/.claude/ — confirmed by running `claude config list` in
-# this image, which creates both) and opencode's credentials (confirmed via
-# `opencode auth list`: "Credentials ~/.local/share/opencode/auth.json"). A
-# container recreation (docker compose down/up, an image rebuild,
-# `existential.sh reset`) starts from an empty /home/decree, so both CLIs
-# reinstall from npm AND the user has to re-authenticate each one — silently,
-# since nothing here fails, it just forgets.
+# service's code_server_data volume. Left alone, every `npm i -g` you run in
+# the terminal — and every dotfile the thing you installed writes — lives
+# there, and a container recreation (docker compose down/up, an image rebuild,
+# `existential.sh reset`) starts from an empty /home/decree: the tool is gone
+# AND its login state with it, silently, since nothing here fails.
 #
-# Fix by symlinking the specific dirs/file each tool writes into onto the
-# volume, in place, rather than moving $HOME or NPM_CONFIG_PREFIX: a login
-# shell (code-server's integrated terminal) gets its PATH reset by
-# /etc/profile and then rebuilt by the image's /etc/profile.d/npm-global.sh,
-# which hardcodes /home/decree/.npm-global/bin — confirmed with
-# `bash -l -c 'echo $PATH'` in this image. That file is root-owned (644) and
-# this entrypoint runs as the unprivileged host user, so it can't be edited;
-# the only way to relocate what it points at without breaking terminal PATH
-# is a symlink at the same path.
+# Fix by symlinking those dotfiles onto the volume, in place, rather than
+# moving $HOME or NPM_CONFIG_PREFIX: a login shell (code-server's integrated
+# terminal) gets its PATH reset by /etc/profile and then rebuilt by the image's
+# /etc/profile.d/npm-global.sh, which hardcodes /home/decree/.npm-global/bin —
+# confirmed with `bash -l -c 'echo $PATH'` in this image. That file is
+# root-owned (644) and this entrypoint runs as the unprivileged host user, so
+# it can't be edited; the only way to relocate what it points at without
+# breaking terminal PATH is a symlink at the same path.
+#
+# The defaults are deliberately generic — npm's global prefix plus the XDG
+# dirs, which is where a well-behaved CLI keeps its install and its
+# credentials. This repo installs no AI CLI and names none: a tool that keeps
+# state somewhere else persists too, without a repo edit, because everything
+# already in $PERSIST_HOME is linked on every boot. Create it once —
+# `mkdir /code-server-data/home/.mytool`, or `touch
+# /code-server-data/home/mytool.json` for a dotfile — and it survives from then
+# on. Nothing is linked for a name that isn't there yet, so a tool whose state
+# lands outside the defaults needs that one-time step before its first login.
 PERSIST_HOME="$INSTALL_PREFIX/home"
-for _dotdir in .npm-global .npm .config .local .cache .claude; do
+for _dotdir in .npm-global .npm .config .local .cache; do
     # Target must exist as a real dir first: mkdir -p through a dangling
     # symlink fails EEXIST on the symlink itself before it ever reaches the
     # missing target.
     mkdir -p "$PERSIST_HOME/$_dotdir"
-    if [[ -e "/home/decree/$_dotdir" && ! -L "/home/decree/$_dotdir" ]]; then
-        rm -rf "/home/decree/$_dotdir"
-    fi
-    [[ -e "/home/decree/$_dotdir" ]] || ln -s "$PERSIST_HOME/$_dotdir" "/home/decree/$_dotdir"
 done
-if [[ ! -e /home/decree/.claude.json && ! -L /home/decree/.claude.json ]]; then
-    ln -s "$PERSIST_HOME/claude.json" /home/decree/.claude.json
-fi
+shopt -s dotglob nullglob
+for _entry in "$PERSIST_HOME"/*; do
+    # One leading dot either way, so both `.npm-global` and a bare `tool.json`
+    # land at the path $HOME actually uses.
+    _link="/home/decree/.$(basename "${_entry}" | sed 's/^\.//')"
+    if [[ -e "$_link" && ! -L "$_link" ]]; then
+        rm -rf "$_link"
+    fi
+    ln -sfn "$_entry" "$_link"
+done
+shopt -u dotglob nullglob
 
 if [[ ! -x "$CODE_SERVER_BIN" ]]; then
     echo "[code-server] Installing code-server (standalone)..."
@@ -73,28 +83,19 @@ for extension in "${DEFAULT_EXTENSIONS[@]}"; do
     fi
 done
 
-if ! command -v claude &>/dev/null; then
-    echo "[code-server] Installing claude-code..."
-    npm i -g @anthropic-ai/claude-code
-fi
-
-if ! command -v opencode &>/dev/null; then
-    echo "[code-server] Installing opencode-ai..."
-    npm i -g opencode-ai
-fi
-
 if ! command -v python &>/dev/null; then
     echo "[code-server] Symlinking python -> python3..."
     ln -s "$(command -v python3)" /home/decree/.npm-global/bin/python
 fi
 
-WORKSPACE_OPENCODE_JSON="/workspace/opencode.json"
-REFERENCE_OPENCODE_JSON="/opencode.exist.json"
-if [[ ! -f "$WORKSPACE_OPENCODE_JSON" ]]; then
-    echo "[code-server] Copying opencode.json into workspace..."
-    cp "$REFERENCE_OPENCODE_JSON" "$WORKSPACE_OPENCODE_JSON"
-elif ! cmp -s "$WORKSPACE_OPENCODE_JSON" "$REFERENCE_OPENCODE_JSON"; then
-    echo "!!!! WARNING: opencode.json is out of sync with services/code-server/opencode.json. It is only copied into the container on start when it doesn't already exist."
+# `hermes "..."` in the integrated terminal, same gateway (and same
+# lib/hermes.sh) every decree routine uses — see the two read-only mounts in
+# docker-compose.exist.yml. A symlink rather than a copy so an edit to
+# automation/lib/ is live here on the next invocation. PATH here is the
+# npm-global bin dir from /etc/profile.d/npm-global.sh, which is the one
+# writable dir already on PATH for a login shell.
+if [[ -x /opt/hermes/hermes-cli.sh ]]; then
+    ln -sf /opt/hermes/hermes-cli.sh /home/decree/.npm-global/bin/hermes
 fi
 
 exec "$CODE_SERVER_BIN" \

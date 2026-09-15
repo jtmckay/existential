@@ -232,14 +232,23 @@ backup routines (`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other
 needs that same bulk data/credential access and does no reasoning, routing, or AI call —
 `workspace-sync` and **`triage`** are the standing examples, kept here for their master
 credentials and bulk mounts, not because they back anything up. **`/repo` is mounted there and
-nowhere else.** Triage is the only thing that ever wanted it, and `automation` runs an AI CLI,
-so what that container can read is what a prompt injection can read; it now gets only
+nowhere else.** Triage is the only thing that ever wanted it, and `automation` puts what it
+reads in front of a model, so what that container can read is what a prompt injection can read;
+it now gets only
 `ai/hermes/profiles`, which hermes-router needs and which holds no secrets. Reasoning, routing, and AI stay
 in `automation` even when the routine touches the same data. `automation` wholesale-mounts the
 repo-root `automation/` directory as its whole `/work/.decree` project; `automation-backup`
 mounts the same shared code (`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into
 its own project dir instead. A service gets **no** `*-decree` sidecar; a new backup is one cron
 file. Why, and what each can reach: `.claude/reference/services.md`.
+
+**One way to reach a model:** the hermes gateway over HTTP —
+`automation/lib/hermes.sh` (`hermes_chat`, `hermes_gate`, `hermes_profile_url`) in a routine, or
+`lib/hermes-cli.sh` in command shape (decree's `commands:` block, and the `hermes` command in
+code-server's terminal). **No container installs an AI CLI.** Hermes is itself an agent running
+its own tool loop, so there is no second agent to wrap around it — work that needs a terminal is
+bash in the routine, and follow-up work comes back as a `workspace/outbox/` message. Repo-editing
+belongs to a coding agent on the host, not to the stack.
 
 **Routine registration:** both daemons use `shared_routines` via `routine_source`, so routines
 default to **disabled** unless listed in `shared_routines` in `config.exist.yml` (the whitelist).

@@ -470,7 +470,7 @@ function checkDecreeConfigs(): string[] {
       if (!cmds || typeof cmds !== 'object') {
         errors.push(
           `${rel}: missing required 'commands:' block — ` +
-          `decree requires it (add 'commands:\\n  ai_router: opencode run {prompt}\\n  ai_interactive: opencode')`,
+          `decree requires it (add 'commands:\\n  ai_router: /work/.decree/lib/hermes-cli.sh {prompt}\\n  ai_interactive: /work/.decree/lib/hermes-cli.sh')`,
         );
         continue;
       }

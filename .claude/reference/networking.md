@@ -42,6 +42,16 @@ Adding a service only touches **Caddy** (and Dashy if navigable) — piHole's wi
 covers it. `validate conventions` verifies Dashy/Caddy stay in sync and the wildcard record
 exists.
 
+## Auth at the edge (only where the service can't)
+
+`firecrawl` is gated in `Caddyfile.exist.Caddyfile` itself with a bearer token — self-hosted
+firecrawl accepts any key, so without it the scraper is an open proxy. It **fails closed**: a
+blank credential matches nothing and the host 401s. That is the pattern to copy — never a config
+that errors, because a Caddyfile that fails to load takes every hostname down, not one. Note
+`basic_auth` is not available that way: it needs a bcrypt hash, and neither `templates.sh` (token
+substitution only) nor an `exist.initial.sh` (they run *after* the master `.env` is assembled) can
+produce one for Caddy's environment in the same run.
+
 ## Prefer runtime env over render-time baking
 
 A bare `EXIST_DOMAIN` token is substituted *once*, when the file is rendered — and

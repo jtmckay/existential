@@ -29,11 +29,11 @@ its memory and voice, plus notifications and monitoring:
 | | |
 |---|---|
 | **Front door** | Caddy (TLS + hostnames), Dashy (the dashboard) |
-| **Files** | Nextcloud, Redis, SeaweedFS (S3 + file events) |
+| **Files** | Nextcloud, Redis, SeaweedFS (S3 + file events), code-server (editor over `workspace/`) |
 | **House** | Home Assistant |
 | **Automation** | Decree, ntfy (where automations report in) |
 | **Monitoring** | Loki, Prometheus, Grafana — Decree's run logs and dashboards |
-| **Agent** | Ollama, Hermes, Open WebUI, Honcho (memory), OpenViking (context), Firecrawl |
+| **Agent** | Ollama, Hermes, Honcho (memory), OpenViking (context), Firecrawl |
 | **Voice** | wyoming-whisper (speech to text), wyoming-piper (text to speech) |
 
 Decline and you fall through to the full picker. Either way, `./existential.sh` on its own does

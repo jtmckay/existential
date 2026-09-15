@@ -46,6 +46,17 @@ services:
       # overwritten. appConfig.preventWriteToDisk hides the button; :ro is the
       # backstop. To make edits durable, claim the file by setting EXIST_KEEP to
       # true in its header, then edit it on the host.
+      #
+      # SINGLE-FILE bind mount, which pins an inode: anything that REPLACES the
+      # host file rather than truncating it — an editor's save-via-rename, cp,
+      # mv, a git checkout — detaches this mount, and the container keeps serving
+      # the old (now deleted) inode. templates.sh truncates in place to avoid
+      # exactly that, but it cannot defend against the others. The symptom is a
+      # dashboard whose tiles all point at literal EXIST_DOMAIN, or at a stale
+      # domain, while the host file looks correct; `docker compose restart dashy`
+      # does NOT fix it (same container, same mount) — it takes
+      # `docker compose up -d --force-recreate dashy`. exist.test.sh checks the
+      # config dashy actually SERVES for this reason.
       - ./dashy-conf.yml:/app/user-data/conf.yml:ro,Z
     # ports disabled — access via https://dashy.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:

@@ -12,7 +12,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    # The automation daemon. ~45 MiB idle, but it runs opencode and tsx in-process.
+    # The automation daemon. ~45 MiB idle, but it runs tsx in-process.
     deploy:
       resources:
         limits:
@@ -20,7 +20,6 @@ services:
     networks:
       - exist
     environment:
-      - DECREE_AI=${AUTOMATION_AI}
       - DECREE_DAEMON=true
       # triage runs every service test in here; hermes reads this to know
       # whether a real inference is affordable on this host.
@@ -46,11 +45,12 @@ services:
       - HERMES_API_KEY=${HERMES_API_KEY:-}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - IN_CONTAINER=1
-      # OpenCode (agent-task) writes its state under $HOME. The container runs
-      # under an unprivileged uid with no home directory, and OpenCode fails
-      # without one — /data is the writable path it already has.
+      # The image's HOME (/home/decree) is the container's throwaway layer, so
+      # anything written there is lost on recreate — including rclone's config,
+      # which the nextcloud-rclone-remote migration writes once and every
+      # rclone_src download then depends on. /data is the decree_data volume:
+      # the writable path this container already has that survives a restart.
       - HOME=/data
-      - OPENCODE_DISABLE_AUTOUPDATE=1
       # Image work (image-ocr, telegram-receipt) is the VISION role, so it
       # follows that endpoint and falls back to the global one when it is blank.
       # See the "Model Endpoints" block in .env.exist.shared.
@@ -62,8 +62,8 @@ services:
       # service over the exist bridge, so they only ever needed credentials,
       # never a volume — which is why they collapse into this daemon and the
       # backups (which do need volumes) went to decree-backup instead.
-      # Enumerated rather than env_file: this container runs agent-task with
-      # terminal and write access, so it gets exactly the keys it uses.
+      # Enumerated rather than env_file: this container reasons and reaches
+      # service APIs, so it gets exactly the keys it uses.
       #
       # Object-store credentials, mapped product -> role on purpose: routines here
       # are named s3-*, so swapping the store behind them is these four lines plus
@@ -130,7 +130,7 @@ services:
       # root) because the render pipeline and validate-conventions.ts both look
       # specifically for <slug>/decree/config.exist.yml — moving it to the root
       # would silently stop it from ever being rendered or validated. Layered
-      # on top of the wholesale mount above, same pattern as opencode.json below.
+      # on top of the wholesale mount above.
       # Must stay read-write: `decree routine`/`routine-sync` (called from
       # `decree process` and `decree daemon`) rewrites config.yml's routine
       # registry on every sync — ro here makes every one of those calls fail
@@ -144,8 +144,8 @@ services:
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
       - decree_data:/data:z
       - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
-      # NOT the whole repo. This container runs agent-task and the AI CLI, so
-      # what it can read is what a prompt injection can read. The whole-repo
+      # NOT the whole repo. This container hands prompts to hermes, so what it
+      # can read is what a prompt injection can read. The whole-repo
       # mount that used to be here existed for triage, and carried the master
       # .env (every DB password and admin credential), .env.shared, and
       # hosting/caddy/certs/internal-ca-key.pem — the key that signs every
@@ -162,9 +162,6 @@ services:
       # automation-backup also mounts /workspace read-write for workspace-sync,
       # which bisyncs everything EXCEPT ai/ (workspace-sync.sh's exclude list).
       - ../../workspace:/workspace:z
-      # OpenCode pointed at hermes, so agent-task inherits hermes' MCP
-      # servers (openviking, firecrawl, playwright) with no wiring here.
-      - ./opencode.json:/work/opencode.json:ro,z
       # entrypoint.sh gates `decree process` (migrations) on /work/exist.test.sh
       # passing. This daemon's migrations target OTHER services, so the gate is
       # not its own exist.test.sh but a probe of every service it migrates —
@@ -213,10 +210,6 @@ services:
       - EXIST_TEST_LIVENESS_ONLY=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
-      # Blanked on purpose, and this is why env_file needs watching: .env sets
-      # DECREE_AI=opencode for the main daemon, and the entrypoint would npm-i
-      # an AI CLI into a container that runs tar and rclone. Nothing here reasons.
-      - DECREE_AI=
       # Same product -> role mapping as the daemon above: env_file brings in the
       # master .env, where these are still named after the product. workspace-sync
       # reads only the S3_ names, so it never has to know which store it is.

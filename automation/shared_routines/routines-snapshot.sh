@@ -2,7 +2,7 @@
 # Decree Routines Snapshot
 #
 # Writes a markdown snapshot of every enabled decree routine — name,
-# description, parameters — to workspace/ai/. Hermes/OpenCode has no mount
+# description, parameters — to workspace/ai/. Hermes has no mount
 # into automation/, so this is how it learns what routines exist and how to
 # trigger them, without a new MCP server or any filesystem access beyond
 # workspace/ (which it already has). Overwritten in place each run; reuses

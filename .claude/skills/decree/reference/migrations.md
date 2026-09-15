@@ -6,7 +6,7 @@ Migration files are Markdown with YAML frontmatter:
 
 ```markdown
 ---
-routine: develop
+routine: ollama-pull
 ---
 
 # Migration Title

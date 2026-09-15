@@ -8,11 +8,12 @@
 # playwright — without any per-routine wiring. The prompt does not need to name
 # tools, only to say what it wants.
 #
-# The gateway is called directly rather than through opencode: opencode's
-# streaming parser rejects hermes' custom `event: hermes.tool.progress` SSE
-# frames, which fails every turn where hermes actually uses a tool. Coding work
-# that wants a repo-editing agent goes to `develop`, which drives opencode
-# against a plain model endpoint.
+# The gateway is called directly, through lib/hermes.sh — the same path
+# lib/hermes-cli.sh gives a human in code-server's terminal. There is no AI CLI
+# in this container: hermes already runs the tool loop, and wrapping it in a
+# second agent both added nothing and broke on hermes' custom
+# `event: hermes.tool.progress` SSE frames. Repo-editing work belongs to a
+# coding agent on the host, not to this stack.
 #
 # `profile` picks which hermes profile answers (default: the default profile).
 # The dept-<name> routines are this same call bound to one profile each.

@@ -36,8 +36,6 @@ services:
     label: Ollama (local models)
   - var: EXIST_IS_AI_HERMES
     label: Hermes (the agent)
-  - var: EXIST_IS_AI_OPEN_WEBUI
-    label: Open WebUI (the chat window onto Hermes)
   - var: EXIST_IS_AI_HONCHO
     label: Honcho (agent memory)
   - var: EXIST_IS_AI_OPENVIKING
@@ -109,8 +107,8 @@ copies:
     label: "decree: workspace-pull.sh (live bucket -> workspace/ file processor)"
     requires: EXIST_IS_NAS_SEAWEEDFS
   # The one door from workspace/ into decree's inbox: an agent confined to
-  # workspace/ (hermes, OpenCode) drops a message in workspace/outbox/ instead
-  # of ever touching automation/ directly. Same live path as workspace-pull.
+  # workspace/ (hermes) drops a message in workspace/outbox/ instead of ever
+  # touching automation/ directly. Same live path as workspace-pull.
   - src: automation/lib/file-processors.example/outbox-relay.sh
     dst: automation/lib/file-processors/
     label: "decree: outbox-relay.sh (workspace/outbox/ -> decree inbox)"
@@ -154,7 +152,6 @@ What you get:
   Home Assistant         the house, plus voice via wyoming-whisper/piper
   Ollama                 the local models everything else talks to
   Hermes                 the agent — the thing you actually converse with
-  Open WebUI             the chat window onto Hermes, in your browser
   Honcho + OpenViking    what it remembers, and what it can look things up in
   Firecrawl              turns a URL into clean text the agent can read
   Decree                 runs it all on a schedule, headless
@@ -165,9 +162,15 @@ What you get:
   Caddy                  https://<service>.<domain> for every one of them
   Dashy                  one page linking to all of the above
 
+No browser chat window is part of Core. You talk to hermes by voice through
+Home Assistant, or with `hermes "..."` in code-server's terminal, or from its
+own dashboard once you set HERMES_DASHBOARD_TUI=1 (commented out in
+ai/hermes/docker-compose.yml). For a full chat UI in a tab, enable Open WebUI —
+it is in the Local AI Lab quest, or EXIST_IS_AI_OPEN_WEBUI=true.
+
 ── Sizing ──────────────────────────────────────────────────────────────────
 
-Roughly 35 containers. The observability half is seven of them and costs about
+Roughly 34 containers. The observability half is seven of them and costs about
 1 GB in practice; every one carries a memory limit, so a runaway query cannot
 take the box down with it. The models are sized to the VRAM you picked at the
 start: one multimodal model handles chat, background memory work and images,
@@ -175,11 +178,11 @@ with bge-m3 alongside it for embeddings. Speech-to-text and text-to-speech
 run on CPU so they never evict the LLM mid-answer.
 
 code-server idles around 200 MB with nobody connected; its 2 GB limit is
-headroom for an actual editing session (language servers, a terminal, an AI
-CLI), not the resting cost. Its first boot installs the editor, four
-extensions and two npm globals before it answers — a couple of minutes on a
-fresh install, and the only core container that makes you wait for a download
-that isn't a model.
+headroom for an actual editing session (language servers, a terminal, whatever
+CLI you install in it), not the resting cost. Its first boot downloads the
+editor and four extensions before it answers — a couple of minutes on a fresh
+install, and the only core container that makes you wait for a download that
+isn't a model.
 
 Re-size any time with `./existential.sh run models`, or edit the "Model
 Selection" block in .env.shared directly:
@@ -230,8 +233,7 @@ One thing genuinely needs you, because it happens inside another app's UI:
 1. Nextcloud's admin credentials were generated for you — they are in
    nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
    installs itself and lands on a login page; the seaweedfs bucket is already
-   mounted as an "S3" folder in Files. Open WebUI's credentials work the same
-   way — ai/open-webui/.env, OPEN_WEBUI_ADMIN_EMAIL / OPEN_WEBUI_ADMIN_PASSWORD.
+   mounted as an "S3" folder in Files.
 
 To CHANGE what was seeded (each overwrites; the seeding never does):
   ./existential.sh run hermes setup      # pick a different model/provider

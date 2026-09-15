@@ -355,21 +355,27 @@ _assert_always_render_safe() {
 # Every rendered file is chmod 600. Deny by default, with no extension list.
 #
 # This used to be an allowlist of names that "look like" credentials
-# (.env*, *.pem, *_password*.txt, config.y*ml). Three rendered destinations
-# carrying live secrets did not match it and sat at the umask default of 644:
+# (.env*, *.pem, *_password*.txt, config.y*ml). Rendered destinations carrying
+# live secrets did not match it and sat at the umask default of 644:
 #   nas/seaweedfs/s3.json          — the S3 root and nextcloud secretKeys
 #   nas/seaweedfs/notification.toml — the decree /s3 webhook bearer token
-#   services/automation/opencode.json — the hermes API key
 # The same class of bug had already been found and fixed in the two secret
 # guards (see .githooks/pre-commit) and the lesson was not carried over here.
 # A list of names cannot be kept in sync with a growing set of templates, so
 # there is no list: if it was rendered, it is 600.
 #
-# Safe for every service because no container runs as a fixed non-root uid.
-# Each one is either `user: ${EXIST_PUID}:${EXIST_PGID}` — the uid that owns
-# these files — or has no `user:` and runs as root, which reads anything.
-# ai/chatterbox has been running its config.yaml at 600 since this function
-# existed, which is the working proof.
+# Safe for MOST services: each is either `user: ${EXIST_PUID}:${EXIST_PGID}` —
+# the uid that owns these files — or has no `user:` and runs as root, which
+# reads anything. ai/chatterbox has been running its config.yaml at 600 since
+# this function existed.
+#
+# The exception is an image with a baked non-root USER, which this rule cannot
+# see: ghcr.io/plastic-labs/honcho ships `USER app` (uid 100), so its rendered
+# config.toml was unreadable and honcho silently ran on upstream model defaults
+# for as long as that lasted — /health stayed green while every LLM call failed.
+# ai/honcho/exist.initial.sh widens that one file and explains why; its
+# exist.test.sh asserts the mode so it cannot regress silently. If you add a
+# service whose image has its own USER, do the same.
 #
 # If a rendered destination ever genuinely needs to be group- or world-readable,
 # widen it in that service's own exist.initial.sh, where the reason can live
