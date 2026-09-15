@@ -46,7 +46,8 @@ DEFAULT_EXTENSIONS=(
 # on. Nothing is linked for a name that isn't there yet, so a tool whose state
 # lands outside the defaults needs that one-time step before its first login.
 PERSIST_HOME="$INSTALL_PREFIX/home"
-for _dotdir in .npm-global .npm .config .local .cache; do
+NPM_BIN="/home/decree/.npm-global/bin"
+for _dotdir in .npm-global/bin .npm .config .local .cache; do
     # Target must exist as a real dir first: mkdir -p through a dangling
     # symlink fails EEXIST on the symlink itself before it ever reaches the
     # missing target.
@@ -83,9 +84,11 @@ for extension in "${DEFAULT_EXTENSIONS[@]}"; do
     fi
 done
 
-if ! command -v python &>/dev/null; then
-    echo "[code-server] Symlinking python -> python3..."
-    ln -s "$(command -v python3)" /home/decree/.npm-global/bin/python
+# `python` for the tools that assume it; the image ships python3 only. PATH
+# here is not the login shell's, so ask about python3 rather than testing
+# whether `python` already resolves.
+if _python3="$(command -v python3)"; then
+    ln -sfn "$_python3" "$NPM_BIN/python"
 fi
 
 # `hermes "..."` in the integrated terminal, same gateway (and same
@@ -95,7 +98,7 @@ fi
 # npm-global bin dir from /etc/profile.d/npm-global.sh, which is the one
 # writable dir already on PATH for a login shell.
 if [[ -x /opt/hermes/hermes-cli.sh ]]; then
-    ln -sf /opt/hermes/hermes-cli.sh /home/decree/.npm-global/bin/hermes
+    ln -sfn /opt/hermes/hermes-cli.sh "$NPM_BIN/hermes"
 fi
 
 exec "$CODE_SERVER_BIN" \

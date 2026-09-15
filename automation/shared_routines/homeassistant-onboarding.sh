@@ -42,6 +42,15 @@ if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     exit 0
 fi
 
+# Decree retries a failed routine three times back-to-back with no delay of its
+# own — a connection-refused fails in ~0ms, so all three attempts land inside
+# the same second and the migration dead-letters before Home Assistant is back.
+# That is the observed first-run failure: migration-gate.sh clears HA (see its
+# gate_homeassistant), and HA then drops connections anyway while it finishes
+# starting. Sleeping here first makes the retry budget mean 10s/20s/30s of
+# actual waiting instead of nothing.
+sleep 10
+
 # _post PATH [BEARER] [JSON_BODY] — checks the HTTP status itself: every
 # onboarding view answers 200 with a JSON body on success and a JSON error
 # message on failure (HTTPStatus.FORBIDDEN/BAD_REQUEST), so curl's own exit

@@ -129,6 +129,41 @@ model_tier_env 999 >/dev/null 2>&1 \
     && _fail "unknown tier is rejected" "returned 0 for a tier that does not exist" \
     || _ok "unknown tier is rejected"
 
+# ── custom:<tag> — the answer that is not a tier ──────────────────────────────
+# The picker's last entry takes a model name instead of a VRAM number, and hands
+# it back as `custom:<tag>` so both callers can keep passing one value to
+# model_tier_row and model_tier_env. A tag with its own colon has to survive.
+_CUSTOM_TAG="qwen3-vl:8b"
+_custom="$(model_tier_env "custom:${_CUSTOM_TAG}")"
+
+_cmiss=""
+for _key in EXIST_MODEL_CHAT EXIST_MODEL_EXTRACT EXIST_MODEL_VISION; do
+    [[ "$(grep -m1 "^${_key}=" <<< "$_custom" | cut -d= -f2-)" == "$_CUSTOM_TAG" ]] || _cmiss+="${_key} "
+done
+[[ -z "$_cmiss" ]] \
+    && _ok "custom:<tag> names the typed model for chat, extract and vision" \
+    || _fail "custom:<tag> names the typed model for chat, extract and vision" "wrong or missing: $_cmiss"
+
+# EXIST_VRAM_GB describes the machine, not the model. The custom answer says
+# nothing about the card, so it must leave the key alone — emitting the literal
+# "custom:<tag>" there would be read as "not 0, therefore nvidia" by
+# generate-compose.ts and whisperx-transcribe.ts.
+grep -q '^EXIST_VRAM_GB=' <<< "$_custom" \
+    && _fail "custom:<tag> leaves EXIST_VRAM_GB alone" "emitted: $(grep '^EXIST_VRAM_GB=' <<< "$_custom")" \
+    || _ok "custom:<tag> leaves EXIST_VRAM_GB alone"
+
+_cemb="$(grep -m1 '^EXIST_MODEL_EMBED=' <<< "$_custom" | cut -d= -f2-)"
+[[ "$_cemb" == "$MODEL_TIER_EMBED" ]] \
+    && _ok "custom:<tag> keeps the shared embedding model" \
+    || _fail "custom:<tag> keeps the shared embedding model" "got '${_cemb}'"
+
+# The callers read six tab-separated fields out of the row to print their
+# summary line; a short row leaves the tail of that line empty.
+IFS=$'\t' read -r _cgb _clabel _cchat _cctx _csize _cnote <<< "$(model_tier_row "custom:${_CUSTOM_TAG}")"
+{ [[ -n "$_cgb" && -n "$_clabel" && "$_cchat" == "$_CUSTOM_TAG" && -n "$_cctx" && -n "$_csize" && -n "$_cnote" ]]; } \
+    && _ok "custom:<tag> synthesises a complete row" \
+    || _fail "custom:<tag> synthesises a complete row" "got: ${_cgb}/${_clabel}/${_cchat}/${_cctx}/${_csize}/${_cnote}"
+
 # ── The CPU-only tier ─────────────────────────────────────────────────────────
 
 # gb=0 is load-bearing beyond the model choice: generate-compose.ts keys the
@@ -200,6 +235,12 @@ done
 [[ -z "$_low" ]] \
     && _ok "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" \
     || _fail "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" "below the floor: $_low"
+
+# A hand-typed model has no row to take a context from, so MODEL_TIER_CUSTOM_CTX
+# stands in for it — and it is subject to the same floor.
+[[ "$MODEL_TIER_CUSTOM_CTX" -ge "$HERMES_CTX_FLOOR" ]] \
+    && _ok "the custom answer meets the hermes context floor" \
+    || _fail "the custom answer meets the hermes context floor" "MODEL_TIER_CUSTOM_CTX=${MODEL_TIER_CUSTOM_CTX}"
 
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

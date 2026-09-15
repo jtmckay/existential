@@ -58,7 +58,9 @@ The hardware questions are **GPU vendor first** (`src/utils/gpu-vendor.sh` →
 `EXIST_GPU_VENDOR`), then VRAM (`src/utils/model-tiers.sh` → `EXIST_VRAM_GB`). Answering
 *No GPU* sets `EXIST_VRAM_GB=0` itself and **skips** the VRAM question, so the VRAM picker is
 always asked with `--gpu-only`. `EXIST_GPU_VENDOR` records that the pair was asked, so they are
-never re-asked; `./existential.sh run models` is the way back and re-asks both.
+never re-asked; `./existential.sh run models` is the way back and re-asks both. The VRAM picker's
+last entry takes a model name instead of a number (`custom:<tag>`) — see
+`.claude/reference/models.md`.
 
 ### Quest file format
 

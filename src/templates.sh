@@ -34,6 +34,57 @@ _SRC_DIR=/src
 gen_password() { generate_24_char_password; }
 gen_hex()      { generate_hex_key "${1:-32}"; }
 
+# ── Prompting ─────────────────────────────────────────────────────────────────
+
+# True when there is somewhere to ask a question.
+#
+# Rendering runs with stdin from /dev/null whenever the caller means "do not ask"
+# (_reconcile_env_keys, the test suite), and /dev/tty stays readable in those
+# contexts — so the /dev/null check has to come first or a non-interactive render
+# blocks on a prompt nobody can see.
+_prompt_available() {
+    local _fd; _fd=$(readlink "/proc/$BASHPID/fd/0" 2>/dev/null || true)
+    [[ "$_fd" != "/dev/null" ]] || return 1
+    { true >/dev/tty; } 2>/dev/null || [[ -t 0 ]]
+}
+
+# _prompt_tty <label> <bracket text> — ask once, echo the raw answer (empty when
+# the user just hits Enter, or when there is nothing to ask on). The caller owns
+# what an empty answer means, which is the only difference between the two
+# prompting placeholders below.
+#
+# /dev/tty rather than stdin: the prompt has to work inside $() command
+# substitution, where [[ -t 0 ]] is unreliable under docker compose run -it.
+_prompt_tty() {
+    local label="$1" hint="$2" val=""
+    if _prompt_available; then
+        if { true >/dev/tty; } 2>/dev/null; then
+            printf '  %s [%s]: ' "$label" "$hint" >/dev/tty
+            IFS= read -r val </dev/tty || val=""
+        else
+            read -rp "  ${label} [${hint}]: " val || val=""
+        fi
+    fi
+    printf '%s' "$val"
+}
+
+# _context_above <line_num> <content> — echo the contiguous comment block
+# directly above a line. Every prompt shows it, so what a question means is
+# explained by the comment the template already carries (and that lands in the
+# rendered file) rather than by a second wording kept in here.
+_context_above() {
+    local line_num="$1" content="$2" start prev
+    start=$(( line_num - 1 ))
+    while (( start >= 1 )); do
+        prev=$(sed -n "${start}p" <<<"$content")
+        [[ "$prev" =~ ^[[:space:]]*# ]] || break
+        start=$(( start - 1 ))
+    done
+    start=$(( start + 1 ))
+    (( start < line_num )) && sed -n "${start},$((line_num - 1))p" <<<"$content"
+    return 0
+}
+
 # ── Placeholder replacement ───────────────────────────────────────────────────
 
 # Render a template entirely in memory: read the source, resolve every placeholder
@@ -157,26 +208,14 @@ render_template() {
     # If that block contains `# DEFAULT_FROM: EXIST_FOO`, the value of EXIST_FOO
     # (already resolved above) is used as the default when the user enters nothing.
     while grep -q "EXIST_CLI" <<<"$content"; do
-        local match line_content key_name block_start prev_line context
+        local match line_content key_name context
         local default_from default_val escaped
         match=$(grep -n "EXIST_CLI" <<<"$content" | head -1)
         line_num="${match%%:*}"
         line_content="${match#*:}"
         key_name="${line_content%%=*}"
 
-        block_start=$(( line_num - 1 ))
-        while (( block_start >= 1 )); do
-            prev_line=$(sed -n "${block_start}p" <<<"$content")
-            [[ "$prev_line" =~ ^[[:space:]]*# ]] || break
-            block_start=$(( block_start - 1 ))
-        done
-        block_start=$(( block_start + 1 ))
-
-        if (( block_start < line_num )); then
-            context=$(sed -n "${block_start},$((line_num - 1))p" <<<"$content")
-        else
-            context=""
-        fi
+        context="$(_context_above "$line_num" "$content")"
 
         default_from=$(printf '%s\n' "$context" | \
             sed -n 's/^# *DEFAULT_FROM: *\([A-Z_][A-Z0-9_]*\) *$/\1/p' | head -1)
@@ -203,28 +242,13 @@ render_template() {
             fi
         fi
 
-        # Prompt on the controlling terminal. We use /dev/tty directly so the
-        # prompt works even inside $() command substitution (where [[ -t 0 ]] is
-        # unreliable under docker compose run -it). /dev/tty is the process's
-        # controlling terminal; if none exists (non-interactive, -T container) the
-        # redirect fails and we fall through.
-        # Guard: if stdin is explicitly /dev/null (/proc/$BASHPID/fd/0 resolves to
-        # it), the caller signalled non-interactive mode. /dev/tty is still
-        # accessible in test contexts and would otherwise bypass </dev/null and block.
-        local _stdin_fd; _stdin_fd=$(readlink "/proc/$BASHPID/fd/0" 2>/dev/null || true)
-        if [[ "$_stdin_fd" != "/dev/null" ]]; then
+        # Show the comment block as context, then ask. A blank answer — including
+        # the one _prompt_tty returns when there is no terminal — is the default.
+        val=""
+        if _prompt_available; then
             printf '\n' >&2
             if [[ -n "$context" ]]; then printf '%s\n' "$context" >&2; fi
-            if { true >/dev/tty; } 2>/dev/null; then
-                printf '  %s [%s]: ' "${key_name}" "${default_val}" >/dev/tty
-                IFS= read -r val </dev/tty || val="${default_val}"
-            elif [[ -t 0 ]]; then
-                read -rp "  ${key_name} [${default_val}]: " val || val="${default_val}"
-            else
-                val="${default_val}"
-            fi
-        else
-            val="${default_val}"
+            val="$(_prompt_tty "$key_name" "$default_val")"
         fi
         if [[ -z "$val" ]]; then val="${default_val}"; fi
 
@@ -232,6 +256,39 @@ render_template() {
         escaped="${escaped//&/\\&}"
         escaped="${escaped//|/\\|}"
         content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
+    done
+
+    # EXIST_ASK_PASSWORD — a generated password the user may override.
+    #
+    # Same one-value-per-occurrence shape as EXIST_24_CHAR_PASSWORD, and an empty
+    # answer falls through to exactly that generator, so pressing Enter is the old
+    # behaviour unchanged. What it buys is a password you chose and can remember,
+    # for the one credential that gets typed into a login form on half the stack.
+    #
+    # A typed answer is held to the generator's own alphabet plus '.'. This value
+    # is substituted unquoted into .env files, YAML, JSON and a sed replacement
+    # (see generate_password.sh), so a shell metacharacter here does not fail at
+    # the prompt — it fails much later, in whichever rendered file could not carry
+    # it. Re-ask rather than silently mangle or reject.
+    while grep -q "EXIST_ASK_PASSWORD" <<<"$content"; do
+        local _pw_key _pw_context
+        line_num=$(grep -n "EXIST_ASK_PASSWORD" <<<"$content" | head -1 | cut -d: -f1)
+        _pw_key="$(sed -n "${line_num}p" <<<"$content")"
+        _pw_key="${_pw_key%%=*}"
+        if _prompt_available; then
+            _pw_context="$(_context_above "$line_num" "$content")"
+            printf '\n' >&2
+            if [[ -n "$_pw_context" ]]; then printf '%s\n' "$_pw_context" >&2; fi
+        fi
+        while :; do
+            val="$(_prompt_tty "$_pw_key" 'press Enter to generate')"
+            [[ -n "$val" ]] || break
+            [[ "$val" =~ ^[A-Za-z0-9._-]{8,}$ ]] && break
+            printf '  8+ characters, and only A-Z a-z 0-9 . _ - — anything else\n' >&2
+            printf '  breaks the config files this value is written into.\n' >&2
+        done
+        [[ -n "$val" ]] || val="$(gen_password)"
+        content="$(sed "${line_num}s|EXIST_ASK_PASSWORD|${val}|" <<<"$content")"
     done
 
     # EXIST_HOST_IP — the LAN address of the machine running the stack.
@@ -339,7 +396,7 @@ _assert_always_render_safe() {
 
     # EXIST_DOMAIN and other plain .env.shared lookups stay allowed; only prompts
     # and generated secrets are rejected.
-    for tok in EXIST_CLI EXIST_24_CHAR_PASSWORD EXIST_32_CHAR_HEX_KEY; do
+    for tok in EXIST_CLI EXIST_ASK_PASSWORD EXIST_24_CHAR_PASSWORD EXIST_32_CHAR_HEX_KEY; do
         if grep -q "$tok" "$src" 2>/dev/null; then
             echo "ERROR: ${dst#"$REPO_DIR/"} is in _ALWAYS_RENDER but its template" >&2
             echo "       ($(basename "$src")) contains ${tok}." >&2
@@ -497,9 +554,10 @@ _reconcile_env_keys() {
         # is appended blank — this repo's established "not yet answered" sentinel
         # — rather than guessed from DEFAULT_FROM, which resolves against the
         # template's own values and could contradict something the user set.
-        # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY) and
-        # static defaults both take the rendered value: a service arriving for the
-        # first time should get a fresh credential.
+        # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY,
+        # EXIST_ASK_PASSWORD — which generates when it cannot ask) and static
+        # defaults both take the rendered value: a service arriving for the first
+        # time should get a fresh credential.
         if [[ "$_tpl_line" == *EXIST_CLI* ]]; then
             _line="${k}="
             _needs+=" ${k}"

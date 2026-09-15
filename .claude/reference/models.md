@@ -47,13 +47,22 @@ spread, and Home Assistant is told where they live in its own UI.
 run (after the GPU vendor question, and only when the answer was not *No GPU*);
 `./existential.sh run models` re-asks later.
 
+The picker's last entry is **Custom**, which takes a model name instead of a VRAM number and
+comes back as the token `custom:<tag>`. `model_tier_row` synthesises a row for it and
+`model_tier_env` fills the same keys, so neither caller needs a second code path. Two
+differences from a tier: the context is `MODEL_TIER_CUSTOM_CTX` (the 64k floor, because nothing
+here knows what the model holds), and **`EXIST_VRAM_GB` is left untouched** — the custom answer
+says nothing about the card, and `EXIST_GPU_VENDOR` is already answered by then. Nothing
+validates the tag; only ollama can, and `run ollama pull-models` is where a bad one surfaces.
+
 `.env.exist.shared` ships the **default tier's model values (8 GB)** but ships `EXIST_VRAM_GB`
 **blank**. The blank is the record of not-yet-asked, and quest's picker fires only while it is
 empty — shipping a value there makes the question unreachable forever. A unit test asserts both
 that the shipped model values match the 8 GB tier and that `EXIST_VRAM_GB` is blank, so **edit
 the table, not the individual defaults**.
 
-Every tier tag must satisfy three constraints:
+Every tier tag must satisfy three constraints (a hand-typed **Custom** model is the user's
+problem, not the table's — the same three still apply to it, and nothing checks them):
 
 - **ollama's `tools` capability** — hermes cannot act without it.
 - **multimodal** — so images reuse the already-resident model rather than loading a second one.

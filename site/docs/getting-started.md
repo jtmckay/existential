@@ -120,9 +120,10 @@ breaks or recovers, backing off as the stack stays green.
 
 ### Logging in
 
-Most services log you in with `EXIST_USERNAME` / `EXIST_PASSWORD` — generated once, in
-`.env.shared`, and seeded from there into every service that needs an admin account on first
-boot. Grab (or change) them there. See [Identity and
+Most services log you in with `EXIST_USERNAME` / `EXIST_PASSWORD` — asked once on the first
+run (press Enter at the password and one is generated for you), stored in `.env.shared`, and
+seeded from there into every service that needs an admin account on first boot. Grab (or
+change) them there. See [Identity and
 permissions](./configuration.md#identity-and-permissions).
 
 Only ever edit `.env.shared` (or a service's own `.env`), never the root `.env` — it's fully

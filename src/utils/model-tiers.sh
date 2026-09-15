@@ -88,23 +88,48 @@ MODEL_TIERS=(
     "96	96 GB+	gemma4:31b-it-bf16	131072	63 GB	e.g. RTX 6000 Pro — full precision, no quantisation loss"
 )
 
-# model_tier_row <gb> — echo the raw tab-separated row for a tier, or return 1.
+# ── Off the table: custom:<tag> ───────────────────────────────────────────────
+#
+# The table maps hardware to models, which is the right question for almost
+# everyone and the wrong one for anybody who already knows the model they want.
+# The picker's last entry takes a name instead, and the answer travels back as
+# the token `custom:<tag>` — a shape model_tier_row and model_tier_env both
+# understand, so neither caller (src/quest.sh, src/lib/models.sh) needs a second
+# code path for it. Nothing validates the tag: only ollama can say whether it
+# exists, and `run ollama pull-models` is where that shows up.
+MODEL_TIER_CUSTOM_CTX="65536"
+
+# model_tier_row <gb|custom:tag> — echo the raw tab-separated row, or return 1.
 model_tier_row() {
     local want="$1" row
+    # A hand-typed model gets a synthesised row: the context is the hermes floor
+    # (rule 3 above) because nothing here knows what the model can hold, and the
+    # size is unknown because nothing here has downloaded it.
+    if [[ "$want" == custom:* ]]; then
+        printf 'custom\tCustom\t%s\t%s\t%s\t%s\n' \
+            "${want#custom:}" "$MODEL_TIER_CUSTOM_CTX" "size unknown" "typed by hand"
+        return 0
+    fi
     for row in "${MODEL_TIERS[@]}"; do
         [[ "${row%%	*}" == "$want" ]] && { printf '%s\n' "$row"; return 0; }
     done
     return 1
 }
 
-# model_tier_env <gb> — echo the KEY=VALUE lines a tier implies, one per line.
-# The caller writes them (quest.sh uses env_set); this stays pure so it can be
-# tested without touching .env.shared.
+# model_tier_env <gb|custom:tag> — echo the KEY=VALUE lines a tier implies, one
+# per line. The caller writes them (quest.sh uses env_set); this stays pure so it
+# can be tested without touching .env.shared.
 model_tier_env() {
     local row chat ctx
     row="$(model_tier_row "$1")" || return 1
     IFS=$'\t' read -r _ _ chat ctx _ _ <<< "$row"
-    printf 'EXIST_VRAM_GB=%s\n'              "$1"
+    # EXIST_VRAM_GB is a fact about the machine, not about the model, so a
+    # hand-typed model leaves whatever is already there alone — including blank.
+    # Both readers (src/generate-compose.ts, automation/lib/whisperx-transcribe.ts)
+    # take EXIST_GPU_VENDOR as authoritative and only fall back to this key when
+    # the vendor is blank, and the vendor question is always answered before this
+    # one. Writing a made-up number here would be the only lie in the file.
+    [[ "$1" == custom:* ]] || printf 'EXIST_VRAM_GB=%s\n' "$1"
     printf 'EXIST_MODEL_CHAT=%s\n'           "$chat"
     printf 'EXIST_MODEL_CHAT_NUM_CTX=%s\n'   "$ctx"
     # One resident model does chat, background extraction and vision. Splitting
@@ -132,8 +157,33 @@ model_tier_lines() {
     done
 }
 
+# _model_tier_ask_custom — read a model name, echo it on stdout. Empty means the
+# user changed their mind, which every caller already treats as "unchanged".
+# Reads /dev/tty for the same reason fzf writes to it: this runs inside $().
+_model_tier_ask_custom() {
+    local tag
+    printf '\n  Model name, exactly as ollama would pull it (e.g. qwen3-vl:8b).\n' >&2
+    printf '  It needs tool calling and 64k of context for hermes to use it.\n' >&2
+    printf '  Enter on its own leaves the selection unchanged.\n\n' >&2
+    printf '  model ❯ ' >&2
+    if { true >/dev/tty; } 2>/dev/null; then
+        IFS= read -r tag </dev/tty || tag=""
+    else
+        IFS= read -r tag || tag=""
+    fi
+    # Trim; a stray space would be written into .env.shared verbatim.
+    tag="${tag#"${tag%%[![:space:]]*}"}"
+    tag="${tag%"${tag##*[![:space:]]}"}"
+    [[ -n "$tag" ]] || return 0
+    # An untagged name resolves to :latest and silently drifts under you. Say so
+    # and take it anyway — the user typed a specific thing on purpose.
+    [[ "$tag" == *:* ]] || printf '  No tag — ollama will read that as %s:latest.\n' "$tag" >&2
+    printf '%s\n' "$tag"
+}
+
 # model_tier_pick [current_gb] [--gpu-only] — show the tier picker, echo the
-# chosen gb on stdout (nothing if the user aborts). --gpu-only hides the CPU
+# chosen gb on stdout — or `custom:<tag>` when the user takes the last entry and
+# names a model themselves. Nothing if they abort. --gpu-only hides the CPU
 # tier, for callers that already know a GPU is present. All chrome goes to stderr so the caller
 # can capture stdout cleanly. Needs fzf, which the adhoc container has.
 #
@@ -156,7 +206,16 @@ model_tier_pick() {
         [[ "$gb" == "$current" ]] && pos="$i"
     done < <(model_tier_lines "${filter[@]}")
 
-    out=$(model_tier_lines "${filter[@]}" | fzf \
+    # The custom entry is appended here rather than in model_tier_lines: it is an
+    # answer the picker offers, not a tier, and model_tier_lines is what the rest
+    # of the code (and its tests) treat as the table.
+    out=$( { model_tier_lines "${filter[@]}"
+             # ASCII dashes in the two number columns: %-8s pads by BYTES, and a
+             # multibyte em dash would pull the rest of the line left of the tiers.
+             printf '%s\t%-11s %-24s %-8s ctx %-7s %s\n' \
+                 "custom" "Custom" "(you type the name)" "-" "-" \
+                 "any model ollama can pull — sizing is then yours to get right"
+           } | fzf \
         --delimiter=$'\t' \
         --with-nth=2 \
         --layout=reverse \
@@ -170,5 +229,15 @@ model_tier_pick() {
         --no-info \
         --bind "start:pos(${pos})") || return 0
 
-    [[ -n "$out" ]] && printf '%s\n' "${out%%	*}"
+    [[ -n "$out" ]] || return 0
+    out="${out%%	*}"
+
+    if [[ "$out" == "custom" ]]; then
+        local tag; tag="$(_model_tier_ask_custom)"
+        [[ -n "$tag" ]] || return 0
+        printf 'custom:%s\n' "$tag"
+        return 0
+    fi
+
+    printf '%s\n' "$out"
 }

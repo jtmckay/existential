@@ -235,8 +235,11 @@ deliberately tiny model set — a 1B chat model and a 46 MB embedder, pinned in
 `src/test/fixtures/env.shared` — so the flagship path is exercised on every run, on a runner
 with no card.
 
-`EXIST_VRAM_GB` records the tier that was picked, and likewise ships blank. `0` is the
-CPU-only tier — you normally reach it by answering *No GPU* to the vendor question, which
+`EXIST_VRAM_GB` records the tier that was picked, and likewise ships blank. The picker's last
+entry is **Custom**, where you type a model name instead of picking a VRAM number — it sets the
+`EXIST_MODEL_*` keys to what you typed, leaves `EXIST_VRAM_GB` alone, and checks nothing: the
+model needs tool calling, vision and 64k of context, or hermes will not use it properly. `0` is
+the CPU-only tier — you normally reach it by answering *No GPU* to the vendor question, which
 sets it for you and skips the VRAM question, since a VRAM number means nothing without a
 card. Expect seconds per token, not tokens per second; the wyoming voice services are
 unaffected, they are CPU already.
@@ -244,7 +247,10 @@ unaffected, they are CPU already.
 ## Identity and permissions
 
 `EXIST_EMAIL`, `EXIST_USERNAME` and `EXIST_PASSWORD` are the default credentials seeded
-into services that need an admin account on first boot.
+into services that need an admin account on first boot. The first run asks for all three;
+pressing Enter at the password generates a 24-character one. A password you type has to be
+8 or more characters of `A-Za-z0-9._-` — that value is written unquoted into env files, YAML
+and JSON all over the stack, so anything else would break a service rather than the prompt.
 
 `EXIST_PUID` / `EXIST_PGID` are the host user and group every container runs as
 (referenced in compose files as `${EXIST_PUID:-1000}:${EXIST_PGID:-1000}`), so files

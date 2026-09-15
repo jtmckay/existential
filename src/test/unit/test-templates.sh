@@ -78,8 +78,13 @@ render()     { render_template "$1" "${2:-$TMP/out}" </dev/null; }
 # Like render() but bounded by a timeout and run in a child shell, so a
 # regression that crashes (set -e) or loops forever surfaces as a FAIL with a
 # non-zero rc instead of aborting or hanging the whole suite.
-export REPO_DIR
-export -f render_template gen_password gen_hex gen_uuid _next
+# TMP as well as REPO_DIR: the stubbed generators keep their counters in files
+# under $TMP, so without it every call in the child shell writes to /.c.* — which
+# fails silently, hands out the same value twice, and looks like a uniqueness bug
+# in render_template rather than a missing export here.
+export REPO_DIR TMP
+export -f render_template gen_password gen_hex gen_uuid _next \
+          _prompt_available _prompt_tty _context_above
 try_render() {
     timeout 10 bash -c 'render_template "$1" "$2" </dev/null 2>/dev/null' _ "$1" "${2:-$TMP/out}"
 }
@@ -123,6 +128,24 @@ b="$(grep '^B=' <<<"$out" | cut -d= -f2)"
 assert_not_contains "no password token remains" "EXIST_24_CHAR_PASSWORD" "$out"
 if [[ -n "$a" && "$a" != "$b" ]]; then _ok "two password placeholders get distinct values"
 else _fail "two password placeholders get distinct values" "a=$a b=$b"; fi
+
+# ── EXIST_ASK_PASSWORD: generates when it cannot ask ──────────────────────────
+# The prompt is the point of the token, but the fallback is what every
+# non-interactive path depends on — _reconcile_env_keys renders with stdin from
+# /dev/null, and a blank EXIST_PASSWORD there would hand every service in the
+# stack an empty credential rather than a fresh one.
+
+printf 'A=EXIST_ASK_PASSWORD\nB=EXIST_ASK_PASSWORD\n' > "$TMP/t_ask_pw"
+if out="$(try_render "$TMP/t_ask_pw")"; then
+    a="$(grep '^A=' <<<"$out" | cut -d= -f2)"
+    b="$(grep '^B=' <<<"$out" | cut -d= -f2)"
+    assert_not_contains "no ask-password token remains" "EXIST_ASK_PASSWORD" "$out"
+    if [[ -n "$a" && "$a" != "$b" ]]; then _ok "unprompted ask-password generates, distinct per occurrence"
+    else _fail "unprompted ask-password generates, distinct per occurrence" "a=$a b=$b"; fi
+else
+    _fail "unprompted ask-password generates, distinct per occurrence" \
+          "render_template exited non-zero (likely blocked on a prompt)"
+fi
 
 # ── EXIST_CLI: non-interactive default is empty ───────────────────────────────
 

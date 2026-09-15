@@ -409,7 +409,7 @@ run_quest() {
     done < <(git -C "$REPO_DIR" ls-files -z --cached --others --exclude-standard) \
         | tar -C "$REPO_DIR" -cf - --null -T - | tar -xf - -C "$WORK"
 
-    # 2. Fixture .env.shared (bypasses the EXIST_CLI prompts). Containers run as
+    # 2. Fixture .env.shared (bypasses the render's prompts). Containers run as
     #    the host user, which existential.sh's _ensure_host_ids does for a real
     #    run; e2e renders directly, so the bind-mount dirs would not match.
     cp "$FIXTURES/env.shared" "$WORK/.env.shared"
