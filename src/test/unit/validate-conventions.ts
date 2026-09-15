@@ -17,7 +17,8 @@
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  * 10. Every `<cat>/<slug>/decree/config.exist.yml` has the required top-level `commands:`
  *      block (decree requires it — no serde default — and missing it crashes the daemon).
- * 11. Every Caddy slug must equal the backendContainer name, or start with
+ * 11. The tour page's CORE_SERVICES matches the number of services Core actually enables.
+ * 12. Every Caddy slug must equal the backendContainer name, or start with
  *      `{backendContainer}-`. A slug shorter/different than the container it proxies
  *      (e.g. `hermes.internal` → `hermes-agent`) is a convention violation — it implies
  *      a container that doesn't exist. When a container needs two URLs (two ports), the
@@ -631,6 +632,44 @@ function main(): number {
       if (!lines.some(l => /^name:\s*\S/.test(l))) {
         errors.push(`src/quests/${f}: frontmatter has no 'name:' — the picker needs it`);
       }
+    }
+  }
+
+  // (11) The tour page states how many services Core installs. It cannot read the
+  // quest at runtime (that module is bundled for the browser), and the number it
+  // used to print was the count of CARDS — which undersold Core by half, because
+  // most of it has no screen to screenshot. So it is a constant, and this is what
+  // keeps it honest: add or drop a service in Core's `services:` block and the
+  // marketing page has to move with it.
+  const coreQuest = path.join(REPO_ROOT, 'src/quests/00-core.md');
+  const tourPage  = path.join(REPO_ROOT, 'site/src/pages/tour.tsx');
+  if (fs.existsSync(coreQuest) && fs.existsSync(tourPage)) {
+    const fm = fs.readFileSync(coreQuest, 'utf8').match(/^---\n([\s\S]*?)\n---/);
+    // Walked line by line rather than matched as a block: `copies:` entries carry
+    // `requires:` keys naming the same flags, so the count has to stop at the next
+    // top-level key, and "everything until a line that starts in column 0" is
+    // clearer as a loop than as a lookahead.
+    let coreCount = 0;
+    if (fm) {
+      const lines = fm[1].split('\n');
+      const start = lines.findIndex(l => /^services:\s*$/.test(l));
+      if (start !== -1) {
+        for (const line of lines.slice(start + 1)) {
+          if (/^\S/.test(line)) break;                       // next top-level key
+          if (/^\s+-\s+var:\s*EXIST_IS_/.test(line)) coreCount++;
+        }
+      }
+    }
+    const stated = fs.readFileSync(tourPage, 'utf8').match(/^const CORE_SERVICES = (\d+);/m);
+    if (!coreCount) {
+      errors.push('src/quests/00-core.md: could not read its `services:` block — the tour count cannot be checked');
+    } else if (!stated) {
+      errors.push('site/src/pages/tour.tsx: no `const CORE_SERVICES = <n>;` to check against Core');
+    } else if (Number(stated[1]) !== coreCount) {
+      errors.push(
+        `site/src/pages/tour.tsx: CORE_SERVICES is ${stated[1]} but src/quests/00-core.md enables ` +
+        `${coreCount} services — update the constant (it is what the tour page claims)`,
+      );
     }
   }
 
