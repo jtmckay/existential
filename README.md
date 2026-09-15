@@ -143,7 +143,6 @@ templates render, no secrets are generated, nothing lands on disk.
 | [Nextcloud](https://existential.company/docs/storage/nextcloud) | File sync and sharing |
 | [SeaweedFS](https://existential.company/docs/storage/seaweedfs) | S3-compatible object storage |
 | [Collabora](https://existential.company/docs/storage/collabora) | Document editing in the browser |
-| [Redis](https://existential.company/docs/storage/redis) | Nextcloud cache |
 
 ### Build your own
 

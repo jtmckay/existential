@@ -19,7 +19,6 @@
 **/nextcloudsql_data
 **/pg_data
 **/qdrant_data
-**/redis_data
 **/speaches_data
 
 **/node_modules

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Storage Overview
 
-Pick and choose components to use. For example: use Google Drive for files and skip TrueNAS, SeaweedFS, Redis, and Nextcloud.
+Pick and choose components to use. For example: use Google Drive for files and skip TrueNAS, SeaweedFS, and Nextcloud.
 
 ## What's Important
 
@@ -19,5 +19,4 @@ Pick and choose components to use. For example: use Google Drive for files and s
 | [SeaweedFS](./seaweedfs)            | S3-compatible file API | AWS S3                          |
 | [Nextcloud](./nextcloud)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
 | [Collabora](./collabora)    | Nextcloud document editor | OnlyOffice                   |
-| [Redis](./redis)            | In-memory cache        | —                               |
 | TrueNAS                     | File redundancy & NFS  | —                               |

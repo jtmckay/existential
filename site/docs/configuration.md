@@ -320,4 +320,4 @@ The remaining keys are secrets shared *between* services, generated on render:
 - `EXIST_S3_NEXTCLOUD_ACCESS_KEY` / `EXIST_S3_NEXTCLOUD_SECRET_KEY` — the bucket-scoped
   identity Nextcloud mounts `/S3` with, declared in `nas/seaweedfs/s3.json`. Not the Admin UI
   login — see [SeaweedFS](./storage/seaweedfs.md).
-- `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_REDIS_PASSWORD` — see [Storage](./storage/index.md).
+- `EXIST_NEXTCLOUD_DOMAIN` — see [Storage](./storage/index.md).

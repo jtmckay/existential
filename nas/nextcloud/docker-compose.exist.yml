@@ -17,15 +17,9 @@ services:
     networks:
       - exist
     depends_on:
-      # redis is a separate, independently-toggleable service (nas/redis) and
-      # not declared here: an EXIST_IS_NAS_REDIS=false install would then merge
-      # a depends_on for a service that doesn't exist in the compose file at
-      # all, and `docker compose up` refuses the whole stack over it. redis is
-      # still effectively required (REDIS_HOST below is unconditional, no
-      # blank-key guard like the S3 vars) — exist.test.sh flags that
-      # dependency instead, where a missing/disabled redis fails one check
-      # rather than the render.
       nextcloud-db:
+        condition: service_healthy
+      nextcloud-redis:
         condition: service_healthy
     healthcheck:
       # A 200 on /status.php is NOT proof of a working instance — an
@@ -98,13 +92,13 @@ services:
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=${NEXTCLOUD_SQL_USER}
       - MYSQL_HOST=nextcloud-db
-      - REDIS_HOST=redis
+      - REDIS_HOST=nextcloud-redis
       # NOT REDIS_PORT — config/redis.config.php (image source) only reads
       # REDIS_HOST_PORT; REDIS_PORT was never consumed by anything and only
       # looked correct because 6379 is also what redis.config.php falls back to
       # when REDIS_HOST_PORT is absent (`getenv('REDIS_HOST')[0] != '/' ? 6379`).
       - REDIS_HOST_PORT=6379
-      - REDIS_HOST_PASSWORD=${EXIST_REDIS_PASSWORD}
+      - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}
       # seaweedfs external storage, mounted at /S3 by
       # hooks/post-installation/01-s3-external-storage.sh. Blank key = the
       # hook no-ops, so this is safe on an install without an object store.
@@ -152,6 +146,39 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Cache for Nextcloud: the memcache.distributed + memcache.locking backend and
+  # the PHP session store. Not optional — config/redis.config.php (image source)
+  # sets both memcache keys whenever REDIS_HOST is set, and entrypoint.sh's
+  # configure_redis_session wires the session handler — so it ships here rather
+  # than as its own toggleable service, and nextcloud depends_on it above.
+  nextcloud-redis:
+    container_name: nextcloud-redis
+    image: redis:8.10.1-alpine3.23
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    # No volume, and --save "" so redis never tries to write one. Locks and
+    # sessions are transient by definition: losing them costs a re-login and
+    # clears any stale file lock, which is a fix more often than a loss. This
+    # tag declares no VOLUME /data (`docker image inspect` → Config.Volumes
+    # null), so omitting the mount leaves no anonymous volume behind either.
+    command: ["redis-server", "--save", "", "--requirepass", "${NEXTCLOUD_REDIS_PASSWORD}"]
+    # No maxmemory/eviction policy is set, so redis grows unbounded rather than
+    # evicting keys — this limit is what finally stops it, via an OOM-kill and
+    # restart, not a graceful policy.
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    networks:
+      - exist
+    healthcheck:
+      # requirepass means a bare `redis-cli ping` gets NOAUTH, not PONG.
+      test: ["CMD-SHELL", "redis-cli -a \"${NEXTCLOUD_REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 x-exist-volumes:
   # The webroot itself: PHP code, always local (never nfs — see the mount comment).

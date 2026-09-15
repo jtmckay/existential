@@ -67,7 +67,7 @@ for temporary tweaks.
 The shipped template lists the CORE stack (`src/quests/00-core.md`) only. A few core
 services are deliberately absent:
 
-- **No HTTP endpoint of their own**: redis, honcho (internal API only), wyoming-whisper and
+- **No HTTP endpoint of their own**: honcho (internal API only), wyoming-whisper and
   wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki (Grafana is the
   window onto it), decree (the background daemon has no UI), and caddy itself.
 - **Has an endpoint, but nothing a tile can show**: `automation-webhook` is a POST-only,

@@ -248,6 +248,7 @@ declare -a CHECKS=(
     "mcp-playwright	ai/mcp/docker-compose.exist.yml	mcr.microsoft.com/playwright/mcp	github	microsoft/playwright-mcp	v"
     "mealie	services/mealie/docker-compose.exist.yml	ghcr.io/mealie-recipes/mealie	github	mealie-recipes/mealie	v"
     "nextcloud	nas/nextcloud/docker-compose.exist.yml	nextcloud	hub_clean	library/nextcloud	bare"
+    "nextcloud-redis	nas/nextcloud/docker-compose.exist.yml	redis	hub_clean	library/redis	-alpine3.23"
     "nocodb	services/nocodb/docker-compose.exist.yml	nocodb/nocodb	github	nocodb/nocodb	bare"
     "ntfy	services/ntfy/docker-compose.exist.yml	binwiederhier/ntfy	github	binwiederhier/ntfy	v"
     "ollama	ai/ollama/docker-compose.exist.yml	ollama/ollama	hub_clean	ollama/ollama	bare"

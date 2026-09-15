@@ -29,7 +29,7 @@ its memory and voice, plus notifications and monitoring:
 | | |
 |---|---|
 | **Front door** | Caddy (TLS + hostnames), Dashy (the dashboard) |
-| **Files** | Nextcloud, Redis, SeaweedFS (S3 + file events), code-server (editor over `workspace/`) |
+| **Files** | Nextcloud, SeaweedFS (S3 + file events), code-server (editor over `workspace/`) |
 | **House** | Home Assistant |
 | **Automation** | Decree, ntfy (where automations report in) |
 | **Monitoring** | Loki, Prometheus, Grafana — Decree's run logs and dashboards |

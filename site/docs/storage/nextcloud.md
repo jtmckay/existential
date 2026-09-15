@@ -10,9 +10,8 @@ sidebar_position: 3
 
 File sharing and sync — Dropbox/Google Drive alternative.
 
-Redis (`nas/redis`) is a hard dependency, not an optional add-on: file locking and PHP sessions
-are wired to it unconditionally, so enabling Nextcloud without Redis leaves it up but broken in
-ways `/status.php` cannot see. Enable both together.
+Nextcloud ships with its own Redis (`nextcloud-redis`), in the same compose file — there is
+nothing to enable separately. See [Cache](#cache) below.
 
 ## Setup
 
@@ -31,6 +30,29 @@ that treatment, even though the installer also writes them once: Nextcloud's own
 `config/reverse-proxy.config.php` reads them straight from the environment on every request and
 overrides whatever is baked into `config.php`, so they already track `EXIST_DOMAIN` without a
 restart doing anything special.
+
+## Cache
+
+`nextcloud-redis` (`redis:8.10.1-alpine3.23`, tri-licensed
+[RSALv2 / SSPLv1 / AGPLv3](https://redis.io/legal/licenses/) — for commercial hosting, select
+AGPLv3 or RSALv2) is Nextcloud's `memcache.distributed` and `memcache.locking` backend
+(transactional file locking, so two clients can't corrupt the same file at once) and its PHP
+session store. Both are wired by the official `nextcloud` image whenever `REDIS_HOST` is set
+(`redis.config.php`, `entrypoint.sh`'s `configure_redis_session`), so this is a hard dependency,
+not an optional add-on — which is why it lives in Nextcloud's own compose file rather than being
+a service you toggle. Nothing else in the stack talks to it: `firecrawl-redis`,
+`lowcoder-redis` and `immich-redis` are separate, per-service instances.
+
+It holds **no volume** and runs with `--save ""`. Locks and sessions are transient by
+definition; losing them costs a re-login and clears any stale file lock. Nothing to back up.
+No `maxmemory` or eviction policy is set, so redis grows until it hits the container's 128M
+limit rather than evicting old keys, at which point Docker's OOM killer restarts it.
+
+`--requirepass` is always on, from `NEXTCLOUD_REDIS_PASSWORD` in `nas/nextcloud/.env` — one key
+read by both containers, so the two sides cannot drift. A bare `redis-cli ping` therefore
+returns `NOAUTH`, not `PONG`; pass `-a` (see the healthcheck in
+`nas/nextcloud/docker-compose.exist.yml`, and `nas/nextcloud/exist.test.sh` for a
+dependency-free AUTH+PING over the raw protocol).
 
 ## Housekeeping
 

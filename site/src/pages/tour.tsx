@@ -25,7 +25,7 @@ import styles from './tour.module.css';
  * the quest file at runtime, and a codegen step for one integer is worse than a
  * test. `./existential.sh validate conventions` fails if the two disagree.
  */
-const CORE_SERVICES = 19;
+const CORE_SERVICES = 18;
 
 /**
  * Counts cards, so summary cards like `mobile` don't inflate the tally.

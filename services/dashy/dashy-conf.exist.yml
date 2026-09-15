@@ -26,7 +26,7 @@
 # `./existential.sh validate` to verify.
 #
 # Core services with no useful tile are deliberately absent. No HTTP endpoint
-# of their own: redis, honcho (internal API only), wyoming-whisper and
+# of their own: honcho (internal API only), wyoming-whisper and
 # wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki
 # (Grafana is the window onto it), decree (background daemon), and caddy
 # itself. Has an endpoint but nothing a browser tile can show: automation-webhook

@@ -23,9 +23,9 @@ abandoned Openblocks project. Its pitch over [Appsmith](./appsmith) is native em
 | `lowcoder-mongodb` | App data (users, apps, datasource configs) |
 | `lowcoder-redis` | Session/query cache — no persistence (`--save ""`) |
 
-`lowcoder-mongodb` and `lowcoder-redis` are dedicated to this service, not the shared
-`nas/redis` (which serves only nextcloud) — every bundled-DB service in this stack
-(firecrawl, immich, lowcoder) brings its own, and none of them share.
+`lowcoder-mongodb` and `lowcoder-redis` are dedicated to this service — every service in this
+stack that needs a database or a cache brings its own (firecrawl, immich, lowcoder, nextcloud),
+and none of them share.
 
 ## Access
 

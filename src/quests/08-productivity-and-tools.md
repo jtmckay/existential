@@ -14,7 +14,7 @@ services:
 ---
 
 NocoDB, Appsmith and Lowcoder each bundle their own database — nothing here
-shares nas/redis or nas/nextcloud. IT Tools is stateless (no backup needed).
+shares nas/nextcloud. IT Tools is stateless (no backup needed).
 
 Nightly backups (kept 7 days) run in decree-backup once you copy their cron
 files in. Copy only the ones for what you enabled:

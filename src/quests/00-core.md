@@ -14,8 +14,6 @@ services:
     label: Dashy (the dashboard — links to everything below)
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud (files)
-  - var: EXIST_IS_NAS_REDIS
-    label: Redis (Nextcloud cache — required by Nextcloud)
   - var: EXIST_IS_NAS_SEAWEEDFS
     label: SeaweedFS (S3 + file events)
   - var: EXIST_IS_SERVICES_CODE_SERVER

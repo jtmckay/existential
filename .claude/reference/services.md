@@ -6,10 +6,10 @@ A service is **core** if something reaches it by bare container name over the `e
 It is **complementary** if it is reached over a URL/protocol you could point anywhere (rclone
 remote, S3 endpoint, DNS), or if nothing in the stack talks to it at all.
 
-Complementary today: **NAS** (nextcloud, seaweedfs, collabora, redis — the core reaches these via
-rclone remotes and the S3 API; `redis` serves only nextcloud), **immich** (nothing references
-it), **homeassistant** (nothing references it either, and it is often bound to the host with the
-USB radios plugged in), **pihole** (LAN DNS), **monitoring** (grafana/loki/prometheus/uptime-kuma
+Complementary today: **NAS** (nextcloud, seaweedfs, collabora — the core reaches these via
+rclone remotes and the S3 API), **immich** (nothing references it), **homeassistant** (nothing
+references it either, and it is often bound to the host with the USB radios plugged in),
+**pihole** (LAN DNS), **monitoring** (grafana/loki/prometheus/uptime-kuma
 — they scrape, nothing depends on them).
 
 A Caddy block and a Dashy tile do **not** make a service core — those are ingress and
