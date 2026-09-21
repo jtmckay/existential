@@ -48,11 +48,10 @@ grep -q "rclone_prefix: ${BUCKET}" "$WCFG" || { echo "could not set rclone_prefi
 
 # ── The notification path_prefixes ───────────────────────────────────────────
 #
-# New under seaweedfs and load-bearing. minIO subscribed per bucket at runtime,
-# so a test bucket could opt itself in with one `mc event add`. Seaweedfs filters
-# by FILER PATH in a file read at boot, and the shipped value watches only
-# /buckets/nextcloud — so without this line the probe bucket fires no events at
-# all and the check fails on a chain that is perfectly healthy.
+# Load-bearing: seaweedfs filters by FILER PATH in a file read at boot, and the
+# shipped value watches only /buckets/nextcloud — so without this line the probe
+# bucket fires no events at all and the check fails on a chain that is perfectly
+# healthy.
 NCFG="$WORK/nas/seaweedfs/notification.exist.toml"
 [ -f "$NCFG" ] || { echo "no ${NCFG}" >&2; exit 1; }
 sed -i "s|^path_prefixes = \[\"/buckets/nextcloud\"\]$|path_prefixes = [\"/buckets/nextcloud\", \"/buckets/${BUCKET}\"]|" "$NCFG"

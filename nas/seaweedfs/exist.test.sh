@@ -14,8 +14,7 @@ skip_if_disabled
 # the S3 gateway is accepting connections -- it does not touch the filer, the
 # volume server, or the identities in s3.json. A seaweedfs whose s3.json has
 # drifted from what nextcloud and the routines read would still pass both probes
-# below, which is exactly the hole minIO's old test left open. The two rclone
-# checks after them are the ones that matter.
+# below. The two rclone checks after them are the ones that matter.
 http_probe "seaweedfs S3 /healthz (direct)" "http://seaweedfs:8333/healthz" 200
 probe_caddy "seaweedfs S3 /healthz" seaweedfs-api /healthz 200
 
@@ -27,9 +26,6 @@ probe_caddy_any "seaweedfs admin UI" seaweedfs / "^(200|301|302|307|401)$"
 # Credentials actually authenticate. Configured entirely from RCLONE_CONFIG_* env
 # (no rclone.conf written) -- the same pattern workspace-sync.sh uses. `lsd` is a
 # read-only listing, so this writes nothing to the service.
-#
-# Unlike minIO's MC_HOST_ form, nothing is embedded in a URL here, so a password
-# containing '/', '@' or ':' is no longer a problem.
 _rclone_probe() {
     local label="$1" key="$2" secret="$3" remote="$4" hint="$5"
     if [ -z "$key" ] || [ -z "$secret" ]; then

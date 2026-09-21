@@ -13,7 +13,6 @@
 **/.pnpm-store
 .claude/settings.local.json
 
-**/minio_data
 **/n8n_data
 **/nextcloud_data
 **/nextcloudsql_data

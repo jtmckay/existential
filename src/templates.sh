@@ -117,10 +117,9 @@ render_template() {
             # A blank value still substitutes — as the empty string. Skipping it
             # (the old `-n "$value"` guard) left the literal token in the rendered
             # file, so a shared key the user had not filled in shipped the string
-            # "EXIST_MINIO_SERVER_URL" into a container as if it were a URL. That
-            # crash-looped minio, blanked nextcloud's trusted domain, and rendered
-            # EXIST_USERNAME as a postgres role name. Empty is the honest render of
-            # an empty value; a leftover placeholder is never what the caller meant.
+            # "EXIST_SEAWEEDFS_URL" into a container as if it were a URL, and
+            # EXIST_USERNAME as a postgres role name. Empty is the honest render
+            # of an empty value; a leftover placeholder never is.
             [[ -n "$key" ]] || continue
             _keys+=("$key")
             _vals["$key"]="$value"

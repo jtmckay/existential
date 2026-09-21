@@ -5,8 +5,8 @@
 # 8801 is automation-webhook's listen port and is not configurable -- see the comment on
 # its environment: block in services/automation/docker-compose.exist.yml.
 #
-# path_prefixes covers the WHOLE nextcloud bucket, which matches what minIO did before
-# it. Narrow it to ["/buckets/nextcloud/workspace"] if you only ever want the workspace
+# path_prefixes covers the WHOLE nextcloud bucket. Narrow it to
+# ["/buckets/nextcloud/workspace"] if you only ever want the workspace
 # pipeline -- but note the telegram flow writes to nextcloud:S3/telegram and the
 # whisperx processor matches audio anywhere in the mount, so both would stop firing.
 #

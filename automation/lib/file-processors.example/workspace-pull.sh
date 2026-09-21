@@ -22,9 +22,8 @@
 #
 # Copy to lib/file-processors/ to activate — no restart needed, s3-router
 # reads the directory per event. Needs workspace-sync's cron already active
-# (services/automation/backup/cron.example/workspace-sync.md) and the
-# nextcloud bucket subscribed to the webhook — see that routine's own header
-# for the exact FIRST RUN order (sync once before subscribing).
+# (services/automation/backup/cron.example/workspace-sync.md); the nextcloud
+# bucket is subscribed by nas/seaweedfs/notification.toml at boot.
 PATTERN="^nextcloud:S3/workspace/"
 CRITERIA=""
 IS_PRE_SIGNED=false
@@ -46,10 +45,22 @@ if [ "$FILE_ACTION" = "removed" ]; then
     exit 0
 fi
 
+# Content check first, and it is load-bearing — without it this processor wedges
+# workspace-sync permanently. The two halves of the sync read modtime from
+# different places: bisync talks to the S3 gateway, which reports the object's
+# X-Amz-Meta-Mtime (the file's real modtime, preserved on upload), while this
+# processor is fed through the `nextcloud:` WebDAV remote, whose external-storage
+# layer reports the time the object was WRITTEN instead. So every file bisync
+# pushes up comes straight back down with a newer modtime, bisync sees it as
+# changed on Path1 next run, pushes it again, and the loop never settles — and
+# once it is every file, bisync's all-files-changed guard aborts the run for good.
+# Identical content means there is nothing to pull, so leaving the local file
+# (and its modtime) alone is both correct and what breaks the loop.
+if cmp -s -- "$FILE_PATH" "$_target" 2>/dev/null; then
+    echo "Unchanged, skipping: ${_rel}"
+    exit 0
+fi
+
 mkdir -p -- "$(dirname -- "$_target")"
-# -p carries over FILE_PATH's modtime, which file-processor's rclone copyto
-# already set to match the bucket object's — matching modtimes on both sides is
-# what lets the next bisync run see this as already in sync rather than a
-# same-name file that changed on both sides since its last look.
-cp -p -- "$FILE_PATH" "$_target"
+cp -- "$FILE_PATH" "$_target"
 echo "Pulled live: ${_rel}"

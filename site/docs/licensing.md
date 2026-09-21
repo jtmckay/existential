@@ -15,10 +15,9 @@ catalog you build your offering from: host the green ones freely, comply with th
 ones, and resolve the red ones before charging for them.
 
 :::note[Not legal advice]
-This is an engineering summary to triage risk, not legal advice. Licenses change — Redis,
-Open WebUI, and MinIO all relicensed within the last two years (MinIO has since been
-retired from this stack for exactly that reason) — so confirm each app at its
-current version and get counsel before launch. Re-run this audit on every version bump.
+This is an engineering summary to triage risk, not legal advice. Licenses change — Redis and
+Open WebUI both relicensed within the last two years — so confirm each app at its current
+version and get counsel before launch. Re-run this audit on every version bump.
 :::
 
 ## The platform itself is the easy part
@@ -81,7 +80,7 @@ across the network.
 | App | Upstream | License | Flag | Notes / action |
 |---|---|---|---|---|
 | Collabora | [collabora online](https://github.com/CollaboraOnline/online) (CODE) | MPL-2.0 | 🟢 | Commercially hostable; CODE is not *recommended* for production (no LTS/support) — that's operational, not legal. Enterprise subscription optional. |
-| SeaweedFS | [seaweedfs](https://github.com/seaweedfs/seaweedfs) | Apache-2.0 | 🟢 | Permissive. Replaced MinIO, whose repo was archived in Feb 2026. |
+| SeaweedFS | [seaweedfs](https://github.com/seaweedfs/seaweedfs) | Apache-2.0 | 🟢 | Permissive. |
 | Nextcloud | [server](https://github.com/nextcloud/server) | AGPL-3.0 | 🟡 | The flagship AGPL app; run unmodified + link source. Bundles MariaDB (GPL). |
 | Redis | [redis](https://github.com/redis/redis) (v8) | Tri: RSALv2 / SSPLv1 / **AGPLv3** | 🟢 | Choose **AGPLv3 or RSALv2** — both permit hosting. (Redis 7.4–7.x was RSAL/SSPL-only; v8+ restored the open option.) |
 

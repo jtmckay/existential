@@ -180,9 +180,8 @@ path_prefixes = ["/buckets/nextcloud"]
 ```
 
 To watch another bucket, add it to `path_prefixes` as `/buckets/<name>` and restart seaweedfs.
-Filtering is by **filer path prefix**, so `"/buckets/nextcloud/uploads"` narrows to one folder —
-the equivalent of MinIO's per-subscription prefix filter. There is no suffix filter; that job
-belongs to a processor's `PATTERN`, which is where it already was.
+Filtering is by **filer path prefix**, so `"/buckets/nextcloud/uploads"` narrows to one folder.
+There is no suffix filter; that job belongs to a processor's `PATTERN`.
 
 :::warning[Only one endpoint]
 The webhook block supports a single target. Filter with `event_types` and `path_prefixes`
@@ -190,7 +189,7 @@ rather than adding a second one. If you genuinely need to fan out to several con
 what `s3-router` and its processors are for.
 :::
 
-Two things behave differently from MinIO, and both are handled for you in `s3-router`:
+Two things about the event shape are handled for you in `s3-router`:
 
 - **`key` is a filer path**, `/buckets/<bucket>/<object key>` — not a bare `<bucket>/<key>`.
 - **Directories raise their own events**, carrying `is_directory: true`. The router drops them,
@@ -308,8 +307,8 @@ bucket (the same one Nextcloud mounts at `/S3`) on a cron. The sync is what
 produces the events — in both directions, since it's a two-way `rclone bisync`,
 not a one-way mirror. This is on by default: the Core quest activates the cron
 whenever SeaweedFS is enabled (see [Getting Started](../getting-started#workspace)),
-and `workspace-sync` itself subscribes the bucket to the webhook — no manual
-setup either way.
+and the bucket is already subscribed by `nas/seaweedfs/notification.toml`, which
+the filer reads at boot — no manual setup either way.
 
 That sync excludes `workspace/ai/`, and the exclusion is load-bearing:
 `workspace/ai/` is where `agent-task` writes, so syncing it would make every
@@ -319,12 +318,11 @@ anything.
 
 Two things worth knowing about that cron:
 
-1. **The first run subscribes itself, safely.** With no prior sync state, the
-   first pass uploads the whole workspace in one go (`rclone bisync --resync`)
-   *before* anything is subscribed to the webhook — subscribing first would
-   turn that bulk upload into one event per file. `workspace-sync` queues the
-   subscription as a follow-up message only once that first sync succeeds, so
-   the ordering can't be gotten wrong by hand.
+1. **The first run uploads everything.** With no prior sync state, the first
+   pass uploads the whole workspace in one go (`rclone bisync --resync`), and
+   since the subscription is always live that is one event per file. On a fresh
+   install `workspace/` is near-empty and the active processors match narrow
+   patterns, so it is inbox churn rather than work. Nothing to do by hand.
 2. **Detection is a poll.** A change on the local side takes up to one cron
    interval to be noticed. A change on the SeaweedFS/Nextcloud side is not a
    poll — it reaches `workspace/` within about a second, live, via the

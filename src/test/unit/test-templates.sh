@@ -108,9 +108,9 @@ assert_not_contains "prefix key did not corrupt the longer one" "bobNAME" "$out"
 
 # ── Regression: a BLANK .env.shared value must still substitute ────────────────
 # Skipping blank values left the literal token in the rendered file, so an
-# unfilled shared key shipped the string "EXIST_MINIO_SERVER_URL" into a
-# container as a URL (crash-looping minio) and "EXIST_USERNAME" as a postgres
-# role name. Empty is the honest render; a surviving placeholder never is.
+# unfilled shared key shipped the string "EXIST_SEAWEEDFS_URL" into a container
+# as a URL, and "EXIST_USERNAME" as a postgres role name. Empty is the honest
+# render; a surviving placeholder never is.
 printf 'A=EXIST_BLANK\nB=${EXIST_BLANK}\n' > "$TMP/t_blank"
 out="$(render "$TMP/t_blank")"
 assert_not_contains "blank shared value leaves no bare placeholder" "EXIST_BLANK" "$out"

@@ -20,10 +20,9 @@ the schedule if that is too slow; each run is one rclone listing when nothing
 changed on either side.
 
 The first run has no prior state, so it uploads the whole workspace in one go
-(via `--resync`). Nothing to do by hand. The bucket is already subscribed: under
-minIO that was an admin-API call this routine had to make itself, but seaweedfs
-declares the subscription in nas/seaweedfs/notification.toml and reads it at
-boot. That subscription covers the whole bucket, not just workspace/ — it also
+(via `--resync`). Nothing to do by hand. The bucket is already subscribed:
+seaweedfs declares the subscription in nas/seaweedfs/notification.toml and reads
+it at boot. That subscription covers the whole bucket, not just workspace/ — it also
 backs Nextcloud's own /S3 folder, so every Nextcloud file event fires the webhook
 too. That is intentional; narrowing it is one line in that file, but it would
 also silence the telegram and whisperx flows, which watch other prefixes.

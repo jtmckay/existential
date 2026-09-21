@@ -49,11 +49,9 @@ until_ok() {
 # ── 1. The configured webhook endpoint is actually served ────────────────────
 #
 # The bug this exists for is a wrong PORT in the notify config, so the endpoint
-# has to be READ from the rendered config rather than assumed. Under minIO that
-# config was compose env; under seaweedfs it is notification.toml, but the
-# property being asserted is identical. Probing from decree tests the same thing
-# — both sit on the one exist bridge, so a port nothing serves is unreachable
-# from either — and needs no docker socket.
+# has to be READ from the rendered notification.toml rather than assumed. Probing
+# from decree tests the same thing — both sit on the one exist bridge, so a port
+# nothing serves is unreachable from either — and needs no docker socket.
 NOTIFY="${REPO}/nas/seaweedfs/notification.toml"
 [ -f "$NOTIFY" ] || fail "no rendered notification config at ${NOTIFY}"
 ENDPOINT=$(grep -m1 '^endpoint[[:space:]]*=' "$NOTIFY" | cut -d'"' -f2 || true)

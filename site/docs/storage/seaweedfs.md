@@ -6,13 +6,12 @@ sidebar_position: 2
 
 - Source: https://github.com/seaweedfs/seaweedfs
 - License: [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
-- Alternatives: Ceph, Garage, Amazon S3, [MinIO](../graveyard/storage/minio) (retired)
+- Alternatives: Ceph, Garage, Amazon S3
 - UI: `https://seaweedfs.<domain>` (the Admin UI — buckets, S3 identities and policies,
   lifecycle rules, volume health)
 
 S3-compatible object storage. Provides an S3 interface to all files — replaceable with Amazon
-S3 if needed. It replaced MinIO, whose open-source repository was archived in February 2026;
-see [the graveyard entry](../graveyard/storage/minio) for what changed.
+S3 if needed.
 
 One container runs the whole thing. `weed mini` starts the master, volume server, filer, S3
 gateway, WebDAV gateway and Admin UI in a single process, which is the right shape for one
@@ -87,9 +86,9 @@ SeaweedFS POSTs file events to the Decree webhook to trigger automations when fi
 updated, renamed or deleted. See [File Processor](../decree/file-change-processing) for full
 setup instructions.
 
-One structural difference from MinIO is worth knowing, because it is what deleted a routine and
-a migration: SeaweedFS does not implement `PutBucketNotificationConfiguration` at all. There is
-no per-bucket subscription to make. Instead the whole subscription lives in
+One thing is worth knowing, because it is what deletes a routine and a migration: SeaweedFS does
+not implement `PutBucketNotificationConfiguration` at all. There is no per-bucket subscription to
+make. Instead the whole subscription lives in
 `nas/seaweedfs/notification.toml`, which the filer reads at boot — endpoint, bearer token, which
 event types, and which paths:
 
@@ -106,11 +105,10 @@ Two consequences:
 - **Events are filer paths, not bucket/key pairs.** `key` arrives as
   `/buckets/nextcloud/workspace/report.pdf`. `s3-router` strips the `/buckets/` prefix and then
   splits off the bucket exactly as before, so `PATTERN`s did not change.
-- **Directories raise events of their own**, carrying `is_directory: true`. MinIO had no
-  directory concept and never did this; `s3-router` drops them.
+- **Directories raise events of their own**, carrying `is_directory: true`. `s3-router` drops them.
 
-`path_prefixes` is what scoping looks like here. It ships watching the whole `nextcloud` bucket,
-which is what MinIO effectively did. Narrowing it to `["/buckets/nextcloud/workspace"]` is a
+`path_prefixes` is what scoping looks like here. It ships watching the whole `nextcloud` bucket.
+Narrowing it to `["/buckets/nextcloud/workspace"]` is a
 one-line change — but it would also stop the Telegram ingest and WhisperX transcription flows,
 which watch other prefixes of the same bucket.
 

@@ -23,10 +23,10 @@
 #
 #   - `key` is a FILER path, "/buckets/<bucket>/<object key>", so the /buckets/
 #     prefix is stripped before the bucket is split off.
-#   - DIRECTORIES generate events too. minIO had no directory concept and never
-#     did this. An unfiltered directory event makes file-processor try to
-#     download a folder, so is_directory entries are dropped below. The field is
-#     OMITTED rather than false for files, so test for true, not for presence.
+#   - DIRECTORIES generate events too. An unfiltered directory event makes
+#     file-processor try to download a folder, so is_directory entries are
+#     dropped below. The field is OMITTED rather than false for files, so test
+#     for true, not for presence.
 #
 # Example webhook trigger (fired by /s3 endpoint):
 #
@@ -86,10 +86,10 @@ _strip_buckets() { echo "${1#/buckets/}"; }
 # Build the (action, object-key) pairs this event produces. Every event yields
 # exactly one pair except a rename, which yields two.
 #
-# Translate the filer event to the same clean action strings minIO's router
-# emitted, so no processor had to change:
-#   create/update -> created   (minIO: ObjectCreated, fired on PUT and on overwrite)
-#   delete        -> removed   (minIO: ObjectRemoved)
+# Flatten the filer event types into the two action strings every processor
+# reads, so a PUT and an overwrite look the same:
+#   create/update -> created
+#   delete        -> removed
 _pairs=()
 case "$_event_type" in
     create|update)
@@ -101,7 +101,7 @@ case "$_event_type" in
     rename)
         # Nextcloud's files_external S3 driver implements rename as copy+delete, so
         # in the default topology this branch never fires — a rename arrives as an
-        # independent create and delete, exactly as it did under minIO. It fires
+        # independent create and delete. It fires
         # only for filer-level moves: seaweedfs' own WebDAV/SFTP, a FUSE mount, or
         # the filer API. Handled anyway so pointing rclone at those is safe.
         #

@@ -40,13 +40,11 @@
 # no restart needed, it's read fresh every run.
 #
 # FIRST RUN: bisync has no prior state yet, so the first pass runs with --resync
-# (below) and uploads the whole workspace in one go. Under minIO the webhook
-# subscription was an admin-API call this routine had to defer until after that
-# upload, or the baseline became one event per file. Seaweedfs subscribes from a
-# static config file read at boot, so there is nothing to defer and nothing to
-# queue — and the baseline therefore DOES fire an event per file. On a fresh
-# install workspace/ is near-empty and the active processors match narrow
-# patterns, so that is inbox churn rather than work. Nothing to do by hand.
+# (below) and uploads the whole workspace in one go. Seaweedfs subscribes the
+# bucket from a static config file read at boot, so that baseline DOES fire an
+# event per file — there is no subscription to defer. On a fresh install
+# workspace/ is near-empty and the active processors match narrow patterns, so
+# that is inbox churn rather than work. Nothing to do by hand.
 #
 #   ---
 #   cron: "*/10 * * * *"
@@ -72,15 +70,6 @@ WORKSPACE_SYNC_EXCLUDE="${WORKSPACE_SYNC_EXCLUDE:-ai/** .git/** node_modules/** 
 # User-editable excludes, .gitignore-style: one rclone glob pattern per line.
 # Optional — skipped entirely if the file doesn't exist.
 WORKSPACE_SYNC_IGNORE_FILE="${WORKSPACE_SYNC_IGNORE_FILE:-${WORKSPACE_DIR}/.syncignore}"
-# Percent of files that may disappear from one side before bisync aborts.
-# rclone's default is 50, which is meaningless on a workspace this small —
-# deleting two of three files trips it — and the abort is not self-healing:
-# it never commits the new listings, so the same deletes are re-detected every
-# run and the sync stays wedged until someone passes --force by hand. The real
-# backstop for "the mount vanished / the bucket got wiped" is bisync's separate
-# empty-listing check, handled below with --resync. Lower this if you want a
-# ratio guard back.
-WORKSPACE_SYNC_MAX_DELETE="${WORKSPACE_SYNC_MAX_DELETE:-100}"
 
 if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     command -v rclone >/dev/null 2>&1     || { echo "rclone not found" >&2; exit 1; }
@@ -120,11 +109,19 @@ if [[ -f "${WORKSPACE_SYNC_IGNORE_FILE}" ]]; then
     _excludes+=(--exclude-from "${WORKSPACE_SYNC_IGNORE_FILE}")
 fi
 
+# --force turns off bisync's two ratio guards: the --max-delete percentage and
+# the separate "all files were changed on Path1" abort. Both are meaningless on
+# a workspace this small — three files means editing three of them is 100% —
+# and neither abort is self-healing: the run never commits its new listings, so
+# the same condition is re-detected every run and the sync stays wedged until a
+# human passes --force by hand. The backstop that actually matters, "the mount
+# vanished / the bucket got wiped", is bisync's empty-listing check, which
+# --force does NOT bypass and which the recovery branch below handles.
 _bisync() {
     rclone bisync "${WORKSPACE_DIR}" "${_remote}" \
         "${_excludes[@]}" \
         --workdir "${WORKSPACE_BISYNC_WORKDIR}" \
-        --max-delete "${WORKSPACE_SYNC_MAX_DELETE}" \
+        --force \
         --conflict-resolve newer \
         --resilient \
         --recover \

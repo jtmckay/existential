@@ -4,14 +4,12 @@
 # Keeps only the most recent N run directories per group, where the group is
 # derived from the run directory's OWN name — not from a cron listing.
 #
-# That distinction is the whole point. This used to enumerate CRON_DIR and clean
-# only directories matching a cron file basename, which meant it silently ignored
-# everything that did not come from *this* daemon's crons: workspace-sync (whose
-# cron lives on automation-backup, while both daemons share one runs/ dir) had
-# grown to 796 directories, minio-router to 95 because the service was renamed
-# out from under it, and s3-router to 36 because a webhook message is named by
-# automation-webhook, not by a cron. Deriving the group from the name means a run
-# is cleaned because it exists, not because something else still lists it.
+# That distinction is the whole point. Matching against a cron listing instead
+# silently ignores everything that did not come from *this* daemon's crons —
+# workspace-sync, whose cron lives on automation-backup while both daemons share
+# one runs/ dir; s3-router, whose messages are named by automation-webhook; and
+# anything left behind by a renamed routine. Deriving the group from the name
+# means a run is cleaned because it exists, not because something else lists it.
 #
 # Full routine.log and message.md content is shipped to Loki by alloy
 # (hosting/loki/loki-alloy-config.alloy) and kept for 30 days, so what is deleted

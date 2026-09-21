@@ -4,8 +4,6 @@ services:
   # (automation/shared_routines/workspace-sync.sh). Admin UI is reached via
   # https://seaweedfs.<domain>, the S3 API via https://seaweedfs-api.<domain> --
   # ports below are disabled, so localhost only works once you uncomment them.
-  #
-  # Replaced minIO, whose repo was archived in Feb 2026 (see site/docs/graveyard/storage/minio.md).
   seaweedfs:
     container_name: seaweedfs
     image: chrislusf/seaweedfs:4.46
@@ -65,9 +63,9 @@ services:
       -s3.port.lance=0
       -admin.user=${SEAWEEDFS_ROOT_USER}
       -admin.password=${SEAWEEDFS_ROOT_PASSWORD}
-    # /healthz answers 200 as soon as the S3 gateway accepts connections. Like
-    # minIO's old /minio/health/live it does NOT prove the object layer or the
-    # credentials work -- exist.test.sh's rclone probes are what do that.
+    # /healthz answers 200 as soon as the S3 gateway accepts connections. It does
+    # NOT prove the object layer or the credentials work -- exist.test.sh's rclone
+    # probes are what do that.
     # curl is in the image (verified on chrislusf/seaweedfs:4.46).
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8333/healthz"]
