@@ -613,24 +613,105 @@ function main(): number {
   // Scope every check to the frontmatter — the body is free-form prose, and a
   // guide that happens to show an `e2e: false` line in an example is not config.
   const questsDir = path.join(REPO_ROOT, 'src/quests');
+  const questFm = new Map<string, string>();   // filename -> frontmatter body
   if (fs.existsSync(questsDir)) {
-    for (const f of fs.readdirSync(questsDir).filter(n => /^\d.*\.md$/.test(n))) {
+    for (const f of fs.readdirSync(questsDir).filter(n => n.endsWith('.md'))) {
       const content = fs.readFileSync(path.join(questsDir, f), 'utf8');
       const fm = content.match(/^---\n([\s\S]*?)\n---/);
       if (!fm) {
         errors.push(`src/quests/${f}: no YAML frontmatter — a quest is fenced metadata, then the guide`);
         continue;
       }
+      questFm.set(f, fm[1]);
       const lines = fm[1].split('\n');
-      const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
-      const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));
-      if (hasE2eFalse && !hasE2eSkip) {
-        errors.push(
-          `src/quests/${f}: has 'e2e: false' but no 'e2e_skip:' explanation — add one`,
-        );
+      // e2e only ever runs the numbered quests, so only they owe an excuse.
+      if (/^\d/.test(f)) {
+        const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
+        const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));
+        if (hasE2eFalse && !hasE2eSkip) {
+          errors.push(
+            `src/quests/${f}: has 'e2e: false' but no 'e2e_skip:' explanation — add one`,
+          );
+        }
       }
       if (!lines.some(l => /^name:\s*\S/.test(l))) {
         errors.push(`src/quests/${f}: frontmatter has no 'name:' — the picker needs it`);
+      }
+    }
+  }
+
+  // The numbered quests ARE Core, cut into slices you can do one at a time. That
+  // only holds if they partition it exactly: every Core service and every file
+  // Core copies belongs to one slice and no two. Break the partition and quest.sh
+  // silently stops crossing a slice off after a Core run — a wrong ✓, or a missing
+  // one, with nothing to point at. So it is checked rather than remembered.
+  //
+  // Walked line by line for the same reason the tour count below is: `copies:`
+  // entries carry `requires:` keys naming the same EXIST_IS_ flags, so a block
+  // regex over the whole frontmatter would count them twice.
+  const fmList = (body: string, key: string, item: RegExp): string[] => {
+    const lines = body.split('\n');
+    const start = lines.findIndex(l => new RegExp(`^${key}:\\s*$`).test(l));
+    if (start === -1) return [];
+    const out: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      if (/^\S/.test(line)) break;                       // next top-level key
+      const m = line.match(item);
+      if (m) out.push(m[1]);
+    }
+    return out;
+  };
+  // Core's `copies:` are src/dst pairs; the file that ends up on disk is what a
+  // slice names in `done.files`, so compare destinations.
+  const copyDests = (body: string): string[] => {
+    const out: string[] = [];
+    let dst = '';
+    const lines = body.split('\n');
+    const start = lines.findIndex(l => /^copies:\s*$/.test(l));
+    if (start === -1) return out;
+    let src = '';
+    for (const line of lines.slice(start + 1)) {
+      if (/^\S/.test(line)) break;
+      const s = line.match(/^\s*-\s*src:\s*(\S+)/);
+      if (s) { src = s[1]; continue; }
+      const d = line.match(/^\s*dst:\s*(\S+)/);
+      if (d) { dst = d[1]; if (src) out.push(dst.replace(/\/$/, '') + '/' + path.basename(src)); }
+    }
+    return out;
+  };
+
+  const coreFm = questFm.get('00-core.md');
+  const slices = [...questFm.keys()].filter(f => /^\d/.test(f) && f !== '00-core.md').sort();
+  if (coreFm && slices.length) {
+    const owner = new Map<string, string>();
+    const claim = (what: string, kind: string, f: string) => {
+      const prev = owner.get(what);
+      if (prev) {
+        errors.push(`src/quests: ${kind} ${what} is claimed by both ${prev} and ${f} — a slice owns it alone`);
+      } else owner.set(what, f);
+    };
+    for (const f of slices) {
+      const body = questFm.get(f)!;
+      for (const v of fmList(body, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) claim(v, 'service', f);
+      for (const p of fmList(body, 'done', /^\s*-\s*(\S+)/))                     claim(p, 'file', f);
+    }
+    for (const v of fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) {
+      if (!owner.has(v)) {
+        errors.push(`src/quests/00-core.md: ${v} is in Core but in no numbered slice — add it to the one that owns it`);
+      }
+    }
+    for (const d of copyDests(coreFm)) {
+      if (!owner.has(d)) {
+        errors.push(`src/quests/00-core.md: copies ${d}, which no numbered slice names in done.files — a Core run would not cross that slice off`);
+      }
+    }
+    // The other direction: a slice must not promise a service Core does not install.
+    const coreVars = new Set(fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/));
+    for (const f of slices) {
+      for (const v of fmList(questFm.get(f)!, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) {
+        if (!coreVars.has(v)) {
+          errors.push(`src/quests/${f}: enables ${v}, which is not part of Core — numbered quests are Core's slices, everything else is an unnumbered quest`);
+        }
       }
     }
   }

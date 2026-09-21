@@ -7,6 +7,9 @@ services:
     label: Decree
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
+done:
+  files:
+    - automation/cron/notes.md
 ---
 
 Activates a recurring cron that pulls notes from Nextcloud, compiles them,
@@ -20,7 +23,7 @@ Pipeline each run:
   4. Push to Dropbox      (automation/lib/notes/push-dropbox.sh)
 
 Prerequisites:
-  - Nextcloud running (Quest 1 — NAS Storage)
+  - Nextcloud running (Quest 02 — Files & Workspace)
   - Dropbox rclone remote configured:
       ./existential.sh run rclone
   - Nextcloud rclone credentials in automation/secrets/

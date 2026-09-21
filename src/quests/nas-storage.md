@@ -4,6 +4,9 @@ tagline: Mount NFS on the host so persistent data bind-mounts from your NAS
 e2e: false
 e2e_skip: Requires an external NAS/NFS server
 services: []
+done:
+  env:
+    - EXIST_NFS_HOST_MOUNT
 ---
 
 Existential never uses Docker-managed volumes. Every service's persistent

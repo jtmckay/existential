@@ -14,8 +14,9 @@ panel — one button or form per routine, POSTing to automation-webhook.
 Docs: https://existential.company/docs/decree/lowcoder-ui
 
 Prerequisites:
-  - Decree running (Quest 3 — Automation and Observability)
-  - Lowcoder running (Quest 8 — Productivity & Tools)
+  - Decree running (Quest 03 — Automation)
+  - Lowcoder enabled (EXIST_IS_SERVICES_LOWCODER=true — no quest, it comes
+    up configured)
 
 Setup:
   1. Define the routines you want to expose in

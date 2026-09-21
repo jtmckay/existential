@@ -5,6 +5,9 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/cron/rss-poll.md
 ---
 
 Reference example for tapping an external feed: rss-poll fetches an RSS or

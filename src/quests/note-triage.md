@@ -9,6 +9,9 @@ services:
     label: Hermes
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
+done:
+  files:
+    - automation/cron/note-triage.md
 ---
 
 Most notes get written once and never read again. This watches the vault for
@@ -42,7 +45,7 @@ without triaging, so turning this on with a 5,000-note vault does not fire
   printf -- '---\nroutine: note-triage\nTRIAGE_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
 
 Prerequisites:
-  - Notes landing in /data/notes — activate the auto-notes quest, or point
+  - Notes landing in /data/notes — activate the Notes Sync quest, or point
     NOTES_DIR at wherever your vault already is
   - Hermes running (the gateway the routines call), or set
     TRIAGE_API_URL=http://ollama:11434/v1 in the cron frontmatter to talk to

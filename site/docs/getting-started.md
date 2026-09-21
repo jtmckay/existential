@@ -36,8 +36,13 @@ its memory and voice, plus notifications and monitoring:
 | **Agent** | Ollama, Hermes, Honcho (memory), OpenViking (context), Firecrawl |
 | **Voice** | wyoming-whisper (speech to text), wyoming-piper (text to speech) |
 
-Decline and you fall through to the full picker. Either way, `./existential.sh` on its own does
-the same work without the questions:
+Decline and you fall through to the full picker, then the quest list. The numbered quests there
+are those same seven rows one at a time — Core, taken apart — so you can build up to the same
+stack in pieces and see every step instead of having it done for you. They cross themselves off
+as you finish them, and running Core crosses off all six at once. Everything unnumbered is an
+integration or automation past Core.
+
+Either way, `./existential.sh` on its own does the same work without the questions:
 
 1. Renders every `*.exist.*` template into its live counterpart, prompting for `EXIST_CLI` values
    and generating passwords and keys for the rest
@@ -155,7 +160,7 @@ It's more than a shared folder:
   how.
 - **Syncing fires webhook events.** Every change that lands in the bucket is a file event
   Decree can react to — that's how the Workspace Agent quest (`./existential.sh quest`, or
-  `src/quests/auto-workspace-agent.md`) turns "you edited a note" into "an agent went and did
+  `src/quests/workspace-agent.md`) turns "you edited a note" into "an agent went and did
   something about it."
 - **`workspace/ai/`** is where agent output lands (`agent-task`'s answers, for instance). It's
   indexed like everything else, so an agent can build on a previous run's output — but it's

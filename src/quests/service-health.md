@@ -9,6 +9,9 @@ services:
     label: Prometheus
   - var: EXIST_IS_HOSTING_GRAFANA
     label: Grafana
+done:
+  files:
+    - automation/cron/health-checks.md
 ---
 
 Adds per-service health check crons to the main Decree daemon. Each cron
@@ -20,9 +23,14 @@ probes a service URL every 15 minutes. Results flow automatically to:
   - Alerting:   ServiceHealthCheckFailing (hosting/prometheus/alerts.yml)
                 rides triage's per-service exist_service_healthy gauge
 
+Core (and the Automation quest) already copies the base `health-checks.md`
+cron in. This quest is the next step: one copy per service you want probed
+by name.
+
 Setup — for each service you want to monitor:
 
-  1. Copy the cron template:
+  1. Copy the cron template under a name of its own:
+       mkdir -p automation/cron/
        cp automation-examples/cron/health-checks.md \
           automation/cron/health-check-<slug>.md
 

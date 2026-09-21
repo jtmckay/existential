@@ -52,4 +52,4 @@ this — it exists for sharing publish access without sharing the password.
 
 Telegram fallback:
   If ntfy rejects the publish or is unreachable, Decree falls back to Telegram
-  if configured. See the auto-telegram quest.
+  if configured. See the Telegram Bot quest.

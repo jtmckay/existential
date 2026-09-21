@@ -5,6 +5,9 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/cron/check-versions.md
 ---
 
 Adds a weekly cron to Decree that queries upstream registries and sends

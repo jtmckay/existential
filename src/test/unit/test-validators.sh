@@ -162,6 +162,47 @@ printf -- '---\nname: X\ne2e: true\n---\n\nSet this in your own quest:\n\ne2e: f
     > "$bodyonly/src/quests/01-x.md"
 expect_pass "conventions: ignores e2e:false appearing in the guide body" tsx "$CONV" "$bodyonly"
 
+# ── Core / slice partition ────────────────────────────────────────────────────
+# The numbered quests ARE Core, one slice at a time, and quest.sh crosses a slice
+# off by finding the files Core copied. That only works while the slices partition
+# Core exactly, so the partition is checked rather than remembered.
+
+core_fm() {
+    printf -- '---\nname: Core\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ncopies:\n  - src: automation-examples/cron/clean-runs.md\n    dst: automation/cron/\n    label: clean-runs\n---\n\nCore.\n'
+}
+
+partok="$(qfix)"
+core_fm > "$partok/src/quests/00-core.md"
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+    > "$partok/src/quests/01-ai.md"
+expect_pass "conventions: accepts slices that partition Core exactly" tsx "$CONV" "$partok"
+
+partsvc="$(qfix)"
+core_fm > "$partsvc/src/quests/00-core.md"
+printf -- '---\nname: AI\ne2e: true\nservices: []\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+    > "$partsvc/src/quests/01-ai.md"
+expect_fail "conventions: rejects a Core service owned by no slice" tsx "$CONV" "$partsvc"
+
+partcopy="$(qfix)"
+core_fm > "$partcopy/src/quests/00-core.md"
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n---\n\nA guide.\n' \
+    > "$partcopy/src/quests/01-ai.md"
+expect_fail "conventions: rejects a Core copy no slice names in done.files" tsx "$CONV" "$partcopy"
+
+partextra="$(qfix)"
+core_fm > "$partextra/src/quests/00-core.md"
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n  - var: EXIST_IS_AI_COMFYUI\n    label: ComfyUI\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+    > "$partextra/src/quests/01-ai.md"
+expect_fail "conventions: rejects a slice enabling a service Core does not" tsx "$CONV" "$partextra"
+
+partdup="$(qfix)"
+core_fm > "$partdup/src/quests/00-core.md"
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+    > "$partdup/src/quests/01-ai.md"
+printf -- '---\nname: AI two\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n---\n\nA guide.\n' \
+    > "$partdup/src/quests/02-ai.md"
+expect_fail "conventions: rejects two slices claiming one service" tsx "$CONV" "$partdup"
+
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 

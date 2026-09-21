@@ -5,6 +5,9 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/cron/telegram-poll.md
 ---
 
 Create a Telegram bot and wire it to Decree. Once connected, Decree can

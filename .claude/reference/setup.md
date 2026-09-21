@@ -65,18 +65,50 @@ last entry takes a model name instead of a number (`custom:<tag>`) — see
 ### Quest file format
 
 A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
-`e2e`, `services`, and — Core only — `copies`), the body for the guide — the same shape as
-decree's cron and migration files.
-
-Only `00-core.md` uses `copies:` to auto-activate templates; that is deliberate, since Core IS
-the base system and should ask as little as possible. Every other quest's activation steps
-(`mkdir`/`cp`/`docker compose restart`) are written directly into its guide body instead — the
-point past Core is for the user (or an agent) to see and understand the cron.example/ → cron/
-mechanism, not have a picker do it invisibly. See any `auto-*.md` quest for the pattern.
+`e2e`, `services`, `done`, and — Core only — `copies`), the body for the guide — the same shape
+as decree's cron and migration files.
 
 It is read by `yq` in `quest.sh` (`qmeta` / `qbody`), **not** by decree, so decree's "extra keys
 become env vars" contract does not apply here. Everything that reads a quest must scope itself
 to the frontmatter; the body is free-form prose.
+
+### The two kinds of quest
+
+**Numbered = Core, one slice at a time.** `00-core.md` is the whole system in one pass;
+`01`–`06` are exactly a *partition* of it — every Core service and every Core `copies:` entry
+belongs to exactly one of them, and to no two. Adding a service to Core means adding it to the
+slice that owns it. e2e only ever runs numbered quests (`[0-9][0-9]-*.md`), which is the other
+reason the numbered range is the product and not a catalogue.
+
+**Unnumbered = everything past Core.** One file per integration or automation, no prefix, no
+ordering.
+
+Only `00-core.md` uses `copies:` to auto-activate templates; that is deliberate, since Core IS
+the base system and should ask as little as possible. **Every other quest — the numbered slices
+included — writes nothing.** Its activation steps (`mkdir`/`cp`/`docker compose restart`) go in
+its guide body, to be read and typed. The point past Core is for the user (or an agent driving
+this repo) to see and understand the cron.example/ → cron/ mechanism rather than have a picker
+do it invisibly, so these files are documentation and training as much as setup.
+
+### `done:` — crossing a quest off
+
+`quest_done` marks a quest finished when its services are enabled **and** it can point at proof
+on disk. A quest must SAY how it is finished, one of two ways:
+
+- `copies:` (Core only) — done when no destination is still pending.
+- `done.files` — paths, relative to the repo, that its guide told you to create.
+  `done.env` — `.env.shared` keys its guide told you to fill in; non-blank is done.
+
+**A quest that declares neither is never crossed off.** That asymmetry is the point: several
+guides end in work this repo cannot see (a ComfyUI checkpoint, a Spotify OAuth grant, a wake
+word trained on a phone), and a wrong ✓ there costs more than a missing ✓ everywhere.
+
+Because 01–06 partition Core, running Core writes every file they name and all six cross
+themselves off with no knowledge of each other.
+
+`quest_skips_service` is the one exception to "enabled": a service the GPU-vendor answer forbids
+(local ollama under `EXIST_GPU_VENDOR=external`) is not missing, it is refused — the same rule
+`_enable_quest_services` applies on the way in.
 
 ## e2e
 

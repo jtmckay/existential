@@ -28,6 +28,10 @@ _C_GREEN=$'\033[32m'
 _C_YELLOW=$'\033[33m'
 _C_CYAN=$'\033[36m'
 _C_BOLD=$'\033[1m'
+_C_DIM=$'\033[2m'
+# Crossed off. Terminals that don't do SGR 9 still dim the row, so the state
+# reads either way.
+_C_STRIKE=$'\033[2;9m'
 _C_RESET=$'\033[0m'
 
 env_get() { grep -E "^${1}=" "$EXIST_ENV" 2>/dev/null | head -1 | cut -d= -f2-; }
@@ -121,6 +125,11 @@ discover_services() {
 #     services:
 #       - var: EXIST_IS_AI_OLLAMA
 #         label: Ollama
+#     done:                        # what "already finished" looks like on disk
+#       files:
+#         - automation/cron/clean-runs.md
+#       env:
+#         - EXIST_NFS_HOST_MOUNT   # done when the key is non-blank
 #     ---
 #
 #     Everything after the closing fence is the guide.
@@ -141,12 +150,23 @@ qbody() {
 
 # ── Quest helpers ─────────────────────────────────────────────────────────────
 
+# True when the hardware answer, not the user, is why a service is off — so it
+# does not count as missing. Answering "models live on another machine" turns
+# EXIST_IS_AI_OLLAMA off for good; without this, Core and Local AI would both
+# sit permanently at "some services not yet enabled" naming a service the stack
+# is never going to run. Same rule _enable_quest_services applies on the way in.
+quest_skips_service() {
+    local _vendor; _vendor="$(env_get EXIST_GPU_VENDOR)"
+    [[ -n "$_vendor" ]] && vendor_forbids_service "$_vendor" "$1"
+}
+
 # Return 0 if all required services for a quest are enabled
 quest_ready() {
     local _f="$1"
     mapfile -t _qvars < <(qmeta "$_f" '.services[].var' 2>/dev/null | grep -v '^null$' || true)
     for _v in "${_qvars[@]}"; do
         [[ -z "$_v" ]] && continue
+        quest_skips_service "$_v" && continue
         [[ "$(env_get "$_v")" == "true" ]] || return 1
     done
     return 0
@@ -159,6 +179,7 @@ quest_missing_labels() {
     mapfile -t _labels < <(qmeta "$_f" '.services[].label' 2>/dev/null | grep -v '^null$' || true)
     for _i in "${!_vars[@]}"; do
         [[ -z "${_vars[$_i]:-}" ]] && continue
+        quest_skips_service "${_vars[$_i]}" && continue
         [[ "$(env_get "${_vars[$_i]}")" == "true" ]] && continue
         echo "${_labels[$_i]:-${_vars[$_i]}}"
     done
@@ -166,15 +187,52 @@ quest_missing_labels() {
 
 will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 
-# Non-Core quests do NOT copy anything on the user's behalf. Their guide body
-# is the instructions — mkdir/cp/restart commands written in prose, meant to
-# be read and typed (or copy-pasted) by hand. That is deliberate: Core is the
-# one path optimized for minimal input, because it IS the base system: without
-# its migrations ollama has no models and nothing else works. Everywhere past
-# that, the point is for the user (or an agent driving this repo) to see and
-# understand the mechanism — a markdown file living at cron.example/ that gets
-# copied to cron/ to activate — not have it happen invisibly behind a picker.
-# See any auto-*.md quest for the pattern.
+# Return 0 when a quest is FINISHED — services on AND its artifacts on disk.
+#
+# A quest has to SAY how it can be finished, and a quest that says nothing is
+# never crossed off. That asymmetry is deliberate: half of these guides end in
+# work this repo cannot see (a ComfyUI checkpoint downloaded, a Spotify OAuth
+# grant, a wake word trained on a phone), and a wrong ✓ on those is worse than
+# no ✓ on any of them.
+#
+# Two ways to say it. Core names its artifacts as `copies:`, the destinations it
+# writes itself, so _quest_pending_copies printing nothing IS "Core has been
+# run". A manual quest names them under `done:` — the files its guide told you
+# to copy, the .env.shared keys it told you to set.
+#
+# This is why quests 01-06 are exactly a partition of Core: running Core writes
+# every file they name, so all six cross themselves off without knowing Core
+# exists.
+quest_done() {
+    local _f="$1" _p _k _declared=0
+    quest_ready "$_f" || return 1
+    if [[ -n "$(qmeta "$_f" '.copies[0].src // ""' 2>/dev/null | grep -v '^null$' || true)" ]]; then
+        _declared=1
+        [[ -z "$(_quest_pending_copies "$_f" 2>/dev/null)" ]] || return 1
+    fi
+    while IFS= read -r _p; do
+        [[ -z "$_p" || "$_p" == "null" ]] && continue
+        _declared=1
+        [[ -e "${REPO_DIR}/${_p}" ]] || return 1
+    done < <(qmeta "$_f" '.done.files[] // ""' 2>/dev/null)
+    while IFS= read -r _k; do
+        [[ -z "$_k" || "$_k" == "null" ]] && continue
+        _declared=1
+        [[ -n "$(env_get "$_k")" ]] || return 1
+    done < <(qmeta "$_f" '.done.env[] // ""' 2>/dev/null)
+    [[ "$_declared" == 1 ]]
+}
+
+# Only Core copies anything on the user's behalf. Every other quest's guide
+# body IS the instructions — mkdir/cp/restart commands written in prose, meant
+# to be read and typed (or copy-pasted) by hand. That is deliberate: Core is
+# the one path optimized for minimal input, because it IS the base system:
+# without its migrations ollama has no models and nothing else works.
+# Everywhere past that, the point is for the user (or an agent driving this
+# repo) to see and understand the mechanism — a markdown file living at
+# cron.example/ that gets copied to cron/ to activate — not have it happen
+# invisibly behind a picker. The numbered quests are Core's own steps written
+# out that way; see any of them for the pattern.
 
 # ── Closing suggestion: reaching it from elsewhere ────────────────────────────
 #
@@ -641,10 +699,20 @@ while IFS= read -r f; do _quest_files+=("$f"); done < <(find "$QUESTS_DIR" -name
 _quest_fzf_out=$(
     {
         for _f in "${_quest_files[@]}"; do
-            if quest_ready "$_f"; then _qdot="${_C_GREEN}●${_C_RESET}"; else _qdot="${_C_YELLOW}●${_C_RESET}"; fi
-            printf '%s\t%s  (%s) %-24s  %s\n' \
-                "$_f" "$_qdot" "$(qmeta "$_f" '.services | length')" \
-                "$(qmeta "$_f" '.name')" "$(qmeta "$_f" '.tagline')"
+            _qname="$(qmeta "$_f" '.name')"
+            _qtag="$(qmeta "$_f" '.tagline')"
+            # A finished quest stays selectable — the guide is worth re-reading,
+            # and every step in one is idempotent.
+            if quest_done "$_f"; then
+                printf '%s\t%s✓%s  %s%-26s  %s%s\n' \
+                    "$_f" "$_C_GREEN" "$_C_RESET" "$_C_STRIKE" "$_qname" "$_qtag" "$_C_RESET"
+            elif quest_ready "$_f"; then
+                printf '%s\t%s●%s  %-26s  %s\n' \
+                    "$_f" "$_C_GREEN" "$_C_RESET" "$_qname" "$_qtag"
+            else
+                printf '%s\t%s○%s  %-26s  %s%s%s\n' \
+                    "$_f" "$_C_YELLOW" "$_C_RESET" "$_qname" "$_C_DIM" "$_qtag" "$_C_RESET"
+            fi
         done
     } | fzf --multi \
             --ansi \
@@ -653,8 +721,8 @@ _quest_fzf_out=$(
             --layout=reverse \
             --header="  Pick quests — what do you want to set up?
   ↑↓ navigate   Space toggle   Enter confirm
-  ${_C_GREEN}●${_C_RESET} = services ready   ${_C_YELLOW}●${_C_RESET} = some services not yet enabled
-  Hit Enter with nothing selected to run the highlighted quest" \
+  ${_C_GREEN}✓${_C_RESET} = already done   ${_C_GREEN}●${_C_RESET} = ready to start   ${_C_YELLOW}○${_C_RESET} = needs services enabled first
+  01-06 are Core, one slice at a time. Hit Enter with nothing selected to open the highlighted one" \
             --prompt="Quest ❯ " \
             --no-info \
             --bind 'space:toggle+down'
@@ -683,6 +751,7 @@ for _f in "${_active_files[@]}"; do
     for _i in "${!_qsvars[@]}"; do
         _v="${_qsvars[$_i]:-}"
         [[ -z "$_v" || "$_v" == "null" ]] && continue
+        quest_skips_service "$_v" && continue
         [[ "$(env_get "$_v")" == "true" ]] && continue
         _quest_missing_vars["$_v"]=1
         _quest_missing_labels["$_v"]="${_qslabels[$_i]:-$_v}"
@@ -785,6 +854,14 @@ for _f in "${_active_files[@]}"; do
     echo "  Quest ${_qi}/${_total} — ${_qname}"
     hr
     echo ""
+
+    # Already finished — say so before the guide rather than after, so nobody
+    # works through steps they have already taken. The guide still prints: it
+    # is the documentation for what is now running.
+    if quest_done "$_f"; then
+        echo "  ${_C_GREEN}✓${_C_RESET}  Already set up — nothing below is outstanding."
+        echo ""
+    fi
 
     # Missing services this quest needs
     _miss=()

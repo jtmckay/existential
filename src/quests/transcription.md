@@ -11,6 +11,9 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/lib/file-processors/whisperx-transcribe.sh
 ---
 
 Drop a recording into Nextcloud and Decree transcribes it with WhisperX,

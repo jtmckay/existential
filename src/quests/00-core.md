@@ -164,7 +164,12 @@ No browser chat window is part of Core. You talk to hermes by voice through
 Home Assistant, or with `hermes "..."` in code-server's terminal, or from its
 own dashboard once you set HERMES_DASHBOARD_TUI=1 (commented out in
 ai/hermes/docker-compose.yml). For a full chat UI in a tab, enable Open WebUI —
-it is in the Local AI Lab quest, or EXIST_IS_AI_OPEN_WEBUI=true.
+it is one flag away: EXIST_IS_AI_OPEN_WEBUI=true.
+
+Core is the fast path, not the only one. Quests 01–06 are these same eighteen
+services cut into six pieces you can do one at a time, by hand — same services,
+same templates, spelled out instead of copied for you. Run Core and all six
+cross themselves off; run them individually and you arrive at the same stack.
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 

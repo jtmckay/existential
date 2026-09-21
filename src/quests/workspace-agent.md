@@ -13,6 +13,9 @@ services:
     label: OpenViking
   - var: EXIST_IS_AI_FIRECRAWL
     label: Firecrawl
+done:
+  files:
+    - automation/lib/file-processors/agent-handoff.sh
 ---
 
 Edit a file in `workspace/` and, if it matches one of your criteria, an agent

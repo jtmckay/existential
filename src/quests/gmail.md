@@ -5,6 +5,9 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/cron/gmail-sync.md
 ---
 
 Grants Decree read-only Gmail access via OAuth 2.0. Required by the

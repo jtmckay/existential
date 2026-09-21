@@ -11,6 +11,9 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+done:
+  files:
+    - automation/lib/file-processors/ollama-ocr.sh
 ---
 
 Drop an image into Nextcloud (or send one to your Telegram bot) and Decree
@@ -66,7 +69,7 @@ Setup:
      that file is the only place a bucket is subscribed.
 
 Telegram OCR flow:
-  If the auto-telegram quest is active, photos sent to your Telegram bot are
+  If the Telegram Bot quest is active, photos sent to your Telegram bot are
   already ingested into the bucket by telegram-poll. The ollama-ocr processor picks
   them up automatically — no extra steps.
 
