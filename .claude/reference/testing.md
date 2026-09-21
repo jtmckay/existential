@@ -53,20 +53,28 @@ gitignored now lands in the clone.
 dropped into the clone's inbox *after* the container-health gate and run by the daemon.
 Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
 
+- **Which of the two daemons runs it is derived from `routine:`** — whichever `config.exist.yml`
+  whitelists it, `automation` asked first; a staged sibling `.sh` is in neither and runs in
+  `automation`. `e2e.sh` drains and collects both inboxes. Get it wrong and the daemon declines
+  the routine and dead-letters the message, leaving the check with no run, no log and no exit
+  code — which is how `00-services` failed every quest after `triage` moved to the backup daemon.
+
 - `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
   quest with no migrations and no object store verifies **nothing**: five of the eight copy only cron
   files (nightly/weekly backups, `clean-runs`, `gmail-sync`), none of which can fire inside a run
   that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
 - A check with a sibling `.sh` gets it staged into the clone's `shared_routines/` and registered,
-  so test code never lands in a user's `config.yml`. It runs **inside `decree`**: `rclone`,
-  `jq`, `yq`, `curl`, `tsx`, service credentials, `/repo` read-only, DNS to every container — but
-  no Docker socket. Anything needing one stays on the host in `e2e.sh`.
+  so test code never lands in a user's `config.yml`. It runs **inside a decree container**:
+  `rclone`, `jq`, `yq`, `curl`, `tsx`, service credentials, a read-write `/secrets`, DNS to every
+  container — but no Docker socket, and in `automation` no `/repo` either (that mount is
+  `automation-backup`'s). A routine that needs the rendered stack either runs there or has its
+  `.stage.sh` read the file host-side and leave the answer in `/secrets`.
 - **Messages, not migrations, and dropped after the gate.** `decree process` stops at the first
   dead letter, so migrations would let one failure hide the rest. The reason that actually bit us
   is timing: migrations run during decree's **boot**, so a check written as one judges a stack
   that is still starting — it failed hermes, appsmith, lowcoder, nocodb and nextcloud on four
   quests the health gate then found healthy. Migrations are setup; checks are verification.
-- decree runs **one message at a time**, and a check *is* that message — so a check can prove work
+- decree runs **one message at a time** *per daemon*, and a check *is* that message — so a check can prove work
   was enqueued but can never wait for work it triggered. Push those assertions down (a probe
   processor that validates its own inputs); `decree process` drains the whole inbox before the
   daemon starts, so that queued work runs and is graded inside the same wait.

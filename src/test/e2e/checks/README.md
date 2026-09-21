@@ -8,7 +8,8 @@ A check has the same shape as a [decree
 migration](../../../../.claude/skills/decree/reference/migrations.md): YAML
 frontmatter naming a routine, then prose explaining what it proves. It is
 delivered as a decree **message**, not a migration — `e2e.sh` drops the
-applicable ones into the clone's `automation/inbox/` **after** the
+applicable ones into the inbox of the daemon that owns their routine (see
+[Which daemon runs it](#which-daemon-runs-it)) **after** the
 container-health gate, the daemon drains them and writes
 `runs/<id>/{message.md,routine.log,run.json}` for each, and `e2e.sh` copies that
 out to `e2e-out/` and grades it. Why messages and why after the gate is the next
@@ -35,13 +36,33 @@ and `decree daemon` drains them past any dead letter.
 
 | Key | Read by | Meaning |
 |---|---|---|
-| `routine` | decree | the routine to run — a shipped one, or the sibling `.sh` |
+| `routine` | decree, `e2e.sh` | the routine to run — a shipped one, or the sibling `.sh` |
 | `e2e_check` | `results.sh` | this check's name; how a run dir is traced back here |
 | `requires` | `e2e.sh` | `EXIST_IS_*` vars that must be true, else the check is not staged |
 | `needs_routines` | `e2e.sh` | decree routines to enable in the clone's `config.yml` |
 
 Every other key becomes an environment variable for the routine — that is
 decree's own contract — it is how a check passes configuration to its routine.
+
+## Which daemon runs it
+
+There are two, they do not have the same mounts, and a check goes to the one
+that can run it. **This is derived from `routine:`, never declared** — whichever
+daemon's `config.exist.yml` whitelists it, asking `automation` first, so a
+routine both share stays where it has always run:
+
+| | `automation` | `automation-backup` |
+|---|---|---|
+| owns | everything that reasons, routes, or calls a service API | `triage`, the backups, `workspace-sync` |
+| has | service credentials, read-write `/secrets`, the inbox the webhook writes to | `/repo` read-only, `/volumes`, the master `.env` |
+
+A check with a sibling `.sh` is in neither whitelist and runs in `automation`.
+`runs/` is one directory both write into, so grading is unaffected; `inbox/` and
+`inbox/dead/` are per-daemon, and `e2e.sh` drains and collects both.
+
+Getting this wrong is silent in the worst way: the daemon declines the routine,
+dead-letters the message, and the check has no run, no log and no exit code —
+which is exactly how `00-services` failed every quest after `triage` moved.
 
 ## The sibling `.sh`
 
@@ -51,11 +72,15 @@ so test code never appears in a user's `config.yml`. Write it as an ordinary
 routine (`.claude/skills/decree/reference/routines.md`): `DECREE_PRE_CHECK`
 block, `set -euo pipefail`, non-zero to fail.
 
-**It runs inside the `decree` container.** That buys `rclone`, `jq`, `yq`,
-`curl` and `tsx` from the image, service credentials from its compose
-environment, the rendered clone read-only at `/repo`, and DNS to every container
-on the `exist` bridge. It buys no Docker socket — anything needing one belongs
-on the host in `e2e.sh`.
+**It runs inside a decree container** — `automation` unless the section above
+says otherwise. That buys `rclone`, `jq`, `yq`, `curl` and `tsx` from the image,
+service credentials from its compose environment, a read-write `/secrets`, and
+DNS to every container on the `exist` bridge. It buys no Docker socket — anything
+needing one belongs on the host in `e2e.sh` — and, in `automation`, **no
+`/repo`**: that mount belongs to `automation-backup` now, so a routine that wants
+to read the rendered stack either runs there or has its `.stage.sh` read the file
+on the host and leave the answer in `/secrets` (which is what
+`10-s3-file-processing` does with the notify endpoint).
 
 ## The sibling `.stage.sh`
 
@@ -72,8 +97,8 @@ check-specific belongs in `e2e.sh`.
 
 ## What a check may assume, and what it must not
 
-decree runs **one message at a time**, and a check IS that message. Any work a
-check triggers — a webhook firing, a router matching, a processor running — is
+decree runs **one message at a time** *per daemon*, and a check IS that message.
+Any work a check triggers — a webhook firing, a router matching, a processor running — is
 queued *behind* it and cannot start until it returns. A check can prove work was
 **enqueued**; it can never wait for it to finish.
 

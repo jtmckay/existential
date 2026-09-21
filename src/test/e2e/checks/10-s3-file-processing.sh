@@ -2,14 +2,14 @@
 # e2e-s3-file-processing — the object store → webhook → router → processor chain.
 #
 # Staged into the clone's shared_routines/ by e2e.sh and triggered by the
-# migration in 10-s3-file-processing.md. Runs inside decree, so it reaches
-# seaweedfs over the exist bridge with rclone and reads the rendered stack at
-# /repo. Every write lands in the disposable e2e clone.
+# message in 10-s3-file-processing.md. Runs inside the `automation` daemon, so it
+# reaches seaweedfs over the exist bridge with rclone. Every write lands in the
+# disposable e2e clone.
 #
-# Setup that must happen before the daemon boots (the probe processor, the
-# webhook's rclone_prefix, and the notification path_prefixes) is done on the
-# host in e2e.sh's stage_checks — all three are read once at container start, so
-# nothing running inside can change them.
+# Setup it cannot do for itself is done on the host in e2e.sh's stage_checks: the
+# probe processor, the webhook's rclone_prefix and the notification path_prefixes
+# are all read once at container start, and the notify endpoint lives in a file
+# this container has no mount for.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,7 +23,7 @@ if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     exit 0
 fi
 
-REPO="${E2E_REPO:-/repo}"
+ENDPOINT_FILE="${E2E_ENDPOINT_FILE:-/secrets/e2e/notify-endpoint}"
 INBOX="${E2E_INBOX:-/work/.decree/inbox}"
 RUNS="${E2E_RUNS:-/work/.decree/runs}"
 S3_URL="${S3_URL:-http://seaweedfs:8333}"
@@ -49,13 +49,14 @@ until_ok() {
 # ── 1. The configured webhook endpoint is actually served ────────────────────
 #
 # The bug this exists for is a wrong PORT in the notify config, so the endpoint
-# has to be READ from the rendered notification.toml rather than assumed. Probing
-# from decree tests the same thing — both sit on the one exist bridge, so a port
-# nothing serves is unreachable from either — and needs no docker socket.
-NOTIFY="${REPO}/nas/seaweedfs/notification.toml"
-[ -f "$NOTIFY" ] || fail "no rendered notification config at ${NOTIFY}"
-ENDPOINT=$(grep -m1 '^endpoint[[:space:]]*=' "$NOTIFY" | cut -d'"' -f2 || true)
-[ -n "$ENDPOINT" ] || fail "no endpoint found in ${NOTIFY}"
+# has to be READ from nas/seaweedfs/notification.toml rather than assumed. This
+# container mounts no /repo (see its compose block), so stage_checks reads that
+# line on the host and leaves it here. Probing from decree tests the same thing —
+# both sit on the one exist bridge, so a port nothing serves is unreachable from
+# either — and needs no docker socket.
+[ -f "$ENDPOINT_FILE" ] || fail "no staged notify endpoint at ${ENDPOINT_FILE}"
+ENDPOINT=$(tr -d '[:space:]' < "$ENDPOINT_FILE")
+[ -n "$ENDPOINT" ] || fail "staged notify endpoint at ${ENDPOINT_FILE} is empty"
 say "seaweedfs is configured to post to ${ENDPOINT}"
 
 HEALTH="${ENDPOINT%/s3}/healthz"

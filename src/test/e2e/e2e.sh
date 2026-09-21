@@ -183,6 +183,51 @@ wait_settled() {
 # frontmatter is read with e2e_fm_get — the same data decree reads, so the two
 # cannot disagree about what the file says.
 
+# There are TWO daemons, each with its own project dir, inbox, dead/ and routine
+# whitelist, so "the inbox" is a question with two answers. Dropping every check
+# into `automation`'s was right until triage moved to `automation-backup` with
+# the /repo mount: `automation` then declined the routine and 00-services
+# dead-lettered on every quest with no run and no log to say why.
+#
+# The daemon is DERIVED, never listed: a check names a routine, and the daemon
+# that owns it is whichever config.exist.yml whitelists it. `automation` is asked
+# first, so a routine both share (route-failed, notify, clean-runs) stays where
+# it has always run, and a check's staged sibling .sh — in neither whitelist —
+# lands there too, which is where the service credentials and the read-write
+# /secrets are. Nothing here enumerates checks or routines.
+E2E_DAEMONS="automation automation-backup"
+
+# _daemon_dir/_daemon_cfg <daemon> <work> — that daemon's project dir and its
+# tracked config template inside the clone. `automation` is the repo-root
+# automation/ dir, mounted wholesale; its config lives elsewhere (see the
+# comment on that mount in services/automation/docker-compose.exist.yml).
+_daemon_dir() {
+    case "$1" in
+        automation)        echo "$2/automation" ;;
+        automation-backup) echo "$2/services/automation/backup" ;;
+    esac
+}
+_daemon_cfg() {
+    case "$1" in
+        automation)        echo "$2/services/automation/decree/config.exist.yml" ;;
+        automation-backup) echo "$2/services/automation/backup/config.exist.yml" ;;
+    esac
+}
+
+# check_daemon <work> <md> — the daemon whose whitelist names this check's
+# routine, else `automation`.
+check_daemon() {
+    local work="$1" routine d
+    routine="$(e2e_fm_get "$2" routine)"
+    if [ -n "$routine" ]; then
+        for d in $E2E_DAEMONS; do
+            grep -q "^  ${routine}:\$" "$(_daemon_cfg "$d" "$work")" 2>/dev/null \
+                && { echo "$d"; return 0; }
+        done
+    fi
+    echo automation
+}
+
 # Checks whose `requires:` vars are all enabled in the clone. A quest without
 # seaweedfs must not get the s3 probe: staging it anyway would fail a stack that
 # is behaving exactly as that quest asked.
@@ -202,32 +247,42 @@ applicable_checks() {
 
 # Stage checks BEFORE render and up: everything here is read once at container
 # start, which is exactly why a check cannot do it to itself.
-#   - the check itself lands in the clone's migrations/, keeping its NUMBER, so
-#     decree runs it in the same pass as the product's own migrations
-#   - a sibling .sh lands in shared_routines/ and is registered enabled
-#   - each check's needs_routines are switched on
+#   - a sibling .sh lands in shared_routines/ (one directory, both daemons) and
+#     is registered enabled in the config of the daemon that will run it
+#   - each check's needs_routines are switched on, in that same config
 #   - max_attempts drops to 1, so a failing check costs one run, not three
 #   - a sibling .stage.sh runs on the host, for config already read at boot
 #
-# The check is COPIED here rather than shipped in migrations.example/, which is
-# what a user's quest copies from: test code has no business in the product tree.
+# The check itself is dropped in later, by drop_checks, once the stack is up —
+# it is a message, not a migration. It is COPIED from checks/ rather than
+# shipped in migrations.example/, which is what a user's quest copies from: test
+# code has no business in the product tree.
 stage_checks() {
-    local work="$1" md sh st cfg r
-    cfg="$work/services/automation/decree/config.exist.yml"
-    [ -f "$cfg" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
-    sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
+    local work="$1" md sh st d cfg r any=0
+    for d in $E2E_DAEMONS; do
+        cfg="$(_daemon_cfg "$d" "$work")"
+        [ -f "$cfg" ] || continue
+        sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
+        any=1
+    done
+    [ "$any" -eq 1 ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
 
+    # "<daemon><TAB><routine>" lines: a routine has to be enabled in the config of
+    # the daemon that will run it, and the two whitelists are not the same.
+    # shared_routines/ is one directory mounted into both, so the .sh itself has
+    # only one home either way.
     local -a enable=() needs=()
     while IFS= read -r md; do
         [ -n "$md" ] || continue
+        d="$(check_daemon "$work" "$md")"
         sh="${md%.md}.sh"
         if [ -f "$sh" ]; then
             cp "$sh" "$work/automation/shared_routines/$(e2e_fm_get "$md" routine).sh"
-            enable+=("$(e2e_fm_get "$md" routine)")
+            enable+=("${d}"$'\t'"$(e2e_fm_get "$md" routine)")
         fi
         # needs_routines is a space-separated list, so splitting is the point.
         needs=(); read -r -a needs <<<"$(e2e_fm_get "$md" needs_routines)"
-        enable+=("${needs[@]+"${needs[@]}"}")
+        for r in ${needs[@]+"${needs[@]}"}; do enable+=("${d}"$'\t'"${r}"); done
         st="${md%.md}.stage.sh"
         if [ -f "$st" ]; then
             WORK="$work" REPO_DIR="$REPO_DIR" bash "$st" \
@@ -235,7 +290,10 @@ stage_checks() {
         fi
     done < <(applicable_checks "$work")
 
-    for r in $(printf '%s\n' "${enable[@]+"${enable[@]}"}" | awk 'NF && !seen[$0]++'); do
+    while IFS=$'\t' read -r d r; do
+        [ -n "$r" ] || continue
+        cfg="$(_daemon_cfg "$d" "$work")"
+        [ -f "$cfg" ] || die "no ${d} config in the clone — cannot enable ${r}"
         if grep -q "^  ${r}:$" "$cfg"; then
             # Flip this routine's own enabled:, and only this one.
             awk -v r="$r" '
@@ -247,8 +305,8 @@ stage_checks() {
             printf '  %s:\n    enabled: true\n' "$r" >> "$cfg"
         fi
         grep -A1 "^  ${r}:$" "$cfg" | grep -q 'enabled: true' \
-            || die "could not enable decree routine ${r}"
-    done
+            || die "could not enable ${d} routine ${r}"
+    done < <(printf '%s\n' "${enable[@]+"${enable[@]}"}" | awk 'NF && !seen[$0]++')
 
     return 0
 }
@@ -256,9 +314,8 @@ stage_checks() {
 # Drop the applicable checks into the inbox. Filenames are prefixed so they sort
 # after anything decree put there itself.
 drop_checks() {
-    local work="$1" md n=0
-    local inbox="$work/automation/inbox"
-    [ -d "$inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
+    local work="$1" md d inbox n=0
+    [ -d "$work/automation/inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
     # Wait for the daemon phase before dropping anything. decree's entrypoint
     # runs `decree process` first, and that drains the WHOLE inbox — so a check
@@ -267,19 +324,28 @@ drop_checks() {
     # them be processed as migrations by accident. pid1 is `bash` through the
     # health-wait and migrations, and `decree` once the daemon is up, which is the
     # same signal the image's own healthcheck uses.
+    #
+    # Both daemons, because a check can be addressed to either.
     local deadline=$(( $(date +%s) + 600 ))
-    until docker exec automation grep -q decree /proc/1/comm 2>/dev/null; do
-        if [ "$(date +%s)" -ge "$deadline" ]; then
-            log "  decree never reached its daemon phase — nothing can run the checks"
-            return 1
-        fi
-        sleep 5
+    for d in $E2E_DAEMONS; do
+        until docker exec "$d" grep -q decree /proc/1/comm 2>/dev/null; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+                log "  ${d} never reached its daemon phase — nothing can run the checks"
+                return 1
+            fi
+            sleep 5
+        done
     done
 
     while IFS= read -r md; do
         [ -n "$md" ] || continue
+        d="$(check_daemon "$work" "$md")"
+        # decree creates its own inbox/ inside the wholesale project mount, so on
+        # a fresh clone the backup daemon's may only just have appeared.
+        inbox="$(_daemon_dir "$d" "$work")/inbox"
+        mkdir -p "$inbox"
         cp "$md" "${inbox}/e2e-$(basename "$md")"
-        log "  → $(basename "$md" .md)"
+        log "  → $(basename "$md" .md) (${d})"
         n=$(( n + 1 ))
     done < <(applicable_checks "$work")
     [ "$n" -gt 0 ] || { log "  (no checks apply to this quest)"; return 1; }
@@ -296,18 +362,19 @@ drop_checks() {
 # check can see that. Nothing may be left stuck, from any routine.
 await_checks() {
     local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
-    local inbox="$work/automation/inbox"
     local deadline=$(( $(date +%s) + timeout )) left
+    local -a inboxes=(); local d
+    for d in $E2E_DAEMONS; do inboxes+=("$(_daemon_dir "$d" "$work")/inbox"); done
     log "Waiting for checks to drain (up to ${timeout}s)..."
     while [ "$(date +%s)" -lt "$deadline" ]; do
-        left=$(find "$inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+        left=$(find "${inboxes[@]}" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
         [ "$left" -eq 0 ] && { echo; return 0; }
         printf '.'
         sleep 5
     done
     echo
     log "Inbox did not drain within ${timeout}s — still queued:"
-    find "$inbox" -maxdepth 1 -name '*.md' -printf '[e2e]   %f\n' 2>/dev/null || true
+    find "${inboxes[@]}" -maxdepth 1 -name '*.md' -printf '[e2e]   %f\n' 2>/dev/null || true
     return 1
 }
 
@@ -316,12 +383,17 @@ await_checks() {
 # is what makes a failure readable after the fact instead of only under E2E_KEEP.
 
 collect_quest_results() {
-    local work="$1" quest="$2" out slug rc=0 id name state stuck
+    local work="$1" quest="$2" out slug rc=0 id name state stuck d
     slug="$(printf '%s' "$quest" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
     out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
 
-    collect_results "$work/automation/runs" \
-                    "$work/automation/inbox/dead" "$out" || rc=1
+    # runs/ is one directory both daemons write into (automation-backup mounts
+    # the same one), so there is a single place to grade. dead/ is not: each
+    # daemon dead-letters into its own inbox, and a check graded from the wrong
+    # one reads as having produced no evidence at all.
+    local -a deads=()
+    for d in $E2E_DAEMONS; do deads+=("$(_daemon_dir "$d" "$work")/inbox/dead"); done
+    collect_results "$work/automation/runs" "$out" "${deads[@]}" || rc=1
 
     # Logs for anything the health gate would be unhappy about.
     mkdir -p "$out/logs"
@@ -337,10 +409,12 @@ collect_quest_results() {
     # Messages still queued when the evidence was taken. Not a verdict — the
     # daemon is live by now and its crons queue work of their own — but a check
     # whose chain stalled leaves its trace here, and the clone is about to go.
-    stuck=$(find "$work/automation/inbox" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+    local -a inboxes=()
+    for d in $E2E_DAEMONS; do inboxes+=("$(_daemon_dir "$d" "$work")/inbox"); done
+    stuck=$(find "${inboxes[@]}" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
     if [ "${stuck:-0}" -gt 0 ]; then
         mkdir -p "$out/stuck"
-        find "$work/automation/inbox" -maxdepth 1 -name '*.md' \
+        find "${inboxes[@]}" -maxdepth 1 -name '*.md' \
             -exec cp {} "$out/stuck/" \; 2>/dev/null || true
         log "  ${stuck} message(s) still queued in the inbox — see ${out#"${REPO_DIR}/"}/stuck/"
     fi

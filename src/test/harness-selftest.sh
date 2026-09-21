@@ -177,7 +177,7 @@ make_runs_tree() {
 for kind in "fail:failing" "dead:dead-lettered"; do
     label="${kind#*:}"; kind="${kind%%:*}"
     d="$(mktmp)"; make_runs_tree "$d" "$kind"
-    rc=0; collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || rc=$?
+    rc=0; collect_results "$d/runs" "$d/out" "$d/dead" >/dev/null 2>&1 || rc=$?
     if [ "$rc" -ne 0 ]; then pass "a ${label} check → collect_results reports failure"
     else flunk "a ${label} check was graded as a PASS (rc=$rc)"; fi
     if grep -q '10-two' "$d/out/results.md" 2>/dev/null && grep -q '✗' "$d/out/results.md"; then
@@ -189,14 +189,14 @@ for kind in "fail:failing" "dead:dead-lettered"; do
 done
 
 d="$(mktmp)"; make_runs_tree "$d" pass
-rc=0; collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || rc=$?
+rc=0; collect_results "$d/runs" "$d/out" "$d/dead" >/dev/null 2>&1 || rc=$?
 if [ "$rc" -eq 0 ]; then pass "all-green checks → collect_results reports success"
 else flunk "all-green checks wrongly reported failure (rc=$rc)"; fi
 
 # Evidence has to survive teardown — that is the whole reason the directory
 # exists. If routine.log is not copied, a failure is unreadable after the run.
 d="$(mktmp)"; make_runs_tree "$d" dead
-collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || true
+collect_results "$d/runs" "$d/out" "$d/dead" >/dev/null 2>&1 || true
 if [ -f "$d/out/r-two/routine.log" ] && [ -f "$d/out/dead/r-two.md" ]; then
     pass "a failing check's log and dead letter are copied out"
 else
@@ -210,7 +210,7 @@ d="$(mktmp)"; make_runs_tree "$d" pass
 mkdir -p "$d/runs/r-downstream"
 printf -- '---\nroutine: s3-router\n---\n' > "$d/runs/r-downstream/message.md"
 printf '{"exit_code":1,"duration_s":0}' > "$d/runs/r-downstream/run.json"
-rc=0; collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || rc=$?
+rc=0; collect_results "$d/runs" "$d/out" "$d/dead" >/dev/null 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then pass "a failing run with no e2e_check → reports failure"
 else flunk "a failing downstream run was not graded (rc=$rc)"; fi
 if grep -q 's3-router' "$d/out/results.md" 2>/dev/null; then
@@ -219,11 +219,24 @@ else
     flunk "results.md did not name the failing downstream run"
 fi
 
+# There are two decree daemons and each dead-letters into its OWN inbox, so
+# collect_results takes every dead/ there is. Reading only the first one is how a
+# check that the wrong daemon declined came back as no evidence at all.
+d="$(mktmp)"; make_runs_tree "$d" pass
+mkdir -p "$d/dead-backup"
+printf -- '---\nroutine: triage\ne2e_check: 00-services\n---\n' > "$d/dead-backup/00-services.md"
+rc=0; collect_results "$d/runs" "$d/out" "$d/dead" "$d/dead-backup" >/dev/null 2>&1 || rc=$?
+if [ "$rc" -ne 0 ] && grep -q '00-services' "$d/out/results.md" 2>/dev/null; then
+    pass "a dead letter in the second daemon's inbox → reports failure"
+else
+    flunk "a dead letter outside the first dead/ was not graded (rc=$rc)"
+fi
+
 # A run that verified nothing must not read as a pass. This is the silent-rot
 # case: checks that never got dropped, or a decree that never started, would
 # otherwise leave an empty runs/ and a green e2e.
 d="$(mktmp)"; mkdir -p "$d/runs" "$d/dead" "$d/out"
-rc=0; collect_results "$d/runs" "$d/dead" "$d/out" >/dev/null 2>&1 || rc=$?
+rc=0; collect_results "$d/runs" "$d/out" "$d/dead" >/dev/null 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then pass "zero checks → collect_results reports failure"
 else flunk "a run with no checks at all was graded as a PASS"; fi
 

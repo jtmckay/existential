@@ -54,14 +54,19 @@ e2e_exit_code() {
         | grep -o -- '-\?[0-9]*$' | head -1
 }
 
-# collect_results <runs_dir> <dead_dir> <out_dir>
+# collect_results <runs_dir> <out_dir> [dead_dir...]
 #
 # Copies the run dirs and any dead letters into <out_dir> and writes
 # <out_dir>/results.md. Returns 0 when every check passed, 1 otherwise —
 # including when there were no checks at all, because an e2e run that produced
 # no evidence has not demonstrated anything and must not read as a pass.
+#
+# One runs/ and several dead/ is the shape the stack actually has: both decree
+# daemons write into the same runs/ directory, but each dead-letters into its own
+# inbox.
 collect_results() {
-    local runs="$1" dead="$2" out="$3"
+    local runs="$1" out="$2"; shift 2
+    local -a deads=("$@")
     mkdir -p "$out"
 
     local -a rows=()
@@ -106,8 +111,9 @@ collect_results() {
     # Dead letters. A check that dead-lettered has a run dir too (decree creates
     # it before the first attempt), so it is already counted above — this is for
     # the case where it never got that far, and to keep the message itself.
-    local m dname
-    if [ -d "$dead" ]; then
+    local m dname dead
+    for dead in ${deads[@]+"${deads[@]}"}; do
+        [ -d "$dead" ] || continue
         for m in "$dead"/*.md; do
             [ -f "$m" ] || continue
             mkdir -p "$out/dead"
@@ -119,7 +125,7 @@ collect_results() {
             rows+=("FAIL|${dname}|dead-lettered|—|—")
             total=$(( total + 1 )); failed=$(( failed + 1 ))
         done
-    fi
+    done
 
     {
         printf '# e2e results\n\n'

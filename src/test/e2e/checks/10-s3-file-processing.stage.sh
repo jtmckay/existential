@@ -2,11 +2,14 @@
 # Host-side setup for 10-s3-file-processing, run by e2e.sh's stage_checks
 # before the stack boots.
 #
-# Only three things live here, and all for the same reason: they are read once at
+# Three of the four things here are for the same reason: they are read once at
 # container start, so nothing running inside the daemon can change them. Anything
 # that can wait until the check itself runs belongs in the routine, where the
 # object store's credentials actually exist — the rclone remote is written there
 # for exactly that reason.
+#
+# The fourth (the webhook endpoint, below) is here because the routine can no
+# longer see the file it lives in: `automation` deliberately mounts no /repo.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -57,4 +60,21 @@ NCFG="$WORK/nas/seaweedfs/notification.exist.toml"
 sed -i "s|^path_prefixes = \[\"/buckets/nextcloud\"\]$|path_prefixes = [\"/buckets/nextcloud\", \"/buckets/${BUCKET}\"]|" "$NCFG"
 grep -q "/buckets/${BUCKET}" "$NCFG" || { echo "could not add ${BUCKET} to path_prefixes" >&2; exit 1; }
 
+# ── The configured webhook endpoint ──────────────────────────────────────────
+#
+# The bug this whole check exists for is a wrong PORT on this line, so the
+# routine must PROBE the configured endpoint and never a hardcoded one. It used
+# to read the rendered copy itself at /repo; `automation` dropped that mount (it
+# hands prompts to hermes, so what it can read is what an injection can read),
+# so the read moves to the one place that already owns this file. Nothing renders
+# into the endpoint line, so the template's value is the rendered value.
+#
+# /secrets is decree's one read-write mount and is gitignored, so it is also
+# where the routine writes its rclone remote.
+ENDPOINT=$(grep -m1 '^endpoint[[:space:]]*=' "$NCFG" | cut -d'"' -f2)
+[ -n "$ENDPOINT" ] || { echo "no endpoint in ${NCFG}" >&2; exit 1; }
+mkdir -p "$WORK/automation/secrets/e2e"
+printf '%s\n' "$ENDPOINT" > "$WORK/automation/secrets/e2e/notify-endpoint"
+
 echo "  staged the example file-processor + rclone_prefix=${BUCKET} + path_prefixes"
+echo "  staged the notify endpoint ${ENDPOINT} for the routine to probe"
