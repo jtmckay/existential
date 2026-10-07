@@ -727,7 +727,7 @@ func TestConfigValidation(t *testing.T) {
 			// The dangerous case: long enough to pass a length check, but a
 			// publicly known string. An unrendered config must never serve.
 			name:      "unrendered placeholder that is long enough to pass length check",
-			config:    "secret: EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN\nendpoints:\n  - path: /a\n    frontmatter: {routine: x}\n",
+			config:    "secret: EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN\nendpoints:\n  - path: /a\n    frontmatter: {routine: x}\n",
 			wantError: "unrendered template placeholder",
 		},
 		{

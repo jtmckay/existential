@@ -46,10 +46,8 @@ printf -- '---\nroutine: <name>\n---\n' > automation/inbox/once.md
 
 Gmail and rclone are configured through interactive setup scripts. See [Integrations](../integrations/) for setup instructions.
 
-## S3 object storage
+## File events
 
-No manual credential setup — `automation`'s compose env already carries `S3_URL`,
-`S3_ACCESS_KEY` and `S3_SECRET_KEY`, plus `S3_NEXTCLOUD_ACCESS_KEY` / `_SECRET_KEY` for the
-bucket-scoped identity. Those names are deliberately product-neutral: they are mapped from
-`SEAWEEDFS_*` in the compose file, so a routine never names the store it talks to. See [SeaweedFS](../storage/seaweedfs) for the bucket
-side and [File Change Processing](./file-change-processing) for how routines reach it via rclone.
+No manual setup — Nextcloud posts every upload to the webhook's `/files` route, and routines
+read the file back through the `nextcloud` rclone remote. See
+[File Change Processing](./file-change-processing).

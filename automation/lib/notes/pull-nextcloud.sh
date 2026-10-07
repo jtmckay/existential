@@ -2,7 +2,7 @@
 # Sync Nextcloud
 #
 # Syncs notes from Nextcloud to the local notes cache at /data/notes.
-# Requires DECREE_NOTES_DIR to be set (e.g. "S3/Notes") and a configured
+# Requires DECREE_NOTES_DIR to be set (e.g. "Notes") and a configured
 # "nextcloud:" rclone remote at /secrets/rclone/rclone.conf.
 set -euo pipefail
 

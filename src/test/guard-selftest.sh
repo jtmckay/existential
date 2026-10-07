@@ -111,12 +111,10 @@ hook_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "upstream *-config.yaml (no *.exist.* template) still committable"                     allow
 hook_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
 check "rendered *-config.yaml (has a template) blocked like its .yml twin"                    block
-hook_rc "nas/seaweedfs/s3.json" '{"identities":[{"credentials":[{"secretKey":"deadbeefdeadbeefdeadbeefdeadbeef"}]}]}' "nas/seaweedfs/s3.exist.json"
-check "rendered s3.json (has a template; no extension the old guard listed)"                 block
-hook_rc "nas/seaweedfs/notification.toml" "bearer_token = \"$FAKE_WEBHOOK_SECRET\"" "nas/seaweedfs/notification.exist.toml"
-check "rendered notification.toml (has a template)"                                          block
-hook_rc "nas/seaweedfs/s3.exist.json" '{"secretKey":"EXIST_32_CHAR_HEX_KEY"}'
-check "s3.exist.json template itself"                                                        allow
+hook_rc "nas/nextcloud/redis-session.ini" "session.save_path = \"tcp://nextcloud-redis:6379?auth=$FAKE_WEBHOOK_SECRET\"" "nas/nextcloud/redis-session.exist.ini"
+check "rendered redis-session.ini (has a template; no extension the old guard listed)"       block
+hook_rc "nas/nextcloud/redis-session.exist.ini" "; placeholder"
+check "redis-session.exist.ini template itself"                                              allow
 hook_rc "hosting/prometheus/alerts.yml" "groups: []"
 check "hand-committed alerts.yml (no template) still committable"                            allow
 hook_rc ".env"                        "X=1";       check "rendered .env staged"             block
@@ -138,12 +136,10 @@ scanner_rc "hosting/loki/loki-config.yaml" "server: {http_listen_port: 3100}"
 check "tracked upstream *-config.yaml (no template)"                                               allow
 scanner_rc "ai/chatterbox/config.yaml" "secret: $FAKE_WEBHOOK_SECRET" "ai/chatterbox/config.exist.yaml"
 check "tracked rendered *-config.yaml (has a template)"                                            block
-scanner_rc "nas/seaweedfs/s3.json" '{"secretKey":"deadbeefdeadbeefdeadbeefdeadbeef"}' "nas/seaweedfs/s3.exist.json"
-check "tracked rendered s3.json (has a template)"                                                  block
-scanner_rc "nas/seaweedfs/notification.toml" "bearer_token = \"$FAKE_WEBHOOK_SECRET\"" "nas/seaweedfs/notification.exist.toml"
-check "tracked rendered notification.toml (has a template)"                                        block
-scanner_rc "nas/seaweedfs/s3.exist.json" '{"secretKey":"EXIST_32_CHAR_HEX_KEY"}'
-check "tracked s3.exist.json template itself"                                                      allow
+scanner_rc "nas/nextcloud/redis-session.ini" "session.save_path = \"tcp://nextcloud-redis:6379?auth=$FAKE_WEBHOOK_SECRET\"" "nas/nextcloud/redis-session.exist.ini"
+check "tracked rendered redis-session.ini (has a template)"                                        block
+scanner_rc "nas/nextcloud/redis-session.exist.ini" "; placeholder"
+check "tracked redis-session.exist.ini template itself"                                            allow
 scanner_rc "hosting/prometheus/alerts.yml" "groups: []"
 check "tracked hand-committed alerts.yml (no template)"                                            allow
 scanner_rc "ai/foo/secrets/cred"      "abc";       check "tracked file under secrets/"             block

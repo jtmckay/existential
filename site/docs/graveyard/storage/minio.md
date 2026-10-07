@@ -6,7 +6,7 @@ sidebar_position: 2
 
 - Source: https://github.com/minio/minio
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
-- Status: RIP — replaced by [SeaweedFS](../../storage/seaweedfs)
+- Status: RIP — replaced by [SeaweedFS](./seaweedfs), itself since retired
 - Alternatives: SeaweedFS, Ceph, Garage, Amazon S3
 
 ## Why it left

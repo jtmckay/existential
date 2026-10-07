@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# S3 Router
+# File Router
 #
-# Receives SeaweedFS filer webhook events, matches the full FILE_SOURCE path
-# against every processor in lib/file-processors/, and enqueues one file-processor
+# Receives Nextcloud file events (webhook_listeners, registered by the
+# nextcloud-file-events migration), matches the full FILE_SOURCE path against
+# every processor in lib/file-processors/, and enqueues one file-processor
 # message per match. The file is downloaded per-processor — no shared state.
 #
-# FILE_SOURCE is "<rclone_src>:<rclone_prefix><object-key>" — the event's S3
-# BUCKET is parsed but deliberately discarded. The path has to be valid for the
-# rclone remote, and in the default topology the bucket is a nextcloud external
-# mount whose nextcloud-side path is the prefix. Talking to the object store
-# directly over an s3 remote instead? Set rclone_prefix to the bucket name.
+# FILE_SOURCE is "<rclone_src>:<path>", where <path> is the Nextcloud path with
+# its "/<user>/files/" prefix stripped — i.e. exactly what the nextcloud rclone
+# remote (WebDAV, as the admin user) resolves. "workspace/notes/a.md" is the
+# workspace, which Nextcloud serves as Local storage at /workspace.
 #
 # Matching here is mechanical and cheap: PATTERN against the path, nothing else.
 # A processor may also declare a CRITERIA= line — a natural-language test of the
@@ -17,25 +17,30 @@
 # there, after the download. Splitting it that way means the expensive half only
 # runs for files that already passed the cheap half.
 #
-# The event shape is SeaweedFS's filer webhook (nas/seaweedfs/notification.toml),
-# NOT S3 bucket notifications — SeaweedFS does not implement
-# PutBucketNotificationConfiguration at all. Two consequences:
+# Only uploads THROUGH Nextcloud raise events — the desktop client, the web UI,
+# WebDAV, rclone. Hermes, code-server and decree write workspace_data straight
+# to disk; nextcloud-cron's scan makes those visible to clients but fires
+# nothing. That is what stops an agent's own output from triggering another run.
 #
-#   - `key` is a FILER path, "/buckets/<bucket>/<object key>", so the /buckets/
-#     prefix is stripped before the bucket is split off.
-#   - DIRECTORIES generate events too. An unfiltered directory event makes
-#     file-processor try to download a folder, so is_directory entries are
-#     dropped below. The field is OMITTED rather than false for files, so test
-#     for true, not for presence.
+# Event shapes (verified against nextcloud:34.0.3):
 #
-# Example webhook trigger (fired by /s3 endpoint):
+#   NodeWrittenEvent  {"event":{"node":{"path":"/admin/files/x.md"},"class":"..."}}
+#                     a new file AND an overwrite — so NodeCreatedEvent is not
+#                     subscribed; it would double every upload.
+#   NodeDeletedEvent  same shape, no id.
+#   NodeRenamedEvent  {"event":{"source":{"path":...},"target":{"path":...}}}
+#
+# A payload says nothing about file vs folder, and a new folder raises
+# NodeWrittenEvent too. PATTERNs that anchor on an extension never notice; one
+# that matches a bare prefix will see folders as well.
+#
+# Example webhook trigger (fired by the /files endpoint):
 #
 #   ---
-#   routine: s3-router
+#   routine: file-router
 #   rclone_src: nextcloud
-#   rclone_prefix: S3
 #   ---
-#   {"event_type":"create","key":"/buckets/nextcloud/workspace/file.pdf","message":{...}}
+#   {"event":{"node":{"id":91,"path":"/admin/files/workspace/a.md"},"class":"OCP\\Files\\Events\\Node\\NodeWrittenEvent"},"user":{...},"time":...}
 set -euo pipefail
 
 message_file="${message_file:-}"
@@ -47,13 +52,12 @@ seq="${seq:-}"
 if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
     # shellcheck source=../lib/precheck.sh
     source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 || precheck_fail "s3-router" "jq not found"
-    precheck_pass "s3-router"
+    command -v jq >/dev/null 2>&1 || precheck_fail "file-router" "jq not found"
+    precheck_pass "file-router"
     exit 0
 fi
 
 rclone_src="${rclone_src:-nextcloud}"
-rclone_prefix="${rclone_prefix:-}"
 
 # Parse the event
 _json=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' \
@@ -64,60 +68,33 @@ if [ -z "$_json" ]; then
     exit 0
 fi
 
-_event_type=$(echo "$_json" | jq -r '.event_type // empty')
-_key=$(echo "$_json"        | jq -r '.key        // empty')
-
-if [ -z "$_event_type" ] || [ -z "$_key" ]; then
-    echo "Could not parse event_type or key — verify seaweedfs is sending filer webhook events."
+_class=$(echo "$_json" | jq -r '.event.class // empty')
+if [ -z "$_class" ]; then
+    echo "Could not parse event.class — verify Nextcloud's webhook_listeners is the sender."
     echo "Payload: $_json"
     exit 1
 fi
 
-# Directories are not files. See the header.
-if [ "$(echo "$_json" | jq -r '.message.new_entry.is_directory // false')" = "true" ] \
-   || [ "$(echo "$_json" | jq -r '.message.old_entry.is_directory // false')" = "true" ]; then
-    echo "Directory event ($_event_type $_key) — skipping."
-    exit 0
-fi
+# "/admin/files/workspace/f.pdf" -> "workspace/f.pdf"
+_rel() { echo "$1" | sed -E 's#^/[^/]+/files/##'; }
 
-# "/buckets/nextcloud/workspace/f.pdf" -> "nextcloud/workspace/f.pdf"
-_strip_buckets() { echo "${1#/buckets/}"; }
-
-# Build the (action, object-key) pairs this event produces. Every event yields
-# exactly one pair except a rename, which yields two.
-#
-# Flatten the filer event types into the two action strings every processor
-# reads, so a PUT and an overwrite look the same:
-#   create/update -> created
-#   delete        -> removed
+# Build the (action, path) pairs this event produces, flattened into the two
+# action strings every processor reads:
+#   Written -> created      Deleted -> removed      Renamed -> both
 _pairs=()
-case "$_event_type" in
-    create|update)
-        _pairs+=("created|$(_strip_buckets "$_key")")
+case "${_class##*\\}" in
+    NodeWrittenEvent)
+        _pairs+=("created|$(_rel "$(echo "$_json" | jq -r '.event.node.path')")")
         ;;
-    delete)
-        _pairs+=("removed|$(_strip_buckets "$_key")")
+    NodeDeletedEvent)
+        _pairs+=("removed|$(_rel "$(echo "$_json" | jq -r '.event.node.path')")")
         ;;
-    rename)
-        # Nextcloud's files_external S3 driver implements rename as copy+delete, so
-        # in the default topology this branch never fires — a rename arrives as an
-        # independent create and delete. It fires
-        # only for filer-level moves: seaweedfs' own WebDAV/SFTP, a FUSE mount, or
-        # the filer API. Handled anyway so pointing rclone at those is safe.
-        #
-        # `key` is the path BEFORE the move; the destination is new_parent_path
-        # plus the new entry's name (the same fields an update event carries).
-        _new_parent=$(echo "$_json" | jq -r '.message.new_parent_path // empty')
-        _new_name=$(echo "$_json"   | jq -r '.message.new_entry.name  // empty')
-        _pairs+=("removed|$(_strip_buckets "$_key")")
-        if [ -n "$_new_parent" ] && [ -n "$_new_name" ]; then
-            _pairs+=("created|$(_strip_buckets "${_new_parent%/}/${_new_name}")")
-        else
-            echo "Rename event without a usable destination — only the removal was routed."
-        fi
+    NodeRenamedEvent)
+        _pairs+=("removed|$(_rel "$(echo "$_json" | jq -r '.event.source.path')")")
+        _pairs+=("created|$(_rel "$(echo "$_json" | jq -r '.event.target.path')")")
         ;;
     *)
-        echo "Unhandled event type '$_event_type' — skipping."
+        echo "Unhandled event '$_class' — skipping."
         exit 0
         ;;
 esac
@@ -127,12 +104,9 @@ _matched=0
 
 for _pair in "${_pairs[@]}"; do
     _file_action="${_pair%%|*}"
-    _bucket_and_key="${_pair#*|}"
-    _object_key="${_bucket_and_key#*/}"
-    _prefix="${rclone_prefix:+${rclone_prefix%/}/}"
-    _file_source="${rclone_src}:${_prefix}${_object_key}"
+    _file_source="${rclone_src}:${_pair#*|}"
 
-    echo "Event:  $_event_type → $_file_action"
+    echo "Event:  ${_class##*\\} → $_file_action"
     echo "Source: $_file_source"
 
     # Find all matching processors and enqueue a file-processor message for each
@@ -159,7 +133,7 @@ for _pair in "${_pairs[@]}"; do
             # Optional natural-language gate, evaluated by file-processor once the
             # content is actually on disk — the path is all we have here. Quoted
             # through jq because criteria are prose: colons and quotes are normal in
-            # them — as they are in rclone_path, which carries an S3 object key and
+            # them — as they are in rclone_path, which carries a file path and
             # so is whatever the user named their file. "Report: Q3.pdf" produces a
             # ": " in the value; unquoted, that message is invalid YAML and decree
             # re-runs it forever without ever writing run.json. Only processor,

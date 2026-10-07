@@ -93,7 +93,8 @@ sudo systemctl isolate graphical.target && sudo reboot
 
 ## CPU
 
-If you see errors starting SeaweedFS, try changing the VM CPU type from `KVM` to `host`.
+If a container fails to start (illegal instruction, or it exits immediately with no log), try
+changing the VM CPU type from `KVM` to `host` — the default hides CPU features some images need.
 
 ## Update Main VM
 

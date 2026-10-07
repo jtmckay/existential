@@ -14,9 +14,8 @@
 # not workspace/<subdir>/: this content is machine-derived from Nextcloud, not
 # something you wrote, and workspace/ai/ is the established home for that —
 # see openviking-index-dir's cron (workspace/ai/ is deliberately NOT excluded
-# from indexing) and workspace-sync.sh (which DOES exclude it from the
-# Nextcloud/bucket bisync, precisely so a note pulled *from* Nextcloud never
-# gets written back *into* Nextcloud as a "new" file and looped on forever).
+# from indexing). Writing it fires no file event — only uploads through
+# Nextcloud do — so content pulled *from* Nextcloud can never loop back in.
 #
 # Full-mirror semantics, not an append log: every run recomputes exactly which
 # events currently fall in [-CALENDAR_EXTRACT_PAST_DAYS, +CALENDAR_EXTRACT_FUTURE_DAYS]

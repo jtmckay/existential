@@ -13,11 +13,9 @@ services:
   - var: EXIST_IS_SERVICES_DASHY
     label: Dashy (the dashboard — links to everything below)
   - var: EXIST_IS_NAS_NEXTCLOUD
-    label: Nextcloud (files)
-  - var: EXIST_IS_NAS_SEAWEEDFS
-    label: SeaweedFS (S3 + file events)
+    label: Nextcloud (files + file events)
   - var: EXIST_IS_SERVICES_CODE_SERVER
-    label: code-server (editor + terminal over workspace/)
+    label: code-server (editor + terminal over the workspace)
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant (the house)
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -68,20 +66,19 @@ copies:
     dst: automation/migrations/
     label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
     requires: EXIST_IS_AI_OLLAMA
-  # Bidirectional workspace/ <-> the nextcloud bucket's workspace/ subfolder.
-  # seaweedfs pre-creates that bucket itself (-bucket flag), so unlike the ollama
-  # rows above there is no migration to copy first.
-  - src: services/automation/backup/cron.example/workspace-sync.md
-    dst: services/automation/backup/cron/
-    label: "decree: workspace-sync.md (bisync workspace/ with seaweedfs every 10m)"
-    requires: EXIST_IS_NAS_SEAWEEDFS
   # file-processor's download step for anything reached through Nextcloud's
-  # WebDAV (rclone_src: nextcloud) — including workspace-pull below. Without
-  # it every such download fails with "didn't find section in config file".
+  # WebDAV (rclone_src: nextcloud). Without it every such download fails with
+  # "didn't find section in config file".
   - src: automation-examples/migrations/23-nextcloud-rclone-remote.md
     dst: automation/migrations/
     label: "nextcloud: configure the rclone remote (WebDAV, admin creds)"
-    requires: EXIST_IS_NAS_SEAWEEDFS
+    requires: EXIST_IS_NAS_NEXTCLOUD
+  # Nextcloud's file events -> decree's /files webhook -> file-router. Without
+  # it Nextcloud works and nothing downstream ever hears about a file.
+  - src: automation-examples/migrations/27-nextcloud-file-events.md
+    dst: automation/migrations/
+    label: "nextcloud: send file events to decree (webhook_listeners)"
+    requires: EXIST_IS_NAS_NEXTCLOUD
   # Without this, https://homeassistant.<domain> redirects every page to the
   # setup wizard until a human creates an admin account by hand.
   - src: automation-examples/migrations/25-homeassistant-onboarding.md
@@ -96,21 +93,13 @@ copies:
     dst: automation/migrations/
     label: "homeassistant: wire up Wyoming STT/TTS + Hermes as the Assist pipeline"
     requires: EXIST_IS_SERVICES_HOMEASSISTANT
-  # The live half of workspace-sync's bucket -> local direction: a bucket-side
-  # edit reaches workspace/ in ~1s via the webhook instead of waiting for the
-  # cron. s3-router/file-processor are already on by default in
-  # services/automation/decree/config.exist.yml — nothing else to enable.
-  - src: automation/lib/file-processors.example/workspace-pull.sh
-    dst: automation/lib/file-processors/
-    label: "decree: workspace-pull.sh (live bucket -> workspace/ file processor)"
-    requires: EXIST_IS_NAS_SEAWEEDFS
   # The one door from workspace/ into decree's inbox: an agent confined to
   # workspace/ (hermes) drops a message in workspace/outbox/ instead of ever
-  # touching automation/ directly. Same live path as workspace-pull.
-  - src: automation/lib/file-processors.example/outbox-relay.sh
-    dst: automation/lib/file-processors/
-    label: "decree: outbox-relay.sh (workspace/outbox/ -> decree inbox)"
-    requires: EXIST_IS_NAS_SEAWEEDFS
+  # touching automation/ directly.
+  - src: automation-examples/cron/outbox-relay.md
+    dst: automation/cron/
+    label: "decree: outbox-relay.md (workspace/outbox/ -> decree inbox, every minute)"
+    requires: EXIST_IS_SERVICES_AUTOMATION
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
@@ -143,9 +132,9 @@ that reads both, and a voice to talk to it. Everything below runs on your
 hardware — no API keys, no accounts, nothing leaving the box.
 
 What you get:
-  Nextcloud + SeaweedFS  files, with the bucket mounted into Nextcloud as /S3,
-                         and the S3 events that let Decree react to them
-  code-server            editor and terminal over workspace/ — the tree the
+  Nextcloud              files, the workspace folder your desktop client syncs,
+                         and the file events that let Decree react to them
+  code-server            editor and terminal over the workspace — the tree the
                          agent works in, from any browser
   Home Assistant         the house, plus voice via wyoming-whisper/piper
   Ollama                 the local models everything else talks to
@@ -166,7 +155,7 @@ own dashboard once you set HERMES_DASHBOARD_TUI=1 (commented out in
 ai/hermes/docker-compose.yml). For a full chat UI in a tab, enable Open WebUI —
 it is one flag away: EXIST_IS_AI_OPEN_WEBUI=true.
 
-Core is the fast path, not the only one. Quests 01–06 are these same eighteen
+Core is the fast path, not the only one. Quests 01–06 are these same seventeen
 services cut into six pieces you can do one at a time, by hand — same services,
 same templates, spelled out instead of copied for you. Run Core and all six
 cross themselves off; run them individually and you arrive at the same stack.
@@ -235,8 +224,9 @@ One thing genuinely needs you, because it happens inside another app's UI:
 
 1. Nextcloud's admin credentials were generated for you — they are in
    nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
-   installs itself and lands on a login page; the seaweedfs bucket is already
-   mounted as an "S3" folder in Files.
+   installs itself and lands on a login page, with the workspace already
+   mounted as a "workspace" folder in Files. Point the Nextcloud desktop client
+   at it (nextcloud.com/install) and sync that folder — that is where you edit.
 
 To CHANGE what was seeded (each overwrites; the seeding never does):
   ./existential.sh run hermes setup      # pick a different model/provider

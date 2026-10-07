@@ -53,7 +53,7 @@ routine both share stays where it has always run:
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| owns | everything that reasons, routes, or calls a service API | `triage`, the backups, `workspace-sync` |
+| owns | everything that reasons, routes, or calls a service API | `triage`, the backups, `notes-pull` |
 | has | service credentials, read-write `/secrets`, the inbox the webhook writes to | `/repo` read-only, `/volumes`, the master `.env` |
 
 A check with a sibling `.sh` is in neither whitelist and runs in `automation`.
@@ -79,8 +79,7 @@ DNS to every container on the `exist` bridge. It buys no Docker socket — anyth
 needing one belongs on the host in `e2e.sh` — and, in `automation`, **no
 `/repo`**: that mount belongs to `automation-backup` now, so a routine that wants
 to read the rendered stack either runs there or has its `.stage.sh` read the file
-on the host and leave the answer in `/secrets` (which is what
-`10-s3-file-processing` does with the notify endpoint).
+on the host and leave the answer in `/secrets`.
 
 ## The sibling `.stage.sh`
 

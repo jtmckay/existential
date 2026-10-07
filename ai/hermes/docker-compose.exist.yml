@@ -117,10 +117,9 @@ services:
       # Agent home (.hermes): config, credentials, session state, likely SQLite,
       # written by hermes-agent. Tier-2 local (never NFS).
       - hermes_agent_data:/opt/data
-      # Repo top-level workspace, shadowing hermes_agent_data's own workspace/
-      # subdir — shared with code-server's /workspace so both containers (and
-      # Claude Code running inside hermes-agent) operate on the same files.
-      - ../../workspace:/opt/data/workspace
+      # The shared workspace, shadowing hermes_agent_data's own workspace/
+      # subdir — the same tree code-server, decree and Nextcloud mount.
+      - workspace_data:/opt/data/workspace
       # Build tree cache: pre-populated by exist.initial.sh onto the host so
       # /opt/hermes is writable and honcho-ai can be installed into the venv
       # (the image's own venv is sealed root-owned by design).
@@ -142,6 +141,9 @@ x-exist-volumes:
   # gateway, node_modules) and mounted back in by subpath. Regenerable — a
   # `reset` that clears it costs one re-extract, so _cache, not _data.
   hermes_install_cache: {}
+  # The user's workspace, shared with nextcloud (which serves it to the desktop
+  # client), code-server and decree. Declared identically everywhere it is mounted.
+  workspace_data: {}
 
 networks:
   exist:

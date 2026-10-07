@@ -229,7 +229,7 @@ check_daemon() {
 }
 
 # Checks whose `requires:` vars are all enabled in the clone. A quest without
-# seaweedfs must not get the s3 probe: staging it anyway would fail a stack that
+# nextcloud must not get the file-event probe: staging it anyway would fail a stack that
 # is behaving exactly as that quest asked.
 applicable_checks() {
     local work="$1" md var missing

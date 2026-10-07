@@ -5,7 +5,7 @@
 #
 # Provides a viking:// filesystem for memory, resources, and skills.
 # Hermes connects to it as an MCP server; the main decree daemon indexes your
-# workspace/ into it (openviking-index-knowledgebase cron) and decree-backup
+# workspace into it (openviking-index-knowledgebase cron) and decree-backup
 # tars its store.
 #
 # Services:
@@ -15,17 +15,16 @@
 #   openviking_data (db: true) — vector store + workspace; embedded DB, never NFS.
 #
 # Knowledgebase:
-#   workspace/ at the repo root is the one place content comes from — the same
-#   tree hermes (/opt/data/workspace) and code-server (/workspace) share, so
-#   everything you actually work on is searchable without a second dir to keep
-#   in step. It is a plain host directory (gitignored), not a volume: the point
-#   is that you edit it directly, so it does not belong under volumes/. The
+#   The workspace_data volume is the one place content comes from — the same
+#   tree hermes (/opt/data/workspace), code-server (/workspace) and Nextcloud
+#   (the workspace folder your desktop client syncs) share, so everything you
+#   actually work on is searchable without a second dir to keep in step. The
 #   openviking-index-dir routine uploads it into viking://resources/workspace on
 #   a cron and keeps it in sync.
 #
 #   workspace/ai/ — automation output — IS indexed, so an agent can find and
-#   build on its earlier work. It is excluded from the workspace-sync routine
-#   instead, which is what stops that output from triggering another run.
+#   build on its earlier work. Writing it fires no file event (only uploads
+#   through Nextcloud do), which is what stops that output triggering a run.
 #
 #   It is mounted on the DECREE daemon, not on openviking. openviking's HTTP and MCP
 #   APIs both refuse host filesystem paths outright, so a bind mount on the
@@ -38,7 +37,7 @@
 # Setup:
 #   1. ./existential.sh run   — renders templates, writes ov.conf, and creates
 #                               workspace/ai/ (quest activates the indexer cron)
-#   2. docker compose up -d   — starts openviking; decree indexes workspace/
+#   2. docker compose up -d   — starts openviking; decree indexes the workspace
 #
 # That is the whole setup. Hermes' own exist.initial.sh registers openviking as
 # an MCP server, so nothing here needs a manual `run openviking mcp` either.

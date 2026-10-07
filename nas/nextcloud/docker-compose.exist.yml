@@ -4,6 +4,14 @@ services:
   nextcloud:
     container_name: nextcloud
     image: nextcloud:34.0.3
+    # Same uid as hermes, code-server and decree, because all four write the
+    # same workspace_data volume. The image supports a non-root start (its
+    # entrypoint skips the chown/su dance when `id -u` is not 0); the sysctl is
+    # what lets that uid bind apache's port 80 inside the container's own
+    # network namespace.
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
     restart: unless-stopped
     # Apache + mod_php, not php-fpm — this tag's CMD is apache2-foreground
     # (`docker inspect nextcloud:34.0.3 --format '{{.Config.Cmd}}'`); the -fpm
@@ -56,10 +64,18 @@ services:
       - nextcloud_custom_apps_data:/var/www/html/custom_apps
       - nextcloud_themes_data:/var/www/html/themes
       - ./servername.conf:/etc/apache2/conf-enabled/servername.conf:ro,Z
-      # Entrypoint hooks. Mounted at the post-installation folder specifically,
+      # The entrypoint rewrites this file on every start (configure_redis_session)
+      # and the image's conf.d is root-owned, so a non-root container needs a
+      # file of its own there. Rendered from redis-session.exist.ini.
+      - ./redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:z
+      # The user's workspace — the same tree hermes, code-server and decree
+      # mount. hooks/before-starting/02-workspace.sh mounts it into Files as
+      # Local external storage, so the desktop client syncs it and every
+      # upload fires the file events decree routes.
+      - workspace_data:/workspace
+      # Entrypoint hooks. Mounted at the before-starting folder specifically,
       # not over /docker-entrypoint-hooks.d, so the image's other hook folders
       # stay in place. Scripts here need the exec bit — run_path skips the rest.
-      - ./hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro,z
       # before-starting runs on EVERY start. NEXTCLOUD_TRUSTED_DOMAINS is the one
       # var here that actually needs that: the installer writes trusted_domains
       # into config.php once (image /entrypoint.sh's install block) and nothing
@@ -99,14 +115,59 @@ services:
       # when REDIS_HOST_PORT is absent (`getenv('REDIS_HOST')[0] != '/' ? 6379`).
       - REDIS_HOST_PORT=6379
       - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}
-      # seaweedfs external storage, mounted at /S3 by
-      # hooks/post-installation/01-s3-external-storage.sh. Blank key = the
-      # hook no-ops, so this is safe on an install without an object store.
-      - NEXTCLOUD_S3_BUCKET=${NEXTCLOUD_S3_BUCKET:-}
-      - NEXTCLOUD_S3_HOST=seaweedfs
-      - NEXTCLOUD_S3_PORT=8333
-      - NEXTCLOUD_S3_KEY=${NEXTCLOUD_S3_KEY:-}
-      - NEXTCLOUD_S3_SECRET=${NEXTCLOUD_S3_SECRET:-}
+
+  # Nextcloud's background jobs. Without a runner nothing sends a file event:
+  # webhook_listeners queues every webhook as a job, and the image's default
+  # AJAX mode only runs jobs while someone has a browser tab open. Two loops:
+  #   worker           delivers queued webhooks the moment they are queued. Its
+  #                    own loop, because a first cron.php can run for minutes.
+  #   cron.php         every due job — the standard cron, which also switches
+  #                    Nextcloud from AJAX to cron mode on its first run.
+  #   files:scan       picks up what hermes/code-server/decree wrote straight to
+  #                    disk, so desktop clients see it. It fires NO file events
+  #                    (verified): an agent's write never triggers an automation.
+  nextcloud-cron:
+    container_name: nextcloud-cron
+    image: nextcloud:34.0.3
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    restart: unless-stopped
+    # PHP CLI. Idle is a sleeping worker; the limit matches the image's own PHP
+    # memory_limit (512M), which is what a heavy job would hit first anyway.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - exist
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+    volumes:
+      - nextcloud_html_data:/var/www/html
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_config_data:/var/www/html/config
+      - nextcloud_custom_apps_data:/var/www/html/custom_apps
+      - nextcloud_themes_data:/var/www/html/themes
+      - workspace_data:/workspace
+    environment:
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      # config.php reads these per request, and occ is a request.
+      - REDIS_HOST=nextcloud-redis
+      - REDIS_HOST_PORT=6379
+      - REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}
+    # $$ so compose leaves the shell variable for the shell.
+    command:
+      - sh
+      - -c
+      - |
+        while :; do
+          php occ background-job:worker -t 1h 'OCA\WebhookListeners\BackgroundJobs\WebhookCall'
+        done &
+        while :; do
+          php -f /var/www/html/cron.php
+          php occ files:scan --quiet --path="$$NEXTCLOUD_ADMIN_USER/files/workspace"
+          sleep 60
+        done
 
   # Database for Nextcloud
   nextcloud-db:
@@ -188,6 +249,9 @@ x-exist-volumes:
   nextcloud_custom_apps_data: { nfs: true }
   nextcloud_themes_data: { nfs: true }
   nextcloud_sql_data: { db: true }
+  # The user's own files, shared with hermes, code-server and decree. Local, not
+  # nfs: exist.initial.sh scripts seed READMEs into volumes/workspace_data.
+  workspace_data: {}
 
 networks:
   exist:

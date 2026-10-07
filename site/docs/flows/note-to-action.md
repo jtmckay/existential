@@ -299,11 +299,11 @@ whatever you actually want caught. See [Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
-Anything written through SeaweedFS fires an object event → the webhook → `s3-router`, which
+Anything uploaded through Nextcloud fires a file event → the webhook → `file-router`, which
 matches your **file processor** on a path regex and an optional content gate:
 
 ```bash
-PATTERN="nextcloud:S3/workspace/.*\.md$"
+PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="a business idea"
 ```
 

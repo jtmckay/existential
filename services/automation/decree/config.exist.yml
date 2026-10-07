@@ -50,11 +50,17 @@ shared_routines:
     enabled: false
   file-processor:
     enabled: true
-  s3-router:
+  file-router:
+    enabled: true
+  # Named by cron.example/outbox-relay.md: the one door from workspace/ into
+  # decree's inbox for an agent that has no mount into automation/.
+  outbox-relay:
     enabled: true
   nextcloud-richdocuments:
     enabled: true
   nextcloud-rclone-remote:
+    enabled: true
+  nextcloud-file-events:
     enabled: true
   nextcloud-calendar:
     enabled: true

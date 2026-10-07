@@ -10,7 +10,7 @@ and parameters of every currently-enabled decree routine, pulled straight from
 Hermes has no mount into `automation/`, so this file is how it learns
 what's runnable and what to put in a message's frontmatter to run it. It lands
 in `workspace/ai/`, the same directory `agent-task` writes to — indexed by
-OpenViking, excluded from `workspace-sync`, so it's searchable but can't
+OpenViking, and written straight to disk, so it's searchable but can't
 trigger another run.
 
 The file is overwritten in place each run, not versioned. Enable/disable a

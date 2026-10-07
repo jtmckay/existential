@@ -125,14 +125,6 @@ sections:
         statusCheckAllowInsecure: true
         description: Context database — notes, scraped resources, agent memory
 
-      - title: SeaweedFS
-        url: https://seaweedfs.EXIST_DOMAIN
-        # url: https://existential.company/docs/storage/seaweedfs
-        icon: fas fa-database
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: S3-compatible object store (admin UI)
-
   - name: Observability
     icon: fas fa-chart-line
     items:

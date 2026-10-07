@@ -52,9 +52,9 @@ load-bearing:
 - **It writes to `outbox/`, like everything else the daemon produces — never `inbox/`.** The
   relay is what gives the alert a real chain and seq, keeps it inside the depth accounting, and
   leaves it chainable by a later routine. The trade-off is latency: the outbox is relayed as
-  part of a *later* run, so an alert waits for the next routine to fire on that daemon (~10
-  minutes on the backup daemon, whose busiest cron is `workspace-sync` at `*/10`). Tighten a
-  cron if that is too slow.
+  part of a *later* run, so an alert waits for the next routine to fire on that daemon (~5
+  minutes on the backup daemon, whose busiest cron is `triage` at `*/5`). Tighten a cron if
+  that is too slow.
 - **It exits early when the dead-lettered routine is `notify` itself.** Otherwise an unreachable
   ntfy would have every failed alert queue another alert.
 
@@ -87,7 +87,7 @@ as environment variables to the routine:
 cron: "0 2 * * *"
 routine: volume-backup
 VOLUMES: "my_volume_name"
-TARGETS: "seaweedfs:8333"
+TARGETS: "nextcloud:80"
 ---
 ```
 

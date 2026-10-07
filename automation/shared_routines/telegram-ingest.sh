@@ -13,7 +13,7 @@
 #   ---
 #   cron: "* * * * *"
 #   routine: telegram-ingest
-#   TELEGRAM_RCLONE_DEST: nextcloud:S3/telegram
+#   TELEGRAM_RCLONE_DEST: nextcloud:telegram
 #   ---
 #
 # Credentials: /secrets/telegram/credentials.env
@@ -40,7 +40,7 @@ fi
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 TELEGRAM_SECRETS_DIR="${TELEGRAM_SECRETS_DIR:-/secrets/telegram}"
-TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:S3/telegram}"
+TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:telegram}"
 _credentials="${TELEGRAM_SECRETS_DIR}/credentials.env"
 _offset_file="${TELEGRAM_SECRETS_DIR}/offset.txt"
 

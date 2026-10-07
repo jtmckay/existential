@@ -135,15 +135,15 @@ fi
 
 # ── 6. Knowledgebase wiring ──────────────────────────────────────────────────
 #
-# workspace/ is the user's own directory, so an empty one is fine — but a MISSING
+# The workspace is the user's own directory, so an empty one is fine — but a MISSING
 # one means openviking is indexing nothing, and the only other symptom is
 # searches quietly returning less than they should.
 
 # The decree daemon sees the knowledgebase at /workspace — that mount IS the
 # wiring under test, so checking it there is the stronger assertion. From adhoc
-# the same directory is /repo/workspace.
+# the same directory is /repo/volumes/workspace_data.
 VIKING_DIR=""
-for _v in /workspace /repo/workspace; do
+for _v in /workspace /repo/volumes/workspace_data; do
     [[ -d "$_v" ]] && { VIKING_DIR="$_v"; break; }
 done
 
@@ -151,19 +151,19 @@ if [[ -n "$VIKING_DIR" ]]; then
     ok "openviking knowledgebase readable at ${VIKING_DIR} ($(find "$VIKING_DIR" -type f 2>/dev/null | wc -l) file(s))"
 else
     fail "openviking knowledgebase readable" \
-         "neither /workspace (indexer mount) nor /repo/workspace is present" \
-         "./existential.sh   (creates workspace/ and mounts it), then: docker compose up -d decree"
+         "neither /workspace (indexer mount) nor /repo/volumes/workspace_data is present" \
+         "./existential.sh   (creates volumes/workspace_data and mounts it), then: docker compose up -d automation"
 fi
 
 # Repo-wide checks only work where the repo is mounted. Where it isn't, the
 # mount above already proves the same wiring, so skip rather than fail.
 if [[ -d /repo ]]; then
-    if [[ -f /repo/docker-compose.yml ]] && grep -qE '^\s+- \./workspace:/workspace' /repo/docker-compose.yml; then
+    if [[ -f /repo/docker-compose.yml ]] && grep -qE '^\s+- \S*/workspace_data:/workspace' /repo/docker-compose.yml; then
         ok "openviking knowledgebase mounted into the indexer"
     else
         warn "openviking knowledgebase mounted into the indexer" \
-             "no ./workspace:/workspace mount in the generated docker-compose.yml" \
-             "./existential.sh   (re-generates it; if ai/openviking/docker-compose.yml is stale, edit it or ./existential.sh reset)"
+             "no workspace_data:/workspace mount in the generated docker-compose.yml" \
+             "./existential.sh   (re-generates it; if services/automation/docker-compose.yml is stale, edit it or ./existential.sh reset)"
     fi
 
     # Without an active cron nothing ever indexes, and the only symptom is

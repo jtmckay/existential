@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # PATTERN/CRITERIA/IS_PRE_SIGNED are read out of this
-# file's source by s3-router and file-processor, not by sourcing it.
+# file's source by file-router and file-processor, not by sourcing it.
 # Agent handoff — the end-to-end example: match a file, judge it, hand it to an agent.
 #
 # This is the shape most matches want. The two tests do different jobs:
@@ -17,15 +17,15 @@
 # Rewrite CRITERIA. It is the whole judgment, and looking for the wrong thing is
 # the only way this setup wastes real work.
 #
-# Copy to lib/file-processors/ to activate — no restart needed; s3-router
+# Copy to lib/file-processors/ to activate — no restart needed; file-router
 # reads the directory per event.
-PATTERN="nextcloud:S3/workspace/.*\.md$"
+PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="an open question or decision the author has not resolved — something where going and finding out would actually help them"
 IS_PRE_SIGNED=false
 
 # Env vars available when this script runs:
-#   FILE_SOURCE        full rclone source path   e.g. "nextcloud:S3/workspace/notes/plan.md"
-#   FILE_KEY           path after "remote:"      e.g. "S3/workspace/notes/plan.md"
+#   FILE_SOURCE        full rclone source path   e.g. "nextcloud:workspace/notes/plan.md"
+#   FILE_KEY           path after "remote:"      e.g. "workspace/notes/plan.md"
 #   FILE_ACTION        "created" or "removed"
 #   FILE_PATH          absolute local temp path
 #   FILE_MATCH_REASON  the model's one-line reason this file matched
@@ -41,9 +41,9 @@ OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 # treated as "no messages", so a handoff would vanish without an error.
 mkdir -p "$OUTBOX_DIR"
 
-# Path relative to the workspace root: FILE_KEY is "S3/workspace/<path>" — S3 is
-# Nextcloud's external-storage mount point, workspace/ is the synced subfolder.
-_rel="${FILE_KEY#S3/workspace/}"
+# Path relative to the workspace root: FILE_KEY is "workspace/<path>", the
+# Nextcloud folder the workspace_data volume is mounted at.
+_rel="${FILE_KEY#workspace/}"
 _slug="$(basename "$_rel" .md)"
 
 echo "Handing off: ${_rel}"

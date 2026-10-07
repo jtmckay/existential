@@ -37,7 +37,8 @@ Templates live in `services/automation/backup/cron.example/`; copying one into
        mkdir -p "$B/cron"
 
        # Core services
-       cp $B/cron.example/nextcloud-db-backup-nightly.md       $B/cron/   # DB only — files live in the bucket
+       cp $B/cron.example/nextcloud-db-backup-nightly.md       $B/cron/   # DB only
+       cp $B/cron.example/workspace-volume-backup-nightly.md   $B/cron/   # the workspace: your files + the agent's
        cp $B/cron.example/hermes-volume-backup-nightly.md      $B/cron/   # agent config + skills
        cp $B/cron.example/openviking-volume-backup-nightly.md  $B/cron/   # the vector index
        cp $B/cron.example/honcho-db-backup-nightly.md          $B/cron/   # agent memory
@@ -81,4 +82,4 @@ the files actually landed on the remote.
 `automation-backup` does no reasoning and calls no model, so it can safely hold
 master credentials and mount every volume. `automation` puts what it reads in
 front of a model, so what it can reach is what a prompt injection can reach —
-which is why backups, `workspace-sync` and `triage` all live on this side.
+which is why backups, `notes-pull` and `triage` all live on this side.

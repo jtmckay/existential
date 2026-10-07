@@ -80,7 +80,6 @@ across the network.
 | App | Upstream | License | Flag | Notes / action |
 |---|---|---|---|---|
 | Collabora | [collabora online](https://github.com/CollaboraOnline/online) (CODE) | MPL-2.0 | 🟢 | Commercially hostable; CODE is not *recommended* for production (no LTS/support) — that's operational, not legal. Enterprise subscription optional. |
-| SeaweedFS | [seaweedfs](https://github.com/seaweedfs/seaweedfs) | Apache-2.0 | 🟢 | Permissive. |
 | Nextcloud | [server](https://github.com/nextcloud/server) | AGPL-3.0 | 🟡 | The flagship AGPL app; run unmodified + link source. Bundles MariaDB (GPL). |
 | Redis | [redis](https://github.com/redis/redis) (v8) | Tri: RSALv2 / SSPLv1 / **AGPLv3** | 🟢 | Choose **AGPLv3 or RSALv2** — both permit hosting. (Redis 7.4–7.x was RSAL/SSPL-only; v8+ restored the open option.) |
 

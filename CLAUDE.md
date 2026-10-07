@@ -72,11 +72,11 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 ## Layout
 
-One root dir holds *the user's own content* rather than service state, so it is gitignored but
-does **not** live under `volumes/`: `workspace/` — shared by hermes and code-server, indexed
-into openviking, and bidirectionally synced with the `workspace/` subfolder of the `nextcloud`
-seaweedfs bucket (minus `workspace/ai/`, which is where the agent automations write). User-facing
-detail: `site/docs/getting-started.md#workspace`.
+The user's own content is the `workspace_data` volume — one tree mounted by nextcloud (as a
+Local external storage the desktop client syncs), hermes, code-server and decree, and indexed
+into openviking. **Only uploads through Nextcloud fire file events**; anything the stack writes
+straight to disk (agent output in `workspace/ai/`, `workspace/outbox/`) never does, and that is
+the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
@@ -230,7 +230,7 @@ which also holds the image build) runs everything that reasons, routes or reache
 the master `.env`. Despite the name, `automation-backup` isn't backups-only: it runs the three
 backup routines (`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that
 needs that same bulk data/credential access and does no reasoning, routing, or AI call —
-`workspace-sync` and **`triage`** are the standing examples, kept here for their master
+`notes-pull` and **`triage`** are the standing examples, kept here for their master
 credentials and bulk mounts, not because they back anything up. **`/repo` is mounted there and
 nowhere else.** Triage is the only thing that ever wanted it, and `automation` puts what it
 reads in front of a model, so what that container can read is what a prompt injection can read;

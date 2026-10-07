@@ -4,9 +4,8 @@
 # Opt-in: rsync-pulls notes (e.g. an Obsidian vault) from an external host
 # into workspace/notes/ (or wherever NOTES_PULL_SUBDIR points), so a vault
 # that lives somewhere else becomes part of the workspace/ knowledgebase —
-# indexed by OpenViking, bisynced to the bucket, and (if the live workspace-pull
-# processor and webhook subscription are active) event-triggering, exactly
-# like anything else under workspace/.
+# indexed by OpenViking and synced to Nextcloud clients like anything else
+# under workspace/. It is written straight to disk, so it fires no file events.
 #
 # Why rsync over SSH and not another rclone remote: the source is assumed to
 # be a plain filesystem reachable over SSH (a NAS, a synced folder on another
@@ -55,7 +54,7 @@ _is_remote_source() {
 
 if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
     command -v rsync >/dev/null 2>&1 || { echo "rsync not found" >&2; exit 1; }
-    [[ -d "${WORKSPACE_DIR}" ]]      || { echo "${WORKSPACE_DIR} is not a directory — is ../../workspace mounted into decree-backup?" >&2; exit 1; }
+    [[ -d "${WORKSPACE_DIR}" ]]      || { echo "${WORKSPACE_DIR} is not a directory — is workspace_data mounted into automation-backup?" >&2; exit 1; }
     [[ -n "${NOTES_PULL_SOURCE}" ]]  || { echo "NOTES_PULL_SOURCE not set — see cron.example/notes-pull.md" >&2; exit 1; }
     if _is_remote_source; then
         command -v ssh >/dev/null 2>&1  || { echo "ssh not found (NOTES_PULL_SOURCE looks like a remote spec)" >&2; exit 1; }

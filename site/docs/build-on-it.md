@@ -106,7 +106,7 @@ Two locations, both plain host directories you can read directly.
 | What | Where | Use it for |
 |---|---|---|
 | **Bulk user data** | `volumes/<name>/` | Files, photos, attachments, recordings, documents |
-| **Object storage** | SeaweedFS, S3 API | Anything you'd rather reach over a network than a mount |
+| **Synced files** | Nextcloud (WebDAV) | Anything you'd rather reach over a network than a mount |
 
 Everything under `volumes/` is a host bind mount owned by your user — no Docker-managed
 volumes, nothing opaque, nothing requiring root to read. Point your front end at the

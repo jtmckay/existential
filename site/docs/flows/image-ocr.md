@@ -13,10 +13,10 @@ storage is a detail you choose; the OCR half is the same either way.
 ```mermaid
 flowchart LR
     cam["📷 Photograph<br/><i>receipt · document · whiteboard</i>"]
-    land["Image lands in storage<br/><i>SeaweedFS / Nextcloud</i>"]
+    land["Image lands in Nextcloud"]
 
     subgraph decree["Decree"]
-        route["s3-router<br/><i>matches image extensions</i>"]
+        route["file-router<br/><i>matches image extensions</i>"]
         proc["file-processor<br/><i>downloads the image</i>"]
         ocr["ollama-ocr<br/><i>reads it</i>"]
         route --> proc --> ocr
@@ -26,7 +26,7 @@ flowchart LR
     out["photo.jpg.ocr.txt<br/><i>saved beside the original</i>"]
 
     cam --> land
-    land -->|"ObjectCreated"| route
+    land -->|"file event"| route
     ocr <--> vision
     ocr --> out
 
@@ -47,15 +47,15 @@ receipts/2026-08-14_grocery.jpg.ocr.txt   ← created automatically
 
 ## Getting the photo in
 
-Anything that writes to a watched bucket triggers the flow. Pick whichever you'll actually
+Anything that uploads to Nextcloud triggers the flow. Pick whichever you'll actually
 use — the OCR pipeline does not care which one you chose, and you can run several at once.
 
 | Route | Good for | Setup |
 |---|---|---|
-| **Nextcloud auto-upload** | The default. Your phone's camera roll syncs, and every photo is OCR'd. No bot, no token. | Point the Nextcloud mobile app's auto-upload at a folder backed by SeaweedFS |
+| **Nextcloud auto-upload** | The default. Your phone's camera roll syncs, and every photo is OCR'd. No bot, no token. | Turn on the Nextcloud mobile app's auto-upload |
 | **A Telegram bot** | Deliberate capture — you choose what gets sent, rather than everything you photograph | [Option B](#option-b--telegram-bot) |
-| **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg s3:bucket/path.jpg` |
-| **Any S3 client** | Other apps writing to the bucket directly | Nothing — the bucket event is the trigger |
+| **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg nextcloud:scans/file.jpg` |
+| **Any WebDAV client** | Other apps writing to Nextcloud directly | Nothing — the upload is the trigger |
 
 :::tip[Start with auto-upload]
 If you already run Nextcloud, camera auto-upload is the shortest path to this flow working:
@@ -65,18 +65,18 @@ worth it when you want a *deliberate* inbox rather than your whole camera roll.
 
 ## How It Works
 
-### 1. The image lands in a watched bucket
+### 1. The image lands in Nextcloud
 
 However it got there — camera sync, a bot, rclone, another app — the flow starts the moment
-the object exists. Nothing polls the image itself.
+the upload finishes. Nothing polls the image itself.
 
-### 2. SeaweedFS fires the webhook
+### 2. Nextcloud fires the webhook
 
-When the image file lands in the bucket, an `ObjectCreated` event is POSTed to the Decree webhook endpoint. This is the same pipeline used for any file arriving in a watched bucket.
+The upload raises a `NodeWrittenEvent`, which Nextcloud POSTs to the Decree webhook's `/files` endpoint. This is the same pipeline used for any file uploaded to Nextcloud.
 
-### 3. s3-router matches image extensions
+### 3. file-router matches image extensions
 
-`s3-router` scans the `ollama-ocr` processor and reads its pattern:
+`file-router` scans the `ollama-ocr` processor and reads its pattern:
 
 ```bash
 PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
@@ -87,7 +87,7 @@ A match enqueues a `file-processor` message with `is_pre_signed: false` — the 
 
 ### 4. file-processor downloads the image
 
-`file-processor` runs `rclone copyto` to pull the image into a temp path and exports it as `FILE_PATH`. No pre-signed URL is involved — the full image bytes are needed to encode as base64 for the vision API.
+`file-processor` runs `rclone copyto` to pull the image into a temp path and exports it as `FILE_PATH`. No share link is involved — the full image bytes are needed to encode as base64 for the vision API.
 
 ### 5. ollama-ocr extracts the text
 
@@ -106,8 +106,7 @@ telegram/1745000000_AgADjk.jpg.ocr.txt   ← created automatically
 
 ## Prerequisites
 
-- **SeaweedFS** receiving file events and forwarding them to the Decree webhook (see [File Processor](../decree/file-change-processing))
-- **Nextcloud + SeaweedFS** configured with SeaweedFS as S3 external storage (so images land in both)
+- **Nextcloud** with file events on (see [File Processor](../decree/file-change-processing#setup) — Core does it)
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
@@ -123,13 +122,10 @@ docker exec ollama ollama pull llava
 
 Any Ollama-compatible vision model works. `llava` is a solid general-purpose choice; `llava-phi3` is faster on CPU.
 
-### Step 2 — object-store webhook and rclone
+### Step 2 — file events and rclone
 
-Follow the SeaweedFS setup in [File Processor](../decree/file-change-processing#seaweedfs-setup) to add your image path to `path_prefixes` in `notification.toml` (already done for the `nextcloud` bucket), and ensure your rclone `nextcloud` remote is configured:
-
-```bash
-./existential.sh run rclone
-```
+Core already did this. By hand, follow [File Processor → Setup](../decree/file-change-processing#setup):
+two migrations, one for the `nextcloud` rclone remote and one that registers the webhooks.
 
 ### Step 3 — Point a camera at it
 
@@ -137,9 +133,8 @@ That is the whole OCR pipeline. Now pick how images arrive.
 
 #### Option A — Nextcloud camera auto-upload
 
-In the Nextcloud mobile app, turn on **Auto upload** and target a folder that lives on the
-SeaweedFS-backed external storage. Every photo you take syncs up and gets OCR'd. There is nothing
-else to configure — the bucket event is the trigger.
+In the Nextcloud mobile app, turn on **Auto upload**. Every photo you take syncs up and gets
+OCR'd. There is nothing else to configure — the upload is the trigger.
 
 #### Option B — Telegram bot
 
@@ -176,7 +171,7 @@ cp automation-examples/cron/telegram-poll.md \
 
 `telegram-ingest` polls `getUpdates` every minute, tracks a cursor in
 `/secrets/telegram/offset.txt` so nothing is processed twice, and pipes each new photo through
-`rclone rcat` into `TELEGRAM_RCLONE_DEST`. From there it is an ordinary bucket event and the
+`rclone rcat` into `TELEGRAM_RCLONE_DEST`. From there it is an ordinary Nextcloud upload and the
 flow above takes over. Cron frontmatter is read when the daemon starts, so restart it to pick
 the new schedule up:
 
@@ -189,7 +184,7 @@ docker compose restart automation
 For scanners, batch imports, or anything already on disk:
 
 ```bash
-rclone copyto /path/to/scan.jpg s3:documents/scan.jpg \
+rclone copyto /path/to/scan.jpg nextcloud:documents/scan.jpg \
   --config automation/secrets/rclone/rclone.conf
 ```
 
@@ -197,7 +192,7 @@ rclone copyto /path/to/scan.jpg s3:documents/scan.jpg \
 
 | Variable | Default | Description |
 |---|---|---|
-| `TELEGRAM_RCLONE_DEST` | `nextcloud:S3/telegram` | *Telegram route only* — where downloaded images are stored (triggers the OCR pipeline) |
+| `TELEGRAM_RCLONE_DEST` | `nextcloud:telegram` | *Telegram route only* — where downloaded images are stored (triggers the OCR pipeline) |
 | `FILE_SUFFIX` | `.ocr.txt` | Suffix appended to the image path for the OCR output |
 | `OUTPUT_RCLONE` | `nextcloud` | rclone remote where the OCR result is saved |
 | `OCR_MODEL` | `EXIST_MODEL_VISION` | Ollama vision model used for text extraction. Chosen globally in `.env.shared`, not per-flow. |
@@ -205,22 +200,11 @@ rclone copyto /path/to/scan.jpg s3:documents/scan.jpg \
 
 ## Testing
 
-Drop a test image straight into the bucket to bypass whichever capture route you chose and verify the OCR pipeline on its own:
+Upload a test image straight into Nextcloud to bypass whichever capture route you chose and verify the OCR pipeline on its own — the upload fires the event itself:
 
 ```bash
-rclone copyto /path/to/test.jpg nextcloud:S3/telegram/test.jpg \
+rclone copyto /path/to/test.jpg nextcloud:telegram/test.jpg \
   --config automation/secrets/rclone/rclone.conf
-```
-
-Then send a synthetic file event:
-
-```bash
-# automation-webhook publishes no host port — it is reached over the exist
-# bridge, so send the event from a container already on it.
-docker exec automation curl -X POST http://automation-webhook:8801/s3 \
-  -H "Authorization: Bearer <EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN from .env.shared>" \
-  -H "Content-Type: application/json" \
-  -d '{"EventName":"s3:ObjectCreated:Put","Key":"telegram/test.jpg","Records":[]}'
 ```
 
 Watch the run complete:

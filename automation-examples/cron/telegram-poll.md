@@ -1,7 +1,7 @@
 ---
 cron: "*/30 * * * *"
 routine: telegram-ingest
-TELEGRAM_RCLONE_DEST: nextcloud:S3/telegram
+TELEGRAM_RCLONE_DEST: nextcloud:telegram
 ---
 
 Poll Telegram bot every minute for new photo messages and save them to the bucket for OCR processing.

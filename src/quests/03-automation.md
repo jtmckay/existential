@@ -59,7 +59,7 @@ There is no per-service sidecar. There are exactly two containers:
 
   automation-backup  mounts volumes/ wholesale and holds every service's
                      credentials, and does no reasoning. Backups live here, and
-                     so do workspace-sync and triage.
+                     so do notes-pull and triage.
                      crons: services/automation/backup/cron.example/
                             → services/automation/backup/cron/
 

@@ -5,8 +5,6 @@ e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama
-  - var: EXIST_IS_NAS_SEAWEEDFS
-    label: SeaweedFS
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -21,9 +19,9 @@ runs OCR via an Ollama vision model, saving the extracted text next to the
 original file.
 
 The pipeline:
-  Image synced to Nextcloud → seaweedfs file event
-    → POST http://automation-webhook:8801/s3  (pre-configured in notification.toml)
-    → s3-router matches PATTERN against the rclone path
+  Image synced to Nextcloud → Nextcloud file event
+    → POST http://automation-webhook:8801/files  (27-nextcloud-file-events migration)
+    → file-router matches PATTERN against the rclone path
     → ollama-ocr.sh: PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
     → IS_PRE_SIGNED=false — image downloaded locally, base64-encoded, sent to Ollama
     → OCR text saved to same rclone path + ".ocr.txt" suffix
@@ -38,11 +36,10 @@ Processor convention (ollama-ocr.sh):
   PROMPT        optional system prompt to guide extraction (default: auto)
 
 Setup:
-  1. Enable the routines in services/automation/decree/config.yml:
-       file-processor:
-         enabled: true
-       s3-router:
-         enabled: true
+  1. File events must be on — Core does it. By hand: copy
+     automation-examples/migrations/23-nextcloud-rclone-remote.md and
+     27-nextcloud-file-events.md into automation/migrations/. file-router and
+     file-processor are enabled by default.
 
   2. Make sure the vision model is pulled in Ollama. It is chosen globally as
      EXIST_MODEL_VISION in .env.shared, and migration 14 pulls it for you:
@@ -59,18 +56,9 @@ Setup:
   4. Restart decree to pick up config changes:
        docker compose restart automation
 
-  5. Nothing to subscribe. The webhook is declared once in
-     nas/seaweedfs/notification.toml and read at boot, and it already covers the
-     whole nextcloud bucket:
-       endpoint      = "http://automation-webhook:8801/s3"
-       path_prefixes = ["/buckets/nextcloud"]
-
-     Using a DIFFERENT bucket? Add it to path_prefixes and restart seaweedfs —
-     that file is the only place a bucket is subscribed.
-
 Telegram OCR flow:
   If the Telegram Bot quest is active, photos sent to your Telegram bot are
-  already ingested into the bucket by telegram-poll. The ollama-ocr processor picks
+  already uploaded into Nextcloud's telegram/ folder by telegram-poll. The ollama-ocr processor picks
   them up automatically — no extra steps.
 
 Logs for each run land in automation/runs/ and are queryable in Grafana

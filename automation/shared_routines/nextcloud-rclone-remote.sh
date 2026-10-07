@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # nextcloud-rclone-remote — configure the "nextcloud" rclone remote that
 # file-processor (and any file processor with rclone_src=nextcloud) uses to
-# download files through Nextcloud's WebDAV — including anything
-# reached via Nextcloud's /S3 external-storage mount, e.g. workspace-pull.sh's
-# live bucket -> local pull for workspace/.
+# download files through Nextcloud's WebDAV — every path file-router emits,
+# including the /workspace mount.
 #
 # Runs as a decree migration (once). An existing [nextcloud]
 # stanza in rclone.conf is replaced to allow updates to credentials or URLs.

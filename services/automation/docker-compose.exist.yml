@@ -65,19 +65,14 @@ services:
       # Enumerated rather than env_file: this container reasons and reaches
       # service APIs, so it gets exactly the keys it uses.
       #
-      # Object-store credentials, mapped product -> role on purpose: routines here
-      # are named s3-*, so swapping the store behind them is these four lines plus
-      # one service folder. The values come from nas/seaweedfs/.env.
-      - S3_URL=${SEAWEEDFS_URL:-http://seaweedfs:8333}
-      - S3_ACCESS_KEY=${SEAWEEDFS_ROOT_USER:-}
-      - S3_SECRET_KEY=${SEAWEEDFS_ROOT_PASSWORD:-}
-      - S3_NEXTCLOUD_ACCESS_KEY=${SEAWEEDFS_NEXTCLOUD_ACCESS_KEY:-}
-      - S3_NEXTCLOUD_SECRET_KEY=${SEAWEEDFS_NEXTCLOUD_SECRET_KEY:-}
       # nextcloud-richdocuments talks to Nextcloud's own OCS/provisioning API as
       # admin (no docker socket here, so `occ` is not reachable — see the
       # routine for the exact endpoints, verified against nextcloud:34.0.3).
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER:-}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-}
+      # nextcloud-file-events registers Nextcloud's webhooks with this as their
+      # bearer token — the same secret the webhook's /files route checks.
+      - FILES_WEBHOOK_TOKEN=${EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN:-}
       - COLLABORA_URL=https://${COLLABORA_DOMAIN:-collabora.$EXIST_DOMAIN}
       # homeassistant-onboarding creates the admin account through HA's own
       # onboarding API (no docker socket here, so entrypoint's job of patching
@@ -158,10 +153,10 @@ services:
       # mount the subtree it needs, not the root.
       - ../../ai/hermes/profiles:/repo/ai/hermes/profiles:ro
       # The shared workspace, read-write: agent-task files its output in
-      # workspace/ai/. It is the only container that writes workspace/ai/ —
-      # automation-backup also mounts /workspace read-write for workspace-sync,
-      # which bisyncs everything EXCEPT ai/ (workspace-sync.sh's exclude list).
-      - ../../workspace:/workspace:z
+      # workspace/ai/, and outbox-relay drains workspace/outbox/. Writes here
+      # fire no file events (only uploads through Nextcloud do), which is what
+      # keeps an agent's own output from triggering another run.
+      - workspace_data:/workspace:z
       # entrypoint.sh gates `decree process` (migrations) on /work/exist.test.sh
       # passing. This daemon's migrations target OTHER services, so the gate is
       # not its own exist.test.sh but a probe of every service it migrates —
@@ -192,7 +187,7 @@ services:
     # The master env, deliberately. db-backup reads a different credential pair
     # per service, so enumerating them here would reintroduce exactly the
     # per-service wiring this container exists to delete. The trade is real and
-    # bounded: this daemon runs a fixed whitelist of seven routines, no agent and no
+    # bounded: this daemon runs a fixed whitelist of routines, no agent and no
     # router, and the master env stays out of `decree`, which does run agents.
     env_file:
       - ../../.env
@@ -210,12 +205,6 @@ services:
       - EXIST_TEST_LIVENESS_ONLY=true
       - DECREE_INTERVAL=2
       - IN_CONTAINER=1
-      # Same product -> role mapping as the daemon above: env_file brings in the
-      # master .env, where these are still named after the product. workspace-sync
-      # reads only the S3_ names, so it never has to know which store it is.
-      - S3_URL=${SEAWEEDFS_URL:-http://seaweedfs:8333}
-      - S3_ACCESS_KEY=${SEAWEEDFS_ROOT_USER:-}
-      - S3_SECRET_KEY=${SEAWEEDFS_ROOT_PASSWORD:-}
       # Same six as the daemon above, and for one reason: the onDeadLetter hook
       # queues `notify` when a routine exhausts its retries, and this daemon's
       # routines are exactly the ones nobody is watching. env_file brings in the
@@ -239,9 +228,8 @@ services:
       # themselves only ever read (tar, dump), but `./existential.sh run
       # backup-restore` extracts into these paths from this container.
       - ../../volumes:/volumes:z
-      # workspace-sync bisyncs the workspace both ways with the bucket, so it needs
-      # to write files pulled down from the bucket, not just read them up.
-      - ../../workspace:/workspace:z
+      # notes-pull rsyncs an external vault into workspace/notes/.
+      - workspace_data:/workspace:z
       # Triage's backoff state and status report live at /data/triage — the same
       # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
       # subtrees, one volume, so moving triage here keeps its existing state
@@ -314,6 +302,9 @@ services:
 
 x-exist-volumes:
   decree_data: {}
+  # The user's workspace, shared with nextcloud (which serves it to the desktop
+  # client), code-server and decree. Declared identically everywhere it is mounted.
+  workspace_data: {}
 
 networks:
   exist:

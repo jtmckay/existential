@@ -6,8 +6,8 @@ A service is **core** if something reaches it by bare container name over the `e
 It is **complementary** if it is reached over a URL/protocol you could point anywhere (rclone
 remote, S3 endpoint, DNS), or if nothing in the stack talks to it at all.
 
-Complementary today: **NAS** (nextcloud, seaweedfs, collabora — the core reaches these via
-rclone remotes and the S3 API), **immich** (nothing references it), **homeassistant** (nothing
+Complementary today: **NAS** (nextcloud, collabora — the core reaches these via rclone
+remotes and their HTTP APIs), **immich** (nothing references it), **homeassistant** (nothing
 references it either, and it is often bound to the host with the USB radios plugged in),
 **pihole** (LAN DNS), **monitoring** (grafana/loki/prometheus/uptime-kuma
 — they scrape, nothing depends on them).
@@ -70,7 +70,7 @@ In the stack today:
 | Service | What it trues up | Why nothing else could |
 |---|---|---|
 | `services/homeassistant` | `.storage/http` — `use_x_forwarded_for`, `trusted_proxies` | HA serves `data.stable` only. It stages `configuration.yaml` into `data.pending` as `not_promoted` and never promotes it, not even across a restart, so proxied requests 400 forever. Restarts itself once when the file did not exist yet. |
-| `nas/nextcloud` | `trusted_domains`, `overwrite*`, `trusted_proxies` (via a `before-starting` hook) | The installer reads them once and then ignores the environment. |
+| `nas/nextcloud` | `trusted_domains`, `overwrite*`, `trusted_proxies`; the `/workspace` Local mount and `allow_local_remote_servers` (via `before-starting` hooks) | The installer reads them once and then ignores the environment; `occ` exists only inside the container. |
 | `services/ntfy` | the publishing user and its ACL | `ntfy user add` needs the auth DB the server creates on first boot. |
 
 Rules. Keep the true-up **idempotent and quiet** — converge, then say nothing, so a normal start
@@ -82,23 +82,23 @@ plus a `:11434` endpoint before touching `model:`; openviking applies the same t
 `api_base`), so pointing a service at Anthropic or an external host is respected.
 
 **Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
-startup — nextcloud's `/docker-entrypoint-hooks.d/{pre,post}-installation`, postgres'
-`/docker-entrypoint-initdb.d`. Reach for one when the work needs a tool that only exists inside
-the container (`occ`, `psql`) *and* a moment only the image can identify ("right after a
-successful first install"). A decree migration cannot do this: no decree daemon has a docker
+startup — nextcloud's `/docker-entrypoint-hooks.d/{pre-installation,post-installation,
+before-starting}`, postgres' `/docker-entrypoint-initdb.d`. Reach for one when the work needs a
+tool that only exists inside the container (`occ`, `psql`) *and* a moment only the image can
+identify ("every start, once installed"). A decree migration cannot do this: no decree daemon has a docker
 socket, so a migration can only reach a service over the network.
 
 Mount the hook directory specifically, not its parent, so the image's other hook folders survive:
 
 ```yaml
     volumes:
-      - ./hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro,z
+      - ./hooks/before-starting:/docker-entrypoint-hooks.d/before-starting:ro,z
 ```
 
 Two rules. The scripts need the **exec bit** (`755`) — nextcloud's runner skips any that lack it,
 silently. And they must **exit 0 on every path**: a hook that fails can abort the install it was
 meant to finish. Guard the body and log a warning instead. See
-`nas/nextcloud/hooks/post-installation/01-s3-external-storage.sh`.
+`nas/nextcloud/hooks/before-starting/02-workspace.sh`.
 
 Scripts self-elevate into `existential-adhoc` when they need its tooling (`if [[ -z
 "$IN_CONTAINER" ]]; then exec docker compose run …`). Init order (`run_initials`):
@@ -133,12 +133,17 @@ file (`ai/honcho/exist.initial.sh` — templates.sh names this escape hatch), pl
 assertion in its `exist.test.sh` so a re-render cannot undo it unnoticed. If you add a service
 whose image has its own `USER`, check what it can read before trusting a green healthcheck.
 
+A port-80 image whose entrypoint supports a non-root start should get one rather than root:
+nextcloud runs as `EXIST_PUID` with `sysctls: [net.ipv4.ip_unprivileged_port_start=0]` (scoped
+to its own network namespace), because it shares `workspace_data` with hermes, code-server and
+decree and every writer has to be the same uid.
+
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
 `privileged: true` when possible — Caddy uses `cap_add: [NET_BIND_SERVICE]`; the only blanket
 `privileged: true` in the repo lives in an `x-exist-gpu.amd` block, see *GPU vendor wiring*
 below), pihole (NET_ADMIN),
 portainer (docker.sock), GPU/supervisor images (ollama, comfyui), multi-process app images
-managed by an internal supervisor (appsmith, lowcoder, nextcloud), and images caching into
+managed by an internal supervisor (appsmith, lowcoder), and images caching into
 `/root` (whisperx — it is built with no `USER`, sets no `HF_HOME`, and so writes its
 HuggingFace and torch model caches to `/root/.cache`, which is the volume it mounts).
 
@@ -243,7 +248,7 @@ ran the routine.
 
 | | `automation` (`decree/`) | `automation-backup` (`backup/`) |
 |---|---|---|
-| Runs | routing, notes, service-health, agent-task, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `workspace-sync`, `notify`, `clean-runs`, **`triage`** (+ `notes-pull`, opt-in) |
+| Runs | routing, notes, service-health, agent-task, file-router, outbox-relay, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `notify`, `clean-runs`, **`triage`** (+ `notes-pull`, opt-in) |
 | Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its routines use | the **master `.env`** via `env_file` |
 | Model access | the hermes gateway over HTTP (`lib/hermes.sh`, `lib/hermes-cli.sh`) | none — nothing here reasons |

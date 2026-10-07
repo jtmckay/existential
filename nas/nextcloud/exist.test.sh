@@ -14,8 +14,8 @@ load_env_exist
 probe_service "nextcloud /status.php" nextcloud 80 /status.php 200
 tcp_probe     "nextcloud-db:3306"     nextcloud-db 3306
 
-# nextcloud-redis backs file locking and PHP sessions unconditionally (no
-# blank-key no-op guard like the S3 vars have), so a dead or mis-authenticating
+# nextcloud-redis backs file locking and PHP sessions unconditionally, so a
+# dead or mis-authenticating
 # redis is a real outage, not a degraded mode. /status.php stays 200 through it
 # — it doesn't probe locking — so this is the only thing that catches it.
 tcp_probe "nextcloud-redis:6379 (locking/session)" nextcloud-redis 6379
@@ -54,7 +54,7 @@ mysql_auth_probe "nextcloud-db auth" nextcloud-db 3306 \
 # nextcloud serves the setup wizard with the same 200 and reports
 # "installed":false. That is what a failed auto-install looks like — most often
 # a data dir that was not EMPTY at first start: the image's entrypoint.sh only
-# rsyncs (and chowns to www-data) a persisted dir — config/data/custom_apps/
+# rsyncs a persisted dir — config/data/custom_apps/
 # themes — while `directory_empty` sees it as empty, so anything already in
 # volumes/nextcloud_data (a stray file, a leftover .gitkeep) makes install skip
 # that dir's ownership fix entirely.
@@ -69,5 +69,18 @@ case "$STATUS" in
         fail "nextcloud installed" "${STATUS:-<no response>}" \
              "/status.php did not return the expected JSON" ;;
 esac
+
+# The workspace is what makes Nextcloud the front door for file events: the
+# desktop client syncs it and every upload through it is a webhook. Mounted by
+# hooks/before-starting/02-workspace.sh; a 404 here means that hook failed.
+WS=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X PROPFIND -H 'Depth: 0' \
+        -u "${NEXTCLOUD_ADMIN_USER:-}:${NEXTCLOUD_ADMIN_PASSWORD:-}" \
+        "http://nextcloud:80/remote.php/dav/files/${NEXTCLOUD_ADMIN_USER:-}/workspace/" 2>/dev/null || true)
+if [ "$WS" = "207" ]; then
+    ok "workspace mounted in Files"
+else
+    fail "workspace mounted in Files" "PROPFIND /workspace -> HTTP ${WS:-<none>}" \
+         "docker logs nextcloud | grep -A3 02-workspace.sh"
+fi
 
 finish

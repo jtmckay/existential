@@ -217,17 +217,8 @@ export const TOUR: TourSection[] = [
     kicker: 'Where the bytes live, and what it knows',
     kind: 'hosted',
     tier: 'core',
-    lede: 'The parts you stop noticing once they work: somewhere for files and artifacts to live, and the index that lets the agent answer from your own material instead of only from what it was trained on.',
+    lede: 'The part you stop noticing once it works: the index that lets the agent answer from your own material instead of only from what it was trained on.',
     services: [
-      {
-        slug: 'seaweedfs',
-        name: 'SeaweedFS',
-        blurb: 'S3-compatible object store',
-        what: 'An S3 bucket in your basement. Anything that speaks the S3 API — backup tools, app uploads, the AI services stashing artifacts — points at it and works, with an admin UI for browsing what landed.',
-        shot: '/img/services/seaweedfs.webp',
-        docs: '/docs/storage/seaweedfs',
-        source: 'https://github.com/seaweedfs/seaweedfs',
-      },
       {
         slug: 'openviking',
         name: 'OpenViking',

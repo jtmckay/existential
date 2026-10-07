@@ -263,7 +263,6 @@ declare -a CHECKS=(
     # matches nothing) and# check_type : github | hub | hub_clean | digest | skipsorts the -busybox/-distroless flavours above the
     # plain tag. The GitHub release tag is the plain version.
     "prometheus	hosting/prometheus/docker-compose.exist.yml	prom/prometheus	github	prometheus/prometheus	v"
-    "seaweedfs	nas/seaweedfs/docker-compose.exist.yml	chrislusf/seaweedfs	github	seaweedfs/seaweedfs	bare"
     "uptime-kuma	hosting/uptime-kuma/docker-compose.exist.yml	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"
     "whisperx	ai/whisperx/docker-compose.exist.yml	ghcr.io/pavelzbornik/whisperx-fastapi	github	pavelzbornik/whisperX-FastAPI	bare"
     "wyoming-piper	ai/wyoming-piper/docker-compose.exist.yml	rhasspy/wyoming-piper	github	OHF-Voice/wyoming-piper	bare"

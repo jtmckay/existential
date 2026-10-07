@@ -5,10 +5,10 @@
 # in lib/file-processors/, then explicitly deletes the temp file.
 # Not object-store-specific — works with any rclone path.
 #
-# Enqueued by s3-router; not typically triggered directly.
+# Enqueued by file-router; not typically triggered directly.
 #
 # When `criteria` is set, the downloaded content is put to the model before the
-# processor runs, and the processor is skipped unless it matches. s3-router
+# processor runs, and the processor is skipped unless it matches. file-router
 # fills this in from the processor's own CRITERIA= line; an empty or absent
 # value means the path match was the whole test, which is how every processor
 # written before this behaved.

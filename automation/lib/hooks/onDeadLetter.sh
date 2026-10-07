@@ -20,8 +20,8 @@
 # notify message and do something else with it. Writing to inbox/ would smuggle
 # a message past all of that. The cost is latency: decree relays the outbox as
 # part of a later run, so an alert waits for the next routine to fire on that
-# daemon (~10 minutes on this host, whose busiest backup cron is workspace-sync
-# at */10). Tighten a cron if you need it sooner.
+# daemon (~5 minutes on automation-backup, whose busiest cron is triage at
+# */5). Tighten a cron if you need it sooner.
 
 STATE_DIR="${DECREE_ALERT_STATE_DIR:-/work/.decree/runs/.alert-state}"
 OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"

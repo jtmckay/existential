@@ -156,7 +156,7 @@ func compileRoute(entry endpointConfig, defaultSecret string) (*route, error) {
 	// An unsubstituted placeholder is the dangerous case: templates.sh
 	// rewrites EXIST_* tokens at render time, and a config that skipped
 	// rendering would otherwise start with a *publicly known* secret.
-	// EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN is 34 chars, so a length check
+	// EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN is 37 chars, so a length check
 	// alone would wave it straight through.
 	if strings.HasPrefix(secret, "EXIST_") {
 		return nil, fmt.Errorf("%s: secret is an unrendered template placeholder (%s) — run ./existential.sh", entry.Path, secret)

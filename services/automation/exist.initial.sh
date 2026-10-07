@@ -99,7 +99,7 @@ fi
 # (hermes) has no other way to discover that ai/ and outbox/ are
 # special: a bare directory listing shows three folders with nothing to tell
 # it to go read either README. This is what a first listing should surface.
-WORKSPACE_DIR="${SCRIPT_DIR}/../../workspace"
+WORKSPACE_DIR="${SCRIPT_DIR}/../../volumes/workspace_data"
 WORKSPACE_README="${WORKSPACE_DIR}/README.md"
 if [[ ! -e "${WORKSPACE_README}" ]]; then
     mkdir -p "${WORKSPACE_DIR}"
@@ -107,7 +107,8 @@ if [[ ! -e "${WORKSPACE_README}" ]]; then
 # workspace/
 
 Shared with every agent (Hermes at `/opt/data/workspace`, code-server at
-`/workspace`) and indexed into OpenViking, so anything here is searchable and
+`/workspace`), synced to your own machines through Nextcloud's `workspace`
+folder, and indexed into OpenViking, so anything here is searchable and
 citable. Two subdirectories mean something specific; everything else is
 ordinary content — notes, plans, reference material, whatever you want an
 agent to know about.
@@ -119,8 +120,7 @@ agent to know about.
   `automation/` from here, and there deliberately never will be.
 - **`ai/`** — automation output, not yours to write to. See `ai/README.md`.
 
-This file is gitignored and nothing regenerates it — delete it once you have
-your bearings.
+Nothing regenerates this file — delete it once you have your bearings.
 WORKSPACEEOF
     echo "[decree] workspace/README.md created."
 fi
@@ -128,9 +128,9 @@ fi
 # workspace/outbox/ — the one door from workspace/ into decree's inbox. An
 # agent confined to workspace/ (hermes) has no mount into
 # automation/ and must never be given one, so this README is how it learns
-# where messages actually go. Relayed by lib/file-processors/outbox-relay.sh
-# once EXIST_IS_NAS_SEAWEEDFS is enabled (Core quest activates it); until then the
-# directory just sits there, harmlessly.
+# where messages actually go. Relayed by the outbox-relay routine once its
+# cron is active (Core quest activates it); until then the directory just sits
+# there, harmlessly.
 OUTBOX_README="${WORKSPACE_DIR}/outbox/README.md"
 if [[ ! -e "${OUTBOX_README}" ]]; then
     mkdir -p "${WORKSPACE_DIR}/outbox"
@@ -166,9 +166,9 @@ picks up `correlation_id` from any message that sets it and puts it in the
 Loki log line, so `{job="decree"} |= "correlation_id=<value>"` shows every
 step of one flow across however many separate chains it actually ran as.
 
-A file dropped here is picked up within about a second (via the object-store webhook,
-not a poll) and relayed into decree's real inbox. This file is gitignored and
-nothing regenerates it — delete it once you have your bearings.
+A file dropped here is picked up within about a minute and relayed into
+decree's real inbox, then deleted. Nothing regenerates this README — delete it
+once you have your bearings.
 OUTBOXEOF
     echo "[decree] workspace/outbox/ instructions created."
 fi

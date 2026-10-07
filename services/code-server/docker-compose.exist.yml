@@ -7,8 +7,9 @@
 #   code-server   — VS Code web IDE (port 8080)
 #
 # Volumes:
-#   workspace (repo top-level) — primary working directory, shared with
-#   hermes-agent (see ai/hermes/docker-compose.exist.yml) so both see the same tree.
+#   workspace_data — primary working directory, the same tree hermes, decree and
+#   Nextcloud mount. Edits here reach desktop clients via nextcloud-cron's scan,
+#   but fire no file events: only uploads through Nextcloud do.
 
 services:
   code-server:
@@ -83,12 +84,13 @@ services:
       # disposable cache, hence the _data suffix. Not backed up: worst case is
       # reinstalling those and logging back in.
       - code_server_data:/code-server-data
-      # Repo top-level workspace — shared with hermes-agent's /opt/data/workspace
-      # so both containers operate on the same files.
-      - ../../workspace:/workspace
+      - workspace_data:/workspace
 
 x-exist-volumes:
   code_server_data: {}
+  # The user's workspace, shared with nextcloud (which serves it to the desktop
+  # client), code-server and decree. Declared identically everywhere it is mounted.
+  workspace_data: {}
 
 networks:
   exist:

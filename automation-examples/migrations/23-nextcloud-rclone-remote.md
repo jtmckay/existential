@@ -3,9 +3,8 @@ routine: nextcloud-rclone-remote
 ---
 
 Configure the `nextcloud` rclone remote (WebDAV, using the rendered admin
-credentials) that `file-processor` downloads through — including anything
-reached via Nextcloud's `/S3` external-storage mount, such as
-`workspace-pull.sh`'s live bucket -> local pull for `workspace/`.
+credentials) that `file-processor` downloads through — every path
+`file-router` emits, including the `workspace/` mount.
 
 Without this, any file processor with `rclone_src: nextcloud` (the default —
 see `services/automation/webhook/config.yml`) fails every download with

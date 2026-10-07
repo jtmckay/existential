@@ -59,66 +59,50 @@ dependency-free AUTH+PING over the raw protocol).
 Any `occ` command can be run from the host:
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ <command>
+docker exec nextcloud php /var/www/html/occ <command>
 ```
 
 ### Migrate mimetypes (after major updates)
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ maintenance:repair --include-expensive
+docker exec nextcloud php /var/www/html/occ maintenance:repair --include-expensive
 ```
 
 ### Add missing indices (after major updates)
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ db:add-missing-indices
+docker exec nextcloud php /var/www/html/occ db:add-missing-indices
 ```
 
-### Cron job
+### Background jobs
 
-Nextcloud wants `cron.php` run every 5 minutes:
-
-```bash
-sudo crontab -e
-# Add:
-*/5 * * * * docker exec -u www-data nextcloud php /var/www/html/cron.php
-```
-
-Verify in Nextcloud: **Administration → Basic settings** — it should switch from `AJAX` to `Cron (Recommended)`.
+Handled: the `nextcloud-cron` container runs `cron.php` every minute and delivers webhooks as
+they are queued, and its first run switches **Administration → Basic settings** from `AJAX` to
+`Cron`. Nothing to add to the host's crontab.
 
 ### Set maintenance window (UTC)
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=8
+docker exec nextcloud php /var/www/html/occ config:system:set maintenance_window_start --type=integer --value=8
 ```
 
-## External Storage (SeaweedFS/S3)
+## The workspace folder
 
-Automatic on a fresh install: `hooks/post-installation/01-s3-external-storage.sh` mounts the
-`nextcloud` seaweedfs bucket as an "S3" folder the moment `occ maintenance:install` finishes, using
-the scoped identity declared in seaweedfs's `s3.json` (never the admin login). If SeaweedFS
-was enabled *after* Nextcloud already existed — that hook only runs once, at first install — add
-it by hand:
+`hooks/before-starting/02-workspace.sh` mounts the `workspace_data` volume as a **Local**
+external storage at `/workspace`, applicable to every user. Sync that folder with the desktop client and you are editing the
+same tree hermes and code-server see. See [Getting Started → Workspace](../getting-started#workspace).
 
-1. Enable **External storage** app: `/settings/apps/featured`
-2. Go to **Administration settings → External storage**
-3. Add AmazonS3 type with Access key:
-   - Bucket: `nextcloud`
-   - Hostname: `seaweedfs`
-   - Port: `8333`
-   - Uncheck "Enable SSL"
-   - Check "Enable Path Style"
-   - Paste the SeaweedFS access key and secret key (`nas/seaweedfs/.env`, `SEAWEEDFS_NEXTCLOUD_ACCESS_KEY`/`_SECRET_KEY`)
+Nextcloud runs as `EXIST_PUID`, not `www-data`, for exactly this reason: every writer of that
+volume has to be the same uid.
 
-With SeaweedFS enabled, this `/S3` folder also holds a `workspace/` subfolder kept in live sync
-with the repo-root `workspace/` directory — see [SeaweedFS](./seaweedfs#workspace-lives-in-the-same-bucket)
-and [Getting Started → Workspace](../getting-started#workspace).
+Every upload through Nextcloud — anywhere, not just the workspace — fires a file event to
+Decree. See [File Processor](../decree/file-change-processing).
 
 ## Collabora (office document editing)
 
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
 installed and pointed at it. `automation-examples/migrations/22-nextcloud-richdocuments.md`
-does this the same way the seaweedfs bucket gets created: copy it to
+does this the same way every other post-startup setup is done: copy it to
 `automation/migrations/` and restart `automation` to activate. It also sets
 `richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
 Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
@@ -127,10 +111,10 @@ just the actual Collabora container.
 To do it by hand instead:
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ app:install richdocuments
-docker exec -u www-data nextcloud php /var/www/html/occ config:app:set richdocuments wopi_url \
+docker exec nextcloud php /var/www/html/occ app:install richdocuments
+docker exec nextcloud php /var/www/html/occ config:app:set richdocuments wopi_url \
     --value="https://collabora.<domain>"
-docker exec -u www-data nextcloud php /var/www/html/occ config:app:set richdocuments wopi_allowlist \
+docker exec nextcloud php /var/www/html/occ config:app:set richdocuments wopi_allowlist \
     --value="172.16.0.0/12"
 ```
 
@@ -148,7 +132,7 @@ restart `automation` to activate.
 To do it by hand instead:
 
 ```bash
-docker exec -u www-data nextcloud php /var/www/html/occ app:install calendar
+docker exec nextcloud php /var/www/html/occ app:install calendar
 ```
 
 ### Indexed by OpenViking, answerable by hermes
@@ -170,10 +154,10 @@ nextcloud:34.0.3, including its `expand` support for recurring events).
 
 ```bash
 # Enter maintenance mode
-docker exec -u www-data nextcloud php /var/www/html/occ maintenance:mode --on
+docker exec nextcloud php /var/www/html/occ maintenance:mode --on
 
 # Exit maintenance mode
-docker exec -u www-data nextcloud php /var/www/html/occ maintenance:mode --off
+docker exec nextcloud php /var/www/html/occ maintenance:mode --off
 ```
 
 ### Restart order
@@ -183,9 +167,8 @@ external storage (e.g. TrueNAS) — otherwise every bind mount is local and ordi
 `docker compose up -d` handles it:
 
 1. The NAS export
-2. SeaweedFS
-3. Nextcloud
-4. Everything else
+2. Nextcloud
+3. Everything else
 
 ## Debugging
 
@@ -195,5 +178,5 @@ docker exec -it nextcloud-db mariadb -u root -p nextcloud \
     -e "SELECT COUNT(*) FROM oc_jobs WHERE last_run = 0;"
 
 # Manually run cron
-time docker exec -u www-data nextcloud php /var/www/html/cron.php
+time docker exec nextcloud php /var/www/html/cron.php
 ```

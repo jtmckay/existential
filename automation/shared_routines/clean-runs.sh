@@ -6,8 +6,8 @@
 #
 # That distinction is the whole point. Matching against a cron listing instead
 # silently ignores everything that did not come from *this* daemon's crons —
-# workspace-sync, whose cron lives on automation-backup while both daemons share
-# one runs/ dir; s3-router, whose messages are named by automation-webhook; and
+# triage, whose cron lives on automation-backup while both daemons share one
+# runs/ dir; file-router, whose messages are named by automation-webhook; and
 # anything left behind by a renamed routine. Deriving the group from the name
 # means a run is cleaned because it exists, not because something else lists it.
 #
@@ -37,7 +37,7 @@ KEEP="${keep:-10}"
 
 # Group key, applied in this order because each strip exposes the next:
 #   D0007-1759-note-connect-0  -> note-connect      (decree-minted: D<day>-<HHmm>-)
-#   s3-router-225034u1-0       -> s3-router         (webhook-minted: -<HHMMSS>[u<n>])
+#   file-router-225034u1-0     -> file-router       (webhook-minted: -<HHMMSS>[u<n>])
 #   D0006-0553-26-ha-hermes-0  -> 26-ha-hermes      (migration)
 # The trailing -<seq> goes first: a chained follow-up (…-1) belongs to the same
 # group as the message that spawned it, which is what makes "keep 10" mean ten

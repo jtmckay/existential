@@ -21,7 +21,7 @@
 #   ---
 #   cron: "* * * * *"
 #   routine: telegram-receipt
-#   TELEGRAM_RCLONE_DEST: nextcloud:S3/telegram
+#   TELEGRAM_RCLONE_DEST: nextcloud:telegram
 #   ---
 #
 # Credentials: /secrets/telegram/credentials.env
@@ -50,7 +50,7 @@ fi
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:S3/telegram}"
+TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:telegram}"
 _tg_creds="/secrets/telegram/credentials.env"
 # shellcheck source=/dev/null  # runtime path, contents are credentials
 [ -f "$_tg_creds" ] && source "$_tg_creds"

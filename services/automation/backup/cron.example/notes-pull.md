@@ -13,14 +13,12 @@ that lands in `workspace/notes/` is a normal file under `workspace/`, so it
 automatically:
   - gets indexed by OpenViking and becomes searchable/citable context for
     every hermes agent (see openviking-index-knowledgebase.md)
-  - gets bisynced to the `nextcloud` seaweedfs bucket by workspace-sync, and from
-    there is browsable through Nextcloud's own /S3 folder
-  - fires object-store webhook events once workspace-sync has subscribed the bucket
-    (its own first-run behavior — see workspace-sync.sh) — if any file
-    processor is active with a broad enough PATTERN, your notes can trigger it
+  - shows up in Nextcloud's `workspace` folder, and so on every desktop client
+    syncing it
 
-If you don't want your vault driving automation, don't activate any file
-processor with a PATTERN that would match `nextcloud:S3/workspace/notes/...`.
+It is written straight to disk, so it fires no file events: a pulled vault
+never triggers a file processor on its own. Edit one of those notes through
+Nextcloud, though, and that upload does.
 
 Setup:
 

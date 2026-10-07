@@ -18,9 +18,10 @@ service dir) and nothing more.
 not — and it belongs in `volumes/<name>` with a declaration, never in the service folder. There
 is no "service-dir scratch" tier: that exemption is what let hermes' four build trees live in
 `ai/hermes/hermes_install/` for a year, outside `automation-backup`'s reach and invisible to
-`reset`, which only knows how to offer deleting a `_cache` **volume**. The two roots outside
-`volumes/` are `workspace/` (the user's own content, named in CLAUDE.md) and the decree project
-dir `automation/`; both are architectural and neither is a service folder.
+`reset`, which only knows how to offer deleting a `_cache` **volume**. The one root outside
+`volumes/` is the decree project dir `automation/`, which is architectural, not a service folder.
+The user's own content is a volume too — `workspace_data`, declared identically by every
+service that mounts it.
 
 ## One directory, declared properties
 

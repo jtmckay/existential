@@ -62,7 +62,10 @@
 # but installs from before that carry a leftover copy holding the hermes API
 # key. Keep it ignored so a stale one can never be committed.
 **/opencode.json
-workspace
+
+# The workspace now lives in volumes/workspace_data, but installs from before
+# that carry a leftover repo-root copy of user files. Keep it ignored.
+/workspace
 
 # Dashy
 # dashy-conf.yml is regenerated on every run, unless the user claims it by
@@ -146,6 +149,8 @@ services/automation/backup/runs/*
 
 # Nextcloud
 **/nextcloud/servername.conf
+# The entrypoint writes the redis password into it on every start.
+**/nextcloud/redis-session.ini
 
 # NTFY
 **/ntfy-config/server.yml
@@ -158,12 +163,6 @@ services/automation/backup/runs/*
 # into hermes' volume by ai/hermes/exist.initial.sh, which is the only consumer.
 # Kept ignored so a leftover copy from an older install can never be committed.
 **/honcho/honcho.json
-
-# SeaweedFS — rendered from *.exist.* templates and carrying real credentials:
-# s3.json holds both S3 identities, notification.toml the decree bearer token.
-nas/seaweedfs/s3.json
-nas/seaweedfs/filer.toml
-nas/seaweedfs/notification.toml
 
 # Playwright MCP scratch output (screenshots, traces)
 **/.playwright-mcp/

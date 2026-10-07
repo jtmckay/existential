@@ -19,7 +19,7 @@ routines, with lifecycle hooks and cron scheduling. In this repo decree runs as:
 - **`automation-backup`** (project dir `services/automation/backup/`) — despite the name, not
   backups only. It runs the three backup routines (`volume-backup`, `db-backup`,
   `sqlite-backup`) *plus* any routine that needs the same bulk data or master-credential access
-  and does no reasoning, routing or AI call: `workspace-sync`, `notify`, `clean-runs`, `triage`
+  and does no reasoning, routing or AI call: `notify`, `clean-runs`, `triage`
   (which is why the read-only `/repo` mount lives here, not in `automation`), and `notes-pull`
   (opt-in). Anything that reasons, routes or calls a model stays in `automation`
   even when it touches the same data.
@@ -154,7 +154,7 @@ Cron files use YAML frontmatter. Extra frontmatter keys are passed as env vars t
 cron: "0 2 * * *"
 routine: volume-backup
 VOLUMES: "my_volume_name"
-TARGETS: "seaweedfs:8333"
+TARGETS: "nextcloud:80"
 ---
 ```
 

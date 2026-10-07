@@ -321,9 +321,8 @@ The remaining keys are secrets shared *between* services, generated on render:
 - `EXIST_TELEGRAM_BOT_TOKEN` / `EXIST_TELEGRAM_CHAT_ID` — the fallback `notify.sh` uses when
   ntfy is unreachable. Create a bot with [BotFather](https://t.me/BotFather) (`/newbot`), then
   message it and read the chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
-- `EXIST_DECREE_S3_WEBHOOK_AUTH_TOKEN` — the bearer token the object store uses when posting to
-  decree's `/s3` webhook endpoint.
-- `EXIST_S3_NEXTCLOUD_ACCESS_KEY` / `EXIST_S3_NEXTCLOUD_SECRET_KEY` — the bucket-scoped
-  identity Nextcloud mounts `/S3` with, declared in `nas/seaweedfs/s3.json`. Not the Admin UI
-  login — see [SeaweedFS](./storage/seaweedfs.md).
+- `EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN` — the bearer token Nextcloud's file-event webhooks
+  send to decree's `/files` endpoint. Nextcloud stores it once, when the
+  `nextcloud-file-events` migration registers them — see
+  [File Processor](./decree/file-change-processing#setup).
 - `EXIST_NEXTCLOUD_DOMAIN` — see [Storage](./storage/index.md).

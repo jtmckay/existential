@@ -37,7 +37,7 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 
 ## What it indexes
 
-`workspace/` at the repo root — the same tree [Hermes](./hermes) mounts at
+The workspace (`volumes/workspace_data`) — the same tree Nextcloud serves, [Hermes](./hermes) mounts at
 `/opt/data/workspace` and code-server mounts at `/workspace`. Everything you actually
 work on is searchable without a second knowledgebase directory to keep in step.
 
@@ -51,8 +51,9 @@ and MCP APIs both refuse host filesystem paths outright, so content only ever re
 upload — which is also why there is no watched-directory setup.
 
 `workspace/ai/` — where the agent automations write — is indexed like everything else, so
-an agent can find and build on what an earlier run produced. It is excluded from the
-bucket sync instead, which is what stops that output from triggering more runs. See
+an agent can find and build on what an earlier run produced. It is written straight to
+disk, and only uploads through Nextcloud fire file events, which is what stops that output
+from triggering more runs. See
 [File Processor](../decree/file-change-processing).
 
 ## What it stores

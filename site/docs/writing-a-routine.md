@@ -163,7 +163,7 @@ no way to reach a model at all.
 
 `automation-backup` is where anything that needs **bulk volume data or every credential at
 once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. Despite the
-name it is not backups-only — `workspace-sync` lives there for exactly that access, not because
+name it is not backups-only — `notes-pull` lives there for exactly that access, not because
 it backs anything up. What it must never do is reason, route, or make an AI call; that stays in
 `automation` even when it touches the same data.
 
@@ -206,13 +206,13 @@ add one to `services/automation/webhook/config.exist.yml`, re-render, restart. E
 bearer token. This is how Home Assistant, a phone shortcut, or any external service reaches the
 stack. See [Build On It](./build-on-it) for the request contract.
 
-### An object landing in storage — when a file shows up
+### A file landing in Nextcloud — when a file shows up
 
-SeaweedFS fires an event on write → the webhook → `s3-router` → your **file processor**. A
+Nextcloud fires an event on every upload → the webhook → `file-router` → your **file processor**. A
 processor is a small script in `automation/lib/file-processors/` that declares what it matches:
 
 ```bash
-PATTERN="nextcloud:S3/workspace/.*\.md$"
+PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="an open question the author has not resolved"
 ```
 

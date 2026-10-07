@@ -30,16 +30,15 @@ source "${REPO_ROOT}/src/utils/model-endpoints.sh"
 OLLAMA_URL="$(endpoint_for embed)"
 
 # ── Automation output directory ───────────────────────────────────────────────
-# workspace/ at the repo root is the knowledgebase: the same tree hermes and
-# code-server share, so everything you work on is indexed without a second
-# directory to keep in step. It is a plain host directory, not a declared volume
-# — human-facing content, so it stays out of volumes/.
+# The workspace_data volume is the knowledgebase: the same tree hermes,
+# code-server and Nextcloud share, so everything you work on is indexed without
+# a second directory to keep in step.
 #
-# generate-compose.ts already creates workspace/ (ensureBindSource) on a full
-# run, but `./existential.sh run openviking` skips that, so create it here too,
-# along with the ai/ subdirectory the agent automations write into. The README is
+# generate-compose.ts already creates the volume on a full run, but
+# `./existential.sh run openviking` skips that, so create it here too, along
+# with the ai/ subdirectory the agent automations write into. The README is
 # seeded only when absent — this is the user's directory, not ours.
-WORKSPACE_DIR="${REPO_ROOT}/workspace"
+WORKSPACE_DIR="${REPO_ROOT}/volumes/workspace_data"
 mkdir -p "${WORKSPACE_DIR}/ai"
 if [[ ! -e "${WORKSPACE_DIR}/ai/README.md" ]]; then
     cat > "${WORKSPACE_DIR}/ai/README.md" << 'AIEOF'
@@ -55,15 +54,12 @@ purpose:
 - It **is** indexed into OpenViking, along with the rest of `workspace/`. Past
   output is searchable, so an agent can find and build on what an earlier run
   produced.
-- It **is not** synced to the object store. The `workspace-sync` routine excludes it, so
-  nothing written here fires a storage event. That is the one thing standing
-  between this setup and an infinite loop of runs triggering runs.
+- Writing here **never** fires a file event. Routines write straight to disk,
+  and only uploads through Nextcloud raise events, so an answer cannot trigger
+  another run. Your desktop client still downloads it like any other folder.
 
-If you move a file out of here into the rest of `workspace/`, it becomes a
-normal workspace file: synced, and able to trigger matches like any other.
-
-This directory is gitignored. Delete this README once you have your bearings —
-nothing regenerates it while it exists, and nothing depends on it.
+Delete this README once you have your bearings — nothing regenerates it while
+it exists, and nothing depends on it.
 AIEOF
     echo "[openviking] workspace/ai/ output directory created."
 fi
