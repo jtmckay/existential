@@ -1,9 +1,10 @@
 ---
 cron: "0 2 * * *"
-routine: db-backup
-TIER: nightly
-TARGETS: |
-  mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
+machine: db_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
 ---
 
 Dump nextcloud-db nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/nextcloud-db/.

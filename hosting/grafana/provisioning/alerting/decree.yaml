@@ -1,0 +1,68 @@
+# A decree run that ended in `failed` -> one ntfy notification.
+#
+# decree 0.5 has no hooks: a run's record is its events.jsonl, which alloy
+# ships to Loki and turns into decree_runs_total{machine, state} on its own
+# /metrics (hosting/loki/loki-alloy-config.alloy), scraped by Prometheus. This
+# is the alert on that counter — the job lib/hooks/onDeadLetter.sh used to do.
+#
+# ntfy has no Grafana integration, so the contact point is a plain webhook and
+# ntfy's own message templating (tpl=1) renders Grafana's JSON: t and m are the
+# URL-encoded templates {{.title}} and {{.message}}. It authenticates as the
+# shared publisher, EXIST_NTFY_USER, like every other service. Grafana expands
+# $VAR in provisioning files, which is why the alert templates say $$labels.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: ntfy
+    receivers:
+      - uid: ntfy
+        type: webhook
+        settings:
+          url: ${NTFY_URL}/decree?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
+          httpMethod: POST
+          username: ${NTFY_USER}
+          password: ${NTFY_PASSWORD}
+
+policies:
+  - orgId: 1
+    receiver: ntfy
+    group_by: [alertname, machine]
+    # A machine that keeps failing pages once every 6 hours, not every run.
+    repeat_interval: 6h
+
+groups:
+  - orgId: 1
+    name: decree
+    folder: decree
+    interval: 1m
+    rules:
+      - uid: decree-run-failed
+        title: decree run failed
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: sum by (machine) (increase(decree_runs_total{state="failed"}[10m]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels: { severity: warning }
+        annotations:
+          summary: "decree: {{ $$labels.machine }} failed"
+          description: >-
+            A {{ $$labels.machine }} run ended in failed. `docker exec automation
+            decree status` (or automation-backup) lists it with the command that
+            retries it; its log is in Loki under {job="decree"}.

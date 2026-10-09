@@ -1,0 +1,14 @@
+name: notify
+description: Send the message body to ntfy, falling back to Telegram when ntfy is unreachable.
+data:
+  ntfy_topic: { type: string, default: decree }
+  ntfy_title: { type: string, default: "" }
+  ntfy_priority: { type: string, default: "" }
+  ntfy_tags: { type: string, default: "" }
+initial: send
+states:
+  send:
+    invoke: notify
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

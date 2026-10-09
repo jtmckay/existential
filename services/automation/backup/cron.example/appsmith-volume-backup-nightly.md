@@ -1,9 +1,10 @@
 ---
 cron: "30 2 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  appsmith_data appsmith
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    appsmith_data appsmith
 ---
 
 Tar appsmith_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/appsmith_data/.

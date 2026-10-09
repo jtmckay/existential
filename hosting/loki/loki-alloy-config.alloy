@@ -2,49 +2,108 @@
 // (promtail is EOL). Generated with `alloy convert --source-format=promtail`,
 // then simplified: the two decree jobs shared a pipeline and are now one.
 
-// Decree run logs. `log_type` rides on the target, so routine.log and
-// message.md share one component; the regexes below only pull message_id /
-// chain / seq out of the path. These labels are a contract — the grafana
-// decree-overview and decree-run-detail dashboards query them.
-loki.source.file "decree" {
+// decree runs, from both projects (automation, automation-backup). decree 0.5
+// writes each run's record as runs/<id>/events.jsonl and each script's output
+// as runs/<id>/<NNNN>-<state>-<script>.log; it has no exporter on purpose — the
+// event log is the telemetry. This is decree's examples/observability/
+// config.alloy, with a `daemon` label for which project a run belongs to.
+// These labels are a contract: grafana's decree dashboards and the decree alert
+// query them.
+loki.source.file "decree_events" {
 	targets = [
-		{ __path__ = "/runs/**/routine.log", job = "decree", log_type = "routine" },
-		{ __path__ = "/runs/**/message.md", job = "decree", log_type = "message" },
+		{ __path__ = "/decree/automation/*/events.jsonl", job = "decree", daemon = "automation" },
+		{ __path__ = "/decree/automation-backup/*/events.jsonl", job = "decree", daemon = "automation-backup" },
 	]
-	forward_to = [loki.process.decree.receiver]
+	forward_to = [loki.process.decree_events.receiver]
 
-	// Without this the `__path__` globs are taken literally and every target
-	// fails with "stat ...: no such file or directory".
 	file_match {
 		enabled = true
 	}
-
-	// One-shot import of promtail's positions.yaml. Alloy converts it into its
-	// own per-component format on first start and ignores it forever after, so
-	// the switch does not re-ship (and duplicate) every historical run. A no-op
-	// on a fresh install.
-	legacy_positions_file = "/var/lib/alloy/data/positions.yaml"
 }
 
-loki.process "decree" {
+loki.process "decree_events" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.json {
+		expressions = { ts = "", type = "", machine = "", run_id = "" }
+	}
+	// decree's own timestamp, not the time alloy read the line.
+	stage.timestamp {
+		source = "ts"
+		format = "RFC3339"
+	}
+	// Low cardinality only. run_id is metadata, never a label.
+	stage.labels {
+		values = { type = "", machine = "" }
+	}
+	stage.structured_metadata {
+		values = { run_id = "" }
+	}
+	// Prometheus metrics from each run's last line, served on alloy's own
+	// /metrics, which Prometheus scrapes.
+	stage.match {
+		selector = "{type=\"run_finished\"}"
+		stage.json {
+			expressions = { state = "", duration_ms = "" }
+		}
+		stage.labels {
+			values = { state = "" }
+		}
+		// A metric takes the line's labels; filename names the run, so it would
+		// make one series per run.
+		stage.label_drop {
+			values = ["filename"]
+		}
+		stage.metrics {
+			// decree_runs_total{job, daemon, machine, state, type}: success is state="done".
+			// max_idle_duration outlasts a weekly backup, so its series survives
+			// between runs for BackupNotRun to see.
+			metric.counter {
+				name              = "runs_total"
+				prefix            = "decree_"
+				description       = "Finished decree runs, by machine and final state."
+				match_all         = true
+				action            = "inc"
+				max_idle_duration = "192h"
+			}
+			metric.histogram {
+				name              = "run_duration_milliseconds"
+				prefix            = "decree_"
+				description       = "Wall time of finished decree runs."
+				source            = "duration_ms"
+				buckets           = [1000, 10000, 60000, 300000, 900000, 3600000, 14400000]
+				max_idle_duration = "192h"
+			}
+		}
+	}
+}
+
+// Each script's stdout+stderr. State and script names cannot contain "-", so
+// the path regex is unambiguous.
+loki.source.file "decree_script_output" {
+	targets = [
+		{ __path__ = "/decree/automation/*/[0-9]*.log", job = "decree_script", daemon = "automation" },
+		{ __path__ = "/decree/automation-backup/*/[0-9]*.log", job = "decree_script", daemon = "automation-backup" },
+	]
+	forward_to = [loki.process.decree_script_output.receiver]
+
+	file_match {
+		enabled = true
+	}
+}
+
+loki.process "decree_script_output" {
 	forward_to = [loki.write.default.receiver]
 
 	stage.regex {
 		source     = "filename"
-		expression = ".*/(?P<message_id>[^/]+)/(?:routine\\.log|message\\.md)$"
+		expression = "/(?P<run_id>[^/]+)/(?P<n>\\d{4,})-(?P<state>[^-]+)-(?P<script>[^/]+)\\.log$"
 	}
-
-	stage.regex {
-		source     = "message_id"
-		expression = "^(?P<chain>D\\d+-\\d+-.+)-(?P<seq>\\d+)$"
-	}
-
 	stage.labels {
-		values = {
-			message_id = null,
-			chain      = null,
-			seq        = null,
-		}
+		values = { script = "" }
+	}
+	stage.structured_metadata {
+		values = { run_id = "", state = "" }
 	}
 }
 

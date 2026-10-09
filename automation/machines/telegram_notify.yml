@@ -1,0 +1,17 @@
+name: telegram_notify
+description: Tell Telegram about a new Actual Budget transaction, and remember it so a receipt photo in reply can split it.
+data:
+  transaction_id: { type: string, default: "" }
+  account_id: { type: string, default: "" }
+  # Integer cents, negative for an expense.
+  amount_cents: { type: int, default: 0 }
+  payee_name: { type: string, default: Unknown }
+  date: { type: string, default: "" }
+  notes: { type: string, default: "" }
+initial: send
+states:
+  send:
+    invoke: telegram_notify
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

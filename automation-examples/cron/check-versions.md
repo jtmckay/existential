@@ -1,6 +1,6 @@
 ---
-cron: "0 9 * * 1"
-routine: check-versions
+cron: "0 9 * * MON"
+machine: check_versions
 ---
 
 Weekly image version check. Sends an ntfy notification listing every service

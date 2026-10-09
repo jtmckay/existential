@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# note-triage — watch the notes vault and flag the notes worth acting on.
+# note_triage — watch the notes vault and flag the notes worth acting on.
 #
 # Scans NOTES_DIR for notes that are new or changed since the last run, asks the
 # model one cheap yes/no question per note, and chains TRIAGE_ROUTINE for the
@@ -18,51 +18,28 @@
 # so enabling this on an existing vault does not fire a thousand model calls.
 # Set TRIAGE_BOOTSTRAP=true for one run if you do want the backlog scanned.
 #
-# Manual invocation — decree has no `run` subcommand; drop a message instead:
-#   printf -- '---\nroutine: note-triage\n---\n' > automation/inbox/note-triage.md
+# The TRIAGE_* knobs a message can set are the machine's data
+# (automation/machines/note_triage.yml); the rest are container environment.
+#
+# By hand:
+#   docker exec automation decree emit --machine note_triage </dev/null
 
 set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "note-triage" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "note-triage" "jq not found"
-    [ -d "${NOTES_DIR:-/data/notes}" ] || precheck_fail "note-triage" \
-        "NOTES_DIR ${NOTES_DIR:-/data/notes} does not exist — run the 'notes' routine first, or point NOTES_DIR at your vault"
-    _key="${TRIAGE_API_KEY:-${HERMES_API_KEY:-}}"
-    _auth=()
-    if [ -n "$_key" ]; then _auth=(-H "Authorization: Bearer ${_key}"); fi
-    curl -fsS --max-time 10 -o /dev/null \
-        "${TRIAGE_API_URL:-http://hermes-agent:8642/v1}/models" \
-        "${_auth[@]}" 2>/dev/null \
-        || precheck_fail "note-triage" \
-        "gateway unreachable at ${TRIAGE_API_URL:-http://hermes-agent:8642/v1} — is hermes-agent up? (set TRIAGE_API_URL=http://ollama:11434/v1 to use Ollama directly)"
-    precheck_pass "note-triage"
-    exit 0
-fi
 
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 STATE_DIR="${STATE_DIR:-/data/note-triage}"
 TRIAGE_API_URL="${TRIAGE_API_URL:-http://hermes-agent:8642/v1}"
 TRIAGE_MODEL="${TRIAGE_MODEL:-}"
-TRIAGE_ROUTINE="${TRIAGE_ROUTINE:-note-develop}"
-TRIAGE_CRITERIA="${TRIAGE_CRITERIA:-a business idea — something the author could plausibly build, sell, or start}"
-TRIAGE_MAX_NOTES="${TRIAGE_MAX_NOTES:-20}"
+TRIAGE_ROUTINE="$DECREE_DATA_TRIAGE_ROUTINE"
+TRIAGE_CRITERIA="$DECREE_DATA_TRIAGE_CRITERIA"
+TRIAGE_MAX_NOTES="$DECREE_DATA_TRIAGE_MAX_NOTES"
 TRIAGE_MAX_CHARS="${TRIAGE_MAX_CHARS:-6000}"
 TRIAGE_MIN_CHARS="${TRIAGE_MIN_CHARS:-120}"
-TRIAGE_BOOTSTRAP="${TRIAGE_BOOTSTRAP:-false}"
+TRIAGE_BOOTSTRAP="$DECREE_DATA_TRIAGE_BOOTSTRAP"
 TRIAGE_TIMEOUT="${TRIAGE_TIMEOUT:-120}"
-TRIAGE_DRY_RUN="${TRIAGE_DRY_RUN:-false}"
+TRIAGE_DRY_RUN="$DECREE_DATA_TRIAGE_DRY_RUN"
 TRIAGE_API_KEY="${TRIAGE_API_KEY:-}"
-TRIAGE_LEDGER="${TRIAGE_LEDGER:-true}"
+TRIAGE_LEDGER="$DECREE_DATA_TRIAGE_LEDGER"
 TRIAGE_LEDGER_MAX="${TRIAGE_LEDGER_MAX:-100}"
 
 # --- Implementation ---
@@ -76,7 +53,8 @@ if [ -z "$TRIAGE_API_KEY" ]; then
     TRIAGE_API_KEY="${HERMES_API_KEY:-}"
 fi
 
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
+[ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — run the 'notes' machine first, or point NOTES_DIR at your vault" >&2; exit 1; }
+
 MANIFEST="${STATE_DIR}/seen.tsv"
 LEDGER="${STATE_DIR}/ideas.tsv"
 
@@ -265,15 +243,8 @@ ${body}" 200 || true)"
             # same workup twice on the next run.
             printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$reason" >> "$LEDGER"
 
-            out="${OUTBOX_DIR}/note-triage-$(date +%s%N).md"
-            {
-                printf -- '---\n'
-                printf 'routine: %s\n' "$TRIAGE_ROUTINE"
-                printf 'note_path: %s\n' "$(jq -rn --arg v "$rel" '$v|@json')"
-                printf 'note_reason: %s\n' "$(jq -rn --arg v "$reason" '$v|@json')"
-                printf -- '---\n\n'
-                printf '%s\n' "$reason"
-            } > "$out"
+            decree emit --machine "$TRIAGE_ROUTINE" --param note_path="$rel" \
+                --param note_reason="$reason" >/dev/null <<<"$reason"
             ;;
         *)
             echo "pass  ${rel}"

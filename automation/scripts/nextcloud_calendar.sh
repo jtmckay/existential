@@ -22,12 +22,8 @@ set -euo pipefail
 
 NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl >/dev/null 2>&1         || { echo "curl not found" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_USER:-}" ]]     || { echo "NEXTCLOUD_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_PASSWORD:-}" ]] || { echo "NEXTCLOUD_ADMIN_PASSWORD not set" >&2; exit 1; }
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
+: "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD not set}"
 
 echo "Installing/enabling calendar..."
 _body=$(mktemp)

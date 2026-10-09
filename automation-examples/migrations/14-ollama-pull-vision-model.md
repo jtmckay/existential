@@ -1,6 +1,7 @@
 ---
-routine: ollama-pull
-OLLAMA_ROLE: vision
+machine: ollama_pull
+params:
+  OLLAMA_ROLE: vision
 ---
 Pull the vision model — EXIST_MODEL_VISION. Used by the ollama-ocr file
 processor (automation/lib/file-processors.example/ollama-ocr.sh) for text

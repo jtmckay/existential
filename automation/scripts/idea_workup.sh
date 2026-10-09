@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# idea-workup — fan one flagged idea out to the departments that can answer it.
+# idea_workup — fan one flagged idea out to the departments that can answer it.
 #
-# An alternative to note-develop as TRIAGE_ROUTINE. Where note-develop makes one
-# call and writes one document, this makes none of its own: it writes three
-# outbox messages, each naming the department whose hermes profile owns the
+# An alternative to note_develop as TRIAGE_ROUTINE. Where note_develop makes one
+# call and writes one document, this makes none of its own: it emits three
+# agent_task messages, each on the department whose hermes profile owns the
 # tools that question needs.
 #
 #   who else is doing this   → research  (the only department with web access)
@@ -14,15 +14,10 @@
 # with its own notification, which is the point — three focused answers you can
 # read separately beat one long report nobody finishes.
 #
-# Chained by note-triage (routine: idea-workup, note_path: <relative path>), or
-# run by hand against any note.
+# Emitted by note_triage (note_path: <relative path>), or run by hand against
+# any note.
 #
-# Two things worth knowing before enabling it:
-#
-#   * The departments write to /workspace/ai, and only the MAIN decree daemon
-#     has a writable /workspace. Enable idea-workup and hermes-dept in
-#     services/automation/decree/config.yml — not in automation-backup.
-#   * The profiles must exist. hermes' entrypoint provisions them from
+# The profiles must exist. hermes' entrypoint provisions them from
 #     ai/hermes/profiles/ on boot, so this is only a question after adding a
 #     new department: restart hermes. Without a profile every department call
 #     401s, because each carries its own API_SERVER_KEY rather than borrowing
@@ -31,45 +26,16 @@
 # Decree runs messages one at a time and AGENT_TIMEOUT defaults to 900s, so a
 # fan-out of three can take the better part of an hour. It is not stuck.
 #
-# Manual invocation — decree has no `run` subcommand; drop a message instead:
-#   printf -- '---\nroutine: idea-workup\nnote_path: ideas/tool-rental.md\n---\n' \
-#     > automation/inbox/idea-workup.md
+# By hand:
+#   docker exec automation decree emit --machine idea_workup \
+#       --param note_path=ideas/tool-rental.md </dev/null
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 || precheck_fail "idea-workup" "jq not found"
-    [ -d "${NOTES_DIR:-/data/notes}" ] || precheck_fail "idea-workup" \
-        "NOTES_DIR ${NOTES_DIR:-/data/notes} does not exist — run the 'notes' routine first, or point NOTES_DIR at your vault"
-    [ -n "${HERMES_API_KEY:-}" ] || precheck_fail "idea-workup" \
-        "HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through"
-    [ -f "${SCRIPT_DIR}/hermes-dept.sh" ] || precheck_fail "idea-workup" \
-        "hermes-dept.sh not found in shared_routines/ — nothing to hand the questions to"
-    precheck_pass "idea-workup"
-    exit 0
-fi
-
-note_path="${note_path:-}"
-note_reason="${note_reason:-}"
+note_path="$DECREE_DATA_NOTE_PATH"
+note_reason="$DECREE_DATA_NOTE_REASON"
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 WORKUP_MAX_CHARS="${WORKUP_MAX_CHARS:-6000}"
-
-# --- Implementation ---
-
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-# decree reads the outbox but never creates it — an absent dir is silently
-# treated as "no messages", so the whole fan-out would vanish without an error.
-mkdir -p "$OUTBOX_DIR"
 
 if [ -z "$note_path" ]; then
     echo "note_path is required (relative to ${NOTES_DIR})" >&2
@@ -97,29 +63,21 @@ fi
 
 # --- The three questions ---------------------------------------------------
 #
-# Each is one outbox message. The shape is what hermes-dept expects: it strips
-# the frontmatter and treats the body as the task, so the question and the note
-# both go below the fence. The note is embedded rather than referenced because a
+# Each is one agent_task message on its department's profile, the question and
+# the note as its body. The note is embedded rather than referenced because a
 # department profile has no filesystem access.
 
 hand_off() {
     # hand_off <profile> <suffix> <question>
-    local profile="$1" suffix="$2" question="$3" out
-
-    out="${OUTBOX_DIR}/idea-workup-${suffix}-$(date +%s%N).md"
+    local profile="$1" suffix="$2" question="$3"
     {
-        printf -- '---\n'
-        printf 'routine: hermes-dept\n'
-        printf 'profile: %s\n' "$profile"
-        printf 'output_name: %s\n' "$(jq -rn --arg v "${slug}-${suffix}" '$v|@json')"
-        printf 'source_file: %s\n' "$(jq -rn --arg v "$note_path" '$v|@json')"
-        printf -- '---\n\n'
         printf '%s\n\n' "$question"
         if [ -n "$note_reason" ]; then
             printf 'Flagged during triage as: %s\n\n' "$note_reason"
         fi
         printf -- '--- the note ---\n%s\n--- end note ---\n' "$note_body"
-    } > "$out"
+    } | decree emit --machine agent_task --param profile="$profile" \
+            --param output_name="${slug}-${suffix}" >/dev/null
 
     echo "  ${profile} → workspace/ai/${slug}-${suffix}.md"
 }

@@ -1,0 +1,5 @@
+# One RSS or Atom feed URL per line. Lines starting with # are comments.
+# The newsletter machine reads this every run — edit it, no restart needed.
+https://simonwillison.net/atom/everything/
+https://lwn.net/headlines/rss
+https://hnrss.org/best

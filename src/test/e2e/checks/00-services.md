@@ -1,12 +1,12 @@
 ---
-routine: triage
+machine: triage
 e2e_check: 00-services
 requires: EXIST_IS_SERVICES_AUTOMATION
-TRIAGE_ALWAYS: "true"
-TRIAGE_STRICT: "true"
-TRIAGE_NOTIFY: "false"
-TRIAGE_REPO: /repo
-TRIAGE_STATE: /data/triage/e2e-state.env
+params:
+  TRIAGE_ALWAYS: true
+  TRIAGE_STRICT: true
+  TRIAGE_NOTIFY: false
+  TRIAGE_STATE: /data/triage/e2e-state.env
 ---
 
 Run every enabled service's own `exist.test.sh` and fail if any of them is broken.

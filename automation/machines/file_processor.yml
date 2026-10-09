@@ -1,0 +1,20 @@
+name: file_processor
+description: Download one file, put it to the processor's CRITERIA if it has any, then run the processor on it.
+data:
+  rclone_path: { type: string, default: "" }
+  processor: { type: string, default: "" }
+  file_action: { type: string, enum: [created, removed], default: created }
+  is_pre_signed: { type: bool, default: false }
+  criteria: { type: string, default: "" }
+initial: process
+states:
+  process:
+    # A criteria gate with no verdict (the gateway down or slow) fails rather
+    # than drop the file; three tries ride out a restart.
+    invoke:
+      script: { name: file_processor, attempts: 3 }
+    transitions: { done: done }
+    # A processor may hand its file to an agent (file-processors.example/agent-handoff.sh).
+    emits: [agent_task, hermes_router]
+  done: { final: true }
+  failed: { final: true }

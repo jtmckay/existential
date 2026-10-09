@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hermes-agent container entrypoint — installs decree and claude-code into the
+# hermes-agent container entrypoint — installs claude-code into the
 # persistent data volume, provisions the profiles declared in ai/hermes/profiles/,
 # then chains to the image's s6-overlay init (/init)
 # which handles user-remapping (HERMES_UID:HERMES_GID) before starting the gateway.
@@ -8,25 +8,8 @@ set -euo pipefail
 TOOLS_DIR="/opt/data/.tools"
 
 # All installs land in the hermes_agent_data volume so they survive restarts.
-export RUSTUP_HOME="$TOOLS_DIR/rustup"
-export CARGO_HOME="$TOOLS_DIR/cargo"
 NPM_GLOBAL="$TOOLS_DIR/npm-global"
-export PATH="$CARGO_HOME/bin:$NPM_GLOBAL/bin:$PATH"
-
-# ── Rust / cargo ──────────────────────────────────────────────────────────────
-if [[ ! -x "$CARGO_HOME/bin/cargo" ]]; then
-    echo "[hermes-entrypoint] Installing Rust via rustup..."
-    curl -fsSL https://sh.rustup.rs \
-        | sh -s -- -y --no-modify-path --default-toolchain stable
-fi
-
-# ── decree ────────────────────────────────────────────────────────────────────
-# .crates.toml records every `cargo install`-ed crate with its version.
-DECREE_VERSION="0.4.2"
-if ! grep -qF "\"decree $DECREE_VERSION " "$CARGO_HOME/.crates.toml" 2>/dev/null; then
-    echo "[hermes-entrypoint] Installing decree $DECREE_VERSION..."
-    cargo install decree --version "$DECREE_VERSION"
-fi
+export PATH="$NPM_GLOBAL/bin:$PATH"
 
 # ── claude-code ───────────────────────────────────────────────────────────────
 if [[ ! -x "$NPM_GLOBAL/bin/claude" ]]; then
@@ -165,7 +148,7 @@ fi
 
 # ── hand off ownership to the hermes user ────────────────────────────────────
 # Everything above ran as root, so whatever it created is root-owned: the
-# rustup/cargo/npm trees, the profiles, and — the one that is easy to miss —
+# npm tree, the profiles, and — the one that is easy to miss —
 # /opt/data/logs/{agent,errors}.log, which the `hermes profile create` call
 # opens on its way past.
 #

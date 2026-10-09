@@ -11,19 +11,13 @@
 #   NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD
 #   NEXTCLOUD_URL         default http://nextcloud
 #   NEXTCLOUD_APP_PASSWORD (Optional: use for WebDAV auth)
-#
-# DECREE_PRE_CHECK: standard environment check.
 set -euo pipefail
 
 RCLONE_CONFIG="${SECRETS_DIR:-/secrets}/rclone/rclone.conf"
 NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v rclone >/dev/null 2>&1        || { echo "rclone not found" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_USER:-}" ]]     || { echo "NEXTCLOUD_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_PASSWORD:-}" ]] || { echo "NEXTCLOUD_ADMIN_PASSWORD not set" >&2; exit 1; }
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
+: "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD not set}"
 
 mkdir -p "$(dirname "${RCLONE_CONFIG}")"
 touch "${RCLONE_CONFIG}"

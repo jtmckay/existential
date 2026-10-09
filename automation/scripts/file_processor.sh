@@ -5,46 +5,19 @@
 # in lib/file-processors/, then explicitly deletes the temp file.
 # Not object-store-specific — works with any rclone path.
 #
-# Enqueued by file-router; not typically triggered directly.
+# Emitted by file_router; not typically triggered directly.
 #
 # When `criteria` is set, the downloaded content is put to the model before the
-# processor runs, and the processor is skipped unless it matches. file-router
-# fills this in from the processor's own CRITERIA= line; an empty or absent
-# value means the path match was the whole test, which is how every processor
-# written before this behaved.
-#
-#   ---
-#   routine: file-processor
-#   rclone_path: s3:mybucket/path/to/file.pdf
-#   processor: my-processor
-#   file_action: created
-#   is_pre_signed: false
-#   criteria: ""
-#   ---
+# processor runs, and the processor is skipped unless it matches. file_router
+# fills this in from the processor's own CRITERIA= line; an empty value means
+# the path match was the whole test.
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v rclone >/dev/null 2>&1 || precheck_fail "file-processor" "rclone not found"
-    # Only needed by the criteria gate, but a processor can grow one at any time.
-    command -v curl >/dev/null 2>&1 || precheck_fail "file-processor" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "file-processor" "jq not found"
-    precheck_pass "file-processor"
-    exit 0
-fi
-
-rclone_path="${rclone_path:-}"
-processor="${processor:-}"
-file_action="${file_action:-created}"
-is_pre_signed="${is_pre_signed:-false}"
-criteria="${criteria:-}"
+rclone_path="$DECREE_DATA_RCLONE_PATH"
+processor="$DECREE_DATA_PROCESSOR"
+file_action="$DECREE_DATA_FILE_ACTION"
+is_pre_signed="$DECREE_DATA_IS_PRE_SIGNED"
+criteria="$DECREE_DATA_CRITERIA"
 PROCESSOR_MAX_CHARS="${PROCESSOR_MAX_CHARS:-6000}"
 
 if [ -z "$rclone_path" ]; then
@@ -55,19 +28,16 @@ if [ -z "$processor" ]; then
     echo "processor is required."
     exit 1
 fi
-# `processor` is frontmatter, and frontmatter is attacker-shaped input — it
-# reaches decree from webhooks, from email, and from outbox-relay, which exists
-# to hand agent-authored files back into this inbox. It is interpolated into a
+# `processor` is a param, and params are attacker-shaped input — they reach
+# decree from webhooks, from email, and from agents. It is interpolated into a
 # path that is then `bash`ed a few lines down, so a value like
-# `../../../../workspace/evil` executes a file the confined agent can write, in
-# the daemon that deliberately keeps agent-task disabled. Same guard, same
-# reason, as automation/lib/hooks/onDeadLetter.sh.
+# `../../../../workspace/evil` executes a file a confined agent can write.
 if ! printf '%s' "$processor" | grep -qE '^[A-Za-z0-9_-]+$'; then
     echo "Invalid processor name: must match [A-Za-z0-9_-]+"
     exit 1
 fi
 
-_processor_script="$(dirname "${BASH_SOURCE[0]}")/../lib/file-processors/${processor}.sh"
+_processor_script="${DECREE_LIB}/file-processors/${processor}.sh"
 if [ ! -f "$_processor_script" ]; then
     echo "Processor not found: $_processor_script"
     exit 1
@@ -94,7 +64,7 @@ if [ "$file_action" = "created" ]; then
         echo "Signed URL: $PRE_SIGNED_URL"
     else
         _filename=$(basename "$_file_key")
-        _tmpfile=$(mktemp "${message_dir:-/work/.decree/runs}/${_filename}.XXXXXX")
+        _tmpfile=$(mktemp "${DECREE_RUN_DIR}/${_filename}.XXXXXX")
 
         echo "Downloading $rclone_path → $_tmpfile"
         rclone copyto "$rclone_path" "$_tmpfile" \
@@ -115,7 +85,7 @@ fi
 # text one.
 if [ -n "$criteria" ] && [ "$file_action" = "created" ] && [ -n "$FILE_PATH" ]; then
     # shellcheck source=../lib/hermes.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/hermes.sh"
+    source "${DECREE_LIB}/hermes.sh"
 
     echo "Evaluating criteria: ${criteria}"
     _body="$(head -c "$PROCESSOR_MAX_CHARS" "$FILE_PATH")"
@@ -133,8 +103,8 @@ ${_body}")"
         1) echo "skip (criteria): ${FILE_KEY} does not match — not running ${processor}."
            exit 0 ;;
         # No verdict at all: the gateway is down or slow. Fail so decree retries
-        # under max_attempts rather than silently dropping the file, which would
-        # look exactly like a clean "no match".
+        # (the state's attempts) rather than silently dropping the file, which
+        # would look exactly like a clean "no match".
         *) echo "No verdict from the gateway — failing so this is retried." >&2
            exit 1 ;;
     esac

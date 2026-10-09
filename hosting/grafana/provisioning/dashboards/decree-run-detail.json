@@ -1,104 +1,45 @@
 {
-  "description": "Detailed view of a single Decree run — routine log and originating message",
+  "description": "One decree run by run_id: its events.jsonl, then each script's output.",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
-    {
-      "icon": "arrow-left",
-      "title": "Back to Decree Overview",
-      "tooltip": "",
-      "type": "link",
-      "url": "/d/decree-overview/decree-overview",
-      "targetBlank": false
-    }
+    { "icon": "arrow-left", "title": "Back to Decree Overview", "type": "link", "url": "/d/decree-overview/decree-overview" }
   ],
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
-      "id": 1,
-      "title": "routine.log",
-      "type": "row"
-    },
-    {
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 1 },
-      "id": 2,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": false,
-        "sortOrder": "Ascending",
-        "wrapLogMessage": true
-      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Ascending", "wrapLogMessage": true },
       "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"decree\", message_id=\"$message_id\", log_type=\"routine\"}",
-          "queryType": "range",
-          "refId": "A"
-        }
+        { "refId": "A", "queryType": "range", "expr": "{job=\"decree\"} | run_id=\"$run_id\"" }
       ],
-      "title": "routine.log",
+      "title": "events.jsonl",
       "type": "logs"
     },
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
-      "id": 3,
-      "title": "message.md",
-      "type": "row"
-    },
-    {
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 16 },
-      "id": 4,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": false,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": false,
-        "sortOrder": "Ascending",
-        "wrapLogMessage": true
-      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 12 },
+      "id": 2,
+      "options": { "enableLogDetails": true, "showLabels": true, "showTime": false, "sortOrder": "Ascending", "wrapLogMessage": true },
       "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"decree\", message_id=\"$message_id\", log_type=\"message\"}",
-          "queryType": "range",
-          "refId": "A"
-        }
+        { "refId": "A", "queryType": "range", "expr": "{job=\"decree_script\"} | run_id=\"$run_id\"" }
       ],
-      "title": "message.md",
+      "title": "Script output (label script names the script; metadata state the state)",
       "type": "logs"
     }
   ],
-  "refresh": "",
   "schemaVersion": 39,
   "tags": ["decree", "automation"],
   "templating": {
     "list": [
-      {
-        "current": { "selected": false, "text": "", "value": "" },
-        "hide": 0,
-        "label": "Message ID",
-        "name": "message_id",
-        "query": "",
-        "type": "textbox"
-      }
+      { "current": { "text": "", "value": "" }, "label": "Run ID", "name": "run_id", "query": "", "type": "textbox" }
     ]
   },
   "time": { "from": "now-7d", "to": "now" },
-  "timepicker": {},
   "timezone": "browser",
   "title": "Decree Run Detail",
   "uid": "decree-run-detail",
-  "version": 1
+  "version": 2
 }

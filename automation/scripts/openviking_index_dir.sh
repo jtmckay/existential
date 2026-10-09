@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# openviking-index-dir — index a local directory tree into OpenViking, and keep
+# openviking_index_dir — index a local directory tree into OpenViking, and keep
 # it in sync on every run.
 #
 # Why not a watched directory: OpenViking's HTTP server refuses host filesystem
@@ -25,33 +25,31 @@
 #     same file. The lock lives on an fd, so a killed run releases it — there is
 #     no stale lockfile to clear by hand.
 #
-# Env vars (set via cron frontmatter):
-#   INDEX_DIR     directory to index, as seen inside the daemon (e.g. /workspace)
-#   INDEX_PREFIX  viking:// destination prefix
-#                   (default viking://resources/<basename of INDEX_DIR>)
-#   INDEX_EXCLUDE optional extended-regex of relative paths to skip
+# Params (the cron file's):
+#   INDEX_DIR       directory to index, as seen inside the daemon (e.g. /workspace)
+#   INDEX_PREFIX    viking:// destination prefix
+#                     (default viking://resources/<basename of INDEX_DIR>)
+#   INDEX_EXCLUDE   optional extended-regex of relative paths to skip
+#   INDEX_STATE_DIR manifest location (default /index-cache)
 #
 # Env vars (passed through the decree container's compose env):
 #   OPENVIKING_API_KEY  Bearer token for the OpenViking REST API
 #   OPENVIKING_URL      defaults to http://openviking:1933
-#   INDEX_STATE_DIR     manifest location (default /index-cache)
 set -euo pipefail
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl      >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
-    command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum not found" >&2; exit 1; }
-    command -v flock     >/dev/null 2>&1 || { echo "flock not found" >&2; exit 1; }
-    [[ -n "${INDEX_DIR:-}" ]]          || { echo "INDEX_DIR not set in frontmatter" >&2; exit 1; }
-    [[ -d "${INDEX_DIR}" ]]            || { echo "INDEX_DIR ${INDEX_DIR} is not a directory" >&2; exit 1; }
-    [[ -n "${OPENVIKING_API_KEY:-}" ]] || { echo "OPENVIKING_API_KEY not set" >&2; exit 1; }
-    exit 0
-fi
+INDEX_DIR="$DECREE_DATA_INDEX_DIR"
+INDEX_PREFIX="$DECREE_DATA_INDEX_PREFIX"
+INDEX_EXCLUDE="$DECREE_DATA_INDEX_EXCLUDE"
+INDEX_STATE_DIR="$DECREE_DATA_INDEX_STATE_DIR"
+
+[[ -d "${INDEX_DIR}" ]] || { echo "INDEX_DIR '${INDEX_DIR}' is not a directory" >&2; exit 1; }
+: "${OPENVIKING_API_KEY:?OPENVIKING_API_KEY not set}"
 
 OPENVIKING_URL="${OPENVIKING_URL:-http://openviking:1933}"
 INDEX_DIR="${INDEX_DIR%/}"
 INDEX_PREFIX="${INDEX_PREFIX:-viking://resources/$(basename "${INDEX_DIR}")}"
 INDEX_PREFIX="${INDEX_PREFIX%/}"
-STATE_DIR="${INDEX_STATE_DIR:-/index-cache}"
+STATE_DIR="${INDEX_STATE_DIR}"
 
 # A ROOT key is not enough on its own: every tenant-scoped endpoint 400s with
 # "ROOT requests to tenant-scoped APIs must include X-OpenViking-Account and
@@ -71,7 +69,7 @@ touch "${MANIFEST}" "${LOCK}"
 # the life of this process, so a crash or `docker kill` frees it.
 exec 9>"${LOCK}"
 if ! flock -n 9; then
-    echo "Another openviking-index-dir run is still working on ${INDEX_DIR} — skipping this tick."
+    echo "Another openviking_index_dir run is still working on ${INDEX_DIR} — skipping this tick."
     exit 0
 fi
 
@@ -151,7 +149,7 @@ ADDED=0 UPDATED=0 UNCHANGED=0 REMOVED=0 BUSY=0 FAILED=0
 
 while IFS= read -r -d '' file; do
     REL="${file#"${INDEX_DIR}"/}"
-    if [[ -n "${INDEX_EXCLUDE:-}" ]] && [[ "$REL" =~ ${INDEX_EXCLUDE} ]]; then
+    if [[ -n "${INDEX_EXCLUDE}" ]] && [[ "$REL" =~ ${INDEX_EXCLUDE} ]]; then
         continue
     fi
     HASH=$(sha256sum "$file" | cut -d' ' -f1)

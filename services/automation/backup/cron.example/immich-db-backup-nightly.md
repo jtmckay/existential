@@ -1,9 +1,10 @@
 ---
 cron: "0 2 * * *"
-routine: db-backup
-TIER: nightly
-TARGETS: |
-  postgres immich-postgres DB_USERNAME DB_PASSWORD
+machine: db_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    postgres immich-postgres DB_USERNAME DB_PASSWORD
 ---
 
 Dump immich-postgres nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/immich-postgres/.

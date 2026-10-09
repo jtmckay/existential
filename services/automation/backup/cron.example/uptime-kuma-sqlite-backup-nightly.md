@@ -1,9 +1,10 @@
 ---
 cron: "0 3 * * *"
-routine: sqlite-backup
-TIER: nightly
-TARGETS: |
-  kuma uptime_kuma_data/kuma.db
+machine: sqlite_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    kuma uptime_kuma_data/kuma.db
 ---
 
 Dump uptime-kuma's SQLite database nightly (transaction-consistent, via `sqlite3 .dump`)

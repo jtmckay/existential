@@ -1,9 +1,10 @@
 ---
 cron: "0 2 * * *"
-routine: db-backup
-TIER: nightly
-TARGETS: |
-  postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
+machine: db_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
 ---
 
 Dump nocodb-postgres nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/nocodb-postgres/.

@@ -1,0 +1,22 @@
+name: triage
+description: Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
+data:
+  # Minutes between rounds, one step per consecutive all-green round.
+  TRIAGE_BACKOFF: { type: string, default: "5 5 15 30 60" }
+  # Minutes; the interval a green stack settles to.
+  TRIAGE_MAX_INTERVAL: { type: int, default: 360 }
+  TRIAGE_NOTIFY: { type: bool, default: true }
+  # Ignore the backoff and run every tick.
+  TRIAGE_ALWAYS: { type: bool, default: false }
+  # End in failed when a service failed — the verdict e2e reads.
+  TRIAGE_STRICT: { type: bool, default: false }
+  TRIAGE_REPO: { type: string, default: /repo }
+  TRIAGE_STATE: { type: string, default: /data/triage/state.env }
+initial: triage
+states:
+  triage:
+    invoke: triage
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

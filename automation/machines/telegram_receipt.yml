@@ -1,0 +1,11 @@
+name: telegram_receipt
+description: Poll the Telegram bot and route each reply — a receipt photo splits its transaction, "no" reverts a split, any other photo is saved for OCR.
+data:
+  TELEGRAM_RCLONE_DEST: { type: string, default: nextcloud:telegram }
+initial: poll
+states:
+  poll:
+    invoke: telegram_receipt
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

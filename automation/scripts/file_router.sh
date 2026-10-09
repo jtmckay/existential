@@ -2,8 +2,8 @@
 # File Router
 #
 # Receives Nextcloud file events (webhook_listeners, registered by the
-# nextcloud-file-events migration), matches the full FILE_SOURCE path against
-# every processor in lib/file-processors/, and enqueues one file-processor
+# nextcloud_file_events migration), matches the full FILE_SOURCE path against
+# every processor in lib/file-processors/, and emits one file_processor
 # message per match. The file is downloaded per-processor — no shared state.
 #
 # FILE_SOURCE is "<rclone_src>:<path>", where <path> is the Nextcloud path with
@@ -34,34 +34,16 @@
 # NodeWrittenEvent too. PATTERNs that anchor on an extension never notice; one
 # that matches a bare prefix will see folders as well.
 #
-# Example webhook trigger (fired by the /files endpoint):
+# The message body is the event, exactly as automation-webhook's /files got it:
 #
-#   ---
-#   routine: file-router
-#   rclone_src: nextcloud
-#   ---
 #   {"event":{"node":{"id":91,"path":"/admin/files/workspace/a.md"},"class":"OCP\\Files\\Events\\Node\\NodeWrittenEvent"},"user":{...},"time":...}
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 || precheck_fail "file-router" "jq not found"
-    precheck_pass "file-router"
-    exit 0
-fi
-
-rclone_src="${rclone_src:-nextcloud}"
+rclone_src="$DECREE_DATA_RCLONE_SRC"
 
 # Parse the event
 _json=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' \
-    "$message_file" | sed '/./,$!d')
+    "$DECREE_MESSAGE" | sed '/./,$!d')
 
 if [ -z "$_json" ]; then
     echo "Empty message body, nothing to route."
@@ -99,7 +81,7 @@ case "${_class##*\\}" in
         ;;
 esac
 
-_processors_dir="$(dirname "${BASH_SOURCE[0]}")/../lib/file-processors"
+_processors_dir="${DECREE_LIB}/file-processors"
 _matched=0
 
 for _pair in "${_pairs[@]}"; do
@@ -109,7 +91,7 @@ for _pair in "${_pairs[@]}"; do
     echo "Event:  ${_class##*\\} → $_file_action"
     echo "Source: $_file_source"
 
-    # Find all matching processors and enqueue a file-processor message for each
+    # Find all matching processors and emit a file_processor message for each
     for _processor in "$_processors_dir"/*.sh; do
         [ -f "$_processor" ] || continue
         _raw=$(grep -m1 '^PATTERN=' "$_processor" || true)
@@ -118,46 +100,23 @@ for _pair in "${_pairs[@]}"; do
 
         if [[ "$_file_source" =~ $_pattern ]]; then
             _processor_name=$(basename "$_processor" .sh)
-            # decree reads the outbox but never creates it, so every routine that
-            # queues a message has to. This router was the one that did not, and it
-            # failed on the first event a fresh install ever routed.
-            _outbox_dir="${OUTBOX_DIR:-/work/.decree/outbox}"
-            mkdir -p "$_outbox_dir"
-            # _matched is in the filename because a rename enqueues the same
-            # processor twice (removed, then created) and the two must not collide.
-            _outbox_file="${_outbox_dir}/${message_id}-${_matched}-${_processor_name}.md"
 
             _raw_ref=$(grep -m1 '^IS_PRE_SIGNED=' "$_processor" || true)
             _is_pre_signed=$(echo "$_raw_ref" | sed "s/^IS_PRE_SIGNED=[\"']\?\([^\"']*\)[\"']\?$/\1/")
 
-            # Optional natural-language gate, evaluated by file-processor once the
-            # content is actually on disk — the path is all we have here. Quoted
-            # through jq because criteria are prose: colons and quotes are normal in
-            # them — as they are in rclone_path, which carries a file path and
-            # so is whatever the user named their file. "Report: Q3.pdf" produces a
-            # ": " in the value; unquoted, that message is invalid YAML and decree
-            # re-runs it forever without ever writing run.json. Only processor,
-            # file_action and is_pre_signed below are genuinely mechanical.
+            # Optional natural-language gate, evaluated by file_processor once the
+            # content is actually on disk — the path is all we have here.
             _raw_crit=$(grep -m1 '^CRITERIA=' "$_processor" || true)
             _criteria=$(echo "$_raw_crit" | sed "s/^CRITERIA=[\"']\(.*\)[\"']$/\1/")
 
-            # subroutine duplicates processor on purpose: processor is file-processor's
-            # own dispatch input, subroutine is the generic "which sub-thing did this
-            # run actually do" convention afterEach.sh surfaces to Grafana. Same value
-            # here, but they answer different questions and a future routine's
-            # subroutine won't always equal some other field it also happens to set.
-
-            cat > "$_outbox_file" << EOF
----
-routine: file-processor
-rclone_path: $(jq -rn --arg v "${_file_source}" '$v|@json')
-processor: ${_processor_name}
-subroutine: ${_processor_name}
-file_action: ${_file_action}
-is_pre_signed: ${_is_pre_signed:-false}
-criteria: $(jq -rn --arg v "${_criteria}" '$v|@json')
----
-EOF
+            # --param values reach decree as argv and decree writes the YAML, so a
+            # path like "Report: Q3.pdf" or prose criteria need no quoting here.
+            decree emit --machine file_processor \
+                --param rclone_path="${_file_source}" \
+                --param processor="${_processor_name}" \
+                --param file_action="${_file_action}" \
+                --param is_pre_signed="${_is_pre_signed:-false}" \
+                --param criteria="${_criteria}" </dev/null >/dev/null
             echo "Queued: $_processor_name"
             _matched=$((_matched + 1))
         fi

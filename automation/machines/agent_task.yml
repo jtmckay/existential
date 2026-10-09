@@ -1,0 +1,16 @@
+name: agent_task
+description: Hand a task to a hermes profile and file the answer in workspace/ai/, then notify.
+data:
+  prompt: { type: string, default: "" }
+  profile: { type: string, default: "" }
+  file_path: { type: string, default: "" }
+  output_name: { type: string, default: "" }
+  agent_timeout: { type: int, default: 900 }
+initial: ask
+states:
+  ask:
+    invoke: agent_task
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

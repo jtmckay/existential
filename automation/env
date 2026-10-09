@@ -1,0 +1,3 @@
+# decree's project variables: every script gets these. Committed, so no
+# secrets — those come from the container's compose environment, which wins
+# over anything set here.

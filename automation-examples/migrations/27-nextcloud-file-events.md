@@ -1,5 +1,5 @@
 ---
-routine: nextcloud-file-events
+machine: nextcloud_file_events
 ---
 
 Register Nextcloud's file-event webhooks (written, deleted, renamed) against

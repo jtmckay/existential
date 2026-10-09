@@ -1,10 +1,11 @@
 ---
-cron: "0 9 * * 1"
-routine: notify
-ntfy_topic: 'exist'
-ntfy_title: 'Weekly reminder'
-ntfy_priority: 'default'
-ntfy_tags: 'calendar'
+cron: "0 9 * * MON"
+machine: notify
+params:
+  ntfy_topic: 'exist'
+  ntfy_title: 'Weekly reminder'
+  ntfy_priority: 'default'
+  ntfy_tags: 'calendar'
 ---
 
 Replace this body with the notification message to send on the cron schedule.

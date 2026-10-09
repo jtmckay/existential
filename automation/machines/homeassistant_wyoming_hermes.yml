@@ -1,0 +1,14 @@
+name: homeassistant_wyoming_hermes
+description: Wire Wyoming speech-to-text and text-to-speech, and Hermes as the conversation agent, into Home Assistant's Assist pipeline.
+initial: wait_for_homeassistant
+states:
+  # First boot runs this before homeassistant has finished starting.
+  wait_for_homeassistant:
+    invoke:
+      script: { name: wait_for_homeassistant, timeout: 10m }
+    transitions: { done: homeassistant_wyoming_hermes }
+  homeassistant_wyoming_hermes:
+    invoke: homeassistant_wyoming_hermes
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

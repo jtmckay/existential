@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# note-develop — take one flagged note and do the work that can be done without you.
+# note_develop — take one flagged note and do the work that can be done without you.
 #
-# Chained by note-triage (routine: note-develop, note_path: <relative path>), or
-# run by hand against any note. Produces a single markdown file: what it found,
+# Emitted by note_triage (note_path: <relative path>), or run by hand against
+# any note. Produces a single markdown file: what it found,
 # a draft plan, and — the part that matters — the questions it could not answer
 # without you.
 #
@@ -14,30 +14,14 @@
 # back beside the original note. It is NOT written into NOTES_DIR — that path is
 # an rclone sync cache and anything left there is deleted on the next sync.
 #
-# Manual invocation:
-#   docker exec automation decree run --routine note-develop \
-#     --param note_path=ideas/tool-rental.md
+# By hand:
+#   docker exec automation decree emit --machine note_develop \
+#     --param note_path=ideas/tool-rental.md </dev/null
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "note-develop" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "note-develop" "jq not found"
-    precheck_pass "note-develop"
-    exit 0
-fi
-
-note_path="${note_path:-}"
-note_reason="${note_reason:-}"
+note_path="$DECREE_DATA_NOTE_PATH"
+note_reason="$DECREE_DATA_NOTE_REASON"
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/note-triage/output}"
 TRIAGE_API_URL="${TRIAGE_API_URL:-http://hermes-agent:8642/v1}"
@@ -56,7 +40,6 @@ if [ -z "$TRIAGE_API_KEY" ]; then
     TRIAGE_API_KEY="${HERMES_API_KEY:-}"
 fi
 
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 RCLONE_CONF="${RCLONE_CONF:-/secrets/rclone/rclone.conf}"
 
 if [ -z "$note_path" ]; then
@@ -216,13 +199,8 @@ fi
 
 if [ "$NOTE_NOTIFY" = "true" ]; then
     questions="$(printf '%s' "$draft" | sed -n '/^## What only you can answer/,$p' | tail -n +2)"
-    cat > "${OUTBOX_DIR}/note-develop-$(date +%s%N).md" << EOF
----
-routine: notify
-ntfy_title: $(jq -rn --arg v "Idea developed — ${note_name}" '$v|@json')
-ntfy_priority: default
-ntfy_tags: bulb
----
+    decree emit --machine notify --param ntfy_title="Idea developed — ${note_name}" \
+        --param ntfy_priority=default --param ntfy_tags=bulb >/dev/null <<EOF
 ${note_reason:-A note was flagged and developed.}
 
 ${questions}

@@ -1,0 +1,13 @@
+name: sqlite_backup
+description: Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
+data:
+  TIER: { type: string, enum: [nightly, weekly], default: nightly }
+  # One entry per line; the format is in automation/scripts/sqlite_backup.sh.
+  TARGETS: { type: string, default: "" }
+initial: backup
+states:
+  backup:
+    invoke: sqlite_backup
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

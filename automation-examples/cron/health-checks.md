@@ -1,8 +1,9 @@
 ---
 cron: "*/15 * * * *"
-routine: service-health
-SERVICE_NAME: automation-webhook
-SERVICE_URL: http://automation-webhook:8801/healthz
+machine: service_health
+params:
+  SERVICE_NAME: automation-webhook
+  SERVICE_URL: http://automation-webhook:8801/healthz
 ---
 
 Health check cron template for all services accessible from the main decree

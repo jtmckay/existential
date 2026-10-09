@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# calendar-extract — mirror upcoming (and recently past) Nextcloud Calendar
+# calendar_extract — mirror upcoming (and recently past) Nextcloud Calendar
 # events into workspace/ai/calendar/ as plain notes, so OpenViking indexes
 # them and hermes can answer "what's on my calendar" the same way it answers
 # anything else that lives in workspace/.
 #
 # Why notes instead of a live CalDAV lookup at query time: OpenViking's MCP
-# tool searches an index, not a live API — see note-connect.sh's header for
+# tool searches an index, not a live API — see note_connect.sh's header for
 # why hermes departments can't just "ask" an external service ad hoc. Turning
 # each event into a note is what makes calendar content reachable the same
 # way everything else in workspace/ is: through search, not a bespoke tool.
@@ -13,7 +13,7 @@
 # One markdown file per event under workspace/ai/calendar/<calendar-slug>/,
 # not workspace/<subdir>/: this content is machine-derived from Nextcloud, not
 # something you wrote, and workspace/ai/ is the established home for that —
-# see openviking-index-dir's cron (workspace/ai/ is deliberately NOT excluded
+# see openviking_index_dir's cron (workspace/ai/ is deliberately NOT excluded
 # from indexing). Writing it fires no file event — only uploads through
 # Nextcloud do — so content pulled *from* Nextcloud can never loop back in.
 #
@@ -31,7 +31,7 @@
 # RRULE) is written as a single note describing the series rather than
 # guessed at.
 #
-# Env vars (set via cron frontmatter):
+# Params (the cron file's), exported under these names for caldav.ts:
 #   CALENDAR_EXTRACT_PAST_DAYS     how far back to include, default 7
 #   CALENDAR_EXTRACT_FUTURE_DAYS   how far ahead to include, default 60
 #   CALENDAR_EXTRACT_CALENDARS     comma-separated calendar slugs to include
@@ -46,21 +46,13 @@
 #   NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD
 set -euo pipefail
 
-message_file="${message_file:-}"; message_id="${message_id:-}"; message_dir="${message_dir:-}"; chain="${chain:-}"; seq="${seq:-}"
+export CALENDAR_EXTRACT_PAST_DAYS="$DECREE_DATA_CALENDAR_EXTRACT_PAST_DAYS"
+export CALENDAR_EXTRACT_FUTURE_DAYS="$DECREE_DATA_CALENDAR_EXTRACT_FUTURE_DAYS"
+export CALENDAR_EXTRACT_CALENDARS="$DECREE_DATA_CALENDAR_EXTRACT_CALENDARS"
+export CALENDAR_EXTRACT_TZ="$DECREE_DATA_CALENDAR_EXTRACT_TZ"
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "calendar-extract" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "calendar-extract" "jq not found"
-    command -v tsx  >/dev/null 2>&1 || precheck_fail "calendar-extract" "tsx not found"
-    [ -d "${WORKSPACE_DIR:-/workspace}" ] || precheck_fail "calendar-extract" \
-        "${WORKSPACE_DIR:-/workspace} does not exist — is workspace/ mounted?"
-    [ -n "${NEXTCLOUD_ADMIN_USER:-}" ]     || precheck_fail "calendar-extract" "NEXTCLOUD_ADMIN_USER is empty — enable nextcloud"
-    [ -n "${NEXTCLOUD_ADMIN_PASSWORD:-}" ] || precheck_fail "calendar-extract" "NEXTCLOUD_ADMIN_PASSWORD is empty — enable nextcloud"
-    precheck_pass "calendar-extract"
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER is empty — enable nextcloud}"
+: "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD is empty — enable nextcloud}"
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 STATE_DIR="${STATE_DIR:-/data/calendar-extract}"

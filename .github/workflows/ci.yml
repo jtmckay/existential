@@ -51,26 +51,6 @@ jobs:
       - name: shellcheck
         run: ./existential.sh test lint
 
-  # The webhook module carries 21 tests that nothing has ever run: they sit
-  # outside ./existential.sh test by design, and the documented way to run them
-  # is a docker one-liner someone has to remember.
-  go:
-    name: Webhook Go tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/automation/webhook
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          # Matches the builder stage in webhook/Dockerfile. go.mod's `go 1.22`
-          # is the floor, not the build version.
-          go-version: '1.26.6'
-          cache-dependency-path: services/automation/webhook/go.sum
-      - run: go vet ./...
-      - run: go test ./...
-
   # Builds the adhoc image, which is the slow one (cargo install + node +
   # database clients). Everything that needs tsx or the container lives here.
   unit:
@@ -86,6 +66,8 @@ jobs:
         run: docker compose -f existential-compose.yml build existential-adhoc
       - name: TypeScript typecheck
         run: ./existential.sh test typecheck
+      - name: decree check
+        run: ./existential.sh test decree
       - name: Unit tests
         run: ./existential.sh test unit
       - name: Suite self-check

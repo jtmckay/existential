@@ -9,14 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../../../../automation/lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 || precheck_fail "e2e-file-processing" "jq not found"
-    [ -n "${NEXTCLOUD_ADMIN_USER:-}" ] || precheck_fail "e2e-file-processing" "NEXTCLOUD_ADMIN_USER not set"
-    precheck_pass "e2e-file-processing"
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
 
 NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 INBOX="${E2E_INBOX:-/work/.decree/inbox}"

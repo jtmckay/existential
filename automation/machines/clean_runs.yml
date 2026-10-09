@@ -1,0 +1,11 @@
+name: clean_runs
+description: Delete this project's finished runs older than OLDER_THAN; Loki keeps the history.
+data:
+  OLDER_THAN: { type: string, default: 7d }
+initial: prune
+states:
+  prune:
+    invoke: clean_runs
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

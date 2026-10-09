@@ -1,478 +1,122 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
-  "description": "Decree automation monitoring — success rates, durations, attempts, and logs",
+  "description": "decree runs from both projects: outcomes, durations and recent runs. Metrics come from alloy's stage.metrics over each run's events.jsonl; runs are the run_finished lines in Loki.",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [],
   "panels": [
     {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "id": 1,
-      "title": "Current Status",
-      "type": "row"
+      "options": { "orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "refId": "A", "instant": true, "legendFormat": "{{machine}} done", "expr": "round(sum by (machine) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\", state=\"done\"}[$__range])))" },
+        { "refId": "B", "instant": true, "legendFormat": "{{machine}} failed", "expr": "round(sum by (machine) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\", state!=\"done\"}[$__range]))) > 0" }
+      ],
+      "title": "Runs in range",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "refId": "A", "legendFormat": "{{machine}}", "expr": "histogram_quantile(0.95, sum by (machine, le) (rate(decree_run_duration_milliseconds_bucket{daemon=~\"$daemon\", machine=~\"$machine\"}[1h])))" }
+      ],
+      "title": "Run duration (p95, 1h)",
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "links": [
-            {
-              "title": "Filter to this routine",
-              "url": "/d/decree-overview/decree-overview?var-routine=${__field.labels.instance}&from=${__from}&to=${__to}",
-              "targetBlank": false
-            }
-          ],
-          "mappings": [
-            {
-              "options": {
-                "0": { "color": "red", "index": 0, "text": "FAILED" },
-                "1": { "color": "green", "index": 1, "text": "OK" }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
+        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "stacking": { "mode": "normal" }, "fillOpacity": 80 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "done" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+        ]
       },
-      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 1 },
-      "id": 2,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 3,
       "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "decree_run_success",
-          "instant": true,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
+        { "refId": "A", "legendFormat": "{{state}}", "interval": "1h", "expr": "sum by (state) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\"}[$__interval]))" }
       ],
-      "title": "Last Run Status",
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
-      "id": 10,
-      "title": "Recent Runs",
-      "type": "row"
+      "title": "Finished runs per hour, by final state",
+      "type": "timeseries"
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": {
         "defaults": {},
         "overrides": [
+          { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [{ "id": "unit", "value": "ms" }] },
           {
-            "matcher": { "id": "byName", "options": "id" },
-            "properties": [{ "id": "custom.hidden", "value": true }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "tsNs" },
-            "properties": [{ "id": "custom.hidden", "value": true }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "exit_code" },
+            "matcher": { "id": "byName", "options": "state" },
             "properties": [
-              { "id": "custom.displayMode", "value": "color-background" },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": { "color": "green", "text": "0" },
-                      "1": { "color": "red", "text": "1" }
-                    }
-                  }
-                ]
-              }
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": { "done": { "color": "green" } } }, { "type": "regex", "options": { "pattern": ".*", "result": { "color": "red" } } }] }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "duration_s" },
-            "properties": [{ "id": "unit", "value": "s" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Message ID" },
+            "matcher": { "id": "byName", "options": "run_id" },
             "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View run detail",
-                    "url": "/d/decree-run-detail/decree-run-detail?var-message_id=${__value.raw}&from=${__from}&to=${__to}",
-                    "targetBlank": false
-                  }
-                ]
-              },
-              { "id": "custom.width", "value": 230 }
+              { "id": "links", "value": [{ "title": "View run", "url": "/d/decree-run-detail/decree-run-detail?var-run_id=${__value.raw}&from=${__from}&to=${__to}" }] }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 7 },
-      "id": 11,
-      "options": {
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [{ "displayName": "Time", "desc": true }]
-      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
+      "id": 4,
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Time", "desc": true }] },
       "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"decree\",routine=~\"$routine\",trigger_type=~\"$trigger_type\"} | logfmt",
-          "queryType": "range",
-          "refId": "A",
-          "maxLines": 100
-        }
+        { "refId": "A", "queryType": "range", "maxLines": 200, "expr": "{job=\"decree\", daemon=~\"$daemon\", type=\"run_finished\", machine=~\"$machine\"}" }
       ],
-      "title": "Recent Run Events",
+      "title": "Recent runs",
       "transformations": [
-        {
-          "id": "extractFields",
-          "options": {
-            "source": "Line",
-            "format": "auto"
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Line": true,
-              "id": true,
-              "tsNs": true,
-              "labels": true,
-              "job": true,
-              "exit_code_extracted": true,
-              "routine_extracted": true,
-              "service_name": true,
-              "trigger_type": true
-            },
-            "renameByName": {
-              "Time": "Time",
-              "message_id": "Message ID",
-              "chain": "Chain",
-              "routine": "Routine",
-              "subroutine": "Subroutine",
-              "trigger": "Trigger",
-              "correlation_id": "Correlation ID",
-              "exit_code": "Exit Code",
-              "attempts": "Attempts",
-              "duration_s": "Duration",
-              "final": "Final"
-            },
-            "indexByName": {
-              "Time": 0,
-              "message_id": 1,
-              "chain": 2,
-              "routine": 3,
-              "subroutine": 4,
-              "trigger": 5,
-              "correlation_id": 6,
-              "exit_code": 7,
-              "attempts": 8,
-              "duration_s": 9,
-              "final": 10
-            }
-          }
-        }
+        { "id": "extractFields", "options": { "source": "Line", "format": "json" } },
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["Time", "machine", "state", "duration_ms", "trigger", "run_id"] } } }
       ],
       "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
-      "id": 3,
-      "title": "Trends",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": { "index": 0, "text": "Failed" },
-                "1": { "index": 1, "text": "OK" }
-              },
-              "type": "value"
-            }
-          ],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 16 },
-      "id": 4,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "decree_run_success{instance=~\"$routine\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Success / Failure Over Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 16 },
-      "id": 5,
-      "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "decree_run_duration_seconds{instance=~\"$routine\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Run Duration",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "min": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 2 },
-              { "color": "red", "value": 3 }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 16 },
-      "id": 9,
-      "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "none" }
-      },
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "decree_run_attempts{instance=~\"$routine\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Attempts Per Run",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
-      "id": 6,
-      "title": "Logs",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 26 },
-      "id": 7,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": true,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
-        {
-          "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"decree\", message_id=~\".*$routine.*\", log_type=\"routine\"}",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Routine Logs",
-      "type": "logs"
     }
   ],
-  "refresh": "1m",
   "schemaVersion": 39,
   "tags": ["decree", "automation"],
   "templating": {
     "list": [
       {
-        "current": { "selected": true, "text": "All", "value": "$__all" },
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(decree_run_success, instance)",
-        "hide": 0,
+        "definition": "label_values(decree_runs_total, daemon)",
         "includeAll": true,
-        "label": "Routine",
-        "multi": false,
-        "name": "routine",
-        "options": [],
-        "query": {
-          "query": "label_values(decree_run_success, instance)",
-          "refId": "StandardVariableQuery"
-        },
+        "current": { "text": "All", "value": "$__all" },
+        "name": "daemon",
+        "label": "Daemon",
+        "query": { "query": "label_values(decree_runs_total, daemon)", "refId": "daemon" },
         "refresh": 2,
-        "regex": "",
-        "sort": 1,
         "type": "query"
       },
       {
-        "allValue": ".*",
-        "current": { "selected": true, "text": "All", "value": "$__all" },
-        "hide": 0,
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(decree_runs_total{daemon=~\"$daemon\"}, machine)",
         "includeAll": true,
-        "label": "Trigger Type",
-        "multi": false,
-        "name": "trigger_type",
-        "options": [
-          { "selected": false, "text": "All", "value": "$__all" },
-          { "selected": false, "text": "cron", "value": "cron" },
-          { "selected": false, "text": "inbox", "value": "inbox" },
-          { "selected": false, "text": "chain", "value": "chain" }
-        ],
-        "query": "cron,inbox,chain",
-        "type": "custom"
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "name": "machine",
+        "label": "Machine",
+        "query": { "query": "label_values(decree_runs_total{daemon=~\"$daemon\"}, machine)", "refId": "machine" },
+        "refresh": 2,
+        "type": "query"
       }
     ]
   },
-  "time": { "from": "now-24h", "to": "now" },
-  "timepicker": {},
+  "time": { "from": "now-7d", "to": "now" },
   "timezone": "browser",
   "title": "Decree Overview",
   "uid": "decree-overview",

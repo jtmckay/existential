@@ -1,0 +1,22 @@
+name: actual_budget_parse
+description: Run a bank's parse script against one email and emit the transaction it finds to actual_budget.
+data:
+  gmail_id: { type: string, default: "" }
+  thread_id: { type: string, default: "" }
+  from: { type: string, default: "" }
+  to: { type: string, default: "" }
+  subject: { type: string, default: "" }
+  date: { type: string, default: "" }
+  labels: { type: string, default: "" }
+  has_attachments: { type: bool, default: false }
+  # The tsx parser, e.g. /work/.decree/lib/actual-budget/parse-chase.ts.
+  parse_script: { type: string, default: "" }
+  account_id: { type: string, default: "" }
+initial: parse
+states:
+  parse:
+    invoke: actual_budget_parse
+    transitions: { done: done }
+    emits: [actual_budget]
+  done: { final: true }
+  failed: { final: true }

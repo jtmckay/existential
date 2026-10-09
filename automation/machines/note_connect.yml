@@ -1,0 +1,19 @@
+name: note_connect
+description: For each new or changed note, ask a hermes department with OpenViking access for one non-obvious connection to what you already know.
+data:
+  CONNECT_PROFILE: { type: string, default: research }
+  CONNECT_MIN_SCORE: { type: int, default: 7 }
+  CONNECT_MAX_NOTES: { type: int, default: 20 }
+  # One run with this on scans the existing tree instead of recording it as seen.
+  CONNECT_BOOTSTRAP: { type: bool, default: false }
+  CONNECT_DRY_RUN: { type: bool, default: false }
+  # Copy each writeup back beside its source note, e.g. nextcloud:Notes.
+  CONNECT_OUTPUT_RCLONE_DEST: { type: string, default: "" }
+initial: connect
+states:
+  connect:
+    invoke: note_connect
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

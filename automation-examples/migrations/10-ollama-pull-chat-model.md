@@ -1,6 +1,7 @@
 ---
-routine: ollama-pull
-OLLAMA_ROLE: chat
+machine: ollama_pull
+params:
+  OLLAMA_ROLE: chat
 ---
 Pull the primary chat/reasoning model — whatever EXIST_MODEL_CHAT names in
 .env.shared. Used by Hermes and Open WebUI.

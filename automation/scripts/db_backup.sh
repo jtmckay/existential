@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# db-backup — dump every database listed in $TARGETS, rclone the dumps to
+# db_backup — dump every database listed in $TARGETS, rclone the dumps to
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
 # than the tier's retention window.
 #
-# Triggered by cron files in services/automation/backup/cron/. Decree
-# exposes cron frontmatter keys (TIER, TARGETS) as env vars. Credential vars
-# come from decree-backup's environment, which is the master .env.
+# Triggered by cron files in services/automation/backup/cron/, whose params
+# (TIER, TARGETS) are this machine's data. Credential vars
+# come from automation-backup's environment, which is the master .env.
 #
 # Manual invocation:
-#   docker exec automation-backup decree run db-backup
+#   docker exec automation-backup decree emit --machine db_backup \
+#       --param TIER=nightly --param TARGETS="..." </dev/null
 #
 # $TARGETS format (one entry per line, whitespace-separated):
 #   <engine> <container> <USER_ENV_VAR> <PASS_ENV_VAR>
@@ -18,32 +19,20 @@
 set -euo pipefail
 
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Pre-check ─────────────────────────────────────────────────────────────────
+[ -f "$RCLONE_CONFIG" ] || { echo "rclone not configured (run ./existential.sh run rclone)" >&2; exit 1; }
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v rclone     >/dev/null || precheck_fail "db-backup" "rclone not found"
-    command -v pg_dumpall >/dev/null || precheck_fail "db-backup" "pg_dumpall not found"
-    command -v mysqldump  >/dev/null || precheck_fail "db-backup" "mysqldump not found"
-    command -v mongodump  >/dev/null || precheck_fail "db-backup" "mongodump not found"
-    [ -f "$RCLONE_CONFIG" ] || precheck_fail "db-backup" "rclone not configured (run ./existential.sh run rclone)"
-    precheck_pass "db-backup"
-    exit 0
-fi
+# ── Config from the cron file's params ───────────────────────────────────────
 
-# ── Config from cron frontmatter / args ───────────────────────────────────────
-
-TIER="${TIER:-${1:-nightly}}"
+TIER="$DECREE_DATA_TIER"
+TARGETS="$DECREE_DATA_TARGETS"
 case "$TIER" in
     nightly) RETENTION_DAYS=7 ;;
     weekly)  RETENTION_DAYS=28 ;;
     *) echo "Unknown tier: $TIER (expected nightly|weekly)" >&2; exit 2 ;;
 esac
 
-[ -n "${TARGETS:-}" ] || { echo "TARGETS is empty — set it in the cron frontmatter" >&2; exit 2; }
+[ -n "$TARGETS" ] || { echo "TARGETS is empty — set it in the cron file's params" >&2; exit 2; }
 
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
 [ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config" >&2; exit 1; }

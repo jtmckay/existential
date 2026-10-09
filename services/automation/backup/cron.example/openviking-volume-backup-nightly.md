@@ -1,9 +1,10 @@
 ---
 cron: "0 3 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  openviking_data openviking
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    openviking_data openviking
 ---
 
 Tar openviking_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/openviking_data/.

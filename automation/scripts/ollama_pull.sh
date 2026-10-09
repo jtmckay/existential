@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# ollama-pull — pull an Ollama model or create one from a Modelfile via HTTP API.
+# ollama_pull — pull an Ollama model or create one from a Modelfile via HTTP API.
 # Used by the decree daemon's ollama migrations; idempotent on pull and create.
+# Every OLLAMA_* below is a param (DECREE_DATA_OLLAMA_*), all optional.
 #
 # Naming a model by ROLE (preferred):
 #   OLLAMA_ROLE      chat | chat-ctx | extract | embed | vision
@@ -22,7 +23,9 @@
 #
 # Each endpoint key falls back to EXIST_OLLAMA_URL when blank, so a single-box
 # install behaves exactly as it did before roles existed. An explicit OLLAMA_URL
-# in the migration still wins over both.
+# param in the migration still wins over both. (The container's own OLLAMA_URL
+# env var is the VISION endpoint, which is why the override is a param, never
+# read from the environment.)
 #
 # A role that resolves to an EMPTY value is skipped, not an error: that is how
 # EXIST_MODEL_VISION= turns the vision model off on a small card.
@@ -35,15 +38,17 @@
 #   OLLAMA_FROM      base model  e.g. "gemma4:e2b-it-qat"
 #   OLLAMA_NUM_CTX   override num_ctx  e.g. "32768"
 #
-# When OLLAMA_FROM is set, the routine calls /api/create to build a model
+# When OLLAMA_FROM is set, the script calls /api/create to build a model
 # named OLLAMA_MODEL from OLLAMA_FROM with any supplied Modelfile params.
 
 set -euo pipefail
 
-OLLAMA_ROLE="${OLLAMA_ROLE:-}"
+OLLAMA_ROLE="$DECREE_DATA_OLLAMA_ROLE"
+OLLAMA_MODEL="$DECREE_DATA_OLLAMA_MODEL"
+OLLAMA_FROM="$DECREE_DATA_OLLAMA_FROM"
+OLLAMA_NUM_CTX="$DECREE_DATA_OLLAMA_NUM_CTX"
 
-# Resolve a role to its EXIST_MODEL_* global. Runs before the pre-check so an
-# unknown role fails the same way in both paths.
+# Resolve a role to its EXIST_MODEL_* global.
 _ROLE_URL=""
 if [ -n "$OLLAMA_ROLE" ]; then
     case "$OLLAMA_ROLE" in
@@ -72,23 +77,12 @@ if [ -n "$OLLAMA_ROLE" ]; then
     fi
 fi
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "ollama-pull" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "ollama-pull" "jq not found"
-    [ -n "${OLLAMA_MODEL:-}" ] || precheck_fail "ollama-pull" "OLLAMA_MODEL or OLLAMA_ROLE is required"
-    precheck_pass "ollama-pull"
-    exit 0
-fi
-
 # Precedence: an explicit OLLAMA_URL in the migration, then the role's endpoint,
 # then the global one. The role sits in the middle so splitting roles across
 # machines needs no migration edits, while a migration that names a host still
 # gets the host it named.
-OLLAMA_URL="${OLLAMA_URL:-${_ROLE_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}}"
+OLLAMA_URL="${DECREE_DATA_OLLAMA_URL:-${_ROLE_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}}"
 OLLAMA_MODEL="${OLLAMA_MODEL:?OLLAMA_MODEL or OLLAMA_ROLE is required}"
-OLLAMA_FROM="${OLLAMA_FROM:-}"
-OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,7 +93,7 @@ ollama_api() {
 # /api/pull and /api/create stream for as long as the transfer takes — minutes
 # for a multi-GB tag. ollama_api's 30s cap is right for /api/tags and /api/show
 # and fatal here: curl exits 28 mid-stream, pipefail turns that into a routine
-# failure, and a failed migration halts the chain, so the extract/embed/vision
+# failure, and a failed migration halts the queue, so the extract/embed/vision
 # models behind it are never pulled either. That is the "ollama came up with no
 # models" failure the e2e harness found. Mirrors exist.pull-models.sh.
 ollama_api_stream() {
@@ -147,14 +141,18 @@ stream_until_done() {
 }
 
 # ── Wait for ollama to be ready ───────────────────────────────────────────────
+#
+# On a fresh install this is the first migration, run the moment the daemon
+# starts, so ollama may still be booting. Ten minutes, then fail: a failed
+# migration blocks the rest until `decree process --retry`.
 
 echo "Waiting for ollama at ${OLLAMA_URL}..."
-for i in $(seq 1 30); do
+for i in $(seq 1 120); do
     if ollama_api /api/tags >/dev/null 2>&1; then
         echo "ollama ready."
         break
     fi
-    [ "$i" -eq 30 ] && { echo "ollama did not respond after 30 attempts" >&2; exit 1; }
+    [ "$i" -eq 120 ] && { echo "ollama did not respond within 10 minutes" >&2; exit 1; }
     sleep 5
 done
 

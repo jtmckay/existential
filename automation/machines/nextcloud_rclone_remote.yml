@@ -1,0 +1,14 @@
+name: nextcloud_rclone_remote
+description: Configure the nextcloud rclone remote (WebDAV, admin credentials) that file_processor downloads through.
+initial: wait_for_nextcloud
+states:
+  # First boot runs this before nextcloud has finished starting.
+  wait_for_nextcloud:
+    invoke:
+      script: { name: wait_for_nextcloud, timeout: 10m }
+    transitions: { done: nextcloud_rclone_remote }
+  nextcloud_rclone_remote:
+    invoke: nextcloud_rclone_remote
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

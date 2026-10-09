@@ -1,0 +1,16 @@
+name: hermes_router
+description: Ask the hermes router profile which department fits a task, then hand it to agent_task on that profile.
+data:
+  source_file: { type: string, default: "" }
+  output_name: { type: string, default: "" }
+initial: route
+states:
+  route:
+    invoke: hermes_router
+    transitions: { done: done, not_routed: not_routed }
+    emits: [agent_task]
+  done: { final: true }
+  # No department matched, or the router gave no answer. Never guessed; the
+  # reason is in the run's log.
+  not_routed: { final: true }
+  failed: { final: true }

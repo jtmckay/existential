@@ -1,9 +1,10 @@
 ---
 cron: "30 2 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  nocodb_data nocodb
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    nocodb_data nocodb
 ---
 
 Tar nocodb_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/nocodb_data/.

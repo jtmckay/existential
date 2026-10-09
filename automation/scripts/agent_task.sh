@@ -16,71 +16,39 @@
 # coding agent on the host, not to this stack.
 #
 # `profile` picks which hermes profile answers (default: the default profile).
-# The dept-<name> routines are this same call bound to one profile each.
 #
-# hermes is told its correlation_id (this chain's own $chain, or an explicit
-# `correlation_id` field if the message set one) and that any follow-up work
-# goes to workspace/outbox/, never automation/ — hermes has no mount into the
-# latter, and shouldn't. See workspace/outbox/README.md and outbox-relay.sh.
+# hermes is told how to ask for follow-up work — automation-webhook's /hermes/*
+# endpoints — with this run's TRACEPARENT, so its follow-up joins this trace.
+# hermes has no mount into automation/, and shouldn't.
 #
-# Chained by a file processor, or run by hand by dropping a message in the inbox
-# (automation/inbox/<name>.md):
+# The prompt is the `prompt` param, or else the message body — which is how
+# hermes' /hermes/task/<profile> endpoint sends it:
 #
-#   ---
-#   routine: agent-task
-#   prompt: What should I do about the thing in this file?
-#   file_path: notes/decisions.md
-#   output_name: decisions-followup
-#   profile: research
-#   ---
+#   decree emit --machine agent_task --param profile=research \
+#       --param file_path=notes/decisions.md <<<'What should I do about this?'
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+: "${HERMES_API_KEY:?HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through}"
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "agent-task" "curl not found"
-    command -v jq >/dev/null 2>&1 || precheck_fail "agent-task" "jq not found"
-    [ -n "${HERMES_API_KEY:-}" ] || precheck_fail "agent-task" \
-        "HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through"
-    [ -d "${AGENT_OUTPUT_DIR:-/workspace/ai}" ] || precheck_fail "agent-task" \
-        "${AGENT_OUTPUT_DIR:-/workspace/ai} does not exist — is ../../workspace mounted into the decree container?"
-    precheck_pass "agent-task"
-    exit 0
+prompt="$DECREE_DATA_PROMPT"
+if [ -z "$prompt" ]; then
+    prompt="$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$DECREE_MESSAGE" | sed '/./,$!d')"
 fi
-
-prompt="${prompt:-}"
-profile="${profile:-}"
-file_path="${file_path:-}"
-output_name="${output_name:-}"
-# The identifier of whatever message started this flow — an explicit
-# correlation_id (set by whoever queued this task) wins, otherwise it's just
-# this chain's own id. Every decree-triggered run has one; a standalone
-# manual run still gets a fresh chain from decree, so this is never empty.
-correlation_id="${correlation_id:-$chain}"
-export CORRELATION_ID="$correlation_id"
+profile="$DECREE_DATA_PROFILE"
+file_path="$DECREE_DATA_FILE_PATH"
+output_name="$DECREE_DATA_OUTPUT_NAME"
 AGENT_OUTPUT_DIR="${AGENT_OUTPUT_DIR:-/workspace/ai}"
-AGENT_TIMEOUT="${agent_timeout:-${AGENT_TIMEOUT:-900}}"
+AGENT_TIMEOUT="$DECREE_DATA_AGENT_TIMEOUT"
 AGENT_NOTIFY="${AGENT_NOTIFY:-true}"
 AGENT_MAX_TOKENS="${AGENT_MAX_TOKENS:-4000}"
 
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-mkdir -p "$OUTBOX_DIR"   # decree reads the outbox but never creates it
-
 if [ -z "$prompt" ]; then
-    echo "prompt is required." >&2
+    echo "prompt is required: a prompt param, or a message body." >&2
     exit 1
 fi
 
 # shellcheck source=../lib/hermes.sh
-source "${SCRIPT_DIR}/../lib/hermes.sh"
+source "${DECREE_LIB}/hermes.sh"
 
 # --- Build the full prompt -------------------------------------------------
 
@@ -90,7 +58,7 @@ system_prompt="You have search over this workspace's knowledgebase (OpenViking)
 and over the web. Use them where they would change the answer, and say plainly
 where you could not find something rather than inventing it.
 
-$(hermes_correlation_notice "$correlation_id")
+$(hermes_followup_notice)
 Write markdown. Be concrete and brief — no preamble, no encouragement."
 
 full_prompt="${prompt}"
@@ -103,7 +71,7 @@ fi
 
 # --- Run it ----------------------------------------------------------------
 
-_name="${output_name:-${message_id:-agent-task-$(date +%s)}}"
+_name="${output_name:-${DECREE_MESSAGE_ID}}"
 # One path component only: a source path in output_name would otherwise escape
 # the output directory, and the whole point of that directory is containment.
 _name="$(basename "$_name")"
@@ -113,7 +81,7 @@ out="${AGENT_OUTPUT_DIR}/${_name}.md"
 mkdir -p "$AGENT_OUTPUT_DIR"
 
 echo "Asking the ${profile:-default} profile (timeout ${AGENT_TIMEOUT}s)..."
-_raw="$(mktemp "${message_dir:-/tmp}/agent-task.XXXXXX")"
+_raw="$(mktemp "${DECREE_RUN_DIR}/agent_task.XXXXXX")"
 trap 'rm -f "$_raw"' EXIT
 
 HERMES_API_URL="$(hermes_profile_url "$profile")"
@@ -124,8 +92,8 @@ hermes_chat "$system_prompt" "$full_prompt" "$AGENT_MAX_TOKENS" > "$_raw" || tru
 
 if [ ! -s "$_raw" ]; then
     # An empty body is the one failure the gateway does not report as an HTTP
-    # error: a tool loop cut short still returns 200 with no choices. Fail so
-    # decree retries under max_attempts rather than filing an empty answer.
+    # error: a tool loop cut short still returns 200 with no choices. Fail
+    # rather than file an empty answer.
     echo "The ${profile:-default} profile returned nothing." >&2
     echo "Check: docker logs hermes-agent for 'Interrupted during API call', and" >&2
     echo "confirm EXIST_OLLAMA_URL is reachable and the chat model can carry a" >&2
@@ -135,7 +103,7 @@ fi
 
 {
     printf -- '---\n'
-    printf 'generated_by: agent-task\n'
+    printf 'generated_by: agent_task\n'
     printf 'profile: %s\n' "$(jq -rn --arg v "${profile:-default}" '$v|@json')"
     printf 'generated_at: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     if [ -n "$file_path" ]; then
@@ -153,13 +121,9 @@ echo "Wrote ${out}"
 # --- Tell someone ----------------------------------------------------------
 
 if [ "$AGENT_NOTIFY" = "true" ]; then
-    cat > "${OUTBOX_DIR}/agent-task-$(date +%s%N).md" << EOF
----
-routine: notify
-ntfy_title: $(jq -rn --arg v "Agent task done — ${_name}" '$v|@json')
-ntfy_priority: default
-ntfy_tags: robot
----
+    decree emit --machine notify \
+        --param ntfy_title="Agent task done — ${_name}" \
+        --param ntfy_priority=default --param ntfy_tags=robot >/dev/null <<EOF
 ${FILE_MATCH_REASON:-${prompt}}
 
 Written to workspace/ai/${_name}.md

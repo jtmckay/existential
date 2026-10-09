@@ -50,7 +50,9 @@ services:
       - exist
     volumes:
       - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
-      - ../../automation/runs:/runs:ro
+      # Both decree projects' runs (each has its own runs/ in decree 0.5).
+      - ../../automation/runs:/decree/automation:ro
+      - ../../services/automation/backup/runs:/decree/automation-backup:ro
       # hermes logs to files, not stdout (s6 routes each service's output into
       # its own file), so the docker_containers job below never sees it —
       # `docker logs hermes-agent` is empty. This is the only way its cron

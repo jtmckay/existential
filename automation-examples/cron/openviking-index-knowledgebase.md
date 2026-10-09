@@ -1,13 +1,14 @@
 ---
 cron: "*/15 * * * *"
-routine: openviking-index-dir
-INDEX_DIR: /workspace
-INDEX_PREFIX: "viking://resources/workspace"
-INDEX_EXCLUDE: "(^|/)\\.git/|(^|/)node_modules/|(^|/)\\.venv/"
-# The upload manifest (sha256 → path) so unchanged files are not re-sent.
-# decree_data is the writable volume this container already has; losing it
-# costs one full re-index, nothing more.
-INDEX_STATE_DIR: /data/openviking-index
+machine: openviking_index_dir
+params:
+  INDEX_DIR: /workspace
+  INDEX_PREFIX: "viking://resources/workspace"
+  INDEX_EXCLUDE: "(^|/)\\.git/|(^|/)node_modules/|(^|/)\\.venv/"
+  # The upload manifest (sha256 → path) so unchanged files are not re-sent.
+  # decree_data is the writable volume this container already has; losing it
+  # costs one full re-index, nothing more.
+  INDEX_STATE_DIR: /data/openviking-index
 ---
 
 Index the `workspace/` directory at the repo root into OpenViking every 15

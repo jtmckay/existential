@@ -1,5 +1,5 @@
 ---
-routine: nextcloud-richdocuments
+machine: nextcloud_richdocuments
 ---
 
 Install the `richdocuments` app in Nextcloud and point it at Collabora, so

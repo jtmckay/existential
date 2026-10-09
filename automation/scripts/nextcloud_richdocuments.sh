@@ -27,7 +27,7 @@
 # network the containers actually sit on, not a container IP that moves on
 # recreate.
 #
-# Env vars (set via migration frontmatter):
+# Params:
 #   WOPI_ALLOWLIST   CIDR(s) allowed to make WOPI requests, default the exist
 #                    bridge range
 #
@@ -37,16 +37,12 @@
 #   COLLABORA_URL                               e.g. https://collabora.example.com
 set -euo pipefail
 
-WOPI_ALLOWLIST="${WOPI_ALLOWLIST:-172.16.0.0/12}"
+WOPI_ALLOWLIST="$DECREE_DATA_WOPI_ALLOWLIST"
 NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl >/dev/null 2>&1         || { echo "curl not found" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_USER:-}" ]]     || { echo "NEXTCLOUD_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_PASSWORD:-}" ]] || { echo "NEXTCLOUD_ADMIN_PASSWORD not set" >&2; exit 1; }
-    [[ -n "${COLLABORA_URL:-}" ]]            || { echo "COLLABORA_URL not set" >&2; exit 1; }
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
+: "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD not set}"
+: "${COLLABORA_URL:?COLLABORA_URL not set}"
 
 # _ocs METHOD PATH [FORM_DATA] — Nextcloud's OCS API requires the
 # OCS-APIRequest header (its CSRF guard otherwise rejects a request with no

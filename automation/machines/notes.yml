@@ -1,0 +1,9 @@
+name: notes
+description: Pull the notes vault from Nextcloud, compile it, index it, and push the result to Dropbox.
+initial: sync
+states:
+  sync:
+    invoke: notes
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

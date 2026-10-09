@@ -1,0 +1,18 @@
+name: gmail
+description: File one email from gmail_sync, whole, in the emails directory.
+data:
+  gmail_id: { type: string, default: "" }
+  thread_id: { type: string, default: "" }
+  from: { type: string, default: "" }
+  to: { type: string, default: "" }
+  subject: { type: string, default: "" }
+  date: { type: string, default: "" }
+  labels: { type: string, default: "" }
+  has_attachments: { type: bool, default: false }
+initial: save
+states:
+  save:
+    invoke: gmail
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

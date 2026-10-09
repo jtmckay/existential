@@ -1,7 +1,8 @@
 ---
 cron: "*/15 * * * *"
-routine: notes-pull
-NOTES_PULL_SOURCE: "user@nas.example:/path/to/obsidian-vault"
+machine: notes_pull
+params:
+  NOTES_PULL_SOURCE: "user@nas.example:/path/to/obsidian-vault"
 ---
 
 Pull an external notes vault (e.g. Obsidian, synced to a NAS or another box)

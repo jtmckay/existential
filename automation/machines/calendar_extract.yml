@@ -1,0 +1,16 @@
+name: calendar_extract
+description: Mirror Nextcloud Calendar events in a window around today into workspace/ai/calendar/ as one note per event.
+data:
+  CALENDAR_EXTRACT_PAST_DAYS: { type: int, default: 7 }
+  CALENDAR_EXTRACT_FUTURE_DAYS: { type: int, default: 60 }
+  # Comma-separated calendar slugs; empty means every calendar the user has.
+  CALENDAR_EXTRACT_CALENDARS: { type: string, default: "" }
+  # IANA zone for the human-readable When: line.
+  CALENDAR_EXTRACT_TZ: { type: string, default: UTC }
+initial: extract
+states:
+  extract:
+    invoke: calendar_extract
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

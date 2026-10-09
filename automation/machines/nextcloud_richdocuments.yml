@@ -1,0 +1,16 @@
+name: nextcloud_richdocuments
+description: Install richdocuments and point it at Collabora, with the WOPI allowlist set to the exist bridge.
+data:
+  WOPI_ALLOWLIST: { type: string, default: 172.16.0.0/12 }
+initial: wait_for_nextcloud
+states:
+  # First boot runs this before nextcloud has finished starting.
+  wait_for_nextcloud:
+    invoke:
+      script: { name: wait_for_nextcloud, timeout: 10m }
+    transitions: { done: nextcloud_richdocuments }
+  nextcloud_richdocuments:
+    invoke: nextcloud_richdocuments
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

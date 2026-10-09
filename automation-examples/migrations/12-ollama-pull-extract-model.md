@@ -1,6 +1,7 @@
 ---
-routine: ollama-pull
-OLLAMA_ROLE: extract
+machine: ollama_pull
+params:
+  OLLAMA_ROLE: extract
 ---
 Pull the background extraction model — EXIST_MODEL_EXTRACT. Honcho uses it for
 the deriver, dialectic reasoning and session summaries: high-volume background

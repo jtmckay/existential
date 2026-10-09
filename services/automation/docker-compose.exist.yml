@@ -19,8 +19,9 @@ services:
           memory: 512M
     networks:
       - exist
+    # Nothing here may start DECREE_: decree strips every inherited DECREE_*
+    # variable before it runs a script.
     environment:
-      - DECREE_DAEMON=true
       # triage runs every service test in here; hermes reads this to know
       # whether a real inference is affordable on this host.
       - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
@@ -28,7 +29,6 @@ services:
       # whisperx's async endpoints default to cuda/float16 regardless of the
       # service's own env — so it needs the same vendor answer generate-compose uses.
       - EXIST_GPU_VENDOR=${EXIST_GPU_VENDOR:-}
-      - DECREE_INTERVAL=2
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
       # ntfy denies every publish by default, so notify.sh needs a credential.
@@ -37,7 +37,7 @@ services:
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
       - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
-      - DECREE_NOTES_DIR=${AUTOMATION_NOTES_DIR}
+      - NOTES_REMOTE_DIR=${AUTOMATION_NOTES_DIR}
       - DROPBOX_DEST_DIR=${AUTOMATION_DROPBOX_DEST_DIR}
       # Gateway credentials for routines that need a model (note-triage,
       # note-develop). Empty when hermes/firecrawl are disabled — those
@@ -55,6 +55,8 @@ services:
       # follows that endpoint and falls back to the global one when it is blank.
       # See the "Model Endpoints" block in .env.exist.shared.
       - OLLAMA_URL=${EXIST_OLLAMA_URL_VISION:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
+      # The newsletter's write step is the CHAT role, on the same rule.
+      - OLLAMA_CHAT_URL=${EXIST_OLLAMA_URL_CHAT:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
       # ── Service migrations and service crons ────────────────────────────
@@ -70,8 +72,8 @@ services:
       # routine for the exact endpoints, verified against nextcloud:34.0.3).
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER:-}
       - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-}
-      # nextcloud-file-events registers Nextcloud's webhooks with this as their
-      # bearer token — the same secret the webhook's /files route checks.
+      # nextcloud_file_events registers Nextcloud's webhooks with this as their
+      # bearer token — the same secret automation-webhook's /files route checks.
       - FILES_WEBHOOK_TOKEN=${EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN:-}
       - COLLABORA_URL=https://${COLLABORA_DOMAIN:-collabora.$EXIST_DOMAIN}
       # homeassistant-onboarding creates the admin account through HA's own
@@ -102,37 +104,25 @@ services:
       # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
       - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
     volumes:
-      # The whole root automation/ dir, wholesale — runs, secrets, cron,
-      # migrations, inbox, outbox, processed.md, router.md. This IS
-      # /work/.decree; everything below is a read-only overlay on top of it,
-      # not a separate piece of content.
+      # The whole root automation/ dir, wholesale — runs, store, inbox,
+      # processed.md, secrets. This IS /work/.decree; everything below is a
+      # read-only overlay on top of it, not a separate piece of content.
       - ../../automation:/work/.decree:z
-      # This container runs agent-task with terminal and write access, so the
-      # routine scripts and their config must not be writable from inside a
-      # routine — a compromised or misbehaving run could otherwise rewrite the
-      # code that every future run (and automation-backup) executes.
-      - ../../automation/shared_routines:/work/.decree/shared_routines:ro,z
+      # This container runs agent_task with terminal and write access, so the
+      # machines and scripts must not be writable from inside a script — a
+      # compromised or misbehaving run could otherwise rewrite the code that
+      # every future run (and automation-backup) executes.
+      - ../../automation/machines:/work/.decree/machines:ro,z
+      - ../../automation/scripts:/work/.decree/scripts:ro,z
       - ../../automation/lib:/work/.decree/lib:ro,z
-      # cron/, migrations/, and router.md are only ever written from the host
-      # (a human/quest copying from automation-examples/, or exist.initial.sh)
-      # before the container starts — nothing in shared_routines/ or the decree
-      # binary itself writes to them at runtime, so they get the same
+      - ../../automation/env:/work/.decree/env:ro,z
+      # cron/ and migrations/ are only ever written from the host (a quest
+      # copying from automation-examples/, or exist.initial.sh) before the
+      # container starts — nothing at runtime writes them, so they get the same
       # read-only treatment.
       - ../../automation/cron:/work/.decree/cron:ro,z
       - ../../automation/migrations:/work/.decree/migrations:ro,z
-      - ../../automation/router.md:/work/.decree/router.md:ro,z
-      # config.exist.yml/config.yml stay in services/automation/decree/ (not the
-      # root) because the render pipeline and validate-conventions.ts both look
-      # specifically for <slug>/decree/config.exist.yml — moving it to the root
-      # would silently stop it from ever being rendered or validated. Layered
-      # on top of the wholesale mount above.
-      # Must stay read-write: `decree routine`/`routine-sync` (called from
-      # `decree process` and `decree daemon`) rewrites config.yml's routine
-      # registry on every sync — ro here makes every one of those calls fail
-      # with "Read-only file system" and the daemon crash-loops.
-      - ./decree/config.yml:/work/.decree/config.yml:z
-      # Also mounted at the conventional /secrets path — SECRETS_DIR=/secrets
-      # is relied on directly by precheck.sh and friends.
+      # Also mounted at the conventional /secrets path, which scripts read.
       - ../../automation/secrets:/secrets:z
       # Notes data — a _cache. Subdirs created on first use by the scripts.
       #   /data/notes   — Nextcloud sync cache (source of truth: Nextcloud)
@@ -148,20 +138,15 @@ services:
       #
       # Triage moved to automation-backup, which does no reasoning and runs no
       # agent, and the mount went with it. All that is left here is what
-      # hermes-router actually reads: the profile definitions, which hold no
+      # hermes_router actually reads: the profile definitions, which hold no
       # secrets. Keep it that way — if something here starts wanting /repo,
       # mount the subtree it needs, not the root.
       - ../../ai/hermes/profiles:/repo/ai/hermes/profiles:ro
-      # The shared workspace, read-write: agent-task files its output in
-      # workspace/ai/, and outbox-relay drains workspace/outbox/. Writes here
-      # fire no file events (only uploads through Nextcloud do), which is what
-      # keeps an agent's own output from triggering another run.
+      # The shared workspace, read-write: agent_task files its output in
+      # workspace/ai/. Writes here fire no file events (only uploads through
+      # Nextcloud do), which is what keeps an agent's own output from
+      # triggering another run.
       - workspace_data:/workspace:z
-      # entrypoint.sh gates `decree process` (migrations) on /work/exist.test.sh
-      # passing. This daemon's migrations target OTHER services, so the gate is
-      # not its own exist.test.sh but a probe of every service it migrates —
-      # skipping the ones that are disabled. See migration-gate.sh.
-      - ./migration-gate.sh:/work/exist.test.sh:ro,z
     tty: false
 
   automation-backup:
@@ -184,31 +169,21 @@ services:
           memory: 256M
     networks:
       - exist
-    # The master env, deliberately. db-backup reads a different credential pair
+    # The master env, deliberately. db_backup reads a different credential pair
     # per service, so enumerating them here would reintroduce exactly the
     # per-service wiring this container exists to delete. The trade is real and
-    # bounded: this daemon runs a fixed whitelist of routines, no agent and no
-    # router, and the master env stays out of `decree`, which does run agents.
+    # bounded: this daemon runs a fixed set of machines, no agent and no router,
+    # and the master env stays out of `automation`, which does run agents.
     env_file:
       - ../../.env
     environment:
-      - DECREE_DAEMON=true
-      # Identifies which daemon dead-lettered a message (lib/hooks/onDeadLetter.sh
-      # turns this into the container name in the alert). It no longer gates any
-      # test behaviour — that moved to EXIST_TEST_LIVENESS_ONLY below, because
-      # "which daemon am I" stopped answering "what can I reach" once triage
-      # moved here and brought the /repo mount with it.
-      - DECREE_BACKUP=true
-      # This daemon's own routines just need "is the service up" — they cannot
+      # This daemon's own machines just need "is the service up" — they cannot
       # reach the routing stack the way a full check does. Triage also runs here
       # and explicitly clears this per test, because it DOES want the full check.
       - EXIST_TEST_LIVENESS_ONLY=true
-      - DECREE_INTERVAL=2
       - IN_CONTAINER=1
-      # Same six as the daemon above, and for one reason: the onDeadLetter hook
-      # queues `notify` when a routine exhausts its retries, and this daemon's
-      # routines are exactly the ones nobody is watching. env_file brings in the
-      # master .env, but notify.sh reads these unprefixed.
+      # Same six as the daemon above: triage reports through notify. env_file
+      # brings in the master .env, but notify.sh reads these unprefixed.
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
       - NTFY_USER=${EXIST_NTFY_USER:-}
@@ -216,24 +191,25 @@ services:
       - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
     volumes:
+      # Its own decree project — own machines/, cron/, runs/ and inbox/ — with
+      # the scripts and lib/ shared, read-only, from automation/.
       - ./backup:/work/.decree:z
-      - ../../automation/shared_routines:/work/.decree/shared_routines:ro,z
+      - ./backup/machines:/work/.decree/machines:ro,z
+      - ../../automation/scripts:/work/.decree/scripts:ro,z
       - ../../automation/lib:/work/.decree/lib:ro,z
-      - ../../automation/runs:/work/.decree/runs:z
       - ../../automation/secrets:/secrets:ro,z
       # Every volume at once. This is what makes a new service need no backup
       # wiring at all: its volumes/<name> dir is visible here the moment
       # generate-compose creates it, so activating a cron file is the whole job.
-      # Read-WRITE, and only because restore needs it: the backup routines
+      # Read-WRITE, and only because restore needs it: the backup scripts
       # themselves only ever read (tar, dump), but `./existential.sh run
       # backup-restore` extracts into these paths from this container.
       - ../../volumes:/volumes:z
-      # notes-pull rsyncs an external vault into workspace/notes/.
+      # notes_pull rsyncs an external vault into workspace/notes/.
       - workspace_data:/workspace:z
       # Triage's backoff state and status report live at /data/triage — the same
       # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
-      # subtrees, one volume, so moving triage here keeps its existing state
-      # (volumes/decree_data/triage/) instead of resetting the green streak.
+      # subtrees, one volume.
       - decree_data:/data:z
       # The repo, read-only, so triage can run each enabled service's own
       # exist.test.sh — they live with their services, not in this directory —
@@ -241,61 +217,47 @@ services:
       # purpose: triage observes, it never repairs.
       #
       # This is the credential-heaviest mount in the stack, which is why it is
-      # here rather than in `automation`: this daemon runs a fixed whitelist, no
-      # agent and no router, so nothing here interprets untrusted input.
+      # here rather than in `automation`: this daemon runs a fixed set of
+      # machines, no agent and no router, so nothing here interprets untrusted
+      # input.
       - ../../:/repo:ro
-    # No /work/exist.test.sh mount: this daemon owns no migrations, so the
-    # entrypoint's health-wait branch is correctly skipped.
     tty: false
 
+  # decree-go-rest: authenticated POSTs become `decree emit` messages in
+  # automation's inbox. Endpoints are automation/decree-go-rest.yml (tracked —
+  # it names environment variables, never secrets). It runs no work and can
+  # write nothing but inbox/; the `automation` daemon runs what it queues.
   automation-webhook:
     container_name: automation-webhook
-    # Self-contained static Go binary (webhook/main.go) on distroless. It no
-    # longer rides existential/decree:local, so it carries none of that image's
-    # npm tree and can be run anywhere — including the front-door host.
-    # Built by compose, not by existential-adhoc (which only builds the shared
-    # decree image).
-    build:
-      context: ./webhook
-      dockerfile: Dockerfile
-    image: existential/decree-webhook:local
-    # Built by compose (above), never published anywhere — `docker compose pull`
-    # doesn't look at `build:`, it just pulls whatever `image:` names for every
-    # service, so without this it tries Docker Hub for a repo that only exists
-    # as this local build and fails with "pull access denied". Same reason the
-    # automation/automation-backup services above pin this.
-    pull_policy: never
+    # Bundles decree 0.5.0-beta.4 — keep it equal to decree/Dockerfile's tag.
+    image: ghcr.io/jtmckay/decree-go-rest:sha-3d79296
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
-    # Static Go binary on distroless; ~9 MiB idle and flat.
+    # Covers the 10 s it gives requests in flight.
+    stop_grace_period: 15s
+    # Static Go binary, plus a decree process per request; ~10 MiB idle.
     deploy:
       resources:
         limits:
-          memory: 64M
+          memory: 128M
     depends_on:
       - automation
     networks:
       - exist
     # ports disabled — access via https://automation-webhook.<domain> (Caddy + pihole required)
-    # Uncomment to expose directly:
-    #   ports:
-    #     - "8801:8801"
     environment:
-      # Listen port is not configurable: the container is reached only over the
-      # exist bridge, so the binary's own default (8801) governs and caddy's
-      # Caddyfile hardcodes the same value. DECREE_WEBHOOK_PORT still works as a
-      # manual override if you uncomment ports: above — change both places.
-      - DECREE_WEBHOOK_INBOX=/inbox
-      #- DECREE_WEBHOOK_MAX_BODY_BYTES=262144
-      #- DECREE_WEBHOOK_RATE_WINDOW_MS=60000
-      #- DECREE_WEBHOOK_RATE_MAX=60
-      #- DECREE_WEBHOOK_RATE_FAIL_MAX=10
+      # The default bearer secret, and the one Nextcloud's file events carry.
+      - DECREE_GO_REST_SECRET=${AUTOMATION_WEBHOOK_SECRET}
+      - FILES_WEBHOOK_TOKEN=${EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN}
+      # hermes' own, for its /hermes/* endpoints.
+      - HERMES_WEBHOOK_SECRET=${EXIST_HERMES_WEBHOOK_TOKEN}
+      # GET /openapi.json, which Lowcoder (or anything) reads as a data source.
+      - DECREE_GO_REST_OPENAPI=true
     volumes:
-      - ../../automation/inbox:/inbox:z
-      - ./webhook/config.yml:/app/config.yml:ro
+      - ../../automation:/project/.decree:ro,z
+      - ../../automation/inbox:/project/.decree/inbox:z
     healthcheck:
-      # distroless ships neither curl nor wget — the binary probes itself
-      test: ["CMD", "/webhook", "-healthcheck"]
+      test: ["CMD", "decree-go-rest", "-healthcheck"]
       interval: 30s
       timeout: 3s
       retries: 3

@@ -471,7 +471,8 @@ Actions:
                       rendered secrets are tracked; 'guards'/'harness' prove the
                       secret guards / test plumbing trip on bad input; 'lint'
                       shellchecks every tracked shell script; 'typecheck' runs
-                      tsc --noEmit over the TypeScript; 'selfcheck'
+                      tsc --noEmit over the TypeScript; 'decree' runs decree
+                      check over both projects and every template; 'selfcheck'
                       proves each unit suite fails on a forced assertion;
                       'unit'/'integration'/'services' run those suites. Anything
                       else is a service slug.
@@ -602,6 +603,9 @@ case "$action" in
                 # The same gate for TypeScript. tsx strips types without checking
                 # them, so without this `"strict": true` means nothing.
                 bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" || _rc=1
+                # Both decree projects, with every shipped message template.
+                adhoc_detect_runtime
+                run_adhoc bash /src/test/decree-check.sh || _rc=1
                 # Host-side container-state gate next (adhoc has no docker socket,
                 # so this is the only place daemon crash-loops are visible).
                 adhoc_detect_runtime
@@ -615,6 +619,7 @@ case "$action" in
             harness)     bash "${SCRIPT_DIR}/src/test/harness-selftest.sh" ;;
             lint)        bash "${SCRIPT_DIR}/src/test/lint-shell.sh" ;;
             typecheck)   bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" ;;
+            decree)      run_adhoc bash /src/test/decree-check.sh ;;
             selfcheck)   run_adhoc bash /src/test/run-all.sh selfcheck ;;
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
             integration) run_adhoc bash /src/test/run-all.sh integration ;;

@@ -1,0 +1,13 @@
+name: idea_workup
+description: Fan one flagged idea out to the research and sales departments as three agent_task questions.
+data:
+  note_path: { type: string, default: "" }
+  note_reason: { type: string, default: "" }
+initial: fan_out
+states:
+  fan_out:
+    invoke: idea_workup
+    transitions: { done: done }
+    emits: [agent_task]
+  done: { final: true }
+  failed: { final: true }

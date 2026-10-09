@@ -1,5 +1,5 @@
 ---
-routine: nextcloud-calendar
+machine: nextcloud_calendar
 ---
 
 Install and enable Nextcloud's Calendar app, so `https://nextcloud.<domain>/apps/calendar`

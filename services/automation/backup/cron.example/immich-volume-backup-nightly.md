@@ -1,9 +1,10 @@
 ---
 cron: "30 2 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  immich_data immich-server
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    immich_data immich-server
 ---
 
 Tar the immich_data volume (your uploaded photos/videos) nightly and rclone to

@@ -1,9 +1,10 @@
 ---
 cron: "30 2 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  actual_budget_data actual-budget
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    actual_budget_data actual-budget
 ---
 
 Tar actual_budget_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/actual_budget_data/.

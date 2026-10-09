@@ -1,9 +1,10 @@
 ---
-cron: "0 4 * * 0"
-routine: sqlite-backup
-TIER: weekly
-TARGETS: |
-  kuma uptime_kuma_data/kuma.db
+cron: "0 4 * * SUN"
+machine: sqlite_backup
+params:
+  TIER: weekly
+  TARGETS: |
+    kuma uptime_kuma_data/kuma.db
 ---
 
 Weekly dump of uptime-kuma's SQLite database to

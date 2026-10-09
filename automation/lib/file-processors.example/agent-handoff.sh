@@ -36,11 +36,6 @@ if [ "$FILE_ACTION" = "removed" ]; then
     exit 0
 fi
 
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-# decree reads the outbox but never creates it — an absent dir is silently
-# treated as "no messages", so a handoff would vanish without an error.
-mkdir -p "$OUTBOX_DIR"
-
 # Path relative to the workspace root: FILE_KEY is "workspace/<path>", the
 # Nextcloud folder the workspace_data volume is mounted at.
 _rel="${FILE_KEY#workspace/}"
@@ -49,18 +44,14 @@ _slug="$(basename "$_rel" .md)"
 echo "Handing off: ${_rel}"
 echo "Because:     ${FILE_MATCH_REASON:-(no reason recorded)}"
 
-cat > "${OUTBOX_DIR}/agent-handoff-$(date +%s%N).md" << EOF
----
-# agent-task answers on the default hermes profile. Add `profile: research` to
-# use a department's toolset instead, or swap the routine for hermes-router to
-# let the router pick the department. See site/docs/decree/routing.md.
-routine: agent-task
-file_path: $(jq -rn --arg v "$_rel" '$v|@json')
-output_name: $(jq -rn --arg v "${_slug}-followup" '$v|@json')
-prompt: $(jq -rn --arg v "This note was flagged: ${FILE_MATCH_REASON:-it contains an unresolved question}. Read it, work out what can be settled without the author, and list the few questions only they can answer." '$v|@json')
----
+# agent_task answers on the default hermes profile. Add `--param profile=research`
+# to use a department's toolset instead, or emit hermes_router to let the router
+# pick the department. See site/docs/decree/routing.md. Either has to be in
+# file_processor's `emits:` (automation/machines/file_processor.yml).
+decree emit --machine agent_task \
+    --param file_path="$_rel" \
+    --param output_name="${_slug}-followup" \
+    --param prompt="This note was flagged: ${FILE_MATCH_REASON:-it contains an unresolved question}. Read it, work out what can be settled without the author, and list the few questions only they can answer." \
+    < "$FILE_PATH" >/dev/null
 
-$(cat "$FILE_PATH")
-EOF
-
-echo "Queued agent-task for ${_rel}."
+echo "Queued agent_task for ${_rel}."

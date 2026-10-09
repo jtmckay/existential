@@ -1,0 +1,14 @@
+name: nextcloud_file_events
+description: Register Nextcloud's file-event webhooks (written, deleted, renamed) against automation-webhook's /files.
+initial: wait_for_nextcloud
+states:
+  # First boot runs this before nextcloud has finished starting.
+  wait_for_nextcloud:
+    invoke:
+      script: { name: wait_for_nextcloud, timeout: 10m }
+    transitions: { done: nextcloud_file_events }
+  nextcloud_file_events:
+    invoke: nextcloud_file_events
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

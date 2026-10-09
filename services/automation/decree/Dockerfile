@@ -1,8 +1,10 @@
 FROM rust:slim-bookworm AS builder
 # --locked: build against the versions decree's own Cargo.lock pins. Without it
 # `cargo install` re-resolves every transitive dependency at build time, so the
-# same --version can produce a different binary on two different days.
-RUN cargo install decree --version 0.4.2 --locked
+# same tag can produce a different binary on two different days.
+# A pre-release, pinned by tag: bump it deliberately, and keep it equal to the
+# decree inside automation-webhook's image (docker-compose.exist.yml).
+RUN cargo install decree --locked --git https://github.com/jtmckay/decree --tag v0.5.0-beta.4
 
 FROM debian:bookworm-slim
 # Third-party binaries installed as root. Each is pinned to a version AND
@@ -99,13 +101,10 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # so `decree daemon` must run from /work to detect the project. Without this the
 # daemon dies with "not inside a decree project".
 WORKDIR /work
-# Liveness for the no-network decree daemons (decree and decree-backup).
+# Liveness for the no-network decree daemons (automation, automation-backup).
 # After entrypoint.sh `exec decree daemon`, PID 1's comm is "decree". A stale
 # or mis-built image (no ENTRYPOINT → base CMD "bash") fails this check, and a
 # dead daemon stops being PID 1 — both surface as (unhealthy) in `docker ps`.
-# start-period is generous because a daemon with migrations spends up to
-# DECREE_MIGRATE_TIMEOUT (default 300s) in the health-wait loop as bash first;
-# during that window the check fails but stays "starting", not "unhealthy".
-HEALTHCHECK --interval=30s --timeout=5s --start-period=330s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD grep -q decree /proc/1/comm || exit 1
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

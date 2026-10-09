@@ -1,9 +1,10 @@
 ---
-cron: "0 3 * * 0"
-routine: db-backup
-TIER: weekly
-TARGETS: |
-  mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
+cron: "0 3 * * SUN"
+machine: db_backup
+params:
+  TIER: weekly
+  TARGETS: |
+    mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
 ---
 
 Weekly dump of nextcloud-db (retained 28 days).

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# note-connect — watch your knowledge base for connections to what you already know.
+# note_connect — watch your knowledge base for connections to what you already know.
 #
 # Scans NOTES_DIR for notes that are new or changed since the last run, hands each one to a
 # hermes department with OpenViking access, and asks for the single most interesting,
@@ -34,56 +34,33 @@
 # without scanning, so turning this on over an existing knowledge base does not fire a call
 # per note. Set CONNECT_BOOTSTRAP=true for one run to scan the backlog.
 #
-# Manual invocation — decree has no `run` subcommand; drop a message instead:
-#   printf -- '---\nroutine: note-connect\n---\n' > automation/inbox/note-connect.md
+# The CONNECT_* knobs a message can set are the machine's data
+# (automation/machines/note_connect.yml); the rest are container environment.
+#
+# By hand:
+#   docker exec automation decree emit --machine note_connect </dev/null
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/hermes.sh
-source "${SCRIPT_DIR}/../lib/hermes.sh"
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "note-connect" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "note-connect" "jq not found"
-    [ -d "${NOTES_DIR:-/workspace}" ] || precheck_fail "note-connect" \
-        "NOTES_DIR ${NOTES_DIR:-/workspace} does not exist — is /workspace mounted? Or point NOTES_DIR at a vault of your own"
-    _key="${CONNECT_API_KEY:-${HERMES_API_KEY:-}}"
-    [ -n "$_key" ] || precheck_fail "note-connect" \
-        "HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through"
-    _profile="${CONNECT_PROFILE:-research}"
-    _url="$(hermes_profile_url "$_profile")"
-    curl -fsS --max-time 10 -o /dev/null -H "Authorization: Bearer ${_key}" \
-        "${_url}/models" 2>/dev/null \
-        || precheck_fail "note-connect" \
-        "profile '${_profile}' unreachable at ${_url} — is hermes-agent up, and does ai/hermes/profiles/${_profile}/ exist? A profile added after hermes-agent last started needs a restart."
-    precheck_pass "note-connect"
-    exit 0
-fi
+source "${DECREE_LIB}/hermes.sh"
 
 NOTES_DIR="${NOTES_DIR:-/workspace}"
 STATE_DIR="${STATE_DIR:-/data/note-connect}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/note-connect/output}"
-CONNECT_PROFILE="${CONNECT_PROFILE:-research}"
+CONNECT_PROFILE="$DECREE_DATA_CONNECT_PROFILE"
 CONNECT_MODEL="${CONNECT_MODEL:-}"
-CONNECT_MAX_NOTES="${CONNECT_MAX_NOTES:-20}"
+CONNECT_MAX_NOTES="$DECREE_DATA_CONNECT_MAX_NOTES"
 CONNECT_MAX_CHARS="${CONNECT_MAX_CHARS:-6000}"
 CONNECT_MIN_CHARS="${CONNECT_MIN_CHARS:-120}"
-CONNECT_MIN_SCORE="${CONNECT_MIN_SCORE:-7}"
-CONNECT_BOOTSTRAP="${CONNECT_BOOTSTRAP:-false}"
+CONNECT_MIN_SCORE="$DECREE_DATA_CONNECT_MIN_SCORE"
+CONNECT_BOOTSTRAP="$DECREE_DATA_CONNECT_BOOTSTRAP"
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-300}"
-CONNECT_DRY_RUN="${CONNECT_DRY_RUN:-false}"
+CONNECT_DRY_RUN="$DECREE_DATA_CONNECT_DRY_RUN"
 CONNECT_API_KEY="${CONNECT_API_KEY:-}"
 CONNECT_LEDGER="${CONNECT_LEDGER:-true}"
 CONNECT_NOTIFY="${CONNECT_NOTIFY:-true}"
-CONNECT_OUTPUT_RCLONE_DEST="${CONNECT_OUTPUT_RCLONE_DEST:-}"
+CONNECT_OUTPUT_RCLONE_DEST="$DECREE_DATA_CONNECT_OUTPUT_RCLONE_DEST"
 
 # --- Implementation ---
 
@@ -95,7 +72,9 @@ if [ -z "$CONNECT_API_KEY" ]; then
     CONNECT_API_KEY="${HERMES_API_KEY:-}"
 fi
 
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
+[ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — is /workspace mounted? Or point NOTES_DIR at a vault of your own" >&2; exit 1; }
+: "${CONNECT_API_KEY:?HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through}"
+
 RCLONE_CONF="${RCLONE_CONF:-/secrets/rclone/rclone.conf}"
 MANIFEST="${STATE_DIR}/seen.tsv"
 LEDGER="${STATE_DIR}/connections.tsv"
@@ -104,7 +83,7 @@ mkdir -p "$STATE_DIR"
 touch "$MANIFEST" "$LEDGER"
 
 # The department call. Every other routine that talks to hermes owns its own
-# curl; this one is the same shape as hermes-dept's, aimed at a profile instead
+# curl; this one is the same shape as agent_task's, aimed at a profile instead
 # of the default gateway, because finding a connection means searching the
 # vault — a tool call, not a plain completion.
 HERMES_API_URL="$(hermes_profile_url "$CONNECT_PROFILE")"
@@ -269,14 +248,8 @@ ${body}" 300 || true)"
     fi
 
     if [ "$CONNECT_NOTIFY" = "true" ]; then
-        mkdir -p "$OUTBOX_DIR"
-        cat > "${OUTBOX_DIR}/note-connect-$(date +%s%N).md" << EOF
----
-routine: notify
-ntfy_title: $(jq -rn --arg v "Connection found — ${note_name}" '$v|@json')
-ntfy_priority: default
-ntfy_tags: link
----
+        decree emit --machine notify --param ntfy_title="Connection found — ${note_name}" \
+            --param ntfy_priority=default --param ntfy_tags=link >/dev/null << EOF
 ${insight}
 
 ${note_name} <-> ${target}

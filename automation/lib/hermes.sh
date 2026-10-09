@@ -10,7 +10,7 @@
 #   hermes_chat <system> <user> <max_tokens>   → assistant text on stdout
 #   hermes_gate <criteria> <text>              → 0 = YES, 1 = NO, 2 = no verdict
 #   hermes_profile_url <profile>               → base URL for a named profile
-#   hermes_correlation_notice <correlation_id> → system-prompt paragraph on stdout
+#   hermes_followup_notice → system-prompt paragraph on stdout
 #
 # hermes_gate's exit codes matter to the caller: 1 is a real verdict (the content
 # does not match, move on) while 2 means the model never answered — a gateway
@@ -41,20 +41,23 @@ hermes_profile_url() {
 }
 
 # System-prompt paragraph telling hermes how to trigger follow-up automation.
-# Hermes is a remote gateway, so an exported CORRELATION_ID env var never
-# reaches it — this text is the only channel. See workspace/outbox/README.md
-# for the format it's pointing at, and outbox-relay.sh for what reads it.
-hermes_correlation_notice() {
-    local correlation_id="$1"
+# Hermes is a remote gateway, so nothing exported here reaches it — this text
+# is the only channel. Its endpoints are the /hermes/* ones in
+# automation/decree-go-rest.yml, on a secret hermes holds as
+# AUTOMATION_WEBHOOK_AUTH; the traceparent header joins its follow-up to this
+# run's trace, so Grafana shows the whole flow.
+hermes_followup_notice() {
     cat <<EOF
-If this task calls for follow-up automation (running another routine now, or
-later on a schedule), write a markdown file to workspace/outbox/ — see
-workspace/outbox/README.md for the format. Never write to automation/
-directly; you have no access to it. This flow's correlation_id is
-${correlation_id} — include it as \`correlation_id: ${correlation_id}\` in any
-message you write, so whatever eventually reads it can trace it back to this
-flow (it's a plain tag carried between messages, not something decree tracks
-on its own).
+If this task calls for follow-up automation, ask decree for it over HTTP — you
+have no access to automation/, and never need it:
+
+  curl -fsS -X POST http://automation-webhook:8801/hermes/task/<profile> \\
+    -H "Authorization: Bearer \$AUTOMATION_WEBHOOK_AUTH" \\
+    -H "traceparent: ${TRACEPARENT:-}" --data-binary 'what to do'
+
+hands a task to a hermes profile (default, research, …), and
+/hermes/notify/<title> sends the body as a push notification. URL-encode the
+path parameter.
 EOF
 }
 

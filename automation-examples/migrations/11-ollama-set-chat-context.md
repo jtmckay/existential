@@ -1,6 +1,7 @@
 ---
-routine: ollama-pull
-OLLAMA_ROLE: chat-ctx
+machine: ollama_pull
+params:
+  OLLAMA_ROLE: chat-ctx
 ---
 Rebuild EXIST_MODEL_CHAT with num_ctx=EXIST_MODEL_CHAT_NUM_CTX.
 

@@ -40,15 +40,9 @@ CLIENT_ID="${HOMEASSISTANT_URL%/}/"
 WS_URL="${HOMEASSISTANT_URL/http/ws}/api/websocket"
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl >/dev/null 2>&1             || { echo "curl not found" >&2; exit 1; }
-    command -v jq >/dev/null 2>&1                || { echo "jq not found" >&2; exit 1; }
-    command -v tsx >/dev/null 2>&1               || { echo "tsx not found" >&2; exit 1; }
-    [[ -n "${HOMEASSISTANT_ADMIN_USER:-}" ]]     || { echo "HOMEASSISTANT_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${HOMEASSISTANT_ADMIN_PASSWORD:-}" ]] || { echo "HOMEASSISTANT_ADMIN_PASSWORD not set" >&2; exit 1; }
-    [[ -n "${HERMES_API_KEY:-}" ]]               || { echo "HERMES_API_KEY not set" >&2; exit 1; }
-    exit 0
-fi
+: "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
+: "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
+: "${HERMES_API_KEY:?HERMES_API_KEY not set}"
 
 # _api METHOD PATH [JSON_BODY] — authenticated REST call. Checks the HTTP
 # status itself: HA answers a bad flow step with a 2xx-shaped JSON error in

@@ -1,9 +1,10 @@
 ---
-cron: "0 3 * * 0"
-routine: db-backup
-TIER: weekly
-TARGETS: |
-  postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
+cron: "0 3 * * SUN"
+machine: db_backup
+params:
+  TIER: weekly
+  TARGETS: |
+    postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
 ---
 
 Weekly dump of nocodb-postgres (retained 28 days).

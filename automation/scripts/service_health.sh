@@ -1,45 +1,25 @@
 #!/usr/bin/env bash
-# service-health — HTTP/TCP probe for a single service endpoint.
+# service_health — HTTP probe for a single service endpoint.
 #
-# Intended to run inside the main decree daemon (on the exist Docker network)
-# on a cron schedule. The decree afterEach hook automatically:
-#   - Pushes decree_run_success{instance="service-health"} to Prometheus
-#     (the instance label is the ROUTINE name, not SERVICE_NAME)
-#   - Ships the run log to Loki
-# so every execution is visible in Grafana with no extra wiring.
+# Runs in the main decree daemon (on the exist Docker network) on a cron
+# schedule. Every run lands in Loki and in decree_runs_total{machine=
+# "service_health"}, so a failing probe is a failed run — and a Grafana alert.
 #
-# Cron frontmatter keys:
-#   SERVICE_NAME   Display name and Prometheus instance label suffix (required)
-#   SERVICE_URL    Full HTTP URL to probe (required)
-#   EXPECT_CODE    Expected HTTP status code (default: 200)
-#   TIMEOUT        Curl timeout in seconds (default: 5)
+# SERVICE_NAME, SERVICE_URL, EXPECT_CODE and TIMEOUT are the machine's data:
 #
-# Example cron file:
 #   ---
 #   cron: "*/15 * * * *"
-#   routine: service-health
-#   SERVICE_NAME: mealie
-#   SERVICE_URL: http://mealie:9000/api/app/about
+#   machine: service_health
+#   params:
+#     SERVICE_NAME: mealie
+#     SERVICE_URL: http://mealie:9000/api/app/about
 #   ---
-#
-# Manual invocation:
-#   docker exec automation decree run service-health
-
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null || precheck_fail "service-health" "curl not found"
-    precheck_pass "service-health"
-    exit 0
-fi
-
-SERVICE_NAME="${SERVICE_NAME:?SERVICE_NAME is required in cron frontmatter}"
-SERVICE_URL="${SERVICE_URL:?SERVICE_URL is required in cron frontmatter}"
-EXPECT_CODE="${EXPECT_CODE:-200}"
-TIMEOUT="${TIMEOUT:-5}"
+SERVICE_NAME="${DECREE_DATA_SERVICE_NAME:?SERVICE_NAME is required in the cron file's params}"
+SERVICE_URL="${DECREE_DATA_SERVICE_URL:?SERVICE_URL is required in the cron file's params}"
+EXPECT_CODE="$DECREE_DATA_EXPECT_CODE"
+TIMEOUT="$DECREE_DATA_TIMEOUT"
 
 printf '[%s] probe %s\n' "$SERVICE_NAME" "$SERVICE_URL"
 

@@ -7,16 +7,6 @@
 # Skips compilation if no changes detected since last run.
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    exit 0
-fi
-
 # --- Configuration ---
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/dropbox}"

@@ -1,6 +1,7 @@
 ---
-routine: ollama-pull
-OLLAMA_ROLE: embed
+machine: ollama_pull
+params:
+  OLLAMA_ROLE: embed
 ---
 Pull the embedding model — EXIST_MODEL_EMBED. OpenViking uses it for the vector
 store; bge-m3 (the default) is multilingual and produces 1024-dim vectors.

@@ -1,5 +1,5 @@
 ---
-routine: nextcloud-rclone-remote
+machine: nextcloud_rclone_remote
 ---
 
 Configure the `nextcloud` rclone remote (WebDAV, using the rendered admin

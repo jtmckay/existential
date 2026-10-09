@@ -1,6 +1,6 @@
 ---
 cron: "*/5 * * * *"
-routine: triage
+machine: triage
 ---
 
 Runs every enabled service's own `exist.test.sh` and reports what is and is not

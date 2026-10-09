@@ -1,0 +1,10 @@
+name: check_versions
+description: Compare every pinned image tag against upstream, and notify once when any has an update.
+initial: check
+states:
+  check:
+    invoke: check_versions
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

@@ -34,13 +34,8 @@ set -euo pipefail
 HOMEASSISTANT_URL="${HOMEASSISTANT_URL:-http://homeassistant:8123}"
 CLIENT_ID="${HOMEASSISTANT_URL%/}/"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl >/dev/null 2>&1                || { echo "curl not found" >&2; exit 1; }
-    command -v jq >/dev/null 2>&1                   || { echo "jq not found" >&2; exit 1; }
-    [[ -n "${HOMEASSISTANT_ADMIN_USER:-}" ]]        || { echo "HOMEASSISTANT_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${HOMEASSISTANT_ADMIN_PASSWORD:-}" ]]    || { echo "HOMEASSISTANT_ADMIN_PASSWORD not set" >&2; exit 1; }
-    exit 0
-fi
+: "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
+: "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
 
 # Decree retries a failed routine three times back-to-back with no delay of its
 # own — a connection-refused fails in ~0ms, so all three attempts land inside

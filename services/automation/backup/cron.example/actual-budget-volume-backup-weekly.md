@@ -1,9 +1,10 @@
 ---
-cron: "30 3 * * 0"
-routine: volume-backup
-TIER: weekly
-VOLUMES: |
-  actual_budget_data actual-budget
+cron: "30 3 * * SUN"
+machine: volume_backup
+params:
+  TIER: weekly
+  VOLUMES: |
+    actual_budget_data actual-budget
 ---
 
 Weekly tar of actual_budget_data volume (retained 28 days).

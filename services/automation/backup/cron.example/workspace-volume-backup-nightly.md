@@ -1,9 +1,10 @@
 ---
 cron: "0 3 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  workspace_data nextcloud,nextcloud-cron,hermes-agent,code-server,automation
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    workspace_data nextcloud,nextcloud-cron,hermes-agent,code-server,automation
 ---
 
 Tar the workspace_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/workspace_data/.

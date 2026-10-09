@@ -48,18 +48,19 @@ groups:
           summary: "Service {{ $labels.service }} is failing its own exist.test.sh"
           description: "Triage has reported {{ $labels.service }} ({{ $labels.category }}) unhealthy for 20 minutes. Check Loki for recent run logs."
 
-      # ── Backup health (via pushgateway) ───────────────────────────────────
-      # Instance label is the decree routine name (automation/lib/hooks/afterEach.sh
-      # pushes every routine run to job=decree/instance=<routine>, and Pushgateway
-      # auto-derives push_time_seconds per job/instance grouping key — verified
-      # empirically, no metric named push_time_seconds is emitted by the routines
-      # themselves). Covers all three backup routines in
-      # automation/shared_routines/: volume-backup, db-backup, sqlite-backup.
+      # ── Backup health (via alloy's decree_runs_total) ─────────────────────
+      # alloy derives decree_runs_total{machine, state} from each run's
+      # events.jsonl (hosting/loki/loki-alloy-config.alloy). Every backup
+      # machine runs nightly, so a 48h window with no successful run is a
+      # stopped backup. `and ... offset 48h` holds it off until the series is
+      # 48h old: a fresh install's first run is a flat 1, not an increase.
       - alert: BackupNotRun
-        expr: (time() - push_time_seconds{instance=~"db-backup|volume-backup|sqlite-backup"}) > 86400 * 2
+        expr: |
+          increase(decree_runs_total{machine=~"db_backup|volume_backup|sqlite_backup", state="done"}[48h]) == 0
+            and decree_runs_total{machine=~"db_backup|volume_backup|sqlite_backup", state="done"} offset 48h
         for: 0m
         labels:
           severity: warning
         annotations:
-          summary: "Backup job {{ $labels.instance }} has not reported in 48h"
-          description: "Last seen {{ $value | humanizeDuration }} ago. Check decree cron config."
+          summary: "Backup machine {{ $labels.machine }} has not succeeded in 48h"
+          description: "No run of {{ $labels.machine }} ended in done for 48h. `docker exec automation-backup decree status` lists its recent runs."

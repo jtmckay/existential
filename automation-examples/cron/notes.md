@@ -1,6 +1,6 @@
 ---
 cron: "*/10 * * * *"
-routine: notes
+machine: notes
 ---
 
 Notes compilation and sync.

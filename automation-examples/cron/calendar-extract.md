@@ -1,9 +1,10 @@
 ---
 cron: "*/30 * * * *"
-routine: calendar-extract
-CALENDAR_EXTRACT_PAST_DAYS: "7"
-CALENDAR_EXTRACT_FUTURE_DAYS: "60"
-CALENDAR_EXTRACT_TZ: "UTC"
+machine: calendar_extract
+params:
+  CALENDAR_EXTRACT_PAST_DAYS: 7
+  CALENDAR_EXTRACT_FUTURE_DAYS: 60
+  CALENDAR_EXTRACT_TZ: UTC
 ---
 
 Every 30 minutes, mirrors every Nextcloud calendar you have (Personal, Contact birthdays, any

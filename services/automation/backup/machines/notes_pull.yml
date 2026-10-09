@@ -1,0 +1,18 @@
+name: notes_pull
+description: Rsync-pull an external notes vault into workspace/notes, one way, without --delete unless asked.
+data:
+  # user@host:/path over SSH, or a local path. Required.
+  NOTES_PULL_SOURCE: { type: string, default: "" }
+  NOTES_PULL_SUBDIR: { type: string, default: notes }
+  NOTES_PULL_SSH_KEY: { type: string, default: /secrets/notes-pull/id_ed25519 }
+  NOTES_PULL_SSH_PORT: { type: int, default: 22 }
+  # Mirror deletions too — only once you trust the source's uptime.
+  NOTES_PULL_DELETE: { type: bool, default: false }
+  NOTES_PULL_EXTRA_ARGS: { type: string, default: "" }
+initial: pull
+states:
+  pull:
+    invoke: notes_pull
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

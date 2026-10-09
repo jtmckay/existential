@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# gmail-sync
+# gmail_sync
 #
-# Fetches new Gmail messages via the Gmail REST API and writes each one
-# as a markdown file to the decree inbox. Triggered by the cron entry
-# at .decree/cron/gmail-sync.md.
+# Fetches new Gmail messages via the Gmail REST API and emits each one to
+# GMAIL_ROUTINE (gmail, or actual_budget_parse): the email body as the message
+# body, its headers as params. Triggered by automation/cron/gmail-sync.md.
 #
-# Example cron trigger (.decree/cron/gmail-sync.md):
-#
-#   ---
-#   cron: "*/15 * * * *"
-#   routine: gmail-sync
-#   GMAIL_LABEL_FILTER: INBOX
-#   ---
+# GMAIL_FORWARD carries extra params to every emitted message, one key=value
+# per line — how a bank-label cron hands actual_budget_parse its parse_script
+# and account_id.
 #
 # Set GMAIL_LABEL_FILTER to any Gmail label (e.g. "MyLabel", "UNREAD") to
 # filter which messages are synced. Each cron file can target a different label.
@@ -19,7 +15,7 @@
 # Sync position is tracked in ${GMAIL_DIR}/history_id — a monotonically
 # increasing cursor that survives restarts and extended downtime. If the
 # cursor expires (Google purges history after ~30 days without a sync),
-# the routine automatically falls back to a full initial sync.
+# the script automatically falls back to a full initial sync.
 #
 # Requires: curl, jq (both installed in the decree container)
 # Credentials: ${GMAIL_DIR}/credentials.env (created by gmail/setup.sh)
@@ -30,33 +26,18 @@ set -euo pipefail
 
 GMAIL_DIR="${GMAIL_DIR:-/secrets/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-INBOX_DIR="${INBOX_DIR:-/work/.decree/inbox}"
 EMAILS_DIR="${EMAILS_DIR:-/work/.decree/emails}"
-LABEL_FILTER="${GMAIL_LABEL_FILTER:-INBOX}"
-INITIAL_SYNC_DAYS="${GMAIL_INITIAL_SYNC_DAYS:-30}"
-GMAIL_ROUTINE="${GMAIL_ROUTINE:-gmail}"
+LABEL_FILTER="$DECREE_DATA_GMAIL_LABEL_FILTER"
+INITIAL_SYNC_DAYS="$DECREE_DATA_GMAIL_INITIAL_SYNC_DAYS"
+GMAIL_ROUTINE="$DECREE_DATA_GMAIL_ROUTINE"
+GMAIL_FORWARD="$DECREE_DATA_GMAIL_FORWARD"
 
 # Each trigger gets its own cursor file, keyed by label, to avoid stomping between crons
-_history_key="${GMAIL_HISTORY_KEY:-${LABEL_FILTER}}"
+_history_key="${DECREE_DATA_GMAIL_HISTORY_KEY:-${LABEL_FILTER}}"
 _history_slug=$(printf '%s' "$_history_key" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/_*$//')
 HISTORY_FILE="${GMAIL_DIR}/history_id.${_history_slug}"
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-
-# ── Pre-check ─────────────────────────────────────────────────────────────────
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "gmail-sync" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "gmail-sync" "jq not found"
-    [ -f "$CREDENTIALS" ]           || precheck_fail "gmail-sync" "credentials not found at ${CREDENTIALS} — run setup.sh"
-    precheck_pass "gmail-sync"
-    exit 0
-fi
+[ -f "$CREDENTIALS" ] || { echo "credentials not found at ${CREDENTIALS} — run: ./existential.sh run automation gmail-sync" >&2; exit 1; }
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 
@@ -166,26 +147,14 @@ extract_body() {
     fi
 }
 
-# ── YAML value escaping ───────────────────────────────────────────────────────
-# Produces a safe value for a single-quoted YAML string.
-# Strips newlines; escapes internal single quotes by doubling them.
-
-yaml_str() {
-    printf '%s' "${1:-}" | tr -d '\r' | tr '\n' ' ' | sed "s/'/''/g"
-}
-
-# ── Write one message to the decree outbox ────────────────────────────────────
+# ── Emit one message ──────────────────────────────────────────────────────────
 
 write_message() {
     local access_token="$1"
     local msg_id="$2"
-    local outfile="${OUTBOX_DIR}/gmail-${msg_id}.md"
-
-    # Idempotency: skip if the message is anywhere in the pipeline already
-    [ -f "$outfile" ]                                  && return 0  # pending in outbox
-    [ -f "${INBOX_DIR}/gmail-${msg_id}.md" ]           && return 0  # queued in inbox
-    [ -f "${INBOX_DIR}/dead/gmail-${msg_id}.md" ]      && return 0  # dead-lettered
-    [ -f "${EMAILS_DIR}/gmail-${msg_id}.md" ]          && return 0  # processed by gmail routine
+    # Idempotency: the history cursor is the real guard; this catches a resync
+    # of a message the gmail machine has already filed.
+    [ -f "${EMAILS_DIR}/gmail-${msg_id}.md" ] && return 0
 
     local response
     response=$(curl -sf \
@@ -221,31 +190,19 @@ write_message() {
     local body
     body=$(extract_body "$response")
 
-    mkdir -p "$OUTBOX_DIR"
+    local -a fwd=()
+    while IFS= read -r kv; do
+        [ -n "$kv" ] && fwd+=(--param "$kv")
+    done <<<"$GMAIL_FORWARD"
 
-    # Write via a .tmp file so a crashed write never leaves a partial message
-    {
-        printf -- '---\n'
-        printf "routine: %s\n" "${GMAIL_ROUTINE}"
-        printf "msg_id: 'gmail-%s'\n"  "$(yaml_str "$msg_id")"
-        printf "gmail_id: '%s'\n"      "$(yaml_str "$msg_id")"
-        printf "thread_id: '%s'\n"     "$(yaml_str "$thread_id")"
-        printf "from: '%s'\n"          "$(yaml_str "$from")"
-        printf "to: '%s'\n"            "$(yaml_str "$to")"
-        printf "subject: '%s'\n"       "$(yaml_str "$subject")"
-        printf "date: '%s'\n"          "$(yaml_str "$date_hdr")"
-        printf "labels: '%s'\n"        "$(yaml_str "$labels")"
-        printf "has_attachments: %s\n" "$has_attachments"
-        # Forward any cron/message fields prefixed fwd_ into child messages (prefix stripped)
-        while IFS='=' read -r key value; do
-            printf "%s: '%s'\n" "${key#fwd_}" "$(yaml_str "$value")"
-        done < <(env | grep '^fwd_' | sort)
-        printf -- '---\n'
-        printf '\n'
-        printf '%s\n' "$body"
-    } > "${outfile}.tmp"
-
-    mv "${outfile}.tmp" "$outfile"
+    # Values reach decree as argv and decree writes the YAML, so a subject with
+    # quotes or a colon needs no escaping here.
+    decree emit --machine "$GMAIL_ROUTINE" \
+        --param gmail_id="$msg_id" --param thread_id="$thread_id" \
+        --param from="$from" --param to="$to" --param subject="$subject" \
+        --param date="$date_hdr" --param labels="$labels" \
+        --param has_attachments="$has_attachments" \
+        "${fwd[@]}" >/dev/null <<<"$body"
     echo "Enqueued: ${msg_id} — ${subject}"
 }
 
@@ -375,22 +332,12 @@ _AUTH_FAILURE_FILE="${GMAIL_DIR}/auth_failure"
 _handle_auth_failure() {
     if [ ! -f "$_AUTH_FAILURE_FILE" ]; then
         touch "$_AUTH_FAILURE_FILE"
-        mkdir -p "$OUTBOX_DIR"
-        local outfile
-        outfile="${OUTBOX_DIR}/gmail-sync-auth-failure-$(date +%s).md"
-        {
-            printf -- '---\n'
-            printf 'routine: notify\n'
-            printf "ntfy_title: 'Gmail sync: authorization failed'\n"
-            printf "ntfy_priority: 'high'\n"
-            printf "ntfy_tags: 'warning,key'\n"
-            printf -- '---\n'
-            printf '\n'
-            printf 'Gmail token refresh failed. The gmail-sync routine is paused.\n'
-            printf '\n'
-            printf 'To reauthorize: ./existential.sh run automation gmail-sync\n'
-            printf 'Then restart the daemon: docker compose restart automation\n'
-        } > "$outfile"
+        decree emit --machine notify --param ntfy_title="Gmail sync: authorization failed" \
+            --param ntfy_priority=high --param ntfy_tags=warning,key >/dev/null <<'NOTIFY'
+Gmail token refresh failed. The gmail_sync machine is paused.
+
+To reauthorize: ./existential.sh run automation gmail-sync
+NOTIFY
         echo "Auth failure notification queued." >&2
     fi
 }

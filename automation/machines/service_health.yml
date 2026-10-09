@@ -1,0 +1,15 @@
+name: service_health
+description: Probe one service's HTTP endpoint and fail unless it answers with the expected status.
+data:
+  SERVICE_NAME: { type: string, default: "" }
+  SERVICE_URL: { type: string, default: "" }
+  EXPECT_CODE: { type: int, default: 200 }
+  # Seconds.
+  TIMEOUT: { type: int, default: 5 }
+initial: probe
+states:
+  probe:
+    invoke: service_health
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-versions — compare pinned image tags against upstream and notify when
+# check_versions — compare pinned image tags against upstream and notify when
 # updates are available. Reads current tags from the master docker-compose.yml
 # (mounted at /work/.decree/docker-compose.yml) so there is no extra state to
 # maintain — it's always current after any ./existential.sh run.
@@ -7,23 +7,12 @@
 # Runs weekly via cron. Silent when all tags match; sends one ntfy notification
 # listing every service with an available update.
 #
-# Manual invocation:
-#   docker exec automation decree run check-versions
+# By hand:
+#   docker exec automation decree emit --machine check_versions </dev/null
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-/work/.decree/docker-compose.yml}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v curl >/dev/null || precheck_fail "check-versions" "curl not found"
-    command -v jq   >/dev/null || precheck_fail "check-versions" "jq not found"
-    [ -f "$COMPOSE_FILE" ] || precheck_fail "check-versions" \
-        "docker-compose.yml not mounted at ${COMPOSE_FILE} — add '../../docker-compose.yml:/work/.decree/docker-compose.yml:ro' to decree volumes"
-    precheck_pass "check-versions"
-    exit 0
-fi
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
     echo "docker-compose.yml not found at ${COMPOSE_FILE}" >&2
@@ -143,14 +132,5 @@ body+=$'\nThen:  docker compose pull && docker compose up -d'
 echo ""
 echo "$body"
 
-# Queue a notify message via decree outbox
-_outbox="${OUTBOX_DIR:-/work/.decree/outbox}"
-cat > "${_outbox}/check-versions-$(date +%s%N).md" << EOF
----
-routine: notify
-ntfy_title: Image Updates Available
-ntfy_priority: default
-ntfy_tags: arrow_up
----
-${body}
-EOF
+decree emit --machine notify --param ntfy_title="Image Updates Available" \
+    --param ntfy_priority=default --param ntfy_tags=arrow_up >/dev/null <<<"$body"

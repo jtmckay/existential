@@ -1,0 +1,15 @@
+name: openviking_index_dir
+description: Upload a directory tree to OpenViking and keep the index in step with it — new, changed and deleted files.
+data:
+  INDEX_DIR: { type: string, default: /workspace }
+  # Empty means viking://resources/<basename of INDEX_DIR>.
+  INDEX_PREFIX: { type: string, default: "" }
+  INDEX_EXCLUDE: { type: string, default: "" }
+  INDEX_STATE_DIR: { type: string, default: /index-cache }
+initial: index
+states:
+  index:
+    invoke: openviking_index_dir
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

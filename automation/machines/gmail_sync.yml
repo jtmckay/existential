@@ -1,0 +1,18 @@
+name: gmail_sync
+description: Fetch new Gmail messages under one label and emit each to GMAIL_ROUTINE, headers as params and body as body.
+data:
+  GMAIL_LABEL_FILTER: { type: string, default: INBOX }
+  GMAIL_INITIAL_SYNC_DAYS: { type: int, default: 30 }
+  GMAIL_ROUTINE: { type: string, enum: [gmail, actual_budget_parse], default: gmail }
+  # The sync cursor's key; empty means the label. Two crons on one label need two.
+  GMAIL_HISTORY_KEY: { type: string, default: "" }
+  # Extra params for every emitted message, one key=value per line.
+  GMAIL_FORWARD: { type: string, default: "" }
+initial: sync
+states:
+  sync:
+    invoke: gmail_sync
+    transitions: { done: done }
+    emits: [gmail, actual_budget_parse, notify]
+  done: { final: true }
+  failed: { final: true }

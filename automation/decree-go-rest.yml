@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jtmckay/decree-go-rest/main/decree-go-rest.schema.json
+#
+# automation-webhook's endpoints. Each turns an authenticated POST into a
+# `decree emit` for one fixed machine; the request body is the message body,
+# path parameters become params. Every key: decree-go-rest's SPEC.md §3.
+#
+# Secrets are never here, only the environment variables that hold them
+# (services/automation/docker-compose.exist.yml), so this file is tracked. The
+# default one is AUTOMATION_WEBHOOK_SECRET in services/automation/.env:
+#
+#   curl -X POST https://automation-webhook.<domain>/notify/backup \
+#     -H "Authorization: Bearer <secret>" --data-binary 'The backup finished.'
+#
+# Edits are picked up without a restart; an invalid edit keeps the old table
+# serving and shows up in /healthz. GET /openapi.json lists every endpoint.
+secret_env: DECREE_GO_REST_SECRET
+
+endpoints:
+  - path: /notify
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: Untitled, ntfy_priority: high, ntfy_tags: lobster }
+  - path: /notify/{title}
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: high, ntfy_tags: anger }
+  - path: /notify/alert/{title}
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: high, ntfy_tags: white_check_mark }
+
+  # ComfyUI generation from anything that can POST. The body is the prompt;
+  # everything else is a path parameter, because the body is never parsed.
+  #
+  #   curl -X POST https://automation-webhook.<domain>/comfy/image-text/sunset \
+  #     -H "Authorization: Bearer <secret>" --data-binary 'a sunset over mountains'
+  #
+  # `type` names a workflow binding in automation/lib/comfy/workflows/; `name`
+  # becomes the output filename prefix, under ComfyUI's output/comfy/.
+  - path: /comfy/{type}/{name}
+    patterns: { type: "[a-z0-9-]+", name: "[A-Za-z0-9_.-]+" }
+    message:
+      machine: comfy
+      params: { type: "{{type}}", output_prefix: "comfy/{{name}}" }
+
+  # The reference-image form. `image` is a filename ComfyUI already knows —
+  # anything in its input/ folder. A path parameter cannot contain "/", so this
+  # reaches only images sitting directly in input/.
+  - path: /comfy/{type}/{name}/{image}
+    patterns: { type: "[a-z0-9-]+", name: "[A-Za-z0-9_.-]+", image: "[A-Za-z0-9_.-]+" }
+    message:
+      machine: comfy
+      params: { type: "{{type}}", output_prefix: "comfy/{{name}}", input_image: "{{image}}" }
+
+  # The two-image form, for video-ltx-first-last: input_image anchors the first
+  # frame, last_image the final one.
+  - path: /comfy/{type}/{name}/{image}/{last}
+    patterns: { type: "[a-z0-9-]+", name: "[A-Za-z0-9_.-]+", image: "[A-Za-z0-9_.-]+", last: "[A-Za-z0-9_.-]+" }
+    message:
+      machine: comfy
+      params: { type: "{{type}}", output_prefix: "comfy/{{name}}", input_image: "{{image}}", last_image: "{{last}}" }
+
+  # Nextcloud's file events (webhook_listeners), registered against this path
+  # with its own bearer token by the nextcloud_file_events migration. The body
+  # is the event JSON; file_router matches its path against every processor in
+  # automation/lib/file-processors/.
+  - path: /files
+    secret_env: FILES_WEBHOOK_TOKEN
+    message:
+      machine: file_router
+      params: { rclone_src: nextcloud }
+
+  # Hermes' way in: it has no mount into automation/, so follow-up work comes
+  # here, on its own secret (AUTOMATION_WEBHOOK_AUTH in its container). Each
+  # path fixes its machine, so this is all hermes can ask decree for.
+  - path: /hermes/task/{profile}
+    secret_env: HERMES_WEBHOOK_SECRET
+    patterns: { profile: "[a-z0-9_-]{1,40}" }
+    message:
+      machine: agent_task
+      params: { profile: "{{profile}}" }
+  - path: /hermes/notify/{title}
+    secret_env: HERMES_WEBHOOK_SECRET
+    patterns: { title: "[A-Za-z0-9 _.,:;!?'()-]{1,80}" }
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: default, ntfy_tags: robot }

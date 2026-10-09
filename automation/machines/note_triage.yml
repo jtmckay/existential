@@ -1,0 +1,19 @@
+name: note_triage
+description: Ask the model one yes/no question per new or changed note, and hand the ones that pass to TRIAGE_ROUTINE.
+data:
+  TRIAGE_CRITERIA: { type: string, default: "a business idea — something the author could plausibly build, sell, or start" }
+  TRIAGE_ROUTINE: { type: string, enum: [note_develop, idea_workup], default: note_develop }
+  TRIAGE_MAX_NOTES: { type: int, default: 20 }
+  # One run with this on scans the existing vault instead of recording it as seen.
+  TRIAGE_BOOTSTRAP: { type: bool, default: false }
+  TRIAGE_DRY_RUN: { type: bool, default: false }
+  # Hand off only ideas the ledger has not seen before.
+  TRIAGE_LEDGER: { type: bool, default: true }
+initial: triage
+states:
+  triage:
+    invoke: note_triage
+    transitions: { done: done }
+    emits: [note_develop, idea_workup]
+  done: { final: true }
+  failed: { final: true }

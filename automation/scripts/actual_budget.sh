@@ -1,58 +1,27 @@
 #!/usr/bin/env bash
-# actual-budget
+# actual_budget
 #
-# Posts a transaction to Actual Budget using @actual-app/api.
-# Transaction details come from message frontmatter; the body is the amount in
-# decimal dollars (negative = expense, positive = income).
+# Posts a transaction to Actual Budget using @actual-app/api. The details are
+# the params; the body is the amount in decimal dollars (negative = expense,
+# positive = income):
 #
-# Required frontmatter fields:
-#   account_id   — Actual Budget account UUID
-#   payee_name   — Payee name string
-#
-# Optional frontmatter fields:
-#   date         — YYYY-MM-DD (defaults to today)
-#   notes        — Memo/notes string
-#   category_id  — Actual Budget category UUID
-#
-# Example inbox message:
-#
-#   ---
-#   routine: actual-budget
-#   account_id: 'abc123-...'
-#   payee_name: 'Whole Foods'
-#   date: '2024-01-15'
-#   notes: 'Weekly groceries'
-#   category_id: ''
-#   ---
-#   -87.43
+#   decree emit --machine actual_budget --param account_id=abc123-... \
+#       --param payee_name='Whole Foods' --param notes='Weekly groceries' <<<'-87.43'
 
 set -euo pipefail
 
-message_file="${message_file:-}"
+TSX=/work/.decree/lib/node_modules/.bin/tsx
+[ -f /secrets/actual-budget/credentials.env ] && [ -x "$TSX" ] \
+    || { echo "Actual Budget is not set up — run: ./existential.sh run actual-budget" >&2; exit 1; }
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v node >/dev/null 2>&1 \
-        || precheck_fail "actual-budget" "node not found"
-    [ -f "/secrets/actual-budget/credentials.env" ] \
-        || precheck_fail "actual-budget" "credentials missing — run: ./existential.sh run actual-budget"
-    /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1 \
-        || precheck_fail "actual-budget" "tsx not installed — run: ./existential.sh run actual-budget"
-    precheck_pass "actual-budget"
-    exit 0
-fi
+account_id="$DECREE_DATA_ACCOUNT_ID"
+payee_name="$DECREE_DATA_PAYEE_NAME"
+date="${DECREE_DATA_DATE:-$(date +%Y-%m-%d)}"
+notes="$DECREE_DATA_NOTES"
+category_id="$DECREE_DATA_CATEGORY_ID"
 
-# ── Read frontmatter fields ───────────────────────────────────────────────────
-
-account_id="${account_id:-}"
-payee_name="${payee_name:-}"
-date="${date:-$(date +%Y-%m-%d)}"
-notes="${notes:-}"
-category_id="${category_id:-}"
-
-[ -n "$account_id" ] || { echo "Missing account_id in frontmatter."; exit 1; }
-[ -n "$payee_name" ] || { echo "Missing payee_name in frontmatter."; exit 1; }
+[ -n "$account_id" ] || { echo "Missing account_id param."; exit 1; }
+[ -n "$payee_name" ] || { echo "Missing payee_name param."; exit 1; }
 
 # ── Extract amount from message body ─────────────────────────────────────────
 
@@ -60,7 +29,7 @@ amount_raw=$(awk '
     NR==1 && /^---$/ { skip=1; next }
     skip && /^---$/  { skip=0; next }
     !skip
-' "$message_file" | sed '/./,$!d' | head -1 | tr -d '[:space:]')
+' "$DECREE_MESSAGE" | sed '/./,$!d' | head -1 | tr -d '[:space:]')
 
 [ -n "$amount_raw" ] || { echo "Missing amount in message body."; exit 1; }
 
@@ -72,7 +41,7 @@ TXN_DATE="$date" \
 TXN_NOTES="$notes" \
 TXN_CATEGORY_ID="$category_id" \
 TXN_AMOUNT="$amount_raw" \
-    /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/actual-budget/post-transaction.ts)
+    "$TSX" "$DECREE_LIB/actual-budget/post-transaction.ts")
 echo "$_post_output"
 
 echo "Posted ${amount_raw} → ${payee_name} (account: ${account_id})"
@@ -89,18 +58,10 @@ if [ -f "$_tg_creds" ]; then
         if [ -n "$_txn_id" ]; then
             # Convert cents to dollars for display (amount_raw is decimal dollars)
             _amount_cents=$(echo "$amount_raw" | awk '{printf "%d", $1 * 100}')
-            _outbox_file="/work/.decree/outbox/telegram-notify-$(date +%s%N).md"
-            cat > "$_outbox_file" << EOF
----
-routine: telegram-notify
-transaction_id: '${_txn_id}'
-account_id: '${account_id}'
-amount_cents: ${_amount_cents}
-payee_name: '${payee_name}'
-date: '${date}'
-notes: '${notes}'
----
-EOF
+            decree emit --machine telegram_notify --param transaction_id="$_txn_id" \
+                --param account_id="$account_id" --param amount_cents="$_amount_cents" \
+                --param payee_name="$payee_name" --param date="$date" --param notes="$notes" \
+                </dev/null >/dev/null
             echo "Queued Telegram notification for transaction ${_txn_id}."
         fi
     fi

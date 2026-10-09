@@ -22,14 +22,9 @@ set -euo pipefail
 NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 FILES_WEBHOOK_URI="${FILES_WEBHOOK_URI:-http://automation-webhook:8801/files}"
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v curl >/dev/null 2>&1          || { echo "curl not found" >&2; exit 1; }
-    command -v jq >/dev/null 2>&1            || { echo "jq not found" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_USER:-}" ]]     || { echo "NEXTCLOUD_ADMIN_USER not set" >&2; exit 1; }
-    [[ -n "${NEXTCLOUD_ADMIN_PASSWORD:-}" ]] || { echo "NEXTCLOUD_ADMIN_PASSWORD not set" >&2; exit 1; }
-    [[ -n "${FILES_WEBHOOK_TOKEN:-}" ]]      || { echo "FILES_WEBHOOK_TOKEN not set" >&2; exit 1; }
-    exit 0
-fi
+: "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
+: "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD not set}"
+: "${FILES_WEBHOOK_TOKEN:?FILES_WEBHOOK_TOKEN not set}"
 
 _api="${NEXTCLOUD_URL}/ocs/v2.php/apps/webhook_listeners/api/v1/webhooks"
 _ocs() {

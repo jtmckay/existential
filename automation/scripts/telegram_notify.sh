@@ -5,35 +5,11 @@
 # in the pending-receipts state so the user can reply with a receipt photo to
 # split the transaction.
 #
-# Enqueued automatically by actual-budget when /secrets/telegram/credentials.env
-# is present and contains TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID.
-#
-# Required frontmatter:
-#   transaction_id  — Actual Budget transaction UUID
-#   account_id      — Actual Budget account UUID
-#   amount_cents    — integer cents (negative = expense)
-#   payee_name      — payee string
-#   date            — YYYY-MM-DD
-#
-# Optional frontmatter:
-#   notes           — transaction memo
+# Emitted by actual_budget when /secrets/telegram/credentials.env is present
+# and contains TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID. The transaction's details
+# are the params.
 
 set -euo pipefail
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "telegram-notify" "curl not found"
-    command -v jq   >/dev/null 2>&1 || precheck_fail "telegram-notify" "jq not found"
-    precheck_pass "telegram-notify"
-    exit 0
-fi
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -44,19 +20,19 @@ _tg_creds="/secrets/telegram/credentials.env"
 [ -n "${TELEGRAM_CHAT_ID:-}"   ] || { echo "TELEGRAM_CHAT_ID not set."; exit 1; }
 
 # shellcheck source=../lib/telegram.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/telegram.sh"
+source "${DECREE_LIB}/telegram.sh"
 
 _state_file="/secrets/telegram/state.json"
 [ -f "$_state_file" ] || echo '{"pending":{},"splits":{},"last_pending_message_id":null}' > "$_state_file"
 
-# ── Frontmatter params ────────────────────────────────────────────────────────
+# ── Params ────────────────────────────────────────────────────────────────────
 
-transaction_id="${transaction_id:-}"
-account_id="${account_id:-}"
-amount_cents="${amount_cents:-0}"
-payee_name="${payee_name:-Unknown}"
-date="${date:-}"
-notes="${notes:-}"
+transaction_id="$DECREE_DATA_TRANSACTION_ID"
+account_id="$DECREE_DATA_ACCOUNT_ID"
+amount_cents="$DECREE_DATA_AMOUNT_CENTS"
+payee_name="$DECREE_DATA_PAYEE_NAME"
+date="$DECREE_DATA_DATE"
+notes="$DECREE_DATA_NOTES"
 
 [ -n "$transaction_id" ] || { echo "transaction_id is required."; exit 1; }
 

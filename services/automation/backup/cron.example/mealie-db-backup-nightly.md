@@ -1,9 +1,10 @@
 ---
 cron: "0 2 * * *"
-routine: db-backup
-TIER: nightly
-TARGETS: |
-  postgres mealie-postgres MEALIE_POSTGRES_USER MEALIE_POSTGRES_PASSWORD
+machine: db_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    postgres mealie-postgres MEALIE_POSTGRES_USER MEALIE_POSTGRES_PASSWORD
 ---
 
 Dump mealie-postgres nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/mealie-postgres/.

@@ -31,17 +31,22 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
+      # provisioning/alerting/decree.yaml posts failed decree runs to ntfy.
+      - NTFY_URL=${EXIST_NTFY_URL:-http://ntfy:80}
+      - NTFY_USER=${EXIST_NTFY_USER:-}
+      - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
     volumes:
       # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
       # TODO: no backup yet — add a volume-backup cron in
       # services/automation/backup/cron.example/ (nothing else is needed).
       - grafana_data:/var/lib/grafana
-      # Mount the two subdirs we own, not the parent: mounting
-      # /etc/grafana/provisioning wholesale hides the image's empty alerting/,
-      # plugins/, notifiers/ and access-control/ dirs, and grafana logs a
+      # Mount the subdirs we own, not the parent: mounting
+      # /etc/grafana/provisioning wholesale hides the image's empty plugins/,
+      # notifiers/ and access-control/ dirs, and grafana logs a
       # level=error for each missing one on every boot.
       - ./provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./provisioning/alerting:/etc/grafana/provisioning/alerting:ro
 
 x-exist-volumes:
   grafana_data: { db: true }

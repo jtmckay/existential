@@ -1,0 +1,13 @@
+name: volume_backup
+description: Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.
+data:
+  TIER: { type: string, enum: [nightly, weekly], default: nightly }
+  # One entry per line; the format is in automation/scripts/volume_backup.sh.
+  VOLUMES: { type: string, default: "" }
+initial: backup
+states:
+  backup:
+    invoke: volume_backup
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

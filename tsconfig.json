@@ -18,6 +18,6 @@
   // tree is at /opt/decree/node_modules, so every ambient type silently failed
   // to resolve and `process` was an undefined name in all 15 files. The gate
   // links the real tree to /node_modules instead and lets normal resolution work.
-  "include": ["src/**/*.ts", "automation/**/*.ts", "services/automation/src/**/*.ts"],
+  "include": ["src/**/*.ts", "automation/**/*.ts"],
   "exclude": ["node_modules", "site"]
 }

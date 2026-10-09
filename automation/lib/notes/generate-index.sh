@@ -6,16 +6,6 @@
 # Run manually after notes have been compiled.
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    exit 0
-fi
-
 # --- Configuration ---
 OUTPUT_DIR="${OUTPUT_DIR:-/data/dropbox}"
 INDEX="${OUTPUT_DIR}/index.md"

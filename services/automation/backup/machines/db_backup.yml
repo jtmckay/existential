@@ -1,0 +1,13 @@
+name: db_backup
+description: Dump each listed database (postgres, mariadb, mongo), upload the dumps with rclone under the tier, and prune past retention.
+data:
+  TIER: { type: string, enum: [nightly, weekly], default: nightly }
+  # One entry per line; the format is in automation/scripts/db_backup.sh.
+  TARGETS: { type: string, default: "" }
+initial: backup
+states:
+  backup:
+    invoke: db_backup
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

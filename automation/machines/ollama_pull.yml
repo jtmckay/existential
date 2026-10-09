@@ -1,0 +1,15 @@
+name: ollama_pull
+description: Pull an Ollama model by role (or tag), or rebuild it with a context window; idempotent.
+data:
+  OLLAMA_ROLE: { type: string, enum: ["", chat, chat-ctx, extract, embed, vision], default: "" }
+  OLLAMA_MODEL: { type: string, default: "" }
+  OLLAMA_URL: { type: string, default: "" }
+  OLLAMA_FROM: { type: string, default: "" }
+  OLLAMA_NUM_CTX: { type: string, default: "" }
+initial: pull
+states:
+  pull:
+    invoke: ollama_pull
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

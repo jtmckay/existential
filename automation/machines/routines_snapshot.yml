@@ -1,0 +1,9 @@
+name: routines_snapshot
+description: Copy decree's graph, machines and endpoints into workspace/ai/decree/, so hermes knows what it can ask decree for.
+initial: snapshot
+states:
+  snapshot:
+    invoke: routines_snapshot
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

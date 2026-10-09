@@ -1,0 +1,13 @@
+name: note_develop
+description: Take one flagged note and draft what can be done without its author, ending with the questions only they can answer.
+data:
+  note_path: { type: string, default: "" }
+  note_reason: { type: string, default: "" }
+initial: develop
+states:
+  develop:
+    invoke: note_develop
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

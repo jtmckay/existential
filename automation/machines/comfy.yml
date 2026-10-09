@@ -1,0 +1,32 @@
+name: comfy
+description: Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workflows/, the message body as the prompt.
+# Every param is a string: empty keeps the workflow's own value, and a binding
+# gets each one as text either way. A binding that grows a new param needs it
+# declared here too.
+data:
+  # A binding in lib/comfy/workflows/, without .yml.
+  type: { type: string, default: image-text }
+  output_prefix: { type: string, default: "" }
+  input_image: { type: string, default: "" }
+  last_image: { type: string, default: "" }
+  width: { type: string, default: "" }
+  height: { type: string, default: "" }
+  aspect_ratio: { type: string, default: "" }
+  megapixels: { type: string, default: "" }
+  multiple: { type: string, default: "" }
+  duration: { type: string, default: "" }
+  fps: { type: string, default: "" }
+  length: { type: string, default: "" }
+  enhance_prompt: { type: string, default: "" }
+  seed: { type: string, default: "" }
+  # A batch binding's item list, instead of the message body.
+  items_file: { type: string, default: "" }
+  # Empty means EXIST_COMFYUI_URL + /api/prompt.
+  api_url: { type: string, default: "" }
+initial: generate
+states:
+  generate:
+    invoke: comfy
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

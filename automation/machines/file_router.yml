@@ -1,0 +1,12 @@
+name: file_router
+description: Route one Nextcloud file event to every file processor whose PATTERN matches its path.
+data:
+  rclone_src: { type: string, default: nextcloud }
+initial: route
+states:
+  route:
+    invoke: file_router
+    transitions: { done: done }
+    emits: [file_processor]
+  done: { final: true }
+  failed: { final: true }

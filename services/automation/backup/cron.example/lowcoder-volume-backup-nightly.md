@@ -1,10 +1,11 @@
 ---
 cron: "30 2 * * *"
-routine: volume-backup
-TIER: nightly
-VOLUMES: |
-  lowcoder_data         lowcoder-api-service
-  lowcoder_assets_data  lowcoder-api-service,lowcoder-frontend
+machine: volume_backup
+params:
+  TIER: nightly
+  VOLUMES: |
+    lowcoder_data         lowcoder-api-service
+    lowcoder_assets_data  lowcoder-api-service,lowcoder-frontend
 ---
 
 Tar lowcoder volumes nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/.

@@ -1,61 +1,46 @@
 #!/usr/bin/env bash
-# actual-budget-parse
+# actual_budget_parse
 #
-# Generic routine: runs a parse script against the current message and writes
-# an actual-budget outbox message if the script returns a transaction.
+# Runs a parse script against one email from gmail_sync and emits actual_budget
+# when the script returns a transaction.
 #
-# The parse script receives all decree message env vars (subject, date, etc.)
-# and must output a JSON object to stdout:
+# The parse script reads the email's headers from its environment (subject,
+# date, from, to — exported below from this machine's params) and must output
+# a JSON object to stdout:
 #   { "amount": "-45.23", "payee": "STARBUCKS", "date": "2024-01-15", "notes": "..." }
 # Exit 0 with no output to skip (not a transaction). Exit non-zero on error.
 #
-# Required frontmatter / params:
-#   parse_script  — container path to the tsx parser, e.g.
-#                   /work/.decree/lib/actual-budget/parse-chase.ts
-#   account_id    — Actual Budget account UUID
-#
-# Example cron trigger (automation/cron/gmail-transactions-<label>.md):
+# parse_script and account_id arrive through gmail_sync's GMAIL_FORWARD:
 #
 #   ---
 #   cron: "*/5 * * * *"
-#   routine: gmail-sync
-#   GMAIL_LABEL_FILTER: MyBank/Transactions
-#   GMAIL_ROUTINE: actual-budget-parse
-#   fwd_parse_script: /work/.decree/lib/actual-budget/parse-chase.ts
-#   fwd_account_id: dedddddd-2222-4444-9999-111111cccccc
+#   machine: gmail_sync
+#   params:
+#     GMAIL_LABEL_FILTER: MyBank/Transactions
+#     GMAIL_ROUTINE: actual_budget_parse
+#     GMAIL_FORWARD: |
+#       parse_script=/work/.decree/lib/actual-budget/parse-chase.ts
+#       account_id=dedddddd-2222-4444-9999-111111cccccc
 #   ---
 
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
+TSX=/work/.decree/lib/node_modules/.bin/tsx
+[ -x "$TSX" ] || { echo "tsx not installed — run: ./existential.sh run actual-budget" >&2; exit 1; }
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 \
-        || precheck_fail "actual-budget-parse" "jq not found"
-    /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1 \
-        || precheck_fail "actual-budget-parse" "tsx not installed — run: ./existential.sh run actual-budget"
-    precheck_pass "actual-budget-parse"
-    exit 0
-fi
-
-# ── Custom params ─────────────────────────────────────────────────────────────
-
-parse_script="${parse_script:-}"
-account_id="${account_id:-}"
+parse_script="$DECREE_DATA_PARSE_SCRIPT"
+account_id="$DECREE_DATA_ACCOUNT_ID"
 
 [ -n "$parse_script" ] || { echo "Missing parse_script param."; exit 1; }
 [ -n "$account_id" ]   || { echo "Missing account_id param."; exit 1; }
 [ -f "$parse_script" ] || { echo "parse_script not found: ${parse_script}"; exit 1; }
 
+export subject="$DECREE_DATA_SUBJECT" date="$DECREE_DATA_DATE" \
+       from="$DECREE_DATA_FROM" to="$DECREE_DATA_TO"
+
 # ── Run parser ────────────────────────────────────────────────────────────────
 
-result=$(/work/.decree/lib/node_modules/.bin/tsx "$parse_script")
+result=$("$TSX" "$parse_script")
 
 # Empty output = not a transaction, skip cleanly
 if [ -z "$result" ]; then
@@ -77,25 +62,8 @@ fi
 
 [ -n "$txn_date" ] || txn_date=$(date +%Y-%m-%d)
 
-# ── YAML value escaping ───────────────────────────────────────────────────────
-
-yaml_str() { printf '%s' "${1:-}" | tr -d '\r' | tr '\n' ' ' | sed "s/'/''/g"; }
-
-# ── Write outbox message for actual-budget ────────────────────────────────────
-
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-mkdir -p "$OUTBOX_DIR"
-outfile="${OUTBOX_DIR}/actual-budget-$(date +%s%N).md"
-
-{
-    printf -- '---\n'
-    printf 'routine: actual-budget\n'
-    printf "account_id: '%s'\n" "$(yaml_str "$account_id")"
-    printf "payee_name: '%s'\n" "$(yaml_str "$payee")"
-    printf "date: '%s'\n"       "$(yaml_str "$txn_date")"
-    printf "notes: '%s'\n"      "$(yaml_str "$notes")"
-    printf -- '---\n'
-    printf '%s\n' "$amount"
-} > "$outfile"
+decree emit --machine actual_budget --param account_id="$account_id" \
+    --param payee_name="$payee" --param date="$txn_date" --param notes="$notes" \
+    >/dev/null <<<"$amount"
 
 echo "Queued transaction: ${amount} → ${payee} (${txn_date})"

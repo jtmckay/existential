@@ -1,0 +1,22 @@
+name: newsletter
+description: Gather new items from my feeds, pick and summarise the ones that fit my taste, and write the issue to workspace/newsletter/.
+data:
+  # The most new items gather hands to the model, newest first.
+  NEWSLETTER_MAX_ITEMS: { type: int, default: 60 }
+  NEWSLETTER_DIR: { type: string, default: /workspace/newsletter }
+store:
+  seen.tsv: Links already sent, so an item is never in two issues. gather reads it; deliver appends.
+initial: gather
+states:
+  gather:     # new items from lib/newsletter/feeds.txt, by link not in seen.tsv -> items.jsonl
+    invoke: gather
+    transitions: { done: write }
+  write:      # the chat model reads lib/newsletter/taste.md and items.jsonl, writes issue.md
+    invoke: write
+    transitions: { done: deliver }
+  deliver:    # issue.md to NEWSLETTER_DIR/<date>.md, its links to seen.tsv, a notify ping
+    invoke: deliver
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

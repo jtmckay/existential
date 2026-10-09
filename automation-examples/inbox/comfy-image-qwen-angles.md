@@ -6,11 +6,11 @@
 #
 # There is no width/height here: the output size follows input_image.
 # Add `seed:` to an entry to reproduce it; without one it is randomized.
-routine: comfy
-subroutine: image-qwen-angles
-type: image-qwen-angles
-input_image: example.png
-# items_file: /workspace/ai/angles.yml   # for a long list, instead of the body
+machine: comfy
+params:
+  type: image-qwen-angles
+  input_image: example.png
+  # items_file: /workspace/ai/angles.yml   # for a long list, instead of the body
 ---
 - prompt: prompt text
   output: images/example-1

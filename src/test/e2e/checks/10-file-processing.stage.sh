@@ -3,8 +3,10 @@
 # the stack boots.
 #
 # lib/ is mounted read-only into the daemon, so the probe processor has to be
-# placed from out here. Everything else the check needs — the webhook
-# registration, the rclone remote — is done by the Core quest's migrations.
+# placed from out here. So do the webhook registration and rclone remote
+# migrations: Core copies them in itself, but the Files & Workspace slice
+# writes nothing — its guide has the user `cp` them — so without this the slice
+# boots with no file events at all.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -24,3 +26,9 @@ cp "$WORK/automation/lib/file-processors.example/example.sh" \
    "$WORK/automation/lib/file-processors/"
 
 echo "  staged the example file-processor as the probe"
+
+mkdir -p "$WORK/automation/migrations"
+for _m in 23-nextcloud-rclone-remote.md 27-nextcloud-file-events.md; do
+    cp -n "$WORK/automation-examples/migrations/$_m" "$WORK/automation/migrations/"
+done
+echo "  staged the nextcloud migrations (rclone remote, file events)"

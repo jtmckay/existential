@@ -1,5 +1,5 @@
 ---
-routine: homeassistant-wyoming-hermes
+machine: homeassistant_wyoming_hermes
 ---
 
 Wire up Home Assistant's voice pipeline headlessly: the two Wyoming

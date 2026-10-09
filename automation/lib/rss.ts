@@ -7,6 +7,7 @@ export interface FeedItem {
   title: string;
   link: string;
   pubDate: string;
+  summary: string;
 }
 
 function decodeEntities(s: string): string {
@@ -54,6 +55,8 @@ export async function fetchFeed(url: string): Promise<FeedItem[]> {
         link,
         guid: extractTag(block, "guid") || extractTag(block, "id") || link,
         pubDate: extractTag(block, "pubDate") || extractTag(block, "updated") || extractTag(block, "published"),
+        summary: (extractTag(block, "description") || extractTag(block, "summary") || extractTag(block, "content"))
+          .replace(/\s+/g, " ").slice(0, 500),
       };
     })
     .filter((item) => item.guid);

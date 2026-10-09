@@ -1,9 +1,10 @@
 ---
-cron: "30 3 * * 0"
-routine: volume-backup
-TIER: weekly
-VOLUMES: |
-  immich_data immich-server
+cron: "30 3 * * SUN"
+machine: volume_backup
+params:
+  TIER: weekly
+  VOLUMES: |
+    immich_data immich-server
 ---
 
 Weekly tar of the immich_data volume (retained 28 days). Same DEFAULT-path

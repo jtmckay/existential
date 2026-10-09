@@ -1,9 +1,10 @@
 ---
 cron: "0 2 * * *"
-routine: db-backup
-TIER: nightly
-TARGETS: |
-  mongo lowcoder-mongodb LOWCODER_MONGO_ROOT_USERNAME LOWCODER_MONGO_ROOT_PASSWORD
+machine: db_backup
+params:
+  TIER: nightly
+  TARGETS: |
+    mongo lowcoder-mongodb LOWCODER_MONGO_ROOT_USERNAME LOWCODER_MONGO_ROOT_PASSWORD
 ---
 
 Dump lowcoder-mongodb nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/lowcoder-mongodb/.

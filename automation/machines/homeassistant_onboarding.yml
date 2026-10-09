@@ -1,0 +1,14 @@
+name: homeassistant_onboarding
+description: Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.
+initial: wait_for_homeassistant
+states:
+  # First boot runs this before homeassistant has finished starting.
+  wait_for_homeassistant:
+    invoke:
+      script: { name: wait_for_homeassistant, timeout: 10m }
+    transitions: { done: homeassistant_onboarding }
+  homeassistant_onboarding:
+    invoke: homeassistant_onboarding
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

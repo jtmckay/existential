@@ -1,22 +1,18 @@
 ---
 cron: "0 * * * *"
-routine: routines-snapshot
+machine: routines_snapshot
 ---
 
-Refreshes `workspace/ai/decree-routines.md` every hour: the name, description,
-and parameters of every currently-enabled decree routine, pulled straight from
-`decree routine` — no separate list to keep in sync by hand.
+Refreshes `workspace/ai/decree/` every hour: `system.md` (every machine, its
+description, and what it hands work to — straight from `decree graph`), each
+machine's file (the params it takes, with their defaults), and `endpoints.yml`
+(automation-webhook's endpoints, including the `/hermes/*` ones hermes may call).
 
-Hermes has no mount into `automation/`, so this file is how it learns
-what's runnable and what to put in a message's frontmatter to run it. It lands
-in `workspace/ai/`, the same directory `agent-task` writes to — indexed by
-OpenViking, and written straight to disk, so it's searchable but can't
-trigger another run.
+Hermes has no mount into `automation/`, so this is how it learns what decree can
+run and how to ask for it. It lands in `workspace/ai/`, the same directory
+`agent_task` writes to — indexed by OpenViking, and written straight to disk, so
+it is searchable but cannot trigger another run.
 
-The file is overwritten in place each run, not versioned. Enable/disable a
-routine in `services/automation/decree/config.exist.yml` (or its rendered
-`config.yml`) and the next run picks it up.
+Copy to automation/cron/ and restart automation to activate. To refresh it now:
 
-Copy to automation/cron/ and restart automation to activate. To generate the
-first snapshot immediately instead of waiting for the top of the hour, drop a
-bare `routine: routines-snapshot` message in `automation/inbox/` by hand.
+  docker exec automation decree emit --machine routines_snapshot </dev/null

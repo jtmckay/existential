@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# volume-backup — tar every Docker volume listed in $VOLUMES, rclone the tar
+# volume_backup — tar every Docker volume listed in $VOLUMES, rclone the tar
 # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
 # older than the tier's retention window.
 #
-# Triggered by cron files in services/automation/backup/cron/. Decree
-# exposes cron frontmatter keys (TIER, VOLUMES) as env vars. To add or remove
-# a volume, edit the cron file's `VOLUMES:` block — nothing else: decree-backup
+# Triggered by cron files in services/automation/backup/cron/, whose params
+# (TIER, VOLUMES) are this machine's data. To add or remove
+# a volume, edit the cron file's `VOLUMES:` block — nothing else: automation-backup
 # mounts the whole volumes/ dir, so every volume is already reachable.
 #
 # Manual invocation:
-#   docker exec automation-backup decree run volume-backup
+#   docker exec automation-backup decree emit --machine volume_backup \
+#       --param TIER=nightly --param VOLUMES="..." </dev/null
 #
 # $VOLUMES format (one entry per line, whitespace-separated):
 #   <volume_name> <comma,separated,consumer,containers>
@@ -20,31 +21,20 @@ set -euo pipefail
 
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
 VOLUMES_ROOT="${VOLUMES_ROOT:-/volumes}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Pre-check ─────────────────────────────────────────────────────────────────
+[ -f "$RCLONE_CONFIG" ] || { echo "rclone not configured (run ./existential.sh run rclone)" >&2; exit 1; }
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v rclone >/dev/null || precheck_fail "volume-backup" "rclone not found"
-    command -v tar    >/dev/null || precheck_fail "volume-backup" "tar not found"
-    [ -f "$RCLONE_CONFIG" ] || precheck_fail "volume-backup" "rclone not configured (run ./existential.sh run rclone)"
-    [ -d "$VOLUMES_ROOT" ]  || precheck_fail "volume-backup" "$VOLUMES_ROOT not mounted — this routine belongs in decree-backup, which binds volumes/ there"
-    precheck_pass "volume-backup"
-    exit 0
-fi
+# ── Config from the cron file's params ───────────────────────────────────────
 
-# ── Config from cron frontmatter / args ───────────────────────────────────────
-
-TIER="${TIER:-${1:-nightly}}"
+TIER="$DECREE_DATA_TIER"
+VOLUMES="$DECREE_DATA_VOLUMES"
 case "$TIER" in
     nightly) RETENTION_DAYS=7 ;;
     weekly)  RETENTION_DAYS=28 ;;
     *) echo "Unknown tier: $TIER (expected nightly|weekly)" >&2; exit 2 ;;
 esac
 
-[ -n "${VOLUMES:-}" ] || { echo "VOLUMES is empty — set it in the cron frontmatter" >&2; exit 2; }
+[ -n "$VOLUMES" ] || { echo "VOLUMES is empty — set it in the cron file's params" >&2; exit 2; }
 
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
 [ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config" >&2; exit 1; }

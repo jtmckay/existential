@@ -61,6 +61,14 @@ if ! ./existential.sh test typecheck; then
     exit 1
 fi
 
+# Both decree projects as a fresh install has them: machines, scripts, every
+# shipped cron/migration/inbox template, and the committed graphs.
+if ! ./existential.sh test decree; then
+    echo "" >&2
+    echo "pre-push blocked: decree check failed (see above)." >&2
+    exit 1
+fi
+
 if ! ./existential.sh test unit; then
     echo "" >&2
     echo "pre-push blocked: unit tests failed (fix, or 'git push --no-verify')." >&2

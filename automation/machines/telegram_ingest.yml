@@ -1,0 +1,11 @@
+name: telegram_ingest
+description: Poll the Telegram bot for new images and save each to an rclone destination, where Nextcloud's file events pick it up.
+data:
+  TELEGRAM_RCLONE_DEST: { type: string, default: nextcloud:telegram }
+initial: poll
+states:
+  poll:
+    invoke: telegram_ingest
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

@@ -24,8 +24,7 @@
 # ── What it runs ─────────────────────────────────────────────────────────────
 #
 # Each enabled service's own exist.test.sh — the same authoritative check
-# `./existential.sh test services` runs, and the same one the migration gate
-# retries at startup. Nothing is configured per service: enablement is read from
+# `./existential.sh test services` runs. Nothing is configured per service: enablement is read from
 # .env.shared, so a service added tomorrow is triaged tomorrow with no cron file
 # to write. That is the point — service-health probes ONE url you named, this
 # probes everything you have.
@@ -33,50 +32,25 @@
 # Requires the repo mounted read-only at /repo (services/automation's compose does
 # this) because the tests live with their services.
 #
-# ── Frontmatter / env ────────────────────────────────────────────────────────
-#   TRIAGE_BACKOFF        minutes per step: "5 5 15 30 60" (default below)
-#   TRIAGE_MAX_INTERVAL   minutes; the floor it settles to (default 360)
-#   TRIAGE_NOTIFY         notify on change (default true)
-#   TRIAGE_ALWAYS         ignore backoff and run every tick (default false)
-#   TRIAGE_REPO           repo mount (default /repo)
-#   TRIAGE_STRICT         exit non-zero when a service failed (default false)
-#
-#   ---
-#   cron: "*/5 * * * *"
-#   routine: triage
-#   ---
+# ── Params ───────────────────────────────────────────────────────────────────
+# TRIAGE_BACKOFF, TRIAGE_MAX_INTERVAL, TRIAGE_NOTIFY, TRIAGE_ALWAYS,
+# TRIAGE_STRICT, TRIAGE_REPO and TRIAGE_STATE are the machine's data, with what
+# each does: services/automation/backup/machines/triage.yml.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-
-TRIAGE_REPO="${TRIAGE_REPO:-/repo}"
-TRIAGE_STATE="${TRIAGE_STATE:-/data/triage/state.env}"
+TRIAGE_REPO="$DECREE_DATA_TRIAGE_REPO"
+TRIAGE_STATE="$DECREE_DATA_TRIAGE_STATE"
 TRIAGE_REPORT="${TRIAGE_REPORT:-/data/triage/status.md}"
-TRIAGE_BACKOFF="${TRIAGE_BACKOFF:-5 5 15 30 60}"
-TRIAGE_MAX_INTERVAL="${TRIAGE_MAX_INTERVAL:-360}"
-TRIAGE_NOTIFY="${TRIAGE_NOTIFY:-true}"
-TRIAGE_ALWAYS="${TRIAGE_ALWAYS:-false}"
-TRIAGE_STRICT="${TRIAGE_STRICT:-false}"
+TRIAGE_BACKOFF="$DECREE_DATA_TRIAGE_BACKOFF"
+TRIAGE_MAX_INTERVAL="$DECREE_DATA_TRIAGE_MAX_INTERVAL"
+TRIAGE_NOTIFY="$DECREE_DATA_TRIAGE_NOTIFY"
+TRIAGE_ALWAYS="$DECREE_DATA_TRIAGE_ALWAYS"
+TRIAGE_STRICT="$DECREE_DATA_TRIAGE_STRICT"
 PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://prometheus-pushgateway:9091}"
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    [ -d "$TRIAGE_REPO" ] || precheck_fail "triage" \
-        "${TRIAGE_REPO} is not mounted — add '../..:/repo:ro' to the decree service"
-    [ -f "${TRIAGE_REPO}/.env.shared" ] || precheck_fail "triage" \
-        "${TRIAGE_REPO}/.env.shared not found — is the repo mounted read-only at ${TRIAGE_REPO}?"
-    command -v curl >/dev/null 2>&1 || precheck_fail "triage" "curl not found"
-    precheck_pass "triage"
-    exit 0
-fi
+[ -f "${TRIAGE_REPO}/.env.shared" ] || { echo "${TRIAGE_REPO}/.env.shared not found — is the repo mounted read-only at ${TRIAGE_REPO}?" >&2; exit 1; }
 
-mkdir -p "$(dirname "$TRIAGE_STATE")" "$OUTBOX_DIR"
+mkdir -p "$(dirname "$TRIAGE_STATE")"
 
 # ── Backoff ──────────────────────────────────────────────────────────────────
 #
@@ -180,10 +154,9 @@ echo "Triage: ${#PASSED[@]}/${TOTAL} healthy, ${#SKIPPED[@]} not enabled."
 
 # The same report into the run dir, when there is one. $TRIAGE_REPORT lives on a
 # volume inside the container, which is exactly where nobody can reach it after
-# the stack is torn down; $message_dir is copied out with the rest of the run's
+# the stack is torn down; $DECREE_RUN_DIR is copied out with the rest of the run's
 # evidence. Costs one cp and makes e2e's per-service verdict readable.
-[ -n "$message_dir" ] && [ -d "$message_dir" ] \
-    && cp "$TRIAGE_REPORT" "${message_dir}/status.md" 2>/dev/null || true
+cp "$TRIAGE_REPORT" "${DECREE_RUN_DIR}/status.md" 2>/dev/null || true
 
 # ── Notify on CHANGE only ────────────────────────────────────────────────────
 
@@ -196,16 +169,9 @@ if [ "$TRIAGE_NOTIFY" = "true" ] && [ "$NOW_FAILED" != "$PREV_FAILED" ]; then
     for s in $PREV_FAILED; do printf '%s\n' $NOW_FAILED  | grep -qx "$s" || _fixed+="${s} "; done
 
     if [ -n "$_broke" ] || [ -n "$_fixed" ]; then
-        # Build the frontmatter values as plain variables first. Inlining them
-        # in the heredoc broke two ways, and both only showed up on the failure
-        # path -- the one path this routine exists for:
-        #   - the title carries a literal ": " ("Stack: x stopped working"), so
-        #     it must be QUOTED. Unquoted, the message is invalid YAML; decree
-        #     fails to parse it, never writes run.json, and so re-runs the same
-        #     triage message on every 5-minute tick forever.
-        #   - ${v:+a}${v:-b} is not an if/else. When v is set, ${v:-b} expands
-        #     to v, not to nothing, so the set branch emitted "high" + "hermes "
-        #     = "highhermes". It only looked correct while nothing was broken.
+        # ${v:+a}${v:-b} is not an if/else: when v is set, ${v:-b} expands to
+        # v, not to nothing, so the set branch once emitted "high" + "hermes "
+        # = "highhermes". Plain variables first.
         _title=""
         [ -n "$_broke" ] && _title="Stack: ${_broke% } stopped working"
         [ -n "$_fixed" ] && _title="${_title:+${_title} · }${_fixed% } recovered"
@@ -214,22 +180,14 @@ if [ "$TRIAGE_NOTIFY" = "true" ] && [ "$NOW_FAILED" != "$PREV_FAILED" ]; then
         else
             _priority="default"; _tags="white_check_mark"
         fi
-        # Double-quoted YAML scalar: backslashes first, then quotes.
-        _title_yaml="${_title//\\/\\\\}"
-        _title_yaml="${_title_yaml//\"/\\\"}"
 
-        cat > "${OUTBOX_DIR}/triage-$(date +%s%N).md" << NOTIFY
----
-routine: notify
-ntfy_title: "${_title_yaml}"
-ntfy_priority: ${_priority}
-ntfy_tags: ${_tags}
----
+        decree emit --machine notify --param ntfy_title="$_title" \
+            --param ntfy_priority="$_priority" --param ntfy_tags="$_tags" >/dev/null << NOTIFY
 ${_broke:+Not working: ${_broke% }
 }${_fixed:+Recovered: ${_fixed% }
 }
 ${#PASSED[@]} of ${TOTAL} services healthy.
-Details: docker exec automation cat ${TRIAGE_REPORT}
+Details: docker exec automation-backup cat ${TRIAGE_REPORT}
 NOTIFY
         echo "Notified: ${_broke:+broke=${_broke% }}${_fixed:+ fixed=${_fixed% }}"
     fi

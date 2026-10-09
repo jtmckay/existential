@@ -3,43 +3,23 @@
 #
 # Sends the message body to ntfy, stripping frontmatter and whitespace.
 #
-# Example inbox message:
-#
-#   ---
-#   routine: notify
-#   ntfy_topic: 'alerts'
-#   ntfy_title: 'My Alert'
-#   ntfy_priority: 'high'
-#   ntfy_tags: 'warning'
-#   ---
-#   Something happened that needs your attention.
+#   decree emit --machine notify --param ntfy_title='My Alert' <<<'Something happened.'
 set -euo pipefail
 
-message_file="${message_file:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl >/dev/null 2>&1 || precheck_fail "notify" "curl not found"
-    command -v awk  >/dev/null 2>&1 || precheck_fail "notify" "awk not found"
-    precheck_pass "notify"
-    exit 0
-fi
-
-ntfy_url="${ntfy_url:-${NTFY_URL:-http://ntfy:80}}"
-ntfy_topic="${ntfy_topic:-decree}"
-ntfy_token="${ntfy_token:-${NTFY_TOKEN:-}}"
+ntfy_url="${NTFY_URL:-http://ntfy:80}"
+ntfy_topic="$DECREE_DATA_NTFY_TOPIC"
+ntfy_token="${NTFY_TOKEN:-}"
 # ntfy denies every publish by default (auth-default-access: deny-all in
 # server.yml), so one of these two must be set. The bot user is created by ntfy's
 # entrypoint on first boot and needs nothing from you; a token is the opt-in
 # alternative and wins when both are present.
-ntfy_user="${ntfy_user:-${NTFY_USER:-}}"
-ntfy_password="${ntfy_password:-${NTFY_PASSWORD:-}}"
-ntfy_title="${ntfy_title:-}"
-ntfy_priority="${ntfy_priority:-}"
-ntfy_tags="${ntfy_tags:-}"
+ntfy_user="${NTFY_USER:-}"
+ntfy_password="${NTFY_PASSWORD:-}"
+ntfy_title="$DECREE_DATA_NTFY_TITLE"
+ntfy_priority="$DECREE_DATA_NTFY_PRIORITY"
+ntfy_tags="$DECREE_DATA_NTFY_TAGS"
 
-# These three become HTTP headers below. Frontmatter is attacker-influenceable
+# These three become HTTP headers below. Params are attacker-influenceable
 # (email/webhook → inbox), so strip CR/LF to prevent header injection.
 strip_crlf() { printf '%s' "${1//[$'\r\n']/}"; }
 ntfy_title="$(strip_crlf "$ntfy_title")"
@@ -49,25 +29,8 @@ ntfy_tags="$(strip_crlf "$ntfy_tags")"
 telegram_bot_token="${TELEGRAM_BOT_TOKEN:-}"
 telegram_chat_id="${TELEGRAM_CHAT_ID:-}"
 
-# Where to record notifications that could not be delivered by any channel.
-# Lives under the shared runs dir so it's pruned by clean-runs and visible
-# alongside the run logs. ${message_dir} is set by the decree runtime.
-runs_dir="${message_dir:-/work/.decree/runs}"
-failure_log="${runs_dir}/notify-failures.log"
-
-# Append an undelivered notification to the failure log so it can be reviewed.
-log_notify_failure() {
-    local reason="$1"
-    {
-        printf '[%s] undelivered (%s) topic=%s title=%s\n' \
-            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$reason" "$ntfy_topic" "${ntfy_title:-}"
-        printf '%s\n---\n' "$body"
-    } >> "$failure_log" 2>/dev/null \
-        || echo "warn: could not write notify failure log at ${failure_log}" >&2
-}
-
 # Strip YAML frontmatter and leading/trailing whitespace
-body=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$message_file" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
+body=$(awk 'NR==1 && /^---$/{skip=1; next} skip && /^---$/{skip=0; next} !skip' "$DECREE_MESSAGE" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
 
 if [ -z "$body" ]; then
     echo "Empty message body, skipping notification."
@@ -111,14 +74,12 @@ elif [[ -n "$telegram_bot_token" && -n "$telegram_chat_id" ]]; then
         echo "Notification sent via Telegram fallback"
     else
         echo "Telegram fallback also failed" >&2
-        log_notify_failure "ntfy+telegram unreachable"
         exit 1
     fi
 else
     echo "ntfy rejected the publish or is unreachable, and no Telegram fallback is" >&2
     echo "configured (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID). A 403 here means" >&2
     echo "no credential reached this routine — check EXIST_NTFY_USER and" >&2
-    echo "EXIST_NTFY_PASSWORD in .env.shared, then: docker compose up -d decree" >&2
-    log_notify_failure "ntfy rejected/unreachable, no telegram fallback"
+    echo "EXIST_NTFY_PASSWORD in .env.shared, then: docker compose up -d automation" >&2
     exit 1
 fi

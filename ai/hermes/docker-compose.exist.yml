@@ -32,7 +32,7 @@ services:
       resources:
         limits:
           memory: 1G
-    # entrypoint.sh installs decree (cargo) and claude-code (npm) into the
+    # entrypoint.sh installs claude-code (npm) into the
     # persistent data volume on first start, chowns them to HERMES_UID:HERMES_GID,
     # then chains to /init (s6-overlay) which remaps the user and starts the gateway.
     entrypoint: ["/entrypoint.sh"]
@@ -106,10 +106,14 @@ services:
       # Read by entrypoint.sh when a profile's definition names openviking as an
       # MCP server — it is written into that profile's generated config.yaml.
       OPENVIKING_API_KEY: ${OPENVIKING_API_KEY:-}
+      # Bearer token for automation-webhook's /hermes/* endpoints, the agent's
+      # only way to queue decree work. Named without KEY/SECRET/TOKEN on
+      # purpose: hermes strips those names from its code-execution sandbox.
+      AUTOMATION_WEBHOOK_AUTH: ${EXIST_HERMES_WEBHOOK_TOKEN:-}
       MAX_TICK: 1000
     command: ["gateway", "run"]
     volumes:
-      # entrypoint.sh: installs decree + claude-code on first start, chains to /init.
+      # entrypoint.sh: installs claude-code on first start, chains to /init.
       - ./entrypoint.sh:/entrypoint.sh:ro
       # Profile definitions, read-only. Adding a profile is adding a directory
       # here; entrypoint.sh provisions each one into /opt/data/profiles on boot.

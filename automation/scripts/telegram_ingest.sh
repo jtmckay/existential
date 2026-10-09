@@ -2,45 +2,22 @@
 # Telegram Ingest
 #
 # Polls the Telegram Bot API for new photo and image-document messages, downloads
-# each file, and saves it to a rclone destination. Dropping the image into rclone
-# triggers the object-store webhook → file-processor → ollama-ocr pipeline automatically.
+# each file, and saves it to TELEGRAM_RCLONE_DEST. An upload through Nextcloud
+# fires its file event → file_router → file_processor → ollama-ocr, so the
+# image is read automatically.
 #
 # Tracks the last-seen update_id in a cursor file to avoid reprocessing.
-# Designed to run on a cron (e.g. every minute).
-#
-# Example cron trigger (automation/cron/telegram-poll.md):
-#
-#   ---
-#   cron: "* * * * *"
-#   routine: telegram-ingest
-#   TELEGRAM_RCLONE_DEST: nextcloud:telegram
-#   ---
+# Designed to run on a cron (automation-examples/cron/telegram-poll.md).
 #
 # Credentials: /secrets/telegram/credentials.env
 #   TELEGRAM_BOT_TOKEN=<your-bot-token>
 
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl   >/dev/null 2>&1 || precheck_fail "telegram-ingest" "curl not found"
-    command -v jq     >/dev/null 2>&1 || precheck_fail "telegram-ingest" "jq not found"
-    command -v rclone >/dev/null 2>&1 || precheck_fail "telegram-ingest" "rclone not found"
-    precheck_pass "telegram-ingest"
-    exit 0
-fi
-
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 TELEGRAM_SECRETS_DIR="${TELEGRAM_SECRETS_DIR:-/secrets/telegram}"
-TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:telegram}"
+TELEGRAM_RCLONE_DEST="$DECREE_DATA_TELEGRAM_RCLONE_DEST"
 _credentials="${TELEGRAM_SECRETS_DIR}/credentials.env"
 _offset_file="${TELEGRAM_SECRETS_DIR}/offset.txt"
 

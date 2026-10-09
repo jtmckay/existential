@@ -26,24 +26,18 @@
 # A source without a "host:" prefix (a local path, or a share already mounted
 # into this container) skips SSH entirely — rsync copies it directly.
 #
-# Copy to services/automation/backup/cron/ and set NOTES_PULL_SOURCE (and
-# NOTES_PULL_SSH_KEY, if the key isn't at the default path) to activate — see
-# cron.example/notes-pull.md.
+# Copy services/automation/backup/cron.example/notes-pull.md to cron/ and set
+# NOTES_PULL_SOURCE (and NOTES_PULL_SSH_KEY, if the key isn't at the default
+# path) to activate. The NOTES_PULL_* knobs are the machine's data.
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
-NOTES_PULL_SOURCE="${NOTES_PULL_SOURCE:-}"
-NOTES_PULL_SUBDIR="${NOTES_PULL_SUBDIR:-notes}"
-NOTES_PULL_SSH_KEY="${NOTES_PULL_SSH_KEY:-/secrets/notes-pull/id_ed25519}"
-NOTES_PULL_SSH_PORT="${NOTES_PULL_SSH_PORT:-22}"
-NOTES_PULL_DELETE="${NOTES_PULL_DELETE:-false}"
-NOTES_PULL_EXTRA_ARGS="${NOTES_PULL_EXTRA_ARGS:-}"
+NOTES_PULL_SOURCE="$DECREE_DATA_NOTES_PULL_SOURCE"
+NOTES_PULL_SUBDIR="$DECREE_DATA_NOTES_PULL_SUBDIR"
+NOTES_PULL_SSH_KEY="$DECREE_DATA_NOTES_PULL_SSH_KEY"
+NOTES_PULL_SSH_PORT="$DECREE_DATA_NOTES_PULL_SSH_PORT"
+NOTES_PULL_DELETE="$DECREE_DATA_NOTES_PULL_DELETE"
+NOTES_PULL_EXTRA_ARGS="$DECREE_DATA_NOTES_PULL_EXTRA_ARGS"
 
 _is_remote_source() {
     # user@host:/path or host:/path — a bare local path never has a ':'
@@ -52,15 +46,9 @@ _is_remote_source() {
     [[ "${NOTES_PULL_SOURCE}" == *:* && "${NOTES_PULL_SOURCE}" != /* ]]
 }
 
-if [[ "${DECREE_PRE_CHECK:-}" == "true" ]]; then
-    command -v rsync >/dev/null 2>&1 || { echo "rsync not found" >&2; exit 1; }
-    [[ -d "${WORKSPACE_DIR}" ]]      || { echo "${WORKSPACE_DIR} is not a directory — is workspace_data mounted into automation-backup?" >&2; exit 1; }
-    [[ -n "${NOTES_PULL_SOURCE}" ]]  || { echo "NOTES_PULL_SOURCE not set — see cron.example/notes-pull.md" >&2; exit 1; }
-    if _is_remote_source; then
-        command -v ssh >/dev/null 2>&1  || { echo "ssh not found (NOTES_PULL_SOURCE looks like a remote spec)" >&2; exit 1; }
-        [[ -f "${NOTES_PULL_SSH_KEY}" ]] || { echo "${NOTES_PULL_SSH_KEY} not found — see cron.example/notes-pull.md" >&2; exit 1; }
-    fi
-    exit 0
+[[ -n "${NOTES_PULL_SOURCE}" ]] || { echo "NOTES_PULL_SOURCE not set — see cron.example/notes-pull.md" >&2; exit 1; }
+if _is_remote_source; then
+    [[ -f "${NOTES_PULL_SSH_KEY}" ]] || { echo "${NOTES_PULL_SSH_KEY} not found — see cron.example/notes-pull.md" >&2; exit 1; }
 fi
 
 _target="${WORKSPACE_DIR}/${NOTES_PULL_SUBDIR}"

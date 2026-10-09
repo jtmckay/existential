@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# sqlite-backup — dump each SQLite database listed in $TARGETS via sqlite3's
+# sqlite_backup — dump each SQLite database listed in $TARGETS via sqlite3's
 # native .dump mechanism, rclone the compressed SQL to
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/sqlite/<name>/`, prune old backups.
 #
-# Triggered by cron files in each service's decree/cron/ dir. TARGETS format
+# Triggered by cron files in services/automation/backup/cron/. TARGETS format
 # (one entry per line):
 #   <name> <path_relative_to_VOLUMES_ROOT>
 #   e.g.:  kuma  uptime_kuma_data/kuma.db
@@ -14,36 +14,27 @@
 #   rclone cat <remote>/<path> | gunzip | sqlite3 restored.db
 #
 # Manual invocation:
-#   docker exec automation-backup decree run sqlite-backup
+#   docker exec automation-backup decree emit --machine sqlite_backup \
+#       --param TIER=nightly --param TARGETS="..." </dev/null
 
 set -euo pipefail
 
 RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
 VOLUMES_ROOT="${VOLUMES_ROOT:-/volumes}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ── Pre-check ─────────────────────────────────────────────────────────────────
+[ -f "$RCLONE_CONFIG" ] || { echo "rclone not configured (run ./existential.sh run rclone)" >&2; exit 1; }
 
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v rclone  >/dev/null || precheck_fail "sqlite-backup" "rclone not found"
-    command -v sqlite3 >/dev/null || precheck_fail "sqlite-backup" "sqlite3 not found"
-    [ -f "$RCLONE_CONFIG" ] || precheck_fail "sqlite-backup" "rclone not configured (run ./existential.sh run rclone)"
-    precheck_pass "sqlite-backup"
-    exit 0
-fi
+# ── Config from the cron file's params ───────────────────────────────────────
 
-# ── Config from cron frontmatter / args ───────────────────────────────────────
-
-TIER="${TIER:-${1:-nightly}}"
+TIER="$DECREE_DATA_TIER"
+TARGETS="$DECREE_DATA_TARGETS"
 case "$TIER" in
     nightly) RETENTION_DAYS=7 ;;
     weekly)  RETENTION_DAYS=28 ;;
     *) echo "Unknown tier: $TIER (expected nightly|weekly)" >&2; exit 2 ;;
 esac
 
-[ -n "${TARGETS:-}" ] || { echo "TARGETS is empty — set it in the cron frontmatter" >&2; exit 2; }
+[ -n "$TARGETS" ] || { echo "TARGETS is empty — set it in the cron file's params" >&2; exit 2; }
 
 REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
 [ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config" >&2; exit 1; }

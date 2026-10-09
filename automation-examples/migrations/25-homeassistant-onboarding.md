@@ -1,5 +1,5 @@
 ---
-routine: homeassistant-onboarding
+machine: homeassistant_onboarding
 ---
 
 Complete Home Assistant's setup wizard headlessly, using HOMEASSISTANT_ADMIN_USER

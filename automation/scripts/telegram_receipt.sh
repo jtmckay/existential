@@ -11,18 +11,12 @@
 #     → revert the split back to a single transaction → confirm in Telegram
 #
 #   Any other photo (not a reply to a known message)
-#     → save to TELEGRAM_RCLONE_DEST; triggers the file-processor OCR pipeline
+#     → save to TELEGRAM_RCLONE_DEST; triggers the file_processor OCR pipeline
 #
 # Tracks update cursor in /secrets/telegram/receipt-offset.txt.
 # State (pending transactions, active splits) lives in /secrets/telegram/state.json.
 #
-# Example cron trigger (automation/cron/telegram-receipt-poll.md):
-#
-#   ---
-#   cron: "* * * * *"
-#   routine: telegram-receipt
-#   TELEGRAM_RCLONE_DEST: nextcloud:telegram
-#   ---
+# Runs on a cron: automation-examples/cron/telegram-receipt-poll.md.
 #
 # Credentials: /secrets/telegram/credentials.env
 #   TELEGRAM_BOT_TOKEN=<your-bot-token>
@@ -30,27 +24,9 @@
 
 set -euo pipefail
 
-message_file="${message_file:-}"
-message_id="${message_id:-}"
-message_dir="${message_dir:-}"
-chain="${chain:-}"
-seq="${seq:-}"
-
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    # shellcheck source=../lib/precheck.sh
-    source "$(dirname "${BASH_SOURCE[0]}")/../lib/precheck.sh"
-    command -v curl   >/dev/null 2>&1 || precheck_fail "telegram-receipt" "curl not found"
-    command -v jq     >/dev/null 2>&1 || precheck_fail "telegram-receipt" "jq not found"
-    command -v rclone >/dev/null 2>&1 || precheck_fail "telegram-receipt" "rclone not found"
-    /work/.decree/lib/node_modules/.bin/tsx --version >/dev/null 2>&1 \
-        || precheck_fail "telegram-receipt" "tsx not found"
-    precheck_pass "telegram-receipt"
-    exit 0
-fi
-
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TELEGRAM_RCLONE_DEST="${TELEGRAM_RCLONE_DEST:-nextcloud:telegram}"
+TELEGRAM_RCLONE_DEST="$DECREE_DATA_TELEGRAM_RCLONE_DEST"
 _tg_creds="/secrets/telegram/credentials.env"
 # shellcheck source=/dev/null  # runtime path, contents are credentials
 [ -f "$_tg_creds" ] && source "$_tg_creds"
@@ -58,7 +34,7 @@ _tg_creds="/secrets/telegram/credentials.env"
 [ -n "${TELEGRAM_CHAT_ID:-}"   ] || { echo "TELEGRAM_CHAT_ID not set."; exit 1; }
 
 # shellcheck source=../lib/telegram.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/telegram.sh"
+source "${DECREE_LIB}/telegram.sh"
 
 _state_file="/secrets/telegram/state.json"
 [ -f "$_state_file" ] || echo '{"pending":{},"splits":{},"last_pending_message_id":null}' > "$_state_file"
@@ -147,7 +123,7 @@ for i in $(seq 0 $((_count - 1))); do
         _amount_cents=$(echo "$_pending_entry" | jq -r '.amount_cents')
         echo "Receipt for transaction ${_txn_id} (${_amount_cents} cents)..."
 
-        _tmpfile=$(mktemp "${message_dir:-/work/.decree/runs}/receipt.XXXXXX.jpg")
+        _tmpfile=$(mktemp "${DECREE_RUN_DIR}/receipt.XXXXXX.jpg")
         trap 'rm -f "$_tmpfile"' EXIT
         telegram_download_file "$_file_id" "$_tmpfile"
 

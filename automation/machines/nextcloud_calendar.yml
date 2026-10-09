@@ -1,0 +1,14 @@
+name: nextcloud_calendar
+description: Install and enable Nextcloud's Calendar app.
+initial: wait_for_nextcloud
+states:
+  # First boot runs this before nextcloud has finished starting.
+  wait_for_nextcloud:
+    invoke:
+      script: { name: wait_for_nextcloud, timeout: 10m }
+    transitions: { done: nextcloud_calendar }
+  nextcloud_calendar:
+    invoke: nextcloud_calendar
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }
