@@ -17,7 +17,7 @@ ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (LAN, via Caddy) and `http://comf
 ## Using a ComfyUI you already run
 
 The GPU does not have to be in this machine. `EXIST_COMFYUI_URL` in `.env.shared` is the one
-address the stack uses — the `comfy` routine POSTs there, `comfyui.EXIST_DOMAIN` proxies there,
+address the stack uses — the `comfy` machine POSTs there, `comfyui.EXIST_DOMAIN` proxies there,
 and `exist.test.sh` checks it — so pointing it elsewhere and turning the local container off is
 the whole job:
 
@@ -74,12 +74,11 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 ## Using ComfyUI from Decree
 
-Decree routines are shell scripts in `automation/shared_routines/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
+Decree scripts live in `automation/scripts/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
-### The routine that ships
+### The machine that ships
 
-One routine, `comfy`, is already written and registered in
-`services/automation/decree/config.exist.yml` (off by default). Its `type` parameter names a
+One machine, `comfy`, is already written. Its `type` parameter names a
 workflow in `automation/lib/comfy/workflows/`:
 
 | `type` | Model | Needs |
@@ -94,14 +93,14 @@ workflow in `automation/lib/comfy/workflows/`:
 
 Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. The shipped graphs have their prompts blanked to `prompt text` — you always supply your own, so there is nothing to inherit.
 
-There is a ready-made message per flow in `automation-examples/inbox/`. Flip `comfy`'s `enabled: true`, restart automation, then copy one and edit it:
+There is a ready-made message per flow in `automation-examples/inbox/`. Copy one and edit it:
 
 ```bash
 cp automation-examples/inbox/comfy-image-text.md automation/inbox/
 ```
 
 The message body is the prompt, and `output_prefix` is the filename prefix ComfyUI writes under.
-Everything else a workflow exposes is an env-style message parameter of the same name — set one
+Everything else a workflow exposes is a message param of the same name (under `params:`) — set one
 to override the workflow's own value, leave it out to keep it:
 
 | Parameter | Applies to |
@@ -119,9 +118,10 @@ output gets (`automation-examples/inbox/comfy-image-qwen-angles.md`):
 
 ```yaml
 ---
-routine: comfy
-type: image-qwen-angles
-input_image: example.png
+machine: comfy
+params:
+  type: image-qwen-angles
+  input_image: example.png
 ---
 - prompt: prompt text
   output: images/example-1
@@ -133,7 +133,7 @@ Fewer than eight entries prunes the unused branches out of the submitted graph, 
 GPU time. There is no size parameter for this flow — the output resolution follows `input_image`.
 Long lists can live in a file instead of the body, via `items_file`.
 
-Every flow is fire-and-forget: the routine POSTs and exits on the HTTP code, and ComfyUI writes
+Every flow is fire-and-forget: the script POSTs and exits on the HTTP code, and ComfyUI writes
 the result into its own `output/`. To do something with the file afterwards, poll `/history/{id}`
 until `outputs` appears and fetch it from `/view`.
 
@@ -170,10 +170,11 @@ while IFS= read -r p; do
     n=$((n+1))
     cat > "automation/inbox/comfy-$STAMP-$n.md" <<EOF
 ---
-routine: comfy
-type: image-text-image
-input_image: "hero/$(basename "$img")"
-output_prefix: hero/out-$n
+machine: comfy
+params:
+  type: image-text-image
+  input_image: "hero/$(basename "$img")"
+  output_prefix: hero/out-$n
 ---
 $p
 EOF
@@ -191,7 +192,7 @@ visible in ComfyUI's own UI.
 docker logs -f automation
 ```
 
-Two things to know before you point this at a large folder. The routine POSTs and exits, so
+Two things to know before you point this at a large folder. The script POSTs and exits, so
 twenty messages become twenty ComfyUI queue entries in about a second — the depth is ComfyUI's
 problem, not decree's, and a few hundred is an unattended GPU night. And nothing here dedupes:
 re-running the loop queues the whole cross product again, which is usually what you want (seeds
@@ -199,7 +200,7 @@ are randomized) but is worth knowing.
 
 ## Triggering over HTTP
 
-Two endpoints ship in `services/automation/webhook/config.exist.yml`, so anything that can POST
+Three endpoints ship in `automation/decree-go-rest.yml`, so anything that can POST
 can queue a generation. The request body is the prompt:
 
 ```bash
@@ -219,44 +220,31 @@ curl -X POST https://automation-webhook.EXIST_DOMAIN/comfy/video-ltx-first-last/
   -d 'a slow camera push between the two frames'
 ```
 
-The secret is the top-level `secret:` in the rendered `services/automation/webhook/config.yml`.
+The secret is `AUTOMATION_WEBHOOK_SECRET` in `services/automation/.env`.
 Output goes to `output/comfy/<name>/`.
 
-The shape is dictated by two deliberate properties of the webhook, both documented in
-`services/automation/webhook/README.md`: **the body is never parsed** — it is opaque bytes
-copied into the message body verbatim — and
-**frontmatter is fixed per endpoint**. So the prompt is the body and everything else has to be a
+The shape is dictated by two deliberate properties of the webhook (decree-go-rest's SPEC.md):
+**the body is never parsed** — it is opaque bytes copied into the message body verbatim — and
+**the machine and its params are fixed per endpoint**. So the prompt is the body and everything else has to be a
 path parameter. That has two consequences worth internalising:
 
 - **A path parameter cannot contain `/`**, so these routes reach only images sitting directly in
-  `input/`, never in a subfolder. That is not fixable by adding a `{sub}` segment: the resulting
-  `/comfy/{type}/{name}/{sub}/{image}` is the same *shape* as the two-image route, routes are
-  registered on a `ServeMux`, and it panics on conflicting patterns — a fatal startup error. The
-  `params:` regexes cannot separate them either, because they are applied after routing, not
-  during it. Keep webhook reference images flat in `input/`; use the batch loop above for
-  subfolders.
+  `input/`, never in a subfolder. Keep webhook reference images flat in `input/`; use the batch
+  loop above for subfolders.
 - **There is no optional parameter**, which is why each image count is its own route. Every
   additional knob (`width`, `duration`, `seed`, …) would likewise be another path segment or
   another endpoint with the value baked in — for anything more elaborate, write the inbox message
   directly, as the batch loop above does. That applies especially to `video-ltx-first-last`,
   which reaches its real settings (`duration`, `fps`, `width`, `height`) only that way.
 
-Both routes set an explicit `params:` pattern. The default parameter charset is
-`[A-Za-z0-9_\-!]+`, which has no `.`, so `ref.png` would be rejected with a `400` without one.
-
-:::warning Editing the config needs a recreate, not a restart
-The service polls `config.yml` and exits on change so its restart policy reloads it — but it
-compares the **mtime of the inode it already holds**, and `config.yml` is a single-file bind
-mount. An editor that writes to a temp file and renames it (most of them) leaves that inode
-untouched, so the running process never notices, and `docker cp` will happily show you the new
-content while the process serves the old. Use `docker compose up -d --force-recreate
-automation-webhook` and confirm the route count in `docker logs automation-webhook`.
-:::
+Each route sets explicit `patterns:`. The default parameter charset is `[A-Za-z0-9_\-!]+`, which
+has no `.`, so `ref.png` would be rejected with a `400` without one. Config edits load without a
+restart; an invalid edit keeps the old endpoints serving and shows up in `/healthz`.
 
 ## Telegram → ComfyUI Workflow
 
-Nothing wires Telegram to ComfyUI out of the box — the shipped `telegram-ingest` routine
-(`automation/shared_routines/telegram-ingest.sh`) polls for inbound *photo* messages and
+Nothing wires Telegram to ComfyUI out of the box — the shipped `telegram_ingest` machine
+(`automation/scripts/telegram_ingest.sh`) polls for inbound *photo* messages and
 routes them into the OCR pipeline, not text commands. A `/imagine <prompt>` workflow is
 something you'd write yourself, following the same shape:
 
@@ -264,7 +252,7 @@ something you'd write yourself, following the same shape:
 User sends: /imagine a sunset over mountains
         │
         ▼
-your routine polls the Telegram Bot API (see telegram-ingest.sh for the pattern)
+your script polls the Telegram Bot API (see telegram_ingest.sh for the pattern)
         │
         ▼
 Extracts the prompt, POSTs the workflow to comfyui:8188/prompt
@@ -280,12 +268,12 @@ Sends image back to the Telegram chat via Bot API
 ```
 
 See [Telegram integration](../integrations/telegram) for bot credentials setup, and
-[Writing a Routine](../writing-a-routine) for how a new routine gets registered and run
+[Writing an Automation](../writing-a-routine) for how a new machine gets written and run
 on a schedule.
 
 ## Designing Workflows
 
-Adding a flow to the `comfy` routine is adding two files to
+Adding a flow to the `comfy` machine is adding two files to
 `automation/lib/comfy/workflows/` — a graph and a binding. No shell is written:
 
 1. Open `https://comfyui.EXIST_DOMAIN`, build the workflow visually, and run it once so you know
@@ -297,7 +285,9 @@ Adding a flow to the `comfy` routine is adding two files to
    too, and keeps the UI graph so generated files re-open as a working workflow.)
 3. Write `workflows/<type>.yml` beside it, naming each parameter you want to control and the node
    and input it writes to. Copy the closest existing binding — `video-ltx-text.yml` for a plain
-   flow, `image-qwen-angles.yml` for a batch one.
+   flow, `image-qwen-angles.yml` for a batch one. A parameter no existing binding uses also
+   needs a line in `automation/machines/comfy.yml`'s `data:`, or decree rejects messages that
+   set it.
 4. `./existential.sh test unit` — `test-comfy-workflows.sh` checks every binding against its
    graph.
 
@@ -314,7 +304,7 @@ explicit `seed` when you want to reproduce one.
 - **Monitor GPU**: `curl -s http://comfyui:8188/system_stats | jq .`
 - **Batch generation**: submit multiple `/prompt` requests — ComfyUI queues them and processes in order, each with its own `prompt_id`
 - **Model persistence**: the `comfyui_data` volume keeps all downloaded models across `docker compose down`
-- **Workflow iteration**: small changes to steps (20→30), CFG scale (7→9), or sampler (`euler` → `dpmpp_2m`) have meaningful quality impact — iterate in the UI before committing to a routine
+- **Workflow iteration**: small changes to steps (20→30), CFG scale (7→9), or sampler (`euler` → `dpmpp_2m`) have meaningful quality impact — iterate in the UI before committing to a machine
 - **Image retrieval**: `SaveImage` nodes write to `/root/ComfyUI/output/` inside the container; the `/view` endpoint serves them from there with no additional volume mount needed
 
 ## Debugging

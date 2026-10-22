@@ -93,13 +93,6 @@ copies:
     dst: automation/migrations/
     label: "homeassistant: wire up Wyoming STT/TTS + Hermes as the Assist pipeline"
     requires: EXIST_IS_SERVICES_HOMEASSISTANT
-  # The one door from workspace/ into decree's inbox: an agent confined to
-  # workspace/ (hermes) drops a message in workspace/outbox/ instead of ever
-  # touching automation/ directly.
-  - src: automation-examples/cron/outbox-relay.md
-    dst: automation/cron/
-    label: "decree: outbox-relay.md (workspace/outbox/ -> decree inbox, every minute)"
-    requires: EXIST_IS_SERVICES_AUTOMATION
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"

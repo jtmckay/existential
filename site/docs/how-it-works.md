@@ -93,7 +93,7 @@ Hermes is not a coding backend for this repo — it is an agent running its own 
 opencode's streaming parser rejects its tool-progress frames
 ([why](./decree/routing#why-not-opencode)). Change the stack with a dedicated coding agent on
 the host, against a frontier model. Hermes' agent work stays where it works: in a container, on
-`workspace/` — see [agent-task](./decree/) and [code-server](./services/code-server).
+`workspace/` — see [agent_task](./decree/) and [code-server](./services/code-server).
 :::
 
 ## How it's assembled

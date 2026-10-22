@@ -1,0 +1,9 @@
+name: e2e_file_processing
+description: e2e only — upload a file to Nextcloud and assert its file event reaches decree as a file_router message.
+initial: probe
+states:
+  probe:
+    invoke: e2e_file_processing
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

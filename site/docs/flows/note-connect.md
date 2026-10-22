@@ -49,7 +49,7 @@ bar is an insight you would not have made just by remembering the earlier note e
 ### 1. Search — not a plain question, a tool
 
 Finding a real connection means actually searching the knowledge base, which is a job for a
-tool, not a chat model guessing. So this routine doesn't call the gateway directly the way
+tool, not a chat model guessing. So this machine doesn't call the gateway directly the way
 [Note → Action](./note-to-action)'s triage step does — it hands the note to a
 [Hermes](../ai/hermes) department profile that carries [OpenViking](../ai/openviking) as an
 MCP tool (`research`, by default), and lets it search the OpenViking index for itself.
@@ -70,51 +70,48 @@ connection can still come through — just not the one you already saw.
 Unlike every other flow on this page, there is no quest to pick. `./existential.sh quest` →
 **Core** copies `note-connect.md` into `automation/cron/` for you, alongside the cron that
 indexes `workspace/` into OpenViking in the first place — the same `requires:` gate, since one
-is pointless without the other. Nothing else to enable: `note-connect` is on by default in
-`services/automation/decree/config.yml`, and `NOTES_DIR` defaults to `/workspace`, the same
+is pointless without the other. Nothing else to enable, and `NOTES_DIR` defaults to `/workspace`, the same
 tree [Hermes](../ai/hermes) already reads and [OpenViking](../ai/openviking) already indexes.
 
 **Opting out is a file deletion, nothing more:**
 
 ```bash
 rm automation/cron/note-connect.md
-docker compose restart automation
 ```
 
-`enabled: true` with no cron file behind it never fires — there's no config flag to also flip.
+A machine with no cron file behind it never fires — there's no config flag to also flip.
 Delete the file, and it's gone until you copy it back from `automation-examples/cron/`.
 
 Running a custom, non-Core install instead? Copy that same file yourself:
 
 ```bash
 cp automation-examples/cron/note-connect.md automation/cron/
-docker compose restart automation
 ```
 
 ### Pointing it at a different vault
 
 `NOTES_DIR` defaulting to `/workspace` is what makes this need nothing beyond Hermes and
-OpenViking. If you run [Note → Action](./note-to-action)'s note-triage vault mirror and would
-rather scan that instead, set `NOTES_DIR: "/data/notes"` in the cron frontmatter — everything
-else about the flow is unchanged.
+OpenViking. If you run [Note → Action](./note-to-action)'s note_triage vault mirror and would
+rather scan that instead, set `NOTES_DIR=/data/notes` in `automation/.env` — everything else
+about the flow is unchanged. It is an environment variable, not a param, so it applies to the
+other notes machines too.
 
 ### Check it before trusting it
 
 ```bash
-docker exec automation decree routine note-connect       # the routine's own pre-check
-printf -- '---\nroutine: note-connect\nCONNECT_DRY_RUN: true\n---\n' > automation/inbox/dry-run.md
+echo | docker exec -i automation decree emit --machine note_connect --param CONNECT_DRY_RUN=true
 ```
 
 A dry run logs every candidate and score, and writes nothing — including no ledger entry, so
 tuning `CONNECT_MIN_SCORE` never poisons the "already surfaced" check.
 
 :::warning[The first run does nothing, on purpose]
-Same reason as [Note → Action](./note-to-action#4-restart-then-watch-it-do-nothing): it
+Same reason as [Note → Action](./note-to-action#3-watch-it-do-nothing): it
 records the tree as seen *without* scanning it — turning this on over an already-full
 `workspace/` should not fire a call per file. To scan the backlog once:
 
 ```bash
-printf -- '---\nroutine: note-connect\nCONNECT_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
+echo | docker exec -i automation decree emit --machine note_connect --param CONNECT_BOOTSTRAP=true
 ```
 :::
 

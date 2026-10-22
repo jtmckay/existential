@@ -38,7 +38,7 @@ REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
 [ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run backup-config" >&2; exit 1; }
 
 DATE=$(date -u +%Y%m%dT%H%M%SZ)
-TMPDIR=$(mktemp -d "${message_dir:-/work/.decree/runs}/tmp.XXXXXX")
+TMPDIR=$(mktemp -d "${DECREE_RUN_DIR:-/tmp}/tmp.XXXXXX")
 trap 'rm -rf "$TMPDIR"' EXIT
 
 rclone_cmd() { rclone --config "$RCLONE_CONFIG" "$@"; }

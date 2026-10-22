@@ -51,7 +51,7 @@ jobs:
       - name: shellcheck
         run: ./existential.sh test lint
 
-  # Builds the adhoc image, which is the slow one (cargo install + node +
+  # Builds the adhoc image, which is the slow one (node +
   # database clients). Everything that needs tsx or the container lives here.
   unit:
     name: Unit suite and conventions

@@ -15,7 +15,7 @@ AI agent gateway with an OpenAI-compatible API and a live dashboard.
 |---|---|
 | Hermes dashboard | Sessions, skills, and agent configuration |
 | [Open WebUI](./open-web-ui) | Day-to-day conversations |
-| [decree](../decree/) routines | Work with nobody present — `agent-task` files the answer into `workspace/ai/` |
+| [decree](../decree/) routines | Work with nobody present — `agent_task` files the answer into `workspace/ai/` |
 
 Every surface points at the gateway (`https://hermes-agent.<domain>/v1`, `HERMES_API_KEY` as the
 API key), so they share the same models, skills and memory.
@@ -72,13 +72,12 @@ built rather than a preference.
 
 ## Triggering automation
 
-Hermes has no mount into `automation/` and shouldn't be given one — decree's
-routine scripts are read-only from inside the daemon on purpose. If a task
-calls for running a decree routine (now, or as a scheduled follow-up), the
-supported path is `workspace/outbox/`, which Hermes already has file access
-to: see [Triggering decree from workspace/](../decree/file-change-processing#triggering-decree-from-workspace--the-outbox).
-`agent-task`, which is what answers most Hermes-routed work, already tells the
-model this in its system prompt.
+Hermes has no mount into `automation/` and shouldn't be given one. If a task calls for more
+decree work, it POSTs to automation-webhook's `/hermes/task/{profile}` endpoint on its own
+secret (`AUTOMATION_WEBHOOK_AUTH` in its container), which queues an `agent_task` run on that
+profile: see [Hermes asking decree for work](../decree/file-change-processing#hermes-asking-decree-for-work).
+`agent_task`, which is what answers most Hermes-routed work, already tells the model this in
+its system prompt.
 
 ## Authentication
 

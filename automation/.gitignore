@@ -1,0 +1,3 @@
+# decree: .env files hold script variables and are never committed.
+.env*
+!.env.example

@@ -165,12 +165,8 @@ It's more than a shared folder:
 - **What the stack writes does not fire.** Hermes, code-server and Decree write straight to
   disk. Nextcloud picks those files up within a minute, so they reach your devices, but they
   raise no event — which is what stops an agent's own answer from triggering another run.
-- **`workspace/ai/`** is where agent output lands (`agent-task`'s answers, for instance). It's
+- **`workspace/ai/`** is where agent output lands (`agent_task`'s answers, for instance). It's
   indexed like everything else, so an agent can build on a previous run's output.
-- **`workspace/outbox/`** is the other direction: drop a markdown file there to run a decree
-  routine. It's how Hermes (which has no access to `automation/`, by design) triggers
-  automation — see
-  [Triggering decree from workspace/](./decree/file-change-processing#triggering-decree-from-workspace--the-outbox).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
 

@@ -11,7 +11,6 @@ done:
   files:
     - automation/migrations/23-nextcloud-rclone-remote.md
     - automation/migrations/27-nextcloud-file-events.md
-    - automation/cron/outbox-relay.md
 ---
 
 The storage slice of Core. Nextcloud is what your phone and laptop sync to, and
@@ -37,7 +36,7 @@ file events. There is nothing to click.
 ── 2. Teach rclone how to reach Nextcloud ────────────────────────────────
 
 Everything that downloads a file out of Nextcloud (every file processor, the
-notes routines) goes through one rclone remote. Without it they all fail with
+notes machines) goes through one rclone remote. Without it they all fail with
 "didn't find section in config file".
 
        mkdir -p automation/migrations/
@@ -51,32 +50,21 @@ configures is healthy. There is nothing to schedule and nothing to re-run.
 
        cp automation-examples/migrations/27-nextcloud-file-events.md \
           automation/migrations/
-       docker compose restart automation
 
 From then on every upload through Nextcloud — desktop client, web UI, WebDAV —
-runs `file-router`, which hands the file to any processor whose PATTERN
+runs `file_router`, which hands the file to any processor whose PATTERN
 matches. Writes that do NOT go through Nextcloud — hermes, code-server, decree
 itself — fire nothing. That is on purpose: it is what stops an agent's answer
 from triggering another run.
 
-── 4. Let the agent reach decree ─────────────────────────────────────────
-
-An agent confined to the workspace drops a message in `workspace/outbox/`
-instead of ever touching `automation/` directly. `outbox-relay` picks it up
-within a minute:
-
-       mkdir -p automation/cron/
-       cp automation-examples/cron/outbox-relay.md automation/cron/
-       docker compose restart automation
-
-── 5. Sync it to your machines ───────────────────────────────────────────
+── 4. Sync it to your machines ───────────────────────────────────────────
 
 Install the Nextcloud desktop client (nextcloud.com/install), log in at
 https://nextcloud.${EXIST_DOMAIN} with the admin credentials from
 nas/nextcloud/.env, and sync the `workspace` folder. Edit there; the server
 side is just where it lives.
 
-── 6. Check it ───────────────────────────────────────────────────────────
+── 5. Check it ───────────────────────────────────────────────────────────
 
        ./existential.sh test nextcloud code-server
 

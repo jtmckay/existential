@@ -124,8 +124,8 @@ _login() {
 # matters and a readiness probe just passes and hands the outage to the next
 # call. An abandoned login flow costs nothing — HA expires them.
 #
-# migration-gate.sh cannot cover this either: it runs once, before `decree
-# process`, and had passed long before migration 25 was even read.
+# wait_for_homeassistant cannot cover this either: it passes once, and had passed
+# long before this state ran.
 _login_with_retry() {
     local deadline=$(( SECONDS + HOMEASSISTANT_READY_TIMEOUT )) token="" waited=0
     while :; do

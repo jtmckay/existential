@@ -10,7 +10,7 @@ Also sets `wopi_allowlist` to the `exist` bridge subnet (default
 own admin settings for this app warn when it is left blank — an empty
 allowlist lets any IP that reaches Nextcloud make WOPI requests, not just the
 actual Collabora container. See
-automation/shared_routines/nextcloud-richdocuments.sh for the exact upstream
+automation/scripts/nextcloud_richdocuments.sh for the exact upstream
 behaviour this was verified against.
 
 COLLABORA_URL and the Nextcloud admin credentials come from the decree

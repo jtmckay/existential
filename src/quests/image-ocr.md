@@ -49,12 +49,9 @@ Setup:
        docker exec ollama ollama pull "$(grep ^EXIST_MODEL_VISION= .env.shared | cut -d= -f2)"
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
-     decree — no restart needed for this one:
+     decree — no restart needed:
        cp automation/lib/file-processors.example/ollama-ocr.sh \
           automation/lib/file-processors/
-
-  4. Restart decree to pick up config changes:
-       docker compose restart automation
 
 Telegram OCR flow:
   If the Telegram Bot quest is active, photos sent to your Telegram bot are

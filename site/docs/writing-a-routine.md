@@ -2,214 +2,148 @@
 sidebar_position: 6
 ---
 
-# Writing a Routine
+# Writing an Automation
 
-Every automation in this stack is the same two things: **a routine** (a bash script that does
-one job) and **a trigger** (something that decides when to run it). Nothing else. Once you can
-write one and pick the other, the rest of this section is detail.
+Every automation in this stack is the same three things: **a script** (bash that does one job),
+**a machine** (a few lines of YAML naming the script and its settings), and **a trigger**
+(something that decides when to run it). Once you can write one of each, the rest of this
+section is detail.
 
-This page is the contract. If you want to watch it used end to end on a real problem, read
-[Note → Action](./flows/note-to-action) alongside it — that flow is four routines wired
-together and nothing more.
+The engine is [decree](https://github.com/jtmckay/decree) 0.5. Its own README covers everything
+it can do. This page is how this stack uses it. To watch it used end to end on a real problem,
+read [Note → Action](./flows/note-to-action) alongside it.
 
 ## The shape of every message
 
-Before the script, the thing the script receives. Decree has exactly one message format, and
-every trigger produces it:
+Before the script, the thing it receives. Decree has exactly one message format, and every
+trigger produces it:
 
 ```markdown
 ---
-routine: note-triage
-TRIAGE_CRITERIA: "a business idea"
+machine: note_triage
+params:
+  TRIAGE_CRITERIA: "a business idea"
 ---
 
 Anything down here is the body.
 ```
 
-`routine:` is the only required key. **Every other frontmatter key becomes an environment
-variable** for the routine, and the body is available at `${message_file}`. A cron file, a
-webhook POST, a message another routine wrote, a file you drop in the inbox by hand — they all
-end up as this. Learn this one shape and every trigger below is the same trigger.
+`machine:` is the only required key. Each key under `params:` reaches the script as
+`DECREE_DATA_<NAME>`, and the message itself is at `$DECREE_MESSAGE`. A cron file, a webhook
+POST, a message another machine emitted, `decree emit` by hand — they all end up as this.
 
-## Anatomy of a routine
+## The machine
 
-Routines live in `automation/shared_routines/<name>.sh`. The filename minus `.sh` is the
-routine name. Here is the whole structure, in order — `service-health.sh` is a good short one
-to read next to this:
+A machine lives in `automation/machines/<name>.yml`. Names are snake_case. Start with the
+simplest one, a single state, and add states only when a real run shows the need:
+
+```yaml
+name: my_job
+description: One line on what it does; hermes and the graph both show it.
+data:
+  MY_PARAM: { type: string, default: a default }
+  MY_LIMIT: { type: int, default: 20 }
+initial: run
+states:
+  run:
+    invoke: my_job
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }
+```
+
+`data:` is the settings block. **Every param a message may pass must be declared here**, with a
+default. Decree fails a run that passes anything else, so a typo in a cron file is a failed run
+that names the key, not a setting silently ignored.
+
+## The script
+
+`invoke: my_job` runs `automation/scripts/my_job.sh`. `service_health.sh` is a good short one to
+read next to this:
 
 ```bash
 #!/usr/bin/env bash
-# my-routine — one line on what it does.
+# my_job — one line on what it does.
 #
-# Everything in this header block is the documentation. `decree routine
-# my-routine` prints it, so write it for the person who has to enable this in
-# six months. Say what it needs, what it writes, and how to run it by hand.
-
+# This header is the documentation. Say what has to exist first, what it writes
+# and where, and the failure that will confuse the next person.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MY_PARAM="$DECREE_DATA_MY_PARAM"
+MY_LIMIT="$DECREE_DATA_MY_LIMIT"
 
-# Decree sets these for every run.
-message_file="${message_file:-}"   # the message that triggered this run
-message_id="${message_id:-}"       # e.g. D0001-1432-my-routine-0
-message_dir="${message_dir:-}"     # run directory, holds logs from prior attempts
-chain="${chain:-}"                 # chain ID, if this run was chained
-seq="${seq:-}"                     # position in that chain
-
-# The pre-check. Required. This is the routine's self-test.
-if [ "${DECREE_PRE_CHECK:-}" = "true" ]; then
-    source "${SCRIPT_DIR}/../lib/precheck.sh"
-    command -v jq >/dev/null 2>&1 || precheck_fail "my-routine" "jq not found"
-    precheck_pass "my-routine"
-    exit 0
-fi
-
-# Your settings. This block is special — see below.
-my_param="${my_param:-a default}"
-MY_LIMIT="${MY_LIMIT:-20}"
-
-# --- Implementation ---
-
-echo "Doing the thing with ${my_param}"
+echo "Doing the thing with ${MY_PARAM}"
 ```
 
-Four things in there are load-bearing.
+Three things in there are load-bearing:
 
-### The header comment is the documentation
+- **`set -euo pipefail`, always.** Exit 0 is `done`; anything else is `failed`. A script that
+  swallows its own errors and exits 0 reports success for work it never did.
+- **It must be executable** (`chmod 755`). Decree runs scripts by path, and `decree check`
+  refuses one without the bit.
+- **A failed run pages you.** Grafana alerts on any run that ends in `failed` and sends it to
+  ntfy, once per machine every 6 hours while it keeps failing. Nothing to wire up.
 
-There is no separate doc for a routine. `decree routine <name>` prints this block, and it is
-what someone reads before enabling your script. Write down the non-obvious parts: what has to
-exist first, what it writes and where, and the failure that will confuse them.
-
-### `set -euo pipefail`, always
-
-Decree treats a non-zero exit as failure and retries the message up to `max_attempts`, then
-dead-letters it. That retry is only useful if your script actually fails when a step fails.
-
-Exiting non-zero is also how your routine gets you a notification. Dead-lettering fires the
-`onDeadLetter` hook, which sends an ntfy alert naming the routine, the message, and the last
-few log lines — for every routine, with nothing to wire up. Repeats are rate-limited to one
-alert per routine per 6 hours (`DECREE_ALERT_COOLDOWN_MIN`), and a routine that succeeds again
-resets that, so the next failure alerts immediately. A routine that swallows its own errors and
-exits 0 opts out of all of this.
-
-### The pre-check gate is your self-test
-
-Gate it on `DECREE_PRE_CHECK=true`, put it **after** the standard variables and **before** your
-own settings, and exit non-zero with a message naming what is missing. `precheck_fail` in
-`automation/lib/precheck.sh` formats it consistently.
-
-This is what `docker exec automation decree routine <name>` runs, and it is the fastest way to find
-out why an automation is quietly doing nothing. Check for the things that are actually absent
-in a fresh install — a missing binary, an unset key, a directory the upstream routine was
-supposed to create — and say in the message how to fix it, not just what is wrong:
-
-```bash
-[ -d "${NOTES_DIR:-/data/notes}" ] || precheck_fail "note-triage" \
-    "NOTES_DIR ${NOTES_DIR:-/data/notes} does not exist — run the 'notes' routine first, or point NOTES_DIR at your vault"
-```
-
-### Settings must be one unbroken block
-
-Decree discovers your routine's parameters by scanning the file top to bottom and matching the
-exact form `name="${name:-default}"`. It **stops at the first line that does not match** after
-the pre-check block.
-
-So this works:
-
-```bash
-FOO="${FOO:-1}"
-BAR="${BAR:-2}"
-```
-
-and this silently loses `BAR`:
-
-```bash
-FOO="${FOO:-1}"
-echo "starting"          # ← scanning stops here
-BAR="${BAR:-2}"          # ← never settable from frontmatter
-```
-
-Put every setting in one run of lines directly after the pre-check, then start the
-implementation. `${VAR:-}` with an empty default is fine — it means optional, no default.
-
-## Registering it
-
-A routine on disk is invisible until it is listed. Every daemon has a
-`<category>/<slug>/decree/config.exist.yml` with a `shared_routines:` whitelist:
-
-```yaml
-shared_routines:
-  my-routine:
-    enabled: true
-```
-
-- **Unlisted means invisible.** Not disabled — absent.
-- `enabled: false` means the routine is known and off. That is the right default for anything
-  opt-in; the user flips it on.
-- Add it to **every** daemon that should see it — there are two, and each has its own config.
-- `config.exist.yml` is the tracked template. `./existential.sh` renders it once to
-  `config.yml`, which is gitignored and is where the user's own overrides live — so edit the
-  template *and*, if `config.yml` already exists, the rendered copy too.
+To retry a flaky step, give that state attempts: `invoke: { script: { name: my_job, attempts: 3 } }`.
+Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a
+machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
 :::warning[Which daemon?]
-There are two and they are not interchangeable: **`automation`** (project dir
-`services/automation/decree/`) and **`automation-backup`** (`services/automation/backup/`).
-Neither container is called `decree` — that's the binary inside them.
+There are two, and each is its own decree project: **`automation`** (the repo-root
+`automation/` directory) and **`automation-backup`** (`services/automation/backup/`, with its
+own `machines/`). They share `automation/scripts/` and `automation/lib/`.
 
 `automation` is where anything that **reasons, routes, calls a service API, or runs a service's
-one-time migrations** belongs. It alone gets the hermes gateway credential — the other daemon has
-no way to reach a model at all.
+one-time migrations** belongs. It alone has the hermes gateway credential.
 
 `automation-backup` is where anything that needs **bulk volume data or every credential at
-once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. Despite the
-name it is not backups-only — `notes-pull` lives there for exactly that access, not because
-it backs anything up. What it must never do is reason, route, or make an AI call; that stays in
-`automation` even when it touches the same data.
+once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. It is not
+backups-only (`notes_pull` and `triage` live there for that access). What it must never do is
+reason, route, or make an AI call.
 
-Both have a writable `/workspace`. A routine that wants an AI *and* bulk volume access is a
-routine that should be two.
+A job that wants an AI *and* bulk volume access is a job that should be two machines.
 :::
 
 ## Choosing a trigger
 
-Four ways in. All of them produce the same message.
+A machine that nothing points at never runs. There is no list to register it in.
 
 ### Cron — on a schedule
 
 Add a file to `automation-examples/cron/<name>.md` (tracked), then copy it into
-`automation/cron/` (active, gitignored, mounted into the daemon) and restart it:
+`automation/cron/` (active, gitignored). The daemon rescans the directory every tick, so there is
+nothing to restart:
 
 ```markdown
 ---
 cron: "0 * * * *"
-routine: my-routine
-my_param: "something"
+machine: my_job
+params:
+  MY_PARAM: something
 ---
 
 What this schedule is for. The body is free text.
 ```
 
 ```bash
-cp automation-examples/cron/my-routine.md automation/cron/
-docker compose restart automation
+cp automation-examples/cron/my-job.md automation/cron/
 ```
 
 The copy-to-activate split is deliberate: examples ship for everyone, and nothing runs on your
-machine until you put it in `cron/`. Frontmatter is parsed on restart, so changing a setting
-means restarting the daemon.
+machine until you put it in `cron/`.
 
 ### Webhook — when something out there happens
 
-`automation-webhook` turns an HTTP POST into an inbox message. Endpoints are configuration only —
-add one to `services/automation/webhook/config.exist.yml`, re-render, restart. Each carries its own
-bearer token. This is how Home Assistant, a phone shortcut, or any external service reaches the
-stack. See [Build On It](./build-on-it) for the request contract.
+`automation-webhook` turns an authenticated HTTP POST into a message. Endpoints are configuration
+only: add one to `automation/decree-go-rest.yml` and it is live, no restart. This is how Home
+Assistant, a phone shortcut, or any external service reaches the stack. See
+[Build On It](./build-on-it) for the request contract.
 
 ### A file landing in Nextcloud — when a file shows up
 
-Nextcloud fires an event on every upload → the webhook → `file-router` → your **file processor**. A
-processor is a small script in `automation/lib/file-processors/` that declares what it matches:
+Nextcloud fires an event on every upload → the webhook → `file_router` → your **file
+processor**. A processor is a small script in `automation/lib/file-processors/` that declares what
+it matches:
 
 ```bash
 PATTERN="^nextcloud:workspace/.*\.md$"
@@ -222,79 +156,66 @@ Full detail in [File Change Processing](./decree/file-change-processing).
 
 ### By hand — for testing, and for one-offs
 
-Decree has no `run` subcommand — the only way to trigger a routine manually is dropping a
-message straight into the inbox it drains. For the main daemon that's the repo-root
-`automation/inbox/` (it wholesale-mounts `automation/` as its whole project); for
-`automation-backup` it's `services/automation/backup/inbox/`.
-
 ```bash
-printf -- '---\nroutine: my-routine\nmy_param: value\n---\n' > automation/inbox/once.md
+echo 'The body.' | docker exec -i automation decree emit --machine my_job --param MY_PARAM=value
 ```
 
-## Chaining: one routine handing work to the next
+For `automation-backup`'s machines, `docker exec -i automation-backup` instead.
 
-This is what turns routines into flows. A routine does not call another routine — it **writes a
-message** and returns. Decree picks it up and runs it as its own job, with its own retries, its
-own log and its own line in the dashboard.
+## Chaining: one machine handing work to the next
+
+This is what turns jobs into flows. A script does not call another script. It **emits a
+message** and returns, and decree runs that as its own job, with its own log and its own line in
+the dashboard:
 
 ```bash
-OUTBOX_DIR="${OUTBOX_DIR:-/work/.decree/outbox}"
-mkdir -p "$OUTBOX_DIR"
-
-cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" <<MSG
----
-routine: hermes-dept
-profile: research
-output_name: competition
----
-Who else is already doing this?
-MSG
+echo 'Who else is already doing this?' \
+    | decree emit --machine agent_task --param profile=research --param output_name=competition
 ```
 
-Three rules:
+List what a state emits in its machine, so `decree check` validates the params and
+`decree graph` draws the chain:
 
-- **Write to the outbox, never the inbox.** Decree relays outbox → inbox itself. Writing
-  straight to the inbox races the daemon.
-- **`mkdir -p "$OUTBOX_DIR"` first.** Decree reads the outbox but never creates it, and an
-  absent directory is silently treated as "no messages" — your handoff disappears with no error.
-- **Unique filenames.** `$(date +%s%N)` is what the shipped routines use. Two messages written
-  in the same second must not collide.
+```yaml
+  run:
+    invoke: my_job
+    transitions: { done: done }
+    emits: [agent_task]
+```
 
-Fan-out is just writing more than one message. Chains are bounded by `max_depth` (100), so a
-routine that queues itself will stop rather than run forever.
+Fan-out is just emitting more than once.
 
 ## Verifying it
 
 ```bash
-# 1. The pre-check — does it think it can run?
-docker exec automation decree routine my-routine
+# 1. Is it valid? Checks machines, scripts and every queued message.
+./existential.sh test decree
 
 # 2. Run it for real
-printf -- '---\nroutine: my-routine\n---\n' > automation/inbox/once.md
+echo | docker exec -i automation decree emit --machine my_job
 
 # 3. Read what happened
-ls automation/runs/                       # one directory per message
-cat automation/runs/<id>/run.json         # status, timing, exit code
-cat automation/runs/<id>/routine.log      # full output, written live
+docker exec automation decree status          # runs by state; failed ones say how to retry
+docker exec automation decree status <id>     # one run's events
+ls automation/runs/<id>/                      # message.md, events.jsonl, one log per script
 ```
 
-Every run also ships metrics to Prometheus and its log to Loki automatically — the `afterEach`
-hook does it, so a new routine shows up in Grafana's **Decree Overview** dashboard with no
-wiring on your part.
+Every run's events and logs also ship to Loki, and Grafana's **Decree Overview** dashboard shows
+a new machine with no wiring on your part. After adding or changing a machine, run
+`./existential.sh run decree-graph` to regenerate the committed diagrams.
 
-Common reasons a routine appears to do nothing:
+Common reasons a job appears to do nothing:
 
 | Symptom | Cause |
 |---|---|
-| No run directory at all | Not listed in that daemon's `config.yml`, or `enabled: false` |
-| Cron never fires | File is in `cron.example/`, not `cron/` — or the daemon wasn't restarted |
-| A frontmatter setting is ignored | It is below a non-matching line in the settings block |
-| A chained routine never runs | Wrote to the inbox instead of the outbox, or `$OUTBOX_DIR` didn't exist |
-| Runs, exits 0, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |
+| No run at all | Nothing triggers it: the cron file is in `automation-examples/`, not `automation/cron/` |
+| A `failed` run with `invalid_message` | The message names a machine that project does not have, or a param its `data:` does not declare |
+| A chained job never runs | The emitting script's `decree emit` failed; its log says why |
+| Runs, ends `done`, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |
 
 ## Where to go next
 
-- [Note → Action](./flows/note-to-action) — four routines wired into one flow, step by step
+- [Note → Action](./flows/note-to-action) — four machines wired into one flow, step by step
 - [File Change Processing](./decree/file-change-processing) — the file-trigger path in full
 - [Routing to Departments](./decree/routing) — handing work to a specific hermes profile
-- [Build On It](./build-on-it) — the frozen HTTP contract, if you are integrating from outside
+- [Build On It](./build-on-it) — the HTTP contract, if you are integrating from outside

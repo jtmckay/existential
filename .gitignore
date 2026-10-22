@@ -73,64 +73,35 @@
 **/dashy-conf.yml
 
 # Decree
-services/automation/webhook/config.yml
-# throwaway binary built by webhook/difftest.sh
-services/automation/webhook/.difftest-webhook
-# `go build` in webhook/ drops the compiled binary here (named for the module).
-# The image builds it from source in a multi-stage Dockerfile and .dockerignore
-# denies it from the build context, so a committed copy is pure dead weight.
-services/automation/webhook/decree-webhook
-# The root automation/ dir is wholesale-mounted into the `automation` daemon as
-# /work/.decree, so this is the one place its runtime state actually lives —
-# not nested under any services/automation/<project>/ dir.
+# Two decree projects: the root automation/ dir (mounted wholesale into the
+# `automation` daemon as /work/.decree) and services/automation/backup/. Each
+# keeps its own runtime state; everything else in them is tracked.
 automation/lib/file-processors/*
 automation/cron/*
 automation/migrations/*
 automation/runs/*
+automation/store/
 automation/secrets/*
 automation/data/*
 automation/emails/
 automation/inbox/*
-automation/outbox/
 automation/processed.md
-# precheck.log records which routines passed their DECREE_PRE_CHECK at startup,
-# so it is regenerated on every boot.
-automation/precheck.log
-# config.exist.yml/config.yml stay in services/automation/decree/ (not the
-# root) — the render pipeline and validate-conventions.ts both look specifically
-# for <slug>/decree/config.exist.yml, so moving the rendered file would silently
-# stop it from being rendered or validated. decree/ also now holds the image
-# build (Dockerfile, entrypoint.sh, package.json, pnpm-lock.yaml) — tracked
-# normally, only the rendered config is ignored. config.hash, though, is written
-# by the decree binary itself next to config.yml *inside the container* —
-# since only config.yml is layered in from decree/, config.hash lands wherever
-# /work/.decree resolves on the host, which is the wholesale-mounted root.
-services/automation/decree/config.yml
-automation/config.hash
-# Docker creates a missing bind-mount TARGET as a root-owned empty file. The
-# decree daemon mounts services/automation/decree/config.yml onto
-# /work/.decree/config.yml, and /work/.decree IS the wholesale-mounted
-# automation/ dir — so an empty automation/config.yml appears on the host the
-# first time the stack comes up. It is a mount artifact, not a source file, and
-# it was tracked by accident until it wasn't. (Its sibling
-# automation/docker-compose.yml, created the same way by the compose mount, was
-# already covered by the docker-compose.yml rule above.)
-automation/config.yml
-# The backup daemon's project dir keeps the classic cron.example/ + cron/
-# pair since its crons are per-instance, not mounted shared content.
-services/automation/backup/config.yml
-services/automation/backup/config.hash
 services/automation/backup/cron/*
 services/automation/backup/data/*
 services/automation/backup/inbox/*
-services/automation/backup/outbox/
-services/automation/backup/processed.md
-services/automation/backup/precheck.log
-# Nested bind-mount points — dirs tracked (.gitkeep force-added), content ignored.
-# These must exist before first `docker compose up` so Docker doesn't auto-create them as root.
-services/automation/backup/shared_routines/*
-services/automation/backup/lib/*
 services/automation/backup/runs/*
+services/automation/backup/store/
+services/automation/backup/processed.md
+# automation-backup mounts automation/lib and automation/scripts into its own
+# project, so these two are only mount points.
+services/automation/backup/lib/*
+services/automation/backup/scripts/
+# decree 0.4 leftovers exist.initial.sh cannot always remove: the Go webhook's
+# root-owned binary, and the old shared_routines/ and outbox/ mount points.
+services/automation/webhook/
+services/automation/backup/shared_routines/
+automation/outbox/
+services/automation/backup/outbox/
 
 
 # LightRAG

@@ -17,7 +17,6 @@ Silent when everything is current.
 Activate it:
   mkdir -p automation/cron/
   cp automation-examples/cron/check-versions.md automation/cron/
-  docker compose restart automation
 
 How it works:
   - Every Monday at 09:00 Decree runs check-versions

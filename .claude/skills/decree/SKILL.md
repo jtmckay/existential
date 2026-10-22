@@ -1,187 +1,329 @@
 ---
 name: decree
 description: >
-  Work within the Decree automation ecosystem — routines, cron jobs, hooks, inbox/outbox
-  messages, and the backup daemon in automation/ and services/automation/.
-  INVOKE when: user mentions automation/, decree, routines, cron jobs, hooks, inbox, outbox,
-  or the decree container; user asks how to automate something, schedule a task, trigger a
-  workflow, or process messages; user adds/modifies anything in automation/ or services/automation/.
-  SKIP for: general shell scripting, Docker, or infrastructure work unrelated to decree.
+  Work in a decree project: messages (migrations, inbox, cron), machines (YAML statecharts in
+  .decree/machines/) and scripts (.decree/scripts/), checked with `decree check`, drawn with
+  `decree graph`, and queued with `decree emit`. Prefers the simplest machine: states are added
+  only when the user asks or a run shows the need.
+  INVOKE when: the user mentions decree or .decree/; writes or edits a migration, inbox message,
+  cron file, machine or script; asks how to automate, schedule or chain work, ask a model or a
+  person to decide a step, or why a run failed, is waiting or was interrupted.
+  SKIP for: shell scripting, CI or infrastructure work unrelated to decree.
 ---
 
-# Decree Skill
+# decree
 
-Decree is an automation orchestrator. It processes inbox messages through configurable
-routines, with lifecycle hooks and cron scheduling. In this repo decree runs as:
+decree runs work through three building blocks:
 
-- **`automation`** (project dir `services/automation/decree/`) — AI workflows, gmail, telegram,
-  webhook-triggered tasks, service-health, and **every service's one-time migrations**
-- **`automation-backup`** (project dir `services/automation/backup/`) — despite the name, not
-  backups only. It runs the three backup routines (`volume-backup`, `db-backup`,
-  `sqlite-backup`) *plus* any routine that needs the same bulk data or master-credential access
-  and does no reasoning, routing or AI call: `notify`, `clean-runs`, `triage`
-  (which is why the read-only `/repo` mount lives here, not in `automation`), and `notes-pull`
-  (opt-in). Anything that reasons, routes or calls a model stays in `automation`
-  even when it touches the same data.
+- A **message** (markdown) says *what* to do in its body, and *which machine* does it
+  (`machine:` in the frontmatter). Migrations, inbox messages and cron templates are all messages.
+- A **machine** (`.decree/machines/<name>.yml`) says *in what order*: a W3C SCXML statechart
+  written in YAML. States, what each state invokes, and which event leads to which state. No
+  code, no paths.
+- A **script** (`.decree/scripts/<name>.sh`, or `.decree/scripts/<machine>/<name>.sh` for one
+  machine's own) does one piece of work and reports one outcome: exit 0 is `done`, non-zero is
+  `error`, or the script names a richer event in a file (`echo pass > "$DECREE_EVENT_FILE"`).
 
-The **container** names are `automation` and `automation-backup` — the slug-prefix convention,
-enforced by `validate-conventions.ts`. The directory names under `services/automation/` are
-`decree/` and `backup/`, and those two things are deliberately not the same.
+Every state invokes one function, and its result is an event. The function is a script, a child
+machine (`machine: deploy`), or a built-in decision: `check` (deterministic: `true` or `false`),
+`model` (a model picks an option, asked through a router machine) or `person` (the run pauses
+until a reply picks one). `invoke` has exactly one key, which names the kind. AI and people
+appear only where a machine invokes `model` or `person`.
 
-That is the complete list. Services do **not** get their own `*-decree` sidecar any more; don't
-add one. See `.claude/reference/services.md` for why, and for what each daemon can reach.
+## Rules
 
-## Paths in This Repo
+- **Start with the simplest machine.** Write the most naive machine that does the job: the
+  scripts it needs, one state each, in a straight line (`done` → the next state), ending in
+  `done`. `error` already goes to `failed` implicitly; don't write it.
+  - Add nothing else until the user asks for it or a run has shown it is needed: no `check`,
+    `model` or `person` decisions, loops or round counters, `data` params, `attempts`,
+    `timeout`, child machines, `emits`, compound states or one state per case.
+  - When an addition is warranted, add the smallest one that solves the problem, and say why
+    in the state's comment (`# the local model fails often: try Claude second`).
+  - The cheapest fixes come first, in this order: change the script; `attempts`; a transition
+    on an event the script names; a `check`; a `model` or `person` decision; a child machine.
+  - Asked to design a machine, show the simple version, and list possible additions in prose
+    as options, not in the YAML.
+  - When `develop` runs show that a failed verify is worth more rounds, decree's
+    [escalation ladder](https://github.com/jtmckay/decree/blob/main/docs/escalation.md)
+    recipe adds them: rounds with a cheap agent, one with Claude, then a person.
+- **Never edit a migration.** Files in `.decree/migrations/` are immutable; the ones listed in
+  `.decree/processed.md` have run. To change something, write a new migration with the next
+  number.
+- **Name migrations so they keep their order.** They run in byte order of filename, so `100-`
+  sorts before `99-`: pad the number to the width the project will need (`001-`), and when a
+  project outgrows it, continue with a letter prefix (`A01-`, then `B01-`), because letters sort
+  after digits. `decree check` warns when a new name sorts before one that already ran.
+- **One concern per migration**, day-sized, with Given / When / Then acceptance criteria whose
+  outcomes are observable (exit codes, file contents, output).
+- **Describe the outcome, not the steps.** A message says what is true when it is done and
+  why; the agent chooses how, as `infra` declares a desired state and `apply` reaches it.
+  - **Outcome** (belongs in a message): behaviour a user or another program can observe; the
+    public contract (command and flag names, file names, formats and locations, exit codes,
+    messages printed); what must not change; why the change is wanted.
+  - **Steps** (left out): which functions, modules or files to change, in what order, which
+    data structures. Name one only as a constraint ("no new dependencies", "decree itself runs
+    no git command"), never as a suggestion.
+  - The test for any sentence: if a different correct implementation would fail it, it is a
+    step.
+  - The body: `## Overview` (why), `## Outcome` (what is true afterwards), `## Constraints`
+    (what must hold or not change), `## Acceptance Criteria` (Given / When / Then,
+    observable). `reference/messages.md` shows a step rewritten as an outcome.
+- **Always set `machine:`** in a message. Pick from `.decree/machines/` (`ls .decree/machines`).
+- **Before writing a machine, run `decree schema` and read
+  `.decree/schema/v1/machine.schema.json`**, the JSON Schema of every machine key, and write
+  against it. Read `events.schema.json`, `request.schema.json` and `reply.schema.json` in the
+  same folder before writing a router or anything that reads a run.
+- **Scripts choose how, machines choose what runs next.** A script may decide *how* to do its
+  one job from its params and environment: which workflow file, which model for this attempt,
+  which flags. A choice of *which step runs next* is a transition, on `done` or an event the
+  script names. Make it a decision state (`check`, `model`, `person`) only when the step after
+  it differs, and the choice is worth seeing in the graph, testing with `decree check`, or
+  giving to a model or a person.
+- **Route with a typed router.** For a `model` decision that routes work (which model, which
+  path), point `router:` at a typed router (a classifier such as GLiNER2.5-Decide, or a model
+  constrained by `reply_schema`): it cannot answer outside the options and costs little. Keep
+  untyped models (`claude -p`) for the work itself. To combine several routers by a quorum, use
+  the [consensus recipe](https://github.com/jtmckay/decree/blob/main/docs/routers.md#consensus-of-several-routers)
+  (a router machine, no new decision kind).
+- **Queue follow-up work with `decree emit`**, never by writing into `.decree/inbox/` by hand
+  from a script. The emitting state must list the target in `emits:`.
+- **A file a person writes into `.decree/inbox/` runs in the order it arrived**: the first
+  `process` or `daemon` to see it gives it a fresh id, renames it `<id>.md` and records its old
+  name as `arrived_as`. decree replaces `id`, `state`, `trigger` and `migration` there, so to
+  run a message again (a migration, a run's `message.md`), run `decree emit < <file>` or copy
+  it into `inbox/`.
+- **Name a migration's run by its file.** A migration's run has a time id like every other run;
+  `decree status 01-a`, `decree process --retry 01-a.md`, `decree tail 01-a` and `decree event
+  01-a <event>` take the migration's file name or stem and mean its newest run.
+- **Run `decree check` after every change** to a machine, script, message or cron file, and
+  `decree graph` after changing a machine. Commit `.decree/graph/`.
+- **Read decree's output as JSON, never by parsing its text**: `decree check --format json`,
+  `decree status [<id>] --format json`, and `--format json` on `emit`, `event`, `stop`,
+  `prune`, `graph`, `schema`, `skill` and `process --dry-run` print one JSON document, described by
+  `.decree/schema/v1/cli/<command>.schema.json`. Exit codes are the same as in text.
+  `decree check --format json` gives each error's `rule`, `file`, `line` or `state` and
+  `message`.
+- **Scripts must be safe to re-run**, after an interruption or a failure halfway:
+  `decree process --retry` runs the step again. Check that the result works (`pip --version`
+  runs), not that a file exists.
+- **Keep a step's previous output until it has a new one.** A script that rewrites a file
+  the next attempt or round reads (`gaps.md`, a report) sets the old one aside and puts it
+  back if the attempt dies, so a crashed attempt never leaves the retry with nothing:
 
-### The main daemon: one wholesale mount
+  ```bash
+  [ ! -f "${out}" ] || mv "${out}" "${out}.last"
+  trap '[ -s "${out}" ] || [ ! -f "${out}.last" ] || mv "${out}.last" "${out}"' EXIT
+  ai "${prompt}"            # writes ${out}
+  rm -f "${out}.last"
+  ```
 
-`automation/` (repo root) IS `/work/.decree` for the `automation` (main decree) daemon — the
-whole directory is bind-mounted in one shot, not per-subdirectory. It contains everything the
-daemon's project needs, and nothing that isn't:
+- **Call AI only through `ai`** from `lib/ai.sh`, never `claude` or `opencode` directly: it
+  waits out Claude's usage limit, nudges OpenCode back after a rejected write, logs every call
+  in `.decree/ai-use.md` and keeps the agent from naming an event. Pick the backend with a
+  data entry `ai_cli` (a message's or a parent's `params` set it per run), which wins over
+  the project's `AI_CLI`. Every prompt says where scratch files go
+  (`$DECREE_RUN_DIR`): OpenCode's `external_directory` permission covers its file tools, not
+  its shell, so it is no sandbox.
+- **Declare the environment.** A command, package or tool the project needs is a line in
+  `.decree/lib/infra/requirements`, added by a message for the `infra` machine, never
+  installed by another machine's step. Nothing runs `sudo`: a step only a person can do prints
+  the exact command and fails, and the person runs it, then `decree process --retry`.
+- **Check a boundary with a script, not only a prompt.** When an agent must not change
+  something (QA never edits app code), a script after it checks, and fails the step if it did.
+- **Shared code, config and data go in `.decree/lib/`** (`$DECREE_LIB`); `scripts/` holds only
+  what states invoke. Variables and secrets go in `.decree/.env` (every script) or a machine's
+  `env_file: .env.<name>` (that machine's scripts only); both are gitignored, and
+  `.decree/.env.example` is the committed template.
+- **What a machine keeps between runs goes in `$DECREE_STORE`** (`.decree/store/<machine>/`)
+  and is declared under the machine's `store:`, with what it is and which states read or write
+  it. A run's own files go in `$DECREE_RUN_DIR`; shared code and config in `$DECREE_LIB`;
+  project-wide files no machine owns (a test tool's browsers) in `.decree/cache/`. Never
+  `tee` decree's output: `process` and `daemon` keep it in `.decree/process.log`.
+- **A step that waits for a shared resource is an invoked state with a `timeout`** (ComfyUI's
+  queue, a model unloading), not an `onentry` script, which has none. Keep `onentry` for quick
+  steps.
+- **What needs a person is in `.decree/attention/`.** Read it first when a run is failed,
+  waiting or stuck, and do what each file says: `decree event <wait id> <option>` for a wait,
+  `decree process --retry <id>` for a failed or interrupted run. Never edit an attention file
+  to answer; never write one from a machine's script. A step whose failure must stop every
+  run writes `$DECREE_RUN_DIR/hold` (what `keep` does), and decree turns it into a holding
+  attention file. Any `.md` file a person or another tool puts in the folder halts the queue
+  until it is deleted. To pause the queue, `decree stop`: the runs going now finish, and
+  nothing more runs until `.decree/attention/manual-stop.md` is deleted; Ctrl-C interrupts the
+  run instead.
+- **Never delete run folders to clean up**; they are the record. Use
+  `decree prune --older-than <age>`.
+- Do not commit `.decree/inbox/`, `.decree/runs/`, `.decree/store/` or `.decree/cache/`.
 
-```
-automation/
-├── shared_routines/    Routine shell scripts, shared with the backup daemon
-├── lib/                Shared helpers (precheck.sh, telegram.sh, hermes.sh) + hooks/
-├── runs/                Execution logs — both daemons write here (gitignored)
-├── secrets/             rclone config, API keys (gitignored; also mounted separately at /secrets)
-├── cron/                Active cron triggers (gitignored)
-├── migrations/          Active one-time migrations (gitignored)
-├── inbox/               Message queue (gitignored — .gitkeep tracked)
-├── outbox/              Follow-up messages (gitignored)
-├── processed.md         Migration tracking (gitignored)
-└── router.md            The router prompt (tracked)
-```
+## Commands
 
-`automation-examples/` (repo root, sibling to `automation/`) holds the tracked cron/migration
-**templates** — `cron/` and `migrations/` — manually copied into `automation/cron/` or
-`automation/migrations/` to activate. It is never mounted: templates aren't runtime content.
+| Command | Use |
+| --- | --- |
+| `decree check [--format json\|sarif]` | Validate every machine, script name, pending migration, inbox message and cron file. Exit 1 lists one error per line (`json`: one document; `sarif`: a SARIF 2.1.0 log for code scanning). |
+| `decree graph` | Write `.decree/graph/<machine>.md` (Mermaid) for every machine, plus `system.md`. |
+| `decree schema` | Write a local copy of the JSON Schemas of machines, messages, events and router files to `.decree/schema/v1/` (ignored by git). |
+| `decree skill [--ai claude\|copilot]` | Refresh this skill after upgrading decree; other files in the skill folder are kept. |
+| `decree emit [--machine <m>] [--param k=v]...` | Queue a message from stdin: a body for machine `m`, or a whole message whose frontmatter the flags override (`decree emit < <file>` runs a message again). Prints the new id. |
+| `decree process [--dry-run] [--quiet] [--machine <m> \| --exclude-machine <m>]` | Run everything queued: replies, pending runs, the inbox (FIFO), then migrations in order, printing each run's output. `--quiet` for cron and CI. `--machine` runs only those machines, `--exclude-machine` all but those (repeatable, comma-separated; or `DECREE_MACHINES`, `DECREE_EXCLUDE_MACHINES`), so several processes can share one folder. |
+| `decree process --retry [<id>] [--state <s>]` | Continue a failed or interrupted run first: `<id>` (or a migration's file name or stem, meaning its newest run), or the migration blocking the queue. The failure message prints the exact command. |
+| `decree daemon [--interval <duration>] [--retry [<id>]] [--machine <m> \| --exclude-machine <m>]` | The same, in a loop, with cron, every `2s` by default; `--machine` and `--exclude-machine` as for `process`. |
+| `decree status [<id>] [--cron] [--all] [--format json]` | Starts with `Attention:` (the files in `.decree/attention/`, those that hold first), then what blocks the queue and the command that continues it, runs by status (`--all`: every run), and active runs in projects below; one run's events; cron schedule (text only). |
+| `decree tail [<id>]` | Follow each run's output as it comes, or one run's until it stops. |
+| `decree event <wait id> <event> [-m <note>]` | Answer a run waiting in a `person` state; a run id or a migration's name means its current wait. |
+| `decree stop [-m <note>]` | Let the runs going now finish, then hold the queue until `.decree/attention/manual-stop.md` is deleted (no restart needed). Ctrl-C interrupts the run instead. |
+| `decree prune --older-than <age> [--dry-run]` | Delete finished run folders older than `30d`, `12h`, `90m`, `90s`; keeps failed migrations and children of unfinished runs. |
 
-**Several things are layered read-only on top of the wholesale mount, not part of the writable
-bulk of it:**
+`process` exits once nothing more can run, leaving `person` waits and `timeout`s for the next
+`process`; `daemon` keeps polling, fires cron and continues runs as replies arrive, so unattended
+work runs under `daemon`. Both read machines and `.env` files again before each run: an edit
+applies to the next run without a restart, and an edit that fails `decree check` is not used
+until fixed (the old machines keep running and the errors are printed).
 
-- `shared_routines/` and `lib/` — this container runs `agent-task` with terminal and write
-  access, so the routine scripts themselves must not be writable from inside a routine. A
-  compromised or misbehaving run could otherwise rewrite the code every future run (and
-  `automation-backup`, which shares the same `shared_routines/`/`lib/`) executes.
-- `cron/`, `migrations/`, and `router.md` — nothing at runtime ever writes to these; they're
-  only ever written from the host (a human/quest copying from `automation-examples/`, or
-  `exist.initial.sh`, before the container starts), so there's no reason for the container to
-  hold write access.
-- **`config.yml`/`config.exist.yml`, which also don't live at the root at all** —
-  they stay in `services/automation/decree/`, because the render pipeline
-  (`src/templates.sh`) and `validate-conventions.ts` both look specifically for
-  `<slug>/decree/config.exist.yml`; moving it to the repo root would silently stop it from ever
-  being rendered or validated. It's layered in at `./decree/config.yml:/work/.decree/config.yml:ro,z`.
+## The built-in machines
 
-What's left genuinely writable in `/work/.decree`: `inbox/`, `outbox/`, `runs/`, `secrets/`,
-`processed.md`, `precheck.log`, `config.hash` — decree's own dequeue/tracking state and every
-routine's follow-up messages.
+`decree init` writes three working machines besides the router. Start from them before writing
+a machine of the same kind. Each starts with `clean_tree` (a root `onentry`: it fails the run
+unless the git work tree is clean, naming each `interrupted` or `failed` run that may have left
+the changes, with its `--retry` and `git stash push` commands, also in its attention file) and
+ends with `commit` (`done`'s `onentry`: the run's work as one commit, titled with the message's
+first heading, and the file for a migration's run), or, in `failed`, with `keep` (the
+run's changes stay in the work tree, and `keep` writes the run's `hold`, so its attention file
+in `.decree/attention/` holds every run until the run is retried). All three touch only the
+project folder. Before queuing work for them, commit or stash any changes. To continue: answer
+any `STOP` in `plan.md`, delete `STOP`, `decree process --retry <id>`, which builds on the
+kept changes and removes the hold. To drop the run: stash its changes and delete its
+attention file. Never run `develop`, `infra` or `qa` in two processes in one checkout (they
+share the work tree through `clean_tree` and `commit`); give each its own git worktree. For divergent work,
+or to keep editing while runs go on, suggest a
+git worktree the user makes and runs decree in (`git worktree add ../app-exp -b exp`, then
+`decree process` there): each checkout has its own runs and inbox, and its branch its own
+`processed.md`. A new worktree has committed files only: copy `.decree/.env` in and run
+`.decree/lib/infra/run.sh apply` there first.
 
-`migration-gate.sh` (mounted as `exist.test.sh`) also stays outside the wholesale mount — it's a
-compose-level integration file, not decree project content.
+`develop`: `precheck` →
+`implement` → `gate` → `verify`, with `fix` and `final_gate` only when the gate fails. Its scripts
+source `lib/ai.sh` (`ai`, which calls `ai_<backend>`: a data entry `ai_cli`, else
+`AI_CLI`, else the `--ai` init chose) and
+follow the run-directory files in `reference/scripts.md` (`progress.md`, `STOP`, `gate.log`,
+`plan.md`): a person answers a `STOP` in `plan.md`, deletes `STOP` and
+retries. `precheck` runs
+`lib/infra/run.sh check`. The project fills in `scripts/develop/gate.sh` with its own checks; until then it
+runs nothing, says so and names `pass`. The gate names `pass` (to `verify`) or `fail` (to `fix`,
+then `final_gate`, whose `fail` ends the run); a non-zero exit means the checks could not run,
+such as a missing tool, and goes to `failed` without `fix`. `lib/ai.sh` runs the agent with
+`DECREE_EVENT_FILE=/dev/null` and empties the caller's event file after it, so a gate the agent
+runs names no event for its caller. `verify`
+ends in `pass` or `fail` from the AI's `VERDICT:` line.
 
-`services/automation/decree/` also holds the **image build** — `Dockerfile`, `entrypoint.sh`,
-`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — since the old per-project state dir
-that used to live there moved out to the root.
+`infra`: `declare` → `apply`. The AI edits `lib/infra/requirements` (`kind name version
+source`, one resource per line, in dependency order), adding a kind in `lib/infra/kinds/` only
+when none fits; `apply` runs `lib/infra/run.sh apply`, which installs what is missing and checks
+every line. The first `infra` migration builds the environment; later ones add to it.
 
-### The backup daemon: per-subdirectory mounts, own project dir
+`qa`: `recon` → `attack` → `run` → `triage` → `report`. The AI writes chaos tests in
+`QA_DIR` (`tests/chaos`) against `lib/qa/invariants.md`, each naming a wrench from
+`lib/qa/wrenches.md`; triage marks each real bug's tests with the framework's strict
+expected-failure marker and writes one report per root cause (the broken invariant and the
+expected behaviour, no fix), and `report` emits each as a `develop` message. A guard (`lib/qa/qa.sh`) fails any step whose AI changed a file outside
+`QA_DIR`. It does not start until `QA_RUN` in `lib/qa/qa.sh` names the suite's command; once
+qa finds bugs, the gate should run it too.
 
-`automation-backup` doesn't get the wholesale treatment — its crons are per-instance, not shared
-mounted content, so `services/automation/backup/` keeps the classic shape:
+## Worked example
 
-```
-services/automation/backup/
-├── config.exist.yml    Routine whitelist template (tracked, rendered → config.yml)
-├── config.yml          Rendered config (gitignored — user overrides go here)
-├── cron.example/       Cron templates (tracked, manually copied to activate)
-├── cron/               Active cron triggers (gitignored)
-├── lib/, shared_routines/   Mount points for automation/lib, /shared_routines (read-only)
-├── runs/               Mount point for automation/runs (read-WRITE — run logs land here)
-└── inbox/              Message queue (gitignored — .gitkeep tracked)
-```
-
-It mounts `automation/shared_routines/` and `automation/lib/` individually (read-only) and
-`automation/secrets/` at `/secrets` (read-only) — the same shared code the main daemon uses,
-just not wholesale. `automation/runs/` is mounted read-**write**: both daemons write their run
-logs and `runs/.alert-state/` there, which is what keeps one audit trail regardless of which
-daemon ran the routine.
-
-## Core Rules
-
-- **Routines are the unit of work** — every automated task is a routine in `automation/shared_routines/`
-- **Repeating work belongs to decree** — if something runs more than once (cron, webhook, inbox message) it is a routine, not a host cron job or `docker exec`
-- **All routines are shared** — there are no daemon-local routines in this repo; everything lives in `automation/shared_routines/` and is selectively enabled per daemon via `config.exist.yml`
-- **Outbox for follow-ups** — routines write follow-up messages to `.decree/outbox/`, not `.decree/inbox/`; decree relays outbox → inbox automatically
-- **Bash first** — routines are bash scripts; reach for TypeScript only when bash becomes unworkable
-
-## Adding a Routine
-
-1. Create `automation/shared_routines/<name>.sh` (executable, `#!/usr/bin/env bash`, source `precheck.sh`)
-2. Add it to every `config.exist.yml` that should see it:
-   - `enabled: true` for routines on by default for that daemon
-   - `enabled: false` for opt-in routines
-3. Which config to update — there are only two:
-   - **Backup / volume-reading routines** — `services/automation/backup/config.exist.yml`
-   - **Everything else** (AI workflows, gmail, telegram, migrations, service crons) —
-     `services/automation/decree/config.exist.yml`
-   - **Notify / utility routines** — both, if either might use them
-
-```yaml
-# config.exist.yml
-shared_routines:
-  my-new-routine:
-    enabled: true
-```
-
-## Activating a Cron Job
-
-```bash
-# automation (main daemon) — templates and active crons are both top-level
-cp automation-examples/cron/<name>.md automation/cron/<name>.md
-# edit the copy to set schedule and parameters, then:
-docker compose restart automation
-
-# automation-backup — templates and active crons stay in its own project dir
-cp services/automation/backup/cron.example/<name>.md services/automation/backup/cron/<name>.md
-docker compose restart automation-backup
-```
-
-Cron files use YAML frontmatter. Extra frontmatter keys are passed as env vars to the routine:
+A migration for the `feature` machine:
 
 ```markdown
 ---
-cron: "0 2 * * *"
-routine: volume-backup
-VOLUMES: "my_volume_name"
-TARGETS: "nextcloud:80"
+machine: feature
 ---
+# Rate-limit /api/upload
+
+## Overview
+
+One API key can flood uploads and slow the service for every other key.
+
+## Outcome
+
+Each API key makes at most 10 uploads per minute on `POST /api/upload`.
+
+## Constraints
+
+- Other endpoints respond as before.
+
+## Acceptance Criteria
+
+- **Given** a key that has uploaded 10 times in the last minute
+  **When** it uploads again
+  **Then** the response is 429 with `Retry-After`
 ```
 
-## Backups
+The smallest machine:
 
-All of them run in `automation-backup`, which mounts `volumes/` wholesale and takes the master
-`.env` via `env_file` (and no way to reach a model — nothing there reasons). So **adding a backup
-for a new service is one cron file** in `services/automation/backup/cron.example/`: no
-sidecar, no volume mount, no credential plumbing.
-
-To trigger one now, drop a message in its inbox — `decree` has no `run` subcommand:
-```bash
-printf -- '---\nroutine: volume-backup\nTIER: nightly\nVOLUMES: |\n  my_volume my-container\n---\n' \
-  > services/automation/backup/inbox/manual-backup.md
-docker logs -f automation-backup
+```yaml
+# Graph: ../graph/hello.md
+name: hello
+description: Run one script.
+initial: greet
+states:
+  greet:
+    invoke: greet                  # runs scripts/greet (or scripts/hello/greet)
+    transitions: { done: done }    # exit 0 -> done; non-zero -> failed, implicitly
+  done:   { final: true }
+  failed: { final: true }          # every machine has one
 ```
 
-Restores go through `./existential.sh run backup-restore`, which reads the active cron files'
-`TARGETS`/`VOLUMES` blocks out of that same container.
+A machine grows one reason at a time. First, the straight line that does the job:
 
-## Reference Files
+```yaml
+# Graph: ../graph/develop.md
+name: develop
+description: Implement a message, then test it.
+initial: implement
+states:
+  implement:                       # the job needs two scripts: one state each, in a line
+    invoke: implement
+    transitions: { done: test }
+  test:
+    invoke: test
+    transitions: { done: done }
+  done:   { final: true }
+  failed: { final: true }
+```
 
-Read these when you need specifics — don't load all of them upfront:
+Real runs then fail at random in `implement`, and a re-run passes: the cheapest fix is
+`attempts: 3` on its invoke. Later the local model often fails where Claude would not: give
+each attempt a value instead of adding a state, and say why.
 
-- **`reference/routines.md`** — routine script structure, pre-check, custom params, registry config
-- **`reference/hooks-and-cron.md`** — lifecycle hooks, firing semantics, cron scheduling
-- **`reference/pipeline-and-vars.md`** — processing pipeline, all environment variables, run.json fields
-- **`reference/migrations.md`** — migration format for one-time setup tasks (main decree only)
+```yaml
+  implement:
+    invoke:                        # the local model fails often: try Claude third
+      script: { name: implement, attempts: [local, local, claude] }
+    transitions: { done: test }
+```
 
-Reference files are at `.claude/skills/decree/reference/` relative to the project root.
+The script picks the model from the attempt, a choice of *how*, not of what runs next.
+`attempts` retries after `error` only; to have a stronger model answer a weaker one's `STOP`,
+transition to a child machine.
+
+```sh
+case "$DECREE_ATTEMPT_VALUE" in
+  claude) claude -p "$(cat "$DECREE_MESSAGE")" ;;
+  *)      ollama run qwen3:8b "$(cat "$DECREE_MESSAGE")" ;;
+esac
+```
+
+## Reference files
+
+Read the one you need; don't load them all upfront:
+
+- **`reference/messages.md`**: frontmatter keys, migrations and `processed.md`, the inbox,
+  cron files, `decree emit`, replies to a waiting run.
+- **`reference/machines.md`**: the graph line, every machine key, the invoke types, conditions, choices and
+  routers, composition, events and transitions, validation rules, full examples.
+- **`reference/scripts.md`**: where scripts live, how they run, how they report an event,
+  every `DECREE_*` variable.
+- **`reference/runs.md`**: run folders, `events.jsonl`, run status, waiting and interrupted
+  runs, `decree process --retry`, graphs.
+
+The reference files sit next to this file, in `reference/`.

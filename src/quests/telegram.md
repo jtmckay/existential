@@ -21,7 +21,7 @@ Setup:
          TELEGRAM_BOT_TOKEN=<your-token>
 
   3. Get your chat ID: send a message to your bot, then run:
-         printf -- '---\nroutine: telegram-ingest\n---\n' > automation/inbox/telegram-ingest.md
+         echo | docker exec -i automation decree emit --machine telegram_ingest
 
   4. Add TELEGRAM_CHAT_ID to the credentials file.
 
@@ -29,4 +29,3 @@ Setup:
      and uploads them to Nextcloud for downstream processing:
        mkdir -p automation/cron/
        cp automation-examples/cron/telegram-poll.md automation/cron/
-       docker compose restart automation

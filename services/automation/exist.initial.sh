@@ -14,7 +14,7 @@ REPO="${SCRIPT_DIR}/../.."
 # automation-webhook queuing into a root-owned inbox/ is a daemon that can never
 # claim a message.
 mkdir -p "${REPO}"/automation/{inbox,runs,store,cron,migrations,secrets} \
-         "${SCRIPT_DIR}"/backup/{inbox,runs,store,cron}
+         "${SCRIPT_DIR}"/backup/{inbox,runs,store,cron,lib,scripts}
 
 # ── decree 0.4 -> 0.5 ────────────────────────────────────────────────────────
 #
@@ -50,7 +50,10 @@ _upgrade_dir "${SCRIPT_DIR}/backup/cron" "${SCRIPT_DIR}/backup/cron.example"
 # The 0.4 daemon configs and their hash files: nothing reads them any more.
 rm -f "${SCRIPT_DIR}/decree/config.yml" "${SCRIPT_DIR}/backup/config.yml" \
       "${SCRIPT_DIR}/backup/config.hash" "${REPO}/automation/config.hash" \
-      "${SCRIPT_DIR}/webhook/config.yml"
+      "${SCRIPT_DIR}/webhook/config.yml" "${REPO}/automation/config.yml" \
+      "${REPO}/automation/precheck.log" "${SCRIPT_DIR}/backup/precheck.log"
+rmdir "${SCRIPT_DIR}/backup/shared_routines" \
+      "${REPO}/automation/outbox" "${SCRIPT_DIR}/backup/outbox" 2>/dev/null || true
 
 # triage is deliberately not opt-in — a stack nobody is watching is exactly the
 # one that needs it — and clean-runs comes with it, because triage fires every

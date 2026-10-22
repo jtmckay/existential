@@ -111,17 +111,6 @@ sections:
 EOF
 expect_pass "conventions: accepts a clean networking tree" tsx "$CONV" "$cleannet"
 
-# ── decree config.exist.yml — commands block ─────────────────────────────────
-baddecree="$(mkfix)"; mkdir -p "$baddecree/ai/foo/decree"
-printf 'routine_source: /work/.decree/shared_routines\nmax_attempts: 3\n' \
-  > "$baddecree/ai/foo/decree/config.exist.yml"
-expect_fail "conventions: rejects decree config missing commands block" tsx "$CONV" "$baddecree"
-
-cleandecree="$(mkfix)"; mkdir -p "$cleandecree/ai/foo/decree"
-printf 'routine_source: /work/.decree/shared_routines\ncommands:\n  ai_router: /work/.decree/lib/hermes-cli.sh {prompt}\n  ai_interactive: /work/.decree/lib/hermes-cli.sh\nmax_attempts: 3\n' \
-  > "$cleandecree/ai/foo/decree/config.exist.yml"
-expect_pass "conventions: accepts decree config with commands block" tsx "$CONV" "$cleandecree"
-
 # ── check-drift.ts ────────────────────────────────────────────────────────────
 drifted="$(mkfix)"
 printf 'alpha\nbeta\n'  > "$drifted/x.exist.txt"

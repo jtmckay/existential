@@ -44,8 +44,6 @@ that owns it and it is live:
        # Probes a service URL every 15 minutes (see the Service Health quest)
        cp automation-examples/cron/health-checks.md automation/cron/
 
-       docker compose restart automation
-
 That is it. Every unnumbered quest in this picker is a variation on those three
 lines — a different template, occasionally a different daemon.
 
@@ -59,7 +57,7 @@ There is no per-service sidecar. There are exactly two containers:
 
   automation-backup  mounts volumes/ wholesale and holds every service's
                      credentials, and does no reasoning. Backups live here, and
-                     so do notes-pull and triage.
+                     so do notes_pull and triage.
                      crons: services/automation/backup/cron.example/
                             → services/automation/backup/cron/
 
@@ -67,9 +65,10 @@ Pick the daemon by what the work needs to reach, not by what it is called.
 
 ── 4. Drive it ───────────────────────────────────────────────────────────
 
-Decree is headless — there is no click-through UI. Trigger a routine by hand:
+Decree is headless — there is no click-through UI. Run a machine by hand:
 
-       printf -- '---\nroutine: clean-runs\n---\n' > automation/inbox/manual.md
+       echo | docker exec -i automation decree emit --machine clean_runs
+       docker exec automation decree status
 
 Or over HTTP at https://automation-webhook.${EXIST_DOMAIN} (an API, not a UI).
 Want buttons? The **Decree Routine UI** quest generates a Lowcoder panel. Want

@@ -18,15 +18,14 @@ failure.
 - **Exit non-zero on failure.**
 - **Skip cleanly when disabled** (`EXIST_IS_<CAT>_<SLUG>` false → exit 0).
 - When the caller sets `EXIST_TEST_LIVENESS_ONLY=true`, `skip_if_disabled` and `probe_caddy`
-  are no-ops — it means "just tell me the service is up". The backup daemon sets it for its own
-  routines. **Triage clears it per test**, because the Caddy probe is what separates "service
+  are no-ops — it means "just tell me the service is up". The backup daemon sets it for
+  everything it runs. **Triage clears it per test**, because the Caddy probe is what separates "service
   down" from "routing broken", and catching the latter is much of triage's value. Do not key
   this off the daemon: triage runs in the backup daemon and wants the full check.
 - Suggested output: `[<slug>] <check>  OK|FAIL` with `observed:`/`fix:` lines.
 
 It is also what the health gates run: `triage` executes every enabled service's copy off the
-`automation-backup` daemon's read-only `/repo` mount every 5 minutes, and `migration-gate.sh` uses the same
-idea to hold migrations back until their target service answers.
+`automation-backup` daemon's read-only `/repo` mount every 5 minutes.
 
 ## End-to-end
 
@@ -35,7 +34,8 @@ copy the **working tree** into `.tmp-e2e-*` → copy
 `src/test/fixtures/env.shared` over `.env.shared` and flip on the quest's `EXIST_IS_*` vars →
 **stage checks** → render templates → `run_initials` (sourced from the clone's own
 `existential.sh`, not a second copy) → `generate-compose.ts` → `up -d --build` → settle →
-container-state gate → **wait for decree to finish migrating** → copy the evidence to
+container-state gate → **wait for both daemons to finish migrating** → drop the checks → wait
+for both to drain → copy the evidence to
 `e2e-out/` → tear down. Quests are selected by `e2e: true` frontmatter; `e2e: false` ones need
 manual NAS/DNS/TLS setup and must carry an `e2e_skip:` reason (enforced by
 `validate-conventions.ts`).
@@ -43,41 +43,43 @@ manual NAS/DNS/TLS setup and must carry an `e2e_skip:` reason (enforced by
 **The clone is the working tree, not `HEAD`** — `git ls-files --cached --others --exclude-standard`
 (plus a `--deleted` subtraction, so an unstaged delete reads as deleted here too), piped through
 `tar` so modes and symlinks survive: the scripts run by path (`existential.sh`, `.githooks/*`,
-decree hooks, container `entrypoint:` targets) are dead without their `+x` bit. So uncommitted
+decree scripts, container `entrypoint:` targets) are dead without their `+x` bit. So uncommitted
 work is what gets tested, and git's own ignore rules are what keeps `.env.shared`, rendered
 `docker-compose.yml`s, `volumes/`, `workspace/`, `e2e-out/` and `archive/` out of the clone —
 the same filter that keeps them out of a commit. One consequence: an untracked file that is *not*
 gitignored now lands in the clone.
 
-**A check is a markdown file in `src/test/e2e/checks/`** — a decree **message** naming a routine,
-dropped into the clone's inbox *after* the container-health gate and run by the daemon.
+**A check is a markdown file in `src/test/e2e/checks/`** — a decree **message** naming a machine,
+dropped into the clone's inbox *after* the container-health gate and the migrations, and run by
+the daemon.
 Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
 
-- **Which of the two daemons runs it is derived from `routine:`** — whichever `config.exist.yml`
-  whitelists it, `automation` asked first; a staged sibling `.sh` is in neither and runs in
-  `automation`. `e2e.sh` drains and collects both inboxes. Get it wrong and the daemon declines
-  the routine and dead-letters the message, leaving the check with no run, no log and no exit
-  code — which is how `00-services` failed every quest after `triage` moved to the backup daemon.
+- **Which of the two daemons runs it is derived from `machine:`** — whichever project has
+  `machines/<machine>.yml`, `automation` asked first; a staged sibling machine lands in
+  `automation`. `e2e.sh` waits on and grades both projects. Get it wrong and the run fails with
+  `invalid_message` — which is how `00-services` once failed every quest after `triage` moved.
 
 - `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
   quest with no migrations and no object store verifies **nothing**: five of the eight copy only cron
-  files (nightly/weekly backups, `clean-runs`, `gmail-sync`), none of which can fire inside a run
+  files (nightly/weekly backups, `clean_runs`, `gmail_sync`), none of which can fire inside a run
   that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
-- A check with a sibling `.sh` gets it staged into the clone's `shared_routines/` and registered,
-  so test code never lands in a user's `config.yml`. It runs **inside a decree container**:
+- A check with a sibling `.yml` and `.sh` gets them staged into the clone's `machines/` and
+  `scripts/`, so test code never lands in a user's project. It runs **inside a decree container**:
   `rclone`, `jq`, `yq`, `curl`, `tsx`, service credentials, a read-write `/secrets`, DNS to every
   container — but no Docker socket, and in `automation` no `/repo` either (that mount is
-  `automation-backup`'s). A routine that needs the rendered stack either runs there or has its
+  `automation-backup`'s). A script that needs the rendered stack either runs there or has its
   `.stage.sh` read the file host-side and leave the answer in `/secrets`.
-- **Messages, not migrations, and dropped after the gate.** `decree process` stops at the first
-  dead letter, so migrations would let one failure hide the rest. The reason that actually bit us
-  is timing: migrations run during decree's **boot**, so a check written as one judges a stack
+- **Messages, not migrations, and dropped after them.** A failed migration blocks every one after
+  it, so migrations would let one failure hide the rest. The reason that actually bit us is
+  timing: migrations run as the daemon **boots**, so a check written as one judges a stack
   that is still starting — it failed hermes, appsmith, lowcoder, nocodb and nextcloud on four
-  quests the health gate then found healthy. Migrations are setup; checks are verification.
+  quests the health gate then found healthy. Migrations are setup; checks are verification. And
+  each decree pass drains the inbox *before* migrations, so `e2e.sh` waits until `decree status`
+  shows none left (or one blocked behind a failure) before dropping a check.
 - decree runs **one message at a time** *per daemon*, and a check *is* that message — so a check can prove work
   was enqueued but can never wait for work it triggered. Push those assertions down (a probe
-  processor that validates its own inputs); `decree process` drains the whole inbox before the
-  daemon starts, so that queued work runs and is graded inside the same wait.
+  processor that validates its own inputs); `e2e.sh` waits until both daemons have nothing queued
+  or running, so that queued work runs and is graded inside the same wait.
 
 One run at a time: `e2e.sh` takes a machine-wide `flock` on `/tmp/exist-e2e.lock` before it
 does anything, because its startup teardown reclaims *any* `.tmp-e2e-*` stack it finds — a second
@@ -85,15 +87,15 @@ run would delete the first one's containers mid-flight. `e2e down` takes the sam
 frees on process death, so a crash leaves nothing stale.
 
 **`e2e-out/<stamp>-<quest>/`** (gitignored) is the output directory: `results.md` (one row per
-check), each run's `message.md`/`routine.log`/`run.json` copied verbatim, `dead/`, `stuck/`, and
+check), each run's `message.md`, `events.jsonl` and script logs copied verbatim, `stuck/`, and
 `logs/` for any container the gate was unhappy about. It is written before teardown *and* from the
 `cleanup` trap, so a crashed or interrupted run still leaves its evidence. `E2E_KEEP=1`
 additionally leaves the stack standing for live poking; `./existential.sh e2e down` reclaims
 containers, networks, volumes and work dirs from a crashed run.
 
-Verdict: `run.json` with `exit_code: 0` passes; no `run.json`, a non-zero code, or a dead letter
-fails. A quest also fails on the container-state gate, on decree never reaching its daemon phase
-(its migrations never finished), and on producing **no** runs at all — a run that verified
+Verdict: decree mirrors each run's final state into its `message.md`; `state: done` passes,
+anything else fails. A quest also fails on the container-state gate, on the daemons never
+settling (their migrations never finished), and on producing **no** runs at all — a run that verified
 nothing must not read green.
 
 Its opposite lives in `harness-selftest.sh` (below): `collect_results` driven against a fabricated
@@ -107,7 +109,7 @@ Each of these was tried, shipped, and reverted. They all look like simplificatio
   the only quest with a full migration set; five of the others copy *cron files only*. Twice a
   change was justified against a green Core and broke everything else: stripping the clone's crons
   left those five with nothing gradable at all (a guaranteed `0 of 0` = fail), and running checks
-  as migrations passed Core only because `migration-gate.sh` holds its slow starter back. Run the
+  as migrations passed Core only because the 0.4 migration gate held its slow starter back. Run the
   sweep, not `e2e core`.
 - **Don't convert checks into migrations.** It is the obvious consolidation and it is a phase
   error — see "Messages, not migrations" above. The rationale is written into
@@ -150,12 +152,17 @@ in CI):
 - **`harness-selftest.sh`** (`test harness`) — proves the *plumbing* surfaces failures:
   `run-all.sh` fails+names a failing suite, `container-health.sh` (driven by a fake `docker`)
   trips on a bad container, and e2e's `collect_results` (sourced from `src/test/e2e/results.sh`)
-  grades a failed, dead-lettered, or entirely absent check as a failure and copies its evidence
+  grades a failed, unfinished, or entirely absent check as a failure and copies its evidence
   out. New e2e grading logic ⇒ add a case here.
 - **`test selfcheck`** (adhoc) — runs every `unit/test-*.sh` with `TEST_SELFCHECK=1`, which
   fires a one-line canary (`[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail …`) each suite carries
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
   that canary.**
+- **`decree-check.sh`** (`test decree`, adhoc) — assembles both decree projects from tracked
+  content with every shipped cron, migration and inbox template queued, and runs `decree check`,
+  so a template naming a renamed machine or an undeclared param fails here rather than as a
+  failed run. It also fails while a committed `graph/` is stale (`run decree-graph` rewrites
+  them) and while the `notify`/`clean_runs` copies in the two projects differ.
 - **`unit/test-validators.sh`** — opposite-tests the TS validators: builds violating fixture
   trees, asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
 
@@ -172,8 +179,8 @@ It carries its own opposite: a canary with a deliberate SC2154 must be flagged f
 shellcheck that silently isn't running (wrong entrypoint, changed flag, image swap) otherwise
 reads as a clean pass — the exact rot the rest of this file targets.
 
-Findings shellcheck structurally cannot resolve — decree injects `$message_file`, `$PATTERN`
-and friends that no script assigns; several routines `source` a path computed at runtime —
+Findings shellcheck structurally cannot resolve — decree injects `$DECREE_DATA_*`, `$DECREE_MESSAGE`
+and friends that no script assigns; several scripts `source` a path computed at runtime —
 carry a **targeted inline** `# shellcheck disable=SCxxxx  # <why>` at the site. Don't loosen
 the gate globally or add blanket excludes: the same smell is a real bug somewhere else. It
 found one the day it was wired up (env assignments prefixed to a command substitution instead

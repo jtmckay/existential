@@ -16,8 +16,8 @@ flowchart LR
     land["Image lands in Nextcloud"]
 
     subgraph decree["Decree"]
-        route["file-router<br/><i>matches image extensions</i>"]
-        proc["file-processor<br/><i>downloads the image</i>"]
+        route["file_router<br/><i>matches image extensions</i>"]
+        proc["file_processor<br/><i>downloads the image</i>"]
         ocr["ollama-ocr<br/><i>reads it</i>"]
         route --> proc --> ocr
     end
@@ -74,20 +74,20 @@ the upload finishes. Nothing polls the image itself.
 
 The upload raises a `NodeWrittenEvent`, which Nextcloud POSTs to the Decree webhook's `/files` endpoint. This is the same pipeline used for any file uploaded to Nextcloud.
 
-### 3. file-router matches image extensions
+### 3. file_router matches image extensions
 
-`file-router` scans the `ollama-ocr` processor and reads its pattern:
+`file_router` scans the `ollama-ocr` processor and reads its pattern:
 
 ```bash
 PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
 IS_PRE_SIGNED=false
 ```
 
-A match enqueues a `file-processor` message with `is_pre_signed: false` — the file will be downloaded locally.
+A match enqueues a `file_processor` message with `is_pre_signed: false` — the file will be downloaded locally.
 
-### 4. file-processor downloads the image
+### 4. file_processor downloads the image
 
-`file-processor` runs `rclone copyto` to pull the image into a temp path and exports it as `FILE_PATH`. No share link is involved — the full image bytes are needed to encode as base64 for the vision API.
+`file_processor` runs `rclone copyto` to pull the image into a temp path and exports it as `FILE_PATH`. No share link is involved — the full image bytes are needed to encode as base64 for the vision API.
 
 ### 5. ollama-ocr extracts the text
 
@@ -152,16 +152,6 @@ EOF
 
 The secrets directory is bind-mounted into the decree container at `/secrets/telegram/`.
 
-Enable `telegram-ingest` in `services/automation/decree/config.yml` (the rendered, gitignored
-config the daemon actually reads — not `automation/config.yml`, which is an empty
-Docker-created mountpoint placeholder and has no effect):
-
-```yaml
-shared_routines:
-  telegram-ingest:
-    enabled: true
-```
-
 Copy and activate the example cron:
 
 ```bash
@@ -169,15 +159,10 @@ cp automation-examples/cron/telegram-poll.md \
    automation/cron/
 ```
 
-`telegram-ingest` polls `getUpdates` every minute, tracks a cursor in
+`telegram_ingest` polls `getUpdates` every minute, tracks a cursor in
 `/secrets/telegram/offset.txt` so nothing is processed twice, and pipes each new photo through
 `rclone rcat` into `TELEGRAM_RCLONE_DEST`. From there it is an ordinary Nextcloud upload and the
-flow above takes over. Cron frontmatter is read when the daemon starts, so restart it to pick
-the new schedule up:
-
-```bash
-docker compose restart automation
-```
+flow above takes over. The daemon rescans `cron/` every tick, so there is nothing to restart.
 
 #### Option C — rclone
 
@@ -217,7 +202,7 @@ docker exec automation decree log <id-prefix>
 
 ## Reusing the OCR function
 
-`ocr.ts` is a standalone library importable in any other TypeScript routine:
+`ocr.ts` is a standalone library importable in any other TypeScript script:
 
 ```typescript
 import { ocr } from "/work/.decree/lib/ocr";

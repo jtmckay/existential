@@ -110,26 +110,10 @@ docker exec -it \
     -e SECRETS_DIR="/secrets/actual-budget" \
     automation /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/actual-budget/setup.ts
 
-# ── Enable routine in config.yml ─────────────────────────────────────────────
-# The rendered config lives with the decree image build, not at the repo-root
-# automation/ (which is wholesale-mounted read-write into the container, but
-# config.yml is deliberately layered in from here instead — see
-# .claude/skills/decree/SKILL.md for why).
-
-CONFIG="${REPO_DIR}/services/automation/decree/config.yml"
-if [ -f "$CONFIG" ]; then
-    awk '
-        /^  actual-budget:$/ { found=1 }
-        found && /enabled:/ { sub(/enabled: .*/, "enabled: true"); found=0 }
-        { print }
-    ' "$CONFIG" > "${CONFIG}.tmp" && mv "${CONFIG}.tmp" "$CONFIG"
-    echo "  Routine 'actual-budget' enabled in services/automation/decree/config.yml."
-fi
-
 echo ""
 hr
 echo ""
-echo "  Done. Restart decree to apply:"
+echo "  Done. Bank-alert emails reach Actual Budget once a gmail-transactions cron exists:"
 echo ""
-echo "    docker compose restart automation   # from the repo root"
+echo "    ./existential.sh run automation gmail-transactions-cron"
 echo ""

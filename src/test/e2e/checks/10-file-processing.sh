@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# e2e-file-processing — the Nextcloud → webhook → router → processor chain.
+# e2e_file_processing — the Nextcloud → webhook → router → processor chain.
 #
-# Staged into the clone's shared_routines/ by e2e.sh and triggered by the
-# message in 10-file-processing.md. Runs inside the `automation` daemon, so it
-# reaches Nextcloud over the exist bridge. Every write lands in the disposable
-# e2e clone.
+# Staged into the clone's scripts/ by e2e.sh, with 10-file-processing.yml as
+# its machine, and triggered by the message in 10-file-processing.md. Runs inside
+# the `automation` daemon, so it reaches Nextcloud over the exist bridge. Every
+# write lands in the disposable e2e clone.
 set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 : "${NEXTCLOUD_ADMIN_USER:?NEXTCLOUD_ADMIN_USER not set}"
 
@@ -64,35 +62,35 @@ say "uploaded ${DIR}/${OBJECT}"
 #
 # This is where the assertion stops, and the reason is structural: decree runs
 # ONE message at a time, and this check is the message it is running. The
-# file-router message the upload produces is queued BEHIND this routine and
+# file_router message the upload produces is queued BEHIND this run and
 # cannot start until it returns — so no amount of waiting here will ever see the
 # processor run.
 #
 # What is left to prove is graded elsewhere, by properties that cost no new
 # mechanism:
 #
-#   the event arrived            asserted here — a file-router message is in the
+#   the event arrived            asserted here — a file_router message is in the
 #                                inbox. A wrong port, or no job runner, means
 #                                nothing arrives.
 #   the router matched it, and
 #   the processor read the file  the example processor staged as the probe
 #                                asserts its download is non-empty and exits
-#                                non-zero otherwise, so a break dead-letters
-#                                that message.
+#                                non-zero otherwise, so a break fails
+#                                that run.
 #   nothing broke                every run in the clone is graded, so the
 #                                router's and the processor's own runs each get
 #                                a row of their own.
 #
 # Look in the INBOX, not in runs/: this check IS the message decree is running,
 # so the router's run dir cannot exist yet by construction. And match the
-# routine KEY, not a bare "file-router": that string also appears in this
-# check's own message.md, in its needs_routines.
+# machine KEY, not a bare "file_router": that string also appears in this
+# check's own message.md, in its prose.
 _router_queued() {
-    grep -lq '^routine: file-router' "$INBOX"/*.md 2>/dev/null \
-        || grep -rlq '^routine: file-router' "$RUNS"/*/message.md 2>/dev/null
+    grep -lq '^machine: file_router' "$INBOX"/*.md 2>/dev/null \
+        || grep -rlq '^machine: file_router' "$RUNS"/*/message.md 2>/dev/null
 }
-until_ok "nextcloud event reached decree as a file-router message" 180 _router_queued \
+until_ok "nextcloud event reached decree as a file_router message" 180 _router_queued \
     || fail "the webhook never enqueued anything — is nextcloud-cron running its worker?"
 
-say "chain wired; file-router is queued behind this check"
+say "chain wired; file_router is queued behind this check"
 say "probe file: ${DIR}/${OBJECT}"

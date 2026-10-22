@@ -17,9 +17,9 @@ done:
 Adds per-service health check crons to the main Decree daemon. Each cron
 probes a service URL every 15 minutes. Results flow automatically to:
 
-  - Prometheus: decree_run_success{instance="service-health"} gauge
-  - Loki:       structured run logs (routine, exit_code, duration)
-  - Grafana:    queryable in the Decree Overview dashboard
+  - Prometheus: decree_runs_total{machine="service_health"} counter
+  - Loki:       each run's events and log
+  - Grafana:    the Decree Overview dashboard, and an ntfy alert on a failed run
   - Alerting:   ServiceHealthCheckFailing (hosting/prometheus/alerts.yml)
                 rides triage's per-service exist_service_healthy gauge
 
@@ -34,12 +34,9 @@ Setup — for each service you want to monitor:
        cp automation-examples/cron/health-checks.md \
           automation/cron/health-check-<slug>.md
 
-  2. Edit the copy and set:
+  2. Edit the copy and set, under params:
        SERVICE_NAME: <slug>          # display name in the run log
        SERVICE_URL:  http://<container>:<port>/<health-path>
-
-  3. Restart decree:
-       docker compose restart automation
 
 Example health endpoints per service:
   http://ollama:11434/api/tags              ollama

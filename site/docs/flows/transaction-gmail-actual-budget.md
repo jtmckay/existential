@@ -15,9 +15,9 @@ flowchart LR
     end
 
     subgraph decree["Decree"]
-        C["gmail-sync\npoll every 5 min"]
-        D["actual-budget-parse\nparse-<bank>.ts"]
-        E["actual-budget\npost-transaction.ts"]
+        C["gmail_sync\npoll every 5 min"]
+        D["actual_budget_parse\nparse-<bank>.ts"]
+        E["actual_budget\npost-transaction.ts"]
         C -->|"one message\nper email"| D
         D -->|"transaction\ndetected"| E
     end
@@ -56,19 +56,19 @@ Give each bank its own distinct label — the label is how Decree knows which em
 
 ### 1. Cron trigger
 
-`automation/cron/gmail-transactions-<label>.md` fires the `gmail-sync` routine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual-budget-parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
+`automation/cron/gmail-transactions-<label>.md` fires the `gmail_sync` machine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual_budget_parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
 
-### 2. gmail-sync
+### 2. gmail_sync
 
-Fetches any new emails from the label using Gmail's History API (incremental — only emails since the last run). Each email is written as a markdown file to the Decree outbox with `routine: actual-budget-parse` in the frontmatter.
+Fetches any new emails from the label using Gmail's History API (incremental — only emails since the last run), and emits each one to `actual_budget_parse`, headers as params and body as body.
 
-### 3. actual-budget-parse
+### 3. actual_budget_parse
 
-Runs a bank-specific `parse-<bank>.ts` script against the email. The parser reads the subject line and outputs a transaction JSON object. If a transaction is found, it writes a new outbox message targeting `actual-budget`. If the email isn't a transaction alert, the message is discarded silently.
+Runs a bank-specific `parse-<bank>.ts` script against the email. The parser reads the subject line and outputs a transaction JSON object. If a transaction is found, it emits a message for `actual_budget`. If the email isn't a transaction alert, the message is discarded silently.
 
-### 4. actual-budget
+### 4. actual_budget
 
-Calls `post-transaction.ts` using `@actual-app/api` to post the transaction to your Actual Budget server. Reads credentials from `/secrets/actual-budget/credentials.env` and the account ID from the message frontmatter.
+Calls `post-transaction.ts` using `@actual-app/api` to post the transaction to your Actual Budget server. Reads credentials from `/secrets/actual-budget/credentials.env` and the account ID from the message params.
 
 ## Setup
 
@@ -121,37 +121,28 @@ No restart needed — Decree picks up new cron files on the next tick.
 
 ## Verifying
 
-Check that the routines are registered and passing pre-checks:
+Check the cron is scheduled, then watch the next one fire:
 
 ```bash
-docker exec automation decree routine actual-budget-parse
-docker exec automation decree routine actual-budget
-```
-
-Watch the next cron fire and inspect the run log:
-
-```bash
+docker exec automation decree status --cron
 docker exec automation decree status
-docker exec automation decree log <id-prefix>
+docker exec automation decree status <id>   # one run's events
 ```
 
-To test immediately without waiting for the cron, drop a message manually:
+To test immediately without waiting for the cron, emit a message by hand:
 
 ```bash
-cat > automation/inbox/test-transaction.md << 'EOF'
----
-routine: actual-budget-parse
-subject: 'You made a $42.00 transaction with WHOLE FOODS'
-date: 'Mon, 21 Apr 2026 12:00:00 +0000 (UTC)'
-parse_script: /work/.decree/lib/actual-budget/parse-chase.ts
-account_id: <your-account-id>
----
-EOF
+echo | docker exec -i automation decree emit --machine actual_budget_parse \
+  --param subject='You made a $42.00 transaction with WHOLE FOODS' \
+  --param date='Mon, 21 Apr 2026 12:00:00 +0000 (UTC)' \
+  --param parse_script=/work/.decree/lib/actual-budget/parse-chase.ts \
+  --param account_id=<your-account-id>
 ```
 
 ## Adding More Banks
 
-Each bank gets its own parse script. `actual-budget-parse` accepts any `parse_script` that reads the decree message env vars and outputs JSON:
+Each bank gets its own parse script. `actual_budget_parse` accepts any `parse_script` that reads the email headers from its environment (`subject`,
+`date`, `from`, `to`) and outputs JSON:
 
 ```json
 { "amount": "-42.00", "payee": "Whole Foods", "date": "2026-04-21", "notes": "..." }

@@ -30,10 +30,8 @@ service, decide which side it is on and wire it accordingly.
   2. exist.initial.sh Pre-startup, idempotent, every run. No sentinels — check state, skip if done.
 docker compose up -d  (user runs)
   3. entrypoint.sh    Inside the container, before the service starts. Trues up config it owns.
-  4. exist.test.sh    Every enabled service's own probe; automation's entrypoint
-                       (migration-gate.sh) retries until every one it migrates passes
-  5. decree process   Runs pending one-time migrations from automation/migrations/
-                       (the automation daemon only — automation-backup runs no migrations)
+  4. decree daemon    Runs pending one-time migrations from automation/migrations/, in order,
+                       each waiting on its service (the automation daemon only)
 On demand:
   exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented as quest
   exist.test.sh       ./existential.sh run <slug> test — read-only validation
@@ -209,64 +207,47 @@ service uid breaks startup until the volume is `chown`-ed. Never use `user: "0:0
 
 The decree image is built **once** from `services/automation/decree/Dockerfile` by
 `existential-adhoc`, tagged `existential/decree:local`; both `automation` and `automation-backup`
-reference it via `image:` (not rebuild). WORKDIR is `/work` (project at `/work/.decree`). Baked
-healthcheck: `grep -q decree /proc/1/comm` (checking for the `decree` *process*, not a container
-name) with a long `start-period` (330s) so a daemon running as `bash` during its migration wait
-shows `starting`, not `unhealthy`. Adhoc disables the healthcheck.
+reference it via `image:` (not rebuild). WORKDIR is `/work` (project at `/work/.decree`). The
+entrypoint adds the passwd entry for `EXIST_PUID` and `exec`s `decree daemon`, which runs
+migrations, the inbox and cron itself. Baked healthcheck: `grep -q decree /proc/1/comm`.
+Adhoc disables the healthcheck. What a machine is and how the two projects are laid out:
+`decree.md`.
 
 **There are exactly two daemons, and services do not get their own.** Both are defined in
 `services/automation/docker-compose.exist.yml`, container names `automation` and
-`automation-backup` (the `services/automation/` slug is the required prefix; see
-`validate conventions`'s container-naming rule). Their project directories keep the shorter
-`decree`/`backup` names instead — `automation`'s is `services/automation/decree/` (which also
-holds the image build now — Dockerfile, entrypoint.sh, package.json), `automation-backup`'s is
-`services/automation/backup/`. The two are mounted very differently:
+`automation-backup` (the `services/automation/` slug is the required prefix). Each is its own
+decree project:
 
-- **`automation`** wholesale-mounts the repo-root `automation/` directory as `/work/.decree` —
-  `runs/`, `secrets/`, `cron/`, `migrations/`, `inbox/`, `outbox/`, `processed.md`, `router.md`
-  all come from there in one bind mount. `shared_routines/` and `lib/` are the same host
-  directories but layered back in **read-only** on top of that mount: this container runs
-  routines that write to `/workspace` and hand prompts to hermes, so the routine code itself
-  must not be writable from inside a routine. `cron/`, `migrations/`, and `router.md` get the same read-only
-  treatment for a simpler reason — nothing at runtime ever writes to them (they're only ever
-  populated from the host, before the container starts), so there's no reason to leave them
-  writable. What that leaves genuinely writable: `inbox/`, `outbox/`, `runs/`, `secrets/`,
-  `processed.md`, `precheck.log`, `config.hash`. Its own project dir
-  (`services/automation/decree/`) contributes only `config.yml`, also read-only, layered in at
-  `/work/.decree/config.yml` — the render pipeline and `validate-conventions.ts` both require
-  `config.exist.yml` to live at `<slug>/decree/config.exist.yml`, so it couldn't move to the
-  root without those tools losing track of it.
-- **`automation-backup`** mounts `automation/shared_routines/` and `automation/lib/`
-  individually (read-only), plus `automation/runs/` read-**write** (both daemons write their
-  run logs and `runs/.alert-state/` there), into its own project dir
-  (`services/automation/backup/`, wholesale-mounted as `/work/.decree`), and keeps a
-  conventional `cron.example/` + `cron/` pair there too, since its crons are per-instance, not
-  shared mounted content.
+- **`automation`** wholesale-mounts the repo-root `automation/` directory as `/work/.decree`.
+  `machines/`, `scripts/`, `lib/`, `env`, `cron/` and `migrations/` are layered back in
+  **read-only**: this container hands prompts to hermes and writes to `/workspace`, so the code
+  it runs must not be writable from inside a run, and nothing at runtime writes the others.
+  What stays writable: `inbox/`, `runs/`, `store/`, `secrets/`, `processed.md`.
+- **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
+  `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
+  it, so both daemons run the same script files. Its `cron.example/` + `cron/` pair lives there.
 
-Logs from either daemon land in `automation/runs/` — one audit trail regardless of which daemon
-ran the routine.
-
-| | `automation` (`decree/`) | `automation-backup` (`backup/`) |
+| | `automation` | `automation-backup` |
 |---|---|---|
-| Runs | routing, notes, service-health, agent-task, file-router, outbox-relay, **every service's migrations** | `volume-backup`, `db-backup`, `sqlite-backup`, `notify`, `clean-runs`, **`triage`** (+ `notes-pull`, opt-in) |
+| Runs | routing, notes, file_router, agent_task, the hermes endpoints, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
 | Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
-| Credentials | enumerated, only the keys its routines use | the **master `.env`** via `env_file` |
+| Credentials | enumerated, only the keys its scripts use | the **master `.env`** via `env_file` |
 | Model access | the hermes gateway over HTTP (`lib/hermes.sh`, `lib/hermes-cli.sh`) | none — nothing here reasons |
 
 **Why `triage` is on the backup side.** It reads the whole repo — every service's
 `exist.test.sh` plus `.env.shared` — and the credentials those tests authenticate with. That is
 the same bulk read access backups need, and it is the *only* thing that ever wanted `/repo`
 mounted, so the mount followed it. Putting it in `automation` meant the container that runs
-agent-task held the master `.env`, `.env.shared` and
+agent_task held the master `.env`, `.env.shared` and
 `hosting/caddy/certs/internal-ca-key.pem` — the key that signs every `*.<domain>` cert. What a
 prompt injection can read is what that container can read, so it now reads four profile
 directories.
 
 Triage still qualifies for this daemon on its own terms: it observes and reports. No reasoning,
-no routing, no AI call. It enqueues one `notify` message, and `notify` runs here too.
+no routing, no AI call. It emits one `notify` message, and `notify` runs here too.
 
 The one thing to know if you touch it: triage sets `EXIST_TEST_LIVENESS_ONLY=false` for each
-test it runs, because this daemon sets it `true` for its own routines' cheaper probes. Triage
+test it runs, because this daemon sets it `true` for everything else's cheaper probes. Triage
 wants the **full** check, Caddy routing included — a broken reverse proxy is much of what it
 exists to catch. See `testing.md`.
 
@@ -283,16 +264,15 @@ service is adding a folder. Now a new service's backup is one cron file in
 `services/automation/backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
-**Migration ordering.** `entrypoint.sh` gates `decree process` on `/work/exist.test.sh` passing,
-retrying for `DECREE_MIGRATE_TIMEOUT` (300s). `automation`'s migrations target *other* services, so
-that file is `services/automation/migration-gate.sh`, which probes each service it migrates and skips
-the ones whose `EXIST_IS_*` flag is false. Add a migration for a new service and you add its probe
-there. `automation-backup` mounts no such file, so it correctly skips the wait entirely.
+**Migration ordering.** There is no gate. A migration for a service starts with a
+`wait_for_<service>` state (`script: { name: wait_for_<service>, timeout: 10m }`) that polls
+until the service answers, so a slow starter holds back only its own migrations, in order. A
+migration that fails blocks the ones after it until `decree process --retry`. Add a migration for
+a new service and you add its `wait_for_*` script.
 
-**`automation-webhook` does not use this image.** It is a static Go binary
-(`services/automation/webhook/`) on `distroless`, built by compose from its own `Dockerfile` rather
-than by `existential-adhoc`, and shares nothing with the daemon but the inbox bind mount.
-Because distroless ships no shell, curl or wget, its healthcheck is the binary probing itself
-(`/webhook -healthcheck`). Its `README.md` documents the config-driven route table and the
-behaviours that differ from a plain JSON endpoint — read it before changing anything in
-`webhook/`.
+**`automation-webhook` does not use this image.** It is decree-go-rest
+(`ghcr.io/jtmckay/decree-go-rest`, pinned to its release tag; it bundles the same decree version), with
+its own daemon off, over the `automation` project mounted read-only plus a writable `inbox/`.
+Each endpoint in `automation/decree-go-rest.yml` turns an authenticated POST into a `decree emit`
+for one fixed machine; edits load without a restart, and `GET /openapi.json` lists them. Its
+healthcheck is the binary probing itself (`decree-go-rest -healthcheck`).

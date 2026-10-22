@@ -36,20 +36,21 @@ rclone_in() {
 }
 rclone_lsf() { rclone_in "$1" lsf "${REMOTE}/$2" 2>/dev/null || true; }
 
-# Concatenate the TARGETS blocks of every active cron for one routine+tier.
-# Cron files are named per service (mealie-db-backup-nightly.md, …) and now
-# share one cron/ dir, so a restore reads all of them, not one fixed filename.
+# Concatenate the params.TARGETS blocks of every active cron for one
+# backup+tier. Cron files are named per service (mealie-db-backup-nightly.md, …)
+# and share one cron/ dir, so a restore reads all of them, not one fixed
+# filename.
 collect_targets() {
-    local routine="$1" tier="$2"
+    local kind="$1" tier="$2"
     $DOCKER_CMD exec "${SIDECAR}" bash -c "
         shopt -s nullglob
-        for f in /work/.decree/cron/*${routine}-${tier}.md; do cat \"\$f\"; echo; done
-    " 2>/dev/null | awk -v k="TARGETS:" '
+        for f in /work/.decree/cron/*${kind}-${tier}.md; do cat \"\$f\"; echo; done
+    " 2>/dev/null | awk '
         /^---$/ { in_fm = !in_fm; found=0; next }
         !in_fm  { next }
-        $0 ~ "^" k { found=1; next }
-        found && /^[^ ]/  { found=0; next }
-        found   { sub(/^  /, ""); print }
+        /^  TARGETS:/ { found=1; next }
+        found && !/^    / { found=0; next }
+        found   { sub(/^    /, ""); print }
     '
 }
 

@@ -49,10 +49,7 @@ Setup:
        cp automation/lib/file-processors.example/whisperx-transcribe.sh \
           automation/lib/file-processors/
 
-  4. Restart decree to pick up config changes:
-       docker compose restart automation
-
-  5. Drop a recording into Nextcloud. The transcript appears in the same folder,
+  4. Drop a recording into Nextcloud. The transcript appears in the same folder,
      named <filename>.mp3.transcript.txt, with each line prefixed by its speaker
      (e.g. "[SPEAKER_00] …"). Diarized runs take longer than plain transcription.
 

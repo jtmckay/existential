@@ -92,7 +92,7 @@ if _python3="$(command -v python3)"; then
 fi
 
 # `hermes "..."` in the integrated terminal, same gateway (and same
-# lib/hermes.sh) every decree routine uses — see the two read-only mounts in
+# lib/hermes.sh) every decree script uses — see the two read-only mounts in
 # docker-compose.exist.yml. A symlink rather than a copy so an edit to
 # automation/lib/ is live here on the next invocation. PATH here is the
 # npm-global bin dir from /etc/profile.d/npm-global.sh, which is the one

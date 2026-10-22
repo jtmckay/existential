@@ -115,7 +115,6 @@ services:
       - ../../automation/machines:/work/.decree/machines:ro,z
       - ../../automation/scripts:/work/.decree/scripts:ro,z
       - ../../automation/lib:/work/.decree/lib:ro,z
-      - ../../automation/env:/work/.decree/env:ro,z
       # cron/ and migrations/ are only ever written from the host (a quest
       # copying from automation-examples/, or exist.initial.sh) before the
       # container starts — nothing at runtime writes them, so they get the same
@@ -229,8 +228,8 @@ services:
   # write nothing but inbox/; the `automation` daemon runs what it queues.
   automation-webhook:
     container_name: automation-webhook
-    # Bundles decree 0.5.0-beta.4 — keep it equal to decree/Dockerfile's tag.
-    image: ghcr.io/jtmckay/decree-go-rest:sha-3d79296
+    # Bundles decree 0.5.0-beta.13 — keep it equal to decree/Dockerfile's tag.
+    image: ghcr.io/jtmckay/decree-go-rest:0.5.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     # Covers the 10 s it gives requests in flight.
@@ -257,7 +256,8 @@ services:
       - ../../automation:/project/.decree:ro,z
       - ../../automation/inbox:/project/.decree/inbox:z
     healthcheck:
-      test: ["CMD", "decree-go-rest", "-healthcheck"]
+      # -config too: without it -healthcheck looks for ./decree-go-rest.yml.
+      test: ["CMD", "decree-go-rest", "-config", "/project/.decree/decree-go-rest.yml", "-healthcheck"]
       interval: 30s
       timeout: 3s
       retries: 3

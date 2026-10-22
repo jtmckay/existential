@@ -7,19 +7,18 @@
 # time the only way to see WHY something failed was to print it first (the flow
 # test's _diagnose dump) or to skip teardown entirely (E2E_KEEP=1). Every run's
 # evidence already exists in a good shape — decree writes
-# runs/<message_id>/{message.md,routine.log,run.json} per check — it was just
-# being thrown away. This copies it out before teardown and writes an index.
+# runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log} per run — it
+# was just being thrown away. This copies it out before teardown and writes an
+# index.
 #
-# Verdict rule: decree writes run.json only when a routine SUCCEEDS, and
-# dead-letters the message after max_attempts when it does not. So
-#     run.json with exit_code 0  → PASS
-#     no run.json, or non-zero   → FAIL
-#     message in inbox/dead/     → FAIL
-# and one failure never hides the others, because `decree daemon` keeps draining
-# the inbox past a dead letter (unlike `decree process`, which stops). Checks are
-# messages for a second reason too: a message is dropped once the stack is up,
-# whereas a migration runs during decree's boot and would judge services that
-# have not finished starting.
+# Verdict rule: decree mirrors each run's state into its message.md, so
+#     state: done            → PASS
+#     anything else, or none → FAIL
+# A message naming an unknown machine is a `failed` run too (invalid_message),
+# so there is no dead-letter case left to look for, and one failure never hides
+# the others: the daemon reports a failed inbox run and carries on. Checks are
+# messages rather than migrations because a failed migration blocks every
+# migration after it, and because a check is dropped once the stack is up.
 #
 # Every run in the clone is graded, not just the checks e2e staged: a check
 # can only prove it ENQUEUED work (decree runs one message at a time and the
@@ -46,101 +45,73 @@ e2e_fm_get() {
         | head -1 | sed "s/^${key}:[[:space:]]*//; s/[[:space:]]*\$//"
 }
 
-# exit_code out of a run.json, or empty when there is none. grep rather than jq:
-# jq is in the decree and adhoc images but is not guaranteed on the host, and
-# this runs host-side.
-e2e_exit_code() {
-    grep -o '"exit_code"[[:space:]]*:[[:space:]]*-\?[0-9]*' "$1" 2>/dev/null \
-        | grep -o -- '-\?[0-9]*$' | head -1
-}
-
-# collect_results <runs_dir> <out_dir> [dead_dir...]
+# collect_results <out_dir> <runs_dir>...
 #
-# Copies the run dirs and any dead letters into <out_dir> and writes
-# <out_dir>/results.md. Returns 0 when every check passed, 1 otherwise —
-# including when there were no checks at all, because an e2e run that produced
-# no evidence has not demonstrated anything and must not read as a pass.
+# Copies every run dir into <out_dir> and writes <out_dir>/results.md. Returns 0
+# when every run ended in `done`, 1 otherwise — including when there were no
+# runs at all, because an e2e run that produced no evidence has not
+# demonstrated anything and must not read as a pass.
 #
-# One runs/ and several dead/ is the shape the stack actually has: both decree
-# daemons write into the same runs/ directory, but each dead-letters into its own
-# inbox.
+# One runs/ per daemon: each decree project keeps its own.
 collect_results() {
-    local runs="$1" out="$2"; shift 2
-    local -a deads=("$@")
+    local out="$1"; shift
     mkdir -p "$out"
 
     local -a rows=()
     local failed=0 total=0
 
-    local d name code verdict dur
-    for d in "$runs"/*/; do
-        # message.md is what makes a directory a decree run — anything else under
-        # runs/ is not a result and must not be graded as one.
-        [ -f "${d}message.md" ] || continue
-        # EVERY run counts, not only the checks e2e staged itself. The work a
-        # check triggers — a router matching, a processor running — lands here as
-        # its own run, and grading only the named checks let a live run report
-        # PASS while s3-router was failing on every event it routed.
-        #
-        # e2e_check just supplies a friendly name; anything else is named by the
-        # routine it ran, which is what makes the failure legible in results.md.
-        name="$(e2e_fm_get "${d}message.md" e2e_check)"
-        [ -n "$name" ] || name="$(e2e_fm_get "${d}message.md" routine)"
-        [ -n "$name" ] || name="$(basename "$d")"
+    local runs d name state verdict dur
+    for runs in "$@"; do
+        for d in "$runs"/*/; do
+            # message.md is what makes a directory a decree run — anything else
+            # under runs/ is not a result and must not be graded as one.
+            [ -f "${d}message.md" ] || continue
+            # EVERY run counts, not only the checks e2e staged itself. The work a
+            # check triggers — a router matching, a processor running — lands here
+            # as its own run, and grading only the named checks let a live run
+            # report PASS while the router was failing on every event it routed.
+            #
+            # e2e_check just supplies a friendly name; anything else is named by
+            # the machine it ran, which is what makes the failure legible.
+            name="$(e2e_fm_get "${d}message.md" e2e_check)"
+            [ -n "$name" ] || name="$(e2e_fm_get "${d}message.md" machine)"
+            [ -n "$name" ] || name="$(basename "$d")"
 
-        cp -r "$d" "$out/" 2>/dev/null || true
-        total=$(( total + 1 ))
+            cp -r "$d" "$out/" 2>/dev/null || true
+            total=$(( total + 1 ))
 
-        if [ -f "${d}run.json" ]; then
-            code="$(e2e_exit_code "${d}run.json")"
-            dur="$(grep -o '"duration_s"[[:space:]]*:[[:space:]]*[0-9.]*' "${d}run.json" 2>/dev/null \
-                   | grep -o '[0-9.]*$' | head -1)"
-        else
-            code=""; dur=""
-        fi
+            # decree mirrors the run's state into message.md; only a final
+            # `done` is a pass. A run still active, waiting, or `failed` is not.
+            # grep rather than jq for the duration: jq is not guaranteed on the
+            # host, and this runs host-side.
+            state="$(e2e_fm_get "${d}message.md" state)"
+            dur="$(grep '"type":"run_finished"' "${d}events.jsonl" 2>/dev/null \
+                   | grep -o '"duration_ms":[0-9]*' | grep -o '[0-9]*$' | tail -1)"
 
-        if [ "$code" = "0" ]; then
-            verdict="PASS"
-        else
-            verdict="FAIL"
-            failed=$(( failed + 1 ))
-        fi
-        rows+=("${verdict}|${name}|${code:-—}|${dur:-—}|$(basename "$d")")
-    done
-
-    # Dead letters. A check that dead-lettered has a run dir too (decree creates
-    # it before the first attempt), so it is already counted above — this is for
-    # the case where it never got that far, and to keep the message itself.
-    local m dname dead
-    for dead in ${deads[@]+"${deads[@]}"}; do
-        [ -d "$dead" ] || continue
-        for m in "$dead"/*.md; do
-            [ -f "$m" ] || continue
-            mkdir -p "$out/dead"
-            cp "$m" "$out/dead/" 2>/dev/null || true
-            dname="$(e2e_fm_get "$m" e2e_check)"
-            [ -n "$dname" ] || dname="$(e2e_fm_get "$m" routine)"
-            [ -n "$dname" ] || dname="$(basename "$m" .md)"
-            printf '%s\n' "${rows[@]+"${rows[@]}"}" | grep -q "|${dname}|" && continue
-            rows+=("FAIL|${dname}|dead-lettered|—|—")
-            total=$(( total + 1 )); failed=$(( failed + 1 ))
+            if [ "$state" = "done" ]; then
+                verdict="PASS"
+            else
+                verdict="FAIL"
+                failed=$(( failed + 1 ))
+            fi
+            rows+=("${verdict}|${name}|${state:-—}|${dur:+$(( dur / 1000 ))}|$(basename "$d")")
         done
     done
 
     {
         printf '# e2e results\n\n'
-        printf '%s — %s of %s checks passed.\n\n' \
+        printf '%s — %s of %s runs passed.\n\n' \
             "$(date -u '+%Y-%m-%d %H:%M UTC')" "$(( total - failed ))" "$total"
         if [ "$total" -eq 0 ]; then
             printf 'No checks produced a result. The stack came up but nothing was\n'
             printf 'verified — treat this as a failure of the harness, not a pass.\n'
         else
-            printf '| | Check | exit | secs | Run |\n|---|---|---|---|---|\n'
+            printf '| | Check | state | secs | Run |\n|---|---|---|---|---|\n'
             printf '%s\n' "${rows[@]}" | sort | while IFS='|' read -r v n c s r; do
                 printf '| %s | %s | %s | %s | `%s` |\n' \
-                    "$([ "$v" = PASS ] && echo '✓' || echo '✗')" "$n" "$c" "$s" "$r"
+                    "$([ "$v" = PASS ] && echo '✓' || echo '✗')" "$n" "$c" "${s:-—}" "$r"
             done
-            printf '\nA failing check keeps its full output in `%s/<run>/routine.log`.\n' \
+            printf '\nEach run keeps its events.jsonl and script logs in `%s/<run>/`.\n' \
                 "$(basename "$out")"
         fi
     } > "$out/results.md"

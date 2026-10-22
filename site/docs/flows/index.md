@@ -59,7 +59,7 @@ judgment and work are untouched; swap "a business idea" for "a house project" an
 moves. [Note → Action](./note-to-action) turns all four on one flow, one section each.
 
 Adding a genuinely new flow means writing one more routine, not learning a new system —
-see [Writing a Routine](../writing-a-routine).
+see [Writing an Automation](../writing-a-routine).
 
 ## The three that matter most
 
@@ -92,7 +92,7 @@ The most tedious recurring paperwork in most people's lives, handled without att
 
 Every flow above is a routine plus a trigger — and both are yours to write.
 
-- **[Writing a Routine](../writing-a-routine)** is the place to start: the anatomy of a
+- **[Writing an Automation](../writing-a-routine)** is the place to start: the anatomy of a
   routine script, how to register it, the four ways to trigger it, and how one routine hands
   work to the next.
 - **[Note → Action](./note-to-action)** is the same material as a worked example — four

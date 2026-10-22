@@ -9,22 +9,22 @@ This is the plumbing under agent work: how a task becomes a *particular* agent's
 are here to see what the system does, start at [Level 3 · Flows](../flows/).
 :::
 
-A task arrives with no idea who should handle it. `hermes-router` reads it, names one
-department, and writes a decree message naming that department. The department answers with its
+A task arrives with no idea who should handle it. `hermes_router` reads it, names one
+department, and emits a decree message naming that department. The department answers with its
 own tools and files the result in `workspace/ai/`.
 
-There is one routine for all of them — `hermes-dept` — because a department's identity is not
+There is one machine for all of them — `agent_task` — because a department's identity is not
 code. It is a profile definition in `ai/hermes/profiles/<name>/profile.yml`, and *that* is what
 both the router and hermes itself read.
 
 ```mermaid
 flowchart LR
-    A["📥 inbox\nroutine: hermes-router"] --> B["🧭 hermes-router"]
+    A["📥 inbox\nmachine: hermes_router"] --> B["🧭 hermes_router"]
     B -->|/p/router/v1| C["hermes\nrouter profile\n(no tools)"]
     C -->|"a department name"| B
-    B -->|"outbox\nprofile: research"| D["🏷️ hermes-dept"]
-    B -->|"outbox\nprofile: sales"| E["🏷️ hermes-dept"]
-    B -->|"no match, or\nan unknown answer"| F["🚫 route-failed"]
+    B -->|"emit\nprofile: research"| D["🏷️ agent_task"]
+    B -->|"emit\nprofile: sales"| E["🏷️ agent_task"]
+    B -->|"no match, or\nan unknown answer"| F["🚫 not_routed"]
     D -->|/p/research/v1| G["hermes\nresearch profile\nsearch · web · openviking · firecrawl"]
     E -->|/p/sales/v1| H["hermes\nsales profile\nskills · todo · openviking"]
     G --> I["📄 workspace/ai/&lt;name&gt;.md"]
@@ -67,17 +67,13 @@ mcp: openviking
 Then `docker compose up -d hermes-agent`. That is the whole job.
 
 Those three keys are the whole registration, and they are read by exactly two things:
-`ai/hermes/entrypoint.sh` creates the matching hermes profile on boot, and `hermes-router`
-reads the same file — over its read-only `/repo` mount — to build the list it chooses from.
-No routine to write, no registry, no router edit, and no second copy of the description to
+`ai/hermes/entrypoint.sh` creates the matching hermes profile on boot, and `hermes_router`
+reads the same file — over a read-only mount of `ai/hermes/profiles` — to build the list it
+chooses from. No machine to write, no registry, no router edit, and no second copy of the description to
 drift.
 
 Write `description` as the answer to *"when should work come here?"*. It is the only thing the
 router sees, so a vague one produces vague routing.
-
-The one thing that is not automatic: `hermes-dept` must be enabled in
-`services/automation/decree/config.yml` (shared routines are invisible until listed). Enable it
-once and every department you add afterwards works with no further change.
 
 ## Provisioning the profiles
 
@@ -107,51 +103,39 @@ docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
 
 ## Sending work
 
-Drop a message in `automation/inbox/` (the main daemon wholesale-mounts the repo-root
-`automation/` directory as its whole project — `services/automation/decree/` is only the
-image build, not the running project's files):
+Emit a message for `hermes_router`:
 
-```
----
-routine: hermes-router
-source_file: notes/competitors.md
-output_name: competitor-scan
----
-
-Find out who already sells this, and how they position against each other.
+```bash
+echo 'Find out who already sells this, and how they position against each other.' \
+  | docker exec -i automation decree emit --machine hermes_router \
+      --param source_file=notes/competitors.md --param output_name=competitor-scan
 ```
 
-Or skip the router and address a department directly with `routine: hermes-dept` and
-`profile: research` — the same routine the router would have queued, no routing call. A file processor does this by writing the outbox message itself; see
+Or skip the router and address a department directly with `--machine agent_task --param
+profile=research` — the same machine the router would have emitted, no routing call. A file
+processor does this by emitting the message itself; see
 [File Processor](./file-change-processing).
 
 ## When routing fails
 
-`hermes-router` never guesses. The reply is validated against the discovered department list,
+`hermes_router` never guesses. The reply is validated against the discovered department list,
 and anything else — an empty answer, a gateway timeout, a hallucinated name, or an honest
-`none` — routes to `route-failed`, which logs what happened and stops:
+`none` — ends the run in `not_routed`, with the reason, the candidates and the source in its
+log. Nothing else runs for that message.
 
-```
-FAILED TO ROUTE to 'none'
-  reason     : the router found no department matching this message
-  candidates : research sales
-  source     : test/weather.md
-Nothing was run for this message.
-```
-
-`route-failed` calls no model and runs no agent. It is also decree's `default_routine`, so a
-message that arrives with no routine at all is logged and dropped rather than guessed at.
+A message that names no machine, or one this project does not have, never reaches the router
+at all: decree records it as a `failed` run with `invalid_message`, and Grafana alerts on it.
 
 ## Why not OpenCode
 
 Departments call the hermes endpoint directly — through `automation/lib/hermes.sh`, like every
-other routine — and the stack ships no AI CLI at all. Hermes is itself an agent running its own
+other script — and the stack ships no AI CLI at all. Hermes is itself an agent running its own
 tool loop against its own MCP servers, so OpenCode was an agent wrapping an agent, and its
 streaming parser rejects hermes' custom `event: hermes.tool.progress` SSE frames outright, which
 fails every turn where hermes actually uses a tool.
 
 That is also why pointing a coding agent at the gateway is not the way to work on this stack.
 Change the stack with a dedicated coding agent against a frontier model, on the machine that
-holds the repo; the gateway gets the work it is good at, on `workspace/`. In a routine that is
+holds the repo; the gateway gets the work it is good at, on `workspace/`. In a script that is
 `hermes_chat`/`hermes_gate`; in a terminal it is the `hermes` command that
 [code-server](../services/code-server) puts on `PATH`.

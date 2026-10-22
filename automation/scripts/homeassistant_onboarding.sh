@@ -37,12 +37,12 @@ CLIENT_ID="${HOMEASSISTANT_URL%/}/"
 : "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
 : "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
 
-# Decree retries a failed routine three times back-to-back with no delay of its
-# own — a connection-refused fails in ~0ms, so all three attempts land inside
-# the same second and the migration dead-letters before Home Assistant is back.
-# That is the observed first-run failure: migration-gate.sh clears HA (see its
-# gate_homeassistant), and HA then drops connections anyway while it finishes
-# starting. Sleeping here first makes the retry budget mean 10s/20s/30s of
+# Decree retries a failed state back-to-back with no delay of its own — a
+# connection-refused fails in ~0ms, so all three attempts land inside the same
+# second and the migration fails before Home Assistant is back. That is the
+# observed first-run failure: wait_for_homeassistant clears HA, and HA then drops
+# connections anyway while it finishes starting. Sleeping here first makes the
+# three attempts (machines/homeassistant_onboarding.yml) mean 10s/20s/30s of
 # actual waiting instead of nothing.
 sleep 10
 

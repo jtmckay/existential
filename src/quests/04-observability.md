@@ -34,21 +34,22 @@ This is the one slice with nothing to activate — it comes up configured.
   Grafana:     https://grafana.${EXIST_DOMAIN}     → Decree Overview dashboard
   Prometheus:  https://prometheus.${EXIST_DOMAIN}
 
-Filter the Decree Overview dashboard by `routine=` to get a panel per routine.
-A routine you activate later shows up there with no dashboard edit.
+Filter the Decree Overview dashboard by `machine` to get a panel per machine.
+A machine you activate later shows up there with no dashboard edit.
 
        ./existential.sh test grafana loki prometheus
 
 ── 3. What is already collected ──────────────────────────────────────────
 
   loki-alloy                 ships every container's stdout/stderr into Loki
-  decree_run_success{...}    per-routine gauge, one point per run
-  exist_service_healthy{...} per-service gauge, written by the triage routine
+  decree_runs_total{...}     finished runs per machine and final state
+  exist_service_healthy{...} per-service gauge, written by triage
   hosting/prometheus/alerts.yml
                              ships alert rules, including
                              ServiceHealthCheckFailing
 
-Alerts reach you through ntfy once the **Automation** slice is up.
+A decree run that fails reaches you through ntfy (Grafana's decree alert).
+The alerts.yml rules show at https://prometheus.${EXIST_DOMAIN}/alerts.
 
 ── What to build on this ─────────────────────────────────────────────────
 

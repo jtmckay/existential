@@ -32,7 +32,7 @@ Each tool in the stack has a distinct role:
 |---|---|
 | [Hermes dashboard](./hermes) | Managing sessions, skills, and agent configuration |
 | Open WebUI | Day-to-day conversations |
-| [decree](../decree/) routines | Work with nobody present — `agent-task` files the answer into `workspace/ai/` |
+| [decree](../decree/) routines | Work with nobody present — `agent_task` files the answer into `workspace/ai/` |
 
 Every surface points at the Hermes gateway (`https://hermes-agent.<domain>/v1`, `HERMES_API_KEY`
 as the API key), so they share the same models, skills and memory. Coding on the stack itself is

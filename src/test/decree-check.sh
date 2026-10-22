@@ -28,9 +28,9 @@ assemble() {
     local d="${TMP}/${name}/.decree"
     mkdir -p "$d"/{cron,migrations,inbox}
     cp -r "$machines" "${d}/machines"
+    cp "$(dirname "$machines")/.gitignore" "$d/"
     [[ -d "$graph" ]] && cp -r "$graph" "${d}/graph"
     cp -r "${REPO}/automation/scripts" "${REPO}/automation/lib" "$d/"
-    cp "${REPO}/automation/env" "$d/env"
     cp "$cron"/*.md "${d}/cron/"
     [[ -n "$migrations" ]] && cp "$migrations"/*.md "${d}/migrations/"
     [[ -n "$inbox" ]] && cp "$inbox"/*.md "${d}/inbox/"

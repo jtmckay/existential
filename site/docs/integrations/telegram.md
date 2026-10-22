@@ -50,32 +50,26 @@ EOF
 
 The secrets directory is bind-mounted into the decree container at `/secrets/telegram/`.
 
-## Enabling Routines
+## Enabling It
 
-`telegram-notify` and `telegram-receipt` are already enabled by default in
-`services/automation/decree/config.yml` — there's nothing to flip there. What
-actually gates them is the credentials file above (`telegram-notify` is chained
-from `actual-budget`'s outbox and does nothing without it) and, for receipt
-polling, activating its cron:
+There is nothing to enable for `telegram_notify` and `telegram_receipt` themselves. What gates
+them is the credentials file above (`telegram_notify` is emitted by `actual_budget` and does
+nothing without it) and, for receipt polling, activating its cron:
 
 ```bash
 cp automation-examples/cron/telegram-receipt-poll.md \
    automation/cron/
 ```
 
-Cron frontmatter is read when the daemon starts, so restart it to pick the new schedule up:
-
-```bash
-docker compose restart automation
-```
+The daemon rescans `cron/` every tick, so there is nothing to restart.
 
 ## Verifying
 
-Check the routines pass pre-checks:
+Check the receipt cron is scheduled, then watch its runs:
 
 ```bash
-docker exec automation decree routine telegram-notify
-docker exec automation decree routine telegram-receipt
+docker exec automation decree status --cron
+docker exec automation decree status
 ```
 
 Send a test message from your bot to confirm the chat ID is correct:
@@ -86,7 +80,7 @@ curl -s "https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>&text=
 
 ## State File
 
-Decree stores pending transaction and split state in `/secrets/telegram/state.json`. This file is read and written by `telegram-notify` and `telegram-receipt`. You can inspect it at any time:
+Decree stores pending transaction and split state in `/secrets/telegram/state.json`. This file is read and written by `telegram_notify` and `telegram_receipt`. You can inspect it at any time:
 
 ```bash
 cat automation/secrets/telegram/state.json | jq .

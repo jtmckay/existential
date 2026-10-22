@@ -41,7 +41,7 @@ The workspace (`volumes/workspace_data`) — the same tree Nextcloud serves, [He
 `/opt/data/workspace` and code-server mounts at `/workspace`. Everything you actually
 work on is searchable without a second knowledgebase directory to keep in step.
 
-The `openviking-index-dir` routine uploads it into `viking://resources/workspace` every
+The `openviking_index_dir` machine uploads it into `viking://resources/workspace` every
 15 minutes. It is incremental: unchanged files are skipped, changed files replace their
 old copy, and files you delete on disk leave the index on the next run. A first pass over
 a large tree takes a while — each file is embedded on the way in.

@@ -50,24 +50,12 @@ the default profile's credential — without one it returns 401 on every request
 and an unknown profile name returns 404 rather than quietly falling through to
 the default.
 
-── 2. Enable the routines ────────────────────────────────────────────────
+── 2. The machines (?:─)+
 
-In services/automation/decree/config.yml:
-
-  hermes-router:
-    enabled: true
-  hermes-dept:
-    enabled: true
-
-There is one hermes-dept for every department — which one is a message
-parameter, not a routine of its own. Add idea-workup too if you want the
-fan-out path; it hands one idea to research and sales at once and writes each
-answer into workspace/ai/:
-
-  idea-workup:
-    enabled: true
-
-Restart decree so it re-reads the whitelist.
+Nothing to enable. hermes_router picks a department and emits agent_task for
+it; there is one agent_task for every department — which one is a message
+param, not a machine of its own. idea_workup is the fan-out path: it hands one
+idea to research and sales at once and writes each answer into workspace/ai/.
 
 ── 3. Verify ─────────────────────────────────────────────────────────────
 
@@ -76,14 +64,12 @@ What a profile costs:
   docker exec -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
     /opt/hermes/.venv/bin/hermes prompt-size
 
-And route something. Drop this in automation/inbox/:
+And route something:
 
-  ---
-  routine: hermes-router
-  ---
-  Who else is already selling a self-hosted homelab bundle?
+  echo 'Who else is already selling a self-hosted homelab bundle?' \
+    | docker exec -i automation decree emit --machine hermes_router
 
-The router picks a department and queues hermes-dept for it; the answer lands
+The router picks a department and emits agent_task for it; the answer lands
 in workspace/ai/ and ntfy tells you it arrived.
 
 ── Adding your own department ────────────────────────────────────────────
@@ -96,8 +82,8 @@ ai/hermes/profiles/<name>/profile.yml:
   mcp: openviking, firecrawl
 
 Then restart hermes. That is the whole job: entrypoint.sh provisions the new
-profile, and hermes-router reads the same file to build the catalog it chooses
-from — so the description is written once and both sides pick it up. No routine
+profile, and hermes_router reads the same file to build the catalog it chooses
+from — so the description is written once and both sides pick it up. No machine
 to write, nothing to enable, nothing here to edit.
 
 Write the description as the answer to "when should work come here?" rather
@@ -114,7 +100,7 @@ Full contract: ai/hermes/profiles/README.md
 - A profile inherits its model from your default profile, so the stack's single
   model choice stays a single choice.
 - Address a department directly and skip the router entirely with
-  `routine: hermes-dept` + `profile: research` in a message.
-- An unroutable message goes to route-failed, which logs and stops. The router
-  never guesses.
-- The note-triage quest's idea-workup path depends on these profiles.
+  `--machine agent_task --param profile=research`.
+- An unroutable message ends in not_routed, with the reason in its log. The
+  router never guesses.
+- The note-triage quest's idea_workup path depends on these profiles.

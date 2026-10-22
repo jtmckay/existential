@@ -35,8 +35,8 @@ services:
     # itself over its own API. Verified both ways: `ollama list` exits 0 against
     # a running `ollama serve` and 1 when nothing is listening.
     #
-    # This matters more here than elsewhere: services/automation/migration-gate.sh
-    # gates every model-pull migration on ollama, and the container-state gate
+    # This matters more here than elsewhere: every model-pull migration waits on
+    # ollama in its wait_for_ollama state, and the container-state gate
     # only ever looks for `unhealthy` — so with no healthcheck at all, a wedged
     # ollama reads as "running" and nothing notices.
     healthcheck:

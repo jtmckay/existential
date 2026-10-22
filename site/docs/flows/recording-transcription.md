@@ -18,11 +18,11 @@ webhook"| webhook
     subgraph decree["Decree"]
         webhook["automation-webhook
 /files endpoint"]
-        router["file-router\nmatch .mp3 / .mp4 / .wav"]
-        processor["file-processor\nrclone link → PRE_SIGNED_URL"]
+        router["file_router\nmatch .mp3 / .mp4 / .wav"]
+        processor["file_processor\nrclone link → PRE_SIGNED_URL"]
         transcriber["whisperx-transcribe\nPOST /speech-to-text-url → poll /task"]
         webhook --> router
-        router -->|"outbox message\nis_pre_signed: true"| processor
+        router -->|"emitted message\nis_pre_signed: true"| processor
         processor --> transcriber
     end
 
@@ -39,22 +39,22 @@ The Nextcloud mobile app auto-syncs your phone's recordings folder to Nextcloud.
 
 ### 2. Nextcloud fires the webhook
 
-The upload raises a `NodeWrittenEvent`, which Nextcloud POSTs to the Decree webhook's `/files` endpoint. `rclone_src` in the webhook config tells `file-router` which rclone remote the path belongs to in all subsequent steps.
+The upload raises a `NodeWrittenEvent`, which Nextcloud POSTs to the Decree webhook's `/files` endpoint. `rclone_src` in the webhook config tells `file_router` which rclone remote the path belongs to in all subsequent steps.
 
-### 3. file-router matches the file
+### 3. file_router matches the file
 
-`file-router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
+`file_router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
 
 ```bash
 PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
 IS_PRE_SIGNED=true
 ```
 
-It matches `.mp3`, `.mp4`, and `.wav` case-insensitively. Because `IS_PRE_SIGNED=true`, the outbox message carries `is_pre_signed: true` — telling `file-processor` not to download the file.
+It matches `.mp3`, `.mp4`, and `.wav` case-insensitively. Because `IS_PRE_SIGNED=true`, the emitted message carries `is_pre_signed: true` — telling `file_processor` not to download the file.
 
-### 4. file-processor generates a share link
+### 4. file_processor generates a share link
 
-Instead of downloading the file, `file-processor` calls `rclone link` to generate a share link for the audio file and exports it as `PRE_SIGNED_URL`. No audio data touches the Decree container's disk.
+Instead of downloading the file, `file_processor` calls `rclone link` to generate a share link for the audio file and exports it as `PRE_SIGNED_URL`. No audio data touches the Decree container's disk.
 
 ### 5. whisperx-transcribe submits to WhisperX
 
@@ -102,10 +102,10 @@ WhisperX will download the default model on first use. No further configuration 
 
 ### Step 3 — Confirm the processor is active
 
-The `whisperx-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. Verify the pre-checks pass:
+The `whisperx-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. After the first upload, its run shows up in:
 
 ```bash
-docker exec automation decree routine file-processor
+docker exec automation decree status
 ```
 
 ### Step 4 — Configure Nextcloud mobile auto-upload

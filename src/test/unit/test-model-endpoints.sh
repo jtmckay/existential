@@ -12,7 +12,7 @@
 # a role, which must never disagree:
 #   src/utils/model-endpoints.sh  — scripts (hermes, openviking, models.sh)
 #   src/templates.sh              — rendered configs (honcho's config.toml)
-#   automation/shared_routines/ollama-pull.sh — migrations, which pull the model
+#   automation/scripts/ollama_pull.sh — migrations, which pull the model
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +25,7 @@ REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 ENDPOINTS="${SRC_DIR}/utils/model-endpoints.sh"
 TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
-PULL="${REPO_DIR}/automation/shared_routines/ollama-pull.sh"
+PULL="${REPO_DIR}/automation/scripts/ollama_pull.sh"
 HONCHO="${REPO_DIR}/ai/honcho/config.exist.toml"
 
 # Speech has no endpoint keys on purpose — wyoming-whisper and wyoming-piper are
@@ -71,7 +71,7 @@ ROLES="chat extract embed vision"
     && _ok "a set role key wins and does not leak to other roles" \
     || _fail "a set role key wins and does not leak to other roles"
 
-# chat-ctx is ollama-pull's rebuild role; it must land on the chat machine or the
+# chat-ctx is ollama_pull's rebuild role; it must land on the chat machine or the
 # rebuilt model appears on a box that never serves chat.
 (
     export EXIST_OLLAMA_URL="http://global:11434"
@@ -114,7 +114,7 @@ for _r in $ROLES; do
     _key="EXIST_OLLAMA_URL_$(printf '%s' "$_r" | tr '[:lower:]' '[:upper:]')"
     grep -qE "^${_key}=" "$SHIPPED"       || _missing+="${_key}(.env.exist.shared) "
     grep -q  "$_key"     "$ENDPOINTS"     || _missing+="${_key}(model-endpoints.sh) "
-    grep -q  "$_key"     "$PULL"          || _missing+="${_key}(ollama-pull.sh) "
+    grep -q  "$_key"     "$PULL"          || _missing+="${_key}(ollama_pull.sh) "
 done
 [[ -z "$_missing" ]] \
     && _ok "every role has a key in the shipped env, the resolver and ollama-pull" \

@@ -54,10 +54,9 @@ from step 2 to exist first, which the numbering guarantees:
 
        cp automation-examples/migrations/26-homeassistant-wyoming-hermes.md \
           automation/migrations/
-       docker compose restart automation
 
-Migrations run once each, in order, after `migration-gate.sh` sees Home
-Assistant answering. Watch it land in `automation/runs/`.
+Migrations run once each, in order, each waiting until Home Assistant
+answers. Watch them with `docker exec automation decree status`.
 
 ── 4. Try it ─────────────────────────────────────────────────────────────
 

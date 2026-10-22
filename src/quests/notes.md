@@ -27,14 +27,10 @@ Prerequisites:
   - Dropbox rclone remote configured:
       ./existential.sh run rclone
   - Nextcloud rclone credentials in automation/secrets/
-  - Enable the notes routine in services/automation/decree/config.yml:
-      notes:
-        enabled: true
 
 Activate the cron:
   mkdir -p automation/cron/
   cp automation-examples/cron/notes.md automation/cron/
-  docker compose restart automation
 
 Logs for each run land in automation/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

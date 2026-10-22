@@ -1,12 +1,11 @@
 ---
-routine: e2e-file-processing
+machine: e2e_file_processing
 e2e_check: 10-file-processing
 requires: EXIST_IS_NAS_NEXTCLOUD EXIST_IS_SERVICES_AUTOMATION
-needs_routines: file-router file-processor
 ---
 
 File uploaded to Nextcloud → webhook_listeners → nextcloud-cron's worker →
-automation-webhook → inbox → file-router → file-processor → the processor
+automation-webhook → inbox → file_router → file_processor → the processor
 actually runs.
 
 This is the chain no per-service `exist.test.sh` can see. Every service can be
@@ -15,7 +14,7 @@ on, or never posts them at all because nothing runs its background jobs. The
 question this asks is the one a user actually cares about: if I drop a file in,
 does the thing happen?
 
-It runs as a decree routine rather than a host script because everything it
+It runs as a decree machine rather than a host script because everything it
 needs is inside decree already: `curl` and `jq` are in the image, the Nextcloud
 admin credentials are in its compose environment, and it shares the `exist`
 bridge with every service.

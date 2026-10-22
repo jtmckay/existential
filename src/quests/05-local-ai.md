@@ -64,7 +64,6 @@ per role, each running exactly once:
           automation-examples/migrations/13-ollama-pull-embed-model.md \
           automation-examples/migrations/14-ollama-pull-vision-model.md \
           automation/migrations/
-       docker compose restart automation
 
 Those migrations name a **role**, never a tag:
 
@@ -130,8 +129,6 @@ there is no second directory to keep in step.
        # Surfaces connections between what you just wrote and what you already
        # know, hourly. Needs the index above.
        cp automation-examples/cron/note-connect.md automation/cron/
-
-       docker compose restart automation
 
 Indexing runs every 15 minutes and preserves subdirectories; deleting a file on
 disk drops it from the index on the next run. To index a second directory, copy

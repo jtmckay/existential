@@ -37,7 +37,7 @@ nothing makes hermes retry a dead endpoint on every task.
 | Reader | Reads | For |
 |---|---|---|
 | `ai/hermes/entrypoint.sh` | this directory, mounted `/opt/profile-defs:ro` | creating the profile on boot |
-| `hermes-router` | `/repo/ai/hermes/profiles/*/profile.yml` | the catalog it chooses from |
+| `hermes_router` | `/repo/ai/hermes/profiles/*/profile.yml` | the catalog it chooses from |
 
 Both read the same file, so a description is written once.
 
@@ -73,18 +73,19 @@ you want into `volumes/hermes_agent_data/profiles/<name>/skills/`.
 
 ## Using one
 
-Work is dispatched by the single `hermes-dept` routine, which takes the profile
-as a message parameter:
+Work is dispatched by the single `agent_task` machine, which takes the profile
+as a message param:
 
 ```
 ---
-routine: hermes-dept
-profile: research
-output_name: competition
+machine: agent_task
+params:
+  profile: research
+  output_name: competition
 ---
 <the task>
 ```
 
-`hermes-router` writes exactly that message after picking a department. Setup
+`hermes_router` emits exactly that message after picking a department. Setup
 guide: the **Hermes Departments** quest. Deeper reference:
 <https://existential.company/docs/decree/routing>.

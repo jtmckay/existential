@@ -147,7 +147,7 @@ in `workspace/` — no new tool, no new integration, just more notes in the same
 
 The mirror is full-refresh, not append-only: a cancelled or deleted event's note disappears on
 the next run, and the directory only ever reflects what's really scheduled. See
-`automation/shared_routines/calendar-extract.sh` for the CalDAV details (verified live against
+`automation/scripts/calendar_extract.sh` for the CalDAV details (verified live against
 nextcloud:34.0.3, including its `expand` support for recurring events).
 
 ## Maintenance

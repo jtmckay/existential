@@ -20,23 +20,20 @@ Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) lo
 | Prometheus datasource | `provisioning/datasources/prometheus.yaml` | Default datasource, 15s scrape interval |
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Pre-built Decree monitoring |
-| Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `routine.log` and `message.md`, by message ID |
+| Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
+| decree alert | `provisioning/alerting/decree.yaml` | A failed decree run → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
 
 ## Decree Overview dashboard
 
-Covers the Decree automation engine, filterable by `routine` and `trigger_type` template
-variables, with panels for:
+Covers both decree daemons, filterable by `daemon` and `machine`, with panels for:
 
-- **Current Status** — last run success/failure per routine (Prometheus gauge)
-- **Recent Run Events** — a table of every run (Loki), one row per attempt: message ID
-  (linking to the Run Detail dashboard below), routine, **subroutine** (which specific
-  file processor / department / etc. a routine dispatched to, when it says so — sparse by
-  design), trigger, exit code, attempts, duration, and whether it was the final attempt
-- **Trends** — success/failure, duration, and attempts-per-run over time (Prometheus,
-  timeseries)
-- **Logs** — a raw, filterable Loki log stream of routine output
+- **Runs in range** — finished runs per machine, done and failed (Prometheus)
+- **Run duration** — p95 per machine (Prometheus histogram)
+- **Finished runs per hour** — stacked by final state
+- **Recent runs** — one row per run (Loki, the `run_finished` events): machine, final state,
+  duration, trigger, and the run ID, linking to the Run Detail dashboard
 
 This is the main place to check when a Decree automation fails or behaves unexpectedly.
 
@@ -44,18 +41,18 @@ This is the main place to check when a Decree automation fails or behaves unexpe
 
 - **New dashboard**: drop a JSON export into `hosting/grafana/provisioning/dashboards/`. Grafana auto-loads it.
 - **New datasource**: add a YAML file to `hosting/grafana/provisioning/datasources/`.
-- **Alerts**: unified alerting only, configured in the Grafana UI — rules persist in the `grafana_data` volume. Legacy alert rules embedded in dashboard JSON were removed in Grafana 11. Alerting rules are not provisioned from files here; only `datasources/` and `dashboards/` are bind-mounted.
+- **Alerts**: unified alerting. `provisioning/alerting/decree.yaml` provisions the ntfy contact
+  point (a webhook, authenticated as `EXIST_NTFY_USER`) and the `decree run failed` rule, on
+  `increase(decree_runs_total{state="failed"}[10m]) > 0`, repeating at most every 6 hours per
+  machine. Rules made in the UI persist in the `grafana_data` volume.
 
 ## Data flow summary
 
 ```
-Decree run
-  └─ afterEach.sh
-       ├─ Pushgateway → Prometheus (metrics: success, duration, attempts)
-       └─ Loki push API (log: structured summary line)
-
-automation/runs/**/routine.log
-  └─ Alloy → Loki (full routine output, labeled by message_id/chain/seq)
+<project>/runs/<id>/events.jsonl, <NNNN>-<state>-<script>.log
+  └─ Alloy
+       ├─ Loki (every event and every script's output)
+       └─ /metrics → Prometheus (decree_runs_total, decree_run_duration_milliseconds)
 
 Grafana
   ├─ queries Prometheus for metric panels

@@ -53,18 +53,14 @@ own HuggingFace URLs; the files go under:
                                           /vae/
                                           /loras/
 
-Enable the routine in `services/automation/decree/config.yml`:
-
-       comfy: { enabled: true }
-
-Then trigger one by hand — the **message body is the prompt**, and running with
+Trigger one by hand — the **message body is the prompt**, and running with
 an unknown `type` lists the ones you have:
 
-       printf -- '---\nroutine: comfy\ntype: image-text-image\noutput_prefix: test\n---\na lighthouse at dusk\n' \
-         > automation/inbox/comfy.md
+       echo 'a lighthouse at dusk' | docker exec -i automation decree emit \
+         --machine comfy --param type=image-text-image --param output_prefix=test
 
-Adding a flow is adding a .json and a .yml in that directory; the routine needs
-no change.
+Adding a flow is adding a .json and a .yml in that directory; the machine needs
+no change (unless the binding adds a param, which goes in machines/comfy.yml).
 
 ── 4. Check it ───────────────────────────────────────────────────────────
 

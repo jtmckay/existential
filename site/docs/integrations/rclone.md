@@ -19,5 +19,5 @@ Config is saved to `automation/secrets/rclone/rclone.conf` and loaded by the con
 :::note[The `nextcloud` remote configures itself]
 If Nextcloud is enabled, a `nextcloud` remote (WebDAV, using the already-rendered admin
 credentials) is set up for you automatically by the `nextcloud-rclone-remote` migration —
-it's what `file-processor` downloads through for every file event. No need to add it here unless you're pointing it somewhere else.
+it's what `file_processor` downloads through for every file event. No need to add it here unless you're pointing it somewhere else.
 :::

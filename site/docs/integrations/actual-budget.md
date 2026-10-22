@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Actual Budget
 
-Connects Decree to your Actual Budget server, enabling automated transaction imports from bank alert emails. Once configured, the `actual-budget` and `actual-budget-parse` routines are enabled automatically and credentials are loaded by the container at runtime.
+Connects Decree to your Actual Budget server, enabling automated transaction imports from bank alert emails. Once configured, the `actual_budget` and `actual_budget_parse` machines can reach it and credentials are loaded by the container at runtime.
 
 New to Actual Budget? Start with the [service setup](../services/actual-budget) first.
 
@@ -27,7 +27,7 @@ The script will:
 5. Display all accounts with their IDs
 6. Save credentials to `automation/secrets/actual-budget/credentials.env`
 7. Save the account list to `automation/secrets/actual-budget/accounts.json`
-8. Enable the `actual-budget` and `actual-budget-parse` routines in `services/automation/decree/config.yml`
+8. Point you at `./existential.sh run automation gmail-transactions-cron`, which wires a Gmail label to an account
 
 ## Account IDs
 

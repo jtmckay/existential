@@ -12,8 +12,8 @@ Time-series metrics database. Collects numeric measurements and stores them for 
 
 ## What's configured
 
-This stack runs Prometheus alongside a **Pushgateway** (how Decree automations push metrics
-rather than being scraped directly) and **node-exporter** (host CPU/memory/disk metrics).
+This stack runs Prometheus alongside a **Pushgateway** (where triage pushes its per-service
+health gauge) and **node-exporter** (host CPU/memory/disk metrics).
 
 | Service | Port | Role |
 |---|---|---|
@@ -21,20 +21,20 @@ rather than being scraped directly) and **node-exporter** (host CPU/memory/disk 
 | `prometheus-pushgateway` | 9091 (internal) | Receives pushed metrics from short-lived jobs |
 | `prometheus-node-exporter` | 9100 (internal) | Exposes host CPU/memory/disk/filesystem metrics |
 
-Prometheus scrapes all three (itself, Pushgateway, node-exporter) every 15s and retains data for
+Prometheus scrapes itself, Pushgateway, node-exporter and `loki-alloy` every 15s and retains data for
 90 days or 5 GB, whichever comes first.
 
 ## How metrics get in
 
-The `afterEach` hook in `automation/lib/hooks/afterEach.sh` fires after every Decree run and pushes three gauges to Pushgateway:
+Decree has no exporter: each run's `events.jsonl` is its record. [Loki](./loki)'s Alloy turns
+the last line of every run into two metrics on its own `/metrics`, which Prometheus scrapes:
 
 | Metric | Labels |
 |---|---|
-| `decree_run_success` | `trigger_type`, `instance=<routine>` |
-| `decree_run_duration_seconds` | same |
-| `decree_run_attempts` | same |
+| `decree_runs_total` (counter) | `daemon`, `machine`, `state` (`done`, `failed`, …) |
+| `decree_run_duration_milliseconds` (histogram) | same |
 
-Decree's **triage** routine pushes one more, and it is the one to graph if you want a single
+Decree's **triage** machine pushes one more, to Pushgateway, and it is the one to graph if you want a single
 answer to "is anything broken":
 
 | Metric | Labels |
@@ -57,14 +57,12 @@ Edit `hosting/prometheus/prometheus.yml` and add a new entry under `scrape_confi
 
 `hosting/prometheus/alerts.yml` defines host-resource alerts (disk/memory/CPU, off node-exporter),
 a service-health alert (`ServiceHealthCheckFailing`, off triage's `exist_service_healthy` gauge —
-see above), and a backup alert (`BackupNotRun`, off the `push_time_seconds` metric Pushgateway
-auto-stamps on every push from `volume-backup`/`db-backup`/`sqlite-backup`).
+see above), and a backup alert (`BackupNotRun`: no `volume_backup`, `db_backup` or `sqlite_backup` run ended in
+`done` for 48 hours, off `decree_runs_total`).
 
-**There is no Alertmanager in this stack.** A firing alert is visible at
-`https://prometheus.<domain>/alerts` and nowhere else — nothing pages, emails, or ntfys. If you
-want a firing alert to reach you, either poll `/alerts` yourself, wire a decree routine to poll
-Prometheus's `/api/v1/alerts` API, or add an Alertmanager service (out of scope for what ships
-here today).
+**There is no Alertmanager in this stack.** These rules are visible at
+`https://prometheus.<domain>/alerts` and nowhere else. The one alert that reaches you is
+[Grafana](./grafana)'s: any decree run that ends in `failed` sends an ntfy notification.
 
 ## Viewing metrics
 

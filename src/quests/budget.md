@@ -49,20 +49,16 @@ That writes GMAIL_LABEL_ID into `automation/secrets/gmail/`.
 
 ── 3. Teach it your bank ─────────────────────────────────────────────────
 
-Every bank words its alerts differently, so the parser is yours to write. Add
-or copy one in:
+Every bank words its alerts differently, so the parser is yours to write. Copy
+the Chase one and adapt it:
 
-       automation/shared_routines/actual-budget-parse.sh
+       automation/lib/actual-budget/parse-chase.ts
 
-── 4. Enable the routines ────────────────────────────────────────────────
+Then point a Gmail label at it and an Actual Budget account:
 
-In `services/automation/decree/config.yml`:
+       ./existential.sh run automation gmail-transactions-cron
 
-       actual-budget:        { enabled: true }
-       actual-budget-parse:  { enabled: true }
-       gmail-sync:           { enabled: true }
-
-── 5. Activate the pollers ───────────────────────────────────────────────
+── 4. Activate the pollers ───────────────────────────────────────────────
 
        mkdir -p automation/cron/
 
@@ -73,9 +69,7 @@ In `services/automation/decree/config.yml`:
        # to outstanding transactions and triggers the split
        cp automation-examples/cron/telegram-receipt-poll.md automation/cron/
 
-       docker compose restart automation
-
-── 6. Watch the first one land ───────────────────────────────────────────
+── 5. Watch the first one land ───────────────────────────────────────────
 
 Run logs are in `automation/runs/`, and in Grafana's Decree Overview dashboard
 filtered by `routine=actual-budget-parse`. A parse that finds nothing is a

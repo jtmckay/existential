@@ -7,8 +7,8 @@
 # repo already documents this pattern for `go test` — see testing.md.
 #
 # Gate is -S warning. The findings that shellcheck cannot resolve are real
-# limitations, not latent bugs: decree injects variables ($message_file,
-# $PATTERN, …) that the script never assigns, and several routines source a
+# limitations, not latent bugs: decree injects variables ($DECREE_DATA_*,
+# $DECREE_MESSAGE, …) that the script never assigns, and several scripts source a
 # path computed at runtime. Each such site carries a targeted inline
 # `# shellcheck disable=` naming the reason, so the gate stays at warning
 # rather than being loosened globally — a blanket exclusion would also hide

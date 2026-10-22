@@ -14,13 +14,13 @@ SERVICE_URL for each service you want to monitor.
 
 The shipped default checks automation-webhook, which lives in this same service
 directory — so it is present whenever this cron is. Point it at a service that
-is NOT enabled and the check fails every run and dead-letters forever, which is
+is NOT enabled and the check fails every run, and alerts every 6 hours, which is
 exactly what a default of `grafana` used to do on every Core install (Core does
 not include grafana). Results appear in Grafana via
-Prometheus (decree_run_success metric) and Loki (routine logs).
+Prometheus (decree_runs_total) and Loki (run logs).
 
-The pushed instance label is the routine name ("service-health"), not
-SERVICE_NAME — every copy of this cron shares one series. The per-service
+The metric's machine label is "service_health", not SERVICE_NAME — every
+copy of this cron shares one series. The per-service
 alert in hosting/prometheus/alerts.yml rides triage's exist_service_healthy
 gauge instead, which needs no cron file at all.
 

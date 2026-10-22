@@ -179,49 +179,38 @@ wait_settled() {
 #
 # A check is a decree MESSAGE in checks/ (see checks/README.md) — NOT a migration,
 # and the three docs that say so are right: converting them was tried and reverted.
-# Its
-# frontmatter is read with e2e_fm_get — the same data decree reads, so the two
-# cannot disagree about what the file says.
+# Its frontmatter is read with e2e_fm_get — the same data decree reads, so the
+# two cannot disagree about what the file says.
 
-# There are TWO daemons, each with its own project dir, inbox, dead/ and routine
-# whitelist, so "the inbox" is a question with two answers. Dropping every check
-# into `automation`'s was right until triage moved to `automation-backup` with
-# the /repo mount: `automation` then declined the routine and 00-services
-# dead-lettered on every quest with no run and no log to say why.
+# There are TWO daemons, each its own decree project with its own machines/,
+# inbox/ and runs/, so "the inbox" is a question with two answers. A message for
+# a machine its project does not have is a failed run (invalid_message), which
+# is how 00-services once failed every quest after triage moved projects.
 #
-# The daemon is DERIVED, never listed: a check names a routine, and the daemon
-# that owns it is whichever config.exist.yml whitelists it. `automation` is asked
-# first, so a routine both share (route-failed, notify, clean-runs) stays where
-# it has always run, and a check's staged sibling .sh — in neither whitelist —
-# lands there too, which is where the service credentials and the read-write
-# /secrets are. Nothing here enumerates checks or routines.
+# The daemon is DERIVED, never listed: a check names a machine, and the daemon
+# that owns it is whichever project has machines/<machine>.yml. `automation` is
+# asked first, so a machine both have (notify, clean_runs) runs where it always
+# has, and a check's staged sibling machine lands there too, which is where the
+# service credentials and the read-write /secrets are. Nothing here enumerates
+# checks or machines.
 E2E_DAEMONS="automation automation-backup"
 
-# _daemon_dir/_daemon_cfg <daemon> <work> — that daemon's project dir and its
-# tracked config template inside the clone. `automation` is the repo-root
-# automation/ dir, mounted wholesale; its config lives elsewhere (see the
-# comment on that mount in services/automation/docker-compose.exist.yml).
+# _daemon_dir <daemon> <work> — that daemon's decree project inside the clone.
 _daemon_dir() {
     case "$1" in
         automation)        echo "$2/automation" ;;
         automation-backup) echo "$2/services/automation/backup" ;;
     esac
 }
-_daemon_cfg() {
-    case "$1" in
-        automation)        echo "$2/services/automation/decree/config.exist.yml" ;;
-        automation-backup) echo "$2/services/automation/backup/config.exist.yml" ;;
-    esac
-}
 
-# check_daemon <work> <md> — the daemon whose whitelist names this check's
-# routine, else `automation`.
+# check_daemon <work> <md> — the daemon whose project has this check's machine,
+# else `automation`.
 check_daemon() {
-    local work="$1" routine d
-    routine="$(e2e_fm_get "$2" routine)"
-    if [ -n "$routine" ]; then
+    local work="$1" machine d
+    machine="$(e2e_fm_get "$2" machine)"
+    if [ -n "$machine" ]; then
         for d in $E2E_DAEMONS; do
-            grep -q "^  ${routine}:\$" "$(_daemon_cfg "$d" "$work")" 2>/dev/null \
+            [ -f "$(_daemon_dir "$d" "$work")/machines/${machine}.yml" ] \
                 && { echo "$d"; return 0; }
         done
     fi
@@ -245,70 +234,60 @@ applicable_checks() {
     return 0
 }
 
-# Stage checks BEFORE render and up: everything here is read once at container
-# start, which is exactly why a check cannot do it to itself.
-#   - a sibling .sh lands in shared_routines/ (one directory, both daemons) and
-#     is registered enabled in the config of the daemon that will run it
-#   - each check's needs_routines are switched on, in that same config
-#   - max_attempts drops to 1, so a failing check costs one run, not three
+# Stage checks BEFORE render and up: machines/ and scripts/ are mounted
+# read-only, which is exactly why a check cannot do this to itself.
+#   - a sibling .yml lands in automation/machines/ as <machine>.yml, and a
+#     sibling .sh in automation/scripts/ as <machine>.sh (both daemons mount
+#     that one scripts/), executable because decree runs scripts by path
 #   - a sibling .stage.sh runs on the host, for config already read at boot
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
 # it is a message, not a migration. It is COPIED from checks/ rather than
-# shipped in migrations.example/, which is what a user's quest copies from: test
-# code has no business in the product tree.
+# shipped in automation-examples/, which is what a user's quest copies from:
+# test code has no business in the product tree.
 stage_checks() {
-    local work="$1" md sh st d cfg r any=0
-    for d in $E2E_DAEMONS; do
-        cfg="$(_daemon_cfg "$d" "$work")"
-        [ -f "$cfg" ] || continue
-        sed -i 's/^max_attempts:.*/max_attempts: 1/' "$cfg"
-        any=1
-    done
-    [ "$any" -eq 1 ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
+    local work="$1" md m st
+    [ -d "$work/automation/machines" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
 
-    # "<daemon><TAB><routine>" lines: a routine has to be enabled in the config of
-    # the daemon that will run it, and the two whitelists are not the same.
-    # shared_routines/ is one directory mounted into both, so the .sh itself has
-    # only one home either way.
-    local -a enable=() needs=()
     while IFS= read -r md; do
         [ -n "$md" ] || continue
-        d="$(check_daemon "$work" "$md")"
-        sh="${md%.md}.sh"
-        if [ -f "$sh" ]; then
-            cp "$sh" "$work/automation/shared_routines/$(e2e_fm_get "$md" routine).sh"
-            enable+=("${d}"$'\t'"$(e2e_fm_get "$md" routine)")
+        m="$(e2e_fm_get "$md" machine)"
+        if [ -f "${md%.md}.yml" ]; then
+            cp "${md%.md}.yml" "$work/automation/machines/${m}.yml"
+            install -m 755 "${md%.md}.sh" "$work/automation/scripts/${m}.sh"
         fi
-        # needs_routines is a space-separated list, so splitting is the point.
-        needs=(); read -r -a needs <<<"$(e2e_fm_get "$md" needs_routines)"
-        for r in ${needs[@]+"${needs[@]}"}; do enable+=("${d}"$'\t'"${r}"); done
         st="${md%.md}.stage.sh"
         if [ -f "$st" ]; then
             WORK="$work" REPO_DIR="$REPO_DIR" bash "$st" \
                 || die "$(basename "$st") failed — see above"
         fi
     done < <(applicable_checks "$work")
-
-    while IFS=$'\t' read -r d r; do
-        [ -n "$r" ] || continue
-        cfg="$(_daemon_cfg "$d" "$work")"
-        [ -f "$cfg" ] || die "no ${d} config in the clone — cannot enable ${r}"
-        if grep -q "^  ${r}:$" "$cfg"; then
-            # Flip this routine's own enabled:, and only this one.
-            awk -v r="$r" '
-                $0 == "  " r ":" { print; inblock = 1; next }
-                inblock && /^ *enabled:/ { sub(/false/, "true"); inblock = 0 }
-                { print }
-            ' "$cfg" > "${cfg}.tmp" && mv "${cfg}.tmp" "$cfg"
-        else
-            printf '  %s:\n    enabled: true\n' "$r" >> "$cfg"
-        fi
-        grep -A1 "^  ${r}:$" "$cfg" | grep -q 'enabled: true' \
-            || die "could not enable ${d} routine ${r}"
-    done < <(printf '%s\n' "${enable[@]+"${enable[@]}"}" | awk 'NF && !seen[$0]++')
-
     return 0
+}
+
+# _settled <daemon> — true once nothing is running or queued in that daemon
+# except a migration that a failed one blocks. A blocked migration is settled,
+# not stuck: it will never run, and its failed run is graded like any other.
+_settled() {
+    docker exec -w /work "$1" sh -c 'decree status --format json | jq -e "
+        ([(.runs.finished.failed // [])[].id | . + \".md\"]) as \$failed
+        | (.runs.active + .runs.pending | length) == 0
+          and (.queued.inbox | length) == 0
+          and ((.queued.migrations | length) == 0 or (.queued.migrations[0] as \$m | \$failed | index(\$m)))
+    "' >/dev/null 2>&1
+}
+
+# _wait_settled <timeout> — every daemon settled, or 1 at the deadline.
+_wait_settled() {
+    local deadline=$(( $(date +%s) + $1 )) d
+    for d in $E2E_DAEMONS; do
+        until _settled "$d"; do
+            [ "$(date +%s)" -lt "$deadline" ] || { log "  ${d} did not settle within $1s"; return 1; }
+            printf '.'
+            sleep 5
+        done
+    done
+    echo
 }
 
 # Drop the applicable checks into the inbox. Filenames are prefixed so they sort
@@ -317,31 +296,16 @@ drop_checks() {
     local work="$1" md d inbox n=0
     [ -d "$work/automation/inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
-    # Wait for the daemon phase before dropping anything. decree's entrypoint
-    # runs `decree process` first, and that drains the WHOLE inbox — so a check
-    # landing during it is run by the migration pass, where the first dead letter
-    # aborts the rest. Messages, not migrations, is the entire point; do not let
-    # them be processed as migrations by accident. pid1 is `bash` through the
-    # health-wait and migrations, and `decree` once the daemon is up, which is the
-    # same signal the image's own healthcheck uses.
-    #
-    # Both daemons, because a check can be addressed to either.
-    local deadline=$(( $(date +%s) + 600 ))
-    for d in $E2E_DAEMONS; do
-        until docker exec "$d" grep -q decree /proc/1/comm 2>/dev/null; do
-            if [ "$(date +%s)" -ge "$deadline" ]; then
-                log "  ${d} never reached its daemon phase — nothing can run the checks"
-                return 1
-            fi
-            sleep 5
-        done
-    done
+    # Wait for the migrations first. Each decree pass drains the inbox BEFORE
+    # it runs migrations, so a check dropped now would run ahead of the setup
+    # it verifies — 10-file-processing before nextcloud-file-events has
+    # registered the webhook it probes.
+    log "Waiting for migrations to finish (up to ${E2E_CHECK_TIMEOUT:-900}s)..."
+    _wait_settled "${E2E_CHECK_TIMEOUT:-900}" || return 1
 
     while IFS= read -r md; do
         [ -n "$md" ] || continue
         d="$(check_daemon "$work" "$md")"
-        # decree creates its own inbox/ inside the wholesale project mount, so on
-        # a fresh clone the backup daemon's may only just have appeared.
         inbox="$(_daemon_dir "$d" "$work")/inbox"
         mkdir -p "$inbox"
         cp "$md" "${inbox}/e2e-$(basename "$md")"
@@ -352,30 +316,12 @@ drop_checks() {
     return 0
 }
 
-# Wait for the daemon to drain. Done when the inbox holds no *.md and no run is
-# in flight; a dead letter does NOT end the wait, because the daemon carries on
-# past one and the remaining checks still have results to produce.
-#
-# This also asserts the property that used to be the S3 flow's last two
-# steps, and it belongs here rather than there: a message that runs but never
-# gets its run.json comes back on every tick forever, and nothing scoped to one
-# check can see that. Nothing may be left stuck, from any routine.
+# Wait for the daemons to drain: no message queued and no run in flight, in
+# either. A failed run does NOT end the wait early, because the daemon carries
+# on past one and the remaining checks still have results to produce.
 await_checks() {
-    local work="$1" timeout="${E2E_CHECK_TIMEOUT:-900}"
-    local deadline=$(( $(date +%s) + timeout )) left
-    local -a inboxes=(); local d
-    for d in $E2E_DAEMONS; do inboxes+=("$(_daemon_dir "$d" "$work")/inbox"); done
-    log "Waiting for checks to drain (up to ${timeout}s)..."
-    while [ "$(date +%s)" -lt "$deadline" ]; do
-        left=$(find "${inboxes[@]}" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
-        [ "$left" -eq 0 ] && { echo; return 0; }
-        printf '.'
-        sleep 5
-    done
-    echo
-    log "Inbox did not drain within ${timeout}s — still queued:"
-    find "${inboxes[@]}" -maxdepth 1 -name '*.md' -printf '[e2e]   %f\n' 2>/dev/null || true
-    return 1
+    log "Waiting for checks to drain (up to ${E2E_CHECK_TIMEOUT:-900}s)..."
+    _wait_settled "${E2E_CHECK_TIMEOUT:-900}"
 }
 
 # ── Evidence ──────────────────────────────────────────────────────────────────
@@ -387,13 +333,14 @@ collect_quest_results() {
     slug="$(printf '%s' "$quest" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
     out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
 
-    # runs/ is one directory both daemons write into (automation-backup mounts
-    # the same one), so there is a single place to grade. dead/ is not: each
-    # daemon dead-letters into its own inbox, and a check graded from the wrong
-    # one reads as having produced no evidence at all.
-    local -a deads=()
-    for d in $E2E_DAEMONS; do deads+=("$(_daemon_dir "$d" "$work")/inbox/dead"); done
-    collect_results "$work/automation/runs" "$out" "${deads[@]}" || rc=1
+    # Each daemon keeps its own runs/, and a check graded from the wrong one
+    # reads as having produced no evidence at all — so grade both.
+    local -a runs=() inboxes=()
+    for d in $E2E_DAEMONS; do
+        runs+=("$(_daemon_dir "$d" "$work")/runs")
+        inboxes+=("$(_daemon_dir "$d" "$work")/inbox")
+    done
+    collect_results "$out" "${runs[@]}" || rc=1
 
     # Logs for anything the health gate would be unhappy about.
     mkdir -p "$out/logs"
@@ -409,8 +356,6 @@ collect_quest_results() {
     # Messages still queued when the evidence was taken. Not a verdict — the
     # daemon is live by now and its crons queue work of their own — but a check
     # whose chain stalled leaves its trace here, and the clone is about to go.
-    local -a inboxes=()
-    for d in $E2E_DAEMONS; do inboxes+=("$(_daemon_dir "$d" "$work")/inbox"); done
     stuck=$(find "${inboxes[@]}" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
     if [ "${stuck:-0}" -gt 0 ]; then
         mkdir -p "$out/stuck"
@@ -528,7 +473,7 @@ run_quest() {
     log "Applied ${n} quest copies"
 
     # 5. Stage the checks — before the render, because what this touches
-    #    (decree's routine whitelist, the webhook route table) is read at boot.
+    #    (machines/ and scripts/, mounted read-only, and the webhook route table) is read at boot.
     log "Staging checks..."
     stage_checks "$WORK"
 

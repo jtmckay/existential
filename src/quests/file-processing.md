@@ -57,11 +57,8 @@ Setup:
      your use case:
        cp automation/lib/file-processors.example/example.sh \
           automation/lib/file-processors/my-processor.sh
-
-  3. Restart decree to pick up config changes:
-       docker compose restart automation
      (processor scripts are bind-mounted live — no restart needed for those)
 
-  4. Drop a file into Nextcloud and watch automation/runs/ for the run log.
+  3. Drop a file into Nextcloud and watch automation/runs/ for the run log.
 
 Transcription and OCR have their own auto quests with ready-made processors.

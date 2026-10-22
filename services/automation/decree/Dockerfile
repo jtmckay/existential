@@ -1,11 +1,3 @@
-FROM rust:slim-bookworm AS builder
-# --locked: build against the versions decree's own Cargo.lock pins. Without it
-# `cargo install` re-resolves every transitive dependency at build time, so the
-# same tag can produce a different binary on two different days.
-# A pre-release, pinned by tag: bump it deliberately, and keep it equal to the
-# decree inside automation-webhook's image (docker-compose.exist.yml).
-RUN cargo install decree --locked --git https://github.com/jtmckay/decree --tag v0.5.0-beta.4
-
 FROM debian:bookworm-slim
 # Third-party binaries installed as root. Each is pinned to a version AND
 # verified against a checksum recorded here, because a version alone only says
@@ -26,7 +18,10 @@ ARG RCLONE_VERSION=1.75.1
 ARG RCLONE_SHA256=09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb15
 ARG YQ_VERSION=4.44.3
 ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
-COPY --from=builder /usr/local/cargo/bin/decree /usr/local/bin/decree
+# A pre-release, pinned by tag: bump it deliberately, and keep it equal to the
+# decree inside automation-webhook's image (docker-compose.exist.yml). The
+# release's own install.sh fetches its static binary and checks its sha256.
+ARG DECREE_TAG=v0.5.0-beta.13
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
@@ -55,6 +50,10 @@ RUN apt-get update \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && npm install -g npm@11.16.0 \
+    && curl -fsSL "https://github.com/jtmckay/decree/releases/download/${DECREE_TAG}/install.sh" \
+        -o /tmp/decree-install.sh \
+    && XDG_BIN_HOME=/usr/local/bin sh /tmp/decree-install.sh "${DECREE_TAG}" \
+    && rm /tmp/decree-install.sh \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /opt/decree/
 # Reproducible, integrity-checked install via pnpm (version pinned by package.json's

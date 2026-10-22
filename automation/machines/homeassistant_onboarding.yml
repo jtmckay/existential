@@ -8,7 +8,10 @@ states:
       script: { name: wait_for_homeassistant, timeout: 10m }
     transitions: { done: homeassistant_onboarding }
   homeassistant_onboarding:
-    invoke: homeassistant_onboarding
+    # HA drops connections for a while after it first answers; the script sleeps
+    # before each attempt, so three of them span ~30s of its startup.
+    invoke:
+      script: { name: homeassistant_onboarding, attempts: 3 }
     transitions: { done: done }
   done: { final: true }
   failed: { final: true }

@@ -164,7 +164,7 @@ done
 if [ -n "$MODEL_CHAT_NUM_CTX" ]; then
     echo "  Applying num_ctx=${MODEL_CHAT_NUM_CTX} to ${MODEL_CHAT} at ${CHAT_URL}..."
     # Structured fields, not the retired flat `modelfile` string — current ollama
-    # rejects the latter with a 400. Keep in step with automation/shared_routines/ollama-pull.sh.
+    # rejects the latter with a 400. Keep in step with automation/scripts/ollama_pull.sh.
     jq -nc --arg m "$MODEL_CHAT" --arg f "$MODEL_CHAT" \
            --argjson c "$MODEL_CHAT_NUM_CTX" \
            '{model: $m, from: $f, parameters: {num_ctx: $c}}' \

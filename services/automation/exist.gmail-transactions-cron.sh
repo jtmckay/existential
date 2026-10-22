@@ -37,15 +37,7 @@ echo ""
 echo "  Gmail labels (custom only):"
 echo ""
 
-mapfile -t LABEL_NAMES < <(
-    python3 -c "
-import json, sys
-labels = json.load(open('${LABELS_FILE}'))['labels']
-custom = [l for l in labels if l.get('type','') == 'user']
-for l in custom:
-    print(l['name'])
-"
-)
+mapfile -t LABEL_NAMES < <(jq -r '.labels[] | select(.type == "user") | .name' "$LABELS_FILE")
 
 if [ ${#LABEL_NAMES[@]} -eq 0 ]; then
     die "No custom labels found in ${LABELS_FILE}. Add labels in Gmail then run: ./existential.sh run automation gmail-labels"
@@ -99,24 +91,8 @@ echo ""
 echo "  Actual Budget accounts:"
 echo ""
 
-mapfile -t ACCOUNT_NAMES < <(
-    python3 -c "
-import json
-accounts = json.load(open('${ACCOUNTS_FILE}'))
-for a in accounts:
-    if not a.get('closed', False):
-        print(a['name'])
-"
-)
-mapfile -t ACCOUNT_IDS < <(
-    python3 -c "
-import json
-accounts = json.load(open('${ACCOUNTS_FILE}'))
-for a in accounts:
-    if not a.get('closed', False):
-        print(a['id'])
-"
-)
+mapfile -t ACCOUNT_NAMES < <(jq -r '.[] | select(.closed | not) | .name' "$ACCOUNTS_FILE")
+mapfile -t ACCOUNT_IDS   < <(jq -r '.[] | select(.closed | not) | .id'   "$ACCOUNTS_FILE")
 
 if [ ${#ACCOUNT_NAMES[@]} -eq 0 ]; then
     die "No open accounts found in ${ACCOUNTS_FILE}."
@@ -149,18 +125,26 @@ if [ -f "$CRON_FILE" ]; then
     [[ "${answer,,}" == "y" ]] || { echo "Skipping."; exit 0; }
 fi
 
+# YAML single quotes: a label may hold a colon or a quote, and '' is the one
+# escape single-quoted YAML has.
+_q() { printf "'%s'" "${1//\'/\'\'}"; }
+
 cat > "$CRON_FILE" << EOF
 ---
 cron: "${CRON_SCHEDULE}"
-routine: gmail-sync
-GMAIL_LABEL_FILTER: ${GMAIL_LABEL}
-GMAIL_ROUTINE: actual-budget-parse
-fwd_parse_script: ${PARSE_SCRIPT_PATH}
-fwd_account_id: ${ACCOUNT_ID}
+machine: gmail_sync
+params:
+  GMAIL_LABEL_FILTER: $(_q "$GMAIL_LABEL")
+  GMAIL_ROUTINE: actual_budget_parse
+  # Its own sync cursor, so gmail-sync on the same label does not share one.
+  GMAIL_HISTORY_KEY: transactions-${_label_slug}
+  GMAIL_FORWARD: |
+    parse_script=${PARSE_SCRIPT_PATH}
+    account_id=${ACCOUNT_ID}
 ---
 
-Fetch transaction alert emails from label '${GMAIL_LABEL}' and route to
-actual-budget-parse for import into Actual Budget (${ACCOUNT_NAME}).
+Fetch transaction alert emails from label '${GMAIL_LABEL}' and route each to
+actual_budget_parse for import into Actual Budget (${ACCOUNT_NAME}).
 EOF
 
 echo ""

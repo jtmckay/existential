@@ -50,7 +50,7 @@ The loop break — the one thing worth understanding:
 Setup:
 
   If you ran the Core quest, the Nextcloud half already happened: the rclone
-  remote, the file-event webhooks, and file-router/file-processor enabled. What
+  remote and the file-event webhooks. What
   Core does NOT set up is the agent half, since it's specific to this quest:
 
   1. Copy the agent-handoff processor:
@@ -58,17 +58,13 @@ Setup:
        cp automation/lib/file-processors.example/agent-handoff.sh \
           automation/lib/file-processors/
 
-  2. Enable `agent-task` in services/automation/decree/config.yml
-     (`file-router` and `file-processor` are already on by default). The
-     daemon restarts itself when its config changes.
-
-  3. If you did NOT run Core, you need the Nextcloud half too — enable the
+  2. If you did NOT run Core, you need the Nextcloud half too — enable the
      services listed at the top of this quest, run
      `./existential.sh && docker compose up -d`, then copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
      27-nextcloud-file-events.md to automation/migrations/.
 
-  4. Check the agent half works before relying on it — the gateway answers
+  3. Check the agent half works before relying on it — the gateway answers
      the automation container:
        docker exec automation sh -c 'curl -sf \
          -H "Authorization: Bearer $HERMES_API_KEY" \

@@ -17,13 +17,12 @@ skip_if_disabled
 load_env_exist
 
 # The webhook is reached only over the exist bridge (ports: stays commented out),
-# so its listen port is not configurable — the binary's own default governs, and
-# caddy's Caddyfile hardcodes the same value.
+# so its listen port is not configurable — decree-go-rest's own default governs,
+# and caddy's Caddyfile hardcodes the same value.
 WEBHOOK="http://automation-webhook:8801"
 
 # ── 1. Rendered state ────────────────────────────────────────────────────────
 
-file_present "webhook config rendered" /repo/services/automation/webhook/config.yml
 file_present "decree inbox present" /repo/automation/inbox
 
 # ── 2. Webhook liveness ──────────────────────────────────────────────────────
@@ -37,10 +36,10 @@ probe_caddy "automation-webhook /healthz" automation-webhook /healthz 200
 # ── 3. Rejection paths ───────────────────────────────────────────────────────
 #
 # These three requests each consume one slot of the failure rate limiter
-# (DECREE_WEBHOOK_RATE_FAIL_MAX, default 10 per 60s). That budget is in-memory
-# and self-heals within the window, but it is why this section stays at three
-# requests rather than exhaustively enumerating rejection cases — webhook/main_test.go
-# covers those exhaustively, off the live stack.
+# (rate_fail_max in automation/decree-go-rest.yml, default 10 per 60s). That budget
+# is in-memory and self-heals within the window, but it is why this section stays
+# at three requests rather than exhaustively enumerating rejection cases —
+# decree-go-rest's own test suite covers those, off the live stack.
 #
 # 429 is accepted alongside the specific code. Running this suite several times
 # inside one 60s window — a fix-and-retest loop, or `test services` followed by

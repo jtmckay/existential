@@ -1,6 +1,6 @@
 ---
 name: Decree Routine UI
-tagline: Generate a Lowcoder control panel to trigger decree routines from a browser
+tagline: Trigger decree machines from a Lowcoder control panel in the browser
 e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
@@ -10,8 +10,9 @@ services:
 ---
 
 Decree is headless by design, but a Lowcoder app can serve as a control
-panel — one button or form per routine, POSTing to automation-webhook.
-Docs: https://existential.company/docs/decree/lowcoder-ui
+panel — one button or form per webhook endpoint. automation-webhook describes
+every endpoint it serves at /openapi.json, so Lowcoder builds the queries
+itself; there is nothing to generate.
 
 Prerequisites:
   - Decree running (Quest 03 — Automation)
@@ -19,17 +20,16 @@ Prerequisites:
     up configured)
 
 Setup:
-  1. Define the routines you want to expose in
-     services/automation/webhook/config.yml. Each endpoint becomes a button
-     or form in the generated app. Endpoints with {param} path segments
-     get an input field; static endpoints get a trigger button.
+  1. The endpoints are automation/decree-go-rest.yml. Add one per machine you
+     want a button for; edits are live without a restart.
 
-  2. Generate and import the Lowcoder app:
-         ./existential.sh run automation decree-ui
+  2. In Lowcoder (https://lowcoder.${EXIST_DOMAIN}), add a data source of
+     type OpenAPI:
+         Spec URL:  http://automation-webhook:8801/openapi.json
+         Auth:      Bearer token, AUTOMATION_WEBHOOK_SECRET from
+                    services/automation/.env
 
-     This reads webhook/config.yml, builds a Lowcoder app definition,
-     and imports it via the Lowcoder API at http://lowcoder-api-service.
-
-  3. Open https://lowcoder.x.internal and find the app in the list —
-     it is named "Decree Routines YYYYMMDD_HHMMSS" using the time it
-     was generated. Each run creates a new app; old ones are kept.
+  3. Build the app: each endpoint is now a query. A path parameter becomes a
+     query input to bind to a text field; the request body is plain text.
+     A 201 means the message is queued; `docker exec automation decree status`
+     shows the run.

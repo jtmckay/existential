@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # hermes-cli.sh — one prompt to the hermes gateway, answer on stdout.
 #
-# Run by path (hence 755), never sourced: decree's `commands.ai_router` /
-# `ai_interactive` invoke it, and code-server symlinks it onto PATH as `hermes`
-# so the integrated terminal reaches the same gateway a routine does. The
-# request shape lives in lib/hermes.sh — this is only the CLI around it, so
-# there is still exactly one place that knows how to talk to hermes.
+# Run by path (hence 755), never sourced: code-server symlinks it onto PATH as
+# `hermes`, so the integrated terminal reaches the same gateway a decree script
+# does. The request shape lives in lib/hermes.sh — this is only the CLI around
+# it, so there is still exactly one place that knows how to talk to hermes.
 #
 #   hermes "what is in workspace/notes/plan.md?"
 #   echo "summarise this" | hermes
@@ -19,9 +18,8 @@
 # Hermes runs its own tool loop against its own MCP servers (openviking,
 # firecrawl, playwright), so the prompt says what it wants and hermes decides
 # what to reach for. It has no terminal and no mount into this container: to
-# get work done here, ask it to write a message to workspace/outbox/ (see
-# workspace/outbox/README.md) and outbox-relay.sh turns that into a decree
-# message.
+# get work done here, it POSTs to automation-webhook's /hermes/task endpoint
+# (automation/decree-go-rest.yml), which queues an agent_task run.
 #
 # Env: HERMES_API_KEY (the gateway rejects an unauthenticated call),
 # HERMES_GATEWAY_URL, HERMES_MODEL, HERMES_TIMEOUT, HERMES_MAX_TOKENS,

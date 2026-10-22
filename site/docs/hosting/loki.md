@@ -20,13 +20,20 @@ Two containers work together:
 
 [Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.
 
-Alloy is mounted read-only on `automation/runs/` and watches `**/routine.log` and `**/message.md`. It parses the path to extract labels from the run ID format (`D<day>-<time>-<routine>-<seq>`):
+Alloy is mounted read-only on both decree projects' `runs/` and tails each run's
+`events.jsonl` (decree's own record, one JSON line per step) as `{job="decree"}` and each
+script's output as `{job="decree_script"}`:
 
-| Label | Example |
+| Label | Values |
 |---|---|
-| `message_id` | `D0005-0750-gmail-sync-0` |
-| `chain` | `D0005-0750-gmail-sync` |
-| `seq` | `0` |
+| `daemon` | `automation`, `automation-backup` |
+| `machine` | the machine that ran (`events.jsonl` lines) |
+| `type` | `transition`, `script`, `run_finished`, … (`events.jsonl` lines) |
+| `script` | the script that wrote the output (`decree_script` lines) |
+
+`run_id` is structured metadata, not a label, so one run is `{job="decree"} | run_id="<id>"`.
+The same pipeline turns every `run_finished` line into Prometheus metrics; see
+[Prometheus](./prometheus).
 
 It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines carry no container-name label, only the 64-hex container id in `filename` — resolving that to a name would mean either the Docker socket (deliberately not mounted — that's full API access, i.e. host root) or parsing the undocumented internal `config.v2.json` next to each log file, which was rejected as a worse trade than an id you can `docker inspect` by hand. So it's a catch-all grep, not a per-service view.
 
@@ -50,12 +57,10 @@ Two deliberate omissions. `errors.log` is not tailed — every line in it also a
 
 :::note[Hermes' scheduler is not decree's]
 A cron job created by hermes — `hermes cron create`, `/cron` in its chat, or the agent deciding to
-schedule one mid-task — lives in *its* volume, not in `automation/cron/`. `decree cron` cannot see
+schedule one mid-task — lives in *its* volume, not in `automation/cron/`. `decree status --cron` cannot see
 it and the Decree dashboards do not count it. This log job is what makes those firings visible at
 all, so `{job="hermes"} |= "cron"` is the query worth knowing.
 :::
-
-In addition, the `afterEach` hook pushes a structured summary line to Loki after each Decree run — one event per attempt with `message_id`, `routine`, `subroutine`, `trigger`, `exit_code`, `attempts`, `duration_s`, and `final` fields. `subroutine` is sparse by design: empty unless the routine's message frontmatter set one (e.g. which file processor actually ran), surfaced as its own column in [Grafana](./grafana)'s Decree Overview dashboard.
 
 ## Storage
 
@@ -66,8 +71,8 @@ Single-node filesystem storage under `/loki` in the volume `loki_data`, TSDB ind
 Loki is not meant to be queried directly. Use [Grafana](./grafana) with the pre-configured Loki datasource and LogQL:
 
 ```logql
-{job="decree"} |= "exit_code=0"
-{job="decree", routine="gmail-sync"} | logfmt | duration_s > 10
+{job="decree", type="run_finished"} | json | state != "done"
+{job="decree", machine="gmail_sync", type="run_finished"} | json | duration_ms > 10000
 {job="hermes", level="ERROR"}
 {job="hermes"} |= "tool " |= "completed"
 {job="hermes", log_type="auth"} | json | event != "ws_ticket_minted"

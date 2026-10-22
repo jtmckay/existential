@@ -31,4 +31,4 @@ asked to be paged by a test.
 
 `TRIAGE_STRICT` is the one that matters: triage normally exits 0 even with
 services down, so decree does not treat a true report of bad news as a failed
-routine. Here the exit code is the verdict.
+run. Here the exit code is the verdict.

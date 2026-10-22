@@ -4,92 +4,86 @@
 move this repo already made for services, cron jobs and migrations. Nothing
 enumerates them.
 
-A check has the same shape as a [decree
-migration](../../../../.claude/skills/decree/reference/migrations.md): YAML
-frontmatter naming a routine, then prose explaining what it proves. It is
-delivered as a decree **message**, not a migration — `e2e.sh` drops the
-applicable ones into the inbox of the daemon that owns their routine (see
-[Which daemon runs it](#which-daemon-runs-it)) **after** the
-container-health gate, the daemon drains them and writes
-`runs/<id>/{message.md,routine.log,run.json}` for each, and `e2e.sh` copies that
-out to `e2e-out/` and grades it. Why messages and why after the gate is the next
-section, and it is the whole reason this is not a migration.
+A check has the same shape as a decree migration: YAML frontmatter naming a
+machine, then prose explaining what it proves. It is delivered as a decree
+**message**, not a migration — `e2e.sh` drops the applicable ones into the
+inbox of the daemon whose project has their machine (see [Which daemon runs
+it](#which-daemon-runs-it)) **after** the container-health gate and after both
+daemons have finished their migrations. The daemon runs them and writes
+`runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log}` for each, and
+`e2e.sh` copies that out to `e2e-out/` and grades it.
 
-Checks are dropped in rather than shipped in `migrations.example/` — that
+Checks are dropped in rather than shipped in `automation-examples/` — that
 directory is what a user's quest copies from, and test code has no business in
 the product tree.
 
-## Why messages, and why after the gate
+## Why messages, and why after the migrations
 
-`decree process` stops the moment a message dead-letters, so as migrations the
-first failing check would hide every later one. That alone is a reason, but the
-one that actually bit us is timing: **migrations run during decree's boot**, so a
-check written as a migration judges a stack that is still starting. Run that way,
-`00-services` failed hermes, appsmith, lowcoder, nocodb and nextcloud across four
-quests whose containers the health gate then found perfectly healthy.
+A failed migration blocks every migration after it, so as migrations the first
+failing check would hide every later one. The one that actually bit us is
+timing: **migrations run as the daemon boots**, so a check written as a
+migration judges a stack that is still starting. Run that way, `00-services`
+failed hermes, appsmith, lowcoder, nocodb and nextcloud across four quests whose
+containers the health gate then found perfectly healthy.
 
-Migrations are setup. Checks are verification, and verification runs once the
-stack is up — so e2e drops them into the inbox after the container-health gate
-and `decree daemon` drains them past any dead letter.
+And each decree pass drains the inbox *before* it runs migrations, so a check
+dropped too early runs ahead of the setup it verifies. `e2e.sh` waits until
+`decree status` shows no migration left to run (or one blocked behind a failed
+one) before dropping anything.
 
 ## Frontmatter
 
 | Key | Read by | Meaning |
 |---|---|---|
-| `routine` | decree, `e2e.sh` | the routine to run — a shipped one, or the sibling `.sh` |
+| `machine` | decree, `e2e.sh` | the machine to run — a shipped one, or the sibling `.yml` |
+| `params` | decree | the machine's declared `data`; decree fails a run that passes anything undeclared |
 | `e2e_check` | `results.sh` | this check's name; how a run dir is traced back here |
 | `requires` | `e2e.sh` | `EXIST_IS_*` vars that must be true, else the check is not staged |
-| `needs_routines` | `e2e.sh` | decree routines to enable in the clone's `config.yml` |
-
-Every other key becomes an environment variable for the routine — that is
-decree's own contract — it is how a check passes configuration to its routine.
 
 ## Which daemon runs it
 
 There are two, they do not have the same mounts, and a check goes to the one
-that can run it. **This is derived from `routine:`, never declared** — whichever
-daemon's `config.exist.yml` whitelists it, asking `automation` first, so a
-routine both share stays where it has always run:
+that can run it. **This is derived from `machine:`, never declared** — whichever
+daemon's project has `machines/<machine>.yml`, asking `automation` first, so a
+machine both have stays where it has always run:
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| owns | everything that reasons, routes, or calls a service API | `triage`, the backups, `notes-pull` |
+| owns | everything that reasons, routes, or calls a service API | `triage`, the backups, `notes_pull` |
 | has | service credentials, read-write `/secrets`, the inbox the webhook writes to | `/repo` read-only, `/volumes`, the master `.env` |
 
-A check with a sibling `.sh` is in neither whitelist and runs in `automation`.
-`runs/` is one directory both write into, so grading is unaffected; `inbox/` and
-`inbox/dead/` are per-daemon, and `e2e.sh` drains and collects both.
+A check with a sibling machine is staged into `automation`. Each daemon has its
+own `inbox/` and `runs/`, and `e2e.sh` drains and grades both.
 
-Getting this wrong is silent in the worst way: the daemon declines the routine,
-dead-letters the message, and the check has no run, no log and no exit code —
-which is exactly how `00-services` failed every quest after `triage` moved.
+Getting this wrong is loud now: a message naming a machine its project does not
+have is a `failed` run whose events say `invalid_message`.
 
-## The sibling `.sh`
+## The sibling `.yml` and `.sh`
 
-A check with no `.sh` reuses a routine the stack already ships. A check with one
-gets it staged into the clone's `automation/shared_routines/` and registered,
-so test code never appears in a user's `config.yml`. Write it as an ordinary
-routine (`.claude/skills/decree/reference/routines.md`): `DECREE_PRE_CHECK`
-block, `set -euo pipefail`, non-zero to fail.
+A check with neither reuses a machine the stack already ships. A check with
+them gets `<name>.yml` staged as the clone's `automation/machines/<machine>.yml`
+and `<name>.sh` as `automation/scripts/<machine>.sh`, so test code never
+appears in a user's project. Write the machine as one state that invokes the
+script, and the script as any other: `set -euo pipefail`, non-zero to fail.
 
 **It runs inside a decree container** — `automation` unless the section above
 says otherwise. That buys `rclone`, `jq`, `yq`, `curl` and `tsx` from the image,
 service credentials from its compose environment, a read-write `/secrets`, and
 DNS to every container on the `exist` bridge. It buys no Docker socket — anything
 needing one belongs on the host in `e2e.sh` — and, in `automation`, **no
-`/repo`**: that mount belongs to `automation-backup` now, so a routine that wants
-to read the rendered stack either runs there or has its `.stage.sh` read the file
+`/repo`**: that mount belongs to `automation-backup`, so a script that wants to
+read the rendered stack either runs there or has its `.stage.sh` read the file
 on the host and leave the answer in `/secrets`.
 
 ## The sibling `.stage.sh`
 
-Setup a running container cannot do to itself — config that is read once at boot,
-like decree's routine whitelist or the webhook's route table — goes in
+Setup a running container cannot do to itself — anything mounted read-only or
+read once at boot, like `lib/` or the webhook's route table — goes in
 `<name>.stage.sh`, which `e2e.sh` runs on the host before the stack comes up. It
 gets `$WORK` (the clone) and nothing else.
 
 Keep it small. Anything that can wait until the check runs belongs in the
-routine, where the rendered credentials actually exist — staging happens before
+script, where the rendered credentials actually exist — staging happens before
 the templates are rendered, so `.stage.sh` has no passwords to work with. The
 harness has no business knowing which services a check touches, so nothing
 check-specific belongs in `e2e.sh`.
@@ -97,29 +91,27 @@ check-specific belongs in `e2e.sh`.
 ## What a check may assume, and what it must not
 
 decree runs **one message at a time** *per daemon*, and a check IS that message.
-Any work a check triggers — a webhook firing, a router matching, a processor running — is
-queued *behind* it and cannot start until it returns. A check can prove work was
-**enqueued**; it can never wait for it to finish.
+Any work a check triggers — a webhook firing, a router matching, a processor
+running — is queued *behind* it and cannot start until it returns. A check can
+prove work was **enqueued**; it can never wait for it to finish.
 
 So push assertions down to where they can run: a probe processor should validate
-its own inputs and exit non-zero. `decree process` drains the whole inbox before
-the daemon starts, so that queued work runs — and is graded — inside the same
+its own inputs and exit non-zero. `e2e.sh` waits until both daemons have nothing
+queued or running, so that queued work runs — and is graded — inside the same
 wait.
 
 ## Verdict
 
-`run.json` with `exit_code: 0` is a pass. No `run.json`, a non-zero code, or a
-dead-lettered message is a failure. `results.md` in the output directory lists
-one line per run.
+decree mirrors each run's final state into its `message.md`. `state: done` is a
+pass; `failed`, or no final state at all, is a failure. `results.md` in the
+output directory lists one line per run.
 
 **Every run in the clone is graded, not just the checks e2e staged.** The work a
 check triggers lands in `runs/` as its own run, and that is where its success or
 failure actually shows up — grading only the named checks once let a live run
-report PASS while `s3-router` was failing on every event it routed. The
-product's own migrations are graded on the same terms, which is the point of
-sharing their mechanism. Runs without an `e2e_check` key are named by their
-routine.
+report PASS while the router was failing on every event it routed. The
+product's own migrations are graded on the same terms. Runs without an
+`e2e_check` key are named by their machine.
 
-A quest also fails if decree never reached its daemon phase — meaning it never
-finished migrating — or if there were no runs at all: a run that verified
-nothing must not read green.
+A quest also fails if the daemons never finished their migrations, or if there
+were no runs at all: a run that verified nothing must not read green.

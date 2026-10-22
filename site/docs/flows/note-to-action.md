@@ -50,17 +50,17 @@ flowchart TB
 ### 1. Notes arrive
 
 Nothing changes about how you capture. You write in your editor, on your phone, or by talking
-at it — it syncs to Nextcloud like it already does. The `notes` routine pulls the vault down
+at it — it syncs to Nextcloud like it already does. The `notes` machine pulls the vault down
 and compiles it into per-directory markdown with an index, which is the form a model can
 actually read without being handed forty thousand files.
 
 ### 2. Triage — is there anything here?
 
 This is the step that makes the flow worth having, and the step that has to be *stingy*. Most
-notes are a grocery list or a meeting time. `note-triage` asks the gateway one cheap question
+notes are a grocery list or a meeting time. `note_triage` asks the gateway one cheap question
 per new note: **is there a real idea in this, or not?**
 
-Only new and changed notes are considered — the routine hashes the vault each run and diffs
+Only new and changed notes are considered — the script hashes the vault each run and diffs
 against the last one, so a note is judged when you write it and again when you meaningfully
 edit it, never on a loop.
 
@@ -69,7 +69,7 @@ folder of unread reports, which is the problem you started with.
 
 ### 3. Do what can be done unattended
 
-Only for the notes that passed. The routine chains follow-up work — each step is another
+Only for the notes that passed. The machine chains follow-up work — each step is another
 message in the same queue, so a long job is just a sequence of small ones and you can watch it
 progress:
 
@@ -97,17 +97,17 @@ assumption you are actually uncertain about. Ending on the open questions is wha
 from being a machine for generating documents nobody reads.
 :::
 
-## The four routines
+## The four machines
 
-The flow is four routines and one cron file. Nothing else — and each one is replaceable on its
+The flow is four machines and one cron file. Nothing else — and each one is replaceable on its
 own, which is the part worth understanding.
 
-| Routine | Does | Swap it when |
+| Machine | Does | Swap it when |
 |---|---|---|
 | `notes` | Pulls the vault down from Nextcloud into `/data/notes` | Your notes live somewhere else |
-| `note-triage` | Diffs the vault, judges each new note, checks it against the ledger, chains the next step | Never — this is the spine |
-| `note-develop` | *(default)* Researches and drafts one document | You want the fan-out instead |
-| `idea-workup` | *(alternative)* Hands the idea to three hermes departments | You want one document instead |
+| `note_triage` | Diffs the vault, judges each new note, checks it against the ledger, chains the next step | Never — this is the spine |
+| `note_develop` | *(default)* Researches and drafts one document | You want the fan-out instead |
+| `idea_workup` | *(alternative)* Hands the idea to three hermes departments | You want one document instead |
 
 ## Setting it up, step by step
 
@@ -117,37 +117,12 @@ own, which is the part worth understanding.
 ./existential.sh quest      # pick "Note Triage"
 ```
 
-That copies `note-triage.md` from `cron.example/` into `cron/`. It does not enable anything
-yet — a routine on disk is invisible until it is listed.
+That copies `note-triage.md` from `automation-examples/cron/` into `automation/cron/`, and that
+is the whole switch: the daemon rescans `cron/` every tick. The cron file's `TRIAGE_ROUTINE`
+param picks `note_develop` (the default) or `idea_workup` for the department fan-out described
+below.
 
-### 2. Enable the routines
-
-In `services/automation/decree/config.yml`:
-
-```yaml
-note-triage:
-  enabled: true
-note-develop:
-  enabled: true
-```
-
-Or, for the department fan-out described below, these instead:
-
-```yaml
-note-triage:
-  enabled: true
-idea-workup:
-  enabled: true
-hermes-dept:
-  enabled: true
-```
-
-:::info[Why edit `config.yml` and not `config.exist.yml`]
-`config.exist.yml` is the tracked template; `config.yml` is what your daemon actually reads and
-is gitignored, so it is yours to edit. A rendered file is never re-rendered.
-:::
-
-### 3. Confirm the hermes profiles exist — fan-out path only
+### 2. Confirm the hermes profiles exist — fan-out path only
 
 ```bash
 docker exec hermes-agent ls /opt/data/profiles
@@ -158,26 +133,21 @@ docker exec hermes-agent ls /opt/data/profiles
 Each department is served at `/p/<name>/v1` with its own tools and its own API key — a profile
 does not borrow the default profile's credential, so an unprovisioned one returns 401.
 
-### 4. Restart, then watch it do nothing
-
-```bash
-docker compose restart automation
-```
+### 3. Watch it do nothing
 
 :::warning[The first run does nothing, on purpose]
 It records your vault as seen *without* triaging. Turning this on with a 5,000-note vault
 should not fire 5,000 model calls. To scan the backlog once:
 
 ```bash
-printf -- '---\nroutine: note-triage\nTRIAGE_BOOTSTRAP: true\n---\n' > automation/inbox/bootstrap.md
+echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_BOOTSTRAP=true
 ```
 :::
 
-### 5. Check it before trusting it
+### 4. Check it before trusting it
 
 ```bash
-docker exec automation decree routine note-triage       # the routine's own pre-check
-printf -- '---\nroutine: note-triage\nTRIAGE_DRY_RUN: true\n---\n' > automation/inbox/dry-run.md
+echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_DRY_RUN=true
 ```
 
 A dry run prints a verdict per note and chains nothing. Read a few days of that output before
@@ -194,7 +164,7 @@ criteria cannot poison the "is this new?" check.
 
 ## Swap the judgment
 
-`TRIAGE_CRITERIA` is one line of cron frontmatter and it is the entire feature:
+`TRIAGE_CRITERIA` is one line of the cron file's params and it is the entire feature:
 
 ```yaml
 TRIAGE_CRITERIA: "a business idea — something the author could plausibly build, sell, or start"
@@ -221,7 +191,7 @@ materially the same as something on that list. Duplicates stop there.
 
 The ledger is plain TSV — read it, prune it, or delete a line to let an idea through again.
 
-| Setting | Default | Does |
+| Param | Default | Does |
 |---|---|---|
 | `TRIAGE_LEDGER` | `true` | Set `false` to chain every pass, duplicates included |
 | `TRIAGE_LEDGER_MAX` | `100` | How many past ideas the check sees, most recent first |
@@ -233,20 +203,20 @@ wastes a run; a dropped one loses the idea for good.
 
 `TRIAGE_ROUTINE` names what gets chained when a note passes. Two ship.
 
-### `note-develop` — one document
+### `note_develop` — one document
 
 The default. One call, one file: what the idea is, what can be worked out, and the two-to-four
 questions only you can answer. Works with nothing but a chat model — no profiles, no
 departments. Output lands in `/data/note-triage/output`, and is copied beside the original note
 when `NOTE_OUTPUT_RCLONE_DEST` is set.
 
-### `idea-workup` — three departments, three answers
+### `idea_workup` — three departments, three answers
 
 ```yaml
-TRIAGE_ROUTINE: idea-workup
+TRIAGE_ROUTINE: idea_workup
 ```
 
-This one does no model work itself. It writes **three outbox messages**, each addressed to the
+This one does no model work itself. It emits **three messages**, each addressed to the
 department whose hermes profile owns the right tools:
 
 | Question | Department | Why that profile |
@@ -276,9 +246,9 @@ Grafana on its own. See [Routing to Departments](../decree/routing).
 
 ### Writing a third one
 
-`TRIAGE_ROUTINE` is just a routine name. Write your own, list it in `config.yml`, and point
-the cron file at it — the triage half never changes. It receives `note_path` and `note_reason`
-as environment variables. [Writing a Routine](../writing-a-routine) is the full contract.
+`TRIAGE_ROUTINE` is just a machine name. Write your own, add it to `TRIAGE_ROUTINE`'s `enum`
+and the `emits:` list in `automation/machines/note_triage.yml`, and point the cron file at it —
+the triage half never changes. It receives `note_path` and `note_reason` as params. [Writing an Automation](../writing-a-routine) is the full contract.
 
 ## Swap the input
 
@@ -286,12 +256,12 @@ Nothing above cares that the trigger was a cron scan of a notes vault. Triage ta
 name; every input below reduces to the same message. **Only the first step changes.**
 
 ```
-<anything> ──▶ message ──▶ note-triage ──▶ ledger ──▶ idea-workup ──▶ departments
+<anything> ──▶ message ──▶ note_triage ──▶ ledger ──▶ idea_workup ──▶ departments
 ```
 
 ### Email
 
-`gmail-sync` polls Gmail on a cron and archives messages into `automation/emails/` (the
+`gmail_sync` polls Gmail on a cron and archives messages into `automation/emails/` (the
 `EMAILS_DIR` default, `/work/.decree/emails` inside the container — `automation/` at the repo
 root is the main daemon's whole project dir). Point `NOTES_DIR` at that directory and the same
 triage runs over your inbox — the criteria becomes "a customer complaint worth escalating" or
@@ -299,7 +269,7 @@ whatever you actually want caught. See [Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
-Anything uploaded through Nextcloud fires a file event → the webhook → `file-router`, which
+Anything uploaded through Nextcloud fires a file event → the webhook → `file_router`, which
 matches your **file processor** on a path regex and an optional content gate:
 
 ```bash
@@ -307,26 +277,26 @@ PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="a business idea"
 ```
 
-The processor writes an outbox message and triage takes it from there. No restart — the router
+The processor emits a message and triage takes it from there. No restart — the router
 reads the processor directory per event. See
 [File Change Processing](../decree/file-change-processing).
 
 ### A sensor, or something you said out loud
 
 Home Assistant does not get read by this stack — it reaches out. An automation POSTs the decree
-webhook, which turns the request body into an inbox message. A doorbell, a temperature
+webhook, which turns the request body into a decree message. A doorbell, a temperature
 threshold, or a voice command all arrive the same way. The
 [HAwake](./hawake-homeassistant) flow is the worked example.
 
 ### A message on your phone
 
-`telegram-ingest` polls a bot for new messages and `rclone`s attachments into storage — where,
+`telegram_ingest` polls a bot for new messages and `rclone`s attachments into storage — where,
 being an object write, they become the file trigger above. See
 [Telegram](../integrations/telegram).
 
 ## Cost and pacing
 
-Decree runs one message at a time, and the department timeout (`AGENT_TIMEOUT`) defaults to 900
+Decree runs one message at a time, and the department timeout (`agent_task`'s `agent_timeout` param) defaults to 900
 seconds. A three-question fan-out can therefore take the better part of an hour. It is not
 stuck — check `automation/runs/` or the Grafana **Decree Overview** dashboard, where each
 question appears as its own run.
@@ -341,21 +311,28 @@ run away with your GPU.
 | Setting | Default | Does |
 |---|---|---|
 | `TRIAGE_CRITERIA` | *a business idea* | **The judgment.** The whole point of the flow |
-| `TRIAGE_ROUTINE` | `note-develop` | What to chain on a pass — `idea-workup`, or your own |
+| `TRIAGE_ROUTINE` | `note_develop` | What to chain on a pass — `idea_workup`, or your own |
 | `TRIAGE_DRY_RUN` | `false` | Log every verdict, chain nothing, write no ledger entries |
 | `TRIAGE_LEDGER` | `true` | The "is this idea new?" check |
-| `TRIAGE_LEDGER_MAX` | `100` | How many past ideas that check sees |
 | `TRIAGE_MAX_NOTES` | `20` | Ceiling per run |
+| `TRIAGE_BOOTSTRAP` | `false` | One run that scans the existing vault instead of recording it as seen |
+
+Those are the cron file's `params:`. These are environment, set in `automation/.env`, and apply
+to every run:
+
+| Variable | Default | Does |
+|---|---|---|
+| `TRIAGE_LEDGER_MAX` | `100` | How many past ideas the ledger check sees |
 | `TRIAGE_MIN_CHARS` | `120` | Below this a note is skipped without a model call |
 | `TRIAGE_MAX_CHARS` | `6000` | Note text is truncated to this many characters before judging |
 | `TRIAGE_MODEL` | *(gateway default)* | Pin a specific model |
 | `TRIAGE_API_URL` | `http://hermes-agent:8642/v1` | Point at Ollama to skip hermes for triage |
 | `TRIAGE_TIMEOUT` | `120` | Seconds per model call before it's treated as no verdict |
 | `TRIAGE_API_KEY` | *(falls back to `HERMES_API_KEY`)* | Override the gateway credential |
-| `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note-develop`'s draft is copied, e.g. `nextcloud:Notes` |
-| `FIRECRAWL_URL` | *(unset)* | Set to `http://firecrawl:3002` for `note-develop` web research |
+| `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note_develop`'s draft is copied, e.g. `nextcloud:Notes` |
+| `FIRECRAWL_URL` | *(unset)* | Set to `http://firecrawl:3002` for `note_develop` web research |
 
-All of it is cron frontmatter. No code changes.
+No code changes either way.
 
 :::warning[Don't point the output at your vault cache]
 `/data/notes` is an rclone **sync** cache — it is made to match Nextcloud on every `notes` run,
@@ -367,14 +344,14 @@ are copied back to the vault over rclone instead.
 
 | Part | Status |
 |---|---|
-| Vault sync and compilation | **Ships.** The `notes` routine |
-| Detecting new and changed notes | **Ships.** `note-triage` hashes the vault and diffs against the last run |
-| The triage call and the chain | **Ships.** `note-triage` → outbox message → next routine |
+| Vault sync and compilation | **Ships.** The `notes` machine |
+| Detecting new and changed notes | **Ships.** `note_triage` hashes the vault and diffs against the last run |
+| The triage call and the chain | **Ships.** `note_triage` → `decree emit` → next machine |
 | Knowing an idea is already evaluated | **Ships.** The ledger at `/data/note-triage/ideas.tsv` |
-| Research, draft, open questions | **Ships.** `note-develop`, with [Firecrawl](../ai/firecrawl) research when configured |
-| Competition, market size, value proposition | **Ships.** `idea-workup` → `hermes-dept` (research and sales) |
+| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) research when configured |
+| Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` (research and sales) |
 | Indexing notes for retrieval | **Ships.** A decree cron uploads `workspace/` into [OpenViking](../ai/openviking) every 15 minutes and keeps it queryable |
-| Notifying you | **Ships.** `notify` → ntfy, or `telegram-notify` |
+| Notifying you | **Ships.** `notify` → ntfy, or `telegram_notify` |
 | **What counts as worth acting on** | **Yours.** One line of prompt, and the whole point of the flow |
 
 The judgment is deliberately a setting rather than a decision made for you — what counts as an

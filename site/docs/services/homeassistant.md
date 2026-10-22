@@ -130,7 +130,7 @@ See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant) for a 
 Not wired up yet. `homeassistant_data` (recorder SQLite DB + `configuration.yaml`
 + everything else in `/config`) has no `automation-backup` cron — unlike most other
 services in this stack, nothing currently copies it off-box. To add one, copy a
-`volume-backup` cron file (e.g. `mealie-volume-backup-nightly.md`/`-weekly.md`)
+`volume_backup` cron file (e.g. `mealie-volume-backup-nightly.md`/`-weekly.md`)
 from `services/automation/backup/cron.example/` to a new
 `homeassistant-volume-backup-*.md`, point its `VOLUMES:` block at
 `homeassistant_data homeassistant`, drop it into

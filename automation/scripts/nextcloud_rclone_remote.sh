@@ -22,8 +22,10 @@ NEXTCLOUD_URL="${NEXTCLOUD_URL:-http://nextcloud}"
 mkdir -p "$(dirname "${RCLONE_CONFIG}")"
 touch "${RCLONE_CONFIG}"
 
-# Clear existing nextcloud block if it exists to ensure idempotency/updates
-sed -i '/^\[nextcloud\]/,/^mas/d' "${RCLONE_CONFIG}" 2>/dev/null || true
+# Drop an existing [nextcloud] section — from its header up to the next
+# section header — so a re-run replaces it and keeps every other remote.
+_kept=$(awk '/^\[/ { skip = ($0 == "[nextcloud]") } !skip' "${RCLONE_CONFIG}")
+printf '%s\n' "$_kept" > "${RCLONE_CONFIG}"
 
 # Determine the best password (App Password > Admin Password)
 PASS="${NEXTCLOUD_APP_PASSWORD:-${NEXTCLOUD_ADMIN_PASSWORD}}"

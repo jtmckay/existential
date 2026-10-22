@@ -22,4 +22,3 @@ Setup:
   2. Activate the poller — checks for new messages every 15 minutes:
        mkdir -p automation/cron/
        cp automation-examples/cron/gmail-sync.md automation/cron/
-       docker compose restart automation

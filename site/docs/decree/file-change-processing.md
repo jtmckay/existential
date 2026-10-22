@@ -6,14 +6,14 @@ sidebar_position: 3
 
 :::info[Mechanism, not a flow]
 This is the plumbing a [flow](../flows/) sits on: how a file landing in storage becomes a
-running routine. If you are here to see what the system *does*, start at
+running job. If you are here to see what the system *does*, start at
 [Level 3 · Flows](../flows/). If you are wiring up your own, this and
 [Build On It](../build-on-it) are the pages you want.
 :::
 
-React to files being created, updated, renamed or deleted in Nextcloud. When a file event arrives at the Decree webhook, `file-router` matches the file path against registered processors and fans out one `file-processor` job per match. Each job downloads the file (or generates a share link if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
+React to files being created, updated, renamed or deleted in Nextcloud. When a file event arrives at the Decree webhook, `file_router` matches the file path against registered processors and fans out one `file_processor` job per match. Each job downloads the file (or generates a share link if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
-A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file-processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
+A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file_processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
 
 ```mermaid
 flowchart LR
@@ -21,13 +21,13 @@ flowchart LR
 file event"] -->|POST /files| B
 
     subgraph decree["Decree"]
-        B["file-router\nPATTERN on the path"]
-        C["file-processor\ndownload via rclone"]
+        B["file_router\nPATTERN on the path"]
+        C["file_processor\ndownload via rclone"]
         G{"CRITERIA\nmatch?"}
         D1["processor A"]
         D2["processor B"]
-        E["agent-task\n→ hermes gateway"]
-        B -->|"one outbox message\nper matching processor"| C
+        E["agent_task\n→ hermes gateway"]
+        B -->|"one emitted message\nper matching processor"| C
         C --> G
         G -->|"no criteria,\nor YES"| D1
         G -->|"no criteria,\nor YES"| D2
@@ -74,34 +74,35 @@ files (so your desktop client gets them) but raises **no event** for them. That 
 an agent's own output from triggering another run.
 :::
 
-### 2. file-router — match and fan out
+### 2. file_router — match and fan out
 
-`file-router` strips the `/<user>/files/` prefix, constructs `FILE_SOURCE` as
+`file_router` strips the `/<user>/files/` prefix, constructs `FILE_SOURCE` as
 `nextcloud:<path>` (e.g. `nextcloud:workspace/notes/plan.md`), and scans every script in
-`automation/lib/file-processors/` for a `PATTERN=` regex match. It maps written → `created`,
+`automation/lib/file_processors/` for a `PATTERN=` regex match. It maps written → `created`,
 deleted → `removed`, and splits a rename into a removal of the old path plus a creation of the
 new one. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
 
 A payload does not say whether the path is a file or a folder, and a new folder raises
 `NodeWrittenEvent` too. Anchor a `PATTERN` on an extension and you never notice.
 
-For each matching processor it writes one message to the Decree outbox:
+For each matching processor it emits one `file_processor` message:
 
 ```yaml
 ---
-routine: file-processor
-rclone_path: "nextcloud:workspace/notes/plan.md"
-processor: my-processor
-file_action: created
-is_pre_signed: false
+machine: file_processor
+params:
+  rclone_path: "nextcloud:workspace/notes/plan.md"
+  processor: my-processor
+  file_action: created
+  is_pre_signed: false
 ---
 ```
 
-Multiple processors can match the same file — each runs independently as a separate Decree message.
+Multiple processors can match the same file — each runs independently as its own decree run.
 
-### 3. file-processor — download (or reference), run, clean up
+### 3. file_processor — download (or reference), run, clean up
 
-`file-processor` exports the standard `FILE_*` env vars, runs the matched processor script, then deletes any local temp file.
+`file_processor` exports the standard `FILE_*` env vars, runs the matched processor script, then deletes any local temp file.
 
 - **Default (`IS_PRE_SIGNED=false`)**: downloads the file via `rclone copyto` to a temp path; `FILE_PATH` is the local file.
 - **Pre-signed (`IS_PRE_SIGNED=true`)**: skips the download and instead calls `rclone link` to generate a share link; `PRE_SIGNED_URL` is set to that URL and `FILE_PATH` remains empty. Useful when the processor needs to hand off the file to an external service rather than read it locally.
@@ -109,7 +110,7 @@ Multiple processors can match the same file — each runs independently as a sep
 
 ## Adding a File Processor
 
-Create `automation/lib/file-processors/<name>.sh`:
+Create `automation/lib/file_processors/<name>.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -126,7 +127,7 @@ if [ "$FILE_ACTION" = "removed" ]; then
     exit 0
 fi
 
-# FILE_PATH is the local temp file (do not delete — file-processor handles cleanup).
+# FILE_PATH is the local temp file (do not delete — file_processor handles cleanup).
 # PRE_SIGNED_URL is set instead of FILE_PATH when IS_PRE_SIGNED=true.
 echo "Processing $FILE_PATH"
 
@@ -174,7 +175,7 @@ Two decree migrations, copied from `automation-examples/migrations/` into
 `automation/migrations/`:
 
 - **`23-nextcloud-rclone-remote.md`** — the `nextcloud` rclone remote (WebDAV, as the admin
-  user) that `file-processor` downloads through. `rclone_src` on the webhook's `/files` route
+  user) that `file_processor` downloads through. `rclone_src` on the webhook's `/files` route
   names it.
 - **`27-nextcloud-file-events.md`** — registers the three webhooks.
 
@@ -207,19 +208,12 @@ Inspect the run log after it completes:
 
 ```bash
 docker exec automation decree status
-docker exec automation decree log <id-prefix>
-```
-
-## Verifying Routine Pre-checks
-
-```bash
-docker exec automation decree routine file-router
-docker exec automation decree routine file-processor
+docker exec automation decree status <id>
 ```
 
 ## Matching on content, not just path
 
-Add a `CRITERIA` line and `file-processor` puts the downloaded file to the model
+Add a `CRITERIA` line and `file_processor` puts the downloaded file to the model
 before running your script:
 
 ```bash
@@ -239,25 +233,23 @@ Three things to know:
   `removed` events there is nothing on disk to judge, so the gate is skipped and
   the processor runs on the path match alone.
 - **No answer is not the same as no match.** If the gateway is down or times out,
-  `file-processor` fails the message so Decree retries it, rather than silently
+  `file_processor` fails the run (decree tries it three times), rather than silently
   dropping the file — which would look exactly like a clean `NO`.
 
 ## Handing off to an agent
 
 A processor's real job is usually to decide *that* something should happen, not
-to do it. `agent-task` is the routine that does it: it calls the hermes gateway
+to do it. `agent_task` is the machine that does it: it calls the hermes gateway
 and files the answer in `workspace/ai/`.
 
 ```bash
-cat > "${OUTBOX_DIR}/handoff-$(date +%s%N).md" << MSG
----
-routine: agent-task
-file_path: notes/plan.md
-output_name: plan-followup
-prompt: Read this note and work out what can be settled without the author.
----
-MSG
+echo 'Read this note and work out what can be settled without the author.' \
+  | decree emit --machine agent_task \
+      --param file_path=notes/plan.md --param output_name=plan-followup
 ```
+
+`file_processor` already lists `agent_task` and `hermes_router` in its `emits:`, so a
+processor may emit either. `file-processors.example/agent-handoff.sh` is a complete one.
 
 Because hermes is an agent gateway that runs its own tool loop, the task inherits
 every MCP server hermes has registered: OpenViking search, Firecrawl web search,
@@ -265,53 +257,23 @@ Playwright. The prompt does not name tools; it says what it wants, and hermes
 decides what to reach for. The gateway is called directly rather than through
 OpenCode — [why](./routing#why-not-opencode).
 
-`agent-task` needs `HERMES_API_KEY` (passed through once hermes is enabled), `curl`
+`agent_task` needs `HERMES_API_KEY` (passed through once hermes is enabled), `curl`
 and `jq`, and `/workspace/ai` mounted into the decree container.
 
 ## Triggering on workspace edits
 
 The workspace (`volumes/workspace_data`) is mounted into Nextcloud as the `workspace` folder,
 so editing a note in the Nextcloud desktop client *is* an upload, and fires straight away. There
-is no sync routine and no second copy — see [Getting Started](../getting-started#workspace).
+is no sync job and no second copy — see [Getting Started](../getting-started#workspace).
 
-`workspace/ai/` is where `agent-task` writes. It is written straight to disk, so it shows up on
+`workspace/ai/` is where `agent_task` writes. It is written straight to disk, so it shows up on
 your devices and is indexed by OpenViking, but it can never trigger a run.
 
-## Triggering decree from workspace/ — the outbox
+## Hermes asking decree for work
 
-Hermes (and anything else confined to `workspace/`) has no mount into
-`automation/` and shouldn't get one — routine scripts are read-only from
-inside the decree daemon on purpose. `workspace/outbox/` is the one supported
-way in: drop a markdown file there and the `outbox-relay` routine (every minute,
-activated by Core) turns it into a real decree message.
-
-```markdown
----
-routine: agent-task
-prompt: Summarize this week's notes.
-correlation_id: D0002-1939-triage-0
----
-```
-
-`routine` is required — `workspace/ai/decree-routines.md` (kept current by the
-`routines-snapshot` routine) lists what's enabled and its parameters. Any
-other frontmatter field is forwarded as a parameter to that routine.
-`correlation_id` is optional and free-form: a routine invoked from a decree
-workflow has one in its environment (see `agent-task.sh`), and passing it
-along lets whatever eventually reads the result trace it back to what started
-the flow. It is not decree's own `chain` — every relayed message still gets
-its own fresh chain — just a plain tag carried between messages. It is also
-picked up by decree's own Loki logging whenever a message sets it, so
-`{job="decree"} |= "correlation_id=<value>"` in Grafana shows every step of
-one flow even though each step ran as its own separate chain.
-
-A few things worth knowing about the relay itself:
-
-- **It deletes what it relays**, so the directory is a real outbox — empty once
-  its mail is sent — rather than an accumulating log.
-- **A file still being written is left for the next tick** — anything modified
-  in the last five seconds waits.
-- **A non-message file is left alone.** Only a file whose first line is `---` is
-  treated as a message; a README that merely shows the format is skipped. One
-  with a missing or invalid `routine` is renamed to `<name>.rejected`, so it is
-  reported once rather than every minute.
+Hermes (and anything else confined to `workspace/`) has no mount into `automation/` and
+shouldn't get one. Its way in is HTTP: automation-webhook serves `/hermes/task/{profile}` (an
+`agent_task` run on that profile, the body as the prompt) and `/hermes/notify/{title}`, on a
+secret of hermes' own. Each path fixes its machine, so those two are all hermes can ask decree
+for. `workspace/ai/decree/` (kept current by `routines_snapshot`) lists every machine, its
+params and these endpoints.

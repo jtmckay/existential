@@ -18,7 +18,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
 | change `existential.sh`, `reset`, a quest, or an e2e check | `.claude/reference/setup.md` |
 | change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
-| work on automation/decree | the `/decree` skill (it reads the live files) |
+| work on automation/decree | the `/decree` skill, then `.claude/reference/decree.md` |
 
 ---
 
@@ -44,19 +44,19 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 1. **Before building anything, ask: does this already exist?** This stack is deliberately
    curated; every tool added must be maintained. Check for a stack service (hermes skills,
-   decree routines), a Unix one-liner, an existing `automation/` helper, an npm package/CLI/API.
+   decree machines), a Unix one-liner, an existing `automation/` helper, an npm package/CLI/API.
    **If something exists and works, use it — don't convert, reimplement, or "standardize"
    working code without a concrete problem to solve.**
 2. **Custom logic is bash (preferred), TypeScript via `tsx`, or Go. Never Python for code we
-   own.** Scripts and routines run in the adhoc container, which has bash and `tsx` but no Go
+   own.** Scripts run in the adhoc or decree container, which has bash and `tsx` but no Go
    toolchain — so Go is for compiled services, not scripts. Go services carry their own `go
    test` suite and are **not** part of `./existential.sh test` (see
    `.claude/reference/testing.md`). External tooling (hermes skills, upstream configs) stays in
    whatever language it shipped in.
 3. **Configuration is YAML.** `.env` is for secrets/host-specific values only.
 4. **`src/` = host-run scripts. `automation/` = scheduled/webhook/decree-triggered work.**
-   Shared routine code in `automation/shared_routines/`; shared helpers in `automation/lib/`.
-5. **Repeatable work is a decree routine** (`automation/shared_routines/`), not host cron or
+   decree scripts in `automation/scripts/`; shared helpers in `automation/lib/`.
+5. **Repeatable work is a decree machine** (`automation/machines/`), not host cron or
    one-off `docker exec`. One-shots stay as `exist.<action>.sh`.
 6. **Services set themselves up deterministically.** Host-side pre-startup work →
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
@@ -75,7 +75,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 The user's own content is the `workspace_data` volume — one tree mounted by nextcloud (as a
 Local external storage the desktop client syncs), hermes, code-server and decree, and indexed
 into openviking. **Only uploads through Nextcloud fire file events**; anything the stack writes
-straight to disk (agent output in `workspace/ai/`, `workspace/outbox/`) never does, and that is
+straight to disk (agent output in `workspace/ai/`) never does, and that is
 the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
 
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
@@ -91,10 +91,10 @@ the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
   local copy and is bypassable; CI is not. **Add a gate to both.** Detailed in
   `.claude/reference/testing.md`.
 - Service-specific setup lives with the service as `exist.<action>.sh`, not in `src/`.
-- **`.sh` exec bit:** default `644` — `existential.sh` and the decree daemon `bash <script>`
-  everything they dispatch. Keep `+x` (`755`) only on scripts executed **by path**:
-  `existential.sh` itself, `.githooks/*` (git runs hooks directly), decree hooks
-  (`lib/hooks/*`, wired as `beforeEach`/`afterEach` paths), `lib/notes/*` (run by path from
+- **`.sh` exec bit:** default `644` — `existential.sh` `bash <script>`s everything it
+  dispatches. Keep `+x` (`755`) only on scripts executed **by path**: `existential.sh` itself,
+  `.githooks/*` (git runs hooks directly), decree scripts (`automation/scripts/*` — `decree
+  check` refuses one without it), `lib/hermes-cli.sh`, `lib/notes/*` (run by path from
   `notes.sh`), image entrypoint hooks (`nas/nextcloud/hooks/*` — the nextcloud entrypoint
   *skips* hook scripts without it), and container `entrypoint:` targets (Docker execs them by
   path). Everything else stays `644`; `./existential.sh test lint` does not check modes, so this is convention,
@@ -106,9 +106,9 @@ the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
 
 `./existential.sh` renders templates → runs `exist.initial.sh` (pre-startup, idempotent, every
 run, no sentinels). Then the user runs `docker compose up -d`; each service's `entrypoint.sh`
-trues up the config only it can reach; the `decree` daemon waits on
-`services/automation/migration-gate.sh` (which probes each service it migrates) and then applies any
-pending one-time migrations from `automation/migrations/`. On demand:
+trues up the config only it can reach; the `automation` decree daemon runs any pending one-time
+migrations from `automation/migrations/`, each waiting on its own service in a first
+`wait_for_<service>` state. On demand:
 `./existential.sh run <slug> <action>` → `exist.<action>.sh`.
 
 Which script to write for what, container privileges, the decree image and its two daemons, and
@@ -220,49 +220,40 @@ from the repo root against the generated `docker-compose.yml`.
 
 ## Decree (Automations)
 
-For deeper decree work use the `/decree` skill (it reads the live files). Two non-obvious rules
-worth keeping here:
+decree **0.5**: the `/decree` skill covers decree itself, and `.claude/reference/decree.md`
+covers how existential uses it. The rules worth keeping here:
 
-**Two daemons, not one per service:** `automation` (project dir `services/automation/decree/`,
-which also holds the image build) runs everything that reasons, routes or reaches a service API
-— including every service's one-time migrations — and `automation-backup` (project dir
-`services/automation/backup/`) mounts `volumes/` wholesale, **the repo read-only**, and takes
-the master `.env`. Despite the name, `automation-backup` isn't backups-only: it runs the three
-backup routines (`volume-backup`, `db-backup`, `sqlite-backup`) *plus* any other routine that
-needs that same bulk data/credential access and does no reasoning, routing, or AI call —
-`notes-pull` and **`triage`** are the standing examples, kept here for their master
-credentials and bulk mounts, not because they back anything up. **`/repo` is mounted there and
-nowhere else.** Triage is the only thing that ever wanted it, and `automation` puts what it
-reads in front of a model, so what that container can read is what a prompt injection can read;
-it now gets only
-`ai/hermes/profiles`, which hermes-router needs and which holds no secrets. Reasoning, routing, and AI stay
-in `automation` even when the routine touches the same data. `automation` wholesale-mounts the
-repo-root `automation/` directory as its whole `/work/.decree` project; `automation-backup`
-mounts the same shared code (`shared_routines/`, `lib/`, `runs/`, `secrets/`) individually into
-its own project dir instead. A service gets **no** `*-decree` sidecar; a new backup is one cron
-file. Why, and what each can reach: `.claude/reference/services.md`.
+**Two daemons, each its own decree project, not one per service:** `automation` (the repo-root
+`automation/` dir) runs everything that reasons, routes or reaches a service API, including
+every migration. `automation-backup` (`services/automation/backup/`) mounts `volumes/`
+wholesale, **the repo read-only**, and takes the master `.env`. It runs the backups plus
+anything else that needs that bulk access and makes no AI call (`triage`, `notes_pull`).
+**`/repo` is mounted there and nowhere else**: `automation` puts what it reads in front of a
+model, so what that container can read is what a prompt injection can read. Both share
+`automation/scripts/` and `automation/lib/`. A service gets **no** `*-decree` sidecar; a new
+backup is one cron file.
 
-**One way to reach a model:** the hermes gateway over HTTP —
-`automation/lib/hermes.sh` (`hermes_chat`, `hermes_gate`, `hermes_profile_url`) in a routine, or
-`lib/hermes-cli.sh` in command shape (decree's `commands:` block, and the `hermes` command in
-code-server's terminal). **No container installs an AI CLI.** Hermes is itself an agent running
-its own tool loop, so there is no second agent to wrap around it — work that needs a terminal is
-bash in the routine, and follow-up work comes back as a `workspace/outbox/` message. Repo-editing
-belongs to a coding agent on the host, not to the stack.
+**A machine is the unit:** `machines/<name>.yml` (one state until a run shows the need for
+more) plus `scripts/<name>.sh`, snake_case. Params a message passes must be declared in the
+machine's `data:`. Chaining is `decree emit` with `emits:` on the state. There is no
+whitelist: a machine that no cron file, endpoint or emit points at simply never runs.
 
-**Routine registration:** both daemons use `shared_routines` via `routine_source`, so routines
-default to **disabled** unless listed in `shared_routines` in `config.exist.yml` (the whitelist).
-When adding a routine, add it to whichever `config.exist.yml` should see it — `enabled: true`
-for on-by-default, `false` for opt-in; unlisted = invisible. Rendered `config.yml` (gitignored)
-is the user override.
+**One way to reach a model:** the hermes gateway over HTTP, through `automation/lib/hermes.sh`
+(`hermes_chat`, `hermes_gate`, `hermes_profile_url`), or `lib/hermes-cli.sh` as the `hermes`
+command in code-server's terminal. **No container installs an AI CLI.** Hermes runs its own
+tool loop, so work that needs a terminal is bash in the script, and hermes asks decree for
+follow-up work through automation-webhook's `/hermes/*` endpoints. Repo-editing belongs to a
+coding agent on the host, not to the stack.
 
-**Cron activation:** each daemon has its own `cron/` (active, gitignored). Tracked templates
-live in **two** places, one per daemon: `automation-examples/cron/` (repo root) for `automation`,
-and `services/automation/backup/cron.example/` for `automation-backup`. Neither path matches
-`*.exist.*`, so existential.sh never auto-renders them. Activate by copying a template → that
-daemon's `cron/` and restarting it; the project dir name *is* the container name. Frontmatter
-(`cron:`, `routine:`, extra keys → env vars) is parsed on restart. `automation-examples/` also
-holds tracked `migrations/` and `inbox/` templates, copied in the same way.
+**Cron activation:** each project has its own `cron/` (active, gitignored). Templates live in
+`automation-examples/cron/` for `automation` and `services/automation/backup/cron.example/`
+for `automation-backup`; neither matches `*.exist.*`, so nothing auto-renders them. Activate
+by copying a template into that project's `cron/`; the daemon rescans it every tick.
+`automation-examples/` also holds the `migrations/` and `inbox/` templates.
+
+**Gate:** `./existential.sh test decree` runs `decree check` on both projects with every
+template queued and fails on a stale committed `graph/`. Regenerate with
+`./existential.sh run decree-graph`.
 
 ---
 

@@ -12,12 +12,12 @@ flowchart TD
 
     subgraph decree["Decree"]
         gmail["gmail\nparse transaction details"]
-        actual["actual-budget\nadd transaction + post-transaction"]
-        notify["telegram-notify\nformat + send Telegram message"]
-        receipt["telegram-receipt\npoll getUpdates (every minute)"]
+        actual["actual_budget\nadd transaction + post-transaction"]
+        notify["telegram_notify\nformat + send Telegram message"]
+        receipt["telegram_receipt\npoll getUpdates (every minute)"]
 
-        gmail -->|"outbox message\ntransaction details"| actual
-        actual -->|"outbox message\ntransaction_id + amount"| notify
+        gmail -->|"emitted message\ntransaction details"| actual
+        actual -->|"emitted message\ntransaction_id + amount"| notify
         notify -->|"update state.json\npending[msg_id] = txn"| state[("state.json\npending / splits")]
     end
 
@@ -41,15 +41,15 @@ flowchart TD
 
 ### 1. Bank alert arrives in Gmail
 
-A bank sends a transaction alert email. The `gmail` routine detects it via a Gmail label filter and enqueues an outbox message with the transaction fields parsed from the email body.
+A bank sends a transaction alert email. `gmail_sync` picks it up through a Gmail label filter and emits a message with the transaction fields parsed from the email body.
 
 ### 2. Transaction saved to Actual Budget
 
-`actual-budget` calls `post-transaction.ts` to create the transaction, then captures its assigned UUID. If `/secrets/telegram/credentials.env` is present, it immediately enqueues a `telegram-notify` message for the sidecar flow.
+`actual_budget` calls `post-transaction.ts` to create the transaction, then captures its assigned UUID. If `/secrets/telegram/credentials.env` is present, it immediately emits a `telegram_notify` message for the sidecar flow.
 
 ### 3. Telegram notification sent
 
-`telegram-notify` formats and sends a message to your configured chat:
+`telegram_notify` formats and sends a message to your configured chat:
 
 ```
 💳 -$47.23 at Whole Foods Market on 2026-04-22
@@ -61,7 +61,7 @@ The message ID is stored in `state.json` under `pending[msg_id]` so the receipt 
 
 ### 4. Receipt photo triggers OCR
 
-`telegram-receipt` polls `getUpdates` every minute. When it detects a photo:
+`telegram_receipt` polls `getUpdates` every minute. When it detects a photo:
 
 - **Reply to the notification** — matched to that specific transaction via `reply_to_message_id`
 - **Any other photo** — matched to the most recently sent notification (`last_pending_message_id`)
@@ -76,7 +76,7 @@ Include every line item. Use negative amounts for discounts. "total" must match 
 
 ### 5. Validation
 
-Before splitting, the routine verifies the OCR output:
+Before splitting, the script verifies the OCR output:
 
 - JSON must have `items` and `total`
 - Sum of all item amounts must match `total` within 2 cents (rounding tolerance)
@@ -134,48 +134,24 @@ Follow the [Telegram integration guide](../integrations/telegram) to:
 3. Save credentials to `automation/secrets/telegram/credentials.env` (mounted into the
    container at `/secrets/telegram/credentials.env`)
 
-### Step 2 — Enable routines
-
-In `services/automation/decree/config.yml` (the rendered, gitignored config the daemon actually
-reads — not `automation/config.yml`, which is an empty Docker-created mountpoint placeholder and
-has no effect):
-
-```yaml
-shared_routines:
-  telegram-notify:
-    enabled: true
-  telegram-receipt:
-    enabled: true
-```
-
-### Step 3 — Activate the receipt polling cron
+### Step 2 — Activate the receipt polling cron
 
 ```bash
 cp automation-examples/cron/telegram-receipt-poll.md \
    automation/cron/
 ```
 
-This schedules `telegram-receipt` to run every minute. Cron frontmatter is read when the daemon
-starts, so restart it to pick the new schedule up:
+This schedules `telegram_receipt` to run every minute. The daemon rescans `cron/` every tick, so
+there is nothing to restart.
+
+### Step 3 — Verify
+
+Send a test notification by hand:
 
 ```bash
-docker compose restart automation
-```
-
-### Step 4 — Verify
-
-Check all pre-checks pass:
-
-```bash
-docker exec automation decree routine telegram-notify
-docker exec automation decree routine telegram-receipt
-```
-
-Send a test notification manually:
-
-```bash
-printf -- '---\nroutine: telegram-notify\ntransaction_id: test-123\namount_cents: -4723\npayee_name: "Whole Foods Market"\ndate: 2026-04-22\n---\n' \
-  > automation/inbox/test-notify.md
+echo | docker exec -i automation decree emit --machine telegram_notify \
+  --param transaction_id=test-123 --param amount_cents=-4723 \
+  --param payee_name="Whole Foods Market" --param date=2026-04-22
 ```
 
 ## Customization

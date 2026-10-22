@@ -56,8 +56,6 @@ Templates live in `services/automation/backup/cron.example/`; copying one into
        cp $B/cron.example/nocodb-volume-backup-nightly.md        $B/cron/
        cp $B/cron.example/uptime-kuma-sqlite-backup-nightly.md   $B/cron/
 
-       docker compose restart automation-backup
-
 Want longer retention as well? Every template has a `-weekly.md` twin — copy it
 the same way, alongside the nightly one.
 
@@ -65,12 +63,11 @@ the same way, alongside the nightly one.
 
 Trigger a run now rather than waiting for the schedule:
 
-       printf -- '---\nroutine: db-backup\n---\n' \
-         > services/automation/backup/inbox/db-backup.md
-       printf -- '---\nroutine: volume-backup\n---\n' \
-         > services/automation/backup/inbox/volume-backup.md
+       cp services/automation/backup/cron/*-backup-nightly.md \
+          services/automation/backup/inbox/
 
-Then check the run logs in `automation/runs/` — and, more to the point, check
+Each copy is a message like any other, so it runs once now. Then check the
+runs with `docker exec automation-backup decree status` — and, more to the point, check
 the files actually landed on the remote.
 
 ── 4. Restore ────────────────────────────────────────────────────────────

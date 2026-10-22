@@ -118,10 +118,10 @@ thing `triage` cannot see.
 It copies the **working tree** (not HEAD) into a throwaway clone → render → up → checks → down,
 and does *not* re-run per-service tests.
 
-**An e2e check is a markdown file in `src/test/e2e/checks/`** — a decree migration, copied into
-the clone and numbered `90-` and up so the product's own migrations are all graded first.
+**An e2e check is a markdown file in `src/test/e2e/checks/`** — a decree message, dropped into
+the right daemon's inbox once the stack is up and its migrations have finished.
 Adding a check is adding a file. Contract: `src/test/e2e/checks/README.md`.
 
-Every run's evidence — `results.md`, each check's `routine.log` and `run.json`, dead letters,
+Every run's evidence — `results.md`, each run's `message.md`, `events.jsonl` and script logs,
 and unhealthy containers' logs — is copied to `e2e-out/<stamp>-<quest>/` before teardown.
 Gitignored, and written even when a run crashes.

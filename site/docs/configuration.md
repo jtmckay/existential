@@ -156,7 +156,7 @@ VRAM is spread rather than shared. Every key ships **blank**, and blank means "w
 | `EXIST_OLLAMA_URL_CHAT` | Chat / reasoning | hermes, open-webui |
 | `EXIST_OLLAMA_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
 | `EXIST_OLLAMA_URL_EMBED` | Embeddings | openviking's vector store, honcho |
-| `EXIST_OLLAMA_URL_VISION` | Vision / OCR | image-ocr, telegram-receipt |
+| `EXIST_OLLAMA_URL_VISION` | Vision / OCR | image-ocr, telegram_receipt |
 
 A worked split, with a 24 GB card and an 8 GB one:
 
@@ -171,7 +171,7 @@ evicting it. Re-run `./existential.sh` to propagate, then
 `docker compose restart honcho hermes-agent openviking`.
 
 `./existential.sh run models` prints where each role currently resolves, and the roles are the
-same vocabulary `ollama-pull` uses, so a migration pulls each model **to the machine that will
+same vocabulary `ollama_pull` uses, so a migration pulls each model **to the machine that will
 serve it** with no per-migration edits.
 
 Image and video generation moves the same way. `EXIST_COMFYUI_URL` (default

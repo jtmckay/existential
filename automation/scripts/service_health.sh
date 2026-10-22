@@ -16,8 +16,8 @@
 #   ---
 set -euo pipefail
 
-SERVICE_NAME="${DECREE_DATA_SERVICE_NAME:?SERVICE_NAME is required in the cron file's params}"
-SERVICE_URL="${DECREE_DATA_SERVICE_URL:?SERVICE_URL is required in the cron file's params}"
+SERVICE_NAME="${DECREE_DATA_SERVICE_NAME:?SERVICE_NAME is required in the cron file params}"
+SERVICE_URL="${DECREE_DATA_SERVICE_URL:?SERVICE_URL is required in the cron file params}"
 EXPECT_CODE="$DECREE_DATA_EXPECT_CODE"
 TIMEOUT="$DECREE_DATA_TIMEOUT"
 
