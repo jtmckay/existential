@@ -26,7 +26,7 @@ needs you, and also what is holding steady so you don't need to think about it.
   - **One next thing.**
   - **Holding steady**: machines whose last run succeeded, active schedules.
   - **Where you left off**: threads from captured prompts (`010-capture.md`) by project,
-    and the last unanswered prompt of each session.
+    and the last prompt of each captured session, which is where you left off.
   - **From your feeds**: present only when `workspace/notes/feeds.md` exists. The 3–5 new
     items most related to what you were working on, each with a one-line reason, never
     repeated across digests.

@@ -12,7 +12,8 @@ transcript, belong in the same place. Capture is the Input pillar made literal.
 ## Outcome
 
 - `workspace/.capture/` holds the capture stream as JSON lines: timestamp, source, project or
-  context where known, and text. It syncs with the rest of the workspace.
+  context where known, the tool's session id where it has one (metadata, never response
+  content), and text. It syncs with the rest of the workspace.
 - Every prompt typed into Claude Code is captured, on by default, with no setup in
   code-server. On any other machine (a laptop, the host), one documented command enables the
   same capture.
@@ -39,6 +40,9 @@ transcript, belong in the same place. Capture is the Input pillar made literal.
 - **Given** a Claude Code session that produced responses and tool output
   **When** `workspace/.capture/` is searched for that output
   **Then** none of it is found
+- **Given** two prompts in one Claude Code session and one in another
+  **When** they are captured
+  **Then** the two share a session id and the third has a different one
 - **Given** `POST /capture` with the webhook's token and `{"source":"phone","text":"buy filters"}`
   **When** it is sent
   **Then** a line with that source and text is appended
