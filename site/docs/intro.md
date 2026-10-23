@@ -10,15 +10,16 @@ The system as one box — what it is and what it does for you. Zoom in one step 
 [Level 2 · The Pieces](./how-it-works).
 :::
 
-**Taking your best brain day, and preserving it for your worst.**
+**Your best brain day now carries your worst.**
 
-Some mornings you wake up able to see the whole board. Most mornings you don't.
-Existential is where the sharp you leaves orders for every other you, and makes sure
-they're carried out.
+On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits in a
+note you won't open for three weeks. Existential keeps the clear day running. What you decide
+when you're sharp becomes an automation that comes to you on its own, on the days you'd never
+think to look.
 
-Like Taravangian in *The Stormlight Archive*, who wrote the Diagram on his one genius day and
-has followed it ever since, your sharp days write the plan and every other day runs it. And
-nothing reaches you that you did not put there yourself.
+Everything else on your phone surfaces what someone else decided needs your attention. This
+surfaces what you decided. What you're building is your Diagram: the plan your best day wrote,
+followed on every other one.
 
 Underneath it is a curated set of open-source apps (notes, photos, money, files, dashboards,
 monitoring, home automation) run as one system: each with a name you can type, a certificate
@@ -30,8 +31,8 @@ You choose what you want; it comes up wired together.
 ### Written down, not remembered
 A decision is a file. It runs whether or not you remember making it.
 
-### Solved once
-Hostnames, HTTPS, backups, logs: figured out a single time, for every service after.
+### Plain files
+Everything you build is a file you can read. Nothing is locked inside an app you'll move on from.
 
 ### Yours, physically
 It runs on hardware you own. No account to lose, no subscription required, nobody who can lock
@@ -45,11 +46,11 @@ flowchart TB
     outside["<b>The outside world</b><br/><i>bank email · calendars · the web</i>"]
 
     subgraph house["Your house — one machine, one network"]
-        ex["<b>Existential</b><br/>your apps · your storage<br/>your automations · one local AI"]
+        ex["<b>Existential</b><br/>your apps · your storage<br/>your automations · the AI you choose"]
     end
 
     you <--> ex
-    outside -. "pulled in, never pushed out" .-> ex
+    outside -. "pulled in when you ask" .-> ex
 
     classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111
     classDef core fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff

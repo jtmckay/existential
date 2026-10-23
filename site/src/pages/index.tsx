@@ -27,9 +27,10 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          Some mornings you wake up able to see the whole board. Most mornings you don't.
-          Existential is where the sharp you leaves orders for every other you, and makes sure
-          they're carried out.
+          On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits
+          in a note you won't open for three weeks. Existential keeps the clear day running. What
+          you decide when you're sharp becomes an automation that comes to you on its own, on the
+          days you'd never think to look.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -61,19 +62,8 @@ export function HomepageClosing() {
           Start your Diagram tonight.
         </Heading>
         <p className={styles.closingLede}>
-          One evening, mostly spent waiting on Docker.
+          One evening of setup. Then it runs, and the tinkering is optional.
         </p>
-        <div className={styles.closingCode}>
-          <pre>
-            <code>
-              {'git clone https://github.com/jtmckay/existential.git\n'}
-              {'cd existential\n'}
-              {'\n'}
-              {'./existential.sh     # say yes to Core, or pick your own\n'}
-              {'docker compose up -d\n'}
-            </code>
-          </pre>
-        </div>
         <div className={styles.buttons}>
           <Link
             className="button button--outline button--primary button--lg"
@@ -97,7 +87,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Taking your best brain day, and preserving it for your worst. Your sharpest decisions, written down as automations that run on every other day, on hardware you own. Nothing gets your attention unless you put it there.">
+      description="Your best brain day now carries your worst. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look.">
       <HomepageHeader />
       <main>
         <HomepageWhy />

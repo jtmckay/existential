@@ -10,10 +10,10 @@ type Capability = {
 const Capabilities: Capability[] = [
   { label: 'Remembers', text: "What you were in the middle of is in this morning's notification, word for word." },
   { label: 'Keeps promises', text: "The thing you swore you'd check every Friday gets checked every Friday." },
-  { label: 'Captures', text: 'Every prompt you give an agent lands in one stream, searchable a year from now.' },
+  { label: 'Captures', text: 'Every question you ask an AI lands in one place, searchable a year from now.' },
   { label: 'Looks back', text: '"What did I even do this year?" has an answer.' },
   { label: 'Holds the line', text: "A bad week doesn't undo a good one." },
-  { label: 'Grows', text: 'Tell an AI in your work dir what you want automated; it writes the machine.' },
+  { label: 'Grows', text: 'Tell an AI what you want automated, and it builds it.' },
 ];
 
 function CapabilityCard({ label, text }: Capability) {

@@ -3,11 +3,8 @@
   text-align: center;
 }
 
-.title {
-  max-width: 40rem;
-  margin: 0 auto 1.5rem;
-  font-size: 2.25rem;
-  line-height: 1.3;
+.why + .why {
+  background: var(--ifm-color-emphasis-100);
 }
 
 .lede {
@@ -20,8 +17,4 @@
 
 .lede:last-child {
   margin-bottom: 0;
-}
-
-.lede + .title {
-  margin-top: 3.5rem;
 }

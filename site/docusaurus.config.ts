@@ -8,7 +8,7 @@ const config: Config = {
   },
   themes: ['@docusaurus/theme-mermaid'],
   title: 'Existential',
-  tagline: 'Taking your best brain day, and preserving it for your worst.',
+  tagline: 'Your best brain day now carries your worst.',
   favicon: 'img/favicon.svg',
 
   future: {

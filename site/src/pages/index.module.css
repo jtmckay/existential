@@ -57,19 +57,6 @@
   color: var(--ifm-color-emphasis-800);
 }
 
-.closingCode {
-  max-width: 34rem;
-  margin: 0 auto 2rem;
-  text-align: left;
-}
-
-.closingCode pre {
-  margin: 0;
-  border-radius: 12px;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  overflow-x: auto;
-}
-
 .closingFaq {
   margin: 1.5rem 0 0;
   font-size: 0.95rem;
