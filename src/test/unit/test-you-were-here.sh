@@ -171,6 +171,7 @@ jq -n '{picture: "The garden is [moving](notes/garden.md); gmail [needs a look](
         next: "Retry [gmail](.decree/attention/20260930T110000.000000Z-bbbbbb.md).",
         reasons: {"https://example.test/raised-beds-irrigation": "You were sketching irrigation for the beds."}} | tostring' -r > "${TMP}/reply"
 sed -i 's/- \[ \] compost delivery/- [x] compost delivery/' "$W/notes/garden.md"
+printf '%s\n' '{"ts":"2026-10-02T06:00:00Z","source":"opencode","context":"/workspace/shed","session":"s3","text":"measure the door frame"}' >> "$W/.capture/2026-09-test.jsonl"
 touch -d 2026-10-01T12:00:00Z "$W/notes/garden.md" "$W/notes/feeds.md"
 assert_eq "day 2 runs" "0" "$(run_digest 2026-10-02T07:00:00Z)"
 assert_has "the model wrote The picture" "$(section "$NOTE" "The picture")" "The garden is [moving](../notes/garden.md)"
@@ -183,6 +184,7 @@ assert_eq "day 2 is pushed" "2" "$(pushes)"
 assert_has "the push starts with The picture" "$(head -n1 "${TMP}/pushes/2")" "## The picture"
 assert_has "the push shows link text, not paths" "$(cat "${TMP}/pushes/2")" "The garden is moving;"
 assert_has "the ticked checkbox is under Done" "$(section "$DAY2" "Done")" "Ticked: compost delivery"
+assert_has "what you worked on today is under Done, with its source" "$(section "$DAY2" "Done")" "Worked on **shed**: 1 prompt via opencode"
 assert_has "feeds.md is a new note under Done" "$(section "$DAY2" "Done")" "New note: [notes/feeds.md]"
 assert_eq "day 1's archive is unchanged" "same" "$(cmp -s "$DAY1" "${TMP}/day1.md" && echo same)"
 assert_eq "both days are archived" "2026-10-01.md 2026-10-02.md" "$(ls "$W/notes/you-were-here/2026" | tr '\n' ' ' | sed 's/ $//')"
@@ -200,7 +202,7 @@ assert_eq "the archive is per day" "3" "$(find "$W/notes/you-were-here" -name '*
 assert_eq "the cron template runs this machine" "you_were_here" \
     "$(awk '/^machine:/{print $2; exit}' "${REPO_DIR}/automation-examples/cron/you-were-here.md")"
 assert_has "exist.initial.sh activates it by default" "$(cat "${REPO_DIR}/services/automation/exist.initial.sh")" \
-    'automation-examples/cron/you-were-here.md" "${PROJECT}/cron/you-were-here.md"'
+    "for _cron in you-were-here.md "
 assert_eq "POST /you-were-here queues this machine" "you_were_here" \
     "$(awk '/- path: \/you-were-here$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
 assert_lacks "no second feed parser" "$(cat "${REPO_DIR}/automation/lib/you-were-here/digest.ts")" "<item"

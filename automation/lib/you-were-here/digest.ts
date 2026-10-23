@@ -109,7 +109,7 @@ function threads(caps: ReturnType<typeof capturesSince>) {
   };
   return group(caps, project)
     .map((cs) => ({
-      project: project(cs[0]), count: cs.length, last_ts: cs[cs.length - 1].ts, file: cs[cs.length - 1].file,
+      project: project(cs[0]), count: cs.length, sources: [...new Set(cs.map((c) => c.source))].sort(), last_ts: cs[cs.length - 1].ts, file: cs[cs.length - 1].file,
       sessions: group(cs, (c) => c.session ?? `context:${c.context ?? ""}`)
         .map((ss) => ss[ss.length - 1])
         .sort((a, b) => b.ts.localeCompare(a.ts))
@@ -223,7 +223,7 @@ async function gather() {
       migrations: finishedToday.filter((r) => r.trigger === "migration" && r.state === "done").map((r) => ({ file: r.file, path: `.decree/runs/${r.id}/message.md` })),
       runs: finishedToday.filter((r) => r.trigger !== "migration").map((r) => ({ machine: r.machine, state: r.state, path: `.decree/runs/${r.id}/message.md` })),
       notes: today(next.notes),
-      threads: threads(caps.filter((c) => day(new Date(c.ts)) === TODAY)).map((t) => ({ project: t.project, count: t.count, file: t.file })),
+      threads: threads(caps.filter((c) => day(new Date(c.ts)) === TODAY)).map((t) => ({ project: t.project, count: t.count, sources: t.sources, file: t.file })),
     },
     next,
   };
@@ -257,7 +257,7 @@ const loadFacts = () => JSON.parse(read(path.join(RUN, "facts.json"))) as {
   notes: { path: string; title: string; open: string[] }[];
   changed: { captures: number; notes: string[]; runs: { machine: string; state: string; path: string }[] };
   feeds: { title: string; link: string }[] | null;
-  done: { ticked: { path: string; text: string }[]; machines: string[]; migrations: { file: string; path: string }[]; runs: { machine: string; state: string; path: string }[]; notes: string[]; threads: { project: string; count: number; file: string }[] };
+  done: { ticked: { path: string; text: string }[]; machines: string[]; migrations: { file: string; path: string }[]; runs: { machine: string; state: string; path: string }[]; notes: string[]; threads: { project: string; count: number; sources: string[]; file: string }[] };
   next: Omit<State, "fingerprint">;
 };
 
@@ -299,7 +299,7 @@ function sections(f: Facts, m: Model) {
         ...f.done.migrations.map((r) => `Migration landed: ${r.file} ([run](${r.path}))`),
         ...f.done.runs.map((r) => `**${r.machine}** finished: ${r.state} ([run](${r.path}))`),
         ...f.done.notes.map((p) => `New note: [${p}](${p})`),
-        ...f.done.threads.map((t) => `Worked on **${md(t.project)}**: ${t.count} prompt${t.count === 1 ? "" : "s"} ([capture](${t.file}))`),
+        ...f.done.threads.map((t) => `Worked on **${md(t.project)}**: ${t.count} prompt${t.count === 1 ? "" : "s"}${t.sources.length ? ` via ${t.sources.join(", ")}` : ""} ([capture](${t.file}))`),
       ], "Nothing recorded today."),
     ].join("\n\n"),
   };

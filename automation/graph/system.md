@@ -18,6 +18,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [homeassistant_onboarding](homeassistant_onboarding.md): Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.
 - [homeassistant_wyoming_hermes](homeassistant_wyoming_hermes.md): Wire Wyoming speech-to-text and text-to-speech, and Hermes as the conversation agent, into Home Assistant's Assist pipeline.
 - [idea_workup](idea_workup.md): Fan one flagged idea out to the research and sales departments as three agent_task questions.
+- [look_back](look_back.md): A look back over a range of the "you were here" archive, written to workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
 - [newsletter](newsletter.md): Gather new items from my feeds, pick and summarise the ones that fit my taste, and write the issue to workspace/newsletter/.
 - [nextcloud_calendar](nextcloud_calendar.md): Install and enable Nextcloud's Calendar app.
 - [nextcloud_file_events](nextcloud_file_events.md): Register Nextcloud's file-event webhooks (written, deleted, renamed) against automation-webhook's /files.
@@ -55,6 +56,7 @@ flowchart LR
     homeassistant_onboarding["homeassistant_onboarding"]
     homeassistant_wyoming_hermes["homeassistant_wyoming_hermes"]
     idea_workup["idea_workup"]
+    look_back["look_back"]
     newsletter["newsletter"]
     nextcloud_calendar["nextcloud_calendar"]
     nextcloud_file_events["nextcloud_file_events"]
@@ -78,6 +80,8 @@ flowchart LR
     cron__clean_runs[/"cron: clean-runs"/]
     cron__gmail_sync[/"cron: gmail-sync"/]
     cron__health_checks[/"cron: health-checks"/]
+    cron__look_back_monthly[/"cron: look-back-monthly"/]
+    cron__look_back_weekly[/"cron: look-back-weekly"/]
     cron__newsletter[/"cron: newsletter"/]
     cron__note_connect[/"cron: note-connect"/]
     cron__note_triage[/"cron: note-triage"/]
@@ -93,6 +97,8 @@ flowchart LR
     cron__clean_runs -->|cron| clean_runs
     cron__gmail_sync -->|cron| gmail_sync
     cron__health_checks -->|cron| service_health
+    cron__look_back_monthly -->|cron| look_back
+    cron__look_back_weekly -->|cron| look_back
     cron__newsletter -->|cron| newsletter
     cron__note_connect -->|cron| note_connect
     cron__note_triage -->|cron| note_triage
@@ -115,6 +121,7 @@ flowchart LR
     gmail_sync -->|emits| notify
     hermes_router -->|emits| agent_task
     idea_workup -->|emits| agent_task
+    look_back -->|emits| notify
     newsletter -->|emits| notify
     note_connect -->|emits| notify
     note_develop -->|emits| notify

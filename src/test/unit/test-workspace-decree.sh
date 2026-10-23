@@ -3,7 +3,7 @@
 # workspace/.decree, the `automation` daemon's project, from the repo's
 # automation/: every shipped machine and script lands once, an edit or an extra
 # file is never overwritten, an older install's crons and migrations move over,
-# the you-were-here digest cron is on by default, and nothing secret is written
+# the you-were-here digest and look-back crons are on by default, and nothing secret is written
 # under workspace/.
 #
 # Runs the real script against a scratch copy of the files it reads. Read-only
@@ -30,7 +30,7 @@ cp -r "${REPO_DIR}/services/automation/backup/cron.example" "${R}/services/autom
 cp -rp "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${R}/automation/"
 cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.yml" "${R}/automation/"
 mkdir -p "${R}/automation-examples/cron"
-cp "${REPO_DIR}/automation-examples/cron/you-were-here.md" "${R}/automation-examples/cron/"
+cp "${REPO_DIR}"/automation-examples/cron/{you-were-here,look-back-weekly,look-back-monthly}.md "${R}/automation-examples/cron/"
 # An install from before workspace/.decree: an active cron, a migration and its ledger.
 mkdir -p "${R}/automation/cron" "${R}/automation/migrations" "${R}/automation/secrets/rclone"
 printf -- '---\ncron: "* * * * *"\nmachine: notify\n---\n' > "${R}/automation/cron/old.md"
@@ -58,6 +58,7 @@ check "the migration ledger moves with them" "grep -qx '01-old.md' '${P}/process
 check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/workspace_data'"
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
 check "the you-were-here digest is on by default" "cmp -s '${R}/automation-examples/cron/you-were-here.md' '${P}/cron/you-were-here.md'"
+check "the weekly and monthly look backs are on by default" "cmp -s '${R}/automation-examples/cron/look-back-weekly.md' '${P}/cron/look-back-weekly.md' && cmp -s '${R}/automation-examples/cron/look-back-monthly.md' '${P}/cron/look-back-monthly.md'"
 
 # The user's edits win, and their own files stay.
 printf '# mine\n' > "${P}/machines/notify.yml"

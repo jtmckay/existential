@@ -71,7 +71,8 @@ flowchart TB
 2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule, a
    webhook or an inbox message, against your apps and your data, and tells you through ntfy.
    Every morning it writes a [you were here](./getting-started#you-were-here) digest of what
-   needs you, what is holding steady and where you left off.
+   needs you, what is holding steady and where you left off, and every Sunday and month-end a
+   [look back](./getting-started#look-back) over them.
    Every run log lands in Loki.
 3. **A model is a URL.** Anything that needs one, a decree script or opencode, reaches it at an
    OpenAI-compatible `/v1` address. Ollama on this box, llama.cpp on

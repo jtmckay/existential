@@ -1,0 +1,22 @@
+name: look_back
+description: A look back over a range of the "you were here" archive, written to workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
+data:
+  workspace: { type: string, default: /workspace }
+  ntfy_topic: { type: string, default: exist }
+  # The range is the period up to `to` (today when blank): year to date by default.
+  period: { type: string, enum: [week, month, quarter, year], default: year }
+  # Either end, YYYY-MM-DD, overrides the period's.
+  from: { type: string, default: "" }
+  to: { type: string, default: "" }
+  # work: only what notes/you-were-here/scope.md names.
+  scope: { type: string, enum: [all, work], default: all }
+  # For cron: write nothing unless today is the period's last day.
+  period_end_only: { type: bool, default: false }
+initial: look_back
+states:
+  look_back:
+    invoke: look_back
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

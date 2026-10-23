@@ -185,7 +185,8 @@ It's more than a shared folder:
 - **`workspace/.capture/`** is everything you put in, as one stream — see
   [Capture](#capture).
 - **`workspace/notes/you-were-here.md`** is the morning digest, and
-  `notes/you-were-here/<YYYY>/` keeps one per day — see [You were here](#you-were-here).
+  `notes/you-were-here/<YYYY>/` keeps one per day, with the [look backs](#look-back) beside them
+  — see [You were here](#you-were-here).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
 
@@ -259,7 +260,8 @@ that showed something, so a few quiet days never empty it.
 Each day is also kept as `workspace/notes/you-were-here/<YYYY>/<YYYY-MM-DD>.md` (the last
 digest of that day), with a **Done** section: checkboxes ticked, machines and migrations that
 landed, runs that finished, notes created and what you worked on. A past day's file is never
-touched again. No streaks and no "you missed N days".
+touched again. No streaks and no "you missed N days". The **Worked on** lines name the capture
+sources they came from, which is what a [work look back](#look-back) filters on.
 
 The cron is active by default (`workspace/.decree/cron/you-were-here.md`, from
 `automation-examples/cron/you-were-here.md`); edit its time there, or set its cron to
@@ -267,6 +269,45 @@ The cron is active by default (`workspace/.decree/cron/you-were-here.md`, from
 the machine's `note_link` param sets the push's last line, such as a URL to the note.
 An install from before this keeps its own `workspace/.decree/decree-go-rest.yml`; copy the
 `/you-were-here` entry from `automation/decree-go-rest.yml` into it.
+
+### Look back
+
+"What did I even do this year?" The `look_back` machine reads a range of the day notes above
+and writes `workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md`, then sends a short
+ntfy pointing at it:
+
+- **Highlights**: checkboxes ticked, notes created and migrations landed, grouped by project
+  (the capture context's folder, or the folder under `notes/`).
+- **Themes**: the projects that came up on more than one day.
+- **Decisions made**: notes in `notes/decisions/` and machines that landed.
+- **By the numbers**: days recorded, prompts, checkboxes, notes, migrations, machines,
+  decisions and runs. Counts only.
+
+Every item links to the day note it came from. Only the archive is read, never rewritten. The
+chat model writes an **In short** paragraph from those facts, linking each claim to its day;
+when it is unreachable the look back is the data sections alone.
+
+The default range is the year to date. `period` (`week`, `month`, `quarter` or `year`) is the
+period up to `to` (today when blank), and `from`/`to` (`YYYY-MM-DD`) set either end:
+
+```bash
+docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null
+```
+
+`POST /look-back` on `automation-webhook` does the year so far, `/look-back/month` a period,
+`/look-back/month/work` a period at work only.
+
+**Work only**: `scope=work` keeps what `workspace/notes/you-were-here/scope.md` names: projects,
+workspace folders (`notes/work/`) and capture sources (`claude-code`), one `- ` line each under
+its heading. The file is written, empty, the first time a look back runs. A work look back is
+`look-back-<from>-<to>-work.md`, so it never replaces the full one.
+
+Every Sunday evening a weekly look back, and on a month's last evening a monthly one, are written
+next to the day notes (`workspace/.decree/cron/look-back-weekly.md` and `look-back-monthly.md`,
+on by default). A longer look back reads those for every whole week or month it covers, and day
+notes only for the rest, so a year is about twelve files, not 365. An install from before this
+copies the `/look-back` entries from `automation/decree-go-rest.yml` into its
+`workspace/.decree/decree-go-rest.yml`.
 
 ### Nextcloud on another server
 

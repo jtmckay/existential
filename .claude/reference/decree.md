@@ -71,10 +71,10 @@ reads to a model, so what it can read is what a prompt injection can read.
   Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy. There
   are no hooks. `clean_runs` prunes runs older than 7 days.
 - **Activating a cron** is copying its template into that project's `cron/`.
-  Cron files are re-read every tick, so no restart. Four are on by default, copied by
+  Cron files are re-read every tick, so no restart. Six are on by default, copied by
   `exist.initial.sh` whenever the active copy is missing: `triage`, `clean-runs` and
-  `workspace-sync` in `automation-backup`, and `you-were-here` (the morning digest) in
-  `automation`.
+  `workspace-sync` in `automation-backup`, and `you-were-here` (the morning digest),
+  `look-back-weekly` and `look-back-monthly` in `automation`.
 - **Gate:** `./existential.sh test decree` assembles each project with every
   shipped template queued and runs `decree check`, then diffs the committed
   `graph/`. After changing a machine, run `./existential.sh run decree-graph`.

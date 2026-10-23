@@ -39,8 +39,29 @@ endpoints:
   # The "you were here" digest, on demand. It also runs every morning from
   # workspace/.decree/cron/you-were-here.md.
   - path: /you-were-here
+    body: optional
     message:
       machine: you_were_here
+
+  # A look back over the "you were here" archive: year to date by default, or the
+  # week, month, quarter or year so far, optionally work only (scope.md in
+  # notes/you-were-here/). Any other range: the machine from the work dir.
+  - path: /look-back
+    body: optional
+    message:
+      machine: look_back
+  - path: /look-back/{period}
+    body: optional
+    patterns: { period: "week|month|quarter|year" }
+    message:
+      machine: look_back
+      params: { period: "{{period}}" }
+  - path: /look-back/{period}/{scope}
+    body: optional
+    patterns: { period: "week|month|quarter|year", scope: "all|work" }
+    message:
+      machine: look_back
+      params: { period: "{{period}}", scope: "{{scope}}" }
 
   # ComfyUI generation from anything that can POST. The body is the prompt;
   # everything else is a path parameter, because the body is never parsed.
