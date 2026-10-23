@@ -67,7 +67,9 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
 9. **Ignore `graveyard/`.** Archived services get no new scripts/tests/docs.
-10. **Long-running processes outside compose run in a named tmux session** via the `tmx`
+10. **Docs describe the repo as it is.** A change that makes `README.md`, `site/docs/` or the
+    homepage untrue updates them in the same change; a checkable doc claim gets a check.
+11. **Long-running processes outside compose run in a named tmux session** via the `tmx`
     pattern (`tmx -d <name> <cmd>`: start only if not already running; `tmx <name>` to
     re-attach). "Is it running?" is `tmux has-session -t =<name>` — never a pidfile. → `services.md`
 

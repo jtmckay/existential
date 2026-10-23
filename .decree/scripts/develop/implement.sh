@@ -31,7 +31,9 @@ fi
 
 prompt="You are a senior engineer. Read ${DECREE_MESSAGE}: it declares the
 state the repository must be in for one concern. Make the repository match it,
-with tests. Parts may already be true; leave those alone.${previous}
+with tests. Parts may already be true; leave those alone.
+Documentation (README.md, site/docs/, the homepage in site/src/) must describe the
+repository as it is after your change: update what your change makes untrue, in this run.${previous}
 Work in small steps, one requirement at a time, and keep the code building
 between steps. After each step, append a line to ${progress}: what is done
 and what is next. If ${progress} exists, an earlier attempt was cut short:
