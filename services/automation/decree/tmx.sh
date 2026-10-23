@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # tmx — run a long-lived process in a named tmux session (.claude/reference/services.md).
 #   tmx -d <name> [cmd]  start detached, only if <name> is not already running
 #   tmx <name> [cmd]     attach, creating it if needed
