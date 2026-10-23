@@ -1,0 +1,18 @@
+# Graph: ../graph/develop.md
+name: develop
+description: Make the repo match a message with Claude, then run the repo's pre-push gate.
+onentry: [clean_tree]              # the run starts from a clean git work tree
+data:
+  spec:                            # the migration file a reconcile re-run is for; a migration's own run needs none
+    type: string
+    default: ""
+initial: implement
+states:
+  implement:                       # writes STOP instead of guessing
+    invoke: implement
+    transitions: { done: gate, stop: failed }
+  gate:                            # .githooks/pre-push: pass or fail; error means it could not run
+    invoke: gate
+    transitions: { pass: done, fail: failed }
+  done:   { final: true, onentry: [record, commit] }   # applied/ copy of the migration, then one commit
+  failed: { final: true, onentry: [keep] }             # the run's changes stay in the tree; its attention file holds the queue

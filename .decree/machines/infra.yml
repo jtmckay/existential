@@ -1,0 +1,14 @@
+# Graph: ../graph/infra.md
+name: infra
+description: Add to the environment the project needs, the first time and every time after; Claude declares each resource in lib/infra/requirements, then apply installs what is missing and checks every line.
+onentry: [clean_tree]              # the run starts from a clean git work tree
+initial: declare
+states:
+  declare:                         # edits lib/infra/requirements, installs nothing; writes STOP instead of guessing
+    invoke: declare
+    transitions: { done: apply, stop: failed }
+  apply:                           # each line: ok, or installed and checked again; a person's step (root) fails, naming it
+    invoke: apply
+    transitions: { done: done }
+  done:   { final: true, onentry: [commit] }   # one commit per run; a migration's processed.md line too
+  failed: { final: true, onentry: [keep] }     # the run's changes stay in the tree; its attention file holds the queue

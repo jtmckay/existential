@@ -6,7 +6,8 @@ sidebar_position: 2
 
 ## Prerequisites
 
-- [Docker](https://www.docker.com/get-started/)
+- [Docker](https://www.docker.com/get-started/), usable without sudo
+  (`sudo usermod -aG docker "$USER"`, then log out and back in) — `existential.sh` refuses to run under sudo
 - [Tailscale](https://tailscale.com/download), logged in on this machine and on every
   device that should reach the stack
 - A machine to host the services (see [Hosting](./hosting/))

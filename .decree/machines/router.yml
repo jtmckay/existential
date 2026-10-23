@@ -1,0 +1,11 @@
+# Graph: ../graph/router.md
+name: router
+description: Ask Claude to pick one of the options in the request.
+initial: ask
+states:
+  ask:                             # renders the prompt from $DECREE_REQUEST, runs claude -p, writes $DECREE_REPLY
+    invoke:                        # a reply that is not one of the options fails the script; it runs once more
+      script: { name: ask_claude, attempts: 2 }
+    transitions: { done: done }
+  done:   { final: true }
+  failed: { final: true }

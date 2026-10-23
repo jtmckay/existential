@@ -396,6 +396,17 @@ assert_output_contains "existential.sh --help → prints Actions" \
 assert_output_contains "existential.sh --help → mentions reset" \
     "reset" bash "$EXISTENTIAL" --help
 
+# ── Section: CLI — refuses sudo ───────────────────────────────────────────────
+
+_fakeroot="${TMPDIR_ROOT}/fakeroot-bin"
+mkdir -p "$_fakeroot"
+printf '#!/bin/sh\necho 0\n' > "${_fakeroot}/id"
+chmod +x "${_fakeroot}/id"
+assert_exit "existential.sh under sudo → exits 1" 1 \
+    env PATH="${_fakeroot}:$PATH" SUDO_USER=someone bash "$EXISTENTIAL" --help
+assert_output_contains "existential.sh under sudo → points at the docker group" "usermod -aG docker" \
+    env PATH="${_fakeroot}:$PATH" SUDO_USER=someone bash "$EXISTENTIAL" --help
+
 # ── Section: CLI — unknown options ────────────────────────────────────────────
 
 echo ""

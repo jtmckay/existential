@@ -1,0 +1,11 @@
+# Graph: ../graph/reconcile.md
+name: reconcile
+description: Re-run, through develop, every processed migration that changed since it last landed.
+initial: reconcile
+states:
+  reconcile:                       # migrations/<f> differs from applied/<f>: emit it again
+    invoke: reconcile
+    emits: [develop]
+    transitions: { done: done }
+  done:   { final: true }
+  failed: { final: true }

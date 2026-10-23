@@ -14,6 +14,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Under sudo, `id -u` is 0: every rendered file lands root-owned at 600 and
+# EXIST_PUID=0 runs every container as root. Plain root (no SUDO_USER) owns its
+# files consistently and is left alone.
+if [[ "$(id -u)" == 0 && -n "${SUDO_USER:-}" ]]; then
+    cat >&2 <<EOF
+Don't run existential.sh with sudo — files would be root-owned and containers would run as root.
+  sudo usermod -aG docker "${SUDO_USER}"   # once, then log out and back in
+  ./existential.sh run fix-permissions     # reclaims anything a sudo run left root-owned
+EOF
+    exit 1
+fi
+
 # Shared service-enablement + env helpers (SERVICE_CATEGORIES, _load_env_shared,
 # service_is_enabled, _find_service_dirs, _enable_var_for) — single source of
 # truth, also sourced by src/templates.sh. Guarded so test-existential.sh, which

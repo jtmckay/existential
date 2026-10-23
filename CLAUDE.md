@@ -67,6 +67,9 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
 9. **Ignore `graveyard/`.** Archived services get no new scripts/tests/docs.
+10. **Long-running processes outside compose run in a named tmux session** via the `tmx`
+    pattern (`tmx -d <name> <cmd>`: start only if not already running; `tmx <name>` to
+    re-attach). "Is it running?" is `tmux has-session -t =<name>` — never a pidfile. → `services.md`
 
 ---
 
@@ -78,6 +81,13 @@ into openviking. **Only uploads through Nextcloud fire file events**; anything t
 straight to disk (agent output in `workspace/ai/`) never does, and that is
 the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
 
+- `.decree/` = the decree project for *developing this repo* on the host (`develop`, `infra`,
+  `qa`), not part of the stack. `develop` is implement → gate, and its gate is `.githooks/pre-push`.
+  **Its migrations are declarative, overriding the decree skill's "never edit a migration":**
+  each one is the desired state of one concern, so to change the repo you edit the migration,
+  commit, then `echo | decree emit --machine reconcile && decree process`. `reconcile`
+  re-runs every processed migration that differs from its copy in `.decree/applied/`, which
+  `develop` writes on success. Never hand-edit `applied/`.
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
   `service-common.sh` is the single source of truth for service discovery/enablement

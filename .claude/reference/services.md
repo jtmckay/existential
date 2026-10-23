@@ -276,3 +276,33 @@ its own daemon off, over the `automation` project mounted read-only plus a writa
 Each endpoint in `automation/decree-go-rest.yml` turns an authenticated POST into a `decree emit`
 for one fixed machine; edits load without a restart, and `GET /openapi.json` lists them. Its
 healthcheck is the binary probing itself (`decree-go-rest -healthcheck`).
+
+## Long-running processes outside compose: tmux
+
+Anything started outside a compose service (an agent's `claude remote-control`, a host-run
+model server, a GPU job decree starts and stops) runs in a **named tmux session**, so "is it
+already running?" has one answer, `tmux has-session -t =<name>`, and a person can always
+re-attach to see it. No pidfiles, no `nohup`, no bare `&`. Use this function as-is:
+
+```bash
+function tmx() {
+    local detach=0
+    if [ "$1" = "-d" ]; then
+        detach=1
+        shift
+    fi
+    local name="$1"
+    shift
+    local cmd="${*:-$name}"
+    if [ "$detach" -eq 1 ]; then
+        tmux has-session -t "=$name" 2>/dev/null || tmux new -d -s "$name" bash -ic "$cmd"
+    else
+        tmux new -A -s "$name" bash -ic "$cmd"
+    fi
+}
+```
+
+`tmx -d <name> <cmd>` starts it detached only if `<name>` isn't running (idempotent, so safe
+in an entrypoint or a decree script). `tmx <name> [cmd]` attaches, creating it if needed. The
+`=` makes the name an exact match, so `claude` never matches `claude-2`. Stopping is
+`tmux kill-session -t =<name>`.
