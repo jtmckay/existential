@@ -19,6 +19,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | change `existential.sh`, `reset`, a quest, or an e2e check | `.claude/reference/setup.md` |
 | change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
 | work on automation/decree | the `/decree` skill, then `.claude/reference/decree.md` |
+| change the homepage, `README.md`'s opening, or `site/docs/intro.md`'s opening | `.claude/reference/audience.md` |
 
 ---
 
