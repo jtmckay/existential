@@ -41,6 +41,7 @@ curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \
 
 To add a line to your [capture stream](./getting-started#capture) from a phone shortcut or any
 other tool, `POST /capture` with `{"source": "...", "text": "..."}` as the body.
+`POST /you-were-here` writes the [you were here](./getting-started#you-were-here) digest now.
 
 | Status | Meaning |
 |---|---|

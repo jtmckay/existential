@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # capture.sh — append what a person typed to the capture stream, workspace/.capture/.
 #
-#   capture.sh <source>               JSON on stdin: {prompt|text, cwd|context, source?}
+#   capture.sh <source>               JSON on stdin: {prompt|text, cwd|context, session_id|session, source?}
 #                                     (a Claude Code UserPromptSubmit hook's input as-is);
 #                                     anything that is not a JSON object is the text itself.
 #   capture.sh install <workspace>    add the Claude Code hook to this machine's settings
 #   capture.sh uninstall              remove it
 #
-# One JSON line per capture — {ts, source, context, text} — in
+# One JSON line per capture — {ts, source, context, session, text} — in
 # $CAPTURE_DIR/<YYYY-MM>-<CAPTURE_HOST>.jsonl: one file per writer, so two machines
 # syncing the workspace never edit the same file. Secrets of common shapes are
 # replaced by [REDACTED:<kind>] before anything is written.
@@ -41,6 +41,7 @@ def redact:
 | if ($text | test("^\\s*$")) then empty else
     {ts: $ts, source: ((.source // $source) | tostring),
      context: ((.context // .cwd) | if . == null then null else tostring | redact end),
+     session: ((.session_id // .session) | if . == null then null else tostring end),
      text: ($text | redact)}
   end'
 

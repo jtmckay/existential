@@ -76,7 +76,8 @@ automate it. Ten services on one ordinary box, no GPU and no model downloads.
 You work in one folder, `workspace/`: `notes/` (an Obsidian vault), `.decree/` (your
 automations, as machines, scripts and cron files) and `.capture/` (your agent prompts and
 anything else you capture, secrets redacted). code-server opens it in a browser; decree runs
-what is in `.decree/`. Anything that needs a model reaches it through one OpenAI-compatible `/v1` URL,
+what is in `.decree/`, and every morning writes `notes/you-were-here.md`: what is waiting on
+you, what is holding steady and where you left off, pushed to your phone through ntfy. Anything that needs a model reaches it through one OpenAI-compatible `/v1` URL,
 served by ollama, llama.cpp or anything else, on this box or another one.
 
 ```mermaid

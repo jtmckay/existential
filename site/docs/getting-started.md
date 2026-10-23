@@ -184,6 +184,8 @@ It's more than a shared folder:
   [Writing a routine](./writing-a-routine).
 - **`workspace/.capture/`** is everything you put in, as one stream — see
   [Capture](#capture).
+- **`workspace/notes/you-were-here.md`** is the morning digest, and
+  `notes/you-were-here/<YYYY>/` keeps one per day — see [You were here](#you-were-here).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
 
@@ -191,8 +193,9 @@ It's more than a shared folder:
 
 What you asked an agent is the best record of what you were trying to do, so it is kept.
 `workspace/.capture/` holds one JSON line per thing you typed — `ts`, `source`, `context` (the
-directory, where known) and `text` — in one file per writer and month
-(`2026-10-code-server.jsonl`), so two machines syncing the workspace never edit the same file.
+directory, where known), `session` (the agent's session id, where it has one) and `text` —
+in one file per writer and month (`2026-10-code-server.jsonl`), so two machines syncing the
+workspace never edit the same file.
 It syncs like the rest of the workspace.
 
 Only what you typed is captured: never an AI's response, tool output or a transcript. Before
@@ -225,6 +228,45 @@ filed with source `webhook`. The secret is `AUTOMATION_WEBHOOK_SECRET` in
 `services/automation/.env`. An install from before capture existed keeps its own
 `workspace/.decree/decree-go-rest.yml`; copy the `/capture` entry from
 `automation/decree-go-rest.yml` into it.
+
+### You were here
+
+On a foggy day the hard part is remembering where you were. Every morning at 7 the
+`you_were_here` machine writes `workspace/notes/you-were-here.md` and pushes the top of it to
+ntfy:
+
+- **The picture**: two or three sentences.
+- **Waiting on you**: at most three, from `.decree/attention/` and runs waiting on a person.
+- **One next thing.**
+- **Holding steady**: machines whose last run succeeded, and the active schedules.
+- **Where you left off**: what you were asking agents about, by project, with the last
+  prompt of each session, from [the capture stream](#capture).
+- **From your feeds**: only when `workspace/notes/feeds.md` exists. The feed URLs in it are
+  read with the same RSS reader as the newsletter, and the three to five new items closest to
+  what you were working on are shown, each once, ever.
+- **Everything else** (the note only): decisions in `workspace/notes/decisions/`, captured
+  prompts that read like a decision (listed as candidates, never as decided), notes touched
+  with their open checkboxes, what is scheduled, and what changed since the last digest.
+
+Every section is built from files except The picture, One next thing and the feed reasons. The
+chat model writes those from the gathered facts, through `automation/lib/model.sh`, linking
+each claim to its source; when it is unreachable the digest goes out without them. The push is
+The picture, Waiting on you, One next thing and Holding steady, cut at a section boundary to
+fit ntfy's 4096 bytes, and is skipped when nothing changed since the last digest. "Recent"
+means since the last digest, or, when nothing new came in since, the window of the last one
+that showed something, so a few quiet days never empty it.
+
+Each day is also kept as `workspace/notes/you-were-here/<YYYY>/<YYYY-MM-DD>.md` (the last
+digest of that day), with a **Done** section: checkboxes ticked, machines and migrations that
+landed, runs that finished, notes created and what you worked on. A past day's file is never
+touched again. No streaks and no "you missed N days".
+
+The cron is active by default (`workspace/.decree/cron/you-were-here.md`, from
+`automation-examples/cron/you-were-here.md`); edit its time there, or set its cron to
+`0 0 31 2 *` to turn it off. `POST /you-were-here` on `automation-webhook` writes one now, and
+the machine's `note_link` param sets the push's last line, such as a URL to the note.
+An install from before this keeps its own `workspace/.decree/decree-go-rest.yml`; copy the
+`/you-were-here` entry from `automation/decree-go-rest.yml` into it.
 
 ### Nextcloud on another server
 

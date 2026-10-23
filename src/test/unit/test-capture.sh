@@ -3,8 +3,9 @@
 #
 #   redaction  a prompt with an Anthropic key and password=hunter2 keeps neither
 #              value and keeps the rest; every other kind gets its own marker.
-#   shape      one {ts, source, context, text} line per prompt, nothing else of a
-#              hook's input (no transcript, no session); empty text writes nothing.
+#   shape      one {ts, source, context, session, text} line per prompt, nothing else
+#              of a hook's input (no transcript); empty text writes nothing; two
+#              prompts of one session share its id, another session's differs.
 #   failure    an unwritable stream exits 0 and lands in errors.log.
 #   detached   the default write happens after capture.sh has already exited.
 #   install    the Claude Code hook is added once, survives a second install,
@@ -64,9 +65,14 @@ assert_eq "an already-redacted value keeps its marker" "token=[REDACTED:github-t
 assert_eq "plain prose is untouched" "remember the passwords talk" "$(redact 'remember the passwords talk')"
 
 # ── shape ─────────────────────────────────────────────────────────────────────
-assert_eq "only ts, source, context, text" "context,source,text,ts" "$(jq -r 'keys | join(",")' <<<"$line")"
+assert_eq "only ts, source, context, session, text" "context,session,source,text,ts" "$(jq -r 'keys | join(",")' <<<"$line")"
 assert_eq "source is the caller's" "claude-code" "$(jq -r .source <<<"$line")"
 assert_eq "context is the cwd" "/workspace/p" "$(jq -r .context <<<"$line")"
+assert_eq "session is the hook's session_id" "s1" "$(jq -r .session <<<"$line")"
+S2="${TMP}/s"
+for s in a a b; do cap "$S2" claude-code "$(jq -n --arg s "$s" '{prompt: "p", session_id: $s}')" >/dev/null; done
+assert_eq "two prompts share a session, the third differs" "a a b" "$(jq -r .session "$S2"/*-test.jsonl | tr '\n' ' ' | sed 's/ $//')"
+assert_eq "no session id is null" "null" "$(jq -r .session <<<"$(cap "$S2" t '{"prompt":"x"}')")"
 before="$(cat "$D"/*-test.jsonl | wc -l)"
 cap "$D" t '{"prompt":"   "}' >/dev/null
 assert_eq "an empty prompt writes nothing" "$before" "$(cat "$D"/*-test.jsonl | wc -l)"

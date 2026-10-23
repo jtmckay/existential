@@ -36,6 +36,12 @@ endpoints:
     message:
       machine: capture
 
+  # The "you were here" digest, on demand. It also runs every morning from
+  # workspace/.decree/cron/you-were-here.md.
+  - path: /you-were-here
+    message:
+      machine: you_were_here
+
   # ComfyUI generation from anything that can POST. The body is the prompt;
   # everything else is a path parameter, because the body is never parsed.
   #

@@ -113,6 +113,14 @@ for _cron in triage.md clean-runs.md workspace-sync.md; do
     fi
 done
 
+# The "you were here" digest is on by default: it is the stack bringing back what
+# you already decided, so it should not wait for someone to find a cron file.
+# Guarded on absence, like triage above: an edited copy stays as you left it.
+if [[ ! -e "${PROJECT}/cron/you-were-here.md" ]]; then
+    cp "${REPO}/automation-examples/cron/you-were-here.md" "${PROJECT}/cron/you-were-here.md"
+    echo "[automation] you-were-here cron activated (automation)."
+fi
+
 # workspace/README.md — the orientation doc. An agent confined to workspace/
 # (hermes) has no other way to discover that ai/ is special: a bare directory
 # listing shows folders with nothing to tell it to go read the README. This is

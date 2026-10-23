@@ -14,7 +14,7 @@ const SCRIPT = join(__dirname, 'capture.sh');
 type Part = { type: string; text?: string; synthetic?: boolean; ignored?: boolean };
 
 export const Capture = async ({ directory }: { directory: string }) => ({
-  'chat.message': async (_input: unknown, output: { parts: Part[] }) => {
+  'chat.message': async (input: { sessionID?: string }, output: { parts: Part[] }) => {
     const prompt = output.parts
       .filter((p) => p.type === 'text' && !p.synthetic && !p.ignored)
       .map((p) => p.text ?? '')
@@ -24,7 +24,7 @@ export const Capture = async ({ directory }: { directory: string }) => ({
       const child = spawn('bash', [SCRIPT, 'opencode'], { stdio: ['pipe', 'ignore', 'ignore'] });
       child.on('error', (e) => console.error(`capture: ${e.message}`));
       child.stdin.on('error', (e) => console.error(`capture: ${e.message}`));
-      child.stdin.end(JSON.stringify({ prompt, cwd: directory }));
+      child.stdin.end(JSON.stringify({ prompt, cwd: directory, session_id: input.sessionID }));
     } catch (e) {
       console.error(`capture: ${String(e)}`);
     }

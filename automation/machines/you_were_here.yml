@@ -1,0 +1,18 @@
+name: you_were_here
+description: The "you were here" digest, written to workspace/notes/you-were-here.md and today's archive, pushed through ntfy when something changed.
+data:
+  workspace: { type: string, default: /workspace }
+  ntfy_topic: { type: string, default: exist }
+  # The last line of the push. A URL to the note (Nextcloud, Obsidian) works here.
+  note_link: { type: string, default: workspace/notes/you-were-here.md }
+store:
+  state.json: The last digest (when, its window, its fingerprint) and the day each note, ticked checkbox and machine first appeared.
+  feeds-shown.tsv: Feed links already shown, so an item is never in two digests.
+initial: digest
+states:
+  digest:
+    invoke: you_were_here
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

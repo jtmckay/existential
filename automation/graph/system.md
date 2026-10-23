@@ -35,6 +35,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [telegram_ingest](telegram_ingest.md): Poll the Telegram bot for new images and save each to an rclone destination, where Nextcloud's file events pick it up.
 - [telegram_notify](telegram_notify.md): Tell Telegram about a new Actual Budget transaction, and remember it so a receipt photo in reply can split it.
 - [telegram_receipt](telegram_receipt.md): Poll the Telegram bot and route each reply — a receipt photo splits its transaction, "no" reverts a split, any other photo is saved for OCR.
+- [you_were_here](you_were_here.md): The "you were here" digest, written to workspace/notes/you-were-here.md and today's archive, pushed through ntfy when something changed.
 
 ```mermaid
 flowchart LR
@@ -71,6 +72,7 @@ flowchart LR
     telegram_ingest["telegram_ingest"]
     telegram_notify["telegram_notify"]
     telegram_receipt["telegram_receipt"]
+    you_were_here["you_were_here"]
     cron__calendar_extract[/"cron: calendar-extract"/]
     cron__check_versions[/"cron: check-versions"/]
     cron__clean_runs[/"cron: clean-runs"/]
@@ -85,6 +87,7 @@ flowchart LR
     cron__routines_snapshot[/"cron: routines-snapshot"/]
     cron__telegram_poll[/"cron: telegram-poll"/]
     cron__telegram_receipt_poll[/"cron: telegram-receipt-poll"/]
+    cron__you_were_here[/"cron: you-were-here"/]
     cron__calendar_extract -->|cron| calendar_extract
     cron__check_versions -->|cron| check_versions
     cron__clean_runs -->|cron| clean_runs
@@ -99,6 +102,7 @@ flowchart LR
     cron__routines_snapshot -->|cron| routines_snapshot
     cron__telegram_poll -->|cron| telegram_ingest
     cron__telegram_receipt_poll -->|cron| telegram_receipt
+    cron__you_were_here -->|cron| you_were_here
     actual_budget -->|emits| telegram_notify
     actual_budget_parse -->|emits| actual_budget
     agent_task -->|emits| notify
@@ -116,4 +120,5 @@ flowchart LR
     note_develop -->|emits| notify
     note_triage -->|emits| idea_workup
     note_triage -->|emits| note_develop
+    you_were_here -->|emits| notify
 ```
