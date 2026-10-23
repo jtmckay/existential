@@ -12,10 +12,10 @@
 #                 overwritten on the next render
 #
 # The boundary is "does this still look like something existential set": provider
-# "custom" plus a host:11434 endpoint, the same test openviking applies to
-# ov.conf's api_base. Note it matches ANY :11434 host rather than the configured
-# one — otherwise moving the chat role to another box would read as a deliberate
-# choice and freeze the config at the dead address.
+# "custom" plus a plain-http endpoint — a server on this network, ollama or
+# llama.cpp alike; hosted providers are https. Note it matches ANY such host
+# rather than the configured one — otherwise moving the chat role to another box
+# would read as a deliberate choice and freeze the config at the dead address.
 #
 # exist.initial.sh cannot be sourced (its top level runs docker create/cp), so the
 # helpers are extracted by name, the way test-existential.sh sources only the top
@@ -56,7 +56,7 @@ fi
 
 _cfg() { printf '%s\n' "$2" > "${TMP}/$1"; printf '%s' "${TMP}/$1"; }
 
-# ── Ours: provider custom + an ollama endpoint ────────────────────────────────
+# ── Ours: provider custom + a local endpoint ─────────────────────────────────────────────────────────────────
 
 OURS="$(_cfg ours.yaml 'mcp_servers:
   openviking:
@@ -71,6 +71,13 @@ assert_eq "reads default from the block" "stale-model:7b"           "$(_hermes_m
 assert_eq "reads base_url from the block" "http://taylors4:11434/v1" "$(_hermes_model_field "$OURS" base_url)"
 _hermes_model_is_ours "$OURS"; assert_eq "an ollama block is ours" "0" "$?"
 
+LLAMACPP="$(_cfg llamacpp.yaml 'model:
+  default: "qwen"
+  provider: "custom"
+  base_url: "http://aibox:8080/v1"
+  context_length: 65536')"
+_hermes_model_is_ours "$LLAMACPP"; assert_eq "a llama.cpp block is ours too" "0" "$?"
+
 # ── Not ours: a deliberate provider choice ────────────────────────────────────
 
 ANTHROPIC="$(_cfg anthropic.yaml 'model:
@@ -80,15 +87,15 @@ ANTHROPIC="$(_cfg anthropic.yaml 'model:
   context_length: 200000')"
 _hermes_model_is_ours "$ANTHROPIC"; assert_eq "an anthropic block is NOT ours" "1" "$?"
 
-# provider custom is not enough on its own — the endpoint has to be ollama's.
+# provider custom is not enough on its own — a hosted (https) endpoint is a choice.
 OPENROUTER="$(_cfg openrouter.yaml 'model:
   default: "meta/llama"
   provider: "custom"
   base_url: "https://openrouter.ai/api/v1"
   context_length: 65536')"
-_hermes_model_is_ours "$OPENROUTER"; assert_eq "custom + non-ollama endpoint is NOT ours" "1" "$?"
+_hermes_model_is_ours "$OPENROUTER"; assert_eq "custom + hosted endpoint is NOT ours" "1" "$?"
 
-# ── Regression: ollama that MOVED is still ours ───────────────────────────────
+# ── Regression: a server that MOVED is still ours ───────────────────────────────────────────────────────────
 # Matching only the currently-configured URL would strand the config at whatever
 # address it had when the box went away.
 
@@ -101,9 +108,9 @@ _hermes_model_is_ours "$MOVED"; assert_eq "ollama on a different host is still o
 
 # ── The rewrite itself ────────────────────────────────────────────────────────
 
-_hermes_write_model_block "$OURS" "gemma4-128k" 65536 "http://newbox:11434"
+_hermes_write_model_block "$OURS" "gemma4-128k" 65536 "http://newbox:8080/v1"
 assert_eq "default reconciled"        "gemma4-128k"            "$(_hermes_model_field "$OURS" default)"
-assert_eq "base_url reconciled"       "http://newbox:11434/v1" "$(_hermes_model_field "$OURS" base_url)"
+assert_eq "base_url reconciled"       "http://newbox:8080/v1" "$(_hermes_model_field "$OURS" base_url)"
 assert_eq "context_length reconciled" "65536"                  "$(_hermes_model_field "$OURS" context_length)"
 assert_eq "provider still custom"     "custom"                 "$(_hermes_model_field "$OURS" provider)"
 
@@ -113,7 +120,7 @@ assert_eq "content above the block survives" "  openviking:"  "$(grep 'openvikin
 assert_eq "content below the block survives" "trailing: keep-me" "$(grep '^trailing:' "$OURS")"
 
 # Reconciling twice must not stack duplicate keys.
-_hermes_write_model_block "$OURS" "gemma4-128k" 65536 "http://newbox:11434"
+_hermes_write_model_block "$OURS" "gemma4-128k" 65536 "http://newbox:8080/v1"
 assert_eq "no duplicate default: after a second pass" "1" "$(_hermes_model_block "$OURS" | grep -c 'default:')"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own

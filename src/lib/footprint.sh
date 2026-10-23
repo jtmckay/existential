@@ -198,7 +198,7 @@ if [[ "$OLLAMA_MIB" -gt 0 ]]; then
         "$((COUNT - OLLAMA_N))" "${_C_CYAN}$(_fmt "$((TOTAL - OLLAMA_MIB))")${_C_RESET}"
     echo ""
     echo "  ${_C_DIM}ollama is $(_fmt "$OLLAMA_MIB") of that. Set EXIST_GPU_VENDOR=external and point${_C_RESET}"
-    echo "  ${_C_DIM}EXIST_OLLAMA_URL at another box to move it off this machine entirely.${_C_RESET}"
+    echo "  ${_C_DIM}EXIST_MODEL_URL at another box to move it off this machine entirely.${_C_RESET}"
 fi
 
 if [[ "$UNLIMITED" -gt 0 ]]; then

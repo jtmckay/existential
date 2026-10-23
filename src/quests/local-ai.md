@@ -28,7 +28,8 @@ A model server, an agent in front of it, memory that survives the session, and
 an index of your own material for it to answer from.
 
 Core does not install any of it: GPU models usually run on another machine.
-Do this on the box with the card, or point EXIST_OLLAMA_URL at one. The model
+Do this on the box with the card, or point EXIST_MODEL_URL at one (any
+OpenAI-compatible /v1 server: ollama, llama.cpp). The model
 rules below are the ones people get wrong.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
@@ -42,9 +43,9 @@ rules below are the ones people get wrong.
        ./existential.sh
        docker compose up -d
 
-Already have an ollama on another machine? Answer the GPU question with
+Already have a model server on another machine? Answer the GPU question with
 "models live elsewhere" (`./existential.sh run models`) — the local ollama
-stays off and everything follows EXIST_OLLAMA_URL instead.
+stays off and everything follows EXIST_MODEL_URL instead.
 
 ── 2. Pull the models ────────────────────────────────────────────────────
 

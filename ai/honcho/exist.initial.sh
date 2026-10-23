@@ -11,14 +11,14 @@
 # What that cost, before this existed: honcho's own log said
 # `Failed to load config.toml: [Errno 13] Permission denied` once at boot and
 # then fell back to upstream defaults for EVERY model — openai/gpt-5.4-mini with
-# no API key. So the whole file was inert (models, ollama endpoints, the 1024
+# no API key. So the whole file was inert (models, model endpoints, the 1024
 # embedding dimensions, FLUSH_ENABLED) and every LLM call failed with
 # "Missing API key for openai model config". The only outward symptom was
 # hermes logging `Failed to sync messages to Honcho: An unexpected error
 # occurred` on every turn, and cross-session memory quietly not working.
 #
-# 0644 is safe here: this file carries model names, ollama base URLs and the
-# literal string "ollama" as the api_key. The database credentials honcho
+# 0644 is safe here: this file carries model names, model base URLs and the
+# placeholder string "unused" as the api_key. The database credentials honcho
 # actually needs arrive via DB_CONNECTION_URI in the environment, never through
 # this file — keep it that way, and if a real secret ever has to live in
 # config.toml, give the container a group instead of widening the mode.

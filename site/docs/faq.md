@@ -39,8 +39,8 @@ container is to benefit from — that part is what Existential handles for you.
 
 ### What if I don't have a GPU?
 
-Set the GPU vendor to `external` during setup and point `EXIST_OLLAMA_URL` at another machine
-that has one, or use the CPU-only model tier. See
+Set the GPU vendor to `external` during setup and point `EXIST_MODEL_URL` (an OpenAI-compatible `/v1` URL)
+at another machine that has one, or use the CPU-only model tier. See
 [the hardware questions](./getting-started#the-hardware-questions).
 
 ### Do I have to turn everything on?

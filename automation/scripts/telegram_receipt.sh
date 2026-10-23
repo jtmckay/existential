@@ -35,6 +35,8 @@ _tg_creds="/secrets/telegram/credentials.env"
 
 # shellcheck source=../lib/telegram.sh
 source "${DECREE_LIB}/telegram.sh"
+# shellcheck source=../lib/model.sh
+source "${DECREE_LIB}/model.sh"
 
 _state_file="/secrets/telegram/state.json"
 [ -f "$_state_file" ] || echo '{"pending":{},"splits":{},"last_pending_message_id":null}' > "$_state_file"
@@ -136,13 +138,13 @@ for i in $(seq 0 $((_count - 1))); do
         # exited: every receipt reported "OCR failed" regardless of the image.
         _ocr_raw=$(FILE_PATH="$_tmpfile" \
                    OCR_MODEL="${OCR_MODEL:-${EXIST_MODEL_VISION:-}}" \
-                   OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}" \
+                   MODEL_URL="$(model_url vision)" \
                    $_tsx /work/.decree/lib/ocr.ts "$_ocr_prompt") || {
                 telegram_send_reply "$_notify_msg_id" "❌ OCR failed — could not read the receipt. Please try again."
                 continue
             }
 
-        # Extract JSON from OCR output (Ollama sometimes wraps it in prose)
+        # Extract JSON from OCR output (models sometimes wrap it in prose)
         _json=$(echo "$_ocr_raw" | grep -oP '\{.*\}' | head -1 || true)
         if ! echo "$_json" | jq -e '.items and .total' >/dev/null 2>&1; then
             telegram_send_reply "$_notify_msg_id" "❌ Could not parse receipt as JSON. Please try a clearer photo."

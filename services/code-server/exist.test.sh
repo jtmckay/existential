@@ -32,7 +32,7 @@ probe_service "code-server auth gate" code-server 8080 / 302
 # an empty directory for it, the `-x` guard in entrypoint.sh then fails quietly,
 # and the terminal just has no `hermes`. Read-only: check the mount sources on
 # disk rather than reaching into the container.
-for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh; do
+for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh automation/lib/model.sh; do
     if [ ! -f "/repo/${_src}" ]; then
         fail "code-server ${_src} mounted" "/repo/${_src} is missing" \
              "The compose file binds it read-only into /opt/hermes — restore it and recreate the container"

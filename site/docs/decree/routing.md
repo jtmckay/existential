@@ -128,8 +128,9 @@ at all: decree records it as a `failed` run with `invalid_message`, and Grafana 
 
 ## Why not OpenCode
 
-Departments call the hermes endpoint directly — through `automation/lib/hermes.sh`, like every
-other script — and the stack ships no AI CLI at all. Hermes is itself an agent running its own
+Departments call the hermes endpoint directly — through `automation/lib/hermes.sh`, which shares
+`automation/lib/model.sh`'s request with every other script — and the stack ships no AI CLI at
+all. Hermes is itself an agent running its own
 tool loop against its own MCP servers, so OpenCode was an agent wrapping an agent, and its
 streaming parser rejects hermes' custom `event: hermes.tool.progress` SSE frames outright, which
 fails every turn where hermes actually uses a tool.
@@ -137,5 +138,6 @@ fails every turn where hermes actually uses a tool.
 That is also why pointing a coding agent at the gateway is not the way to work on this stack.
 Change the stack with a dedicated coding agent against a frontier model, on the machine that
 holds the repo; the gateway gets the work it is good at, on `workspace/`. In a script that is
-`hermes_chat`/`hermes_gate`; in a terminal it is the `hermes` command that
+`hermes_chat` (a plain completion needs no hermes: `model_chat`/`model_gate` from
+`automation/lib/model.sh`); in a terminal it is the `hermes` command that
 [code-server](../services/code-server) puts on `PATH`.

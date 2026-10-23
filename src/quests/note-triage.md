@@ -47,9 +47,8 @@ without triaging, so turning this on with a 5,000-note vault does not fire
 Prerequisites:
   - Notes landing in /data/notes — activate the Notes Sync quest, or point
     NOTES_DIR at wherever your vault already is
-  - Hermes running (the gateway the machines call), or set
-    TRIAGE_API_URL=http://ollama:11434/v1 in automation/.env to talk to
-    Ollama directly
+  - A model at the chat endpoint (EXIST_MODEL_URL_CHAT, or EXIST_MODEL_URL):
+    triage and note_develop call it directly, no hermes needed
   - For the idea_workup path, run the Hermes Departments quest — it
     provisions the research and sales profiles idea_workup calls.
 
@@ -71,7 +70,6 @@ Making it yours — the cron file's params, no code changes:
 
 And in automation/.env, for every run (these are environment, not params):
 
-  TRIAGE_MODEL      leave empty to use the gateway default
   NOTE_OUTPUT_RCLONE_DEST
                     where the draft is copied so it lands beside the original
                     note, e.g. nextcloud:Notes. Without it the draft stays in

@@ -37,9 +37,11 @@ A running instance keeps the context it was loaded with, so after a rebuild evic
 
 ## Where it runs
 
-`EXIST_OLLAMA_URL` (and the per-role `EXIST_OLLAMA_URL_CHAT|_EXTRACT|_EMBED|_VISION`) decide which
-machine serves each role, so the models can live on a different box than the rest of the stack.
-The `ollama.<domain>` Caddy hostname follows the same value. Details:
+`EXIST_MODEL_URL` (and the per-role `EXIST_MODEL_URL_CHAT|_EXTRACT|_EMBED|_VISION`) decide which
+machine serves each role, as OpenAI-compatible `/v1` URLs, so the models can live on a different
+box — or a different server, such as llama.cpp — than the rest of the stack. Pulling, unloading
+and the ollama probes run only while `EXIST_IS_AI_OLLAMA=true`. The `ollama.<domain>` Caddy
+hostname is this machine's ollama container. Details:
 [Configuration → Endpoints](../configuration#endpoints--putting-roles-on-different-machines).
 
 For GPU setup, see [Proxmox GPU](../hosting/proxmox#gpu).

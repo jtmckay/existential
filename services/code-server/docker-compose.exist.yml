@@ -73,11 +73,12 @@ services:
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
-      # sources. Tracked config, read-only, and the same two files the decree
+      # sources. Tracked config, read-only, and the same files the decree
       # daemons run — so the editor's terminal and a routine reach the gateway
       # through one implementation instead of two.
       - ../../automation/lib/hermes-cli.sh:/opt/hermes/hermes-cli.sh:ro
       - ../../automation/lib/hermes.sh:/opt/hermes/hermes.sh:ro
+      - ../../automation/lib/model.sh:/opt/hermes/model.sh:ro
       # code-server's standalone install + extensions (reinstallable — just
       # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, whatever
       # you `npm i -g` in the terminal plus its login state — not just a

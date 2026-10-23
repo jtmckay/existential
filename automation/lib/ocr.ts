@@ -1,23 +1,24 @@
-// OCR an image file via an Ollama vision model.
+// OCR an image file via a vision model behind an OpenAI-compatible /v1 endpoint
+// (ollama, llama.cpp with a projector, anything that takes image_url content).
 // Works as a reusable library function OR as a standalone entry point when called
-// directly by tsx (reads FILE_PATH, OCR_MODEL, OLLAMA_URL from env, writes text to stdout).
+// directly by tsx (reads FILE_PATH, OCR_MODEL, MODEL_URL from env, writes text to stdout).
+// Callers resolve MODEL_URL with lib/model.sh's `model_url vision`.
 
 import { readFileSync } from "node:fs";
+import { extname } from "node:path";
 
-interface OllamaGenerateResponse {
-  response: string;
-  done: boolean;
+interface ChatCompletionResponse {
+  choices?: { message?: { content?: string } }[];
 }
 
 export interface OcrOptions {
   model?: string;
-  ollamaUrl?: string;
+  modelUrl?: string;
   prompt?: string;
 }
 
 // The vision model is chosen ONCE, globally, in .env.exist.shared's Model
-// Selection block and reaches this container as EXIST_MODEL_VISION; ollama
-// migration 14-ollama-pull-vision-model.md is what pulls it.
+// Selection block and reaches this container as EXIST_MODEL_VISION.
 //
 // There is deliberately no hardcoded fallback. The default here used to be
 // "llava", which no migration and no routine ever pulls, so every OCR call
@@ -34,34 +35,62 @@ function visionModel(): string {
   return model;
 }
 
+function modelUrl(): string {
+  const url = process.env.MODEL_URL;
+  if (!url) throw new Error("MODEL_URL is required — resolve it with `model_url vision` (lib/model.sh)");
+  return url;
+}
+
+const MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+};
+
 export async function ocr(filePath: string, options: OcrOptions = {}): Promise<string> {
   const {
     model = visionModel(),
-    ollamaUrl = process.env.OLLAMA_URL ?? "http://ollama:11434",
+    modelUrl: url = modelUrl(),
     prompt = "Extract all text from this image exactly as it appears. Preserve the original formatting and line breaks. If there is no text, respond with 'No text found.'",
   } = options;
 
-  const base64 = readFileSync(filePath).toString("base64");
+  const mime = MIME[extname(filePath).toLowerCase()] ?? "image/jpeg";
+  const image = `data:${mime};base64,${readFileSync(filePath).toString("base64")}`;
 
-  const res = await fetch(`${ollamaUrl}/api/generate`, {
+  const res = await fetch(`${url.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, images: [base64], stream: false }),
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: image } },
+          ],
+        },
+      ],
+    }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Ollama error (${res.status}): ${body}`);
+    throw new Error(`Model error (${res.status}): ${body}`);
   }
 
-  const data = (await res.json()) as OllamaGenerateResponse;
-  return data.response;
+  const data = (await res.json()) as ChatCompletionResponse;
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 if (require.main === module) {
   const filePath = process.env.FILE_PATH ?? "";
-  const model = visionModel();
-  const ollamaUrl = process.env.OLLAMA_URL ?? "http://ollama:11434";
   // Prompt can be passed as argv[2] or omitted to use the default inside ocr()
   const prompt = process.argv[2] || undefined;
 
@@ -70,7 +99,7 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  ocr(filePath, { model, ollamaUrl, prompt })
+  ocr(filePath, { prompt })
     .then((text) => process.stdout.write(text))
     .catch((err: Error) => {
       console.error(err.message);

@@ -5,12 +5,14 @@
 # then the model's picks as markdown links. With no new items it says so, without
 # calling the model.
 set -euo pipefail
+# shellcheck source=../../lib/model.sh
+source "${DECREE_LIB}/model.sh"
 items="${DECREE_RUN_DIR}/items.jsonl"
 taste="${DECREE_LIB}/newsletter/taste.md"
 issue="${DECREE_RUN_DIR}/issue.md"
 today="$(date +%F)"
-url="${OLLAMA_CHAT_URL:?OLLAMA_CHAT_URL not set — see services/automation/docker-compose.exist.yml}"
-model="${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
+: "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
+export MODEL_TIMEOUT=600
 
 if [ ! -s "${items}" ]; then
   printf '# Newsletter, %s\n\nNothing new in your feeds since the last issue.\n' "${today}" > "${issue}"
@@ -22,21 +24,12 @@ instructions="You write a personal newsletter. The reader describes their taste 
 
 $(cat "${taste}")"
 
-request="$(jq -n \
-  --arg model "${model}" \
-  --arg system "${instructions}" \
-  --rawfile items "${items}" \
-  '{model: $model, stream: false, messages: [
-     {role: "system", content: $system},
-     {role: "user", content: ("The new items, one JSON object per line:\n\n" + $items)}
-   ]}')"
+echo "write: asking ${EXIST_MODEL_CHAT} at $(model_url chat) about $(wc -l < "${items}") items"
+picks="$(model_chat "${instructions}" "The new items, one JSON object per line:
 
-echo "write: asking ${model} at ${url} about $(wc -l < "${items}") items"
-reply="$(curl -sS --fail --max-time 600 -H 'Content-Type: application/json' \
-  -d "${request}" "${url}/api/chat")"
-picks="$(jq -r '.message.content // empty' <<< "${reply}")"
+$(cat "${items}")" 4000)"
 if [ -z "${picks//[[:space:]]/}" ]; then
-  echo "write: the model's reply has no content: ${reply}" >&2
+  echo "write: the model's reply has no content" >&2
   exit 1
 fi
 

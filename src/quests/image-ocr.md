@@ -28,11 +28,11 @@ The pipeline:
 
 Processor convention (ollama-ocr.sh):
   PATTERN       matches common image formats
-  IS_PRE_SIGNED false — file is downloaded to a temp path; Ollama reads base64
+  IS_PRE_SIGNED false — file is downloaded to a temp path and sent as base64
   FILE_SUFFIX   output filename suffix (default: .ocr.txt)
   OUTPUT_RCLONE rclone remote to write the text (default: nextcloud)
-  OCR_MODEL     Ollama vision model to use (default: EXIST_MODEL_VISION)
-  OLLAMA_URL    Ollama API base URL (default: http://ollama:11434)
+  OCR_MODEL     vision model to use (default: EXIST_MODEL_VISION)
+                sent to EXIST_MODEL_URL_VISION, any OpenAI-compatible /v1 server
   PROMPT        optional system prompt to guide extraction (default: auto)
 
 Setup:

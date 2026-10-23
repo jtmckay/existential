@@ -94,7 +94,7 @@ A match enqueues a `file_processor` message with `is_pre_signed: false` — the 
 `ollama-ocr.sh` invokes `ocr.ts`, which:
 
 1. Reads the image from `FILE_PATH` and encodes it as base64
-2. POSTs to `http://ollama:11434/api/generate` with the configured vision model and an extraction prompt
+2. POSTs it as an `image_url` to `/chat/completions` at the vision endpoint (`EXIST_MODEL_URL_VISION`, an OpenAI-compatible `/v1` URL — ollama or llama.cpp) with the configured vision model and an extraction prompt
 3. Writes the returned text to stdout
 
 The shell processor pipes that output via `rclone rcat` to Nextcloud at the same path with `.ocr.txt` appended:
@@ -180,8 +180,8 @@ rclone copyto /path/to/scan.jpg nextcloud:documents/scan.jpg \
 | `TELEGRAM_RCLONE_DEST` | `nextcloud:telegram` | *Telegram route only* — where downloaded images are stored (triggers the OCR pipeline) |
 | `FILE_SUFFIX` | `.ocr.txt` | Suffix appended to the image path for the OCR output |
 | `OUTPUT_RCLONE` | `nextcloud` | rclone remote where the OCR result is saved |
-| `OCR_MODEL` | `EXIST_MODEL_VISION` | Ollama vision model used for text extraction. Chosen globally in `.env.shared`, not per-flow. |
-| `OLLAMA_URL` | `http://ollama:11434` | Ollama API base URL |
+| `OCR_MODEL` | `EXIST_MODEL_VISION` | Vision model used for text extraction. Chosen globally in `.env.shared`, not per-flow. |
+| `EXIST_MODEL_URL_VISION` | *(blank → `EXIST_MODEL_URL`)* | OpenAI-compatible `/v1` URL serving the vision model. Set in `.env.shared`. |
 
 ## Testing
 

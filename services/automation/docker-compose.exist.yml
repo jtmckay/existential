@@ -53,12 +53,6 @@ services:
       # rclone_src download then depends on. /data is the decree_data volume:
       # the writable path this container already has that survives a restart.
       - HOME=/data
-      # Image work (image-ocr, telegram-receipt) is the VISION role, so it
-      # follows that endpoint and falls back to the global one when it is blank.
-      # See the "Model Endpoints" block in .env.exist.shared.
-      - OLLAMA_URL=${EXIST_OLLAMA_URL_VISION:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
-      # The newsletter's write step is the CHAT role, on the same rule.
-      - OLLAMA_CHAT_URL=${EXIST_OLLAMA_URL_CHAT:-${EXIST_OLLAMA_URL:-http://ollama:11434}}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
       # ── Service migrations and service crons ────────────────────────────
@@ -85,23 +79,23 @@ services:
       - HOMEASSISTANT_ADMIN_PASSWORD=${HOMEASSISTANT_ADMIN_PASSWORD:-}
       # openviking-index-dir authenticates to the OpenViking REST API.
       - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
-      # The fallback for any role with no endpoint of its own.
-      - EXIST_OLLAMA_URL=${EXIST_OLLAMA_URL:-http://ollama:11434}
-      # Model globals from .env.shared — the ollama-pull routine resolves its
-      # OLLAMA_ROLE against these, so a migration names a role, not a tag.
+      # Model globals from .env.shared. lib/model.sh resolves a role against
+      # these, so a script or migration names a role, never a tag or a host.
       # See the "Model Selection" block in .env.exist.shared.
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
       - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
       - EXIST_MODEL_EXTRACT=${EXIST_MODEL_EXTRACT}
       - EXIST_MODEL_EMBED=${EXIST_MODEL_EMBED}
       - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
-      # ...and the per-role endpoints, so a role is pulled to the machine that
-      # will actually serve it. Blank means "wherever EXIST_OLLAMA_URL points".
-      # See the "Model Endpoints" block in .env.exist.shared.
-      - EXIST_OLLAMA_URL_CHAT=${EXIST_OLLAMA_URL_CHAT:-}
-      - EXIST_OLLAMA_URL_EXTRACT=${EXIST_OLLAMA_URL_EXTRACT:-}
-      - EXIST_OLLAMA_URL_EMBED=${EXIST_OLLAMA_URL_EMBED:-}
-      - EXIST_OLLAMA_URL_VISION=${EXIST_OLLAMA_URL_VISION:-}
+      # ...and the per-role endpoints. Blank means "wherever EXIST_MODEL_URL
+      # points" — see the "Model Endpoints" block in .env.exist.shared.
+      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
+      - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
+      - EXIST_MODEL_URL_EXTRACT=${EXIST_MODEL_URL_EXTRACT:-}
+      - EXIST_MODEL_URL_EMBED=${EXIST_MODEL_URL_EMBED:-}
+      - EXIST_MODEL_URL_VISION=${EXIST_MODEL_URL_VISION:-}
+      # ollama_pull and the health checks touch ollama's own API only when it runs.
+      - EXIST_IS_AI_OLLAMA=${EXIST_IS_AI_OLLAMA:-false}
       # Where the comfy routine POSTs its workflows — the local container by
       # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
       - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}

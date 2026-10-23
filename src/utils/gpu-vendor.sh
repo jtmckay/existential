@@ -38,7 +38,7 @@
 #
 #   external  Same compose treatment as `none` — this machine has no card to
 #           reserve. What differs is intent: the models run on ANOTHER box's
-#           ollama, named by EXIST_OLLAMA_URL. So quest still asks for VRAM,
+#           model server, named by EXIST_MODEL_URL. So quest still asks for VRAM,
 #           because the question is about the REMOTE machine's card, and it
 #           disables EXIST_IS_AI_OLLAMA because nothing local serves models —
 #           see vendor_disabled_services below, which is where that rule lives.
@@ -61,14 +61,14 @@ GPU_VENDORS=(
     "nvidia	NVIDIA	CUDA through the nvidia container runtime — the best-supported path"
     "amd	AMD	Vulkan/ROCm — works, but see the note below about privileged containers"
     "none	No GPU (CPU only)	everything runs on the CPU; expect seconds per token, not tokens per second"
-    "external	Ollama on another machine	no card needed here; models come from EXIST_OLLAMA_URL"
+    "external	Models on another machine	no card needed here; models come from EXIST_MODEL_URL"
 )
 
 # ── Services a vendor forbids ────────────────────────────────────────────────
 #
 # A vendor answer is not only about device reservations: `external` also means
 # "the models live on another box", and a local ollama under that answer is
-# strictly harmful. It serves nothing (hermes and friends read EXIST_OLLAMA_URL),
+# strictly harmful. It serves nothing (hermes and friends read EXIST_MODEL_URL),
 # and decree still runs the pull migrations, so it drags multi-GB
 # models onto a machine that will never query them.
 #
@@ -139,7 +139,7 @@ gpu_vendor_pick() {
   still runs — on the CPU, with the smallest models — and you are not asked
   about VRAM. AMD needs a privileged container for GPU access.
 
-  Pick Ollama on another machine if the models live on a different box: no
+  Pick Models on another machine if they live on a different box: no
   local ollama is started, and the VRAM question is about THAT machine.
   Change it later with: ./existential.sh run models" \
         --prompt="GPU ❯ " \

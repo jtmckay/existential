@@ -17,26 +17,43 @@ Consumers read those keys rather than naming a tag themselves:
 A hardcoded model tag in a service is a second place to edit when the user changes machines or
 tiers, and the tier table below can no longer keep the stack consistent.
 
-## Model addresses are per-role
+## Model addresses are per-role, and OpenAI-compatible
 
 `.env.exist.shared`'s *Model Endpoints* block gives each role its own key —
-`EXIST_OLLAMA_URL_CHAT`, `_EXTRACT`, `_EMBED`, `_VISION` — each shipped **blank** and falling
-back to `EXIST_OLLAMA_URL`. That blankness is the mechanism: leaving them empty means "one
-ollama for everything", and filling one in moves that role to another machine. It is how VRAM
+`EXIST_MODEL_URL_CHAT`, `_EXTRACT`, `_EMBED`, `_VISION` — each shipped **blank** and falling
+back to `EXIST_MODEL_URL`. That blankness is the mechanism: leaving them empty means "one
+server for everything", and filling one in moves that role to another machine. It is how VRAM
 gets spread across hosts without touching a service.
+
+Every value is an **OpenAI-compatible base URL ending `/v1`** (default
+`http://ollama:11434/v1`). ollama and a llama.cpp server both answer it, so every caller that
+sends a prompt speaks `/v1/chat/completions` (or `/v1/embeddings`) and nothing else. Only
+ollama's own API — pulling, unloading, `/api/show`, `/api/ps`, its health probe — lives at the
+root, and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**; they get the root from
+`ollama_root_for <role>`, never by editing a URL themselves.
+
+The keys used to be `EXIST_OLLAMA_URL*`, holding ollama's root. `_reconcile_env_keys`
+(`_renamed_value` in `src/templates.sh`) carries an old value across, `/v1` appended, when it
+appends the new key to an existing `.env.shared`.
 
 Because the fallback chain matters, **never read a role key directly and never write your own
 fallback**. There are exactly three resolvers, one per context:
 
 | context | how to resolve |
 |---|---|
-| shell scripts | source `src/utils/model-endpoints.sh`, call `endpoint_for <role>` |
-| rendered templates | write the bare token `EXIST_OLLAMA_URL_EMBED`; `src/templates.sh` resolves it before substitution |
-| compose files | `${EXIST_OLLAMA_URL_<ROLE>:-${EXIST_OLLAMA_URL:-http://ollama:11434}}` |
+| host scripts | source `src/utils/model-endpoints.sh`, call `endpoint_for <role>` |
+| rendered templates | write the bare token `EXIST_MODEL_URL_EMBED`; `src/templates.sh` resolves it before substitution |
+| containers (decree) | compose passes the raw keys; source `automation/lib/model.sh`, call `model_url <role>` |
 
 Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary, so a model is pulled to the machine that
 actually serves it. Adding a role means touching all three resolvers —
 `src/test/unit/test-model-endpoints.sh` asserts they agree, so a half-done role fails the suite.
+
+**A decree script reaches a model through `automation/lib/model.sh`** (`model_chat`,
+`model_gate`), straight at the role's URL. hermes is optional: `hermes.sh`'s `hermes_chat` is
+`model_chat` aimed at the gateway, for work that needs an agent with tools, and hermes itself is
+configured with the chat URL. `src/test/unit/test-model-client.sh` runs every prompt path
+against a stub that serves only `/v1`.
 
 **STT/TTS get no endpoint keys.** The wyoming services are CPU-only, so there is no VRAM to
 spread, and Home Assistant is told where they live in its own UI.

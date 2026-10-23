@@ -127,16 +127,16 @@ render_template() {
 
         # Per-role model endpoints fall back to the global one when blank. Done
         # HERE, before substitution, so a template can write the bare token
-        # EXIST_OLLAMA_URL_EMBED and get a working URL on a single-box install
+        # EXIST_MODEL_URL_EMBED and get a working URL on a single-box install
         # instead of an empty string. Without this, every consumer would have to
         # carry its own fallback and they would drift.
         # The resolver in src/utils/model-endpoints.sh is the same rule for
         # scripts; keep the two in step when adding a role.
         local _role _role_key
         for _role in CHAT EXTRACT EMBED VISION; do
-            _role_key="EXIST_OLLAMA_URL_${_role}"
+            _role_key="EXIST_MODEL_URL_${_role}"
             if [[ -z "${_vals[$_role_key]:-}" ]]; then
-                _vals["$_role_key"]="${_vals[EXIST_OLLAMA_URL]:-http://ollama:11434}"
+                _vals["$_role_key"]="${_vals[EXIST_MODEL_URL]:-http://ollama:11434/v1}"
                 [[ " ${_keys[*]} " == *" ${_role_key} "* ]] || _keys+=("$_role_key")
             fi
         done
@@ -484,6 +484,20 @@ _compose_always_render() {
 # src/test/unit/check-drift.ts.
 _RECONCILE_MARKER="Added by ./existential.sh — new keys from the template"
 
+# _renamed_value <new key> <dst> — the value an existing install set under the
+# key's old name, on stdout; fails when there is none. EXIST_MODEL_URL* replaced
+# EXIST_OLLAMA_URL*, which held ollama's root rather than its OpenAI /v1 base.
+_renamed_value() {
+    local key="$1" dst="$2" old v
+    case "$key" in
+        EXIST_MODEL_URL|EXIST_MODEL_URL_*) old="EXIST_OLLAMA_URL${key#EXIST_MODEL_URL}" ;;
+        *) return 1 ;;
+    esac
+    v="$(sed -n "s/^${old}=//p" "$dst" | tail -1)"
+    [[ -n "$v" ]] || return 1
+    v="${v%/}"; printf '%s/v1\n' "${v%/v1}"
+}
+
 # Key-level upgrade path for rendered .env files.
 #
 # A rendered destination is written once and never again (_process_one_template),
@@ -500,13 +514,17 @@ _RECONCILE_MARKER="Added by ./existential.sh — new keys from the template"
 #                  (`validate drift` already reports those as "- local custom")
 #   never fills    a key present with a blank value is left alone — blank is
 #                  load-bearing here (EXIST_VRAM_GB means "not yet asked";
-#                  EXIST_OLLAMA_URL_<ROLE> means "fall back to the global URL")
+#                  EXIST_MODEL_URL_<ROLE> means "fall back to the global URL")
 #   no prompting   rendering runs with stdin from /dev/null, so an EXIST_CLI key
 #                  that is NOT new can never stop an upgrade to ask a question
 #
 # New keys arrive with their placeholders resolved by render_template itself
 # rather than by a second implementation here — that is the whole reason this
 # renders the full template and then throws away all but the missing keys.
+#
+# A renamed key arrives as a new one, so it would land with the template default
+# and silently undo what the user set under the old name. _renamed_value carries
+# the old value across instead.
 _reconcile_env_keys() {
     local src="$1" dst="$2"
     [[ -f "$src" && -f "$dst" ]] || return 0
@@ -560,6 +578,8 @@ _reconcile_env_keys() {
         if [[ "$_tpl_line" == *EXIST_CLI* ]]; then
             _line="${k}="
             _needs+=" ${k}"
+        elif _line="$(_renamed_value "$k" "$dst")"; then
+            _line="${k}=${_line}"
         else
             _line="$(grep -m1 "^${k}=" <<<"$rendered" || true)"
             [[ -n "$_line" ]] || continue

@@ -159,8 +159,8 @@ echo | docker exec -i automation decree emit --machine telegram_notify \
 | Variable | Default | Description |
 |---|---|---|
 | `TELEGRAM_RCLONE_DEST` | `nextcloud:telegram` | Where non-receipt photos are saved (generic uploads) |
-| `OCR_MODEL` | `EXIST_MODEL_VISION` | Ollama vision model used for receipt OCR. Chosen globally in `.env.shared`, not per-flow. |
-| `OLLAMA_URL` | `http://ollama:11434` | Ollama API base URL |
+| `OCR_MODEL` | `EXIST_MODEL_VISION` | Vision model used for receipt OCR. Chosen globally in `.env.shared`, not per-flow. |
+| `EXIST_MODEL_URL_VISION` | *(blank → `EXIST_MODEL_URL`)* | OpenAI-compatible `/v1` URL serving the vision model. Set in `.env.shared`. |
 
 ## State File
 

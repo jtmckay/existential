@@ -235,7 +235,7 @@ decree project:
 | Runs | routing, notes, file_router, agent_task, the hermes endpoints, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
 | Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its scripts use | the **master `.env`** via `env_file` |
-| Model access | the hermes gateway over HTTP (`lib/hermes.sh`, `lib/hermes-cli.sh`) | none — nothing here reasons |
+| Model access | the role's OpenAI-compatible `/v1` URL (`lib/model.sh`); hermes, when enabled, through `lib/hermes.sh` | none — nothing here reasons |
 
 **Why `triage` is on the backup side.** It reads the whole repo — every service's
 `exist.test.sh` plus `.env.shared` — and the credentials those tests authenticate with. That is

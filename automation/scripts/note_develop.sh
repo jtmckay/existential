@@ -24,21 +24,15 @@ note_path="$DECREE_DATA_NOTE_PATH"
 note_reason="$DECREE_DATA_NOTE_REASON"
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/note-triage/output}"
-TRIAGE_API_URL="${TRIAGE_API_URL:-http://hermes-agent:8642/v1}"
-TRIAGE_MODEL="${TRIAGE_MODEL:-}"
-TRIAGE_TIMEOUT="${TRIAGE_TIMEOUT:-300}"
+export MODEL_TIMEOUT="${MODEL_TIMEOUT:-300}"
+export MODEL_TEMPERATURE=0.2
 NOTE_OUTPUT_SUFFIX="${NOTE_OUTPUT_SUFFIX:-.plan.md}"
 NOTE_OUTPUT_RCLONE_DEST="${NOTE_OUTPUT_RCLONE_DEST:-}"
 NOTE_NOTIFY="${NOTE_NOTIFY:-true}"
 FIRECRAWL_URL="${FIRECRAWL_URL:-}"
 FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}"
-TRIAGE_API_KEY="${TRIAGE_API_KEY:-}"
 
 # --- Implementation ---
-
-if [ -z "$TRIAGE_API_KEY" ]; then
-    TRIAGE_API_KEY="${HERMES_API_KEY:-}"
-fi
 
 RCLONE_CONF="${RCLONE_CONF:-/secrets/rclone/rclone.conf}"
 
@@ -63,32 +57,15 @@ fi
 
 # --- Model helper ----------------------------------------------------------
 
-chat() {
-    local system="$1" user="$2" max_tokens="$3" payload
-    local -a args=(-fsS --max-time "$TRIAGE_TIMEOUT" -X POST
-        "${TRIAGE_API_URL}/chat/completions"
-        -H "Content-Type: application/json")
-    if [ -n "$TRIAGE_API_KEY" ]; then
-        args+=(-H "Authorization: Bearer ${TRIAGE_API_KEY}")
-    fi
-
-    payload="$(jq -n \
-        --arg s "$system" --arg u "$user" \
-        --argjson mt "$max_tokens" \
-        --arg model "$TRIAGE_MODEL" \
-        '{messages:[{role:"system",content:$s},{role:"user",content:$u}],
-          max_tokens:$mt, temperature:0.2}
-         + (if $model == "" then {} else {model:$model} end)')"
-
-    curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty'
-}
+# shellcheck source=../lib/model.sh
+source "${DECREE_LIB}/model.sh"
 
 # --- Optional: web research ------------------------------------------------
 
 research=""
 if [ -n "$FIRECRAWL_URL" ]; then
     echo "Researching via Firecrawl..."
-    query="$(chat \
+    query="$(model_chat \
         "Write a single web search query that would find existing products or companies doing what this note describes. Reply with the query text only, no quotes, no explanation." \
         "$note_body" 100 || true)"
     query="$(printf '%s' "$query" | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
@@ -155,7 +132,7 @@ ${note_body}
 ${research_block}"
 
 echo "Drafting..."
-draft="$(chat "$SYSTEM" "$USER" 2000)"
+draft="$(model_chat "$SYSTEM" "$USER" 2000)"
 
 if [ -z "$draft" ]; then
     echo "Model returned nothing — leaving the note alone." >&2

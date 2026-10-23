@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Role → endpoint. Sourced, not reimplemented: the fallback to EXIST_OLLAMA_URL
+# Role → endpoint. Sourced, not reimplemented: the fallback to EXIST_MODEL_URL
 # lives in one place so hermes cannot disagree with honcho or openviking.
 # shellcheck source=../../src/utils/model-endpoints.sh
 source "${SCRIPT_DIR}/../../src/utils/model-endpoints.sh"
@@ -214,19 +214,20 @@ _hermes_model_field() {
         | sed -E "s/^[[:space:]]*${2}:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/[\"']//g" || true
 }
 
-# True when the model: block still points at an ollama endpoint we own, i.e.
-# provider "custom" plus a host:11434 base_url. That is the same test openviking
-# applies to ov.conf's api_base, and it is what separates "existential configured
-# this" from "the user chose Anthropic". The endpoint pattern deliberately
-# matches ANY host on :11434, not just the currently configured one — otherwise
-# moving the chat role to another box would look like a deliberate choice and
-# freeze the config at the dead address.
+# True when the model: block still points at an endpoint we own, i.e. provider
+# "custom" plus a plain-http base_url: a server on this network (ollama,
+# llama.cpp, anything serving /v1), which is EXIST_MODEL_URL_CHAT's to name.
+# That is what separates "existential configured this" from "the user chose
+# Anthropic" — hosted providers are https. It deliberately matches ANY such
+# host, not just the currently configured one — otherwise moving the chat role
+# to another box would look like a deliberate choice and freeze the config at
+# the dead address.
 _hermes_model_is_ours() {
     local cfg="$1" provider base
     provider=$(_hermes_model_field "$cfg" provider)
     base=$(_hermes_model_field "$cfg" base_url)
     [[ "$provider" == "custom" ]] || return 1
-    [[ "$base" =~ ^https?://[^/]+:11434(/v1)?$ ]] || return 1
+    [[ "$base" == http://* ]] || return 1
     return 0
 }
 
@@ -254,14 +255,14 @@ _hermes_write_model_block() {
         function fill() {
             if (!d) print "  default: \"" chat "\""
             if (!p) print "  provider: \"custom\""
-            if (!b) print "  base_url: \"" url "/v1\""
+            if (!b) print "  base_url: \"" url "\""
             if (!c) print "  context_length: " ctx
         }
         !f && /^model:/                       { f = 1; print; next }
         f && /^[^[:space:]#]/                 { fill(); f = 0; done = 1; print; next }
         f && !d && /^[[:space:]]*default:/    { print "  default: \"" chat "\""; d = 1; next }
         f && !p && /^[[:space:]]*provider:/   { print "  provider: \"custom\""; p = 1; next }
-        f && !b && /^[[:space:]]*base_url:/   { print "  base_url: \"" url "/v1\""; b = 1; next }
+        f && !b && /^[[:space:]]*base_url:/   { print "  base_url: \"" url "\""; b = 1; next }
         f && !c && /^[[:space:]]*context_length:/ { print "  context_length: " ctx; c = 1; next }
         { print }
         END { if (f) fill() }
@@ -287,26 +288,26 @@ _seed_hermes_config() {
     mkdir -p "$data"
 
     # ── model ────────────────────────────────────────────────────────────────
-    # Local ollama is reached through hermes' "custom endpoint" provider — see
-    # the Ollama section of the providers doc. context_length must match the
-    # num_ctx the model was actually built with, or hermes packs a prompt ollama
-    # will silently truncate.
+    # The chat endpoint is reached through hermes' "custom endpoint" provider,
+    # which speaks OpenAI /v1 — ollama and llama.cpp alike. context_length must
+    # match the context the model was actually built with, or hermes packs a
+    # prompt the server will silently truncate.
     local chat="${EXIST_MODEL_CHAT:-}"
     local ctx="${EXIST_MODEL_CHAT_NUM_CTX:-}"
     # The CHAT role's endpoint (.env.shared, "Model Endpoints") — hermes is the
-    # chat consumer, so it follows EXIST_OLLAMA_URL_CHAT and only falls back to
-    # the global EXIST_OLLAMA_URL when that is blank. Set the role key to put the
+    # chat consumer, so it follows EXIST_MODEL_URL_CHAT and only falls back to
+    # the global EXIST_MODEL_URL when that is blank. Set the role key to put the
     # agent's model on its own box.
-    local ollama_url; ollama_url="$(endpoint_for chat)"
+    local chat_url; chat_url="$(endpoint_for chat)"
     if [[ -z "$chat" ]]; then
         echo "[hermes] EXIST_MODEL_CHAT unset — skipping model config." >&2
     elif [[ ! -f "$cfg" ]] || ! grep -qE '^model:' "$cfg"; then
-        echo "[hermes] Pointing hermes at ollama (${chat}) at ${ollama_url}..."
+        echo "[hermes] Pointing hermes at ${chat} at ${chat_url}..."
         cat >> "$cfg" <<EOF
 model:
   default: ${chat}
   provider: custom
-  base_url: ${ollama_url}/v1
+  base_url: ${chat_url}
   context_length: ${ctx:-65536}
 EOF
     elif _hermes_model_is_stock "$cfg"; then
@@ -317,10 +318,10 @@ EOF
         # "does it have a model: block" test says yes and hermes then starts with
         # no provider it can actually reach: "No inference provider configured".
         # Stock example + no provider key anywhere = nobody has chosen, so choose.
-        echo "[hermes] config.yaml holds the image's stock model: block — pointing it at ollama (${chat} @ ${ollama_url})."
-        _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$ollama_url"
+        echo "[hermes] config.yaml holds the image's stock model: block — pointing it at ${chat} @ ${chat_url}."
+        _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$chat_url"
     elif _hermes_model_is_ours "$cfg"; then
-        # The block still points at ollama, so it is .env.shared's to own —
+        # The block still points at a local server, so it is .env.shared's to own —
         # "Model choice is global, never per-service" (CLAUDE.md). Without this,
         # changing EXIST_MODEL_CHAT silently did nothing here: hermes kept the
         # first model it was ever given while every other consumer moved, and the
@@ -331,19 +332,19 @@ EOF
         cur_model=$(_hermes_model_field "$cfg" default)
         cur_base=$(_hermes_model_field "$cfg" base_url)
         cur_ctx=$(_hermes_model_field "$cfg" context_length)
-        if [[ "$cur_model" == "$chat" && "$cur_base" == "${ollama_url}/v1" \
+        if [[ "$cur_model" == "$chat" && "$cur_base" == "${chat_url}" \
               && ( -z "$ctx" || "$cur_ctx" == "$ctx" ) ]]; then
-            echo "[hermes] config.yaml already current (${chat} @ ${ollama_url}) — leaving it alone."
+            echo "[hermes] config.yaml already current (${chat} @ ${chat_url}) — leaving it alone."
         else
-            echo "[hermes] config.yaml has ${cur_model} @ ${cur_base}; .env.shared says ${chat} @ ${ollama_url}/v1 — reconciling."
-            _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$ollama_url"
+            echo "[hermes] config.yaml has ${cur_model} @ ${cur_base}; .env.shared says ${chat} @ ${chat_url} — reconciling."
+            _hermes_write_model_block "$cfg" "$chat" "${ctx:-65536}" "$chat_url"
         fi
     else
         # Not ours: the user pointed hermes at a provider of their own, so their
         # choice of model, provider and endpoint survives. context_length is the
         # one exception: it is not a preference, it is a fact about how
         # EXIST_MODEL_CHAT was built, and a stale value here is unobservable from
-        # the outside. Hermes packs a prompt to whatever this says and ollama
+        # the outside. Hermes packs a prompt to whatever this says and the server
         # truncates the overflow silently, which reads as the agent ignoring its
         # instructions. So reconcile this single line and leave every other line
         # alone.
@@ -360,20 +361,20 @@ EOF
             sed -i -E "0,/^[[:space:]]*context_length:.*/s//  context_length: ${ctx}/" "$cfg"
         fi
 
-        # base_url gets the same treatment, but only while it still holds an
-        # ollama address — one the user pointed at their own provider is a
-        # preference and survives. Anything else and EXIST_OLLAMA_URL would be a
-        # setting that silently does nothing, so say so.
+        # base_url gets the same treatment, but only while it still holds a
+        # plain-http address — one the user pointed at a hosted provider is a
+        # preference and survives. Anything else and EXIST_MODEL_URL_CHAT would be
+        # a setting that silently does nothing, so say so.
         local have_url
         have_url=$(_hermes_model_block "$cfg" | grep -m1 -E '^[[:space:]]*base_url:' \
             | sed -E 's/^[[:space:]]*base_url:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/^"//; s/"$//' || true)
-        if [[ -z "$have_url" || "$have_url" == "${ollama_url}/v1" ]]; then
+        if [[ -z "$have_url" || "$have_url" == "${chat_url}" ]]; then
             :
-        elif [[ "$have_url" =~ ^https?://[^/]+:11434(/v1)?$ ]]; then
-            echo "[hermes] config.yaml base_url=${have_url} but the chat endpoint is ${ollama_url} — reconciling."
-            sed -i -E "0,/^[[:space:]]*base_url:.*/s##  base_url: ${ollama_url}/v1#" "$cfg"
+        elif [[ "$have_url" == http://* ]]; then
+            echo "[hermes] config.yaml base_url=${have_url} but the chat endpoint is ${chat_url} — reconciling."
+            sed -i -E "0,/^[[:space:]]*base_url:.*/s##  base_url: ${chat_url}#" "$cfg"
         else
-            echo "[hermes] config.yaml base_url=${have_url} (not an ollama endpoint) — leaving it alone; the chat endpoint setting is ignored here."
+            echo "[hermes] config.yaml base_url=${have_url} (a hosted provider) — leaving it alone; EXIST_MODEL_URL_CHAT is ignored here."
         fi
     fi
 

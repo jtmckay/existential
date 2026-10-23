@@ -408,13 +408,15 @@ _newly_enabled=0
 # and refusing to record a correct address because it is asleep would be worse
 # than accepting one that is wrong. `./existential.sh test services` is what
 # reports whether it actually answers.
-_ask_ollama_url() {
+_ask_model_url() {
     local current="${1:-}" answer
-    local default="${current:-http://192.168.1.20:11434}"
-    printf '     Where is ollama? [%s]\n     ❯ ' "$default" >&2
+    local default="${current:-http://192.168.1.20:8080/v1}"
+    printf '     Where is the model server (ollama, llama.cpp, any OpenAI /v1)? [%s]\n     ❯ ' "$default" >&2
     read -r answer
     answer="${answer:-$default}"
     answer="${answer%/}"
+    # Both servers answer /v1 under their root, so a bare root is completed.
+    [[ "$answer" == */v1 ]] || answer="${answer}/v1"
     if [[ ! "$answer" =~ ^https?:// ]]; then
         printf '     Not a URL — using %s. Fix it in .env.shared if wrong.\n' "$default" >&2
         answer="$default"
@@ -454,10 +456,10 @@ if [[ -z "$(env_get EXIST_GPU_VENDOR)" ]]; then
             while IFS= read -r _svc; do
                 [[ -n "$_svc" ]] && env_set "$_svc" false
             done < <(vendor_disabled_services "$_vendor")
-            echo "     No local ollama — models come from EXIST_OLLAMA_URL."
+            echo "     No local ollama — models come from EXIST_MODEL_URL."
             echo ""
-            _url="$(_ask_ollama_url "$(env_get EXIST_OLLAMA_URL)")"
-            [[ -n "$_url" ]] && env_set EXIST_OLLAMA_URL "$_url"
+            _url="$(_ask_model_url "$(env_get EXIST_MODEL_URL)")"
+            [[ -n "$_url" ]] && env_set EXIST_MODEL_URL "$_url"
             echo ""
             echo "     How much VRAM does ${_url:-that machine} have?"
             _picked="$(model_tier_pick "$MODEL_TIER_DEFAULT_GB" --gpu-only)"

@@ -19,7 +19,7 @@ set -euo pipefail
 # publishes no host port — the default OLLAMA_URL is http://ollama:11434, a
 # Docker DNS name that only resolves on the exist network — so run from the host
 # this script could only ever time out waiting for a server it cannot reach.
-# adhoc is on that network, and can equally reach a remote EXIST_OLLAMA_URL.
+# adhoc is on that network, and can equally reach a remote EXIST_MODEL_URL.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
 adhoc_self_elevate "${BASH_SOURCE[0]}"
 
@@ -34,14 +34,21 @@ if [ -f "${REPO_DIR}/.env.shared" ]; then
     set +a
 fi
 
+# ollama's own API, so nothing to do when ollama is not what serves the models.
+# An explicit OLLAMA_URL names an ollama, wherever it runs.
+if [ -z "${OLLAMA_URL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-}" != true ]; then
+    echo "ollama is not enabled (EXIST_IS_AI_OLLAMA) — nothing to do."
+    exit 0
+fi
+
 # Every role resolves its own endpoint, exactly as the ollama-pull routine does,
 # so a split install pulls each model to the box that will serve it. Reading the
-# EXIST_OLLAMA_URL_* keys here (or writing a private fallback) is forbidden —
+# EXIST_MODEL_URL_* keys here (or writing a private fallback) is forbidden —
 # src/utils/model-endpoints.sh is the single source of truth. An explicit
 # OLLAMA_URL still overrides everything, which is how you target one box.
 # shellcheck source=../../src/utils/model-endpoints.sh
 . "${REPO_DIR}/src/utils/model-endpoints.sh"
-_url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else endpoint_for "$1"; fi; }
+_url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else ollama_root_for "$1"; fi; }
 
 MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
 MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"

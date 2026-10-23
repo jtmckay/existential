@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with
 # file-processor, which sources it and reads them. Nothing here consumes them.
-# OCR images via Ollama vision model.
+# OCR images via the vision model (EXIST_MODEL_VISION at the vision endpoint).
 #
 # Downloads the image directly (no pre-signed URL), reads it as base64, and sends
-# it to Ollama for text extraction. Saves the result next to the original file.
+# it to the model for text extraction. Saves the result next to the original file.
 PATTERN='\.(jpg|jpeg|png|webp|gif|heic|heif|tiff?|bmp)$'
 IS_PRE_SIGNED=false
 
@@ -12,7 +12,6 @@ IS_PRE_SIGNED=false
 FILE_SUFFIX="${FILE_SUFFIX:-.ocr.txt}"
 OUTPUT_RCLONE="${OUTPUT_RCLONE:-nextcloud}"
 export OCR_MODEL="${OCR_MODEL:-${EXIST_MODEL_VISION:-}}"
-export OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 PROMPT="${PROMPT:-}"
 
 # Env vars from file-processor:
@@ -31,7 +30,9 @@ fi
 _output_path="${OUTPUT_RCLONE}:${FILE_KEY}${FILE_SUFFIX}"
 echo "OCR: $FILE_SOURCE → $_output_path"
 
-_text=$(/work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
+# shellcheck source=../model.sh
+source /work/.decree/lib/model.sh
+_text=$(MODEL_URL="$(model_url vision)" /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
 
 printf '%s' "$_text" | rclone rcat "$_output_path" \
     --config /secrets/rclone/rclone.conf

@@ -130,17 +130,20 @@ if [ -f "$HERMES_CONFIG" ]; then
         #              /api/show and is the exact state that truncates hermes.
         #   /api/show  the Modelfile's baked num_ctx. Used when the model is not
         #              currently loaded, so the check still works cold.
+        # Both are ollama's own API, so they run only when ollama is enabled; any
+        # other /v1 server keeps its context to itself and this check stays a
+        # config-only one.
         # Per-role address, resolved in one place. A hand-rolled fallback to
-        # EXIST_OLLAMA_URL queries the wrong box the moment the chat role is
-        # moved (EXIST_OLLAMA_URL_CHAT) — and a wrong box answers nothing, so
+        # EXIST_MODEL_URL queries the wrong box the moment the chat role is
+        # moved (EXIST_MODEL_URL_CHAT) — and a wrong box answers nothing, so
         # REAL_CTX comes back empty and the authoritative truncation check
         # below is silently skipped. See src/utils/model-endpoints.sh.
         # shellcheck source=../../src/utils/model-endpoints.sh
         . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/utils" && pwd)/model-endpoints.sh"
-        OLLAMA_API="${OLLAMA_URL:-$(endpoint_for chat)}"
+        OLLAMA_API="${OLLAMA_URL:-$(ollama_root_for chat)}"
         REAL_CTX=""
         REAL_SRC=""
-        if [ -n "${CONFIGURED_MODEL:-}" ]; then
+        if [ -n "${CONFIGURED_MODEL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-false}" = true ]; then
             REAL_CTX=$(curl -sS --max-time 5 "${OLLAMA_API}/api/ps" 2>/dev/null | python3 -c "
 import sys, json
 try:

@@ -131,7 +131,7 @@ fi
 # PRE_SIGNED_URL is set instead of FILE_PATH when IS_PRE_SIGNED=true.
 echo "Processing $FILE_PATH"
 
-# your logic here — ask hermes (lib/hermes.sh), run a script, POST to an API, etc.
+# your logic here — ask the model (lib/model.sh), run a script, POST to an API, etc.
 ```
 
 **Available env vars:**
@@ -232,7 +232,7 @@ Three things to know:
 - **It only works on text.** For `IS_PRE_SIGNED=true` processors and for
   `removed` events there is nothing on disk to judge, so the gate is skipped and
   the processor runs on the path match alone.
-- **No answer is not the same as no match.** If the gateway is down or times out,
+- **No answer is not the same as no match.** If the model server is down or times out,
   `file_processor` fails the run (decree tries it three times), rather than silently
   dropping the file — which would look exactly like a clean `NO`.
 

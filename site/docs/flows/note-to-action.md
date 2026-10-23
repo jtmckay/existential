@@ -158,9 +158,9 @@ criteria cannot poison the "is this new?" check.
 
 - Notes landing in `/data/notes` — activate the **Notes Sync** quest, or point `NOTES_DIR` at a
   vault you already sync
-- [Hermes](../ai/hermes) running, or set `TRIAGE_API_URL=http://ollama:11434/v1` to talk to
-  [Ollama](../ai/ollama) directly (triage and dedupe work fine this way; the departments do not
-  — they *are* hermes profiles)
+- A model at the chat endpoint (`EXIST_MODEL_URL_CHAT`, or `EXIST_MODEL_URL`) — triage, dedupe and
+  `note_develop` call it directly through `automation/lib/model.sh`. [Hermes](../ai/hermes) is
+  needed only for the departments, which *are* hermes profiles
 
 ## Swap the judgment
 
@@ -325,10 +325,7 @@ to every run:
 | `TRIAGE_LEDGER_MAX` | `100` | How many past ideas the ledger check sees |
 | `TRIAGE_MIN_CHARS` | `120` | Below this a note is skipped without a model call |
 | `TRIAGE_MAX_CHARS` | `6000` | Note text is truncated to this many characters before judging |
-| `TRIAGE_MODEL` | *(gateway default)* | Pin a specific model |
-| `TRIAGE_API_URL` | `http://hermes-agent:8642/v1` | Point at Ollama to skip hermes for triage |
-| `TRIAGE_TIMEOUT` | `120` | Seconds per model call before it's treated as no verdict |
-| `TRIAGE_API_KEY` | *(falls back to `HERMES_API_KEY`)* | Override the gateway credential |
+| `MODEL_TIMEOUT` | `120` (`300` in `note_develop`) | Seconds per model call before it's treated as no verdict |
 | `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note_develop`'s draft is copied, e.g. `nextcloud:Notes` |
 | `FIRECRAWL_URL` | *(unset)* | Set to `http://firecrawl:3002` for `note_develop` web research |
 

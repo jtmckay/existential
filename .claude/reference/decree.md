@@ -48,8 +48,9 @@ reads to a model, so what it can read is what a prompt injection can read.
 - **A migration waits for its own service** in a first `wait_for_<service>` state.
   There is no gate: the entrypoint is `exec decree daemon`, which runs migrations
   in order, and a failed one blocks the rest until `decree process --retry`.
-- **One way to reach a model:** the hermes gateway over HTTP, through
-  `automation/lib/hermes.sh` (`hermes_chat`, `hermes_gate`, `hermes_profile_url`).
+- **One way to reach a model:** `automation/lib/model.sh` (`model_chat`, `model_gate`)
+  over the role's OpenAI-compatible `/v1` URL. hermes is optional, through
+  `automation/lib/hermes.sh` (`hermes_chat`, `hermes_profile_url`), built on it.
   No container installs an AI CLI.
 
 ## Around the daemons

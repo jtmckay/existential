@@ -33,7 +33,7 @@ the output:
 
 - **Change a value you set.** It only ever appends keys that are absent.
 - **Fill in a blank.** Blank is meaningful here — `EXIST_VRAM_GB` blank means "not asked yet",
-  and a blank `EXIST_OLLAMA_URL_<ROLE>` means "fall back to the global URL".
+  and a blank `EXIST_MODEL_URL_<ROLE>` means "fall back to the global URL".
 - **Remove anything.** A key you added that the template lacks stays.
   `./existential.sh validate drift` lists those.
 - **Ask you a question.** A key that needs your input arrives blank and is flagged
@@ -142,33 +142,45 @@ that merely runs at 3B speed.
 
 ## Endpoints — putting roles on different machines
 
-`EXIST_OLLAMA_URL` (default `http://ollama:11434`) is the address every model role uses
-unless it has one of its own. Point it at another machine — `http://192.168.1.20:11434` — to
-run the models on a GPU box while the rest of the stack stays here, and disable
-`EXIST_IS_AI_OLLAMA` if nothing local serves them.
+`EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is the address every model role uses
+unless it has one of its own. It is an **OpenAI-compatible base URL**, ending `/v1`: the local
+ollama, ollama on another box, a llama.cpp server (`http://192.168.1.20:8080/v1`), or anything
+else that answers `/v1/chat/completions`. Point it at another machine to run the models on a
+GPU box while the rest of the stack stays here, and disable `EXIST_IS_AI_OLLAMA` if nothing
+local serves them.
+
+Every caller that sends a prompt — OCR, the newsletter, decree scripts (`automation/lib/model.sh`),
+honcho, hermes — speaks only `/v1`, so the backend does not matter. The ollama-only steps
+(pulling models, `run ollama unload`, `/api/show` and ollama's health probe) run only while
+`EXIST_IS_AI_OLLAMA=true`; a llama.cpp server loads its own models. The embed role's server
+must serve `/v1/embeddings` (llama.cpp: `--embeddings`), and the vision role's must accept
+images (llama.cpp: a `--mmproj` projector).
 
 The **Model Endpoints** block in `.env.shared` then lets each role go somewhere different, so
 VRAM is spread rather than shared. Every key ships **blank**, and blank means "wherever
-`EXIST_OLLAMA_URL` points" — leave them alone and nothing changes.
+`EXIST_MODEL_URL` points" — leave them alone and nothing changes.
 
 | Key | Role | Who reads it |
 |---|---|---|
-| `EXIST_OLLAMA_URL_CHAT` | Chat / reasoning | hermes, open-webui |
-| `EXIST_OLLAMA_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
-| `EXIST_OLLAMA_URL_EMBED` | Embeddings | openviking's vector store, honcho |
-| `EXIST_OLLAMA_URL_VISION` | Vision / OCR | image-ocr, telegram_receipt |
+| `EXIST_MODEL_URL_CHAT` | Chat / reasoning | hermes, open-webui, decree scripts, the newsletter |
+| `EXIST_MODEL_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
+| `EXIST_MODEL_URL_EMBED` | Embeddings | openviking's vector store, honcho |
+| `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr, telegram_receipt |
 
 A worked split, with a 24 GB card and an 8 GB one:
 
 ```bash
-EXIST_OLLAMA_URL=http://bigbox:11434       # chat and extraction land here
-EXIST_OLLAMA_URL_EMBED=http://littlebox:11434
-EXIST_OLLAMA_URL_VISION=http://littlebox:11434
+EXIST_MODEL_URL=http://bigbox:8080/v1             # chat and extraction land here
+EXIST_MODEL_URL_EMBED=http://littlebox:11434/v1
+EXIST_MODEL_URL_VISION=http://littlebox:11434/v1
 ```
 
 Chat keeps the big card to itself; embeddings and OCR — small models under bursty load — stop
 evicting it. Re-run `./existential.sh` to propagate, then
 `docker compose restart honcho hermes-agent openviking`.
+
+These keys were `EXIST_OLLAMA_URL*`, holding ollama's root. `git pull && ./existential.sh`
+carries a value you set under an old name across to the new one, `/v1` added.
 
 `./existential.sh run models` prints where each role currently resolves, and the roles are the
 same vocabulary `ollama_pull` uses, so a migration pulls each model **to the machine that will
@@ -216,7 +228,7 @@ What it changes, all in `src/generate-compose.ts`:
 | `nvidia` | Nothing. The templates already declare the nvidia device reservation. |
 | `amd` | The nvidia reservation is stripped, and each service's `x-exist-gpu.amd` block is merged in instead (Vulkan/ROCm). |
 | `none` | The nvidia reservation is stripped, and `x-exist-gpu.none` merged. |
-| `external` | Same treatment as `none` — this machine has no card to reserve. Ollama is not run locally at all; the models come from `EXIST_OLLAMA_URL` on another machine. |
+| `external` | Same treatment as `none` — this machine has no card to reserve. Ollama is not run locally at all; the models come from `EXIST_MODEL_URL` on another machine. |
 
 The strip is not cosmetic: docker refuses to create a container whose device driver it
 cannot satisfy, so one nvidia-reserving service takes down `docker compose up` for the

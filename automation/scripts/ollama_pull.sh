@@ -3,36 +3,34 @@
 # Used by the decree daemon's ollama migrations; idempotent on pull and create.
 # Every OLLAMA_* below is a param (DECREE_DATA_OLLAMA_*), all optional.
 #
+# Pulling is ollama's own API, so this is a no-op unless EXIST_IS_AI_OLLAMA is
+# true: a llama.cpp (or any other /v1) server loads its models itself.
+#
 # Naming a model by ROLE (preferred):
 #   OLLAMA_ROLE      chat | chat-ctx | extract | embed | vision
 #
 # A role resolves BOTH halves of "which model, on which machine": the tag from
-# the EXIST_MODEL_* globals, and the endpoint from the EXIST_OLLAMA_URL_<ROLE>
-# ones. That matters as soon as roles are split across boxes — pulling the chat
-# model to the embedding host would fill the wrong disk and leave chat with no
-# model at all. ai/ollama/docker-compose.yml passes both sets through to this
-# daemon. Model choice stays in ONE place — the "Model Selection" and "Model
+# the EXIST_MODEL_* globals, and the endpoint through lib/model.sh's model_url.
+# That matters as soon as roles are split across boxes — pulling the chat model
+# to the embedding host would fill the wrong disk and leave chat with no model
+# at all. Model choice stays in ONE place — the "Model Selection" and "Model
 # Endpoints" blocks in .env.exist.shared — instead of hardcoded per migration:
 #
-#   chat      → EXIST_MODEL_CHAT        @ EXIST_OLLAMA_URL_CHAT
+#   chat      → EXIST_MODEL_CHAT
 #   chat-ctx  → rebuilds EXIST_MODEL_CHAT with num_ctx=EXIST_MODEL_CHAT_NUM_CTX,
 #               keeping the same tag so every consumer still names one model
-#   extract   → EXIST_MODEL_EXTRACT     @ EXIST_OLLAMA_URL_EXTRACT
-#   embed     → EXIST_MODEL_EMBED       @ EXIST_OLLAMA_URL_EMBED
-#   vision    → EXIST_MODEL_VISION      @ EXIST_OLLAMA_URL_VISION
+#   extract   → EXIST_MODEL_EXTRACT
+#   embed     → EXIST_MODEL_EMBED
+#   vision    → EXIST_MODEL_VISION
 #
-# Each endpoint key falls back to EXIST_OLLAMA_URL when blank, so a single-box
-# install behaves exactly as it did before roles existed. An explicit OLLAMA_URL
-# param in the migration still wins over both. (The container's own OLLAMA_URL
-# env var is the VISION endpoint, which is why the override is a param, never
-# read from the environment.)
+# An explicit OLLAMA_URL param in the migration wins over the role's endpoint.
 #
 # A role that resolves to an EMPTY value is skipped, not an error: that is how
 # EXIST_MODEL_VISION= turns the vision model off on a small card.
 #
 # Naming a model directly (still supported):
 #   OLLAMA_MODEL     model tag  e.g. "gemma4:e2b-it-qat", "bge-m3:latest"
-#   OLLAMA_URL       API base (default: http://ollama:11434)
+#   OLLAMA_URL       ollama's root (default: the role's endpoint without /v1)
 #
 # Create with a Modelfile (optional — replaces pull with /api/create):
 #   OLLAMA_FROM      base model  e.g. "gemma4:e2b-it-qat"
@@ -43,45 +41,41 @@
 
 set -euo pipefail
 
+if [ "${EXIST_IS_AI_OLLAMA:-false}" != "true" ]; then
+    echo "ollama is not enabled (EXIST_IS_AI_OLLAMA) — nothing to pull."
+    exit 0
+fi
+
+# shellcheck source=../lib/model.sh
+source "${DECREE_LIB}/model.sh"
+
 OLLAMA_ROLE="$DECREE_DATA_OLLAMA_ROLE"
 OLLAMA_MODEL="$DECREE_DATA_OLLAMA_MODEL"
 OLLAMA_FROM="$DECREE_DATA_OLLAMA_FROM"
 OLLAMA_NUM_CTX="$DECREE_DATA_OLLAMA_NUM_CTX"
 
-# Resolve a role to its EXIST_MODEL_* global.
-_ROLE_URL=""
 if [ -n "$OLLAMA_ROLE" ]; then
-    case "$OLLAMA_ROLE" in
-        chat)     OLLAMA_MODEL="${EXIST_MODEL_CHAT:-}"
-                  _ROLE_URL="${EXIST_OLLAMA_URL_CHAT:-}" ;;
-        extract)  OLLAMA_MODEL="${EXIST_MODEL_EXTRACT:-}"
-                  _ROLE_URL="${EXIST_OLLAMA_URL_EXTRACT:-}" ;;
-        embed)    OLLAMA_MODEL="${EXIST_MODEL_EMBED:-}"
-                  _ROLE_URL="${EXIST_OLLAMA_URL_EMBED:-}" ;;
-        vision)   OLLAMA_MODEL="${EXIST_MODEL_VISION:-}"
-                  _ROLE_URL="${EXIST_OLLAMA_URL_VISION:-}" ;;
-        chat-ctx)
-            OLLAMA_MODEL="${EXIST_MODEL_CHAT:-}"
-            OLLAMA_FROM="${EXIST_MODEL_CHAT:-}"
-            OLLAMA_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
-            _ROLE_URL="${EXIST_OLLAMA_URL_CHAT:-}"
-            ;;
-        *)
-            echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|extract|embed|vision)" >&2
-            exit 1
-            ;;
-    esac
+    OLLAMA_MODEL="$(model_tag "$OLLAMA_ROLE")" || {
+        echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|extract|embed|vision)" >&2
+        exit 1
+    }
+    if [ "$OLLAMA_ROLE" = chat-ctx ]; then
+        OLLAMA_FROM="$OLLAMA_MODEL"
+        OLLAMA_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
+    fi
     if [ -z "$OLLAMA_MODEL" ]; then
         echo "OLLAMA_ROLE=${OLLAMA_ROLE} resolves to an empty model — skipping."
         exit 0
     fi
 fi
 
-# Precedence: an explicit OLLAMA_URL in the migration, then the role's endpoint,
-# then the global one. The role sits in the middle so splitting roles across
-# machines needs no migration edits, while a migration that names a host still
-# gets the host it named.
-OLLAMA_URL="${DECREE_DATA_OLLAMA_URL:-${_ROLE_URL:-${EXIST_OLLAMA_URL:-http://ollama:11434}}}"
+# Precedence: an explicit OLLAMA_URL in the migration, then the role's endpoint
+# (chat when no role is named). The role sits first otherwise so splitting roles
+# across machines needs no migration edits, while a migration that names a host
+# still gets the host it named.
+OLLAMA_URL="${DECREE_DATA_OLLAMA_URL:-$(model_url "${OLLAMA_ROLE:-chat}")}"
+OLLAMA_URL="${OLLAMA_URL%/}"
+OLLAMA_URL="${OLLAMA_URL%/v1}"
 OLLAMA_MODEL="${OLLAMA_MODEL:?OLLAMA_MODEL or OLLAMA_ROLE is required}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

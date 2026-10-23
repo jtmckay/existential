@@ -348,7 +348,22 @@ out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
 assert_eq "new EXIST_CLI key appended blank" "RECON_ASK=" "$(grep '^RECON_ASK=' "$_RDST")"
 assert_contains "EXIST_CLI key flagged as needing a value" "needs a value" "$out"
 
-# Blank is load-bearing (EXIST_VRAM_GB = not yet asked, EXIST_OLLAMA_URL_<ROLE> =
+# A renamed key carries what the user set under its old name. EXIST_OLLAMA_URL*
+# held ollama's root, so the value arrives as the /v1 base the new key means; a
+# blank old key leaves the new one at its template value.
+cp "$TMP/.env.shared" "$TMP/.env.shared.saved"
+printf 'EXIST_MODEL_URL=http://ollama:11434/v1\nEXIST_MODEL_URL_CHAT=\nEXIST_MODEL_URL_EMBED=\n' > "$TMP/.env.exist.shared"
+printf 'EXIST_OLLAMA_URL=http://bigbox:11434\nEXIST_OLLAMA_URL_CHAT=http://chatbox:8080/v1/\nEXIST_OLLAMA_URL_EMBED=\n' > "$TMP/.env.shared"
+_reconcile_env_keys "$TMP/.env.exist.shared" "$TMP/.env.shared" >/dev/null
+assert_eq "an old global model URL takes effect under the new key" \
+    "EXIST_MODEL_URL=http://bigbox:11434/v1" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
+assert_eq "an old role URL that already ended /v1 is not doubled" \
+    "EXIST_MODEL_URL_CHAT=http://chatbox:8080/v1" "$(grep '^EXIST_MODEL_URL_CHAT=' "$TMP/.env.shared")"
+assert_eq "a blank old role key leaves the new one blank" \
+    "EXIST_MODEL_URL_EMBED=" "$(grep '^EXIST_MODEL_URL_EMBED=' "$TMP/.env.shared")"
+mv "$TMP/.env.shared.saved" "$TMP/.env.shared"; rm -f "$TMP/.env.exist.shared"
+
+# Blank is load-bearing (EXIST_VRAM_GB = not yet asked, EXIST_MODEL_URL_<ROLE> =
 # fall back to the global URL), so a key that is present and empty is left alone.
 printf 'RECON_BLANK=has-a-default\n' > "$_RSRC"
 printf 'RECON_BLANK=\n' > "$_RDST"

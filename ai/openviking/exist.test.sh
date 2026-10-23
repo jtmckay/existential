@@ -84,52 +84,35 @@ if [[ -z "${EMBED_MODEL}" || -z "${EMBED_BASE}" ]]; then
          "could not read model/api_base from volumes/openviking_data/ov.conf" \
          "./existential.sh run openviking   (writes ov.conf)"
 else
-    TAGS=$(curl -sS --max-time 10 "${EMBED_BASE%/v1}/api/tags" 2>/dev/null || true)
-    if [[ -z "${TAGS}" ]]; then
+    # One request answers both questions, on any OpenAI-compatible server: is the
+    # model there at all, and does it produce the dimension ov.conf expects?
+    #
+    # The dimension is the other half of the same silent failure. OpenViking
+    # validates every vector against ov.conf's `dimension` and DROPS the ones that
+    # disagree ("Dense vector dimension mismatch: expected N, got M" — storage/
+    # collection_schemas.py). Uploads still return ok, the file still shows up in
+    # the viking:// tree, and search still returns nothing.
+    WANT_DIM=$(sed -n 's/.*"dimension"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' \
+        "${OV_CONF}" 2>/dev/null | head -1 || true)
+    PROBE=$(curl -sS --max-time 30 "${EMBED_BASE%/}/embeddings" -H 'Content-Type: application/json' \
+        -d "{\"model\": \"${EMBED_MODEL}\", \"input\": \"dimension probe\"}" 2>/dev/null || true)
+    GOT_DIM=$(printf '%s' "${PROBE}" | jq -r '.data[0].embedding | length' 2>/dev/null || true)
+    if [[ -z "${GOT_DIM}" || "${GOT_DIM}" == "null" || "${GOT_DIM}" == "0" ]]; then
+        # A setup state as often as a fault — a fresh ollama has pulled nothing
+        # yet, and the Local AI quest hands those pulls to the user — so warn.
         warn "openviking embedding model available" \
-             "no response from ${EMBED_BASE%/v1}/api/tags" \
-             "Is ollama up and EXIST_OLLAMA_URL correct? docker logs ollama"
-    elif printf '%s' "${TAGS}" | grep -q "\"${EMBED_MODEL}"; then
-        ok "openviking embedding model available (${EMBED_MODEL})"
-
-        # The other half of the same silent failure. OpenViking validates every
-        # vector against ov.conf's `dimension` and DROPS the ones that disagree
-        # ("Dense vector dimension mismatch: expected N, got M" — storage/
-        # collection_schemas.py). Uploads still return ok, the file still shows
-        # up in the viking:// tree, and search still returns nothing. Nothing
-        # asserts EXIST_MODEL_EMBED and EXIST_MODEL_EMBED_DIM agree once the
-        # user has edited .env.shared, so ask the model itself.
-        WANT_DIM=$(sed -n 's/.*"dimension"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' \
-            "${OV_CONF}" 2>/dev/null | head -1 || true)
-        GOT_DIM=$(curl -sS --max-time 30 "${EMBED_BASE%/v1}/api/embed" \
-            -d "{\"model\": \"${EMBED_MODEL}\", \"input\": \"dimension probe\"}" 2>/dev/null \
-            | jq -r '.embeddings[0] | length' 2>/dev/null || true)
-        if [[ -z "${WANT_DIM}" || -z "${GOT_DIM}" || "${GOT_DIM}" == "null" ]]; then
-            warn "openviking embedding dimension matches the model" \
-                 "could not probe ${EMBED_MODEL} on ${EMBED_BASE%/v1}" \
-                 "curl ${EMBED_BASE%/v1}/api/embed -d '{\"model\":\"${EMBED_MODEL}\",\"input\":\"x\"}'"
-        elif [[ "${WANT_DIM}" == "${GOT_DIM}" ]]; then
-            ok "openviking embedding dimension matches the model (${GOT_DIM})"
-        else
-            fail "openviking embedding dimension matches the model" \
-                 "ov.conf says ${WANT_DIM}, ${EMBED_MODEL} returns ${GOT_DIM} — every vector is dropped, so search returns nothing" \
-                 "Set EXIST_MODEL_EMBED_DIM=${GOT_DIM} in .env.shared, delete volumes/openviking_data/ov.conf and the stale index, then ./existential.sh run openviking"
-        fi
-    elif ! printf '%s' "${TAGS}" | grep -q '"name"'; then
-        # ollama is up but holds NO models at all, so the pull step has not been
-        # run yet — a setup state, not a fault, and the same distinction
-        # ai/ollama/exist.test.sh draws. No quest copies the ollama
-        # migrations itself; the Local AI quest hands them to the user, so a
-        # fresh install of it legitimately has an empty ollama and failing here
-        # reported a working stack as broken. A wrong model with others present
-        # still fails below, which is the drift this check exists for.
-        warn "openviking embedding model available" \
-             "ollama has no models pulled yet, so ${EMBED_MODEL} cannot be there" \
-             "./existential.sh run ollama pull-models"
+             "no embedding from ${EMBED_MODEL} at ${EMBED_BASE}: ${PROBE:-no response}" \
+             "Is the server at EXIST_MODEL_URL_EMBED up with ${EMBED_MODEL} loaded? (ollama: ./existential.sh run ollama pull-models)"
+    elif [[ -z "${WANT_DIM}" ]]; then
+        warn "openviking embedding dimension matches the model" \
+             "could not read dimension from ${OV_CONF}" \
+             "./existential.sh run openviking   (writes ov.conf)"
+    elif [[ "${WANT_DIM}" == "${GOT_DIM}" ]]; then
+        ok "openviking embedding model available (${EMBED_MODEL}, ${GOT_DIM} dimensions)"
     else
-        fail "openviking embedding model available" \
-             "${EMBED_MODEL} is not pulled on ${EMBED_BASE%/v1} — uploads succeed but nothing is embedded, so search returns nothing" \
-             "./existential.sh run ollama pull-models"
+        fail "openviking embedding dimension matches the model" \
+             "ov.conf says ${WANT_DIM}, ${EMBED_MODEL} returns ${GOT_DIM} — every vector is dropped, so search returns nothing" \
+             "Set EXIST_MODEL_EMBED_DIM=${GOT_DIM} in .env.shared, delete volumes/openviking_data/ov.conf and the stale index, then ./existential.sh run openviking"
     fi
 fi
 

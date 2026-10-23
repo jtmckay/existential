@@ -33,11 +33,18 @@ if [ -f "${REPO_DIR}/.env.shared" ]; then
     set +a
 fi
 
+# ollama's own API, so nothing to do when ollama is not what serves the models.
+# An explicit OLLAMA_URL names an ollama, wherever it runs.
+if [ -z "${OLLAMA_URL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-}" != true ]; then
+    echo "ollama is not enabled (EXIST_IS_AI_OLLAMA) — nothing to do."
+    exit 0
+fi
+
 # Address comes from the role resolver, not a private fallback — benchmarking
 # http://ollama:11434 on an install pointed at another box measured nothing.
 # shellcheck source=../../src/utils/model-endpoints.sh
 . "${REPO_DIR}/src/utils/model-endpoints.sh"
-OLLAMA_URL="${OLLAMA_URL:-$(endpoint_for chat)}"
+OLLAMA_URL="${OLLAMA_URL:-$(ollama_root_for chat)}"
 MODEL="${1:-}"
 
 hr() { printf '%0.s─' {1..64}; echo; }

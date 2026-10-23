@@ -117,7 +117,11 @@ echo ""
 echo "  Apply it:"
 echo "    ./existential.sh                      # re-renders honcho's config,"
 echo "                                          # and the compose file for ${VENDOR}"
-echo "    ./existential.sh run ollama pull-models"
+if [[ "$(env_get EXIST_IS_AI_OLLAMA)" == true ]]; then
+    echo "    ./existential.sh run ollama pull-models"
+else
+    echo "    # load the new models on the server at EXIST_MODEL_URL"
+fi
 echo "    docker compose restart honcho hermes-agent openviking"
 echo ""
 echo "  Note: hermes keeps the model already in its config.yaml — it is yours"
@@ -134,8 +138,8 @@ if endpoints_are_uniform; then
     echo "  With a second machine you can split them instead of sizing down —"
     echo "  chat on the big card, embeddings and vision elsewhere. Set the"
     echo "  per-role keys in the \"Model Endpoints\" block of .env.shared:"
-    echo "    EXIST_OLLAMA_URL_CHAT / _EXTRACT / _EMBED / _VISION"
-    echo "  Blank means \"wherever EXIST_OLLAMA_URL points\", which is today."
+    echo "    EXIST_MODEL_URL_CHAT / _EXTRACT / _EMBED / _VISION"
+    echo "  Blank means \"wherever EXIST_MODEL_URL points\", which is today."
 else
     echo "  Model roles are split across machines:"
     for _r in chat extract embed vision; do

@@ -216,9 +216,11 @@ from the repo root against the generated `docker-compose.yml`.
   `.env.exist.shared`'s *Model Selection* block. **Never hardcode a model tag in a service** —
   consumers read those keys (ollama migrations name an `OLLAMA_ROLE`, not a tag). → `models.md`
 - **Model *addresses* are per-role, in one block.** `.env.exist.shared`'s *Model Endpoints*
-  block gives each role its own key, each **blank** and falling back to `EXIST_OLLAMA_URL` —
-  that is how VRAM gets spread across machines. **Never read a role key directly and never
-  write your own fallback**: there are three resolvers and they must agree. → `models.md`
+  block gives each role its own key, each **blank** and falling back to `EXIST_MODEL_URL` —
+  that is how VRAM gets spread across machines. Every value is an **OpenAI-compatible `/v1`
+  base URL**, so ollama and llama.cpp both serve it; ollama-only steps (pull, unload,
+  `/api/*`) run only when ollama is enabled. **Never read a role key directly and never write
+  your own fallback**: there are three resolvers and they must agree. → `models.md`
 - **Model values come from the VRAM tier table** (`src/utils/model-tiers.sh`). Edit the table,
   not the individual defaults — a unit test asserts the two agree, and asserts that
   `.env.exist.shared` ships `EXIST_VRAM_GB` **blank** (the record of not-yet-asked). Every tier
@@ -250,12 +252,13 @@ more) plus `scripts/<name>.sh`, snake_case. Params a message passes must be decl
 machine's `data:`. Chaining is `decree emit` with `emits:` on the state. There is no
 whitelist: a machine that no cron file, endpoint or emit points at simply never runs.
 
-**One way to reach a model:** the hermes gateway over HTTP, through `automation/lib/hermes.sh`
-(`hermes_chat`, `hermes_gate`, `hermes_profile_url`), or `lib/hermes-cli.sh` as the `hermes`
-command in code-server's terminal. **No container installs an AI CLI.** Hermes runs its own
-tool loop, so work that needs a terminal is bash in the script, and hermes asks decree for
-follow-up work through automation-webhook's `/hermes/*` endpoints. Repo-editing belongs to a
-coding agent on the host, not to the stack.
+**One way to reach a model:** `automation/lib/model.sh` (`model_chat`, `model_gate`) over
+the role's `/v1` URL. hermes is optional, for work that needs an agent with tools:
+`automation/lib/hermes.sh` (`hermes_chat`, `hermes_profile_url`), built on `model.sh`, or
+`lib/hermes-cli.sh` as the `hermes` command in code-server's terminal. **No container
+installs an AI CLI.** Hermes runs its own tool loop, so work that needs a terminal is bash in
+the script, and hermes asks decree for follow-up work through automation-webhook's `/hermes/*`
+endpoints. Repo-editing belongs to a coding agent on the host, not to the stack.
 
 **Cron activation:** each project has its own `cron/` (active, not in git). Templates live in
 `automation-examples/cron/` for `automation` and `services/automation/backup/cron.example/`

@@ -4,12 +4,14 @@
 # src/templates.sh), so a model change in .env.shared lands on the next run.
 #
 # Model names come from the "Model Selection" block in .env.shared, so honcho,
-# openviking and the ollama migrations always agree on which tags to use.
+# openviking and the model pulls always agree on which tags to use.
 # DB credentials come from DB_CONNECTION_URI env var (set in docker-compose).
 # Endpoints come from the "Model Endpoints" block in .env.shared, one per ROLE, so
 # honcho's embeddings and its background extraction can sit on different machines.
-# Each per-role key falls back to EXIST_OLLAMA_URL when blank (resolved in
+# Each per-role key falls back to EXIST_MODEL_URL when blank (resolved in
 # src/templates.sh), so a single-box install needs no change here.
+# Each is an OpenAI-compatible base URL, so ollama and llama.cpp both serve it;
+# api_key is a placeholder the client insists on, and neither server checks it.
 
 [app]
 LOG_LEVEL = "INFO"
@@ -18,7 +20,7 @@ EMBED_MESSAGES = true
 [auth]
 USE_AUTH = false
 
-# Embeddings via Ollama — EXIST_MODEL_EMBED, EXIST_MODEL_EMBED_DIM dimensions.
+# Embeddings over the OpenAI-compatible endpoint — EXIST_MODEL_EMBED, EXIST_MODEL_EMBED_DIM dimensions.
 # VECTOR_DIMENSIONS must match the model or the vector index is corrupt.
 [embedding]
 VECTOR_DIMENSIONS = EXIST_MODEL_EMBED_DIM
@@ -28,8 +30,8 @@ transport = "openai"
 model = "EXIST_MODEL_EMBED"
 
 [embedding.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EMBED/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EMBED"
+api_key = "unused"
 
 # Deriver: background worker that builds the user representation. It runs in the
 # honcho-deriver container (`python -m src.deriver`), NOT in the API — the API
@@ -59,49 +61,49 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [deriver.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
-# Dialectic reasoning levels — all use EXIST_MODEL_EXTRACT at EXIST_OLLAMA_URL_EXTRACT.
+# Dialectic reasoning levels — all use EXIST_MODEL_EXTRACT at EXIST_MODEL_URL_EXTRACT.
 [dialectic.levels.minimal.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.minimal.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 [dialectic.levels.low.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.low.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 [dialectic.levels.medium.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.medium.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 [dialectic.levels.high.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.high.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 [dialectic.levels.max.model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dialectic.levels.max.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 # Session summaries
 [summary.model_config]
@@ -109,8 +111,8 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [summary.model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 # Dream: background reflection on accumulated sessions
 [dream.deduction_model_config]
@@ -118,13 +120,13 @@ transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dream.deduction_model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"
 
 [dream.induction_model_config]
 transport = "openai"
 model = "EXIST_MODEL_EXTRACT"
 
 [dream.induction_model_config.overrides]
-base_url = "EXIST_OLLAMA_URL_EXTRACT/v1"
-api_key = "ollama"
+base_url = "EXIST_MODEL_URL_EXTRACT"
+api_key = "unused"

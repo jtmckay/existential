@@ -28,17 +28,13 @@ set -euo pipefail
 
 NOTES_DIR="${NOTES_DIR:-/data/notes}"
 STATE_DIR="${STATE_DIR:-/data/note-triage}"
-TRIAGE_API_URL="${TRIAGE_API_URL:-http://hermes-agent:8642/v1}"
-TRIAGE_MODEL="${TRIAGE_MODEL:-}"
 TRIAGE_ROUTINE="$DECREE_DATA_TRIAGE_ROUTINE"
 TRIAGE_CRITERIA="$DECREE_DATA_TRIAGE_CRITERIA"
 TRIAGE_MAX_NOTES="$DECREE_DATA_TRIAGE_MAX_NOTES"
 TRIAGE_MAX_CHARS="${TRIAGE_MAX_CHARS:-6000}"
 TRIAGE_MIN_CHARS="${TRIAGE_MIN_CHARS:-120}"
 TRIAGE_BOOTSTRAP="$DECREE_DATA_TRIAGE_BOOTSTRAP"
-TRIAGE_TIMEOUT="${TRIAGE_TIMEOUT:-120}"
 TRIAGE_DRY_RUN="$DECREE_DATA_TRIAGE_DRY_RUN"
-TRIAGE_API_KEY="${TRIAGE_API_KEY:-}"
 TRIAGE_LEDGER="$DECREE_DATA_TRIAGE_LEDGER"
 TRIAGE_LEDGER_MAX="${TRIAGE_LEDGER_MAX:-100}"
 
@@ -47,11 +43,6 @@ TRIAGE_LEDGER_MAX="${TRIAGE_LEDGER_MAX:-100}"
 # Byte-wise collation throughout: the manifest is compared with comm, which
 # rejects its input if the sort order does not match the ambient locale.
 export LC_ALL=C
-
-# Fall back to the gateway key from the container environment.
-if [ -z "$TRIAGE_API_KEY" ]; then
-    TRIAGE_API_KEY="${HERMES_API_KEY:-}"
-fi
 
 [ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — run the 'notes' machine first, or point NOTES_DIR at your vault" >&2; exit 1; }
 
@@ -97,26 +88,8 @@ echo "${changed_count} new or changed note(s) of ${total} tracked."
 
 # --- Ask the model ---------------------------------------------------------
 
-chat() {
-    # chat <system> <user> <max_tokens>  → assistant text on stdout
-    local system="$1" user="$2" max_tokens="$3" payload
-    local -a args=(-fsS --max-time "$TRIAGE_TIMEOUT" -X POST
-        "${TRIAGE_API_URL}/chat/completions"
-        -H "Content-Type: application/json")
-    if [ -n "$TRIAGE_API_KEY" ]; then
-        args+=(-H "Authorization: Bearer ${TRIAGE_API_KEY}")
-    fi
-
-    payload="$(jq -n \
-        --arg s "$system" --arg u "$user" \
-        --argjson mt "$max_tokens" \
-        --arg model "$TRIAGE_MODEL" \
-        '{messages:[{role:"system",content:$s},{role:"user",content:$u}],
-          max_tokens:$mt, temperature:0}
-         + (if $model == "" then {} else {model:$model} end)')"
-
-    curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty'
-}
+# shellcheck source=../lib/model.sh
+source "${DECREE_LIB}/model.sh"
 
 SYSTEM="You triage personal notes. You are shown one note. Decide whether it contains ${TRIAGE_CRITERIA}.
 
@@ -157,7 +130,7 @@ ledger_verdict() {
 
     list="$(tail -n "$TRIAGE_LEDGER_MAX" "$LEDGER" | cut -f2- | nl -ba -w1 -s': ')"
 
-    answer="$(chat "$LEDGER_SYSTEM" "Already evaluated:
+    answer="$(model_chat "$LEDGER_SYSTEM" "Already evaluated:
 ${list}
 
 New idea:
@@ -206,7 +179,7 @@ while IFS=$'\t' read -r hash rel; do
 
     examined=$((examined + 1))
 
-    verdict="$(chat "$SYSTEM" "Note path: ${rel}
+    verdict="$(model_chat "$SYSTEM" "Note path: ${rel}
 
 ---
 ${body}" 200 || true)"

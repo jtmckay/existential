@@ -24,11 +24,11 @@ MODEL="${OLLAMA_MODEL:-${EXIST_MODEL_CHAT:-}}"
 
 # Address is per-role and resolved in one place. Hardcoding http://ollama:11434
 # here tested a container that does not exist on an install pointed at another
-# box (EXIST_OLLAMA_URL / EXIST_OLLAMA_URL_CHAT), and reported it as ollama being
+# box (EXIST_MODEL_URL / EXIST_MODEL_URL_CHAT), and reported it as ollama being
 # down. Never read the role keys directly — see src/utils/model-endpoints.sh.
 # shellcheck source=../../src/utils/model-endpoints.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/utils" && pwd)/model-endpoints.sh"
-OLLAMA_URL="${OLLAMA_URL:-$(endpoint_for chat)}"
+OLLAMA_URL="${OLLAMA_URL:-$(ollama_root_for chat)}"
 if [ -z "$MODEL" ]; then
     fail "EXIST_MODEL_CHAT set" \
          "neither OLLAMA_MODEL nor EXIST_MODEL_CHAT is set" \

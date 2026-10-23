@@ -96,7 +96,7 @@ if [ ! -s "$_raw" ]; then
     # rather than file an empty answer.
     echo "The ${profile:-default} profile returned nothing." >&2
     echo "Check: docker logs hermes-agent for 'Interrupted during API call', and" >&2
-    echo "confirm EXIST_OLLAMA_URL is reachable and the chat model can carry a" >&2
+    echo "confirm EXIST_MODEL_URL_CHAT is reachable and the chat model can carry a" >&2
     echo "tool-using turn." >&2
     exit 1
 fi

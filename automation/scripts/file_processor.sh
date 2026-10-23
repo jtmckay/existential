@@ -84,14 +84,14 @@ fi
 # no content here to put to the model; a criteria-gated processor should be a
 # text one.
 if [ -n "$criteria" ] && [ "$file_action" = "created" ] && [ -n "$FILE_PATH" ]; then
-    # shellcheck source=../lib/hermes.sh
-    source "${DECREE_LIB}/hermes.sh"
+    # shellcheck source=../lib/model.sh
+    source "${DECREE_LIB}/model.sh"
 
     echo "Evaluating criteria: ${criteria}"
     _body="$(head -c "$PROCESSOR_MAX_CHARS" "$FILE_PATH")"
     _reason=""
     set +e
-    _reason="$(hermes_gate "$criteria" "Path: ${FILE_KEY}
+    _reason="$(model_gate "$criteria" "Path: ${FILE_KEY}
 
 ---
 ${_body}")"
@@ -102,10 +102,10 @@ ${_body}")"
         0) echo "match: ${_reason}" ;;
         1) echo "skip (criteria): ${FILE_KEY} does not match — not running ${processor}."
            exit 0 ;;
-        # No verdict at all: the gateway is down or slow. Fail so decree retries
+        # No verdict at all: the model server is down or slow. Fail so decree retries
         # (the state's attempts) rather than silently dropping the file, which
         # would look exactly like a clean "no match".
-        *) echo "No verdict from the gateway — failing so this is retried." >&2
+        *) echo "No verdict from the model — failing so this is retried." >&2
            exit 1 ;;
     esac
 

@@ -27,7 +27,7 @@ if [[ -f "${REPO_ROOT}/.env.shared" ]]; then
 fi
 # shellcheck source=../../src/utils/model-endpoints.sh
 source "${REPO_ROOT}/src/utils/model-endpoints.sh"
-OLLAMA_URL="$(endpoint_for embed)"
+EMBED_URL="$(endpoint_for embed)"
 
 # ── Automation output directory ───────────────────────────────────────────────
 # The workspace_data volume is the knowledgebase: the same tree hermes,
@@ -70,18 +70,23 @@ mkdir -p "${DATA_DIR}"
 CONF="${DATA_DIR}/ov.conf"
 if [[ -f "${CONF}" ]]; then
     # ov.conf is the user's once written — except for the embedding endpoint,
-    # which is EXIST_OLLAMA_URL's to own. Without this, moving ollama to another
-    # host leaves openviking retrying a dead address, and the only symptom is
-    # "Failed to generate embedding: Connection error" deep in its logs.
+    # which is EXIST_MODEL_URL_EMBED's to own. Without this, moving embeddings to
+    # another host leaves openviking retrying a dead address, and the only symptom
+    # is "Failed to generate embedding: Connection error" deep in its logs.
+    # "api_key": "local" is the mark of a block this script wrote; a user who
+    # points openviking at a hosted provider replaces it with a real key.
     have_base=$(grep -m1 '"api_base"' "${CONF}" \
         | sed -E 's/.*"api_base"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/' || true)
-    if [[ "${have_base}" == "${OLLAMA_URL}/v1" ]]; then
+    if [[ "${have_base}" == "${EMBED_URL}" ]]; then
         echo "[openviking] ov.conf exists — skipping (delete to regenerate)."
-    elif [[ "${have_base}" =~ ^https?://[^/]+:11434(/v1)?$ ]]; then
-        echo "[openviking] ov.conf api_base=${have_base} but EXIST_OLLAMA_URL=${OLLAMA_URL} — reconciling."
-        sed -i -E "s#\"api_base\"[[:space:]]*:[[:space:]]*\"[^\"]*\"#\"api_base\": \"${OLLAMA_URL}/v1\"#" "${CONF}"
+    elif grep -qE '"api_key"[[:space:]]*:[[:space:]]*"local"' "${CONF}"; then
+        echo "[openviking] ov.conf api_base=${have_base} but the embed endpoint is ${EMBED_URL} — reconciling."
+        # provider "ollama" is the openai embedder plus an ollama preflight, which
+        # would probe whatever non-ollama server the endpoint now names.
+        sed -i -E -e "s#\"api_base\"[[:space:]]*:[[:space:]]*\"[^\"]*\"#\"api_base\": \"${EMBED_URL}\"#" \
+            -e 's#"provider"[[:space:]]*:[[:space:]]*"ollama"#"provider": "openai"#' "${CONF}"
     else
-        echo "[openviking] ov.conf api_base=${have_base} (not an ollama endpoint) — leaving it alone."
+        echo "[openviking] ov.conf api_base=${have_base} (not one this script wrote) — leaving it alone."
     fi
     exit 0
 fi
@@ -90,9 +95,9 @@ cat > "${CONF}" << EOF
 {
   "embedding": {
     "dense": {
-      "provider": "ollama",
+      "provider": "openai",
       "api_key": "local",
-      "api_base": "${OLLAMA_URL}/v1",
+      "api_base": "${EMBED_URL}",
       "model": "${OPENVIKING_EMBEDDING_MODEL}",
       "dimension": ${OPENVIKING_EMBEDDING_DIM}
     }

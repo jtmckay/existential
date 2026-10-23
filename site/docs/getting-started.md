@@ -71,7 +71,8 @@ tailnet **IP** in nip.io form — tailscale carries the traffic, nip.io supplies
 **GPU vendor** decides how models run: `nvidia` uses the container runtime, `amd` uses
 Vulkan/ROCm, `none` is CPU-only, and **`external`** means the models live on another machine —
 no card needed here, and no local Ollama. That last one is also how a GPU-less machine runs the
-full agent path: point `EXIST_OLLAMA_URL` at a box that has the VRAM.
+full agent path: point `EXIST_MODEL_URL` at a box that has the VRAM — ollama or llama.cpp,
+anything that serves OpenAI's `/v1`.
 
 **VRAM** picks the model tier. Every model the stack uses is named once, in `.env.shared`'s
 *Model Selection* block, and each role can live on a different machine — see
