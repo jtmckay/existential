@@ -38,6 +38,11 @@ box, treat them as [complementary services](../how-it-works) reached over a URL 
 trying to stretch this network across hosts.
 :::
 
+### GPU on Another Machine
+
+- [A Separate AI Box](./ai-box): llama.cpp, ComfyUI and TTS on one GPU box, with the stack
+  pointed at it
+
 ### Observability
 
 - [Prometheus](./prometheus) — Metrics collection (+ Pushgateway for Decree)

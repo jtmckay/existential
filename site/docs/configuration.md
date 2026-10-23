@@ -182,6 +182,9 @@ evicting it. Re-run `./existential.sh` to propagate, then
 These keys were `EXIST_OLLAMA_URL*`, holding ollama's root. `git pull && ./existential.sh`
 carries a value you set under an old name across to the new one, `/v1` added.
 
+[A Separate AI Box](./hosting/ai-box) works through one such box: llama.cpp presets, ComfyUI,
+TTS started on demand, and which of these keys each one needs.
+
 `./existential.sh run models` prints where each role currently resolves, and the roles are the
 same vocabulary `ollama_pull` uses, so a migration pulls each model **to the machine that will
 serve it** with no per-migration edits.
