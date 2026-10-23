@@ -12,8 +12,13 @@ The system as one box — what it is and what it does for you. Zoom in one step 
 
 **Taking your best brain day, and preserving it for your worst.**
 
-Existential turns your ideas into durable workflows, so when you don't remember, or it's a
-rough brain day, what you already decided is still there, still running.
+Some mornings you wake up able to see the whole board. Most mornings you don't.
+Existential is where the sharp you leaves orders for every other you, and makes sure
+they're carried out.
+
+Like Taravangian in *The Stormlight Archive*, who wrote the Diagram on his one genius day and
+has followed it ever since, your sharp days write the plan and every other day runs it. And
+nothing reaches you that you did not put there yourself.
 
 Underneath it is a curated set of open-source apps (notes, photos, money, files, dashboards,
 monitoring, home automation) run as one system: each with a name you can type, a certificate
@@ -22,18 +27,15 @@ You choose what you want; it comes up wired together.
 
 ## Three things it gets you
 
-### Decide on a good day
-An idea you had at your best becomes a workflow that runs whether you remember it or not. It
-is built from a curated list of maintained open-source services, not an app store; adding one
-is flipping a flag.
+### Written down, not remembered
+A decision is a file. It runs whether or not you remember making it.
 
-### Solve it once
-Hostnames, HTTPS, storage tiers, logging, secrets, backups, the automation engine — solved a
-single time and applied to everything. The fortieth service costs the same as the second.
+### Solved once
+Hostnames, HTTPS, backups, logs: figured out a single time, for every service after.
 
-### Nothing leaves the house
-Your files are on your disks. Your models run on your GPU. There is no account, no
-subscription, and nobody to be locked out by. Unplug the internet and it keeps working.
+### Yours, physically
+It runs on hardware you own. No account to lose, no subscription required, nobody who can lock
+you out.
 
 ## What it looks like from outside
 

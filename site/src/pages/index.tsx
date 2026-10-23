@@ -27,8 +27,9 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          Existential turns your ideas into durable workflows, so when you don't remember, or
-          it's a rough brain day, what you already decided is still there, still running.
+          Some mornings you wake up able to see the whole board. Most mornings you don't.
+          Existential is where the sharp you leaves orders for every other you, and makes sure
+          they're carried out.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -57,7 +58,7 @@ export function HomepageClosing() {
     <section className={styles.closing}>
       <div className="container">
         <Heading as="h2" className={styles.closingTitle}>
-          Take ownership of your digital life
+          Start your Diagram tonight.
         </Heading>
         <p className={styles.closingLede}>
           One evening, mostly spent waiting on Docker.
@@ -96,7 +97,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Taking your best brain day, and preserving it for your worst. Existential turns your ideas into durable workflows on your own hardware, so what you already decided is still there, still running.">
+      description="Taking your best brain day, and preserving it for your worst. Your sharpest decisions, written down as automations that run on every other day, on hardware you own. Nothing gets your attention unless you put it there.">
       <HomepageHeader />
       <main>
         <HomepageWhy />

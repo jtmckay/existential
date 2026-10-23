@@ -2,10 +2,13 @@
 
 **Taking your best brain day, and preserving it for your worst.**
 
-Existential turns your ideas into durable workflows, so when you don't remember, or it's a
-rough brain day, what you already decided is still there, still running. It is a curated set of
-open-source apps run as one system on your own hardware, with a local AI underneath that can act
-on everything in it.
+Some mornings you wake up able to see the whole board. Most mornings you don't.
+Existential is where the sharp you leaves orders for every other you, and makes sure
+they're carried out.
+
+Like Taravangian in *The Stormlight Archive*, who wrote the Diagram on his one genius day and
+has followed it ever since, your sharp days write the plan and every other day runs it. And
+nothing reaches you that you did not put there yourself.
 
 ```mermaid
 flowchart TB
@@ -28,12 +31,15 @@ flowchart TB
     style house fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
 ```
 
-- **Decide on a good day.** An idea you had at your best becomes a workflow that runs whether
-  you remember it or not.
-- **Figure it out once.** Hostnames, HTTPS, storage, logging, secrets, backups — solved a single
-  time and applied to everything. The fortieth service costs the same as the second.
-- **Nothing leaves the house.** Your files are on your disks, your models on your GPU. Unplug the
-  internet and it keeps working.
+- **Written down, not remembered.** A decision is a file. It runs whether or not you remember
+  making it.
+- **Solved once.** Hostnames, HTTPS, backups, logs: figured out a single time, for every service
+  after.
+- **Yours, physically.** It runs on hardware you own. No account to lose, no subscription
+  required, nobody who can lock you out.
+
+Underneath it is a curated set of open-source apps run as one system on your own hardware, with
+a local AI that can act on everything in it.
 
 ## 🚀 Quick start
 

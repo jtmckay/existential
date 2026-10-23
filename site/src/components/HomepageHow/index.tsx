@@ -77,7 +77,7 @@ export default function HomepageHow(): ReactNode {
             How it works
           </Heading>
           <p className={styles.lede}>
-            Less screen time, more headspace.
+            Things go in. You decide what comes back out.
           </p>
         </div>
         <div className="row">

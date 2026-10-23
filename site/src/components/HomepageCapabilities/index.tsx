@@ -8,12 +8,12 @@ type Capability = {
 };
 
 const Capabilities: Capability[] = [
-  { label: 'Working memory', text: 'Capture ideas effortlessly, so you can live in the moment.' },
-  { label: 'Remembering', text: 'The right note finds you, unasked, when it matters.' },
-  { label: 'Prioritization', text: 'Know what you are doing is the right thing to do.' },
-  { label: 'Plan', text: 'Breakdown tasks in the background, and see the next real step surfaced.' },
-  { label: 'Organization', text: 'Notes, photos, files — filed the moment they land.' },
-  { label: 'Systematize', text: 'Build systems that work for you.' },
+  { label: 'Remembers', text: "What you were in the middle of is in this morning's notification, word for word." },
+  { label: 'Keeps promises', text: "The thing you swore you'd check every Friday gets checked every Friday." },
+  { label: 'Captures', text: 'Every prompt you give an agent lands in one stream, searchable a year from now.' },
+  { label: 'Looks back', text: '"What did I even do this year?" has an answer.' },
+  { label: 'Holds the line', text: "A bad week doesn't undo a good one." },
+  { label: 'Grows', text: 'Tell an AI in your work dir what you want automated; it writes the machine.' },
 ];
 
 function CapabilityCard({ label, text }: Capability) {
@@ -31,9 +31,9 @@ export default function HomepageCapabilities(): ReactNode {
       <div className="container">
         <div className={styles.intro}>
           <Heading as="h2" className={styles.title}>
-            What gets easier
+            What the Diagram does on a bad day
           </Heading>
-          <p className={styles.lede}>Concretely, immediately.</p>
+          <p className={styles.lede}>The days you'd have dropped it.</p>
         </div>
         <div className={styles.grid}>
           {Capabilities.map((item) => (

@@ -3,12 +3,12 @@ import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 const Traits: string[] = [
-  "You have a lot of stuff to keep straight.",
-  "You want a connected system.",
-  "You love automating things.",
-  "You hate subscriptions, and lock-in.",
-  "You care about privacy.",
-  "You want or already have a homelab.",
+  "You've had the same good idea three times and lost it twice.",
+  "Your best plans don't survive your first bad week.",
+  "You want your phone to interrupt you for your reasons, not someone else's.",
+  "You'd rather write a rule once than remember it forever.",
+  "You'd rather own a box in the closet than rent your own life back monthly.",
+  'You want to answer "what did I even do this year?" with something better than a guess.',
 ];
 
 export default function HomepageWho(): ReactNode {
@@ -19,7 +19,7 @@ export default function HomepageWho(): ReactNode {
           <Heading as="h2" className={styles.title}>
             Who this is for
           </Heading>
-          <p className={styles.lede}>A type of person, not a technical requirement.</p>
+          <p className={styles.lede}>If three of these sting, it's for you.</p>
         </div>
 
         <ul className={styles.list}>
