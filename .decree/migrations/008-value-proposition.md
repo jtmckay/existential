@@ -9,17 +9,18 @@ The pitch has to mean something to a stranger in one read. Generic lines ("build
 work for you", "less screen time, more headspace", "take ownership of your digital life")
 could sit on any product's page and say nothing. Existential is one specific thing.
 
-In Brandon Sanderson's *The Stormlight Archive*, Taravangian wakes every morning with a
-different mind. Some days he can barely follow a conversation. One day he was a genius, and
-in that single day he wrote the Diagram, which he has followed ever since, on days he could
-not have understood a page of it. That is what Existential builds: your Diagram. The sharp
-days write it, as decree machines, and every other day runs it.
+The image: someone who wakes every morning with a different mind. Most days ordinary, some
+days barely able to follow a conversation, and once, a single brilliant day, long enough to
+write a plan they follow for the rest of their life without fully understanding it. That plan
+is the Diagram, and it is what Existential builds: the sharp days write it, as decree
+machines, and every other day runs it. Readers of a certain fantasy series will recognize it;
+everyone else should read it as a plain metaphor, with no names and nothing spoiled.
 
 The second idea is the attention economy. Every notification on a phone has an author, and
 it is almost never the person holding the phone. Here, nothing reaches you that you did not
 put there yourself.
 
-The page takes a side and names the idea. That is the risk, and it is deliberate.
+The page takes a side and commits to the metaphor. That is the risk, and it is deliberate.
 
 ## Outcome
 
@@ -34,14 +35,15 @@ needed to show it.
   > Existential is where the sharp you leaves orders for every other you, and makes sure
   > they're carried out.
 - **First section after the hero**, heading **Write your Diagram.**
-  > In Brandon Sanderson's *Stormlight Archive*, Taravangian wakes every day with a different
-  > mind. Most days he's ordinary. Some days he can barely follow a conversation. One day he
-  > was a genius, and in that one day he wrote the Diagram. He has followed it ever since, on
-  > days he couldn't have written a line of it.
+  > Imagine waking every morning with a different mind. Most days, ordinary. Some days, you
+  > can barely follow a conversation. And once, a single brilliant day: long enough to write
+  > down a plan you'd follow for the rest of your life, on days you couldn't have written a
+  > line of it.
   >
-  > That's what you're building here. Not a notes app, not a dashboard: a Diagram. What you
-  > decide on your best days is written down as a [decree machine](/docs/decree), and it runs
-  > on the days you've forgotten why.
+  > You've had that day, probably more than once. Existential is where you write it down.
+  > What you decide on your best days becomes a [decree machine](/docs/decree), and it runs
+  > on the days you've forgotten why. Unlike a certain king's, yours is readable: every
+  > decision is a file you can open.
   >
   > So the good days stop being spent catching up. Each one starts where the last one left
   > you, and climbs.
@@ -84,7 +86,7 @@ needed to show it.
   sharpest decisions, written down as automations that run on every other day, on hardware you
   own. Nothing gets your attention unless you put it there.
 - `README.md`'s opening and `site/docs/intro.md`'s opening carry the tagline and the hero
-  lede word for word, then one short paragraph that names the Diagram (Taravangian, one line)
+  lede word for word, then one short paragraph with the Diagram metaphor (one line, no names)
   and the attention point (one line). Their "three things it gets you" lists use the **Why it
   holds** titles and text.
 - Any claim the copy makes that the repo doesn't back is a defect: "nothing leaves the house"
@@ -96,6 +98,8 @@ needed to show it.
 - The tagline is the exact sentence above.
 - No new homepage components; reuse, rename or remove existing ones.
 - The links in the quoted copy point at pages that exist (the site build fails on broken links).
+- The metaphor names no author, book, series or character; the only nod is "a certain
+  king's".
 - No self-help phrasing ("reach your full potential", "unlock", "supercharge", "second brain",
   "the software already exists").
 
@@ -115,4 +119,7 @@ needed to show it.
   **Then** none is found
 - **Given** `README.md` and `site/docs/intro.md`
   **When** they are read
-  **Then** each names Taravangian and the Diagram in its opening
+  **Then** each has the Diagram metaphor in its opening
+- **Given** `site/`, `README.md` and `.claude/`
+  **When** they are searched (case-insensitive) for "Taravangian", "Sanderson" and "Stormlight"
+  **Then** none is found
