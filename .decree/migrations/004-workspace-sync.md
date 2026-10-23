@@ -1,7 +1,7 @@
 ---
 machine: develop
 ---
-# workspace/ stays in sync with a Nextcloud on another server
+# workspace/ can sync with a Nextcloud, optionally
 
 ## Overview
 
@@ -13,6 +13,8 @@ same tree the user edits from their desktop, phone and Obsidian.
 - With `EXIST_NEXTCLOUD_DOMAIN` and a Nextcloud user plus app password set, a decree cron
   two-way syncs `workspace/` with a folder in that Nextcloud every few minutes. When
   Nextcloud runs locally, the same setup works against it.
+- Without those settings nothing syncs, nothing else in the stack notices, and the docs
+  present sync as optional.
 - The sync skips everything any `.gitignore` under `workspace/` ignores, and every `.git/`
   directory. Decree's run state therefore never syncs, and agent output can be kept local by
   ignoring it.
