@@ -123,7 +123,7 @@ off disk — they're mid-write, and NFS or a concurrent reader will corrupt or m
 
 ## 4. Read the result
 
-Every run writes to `automation/runs/<id>/` (`services/automation/backup/runs/<id>/` for the
+Every run writes to `volumes/workspace_data/.decree/runs/<id>/` (`services/automation/backup/runs/<id>/` for the
 backup daemon's), with the `id` the webhook returned.
 
 `message.md` is the message, with the run's current `state` mirrored into its frontmatter:

@@ -81,15 +81,15 @@ _generated_files() {
     done < <(find "$REPO_DIR" -maxdepth 1 -name 'docker-compose-*.yml' 2>/dev/null | sort)
 }
 
-# decree's own runtime state: every run's logs (automation/runs/, shared by both
-# daemons) and the migration ledger (automation/processed.md). Neither is
-# rendered from a template or in volumes/ — they're gitignored runtime output
+# decree's own runtime state: every run's logs (workspace/.decree/runs/)
+# and the migration ledger (workspace/.decree/processed.md). Neither is
+# rendered from a template — they're gitignored runtime output
 # that piles up the same way rendered config does, and a reset that leaves them
 # behind means the next fresh install starts with someone else's run history and
 # a processed.md that skips migrations decree hasn't actually run yet here.
 _automation_state_files() {
     local f
-    for f in automation/runs automation/processed.md; do
+    for f in volumes/workspace_data/.decree/runs volumes/workspace_data/.decree/processed.md; do
         [[ -e "${REPO_DIR}/${f}" ]] && printf '%s\n' "$f"
     done
 }
@@ -101,7 +101,7 @@ _activated_files() {
     local f
     while IFS= read -r f; do
         printf '%s\n' "${f#"$REPO_DIR/"}"
-    done < <(find "$REPO_DIR" \( -path '*/automation/cron/*' -o -path '*/automation/migrations/*' \
+    done < <(find "$REPO_DIR" \( -path '*/workspace_data/.decree/cron/*' -o -path '*/workspace_data/.decree/migrations/*' \
                                 -o -path '*/backup/cron/*' \) \
                  -name '*.md' -type f \
                  -not -path '*/graveyard/*' -not -path '*/node_modules/*' 2>/dev/null | sort)

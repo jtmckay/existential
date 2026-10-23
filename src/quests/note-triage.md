@@ -11,7 +11,7 @@ services:
     label: Nextcloud
 done:
   files:
-    - automation/cron/note-triage.md
+    - volumes/workspace_data/.decree/cron/note-triage.md
 ---
 
 Most notes get written once and never read again. This watches the vault for
@@ -82,8 +82,8 @@ And in automation/.env, for every run (these are environment, not params):
                     instead of inventing a market.
 
 Activate the hourly scan:
-  mkdir -p automation/cron/
-  cp automation-examples/cron/note-triage.md automation/cron/
+  mkdir -p volumes/workspace_data/.decree/cron/
+  cp automation-examples/cron/note-triage.md volumes/workspace_data/.decree/cron/
 
-Logs for each run land in automation/runs/ and are queryable in Grafana
+Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

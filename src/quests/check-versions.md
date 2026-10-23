@@ -7,7 +7,7 @@ services:
     label: Decree
 done:
   files:
-    - automation/cron/check-versions.md
+    - volumes/workspace_data/.decree/cron/check-versions.md
 ---
 
 Adds a weekly cron to Decree that queries upstream registries and sends
@@ -15,8 +15,8 @@ an ntfy notification listing any services with newer image tags available.
 Silent when everything is current.
 
 Activate it:
-  mkdir -p automation/cron/
-  cp automation-examples/cron/check-versions.md automation/cron/
+  mkdir -p volumes/workspace_data/.decree/cron/
+  cp automation-examples/cron/check-versions.md volumes/workspace_data/.decree/cron/
 
 How it works:
   - Every Monday at 09:00 Decree runs check-versions

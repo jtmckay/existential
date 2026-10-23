@@ -5,7 +5,7 @@
 # subject, …) and its body the message body.
 set -euo pipefail
 
-EMAIL_DIR="${EMAIL_DIR:-/work/.decree/emails}"
+EMAIL_DIR="${EMAIL_DIR:-/data/emails}"
 
 mkdir -p "$EMAIL_DIR"
 cp "$DECREE_MESSAGE" "${EMAIL_DIR}/gmail-${DECREE_DATA_GMAIL_ID}.md"

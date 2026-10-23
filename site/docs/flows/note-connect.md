@@ -68,18 +68,18 @@ connection can still come through — just not the one you already saw.
 ## It ships with Local AI
 
 The **Local AI** quest (`./existential.sh quest`) has you copy `note-connect.md` into
-`automation/cron/`, alongside the cron that indexes `workspace/` into OpenViking in the first
+`volumes/workspace_data/.decree/cron/`, alongside the cron that indexes `workspace/` into OpenViking in the first
 place, since one is pointless without the other. `NOTES_DIR` defaults to `/workspace`, the same
 tree [Hermes](../ai/hermes) already reads and [OpenViking](../ai/openviking) already indexes:
 
 ```bash
-cp automation-examples/cron/note-connect.md automation/cron/
+cp automation-examples/cron/note-connect.md volumes/workspace_data/.decree/cron/
 ```
 
 **Opting out is a file deletion, nothing more:**
 
 ```bash
-rm automation/cron/note-connect.md
+rm volumes/workspace_data/.decree/cron/note-connect.md
 ```
 
 A machine with no cron file behind it never fires — there's no config flag to also flip.

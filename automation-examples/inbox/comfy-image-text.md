@@ -1,5 +1,5 @@
 ---
-# Flux2 text-to-image. Copy to automation/inbox/ to run it.
+# Flux2 text-to-image. Copy to volumes/workspace_data/.decree/inbox/ to run it.
 # The body is the prompt; replace "prompt text" with your own.
 machine: comfy
 params:

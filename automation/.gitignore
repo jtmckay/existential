@@ -1,3 +1,9 @@
 # decree: .env files hold script variables and are never committed.
 .env*
 !.env.example
+# Run state: this machine's, never synced. Everything else here syncs.
+runs/
+store/
+inbox/
+attention/
+*.log

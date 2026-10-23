@@ -11,4 +11,4 @@ Without this, Nextcloud works normally and nothing downstream ever hears about
 a file.
 
 Requires nas/nextcloud (`EXIST_IS_NAS_NEXTCLOUD`) enabled. Copy to
-automation/migrations/ to activate.
+volumes/workspace_data/.decree/migrations/ to activate.

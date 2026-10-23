@@ -138,7 +138,7 @@ Follow the [Telegram integration guide](../integrations/telegram) to:
 
 ```bash
 cp automation-examples/cron/telegram-receipt-poll.md \
-   automation/cron/
+   volumes/workspace_data/.decree/cron/
 ```
 
 This schedules `telegram_receipt` to run every minute. The daemon rescans `cron/` every tick, so

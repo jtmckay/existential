@@ -117,7 +117,7 @@ the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
 `./existential.sh` renders templates → runs `exist.initial.sh` (pre-startup, idempotent, every
 run, no sentinels). Then the user runs `docker compose up -d`; each service's `entrypoint.sh`
 trues up the config only it can reach; the `automation` decree daemon runs any pending one-time
-migrations from `automation/migrations/`, each waiting on its own service in a first
+migrations from `workspace/.decree/migrations/`, each waiting on its own service in a first
 `wait_for_<service>` state. On demand:
 `./existential.sh run <slug> <action>` → `exist.<action>.sh`.
 
@@ -233,14 +233,15 @@ from the repo root against the generated `docker-compose.yml`.
 decree **0.5**: the `/decree` skill covers decree itself, and `.claude/reference/decree.md`
 covers how existential uses it. The rules worth keeping here:
 
-**Two daemons, each its own decree project, not one per service:** `automation` (the repo-root
-`automation/` dir) runs everything that reasons, routes or reaches a service API, including
+**Two daemons, each its own decree project, not one per service:** `automation` (`workspace/.decree`,
+seeded once per file from the repo's `automation/`) runs everything that reasons, routes or reaches a service API, including
 every migration. `automation-backup` (`services/automation/backup/`) mounts `volumes/`
 wholesale, **the repo read-only**, and takes the master `.env`. It runs the backups plus
 anything else that needs that bulk access and makes no AI call (`triage`, `notes_pull`).
 **`/repo` is mounted there and nowhere else**: `automation` puts what it reads in front of a
-model, so what that container can read is what a prompt injection can read. Both share
-`automation/scripts/` and `automation/lib/`. A service gets **no** `*-decree` sidecar; a new
+model, so what that container can read is what a prompt injection can read. Both run
+`automation/lib/`; `automation-backup` runs the repo's `automation/scripts/`, `automation` its
+workspace copies. Nothing secret goes under `workspace/`: `.env` and `/secrets` stay in `automation/`. A service gets **no** `*-decree` sidecar; a new
 backup is one cron file.
 
 **A machine is the unit:** `machines/<name>.yml` (one state until a run shows the need for
@@ -255,7 +256,7 @@ tool loop, so work that needs a terminal is bash in the script, and hermes asks 
 follow-up work through automation-webhook's `/hermes/*` endpoints. Repo-editing belongs to a
 coding agent on the host, not to the stack.
 
-**Cron activation:** each project has its own `cron/` (active, gitignored). Templates live in
+**Cron activation:** each project has its own `cron/` (active, not in git). Templates live in
 `automation-examples/cron/` for `automation` and `services/automation/backup/cron.example/`
 for `automation-backup`; neither matches `*.exist.*`, so nothing auto-renders them. Activate
 by copying a template into that project's `cron/`; the daemon rescans it every tick.

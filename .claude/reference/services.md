@@ -30,7 +30,7 @@ service, decide which side it is on and wire it accordingly.
   2. exist.initial.sh Pre-startup, idempotent, every run. No sentinels — check state, skip if done.
 docker compose up -d  (user runs)
   3. entrypoint.sh    Inside the container, before the service starts. Trues up config it owns.
-  4. decree daemon    Runs pending one-time migrations from automation/migrations/, in order,
+  4. decree daemon    Runs pending one-time migrations from workspace/.decree/migrations/, in order,
                        each waiting on its service (the automation daemon only)
 On demand:
   exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented as quest
@@ -218,14 +218,17 @@ Adhoc disables the healthcheck. What a machine is and how the two projects are l
 `automation-backup` (the `services/automation/` slug is the required prefix). Each is its own
 decree project:
 
-- **`automation`** wholesale-mounts the repo-root `automation/` directory as `/work/.decree`.
-  `machines/`, `scripts/`, `lib/`, `env`, `cron/` and `migrations/` are layered back in
-  **read-only**: this container hands prompts to hermes and writes to `/workspace`, so the code
-  it runs must not be writable from inside a run, and nothing at runtime writes the others.
-  What stays writable: `inbox/`, `runs/`, `store/`, `secrets/`, `processed.md`.
+- **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
+  the user's project, so machines, scripts, cron, migrations and inbox written there run on the
+  next tick. `services/automation/exist.initial.sh` seeds it from the repo's `automation/`
+  (`machines/`, `scripts/`, `.gitignore`, `decree-go-rest.yml`), copying each file only while
+  it is absent, so the user's edits win. `lib/` is the repo's, mounted read-only over it;
+  `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
+  so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
+  redraws `graph/` whenever a machine or cron file changes, for Obsidian.
 - **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
   `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
-  it, so both daemons run the same script files. Its `cron.example/` + `cron/` pair lives there.
+  it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.
 
 | | `automation` | `automation-backup` |
 |---|---|---|
@@ -273,7 +276,7 @@ a new service and you add its `wait_for_*` script.
 **`automation-webhook` does not use this image.** It is decree-go-rest
 (`ghcr.io/jtmckay/decree-go-rest`, pinned to its release tag; it bundles the same decree version), with
 its own daemon off, over the `automation` project mounted read-only plus a writable `inbox/`.
-Each endpoint in `automation/decree-go-rest.yml` turns an authenticated POST into a `decree emit`
+Each endpoint in `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`) turns an authenticated POST into a `decree emit`
 for one fixed machine; edits load without a restart, and `GET /openapi.json` lists them. Its
 healthcheck is the binary probing itself (`decree-go-rest -healthcheck`).
 

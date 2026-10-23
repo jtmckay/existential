@@ -127,7 +127,7 @@ discover_services() {
 #         label: Ollama
 #     done:                        # what "already finished" looks like on disk
 #       files:
-#         - automation/cron/clean-runs.md
+#         - volumes/workspace_data/.decree/cron/clean-runs.md
 #       env:
 #         - EXIST_NFS_HOST_MOUNT   # done when the key is non-blank
 #     ---
@@ -907,7 +907,7 @@ fi
 
 # The main `decree` daemon's cron templates live top-level (they're not mounted,
 # so they don't belong under automation/): automation-examples/cron/ → the
-# activated copy goes to automation/cron/. `decree-backup` keeps its own
+# activated copy goes to volumes/workspace_data/.decree/cron/. `decree-backup` keeps its own
 # per-project cron.example/ → cron/ pair since its crons aren't shared content.
 _remaining=()
 if will_be_active EXIST_IS_SERVICES_AUTOMATION; then
@@ -941,7 +941,7 @@ if [ "${#_remaining[@]}" -gt 0 ]; then
     for _r in "${_remaining[@]}"; do echo "  ${_r}"; done
     echo ""
     echo "  Activate one:"
-    echo "    decree:         cp automation-examples/cron/<name>.md automation/cron/"
+    echo "    decree:         cp automation-examples/cron/<name>.md volumes/workspace_data/.decree/cron/"
     echo "                    docker compose restart automation"
     echo "    decree-backup:  cp services/automation/backup/cron.example/<name>.md \\"
     echo "                       services/automation/backup/cron/"

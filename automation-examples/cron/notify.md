@@ -11,4 +11,4 @@ params:
 Replace this body with the notification message to send on the cron schedule.
 ntfy_topic defaults to "decree" if not set; override with ntfy_topic in frontmatter.
 
-Copy to automation/cron/, set the cron schedule and message body, and restart automation to activate.
+Copy to volumes/workspace_data/.decree/cron/, set the cron schedule and message body, and restart automation to activate.

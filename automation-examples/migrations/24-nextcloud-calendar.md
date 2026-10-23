@@ -20,4 +20,4 @@ Pair with `cron.example/calendar-extract.md` to pull events into `workspace/ai/c
 OpenViking indexes them and hermes can answer questions about your calendar the same way it
 answers anything else in `workspace/`.
 
-Copy to `automation/migrations/` to activate.
+Copy to `volumes/workspace_data/.decree/migrations/` to activate.

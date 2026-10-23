@@ -96,7 +96,7 @@ Each workflow JSON carries the HuggingFace URL for every model it loads, so the 
 There is a ready-made message per flow in `automation-examples/inbox/`. Copy one and edit it:
 
 ```bash
-cp automation-examples/inbox/comfy-image-text.md automation/inbox/
+cp automation-examples/inbox/comfy-image-text.md volumes/workspace_data/.decree/inbox/
 ```
 
 The message body is the prompt, and `output_prefix` is the filename prefix ComfyUI writes under.
@@ -168,7 +168,7 @@ while IFS= read -r p; do
   [ -z "$p" ] && continue
   for img in "$DIR"/*.png; do
     n=$((n+1))
-    cat > "automation/inbox/comfy-$STAMP-$n.md" <<EOF
+    cat > "volumes/workspace_data/.decree/inbox/comfy-$STAMP-$n.md" <<EOF
 ---
 machine: comfy
 params:

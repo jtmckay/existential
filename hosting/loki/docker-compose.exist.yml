@@ -51,7 +51,7 @@ services:
     volumes:
       - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
       # Both decree projects' runs (each has its own runs/ in decree 0.5).
-      - ../../automation/runs:/decree/automation:ro
+      - workspace_data/.decree/runs:/decree/automation:ro
       - ../../services/automation/backup/runs:/decree/automation-backup:ro
       # hermes logs to files, not stdout (s6 routes each service's output into
       # its own file), so the docker_containers job below never sees it —
@@ -91,6 +91,8 @@ x-exist-volumes:
   # alloy's storage path — file offsets, not a db. Host-local by nature: it
   # tracks byte offsets into this host's docker log files.
   loki_alloy_data: {}
+  # automation's runs live in workspace/.decree; declared identically everywhere.
+  workspace_data: {}
 
 networks:
   exist:

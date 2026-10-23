@@ -222,10 +222,10 @@ echo ""
 echo "    echo '${HISTORY_ID}' > ${GMAIL_DIR}/history_id.inbox"
 echo ""
 
-# Nothing to enable: gmail_sync runs once its cron file is in automation/cron/.
-if [ ! -f "${DECREE_DIR:-/work/.decree}/cron/gmail-sync.md" ]; then
+# Nothing to enable: gmail_sync runs once its cron file is in volumes/workspace_data/.decree/cron/.
+if [ ! -f "/repo/volumes/workspace_data/.decree/cron/gmail-sync.md" ]; then
     echo "To sync on a schedule, activate its cron:"
-    echo "  cp automation-examples/cron/gmail-sync.md automation/cron/"
+    echo "  cp automation-examples/cron/gmail-sync.md volumes/workspace_data/.decree/cron/"
 fi
 
 # ── Sync label cache ──────────────────────────────────────────────────────────

@@ -117,7 +117,7 @@ own, which is the part worth understanding.
 ./existential.sh quest      # pick "Note Triage"
 ```
 
-That copies `note-triage.md` from `automation-examples/cron/` into `automation/cron/`, and that
+That copies `note-triage.md` from `automation-examples/cron/` into `volumes/workspace_data/.decree/cron/`, and that
 is the whole switch: the daemon rescans `cron/` every tick. The cron file's `TRIAGE_ROUTINE`
 param picks `note_develop` (the default) or `idea_workup` for the department fan-out described
 below.
@@ -298,7 +298,7 @@ being an object write, they become the file trigger above. See
 
 Decree runs one message at a time, and the department timeout (`agent_task`'s `agent_timeout` param) defaults to 900
 seconds. A three-question fan-out can therefore take the better part of an hour. It is not
-stuck — check `automation/runs/` or the Grafana **Decree Overview** dashboard, where each
+stuck — check `volumes/workspace_data/.decree/runs/` or the Grafana **Decree Overview** dashboard, where each
 question appears as its own run.
 
 The per-note cost of triage itself is deliberately small: one short call to judge, one more to

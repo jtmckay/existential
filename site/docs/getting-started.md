@@ -171,6 +171,12 @@ It's more than a shared folder:
   raise no event — which is what stops an agent's own answer from triggering another run.
 - **`workspace/ai/`** is where agent output lands (`agent_task`'s answers, for instance). It's
   indexed like everything else, so an agent can build on a previous run's output.
+- **`workspace/.decree/`** is your automations: the decree project the `automation` daemon
+  runs. Machines, scripts, cron files and migrations written there run on the next tick, and
+  `graph/` holds a Mermaid diagram of every machine, redrawn when one changes, so Obsidian shows
+  them. The repo's own machines are copied in once and never again, so your edits win. Its
+  `.gitignore` keeps run state local; secrets never live there. See
+  [Writing a routine](./writing-a-routine).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
 

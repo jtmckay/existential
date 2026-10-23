@@ -156,7 +156,7 @@ Copy and activate the example cron:
 
 ```bash
 cp automation-examples/cron/telegram-poll.md \
-   automation/cron/
+   volumes/workspace_data/.decree/cron/
 ```
 
 `telegram_ingest` polls `getUpdates` every minute, tracks a cursor in

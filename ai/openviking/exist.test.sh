@@ -170,12 +170,12 @@ if [[ -d /repo ]]; then
     # searches quietly returning nothing. The indexer is a routine of the main
     # decree daemon, so its cron lives in that daemon's project dir — openviking
     # ships no decree/ of its own. Quest activates it (`copies` in 00-core.md).
-    if compgen -G "/repo/automation/cron/*openviking-index*" >/dev/null; then
+    if compgen -G "/repo/volumes/workspace_data/.decree/cron/*openviking-index*" >/dev/null; then
         ok "openviking indexer cron active"
     else
         warn "openviking indexer cron active" \
-             "no openviking-index cron in automation/cron/" \
-             "cp automation-examples/cron/openviking-index-knowledgebase.md automation/cron/, then: docker compose restart automation"
+             "no openviking-index cron in volumes/workspace_data/.decree/cron/" \
+             "cp automation-examples/cron/openviking-index-knowledgebase.md volumes/workspace_data/.decree/cron/, then: docker compose restart automation"
     fi
 fi
 

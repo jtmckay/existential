@@ -9,8 +9,8 @@ services:
     label: ntfy (push notifications)
 done:
   files:
-    - automation/cron/clean-runs.md
-    - automation/cron/health-checks.md
+    - volumes/workspace_data/.decree/cron/clean-runs.md
+    - volumes/workspace_data/.decree/cron/health-checks.md
 ---
 
 The engine slice of Core. Decree runs routines on a schedule, on a webhook, or
@@ -36,13 +36,13 @@ A cron is a markdown file with frontmatter. Tracked templates ship *next to*
 the live directory; copying one in is what activates it. Restart the daemon
 that owns it and it is live:
 
-       mkdir -p automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
 
-       # Prunes old run logs weekly, so automation/runs/ cannot grow forever
-       cp automation-examples/cron/clean-runs.md automation/cron/
+       # Prunes old run logs weekly, so volumes/workspace_data/.decree/runs/ cannot grow forever
+       cp automation-examples/cron/clean-runs.md volumes/workspace_data/.decree/cron/
 
        # Probes a service URL every 15 minutes (see the Service Health quest)
-       cp automation-examples/cron/health-checks.md automation/cron/
+       cp automation-examples/cron/health-checks.md volumes/workspace_data/.decree/cron/
 
 That is it. Every unnumbered quest in this picker is a variation on those three
 lines — a different template, occasionally a different daemon.
@@ -53,7 +53,7 @@ There is no per-service sidecar. There are exactly two containers:
 
   automation         everything that reasons, routes, or calls a service API,
                      plus every service's one-time migrations.
-                     crons: automation-examples/cron/ → automation/cron/
+                     crons: automation-examples/cron/ → volumes/workspace_data/.decree/cron/
 
   automation-backup  mounts volumes/ wholesale and holds every service's
                      credentials, and does no reasoning. Backups live here, and
@@ -85,5 +85,5 @@ bot account routines publish as: the **Notifications (ntfy)** quest.
 
 ── Where the runs go ─────────────────────────────────────────────────────
 
-Every run writes a log to `automation/runs/`. Turn on the **Observability**
+Every run writes a log to `volumes/workspace_data/.decree/runs/`. Turn on the **Observability**
 quest and those become searchable in Grafana with a dashboard already built.

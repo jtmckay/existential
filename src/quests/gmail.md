@@ -7,7 +7,7 @@ services:
     label: Decree
 done:
   files:
-    - automation/cron/gmail-sync.md
+    - volumes/workspace_data/.decree/cron/gmail-sync.md
 ---
 
 Grants Decree read-only Gmail access via OAuth 2.0. Required by the
@@ -20,5 +20,5 @@ Setup:
      automation/secrets/gmail/.
 
   2. Activate the poller — checks for new messages every 15 minutes:
-       mkdir -p automation/cron/
-       cp automation-examples/cron/gmail-sync.md automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
+       cp automation-examples/cron/gmail-sync.md volumes/workspace_data/.decree/cron/

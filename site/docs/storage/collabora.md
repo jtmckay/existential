@@ -17,7 +17,7 @@ Point the `collabora` subdomain in your DNS to Caddy, and ensure Caddy proxies t
 ## Setup with Nextcloud
 
 **Automatic**, if you copy `automation-examples/migrations/22-nextcloud-richdocuments.md`
-into `automation/migrations/` — the `nextcloud-richdocuments` routine installs the app and
+into `volumes/workspace_data/.decree/migrations/` — the `nextcloud-richdocuments` routine installs the app and
 points it at this container for you (not part of Core's own copies, since Collabora isn't a
 Core service — copy it yourself once both Nextcloud and Collabora are enabled). See
 [Nextcloud → Collabora](./nextcloud#collabora-office-document-editing) for what that migration

@@ -21,4 +21,4 @@ Safe to re-run — install/enable is idempotent and the two config values are
 just reset to the same value.
 
 Requires nas/collabora (EXIST_IS_NAS_COLLABORA) enabled alongside nextcloud.
-Copy to automation/migrations/ to activate.
+Copy to volumes/workspace_data/.decree/migrations/ to activate.

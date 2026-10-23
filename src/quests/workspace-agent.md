@@ -62,7 +62,7 @@ Setup:
      services listed at the top of this quest, run
      `./existential.sh && docker compose up -d`, then copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
-     27-nextcloud-file-events.md to automation/migrations/.
+     27-nextcloud-file-events.md to volumes/workspace_data/.decree/migrations/.
 
   3. Check the agent half works before relying on it — the gateway answers
      the automation container:
@@ -80,5 +80,5 @@ the wrong thing is the only way this setup wastes real work. The shipped example
 looks for unresolved questions; make it look for whatever you actually want
 chased down. Leave CRITERIA empty and the path match is the whole test.
 
-Logs for each run land in automation/runs/ and are queryable in Grafana via the
+Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana via the
 Decree Overview dashboard.

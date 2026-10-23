@@ -57,7 +57,7 @@ Two deliberate omissions. `errors.log` is not tailed — every line in it also a
 
 :::note[Hermes' scheduler is not decree's]
 A cron job created by hermes — `hermes cron create`, `/cron` in its chat, or the agent deciding to
-schedule one mid-task — lives in *its* volume, not in `automation/cron/`. `decree status --cron` cannot see
+schedule one mid-task — lives in *its* volume, not in `volumes/workspace_data/.decree/cron/`. `decree status --cron` cannot see
 it and the Decree dashboards do not count it. This log job is what makes those firings visible at
 all, so `{job="hermes"} |= "cron"` is the query worth knowing.
 :::

@@ -25,4 +25,4 @@ slugs, e.g. `personal`) if you'd rather skip "Contact birthdays".
 Requires nas/nextcloud (`EXIST_IS_NAS_NEXTCLOUD`) enabled, and the Calendar app installed —
 `automation-examples/migrations/24-nextcloud-calendar.md` does that once.
 
-Copy to `automation/cron/` and restart `automation` to activate.
+Copy to `volumes/workspace_data/.decree/cron/` and restart `automation` to activate.

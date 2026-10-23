@@ -7,7 +7,7 @@ services:
     label: Decree
 done:
   files:
-    - automation/cron/telegram-poll.md
+    - volumes/workspace_data/.decree/cron/telegram-poll.md
 ---
 
 Create a Telegram bot and wire it to Decree. Once connected, Decree can
@@ -27,5 +27,5 @@ Setup:
 
   5. Activate the poller — checks for new photo messages every 30 minutes
      and uploads them to Nextcloud for downstream processing:
-       mkdir -p automation/cron/
-       cp automation-examples/cron/telegram-poll.md automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
+       cp automation-examples/cron/telegram-poll.md volumes/workspace_data/.decree/cron/

@@ -25,11 +25,11 @@ services:
     label: Actual Budget (personal finance)
 copies:
   - src: automation-examples/cron/clean-runs.md
-    dst: automation/cron/
+    dst: volumes/workspace_data/.decree/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
     requires: EXIST_IS_SERVICES_AUTOMATION
   - src: automation-examples/cron/health-checks.md
-    dst: automation/cron/
+    dst: volumes/workspace_data/.decree/cron/
     label: "decree: health-checks.md"
     requires: EXIST_IS_SERVICES_AUTOMATION
 ---
@@ -103,5 +103,5 @@ Two apps make you create the first account in their own UI:
    create a budget file.
 
 Then automate something: the **Automation** quest shows the one mechanism
-(copy a template into automation/cron/), and every unnumbered quest is a
+(copy a template into volumes/workspace_data/.decree/cron/), and every unnumbered quest is a
 variation on it.

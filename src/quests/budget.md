@@ -10,7 +10,7 @@ services:
     label: Decree
 done:
   files:
-    - automation/cron/gmail-sync.md
+    - volumes/workspace_data/.decree/cron/gmail-sync.md
 ---
 
 Two halves of the same loop. A cron polls a Gmail label every 15 minutes,
@@ -60,17 +60,17 @@ Then point a Gmail label at it and an Actual Budget account:
 
 ── 4. Activate the pollers ───────────────────────────────────────────────
 
-       mkdir -p automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
 
        # Pulls new mail every 15 minutes
-       cp automation-examples/cron/gmail-sync.md automation/cron/
+       cp automation-examples/cron/gmail-sync.md volumes/workspace_data/.decree/cron/
 
        # Receipt half — checks for photo replies every 30 minutes, matches them
        # to outstanding transactions and triggers the split
-       cp automation-examples/cron/telegram-receipt-poll.md automation/cron/
+       cp automation-examples/cron/telegram-receipt-poll.md volumes/workspace_data/.decree/cron/
 
 ── 5. Watch the first one land ───────────────────────────────────────────
 
-Run logs are in `automation/runs/`, and in Grafana's Decree Overview dashboard
+Run logs are in `volumes/workspace_data/.decree/runs/`, and in Grafana's Decree Overview dashboard
 filtered by `routine=actual-budget-parse`. A parse that finds nothing is a
 parser problem, not a plumbing problem — the mail is in the run log either way.

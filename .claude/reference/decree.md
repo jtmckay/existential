@@ -10,15 +10,18 @@ existential adds on top. Both daemons run decree **0.5.0-beta.13**, pinned in
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| project (`/work/.decree`) | repo-root `automation/`, mounted wholesale | `services/automation/backup/` |
-| machines | `automation/machines/` | `services/automation/backup/machines/` |
-| scripts, lib | `automation/scripts/`, `automation/lib/` | the same two, mounted read-only |
+| project (`/work/.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation/backup/` |
+| machines | seeded once per file from `automation/machines/` | `services/automation/backup/machines/` |
+| scripts, lib | scripts seeded from `automation/scripts/`; `automation/lib/` read-only | `automation/scripts/`, `automation/lib/`, read-only |
 | cron templates | `automation-examples/cron/` | `services/automation/backup/cron.example/` |
 | migrations | `automation-examples/migrations/` | none |
 | runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`: bulk mounts and master credentials, no AI |
 
-Each project has its own `inbox/`, `runs/`, `store/`, `cron/` and `processed.md`
-(gitignored). A machine both run (`notify`, `clean_runs`) is one file copied into
+Each project has its own `inbox/`, `runs/`, `store/`, `cron/` and `processed.md`.
+The seeded `.gitignore` keeps `workspace/.decree`'s run state (runs, store, inbox,
+attention, logs) from syncing; everything else there syncs, and `graph/` is redrawn
+by the entrypoint whenever a machine changes. A seeded file is never re-copied, so a
+change to a shipped machine reaches a fresh install, not an existing one. A machine both run (`notify`, `clean_runs`) is one file copied into
 both `machines/`; `./existential.sh test decree` fails if the copies differ.
 **`/repo` is mounted only into `automation-backup`**: `automation` hands what it
 reads to a model, so what it can read is what a prompt injection can read.
@@ -38,8 +41,8 @@ reads to a model, so what it can read is what a prompt injection can read.
   lists `emits: [X]` so `decree check` and `decree graph` see the chain.
 - **Scripts are executable** (`755`). decree runs them by path and `decree check`
   refuses a script without `+x` (V12), the exception to the repo's `644` default.
-- **Config, not secrets, goes in `automation/.env`** (gitignored; `.env.example` is the
-  template). Secrets come from compose `environment:`, which wins over it. Shared code is in `automation/lib/`
+- **Config, not secrets, goes in `automation/.env`** (gitignored, mounted over
+  `workspace/.decree/.env` so it never syncs; `.env.example` is the template). Secrets come from compose `environment:`, which wins over it. Shared code is in `automation/lib/`
   (`$DECREE_LIB`); state a machine keeps between runs is in `$DECREE_STORE`,
   declared under the machine's `store:`.
 - **A migration waits for its own service** in a first `wait_for_<service>` state.
@@ -53,8 +56,12 @@ reads to a model, so what it can read is what a prompt injection can read.
 
 - **Webhook:** `automation-webhook` runs decree-go-rest with its daemon off, over
   the `automation` project (read-only, `inbox/` writable). Endpoints are
-  `automation/decree-go-rest.yml`; edits load without a restart. Hermes has no
-  mount into `automation/`, so it gets the `/hermes/*` endpoints on its own secret.
+  `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`); edits load
+  without a restart. Hermes gets the `/hermes/*` endpoints on its own secret.
+- **Whoever can write `workspace/` can write automations.** That is the point
+  (the user directs agents to), and it means every agent with the workspace
+  mounted, hermes included, can add a script the `automation` daemon runs with
+  its credentials. Keep secrets out of `workspace/` for the same reason.
 - **What hermes knows:** `routines_snapshot` copies `graph/system.md`, the
   machines and the endpoints into `workspace/ai/decree/`.
 - **Telemetry is the event log.** alloy ships `runs/*/events.jsonl` and script

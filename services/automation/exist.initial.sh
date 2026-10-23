@@ -13,8 +13,14 @@ REPO="${SCRIPT_DIR}/../.."
 # before compose starts: a missing one is created root-owned by Docker, and
 # automation-webhook queuing into a root-owned inbox/ is a daemon that can never
 # claim a message.
-mkdir -p "${REPO}"/automation/{inbox,runs,store,cron,migrations,secrets} \
+WORKSPACE_DIR="${REPO}/volumes/workspace_data"
+PROJECT="${WORKSPACE_DIR}/.decree"
+mkdir -p "${REPO}"/automation/secrets \
+         "${PROJECT}"/{inbox,runs,store,cron,migrations,lib,graph} \
          "${SCRIPT_DIR}"/backup/{inbox,runs,store,cron,lib,scripts}
+# decree reads .decree/.env; it is bind-mounted from automation/.env so config
+# never lands in the synced workspace. A file mount needs its source to exist.
+touch "${REPO}/automation/.env" "${PROJECT}/.env"
 
 # ── decree 0.4 -> 0.5 ────────────────────────────────────────────────────────
 #
@@ -55,6 +61,37 @@ rm -f "${SCRIPT_DIR}/decree/config.yml" "${SCRIPT_DIR}/backup/config.yml" \
 rmdir "${SCRIPT_DIR}/backup/shared_routines" \
       "${REPO}/automation/outbox" "${SCRIPT_DIR}/backup/outbox" 2>/dev/null || true
 
+# ── workspace/.decree ────────────────────────────────────────────────────────
+#
+# The `automation` project is workspace/.decree, where the user (and the agents
+# they direct) write automations. The repo's machines and scripts are its
+# starting set: each file is copied once and never again, so an edit wins, the
+# same contract as a rendered file. lib/ is not copied: it is the repo's,
+# mounted read-only over lib/ so it stays current with the checkout.
+_seed() {               # <src> <dst>: copy every file under src that dst lacks
+    local f
+    while IFS= read -r f; do
+        [[ -e "$2/$f" ]] && continue
+        mkdir -p "$(dirname "$2/$f")"
+        cp -p "$1/$f" "$2/$f"
+    done < <(cd "$1" && find . -type f ! -name '.gitkeep' | sed 's|^\./||')
+}
+_seed "${REPO}/automation/machines" "${PROJECT}/machines"
+_seed "${REPO}/automation/scripts" "${PROJECT}/scripts"
+for _f in .gitignore decree-go-rest.yml; do
+    [[ -e "${PROJECT}/${_f}" ]] || cp -p "${REPO}/automation/${_f}" "${PROJECT}/${_f}"
+done
+# An install from before this keeps its active crons and migrations, and its
+# record of which migrations ran, in automation/. Each moves over once, unless
+# the workspace already has that file.
+for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/processed.md"; do
+    _dst="${PROJECT}/${_f#"${REPO}/automation/"}"
+    if [[ -f "$_f" && ! -e "$_dst" ]]; then
+        mv "$_f" "$_dst"
+        echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
+    fi
+done
+
 # triage is deliberately not opt-in — a stack nobody is watching is exactly the
 # one that needs it — and clean-runs comes with it, because triage fires every
 # few minutes and this daemon's runs/ is its own. But cron/ is gitignored (it is
@@ -77,7 +114,6 @@ done
 # (hermes) has no other way to discover that ai/ is special: a bare directory
 # listing shows folders with nothing to tell it to go read the README. This is
 # what a first listing should surface.
-WORKSPACE_DIR="${REPO}/volumes/workspace_data"
 WORKSPACE_README="${WORKSPACE_DIR}/README.md"
 if [[ ! -e "${WORKSPACE_README}" ]]; then
     mkdir -p "${WORKSPACE_DIR}"
@@ -93,6 +129,8 @@ agent to know about.
 
 - **`ai/`** — automation output, not yours to write to. See `ai/README.md`,
   and `ai/decree/` for what decree can run and how to ask it to.
+- **`.decree/`** — your automations: the decree project the `automation`
+  daemon runs. `graph/` draws every machine and is redrawn when one changes.
 
 Nothing regenerates this file — delete it once you have your bearings.
 WORKSPACEEOF

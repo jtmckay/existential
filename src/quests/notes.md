@@ -9,7 +9,7 @@ services:
     label: Nextcloud
 done:
   files:
-    - automation/cron/notes.md
+    - volumes/workspace_data/.decree/cron/notes.md
 ---
 
 Activates a recurring cron that pulls notes from Nextcloud, compiles them,
@@ -29,8 +29,8 @@ Prerequisites:
   - Nextcloud rclone credentials in automation/secrets/
 
 Activate the cron:
-  mkdir -p automation/cron/
-  cp automation-examples/cron/notes.md automation/cron/
+  mkdir -p volumes/workspace_data/.decree/cron/
+  cp automation-examples/cron/notes.md volumes/workspace_data/.decree/cron/
 
-Logs for each run land in automation/runs/ and are queryable in Grafana
+Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

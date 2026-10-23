@@ -41,7 +41,7 @@ Setup:
 
   2. File events must be on — Core does it. By hand: copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
-     27-nextcloud-file-events.md into automation/migrations/. file-router and
+     27-nextcloud-file-events.md into volumes/workspace_data/.decree/migrations/. file-router and
      file-processor are enabled by default.
 
   3. Copy the processor in. Processor scripts are bind-mounted live into
@@ -53,5 +53,5 @@ Setup:
      named <filename>.mp3.transcript.txt, with each line prefixed by its speaker
      (e.g. "[SPEAKER_00] …"). Diarized runs take longer than plain transcription.
 
-Logs for each run land in automation/runs/ and are queryable in Grafana
+Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

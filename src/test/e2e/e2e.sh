@@ -198,7 +198,7 @@ E2E_DAEMONS="automation automation-backup"
 # _daemon_dir <daemon> <work> — that daemon's decree project inside the clone.
 _daemon_dir() {
     case "$1" in
-        automation)        echo "$2/automation" ;;
+        automation)        echo "$2/volumes/workspace_data/.decree" ;;
         automation-backup) echo "$2/services/automation/backup" ;;
     esac
 }
@@ -234,11 +234,11 @@ applicable_checks() {
     return 0
 }
 
-# Stage checks BEFORE render and up: machines/ and scripts/ are mounted
-# read-only, which is exactly why a check cannot do this to itself.
+# Stage checks BEFORE render and up, into the shipped set exist.initial.sh seeds
+# workspace/.decree from:
 #   - a sibling .yml lands in automation/machines/ as <machine>.yml, and a
-#     sibling .sh in automation/scripts/ as <machine>.sh (both daemons mount
-#     that one scripts/), executable because decree runs scripts by path
+#     sibling .sh in automation/scripts/ as <machine>.sh (automation-backup
+#     mounts that scripts/ too), executable because decree runs scripts by path
 #   - a sibling .stage.sh runs on the host, for config already read at boot
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
@@ -294,7 +294,7 @@ _wait_settled() {
 # after anything decree put there itself.
 drop_checks() {
     local work="$1" md d inbox n=0
-    [ -d "$work/automation/inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
+    [ -d "$(_daemon_dir automation "$work")/inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
     # Wait for the migrations first. Each decree pass drains the inbox BEFORE
     # it runs migrations, so a check dropped now would run ahead of the setup
@@ -376,7 +376,7 @@ WORK=""; QUEST_LABEL=""; COLLECTED=0
 cleanup() {
     # Collect first, if the run did not get that far itself — a crash, a failed
     # `up`, or a Ctrl+C is the case that most needs its evidence.
-    if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$WORK/automation/runs" ]; then
+    if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$(_daemon_dir automation "$WORK")/runs" ]; then
         collect_quest_results "$WORK" "${QUEST_LABEL:-interrupted}" || true
         COLLECTED=1
     fi
@@ -473,7 +473,7 @@ run_quest() {
     log "Applied ${n} quest copies"
 
     # 5. Stage the checks — before the render, because what this touches
-    #    (machines/ and scripts/, mounted read-only, and the webhook route table) is read at boot.
+    #    (machines/ and scripts/, seeded by exist.initial.sh, and the webhook route table) is read at boot.
     log "Staging checks..."
     stage_checks "$WORK"
 
@@ -501,7 +501,7 @@ run_quest() {
     #     not the exit code) and the notify it queues follows it. What a cron
     #     does on a schedule is triage's job on the real stack, continuously —
     #     which is exactly why e2e stopped running a per-service tier at all.
-    rm -f "$WORK/automation/cron/"*.md \
+    rm -f "$(_daemon_dir automation "$WORK")/cron/"*.md \
           "$WORK/services/automation/backup/cron/"*.md
 
     # 7. $WORK is passed as the host-side repo root so the generated bind-mount

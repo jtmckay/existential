@@ -9,8 +9,8 @@ services:
     label: Decree (receives the file events)
 done:
   files:
-    - automation/migrations/23-nextcloud-rclone-remote.md
-    - automation/migrations/27-nextcloud-file-events.md
+    - volumes/workspace_data/.decree/migrations/23-nextcloud-rclone-remote.md
+    - volumes/workspace_data/.decree/migrations/27-nextcloud-file-events.md
 ---
 
 Nextcloud is what your phone and laptop sync to, and the reason a file landing
@@ -36,9 +36,9 @@ Everything that downloads a file out of Nextcloud (every file processor, the
 notes machines) goes through one rclone remote. Without it they all fail with
 "didn't find section in config file".
 
-       mkdir -p automation/migrations/
+       mkdir -p volumes/workspace_data/.decree/migrations/
        cp automation-examples/migrations/23-nextcloud-rclone-remote.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
 
 A migration runs **once**, the first time decree sees it, after the service it
 configures is healthy. There is nothing to schedule and nothing to re-run.
@@ -46,7 +46,7 @@ configures is healthy. There is nothing to schedule and nothing to re-run.
 ── 3. Point Nextcloud's file events at decree ────────────────────────────
 
        cp automation-examples/migrations/27-nextcloud-file-events.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
 
 From then on every upload through Nextcloud — desktop client, web UI, WebDAV —
 runs `file_router`, which hands the file to any processor whose PATTERN

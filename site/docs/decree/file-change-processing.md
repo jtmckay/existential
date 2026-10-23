@@ -172,7 +172,7 @@ Core does not include Nextcloud, so this is always a step you take.
 :::
 
 Two decree migrations, copied from `automation-examples/migrations/` into
-`automation/migrations/`:
+`volumes/workspace_data/.decree/migrations/`:
 
 - **`23-nextcloud-rclone-remote.md`** — the `nextcloud` rclone remote (WebDAV, as the admin
   user) that `file_processor` downloads through. `rclone_src` on the webhook's `/files` route

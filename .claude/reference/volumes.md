@@ -19,7 +19,8 @@ not — and it belongs in `volumes/<name>` with a declaration, never in the serv
 is no "service-dir scratch" tier: that exemption is what let hermes' four build trees live in
 `ai/hermes/hermes_install/` for a year, outside `automation-backup`'s reach and invisible to
 `reset`, which only knows how to offer deleting a `_cache` **volume**. The one root outside
-`volumes/` is the decree project dir `automation/`, which is architectural, not a service folder.
+`volumes/` is `automation/`: the machines and scripts the repo ships (seeded into
+`workspace_data/.decree`, the live project), plus `lib/`, `secrets/` and `.env`.
 The user's own content is a volume too — `workspace_data`, declared identically by every
 service that mounts it.
 

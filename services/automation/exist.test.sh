@@ -23,7 +23,7 @@ WEBHOOK="http://automation-webhook:8801"
 
 # ── 1. Rendered state ────────────────────────────────────────────────────────
 
-file_present "decree inbox present" /repo/automation/inbox
+file_present "decree inbox present" /repo/volumes/workspace_data/.decree/inbox
 
 # ── 2. Webhook liveness ──────────────────────────────────────────────────────
 

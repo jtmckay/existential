@@ -13,6 +13,6 @@ run and how to ask for it. It lands in `workspace/ai/`, the same directory
 `agent_task` writes to — indexed by OpenViking, and written straight to disk, so
 it is searchable but cannot trigger another run.
 
-Copy to automation/cron/ and restart automation to activate. To refresh it now:
+Copy to volumes/workspace_data/.decree/cron/ and restart automation to activate. To refresh it now:
 
   docker exec automation decree emit --machine routines_snapshot </dev/null

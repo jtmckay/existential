@@ -34,7 +34,11 @@ POST, a message another machine emitted, `decree emit` by hand — they all end 
 
 ## The machine
 
-A machine lives in `automation/machines/<name>.yml`. Names are snake_case. Start with the
+A machine lives in `workspace/.decree/machines/<name>.yml` (on the host,
+`volumes/workspace_data/.decree/`), next to your notes, and its graph is redrawn in
+`workspace/.decree/graph/` for Obsidian as soon as you save it. To ship one with the repo, put it
+in `automation/machines/` instead: each shipped file is copied into a workspace that lacks it,
+and never again, so your edits win. Names are snake_case. Start with the
 simplest one, a single state, and add states only when a real run shows the need:
 
 ```yaml
@@ -58,7 +62,7 @@ that names the key, not a setting silently ignored.
 
 ## The script
 
-`invoke: my_job` runs `automation/scripts/my_job.sh`. `service_health.sh` is a good short one to
+`invoke: my_job` runs `scripts/my_job.sh` in the same project. `service_health.sh` is a good short one to
 read next to this:
 
 ```bash
@@ -89,9 +93,9 @@ Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and
 machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
 :::warning[Which daemon?]
-There are two, and each is its own decree project: **`automation`** (the repo-root
-`automation/` directory) and **`automation-backup`** (`services/automation/backup/`, with its
-own `machines/`). They share `automation/scripts/` and `automation/lib/`.
+There are two, and each is its own decree project: **`automation`** (`workspace/.decree`) and
+**`automation-backup`** (`services/automation/backup/`, with its own `machines/`, running the
+repo's `automation/scripts/`). Both use the repo's `automation/lib/`.
 
 `automation` is where anything that **reasons, routes, calls a service API, or runs a service's
 one-time migrations** belongs. It alone has the hermes gateway credential.
@@ -111,7 +115,7 @@ A machine that nothing points at never runs. There is no list to register it in.
 ### Cron — on a schedule
 
 Add a file to `automation-examples/cron/<name>.md` (tracked), then copy it into
-`automation/cron/` (active, gitignored). The daemon rescans the directory every tick, so there is
+`volumes/workspace_data/.decree/cron/` (active). The daemon rescans the directory every tick, so there is
 nothing to restart:
 
 ```markdown
@@ -126,7 +130,7 @@ What this schedule is for. The body is free text.
 ```
 
 ```bash
-cp automation-examples/cron/my-job.md automation/cron/
+cp automation-examples/cron/my-job.md volumes/workspace_data/.decree/cron/
 ```
 
 The copy-to-activate split is deliberate: examples ship for everyone, and nothing runs on your
@@ -197,7 +201,7 @@ echo | docker exec -i automation decree emit --machine my_job
 # 3. Read what happened
 docker exec automation decree status          # runs by state; failed ones say how to retry
 docker exec automation decree status <id>     # one run's events
-ls automation/runs/<id>/                      # message.md, events.jsonl, one log per script
+ls volumes/workspace_data/.decree/runs/<id>/                      # message.md, events.jsonl, one log per script
 ```
 
 Every run's events and logs also ship to Loki, and Grafana's **Decree Overview** dashboard shows
@@ -208,7 +212,7 @@ Common reasons a job appears to do nothing:
 
 | Symptom | Cause |
 |---|---|
-| No run at all | Nothing triggers it: the cron file is in `automation-examples/`, not `automation/cron/` |
+| No run at all | Nothing triggers it: the cron file is in `automation-examples/`, not `volumes/workspace_data/.decree/cron/` |
 | A `failed` run with `invalid_message` | The message names a machine that project does not have, or a param its `data:` does not declare |
 | A chained job never runs | The emitting script's `decree emit` failed; its log says why |
 | Runs, ends `done`, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |

@@ -50,7 +50,7 @@ from triggering another run.
 Setup:
   1. Core already did this. By hand: copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
-     27-nextcloud-file-events.md into automation/migrations/. file-router and
+     27-nextcloud-file-events.md into volumes/workspace_data/.decree/migrations/. file-router and
      file-processor are enabled by default.
 
   2. Copy the example processor, rename it, and edit PATTERN + logic for
@@ -59,6 +59,6 @@ Setup:
           automation/lib/file-processors/my-processor.sh
      (processor scripts are bind-mounted live — no restart needed for those)
 
-  3. Drop a file into Nextcloud and watch automation/runs/ for the run log.
+  3. Drop a file into Nextcloud and watch volumes/workspace_data/.decree/runs/ for the run log.
 
 Transcription and OCR have their own auto quests with ready-made processors.

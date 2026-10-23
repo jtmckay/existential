@@ -38,13 +38,13 @@ Processor convention (ollama-ocr.sh):
 Setup:
   1. File events must be on — Core does it. By hand: copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
-     27-nextcloud-file-events.md into automation/migrations/. file-router and
+     27-nextcloud-file-events.md into volumes/workspace_data/.decree/migrations/. file-router and
      file-processor are enabled by default.
 
   2. Make sure the vision model is pulled in Ollama. It is chosen globally as
      EXIST_MODEL_VISION in .env.shared, and migration 14 pulls it for you:
        cp automation-examples/migrations/14-ollama-pull-vision-model.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
      Or pull it by hand:
        docker exec ollama ollama pull "$(grep ^EXIST_MODEL_VISION= .env.shared | cut -d= -f2)"
 
@@ -58,5 +58,5 @@ Telegram OCR flow:
   already uploaded into Nextcloud's telegram/ folder by telegram-poll. The ollama-ocr processor picks
   them up automatically — no extra steps.
 
-Logs for each run land in automation/runs/ and are queryable in Grafana
+Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

@@ -3,7 +3,7 @@
 #
 # Fetches new Gmail messages via the Gmail REST API and emits each one to
 # GMAIL_ROUTINE (gmail, or actual_budget_parse): the email body as the message
-# body, its headers as params. Triggered by automation/cron/gmail-sync.md.
+# body, its headers as params. Triggered by volumes/workspace_data/.decree/cron/gmail-sync.md.
 #
 # GMAIL_FORWARD carries extra params to every emitted message, one key=value
 # per line — how a bank-label cron hands actual_budget_parse its parse_script
@@ -26,7 +26,7 @@ set -euo pipefail
 
 GMAIL_DIR="${GMAIL_DIR:-/secrets/gmail}"
 CREDENTIALS="${GMAIL_DIR}/credentials.env"
-EMAILS_DIR="${EMAILS_DIR:-/work/.decree/emails}"
+EMAILS_DIR="${EMAILS_DIR:-/data/emails}"
 LABEL_FILTER="$DECREE_DATA_GMAIL_LABEL_FILTER"
 INITIAL_SYNC_DAYS="$DECREE_DATA_GMAIL_INITIAL_SYNC_DAYS"
 GMAIL_ROUTINE="$DECREE_DATA_GMAIL_ROUTINE"

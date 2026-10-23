@@ -9,5 +9,5 @@ Without this, https://homeassistant.<domain> redirects every page to the
 onboarding wizard until a human creates an account by hand.
 
 Safe to re-run — an instance that already has a user (onboarded by this
-migration or by hand) is left alone. Copy to automation/migrations/ to
+migration or by hand) is left alone. Copy to volumes/workspace_data/.decree/migrations/ to
 activate (the Core quest does this for you).

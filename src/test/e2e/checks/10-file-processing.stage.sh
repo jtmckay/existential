@@ -26,8 +26,8 @@ cp "$WORK/automation/lib/file-processors.example/example.sh" \
 
 echo "  staged the example file-processor as the probe"
 
-mkdir -p "$WORK/automation/migrations"
+mkdir -p "$WORK/volumes/workspace_data/.decree/migrations"
 for _m in 23-nextcloud-rclone-remote.md 27-nextcloud-file-events.md; do
-    cp -n "$WORK/automation-examples/migrations/$_m" "$WORK/automation/migrations/"
+    cp -n "$WORK/automation-examples/migrations/$_m" "$WORK/volumes/workspace_data/.decree/migrations/"
 done
 echo "  staged the nextcloud migrations (rclone remote, file events)"

@@ -35,4 +35,4 @@ and only uploads through Nextcloud fire file events, so it never triggers anothe
 To index a second directory, copy this file with a new name and give it its own
 INDEX_DIR and INDEX_PREFIX. The two keep separate manifests.
 
-Copy to automation/cron/ and restart automation to activate.
+Copy to volumes/workspace_data/.decree/cron/ and restart automation to activate.

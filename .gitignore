@@ -73,9 +73,10 @@
 **/dashy-conf.yml
 
 # Decree
-# Two decree projects: the root automation/ dir (mounted wholesale into the
-# `automation` daemon as /work/.decree) and services/automation/backup/. Each
-# keeps its own runtime state; everything else in them is tracked.
+# automation/ is what the repo ships into workspace/.decree (the `automation`
+# daemon's project); its cron/, migrations/, runs/ and the rest below are only
+# what an install from before that left behind. services/automation/backup/ is
+# the second project and keeps its own runtime state.
 automation/lib/file-processors/*
 automation/cron/*
 automation/migrations/*

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check_versions — compare pinned image tags against upstream and notify when
 # updates are available. Reads current tags from the master docker-compose.yml
-# (mounted at /work/.decree/docker-compose.yml) so there is no extra state to
+# (mounted at /work/docker-compose.yml) so there is no extra state to
 # maintain — it's always current after any ./existential.sh run.
 #
 # Runs weekly via cron. Silent when all tags match; sends one ntfy notification
@@ -12,11 +12,11 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:-/work/.decree/docker-compose.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-/work/docker-compose.yml}"
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
     echo "docker-compose.yml not found at ${COMPOSE_FILE}" >&2
-    echo "Add '../../docker-compose.yml:/work/.decree/docker-compose.yml:ro' to decree volumes" >&2
+    echo "Add '../../docker-compose.yml:/work/docker-compose.yml:ro' to decree volumes" >&2
     exit 1
 fi
 

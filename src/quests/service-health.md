@@ -11,7 +11,7 @@ services:
     label: Grafana
 done:
   files:
-    - automation/cron/health-checks.md
+    - volumes/workspace_data/.decree/cron/health-checks.md
 ---
 
 Adds per-service health check crons to the main Decree daemon. Each cron
@@ -30,9 +30,9 @@ by name.
 Setup — for each service you want to monitor:
 
   1. Copy the cron template under a name of its own:
-       mkdir -p automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
        cp automation-examples/cron/health-checks.md \
-          automation/cron/health-check-<slug>.md
+          volumes/workspace_data/.decree/cron/health-check-<slug>.md
 
   2. Edit the copy and set, under params:
        SERVICE_NAME: <slug>          # display name in the run log

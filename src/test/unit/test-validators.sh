@@ -157,18 +157,18 @@ expect_pass "conventions: ignores e2e:false appearing in the guide body" tsx "$C
 # Core exactly, so the partition is checked rather than remembered.
 
 core_fm() {
-    printf -- '---\nname: Core\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ncopies:\n  - src: automation-examples/cron/clean-runs.md\n    dst: automation/cron/\n    label: clean-runs\n---\n\nCore.\n'
+    printf -- '---\nname: Core\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ncopies:\n  - src: automation-examples/cron/clean-runs.md\n    dst: volumes/workspace_data/.decree/cron/\n    label: clean-runs\n---\n\nCore.\n'
 }
 
 partok="$(qfix)"
 core_fm > "$partok/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
     > "$partok/src/quests/01-ai.md"
 expect_pass "conventions: accepts slices that partition Core exactly" tsx "$CONV" "$partok"
 
 partsvc="$(qfix)"
 core_fm > "$partsvc/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices: []\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+printf -- '---\nname: AI\ne2e: true\nservices: []\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
     > "$partsvc/src/quests/01-ai.md"
 expect_fail "conventions: rejects a Core service owned by no slice" tsx "$CONV" "$partsvc"
 
@@ -180,13 +180,13 @@ expect_fail "conventions: rejects a Core copy no slice names in done.files" tsx 
 
 partextra="$(qfix)"
 core_fm > "$partextra/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n  - var: EXIST_IS_AI_COMFYUI\n    label: ComfyUI\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n  - var: EXIST_IS_AI_COMFYUI\n    label: ComfyUI\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
     > "$partextra/src/quests/01-ai.md"
 expect_fail "conventions: rejects a slice enabling a service Core does not" tsx "$CONV" "$partextra"
 
 partdup="$(qfix)"
 core_fm > "$partdup/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - automation/cron/clean-runs.md\n---\n\nA guide.\n' \
+printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
     > "$partdup/src/quests/01-ai.md"
 printf -- '---\nname: AI two\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n---\n\nA guide.\n' \
     > "$partdup/src/quests/02-ai.md"

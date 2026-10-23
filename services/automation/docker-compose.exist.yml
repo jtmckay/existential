@@ -44,6 +44,8 @@ services:
       # routines are opt-in and their pre-checks report the gap clearly.
       - HERMES_API_KEY=${HERMES_API_KEY:-}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      # Redraw workspace/.decree/graph/ whenever a machine changes (entrypoint.sh).
+      - GRAPH_WATCH=1
       - IN_CONTAINER=1
       # The image's HOME (/home/decree) is the container's throwaway layer, so
       # anything written there is lost on recreate — including rclone's config,
@@ -104,30 +106,23 @@ services:
       # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
       - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
     volumes:
-      # The whole root automation/ dir, wholesale — runs, store, inbox,
-      # processed.md, secrets. This IS /work/.decree; everything below is a
-      # read-only overlay on top of it, not a separate piece of content.
-      - ../../automation:/work/.decree:z
-      # This container runs agent_task with terminal and write access, so the
-      # machines and scripts must not be writable from inside a script — a
-      # compromised or misbehaving run could otherwise rewrite the code that
-      # every future run (and automation-backup) executes.
-      - ../../automation/machines:/work/.decree/machines:ro,z
-      - ../../automation/scripts:/work/.decree/scripts:ro,z
+      # workspace/.decree IS the project: machines, scripts, cron, migrations
+      # and inbox the user (or an agent they direct) writes there run on the
+      # next tick. exist.initial.sh seeds it from automation/ once per file.
+      - workspace_data/.decree:/work/.decree:z
+      # lib/ stays the repo's, read-only, so it follows the checkout.
       - ../../automation/lib:/work/.decree/lib:ro,z
-      # cron/ and migrations/ are only ever written from the host (a quest
-      # copying from automation-examples/, or exist.initial.sh) before the
-      # container starts — nothing at runtime writes them, so they get the same
-      # read-only treatment.
-      - ../../automation/cron:/work/.decree/cron:ro,z
-      - ../../automation/migrations:/work/.decree/migrations:ro,z
-      # Also mounted at the conventional /secrets path, which scripts read.
+      # Config, never secrets, and outside the synced workspace (decree reads
+      # .decree/.env). exist.initial.sh creates it.
+      - ../../automation/.env:/work/.decree/.env:ro,z
+      # Secrets stay out of workspace/, at the conventional /secrets path.
       - ../../automation/secrets:/secrets:z
       # Notes data — a _cache. Subdirs created on first use by the scripts.
       #   /data/notes   — Nextcloud sync cache (source of truth: Nextcloud)
       #   /data/dropbox — compiled output for Dropbox (source of truth: /data/notes)
       - decree_data:/data:z
-      - ../../docker-compose.yml:/work/.decree/docker-compose.yml:ro,z
+      # Outside .decree, so the generated compose never lands in workspace/.
+      - ../../docker-compose.yml:/work/docker-compose.yml:ro,z
       # NOT the whole repo. This container hands prompts to hermes, so what it
       # can read is what a prompt injection can read. The whole-repo
       # mount that used to be here existed for triage, and carried the master
@@ -223,7 +218,7 @@ services:
     tty: false
 
   # decree-go-rest: authenticated POSTs become `decree emit` messages in
-  # automation's inbox. Endpoints are automation/decree-go-rest.yml (tracked —
+  # automation's inbox. Endpoints are workspace/.decree/decree-go-rest.yml (seeded —
   # it names environment variables, never secrets). It runs no work and can
   # write nothing but inbox/; the `automation` daemon runs what it queues.
   automation-webhook:
@@ -253,8 +248,8 @@ services:
       # GET /openapi.json, which Lowcoder (or anything) reads as a data source.
       - DECREE_GO_REST_OPENAPI=true
     volumes:
-      - ../../automation:/project/.decree:ro,z
-      - ../../automation/inbox:/project/.decree/inbox:z
+      - workspace_data/.decree:/project/.decree:ro,z
+      - workspace_data/.decree/inbox:/project/.decree/inbox:z
     healthcheck:
       # -config too: without it -healthcheck looks for ./decree-go-rest.yml.
       test: ["CMD", "decree-go-rest", "-config", "/project/.decree/decree-go-rest.yml", "-healthcheck"]

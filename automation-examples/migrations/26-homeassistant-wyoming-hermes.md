@@ -16,5 +16,5 @@ isn't loaded yet, rather than guessing.
 
 Safe to re-run — existing Wyoming entries (matched by title), an existing
 Hermes conversation entry, and an existing "Hermes" pipeline are all left
-alone. Copy to automation/migrations/ to activate (the Core quest does this
+alone. Copy to volumes/workspace_data/.decree/migrations/ to activate (the Core quest does this
 for you).

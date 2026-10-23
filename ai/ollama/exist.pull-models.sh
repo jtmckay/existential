@@ -4,7 +4,7 @@
 # This is a manual fallback. Under normal operation the decree daemon's ollama
 # migrations (automation-examples/migrations/1*-ollama-*) do exactly
 # this after ollama passes its health check — copy them into
-# automation/migrations/ and they run once.
+# volumes/workspace_data/.decree/migrations/ and they run once.
 #
 # Which models get pulled is NOT decided here: it comes from the "Model
 # Selection" block in .env.shared (EXIST_MODEL_CHAT, EXIST_MODEL_EXTRACT,

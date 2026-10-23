@@ -12,4 +12,4 @@ see `automation/decree-go-rest.yml`) fails every download with
 routing itself works fine.
 
 Safe to re-run — an existing `[nextcloud]` remote is left alone. Copy to
-automation/migrations/ to activate.
+volumes/workspace_data/.decree/migrations/ to activate.

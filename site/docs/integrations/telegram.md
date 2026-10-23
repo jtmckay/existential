@@ -58,7 +58,7 @@ nothing without it) and, for receipt polling, activating its cron:
 
 ```bash
 cp automation-examples/cron/telegram-receipt-poll.md \
-   automation/cron/
+   volumes/workspace_data/.decree/cron/
 ```
 
 The daemon rescans `cron/` every tick, so there is nothing to restart.

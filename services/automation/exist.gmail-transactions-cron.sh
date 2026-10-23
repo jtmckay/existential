@@ -2,7 +2,7 @@
 # decree — Gmail → Actual Budget cron generator
 #
 # Walks through selecting a Gmail label, a parse script, and an Actual Budget
-# account, then writes automation/cron/gmail-transactions-<label>.md.
+# account, then writes workspace/.decree/cron/gmail-transactions-<label>.md.
 #
 # Run via: ./existential.sh run automation gmail-transactions-cron
 # Requires: `./existential.sh run automation gmail-sync` + `./existential.sh run
@@ -17,7 +17,7 @@ adhoc_self_elevate "${BASH_SOURCE[0]}"
 SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
-CRON_DIR="${DECREE_DIR:-/work/.decree}/cron"
+CRON_DIR="/repo/volumes/workspace_data/.decree/cron"
 PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/automation/lib/actual-budget}"
 DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
 
@@ -150,7 +150,7 @@ EOF
 echo ""
 hr
 echo ""
-echo "  Created: automation/cron/gmail-transactions-${_label_slug}.md"
+echo "  Created: workspace/.decree/cron/gmail-transactions-${_label_slug}.md"
 echo "  Label:   ${GMAIL_LABEL}"
 echo "  Parser:  ${PARSE_SCRIPT_NAME}"
 echo "  Account: ${ACCOUNT_NAME}"

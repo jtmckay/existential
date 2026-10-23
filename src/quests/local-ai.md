@@ -15,13 +15,13 @@ services:
     label: Firecrawl (web crawler for the agent)
 done:
   files:
-    - automation/migrations/10-ollama-pull-chat-model.md
-    - automation/migrations/11-ollama-set-chat-context.md
-    - automation/migrations/12-ollama-pull-extract-model.md
-    - automation/migrations/13-ollama-pull-embed-model.md
-    - automation/migrations/14-ollama-pull-vision-model.md
-    - automation/cron/openviking-index-knowledgebase.md
-    - automation/cron/note-connect.md
+    - volumes/workspace_data/.decree/migrations/10-ollama-pull-chat-model.md
+    - volumes/workspace_data/.decree/migrations/11-ollama-set-chat-context.md
+    - volumes/workspace_data/.decree/migrations/12-ollama-pull-extract-model.md
+    - volumes/workspace_data/.decree/migrations/13-ollama-pull-embed-model.md
+    - volumes/workspace_data/.decree/migrations/14-ollama-pull-vision-model.md
+    - volumes/workspace_data/.decree/cron/openviking-index-knowledgebase.md
+    - volumes/workspace_data/.decree/cron/note-connect.md
 ---
 
 A model server, an agent in front of it, memory that survives the session, and
@@ -58,13 +58,13 @@ Foreground, right now:
 Or let decree do it unattended as soon as ollama is healthy — one migration
 per role, each running exactly once:
 
-       mkdir -p automation/migrations/
+       mkdir -p volumes/workspace_data/.decree/migrations/
        cp automation-examples/migrations/10-ollama-pull-chat-model.md \
           automation-examples/migrations/11-ollama-set-chat-context.md \
           automation-examples/migrations/12-ollama-pull-extract-model.md \
           automation-examples/migrations/13-ollama-pull-embed-model.md \
           automation-examples/migrations/14-ollama-pull-vision-model.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
 
 Those migrations name a **role**, never a tag:
 
@@ -123,13 +123,13 @@ model alone and the "it knows your material" half of this quest is inert. The
 knowledgebase is `workspace/` — the same tree code-server and hermes share, so
 there is no second directory to keep in step.
 
-       mkdir -p automation/cron/
+       mkdir -p volumes/workspace_data/.decree/cron/
        cp automation-examples/cron/openviking-index-knowledgebase.md \
-          automation/cron/
+          volumes/workspace_data/.decree/cron/
 
        # Surfaces connections between what you just wrote and what you already
        # know, hourly. Needs the index above.
-       cp automation-examples/cron/note-connect.md automation/cron/
+       cp automation-examples/cron/note-connect.md volumes/workspace_data/.decree/cron/
 
 Indexing runs every 15 minutes and preserves subdirectories; deleting a file on
 disk drops it from the index on the next run. To index a second directory, copy

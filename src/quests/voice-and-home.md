@@ -11,8 +11,8 @@ services:
     label: wyoming-piper (text to speech)
 done:
   files:
-    - automation/migrations/25-homeassistant-onboarding.md
-    - automation/migrations/26-homeassistant-wyoming-hermes.md
+    - volumes/workspace_data/.decree/migrations/25-homeassistant-onboarding.md
+    - volumes/workspace_data/.decree/migrations/26-homeassistant-wyoming-hermes.md
 ---
 
 Home Assistant is the house; whisper turns speech into text and piper turns
@@ -41,9 +41,9 @@ Without this, https://homeassistant.${EXIST_DOMAIN} redirects every page to the
 setup wizard until a human fills it in. The migration creates it from
 EXIST_USERNAME / the generated password:
 
-       mkdir -p automation/migrations/
+       mkdir -p volumes/workspace_data/.decree/migrations/
        cp automation-examples/migrations/25-homeassistant-onboarding.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
 
 (Or skip it and click through the wizard yourself — the migration then finds an
 account already there and does nothing.)
@@ -55,7 +55,7 @@ Hermes, and builds the Assist pipeline that chains them. It needs the account
 from step 2 to exist first, which the numbering guarantees:
 
        cp automation-examples/migrations/26-homeassistant-wyoming-hermes.md \
-          automation/migrations/
+          volumes/workspace_data/.decree/migrations/
 
 Migrations run once each, in order, each waiting until Home Assistant
 answers. Watch them with `docker exec automation decree status`.
