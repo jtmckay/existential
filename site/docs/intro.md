@@ -10,22 +10,22 @@ The system as one box — what it is and what it does for you. Zoom in one step 
 [Level 2 · The Pieces](./how-it-works).
 :::
 
-Whatever you need done digitally, open source can do it. Notes, photos, money,
-files, recipes, dashboards, monitoring, home automation — there is a good, free, actively
-maintained project for nearly all of it.
+**Taking your best brain day, and preserving it for your worst.**
 
-The hard part was never finding the software. The hard part is running twenty of them at
-once: giving each one a name you can type, a certificate your phone trusts, somewhere safe
-to put its data, a backup, a way to get updated, and some way to reach the other nineteen.
+Existential turns your ideas into durable workflows, so when you don't remember, or it's a
+rough brain day, what you already decided is still there, still running.
 
-**Existential is the part that does that.** You choose what you want; it comes up wired
-together.
+Underneath it is a curated set of open-source apps (notes, photos, money, files, dashboards,
+monitoring, home automation) run as one system: each with a name you can type, a certificate
+your phone trusts, somewhere safe to put its data, a backup, and a way to reach the others.
+You choose what you want; it comes up wired together.
 
 ## Three things it gets you
 
-### The software already exists
-It is a curated list, not an app store — every service in it is one somebody uses daily and
-maintains. Adding one is flipping a flag. Nothing is replaced with a worse in-house version.
+### Decide on a good day
+An idea you had at your best becomes a workflow that runs whether you remember it or not. It
+is built from a curated list of maintained open-source services, not an app store; adding one
+is flipping a flag.
 
 ### Solve it once
 Hostnames, HTTPS, storage tiers, logging, secrets, backups, the automation engine — solved a

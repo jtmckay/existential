@@ -5,3 +5,4 @@
 005-openai-compatible-models.md
 006-agents-in-code-server.md
 007-remote-ai-box-guide.md
+008-value-proposition.md

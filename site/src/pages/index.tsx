@@ -27,8 +27,8 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          The software already exists. The hard part is connecting twenty things together
-          in a meaningful way.
+          Existential turns your ideas into durable workflows, so when you don't remember, or
+          it's a rough brain day, what you already decided is still there, still running.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -96,7 +96,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Software that works together, remembers you, and handles the boring parts — and is still, plainly, yours. Existential is a homelab stack you run on your own hardware.">
+      description="Taking your best brain day, and preserving it for your worst. Existential turns your ideas into durable workflows on your own hardware, so what you already decided is still there, still running.">
       <HomepageHeader />
       <main>
         <HomepageWhy />

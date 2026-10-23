@@ -11,13 +11,13 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'The software exists',
+    title: 'Decide on a good day',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.featureIcon}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" />
       </svg>
     ),
-    description: <>Notes, photos, money, files — already solved by great open source tools.</>,
+    description: <>An idea you had at your best becomes a workflow that runs whether you remember it or not.</>,
   },
   {
     title: 'Solve it once',
@@ -62,7 +62,7 @@ export default function HomepageFeatures(): ReactNode {
             How we do it
           </Heading>
           <p className={styles.lede}>
-            Not new software. The good stuff that exists, wired together once.
+            What you decide once keeps working, on every day after.
           </p>
         </div>
         <div className="row">

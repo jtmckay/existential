@@ -1,10 +1,11 @@
 # Existential
 
-**An active second brain, unsiloed.**
+**Taking your best brain day, and preserving it for your worst.**
 
-Open source already does everything you need — but every app keeps what it knows to itself.
-Existential runs them as one system on your own hardware, with a local AI underneath that can
-act on everything in it.
+Existential turns your ideas into durable workflows, so when you don't remember, or it's a
+rough brain day, what you already decided is still there, still running. It is a curated set of
+open-source apps run as one system on your own hardware, with a local AI underneath that can act
+on everything in it.
 
 ```mermaid
 flowchart TB
@@ -27,7 +28,8 @@ flowchart TB
     style house fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
 ```
 
-- **The software already exists.** A curated list, not an app store. Adding one is flipping a flag.
+- **Decide on a good day.** An idea you had at your best becomes a workflow that runs whether
+  you remember it or not.
 - **Figure it out once.** Hostnames, HTTPS, storage, logging, secrets, backups — solved a single
   time and applied to everything. The fortieth service costs the same as the second.
 - **Nothing leaves the house.** Your files are on your disks, your models on your GPU. Unplug the
