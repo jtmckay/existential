@@ -101,8 +101,8 @@ Only reach for these if you want to CHANGE a seeded entry (each overwrites):
        ./existential.sh run mcp mcp           # Playwright — only if you enabled MCP
 
 Talk to it from a terminal: `hermes` inside code-server, or the gateway over
-HTTP at https://hermes.${EXIST_DOMAIN}. No container installs a second AI CLI —
-the gateway is the one way to reach a model.
+HTTP at https://hermes.${EXIST_DOMAIN}. code-server's terminal also has `claude` and
+`opencode`; opencode is already pointed at the chat model.
 
 ── 4. Memory: confirm Honcho took ────────────────────────────────────────
 

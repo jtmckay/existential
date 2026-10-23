@@ -255,8 +255,9 @@ whitelist: a machine that no cron file, endpoint or emit points at simply never 
 **One way to reach a model:** `automation/lib/model.sh` (`model_chat`, `model_gate`) over
 the role's `/v1` URL. hermes is optional, for work that needs an agent with tools:
 `automation/lib/hermes.sh` (`hermes_chat`, `hermes_profile_url`), built on `model.sh`, or
-`lib/hermes-cli.sh` as the `hermes` command in code-server's terminal. **No container
-installs an AI CLI.** Hermes runs its own tool loop, so work that needs a terminal is bash in
+`lib/hermes-cli.sh` as the `hermes` command in code-server's terminal. **code-server ships
+`claude` and `opencode` for a person to drive; no other container installs an AI CLI, and decree
+scripts never call one.** Hermes runs its own tool loop, so work that needs a terminal is bash in
 the script, and hermes asks decree for follow-up work through automation-webhook's `/hermes/*`
 endpoints. Repo-editing belongs to a coding agent on the host, not to the stack.
 

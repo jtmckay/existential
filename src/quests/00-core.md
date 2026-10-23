@@ -40,7 +40,7 @@ one ordinary box. No GPU, no model downloads.
 
 What you get:
   code-server            the work dir in a browser tab: editor, plus a terminal
-                         where you run the AI CLI you use
+                         with claude and opencode ready
   Decree                 runs routines on a schedule, a webhook or an inbox
                          message, headless
   ntfy                   how a finished automation tells you it finished

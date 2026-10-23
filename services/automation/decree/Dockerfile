@@ -26,7 +26,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
         postgresql-client default-mysql-client sqlite3 gnupg ca-certificates \
-        git python3 \
+        git python3 tmux \
     && curl -fsSL "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.deb" \
         -o /tmp/rclone.deb \
     && echo "${RCLONE_SHA256}  /tmp/rclone.deb" | sha256sum -c - \
@@ -69,8 +69,8 @@ RUN cd /opt/decree \
     && pnpm install --frozen-lockfile --prod
 ENV NODE_PATH=/opt/decree/node_modules
 ENV PATH=/opt/decree/node_modules/.bin:$PATH
-# code-server's entrypoint installs the claude CLI at runtime via `npm i -g`
-# (the decree daemons install nothing — they reach hermes over HTTP). That
+# code-server's entrypoint installs claude and opencode at runtime via `npm i -g`
+# (the decree daemons install nothing — they reach models over HTTP). That
 # container runs as the dynamic host user (EXIST_PUID — any
 # uid), but the image's default HOME (/root) and global prefix (/usr/local) are
 # root-owned, so npm's cache and install both fail with EACCES. Point HOME, the
@@ -94,6 +94,9 @@ RUN chmod 0666 /etc/passwd
 # dir set above. profile.d runs after that reset, so re-prepend it there too.
 RUN printf 'PATH=/home/decree/.npm-global/bin:/opt/decree/node_modules/.bin:$PATH\nexport PATH\n' \
     > /etc/profile.d/npm-global.sh
+# `tmx` for every login shell (code-server's terminal, `bash -lc`), from the one copy
+# services.md points at.
+COPY tmx.sh /etc/profile.d/tmx.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 # Daemon services mount their project at /work/.decree and don't set DECREE_DIR,

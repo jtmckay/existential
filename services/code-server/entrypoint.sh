@@ -38,7 +38,10 @@ DEFAULT_EXTENSIONS=(
 #
 # The defaults are deliberately generic — npm's global prefix plus the XDG
 # dirs, which is where a well-behaved CLI keeps its install and its
-# credentials. This repo installs no AI CLI and names none: a tool that keeps
+# credentials (opencode's login lands in .local/share). Claude Code keeps its
+# login in .claude.json, which it replaces by rename, so a symlinked file would
+# be clobbered: compose points CLAUDE_CONFIG_DIR at $PERSIST_HOME/.claude
+# instead, and both files live there. Any other tool that keeps
 # state somewhere else persists too, without a repo edit, because everything
 # already in $PERSIST_HOME is linked on every boot. Create it once —
 # `mkdir /code-server-data/home/.mytool`, or `touch
@@ -47,7 +50,7 @@ DEFAULT_EXTENSIONS=(
 # lands outside the defaults needs that one-time step before its first login.
 PERSIST_HOME="$INSTALL_PREFIX/home"
 NPM_BIN="/home/decree/.npm-global/bin"
-for _dotdir in .npm-global/bin .npm .config .local .cache; do
+for _dotdir in .npm-global/bin .npm .config .local .cache .claude; do
     # Target must exist as a real dir first: mkdir -p through a dangling
     # symlink fails EEXIST on the symlink itself before it ever reaches the
     # missing target.
@@ -83,6 +86,38 @@ for extension in "${DEFAULT_EXTENSIONS[@]}"; do
         "$CODE_SERVER_BIN" --extensions-dir "$EXTENSIONS_DIR" --install-extension "$extension"
     fi
 done
+
+# The two AI CLIs this terminal ships, for a person to drive (decree scripts
+# never call one). Installed into the persisted npm prefix, so only the first
+# boot pays for it; `npm i -g <pkg>` in the terminal updates either in place.
+for _pkg in claude:@anthropic-ai/claude-code opencode:opencode-ai; do
+    if [[ ! -x "$NPM_BIN/${_pkg%%:*}" ]]; then
+        echo "[code-server] Installing ${_pkg#*:}..."
+        npm install -g "${_pkg#*:}"
+    fi
+done
+
+# opencode's provider is the stack's chat endpoint, resolved by model.sh like
+# every other container caller, and its tag. Rewritten every boot so a changed
+# EXIST_MODEL_URL* or EXIST_MODEL_CHAT is picked up on recreate; compose points
+# OPENCODE_CONFIG here, and opencode merges it under the user's own
+# ~/.config/opencode, so a person's settings there still win.
+_opencode_config() {
+    local url="$1" model="$2"
+    jq -n --arg url "$url" --arg model "$model" '{
+        "$schema": "https://opencode.ai/config.json",
+        model: ("existential/" + $model),
+        provider: {existential: {
+            name: "existential",
+            npm: "@ai-sdk/openai-compatible",
+            options: {baseURL: $url},
+            models: {($model): {name: $model}}
+        }}
+    }'
+}
+# shellcheck source=/dev/null
+. /opt/hermes/model.sh
+_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" > "$INSTALL_PREFIX/opencode.json"
 
 # `python` for the tools that assume it; the image ships python3 only. PATH
 # here is not the login shell's, so ask about python3 rather than testing

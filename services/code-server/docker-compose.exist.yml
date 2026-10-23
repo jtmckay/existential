@@ -32,9 +32,10 @@ services:
     # with no client connected. But nothing here bounds an actual editing
     # session: each extension's language server (eslint, tsserver via the
     # bundled TS support, gitlens) is its own process, and this container also
-    # runs whatever the integrated terminal launches — an agent CLI you
-    # installed yourself, a build. 1G leaves those no headroom at all on top of
-    # the idle baseline, so size for the realistic-use case, not the idle one.
+    # runs whatever the integrated terminal launches — claude or opencode (a
+    # remote-control session left running in tmux), a build. 1G leaves those no
+    # headroom at all on top of the idle baseline, so size for the realistic-use
+    # case, not the idle one.
     deploy:
       resources:
         limits:
@@ -53,9 +54,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      # First boot installs the code-server binary and 4 extensions before
-      # anything binds :8080 — measured ~70s on a fast connection when it also
-      # npm-installed two CLIs; generous for a slow one.
+      # First boot installs the code-server binary, 4 extensions and the two
+      # AI CLIs before anything binds :8080 — measured ~70s on a fast
+      # connection; generous for a slow one.
       start_period: 180s
     entrypoint: ["/entrypoint.sh"]
     networks:
@@ -70,6 +71,14 @@ services:
       # What the `hermes` command in the terminal authenticates with. Empty when
       # hermes is disabled — the CLI then says so instead of failing obscurely.
       - HERMES_API_KEY=${HERMES_API_KEY:-}
+      # Claude Code's login and settings, on the volume (entrypoint.sh says why
+      # this and not the $HOME symlinks).
+      - CLAUDE_CONFIG_DIR=/code-server-data/home/.claude
+      # The provider block entrypoint.sh writes from the chat role below.
+      - OPENCODE_CONFIG=/code-server-data/opencode.json
+      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
+      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
+      - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # The `hermes` command entrypoint.sh puts on PATH, and the request shape it

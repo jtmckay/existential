@@ -285,25 +285,10 @@ healthcheck is the binary probing itself (`decree-go-rest -healthcheck`).
 Anything started outside a compose service (an agent's `claude remote-control`, a host-run
 model server, a GPU job decree starts and stops) runs in a **named tmux session**, so "is it
 already running?" has one answer, `tmux has-session -t =<name>`, and a person can always
-re-attach to see it. No pidfiles, no `nohup`, no bare `&`. Use this function as-is:
-
-```bash
-function tmx() {
-    local detach=0
-    if [ "$1" = "-d" ]; then
-        detach=1
-        shift
-    fi
-    local name="$1"
-    shift
-    local cmd="${*:-$name}"
-    if [ "$detach" -eq 1 ]; then
-        tmux has-session -t "=$name" 2>/dev/null || tmux new -d -s "$name" bash -ic "$cmd"
-    else
-        tmux new -A -s "$name" bash -ic "$cmd"
-    fi
-}
-```
+re-attach to see it. No pidfiles, no `nohup`, no bare `&`. Use `tmx`, whose one copy
+is `services/automation/decree/tmx.sh`, which the decree image installs as `/etc/profile.d/tmx.sh`,
+so every login shell in it (code-server's terminal included) has `tmx`; on the host, source it
+from your `~/.bashrc`.
 
 `tmx -d <name> <cmd>` starts it detached only if `<name>` isn't running (idempotent, so safe
 in an entrypoint or a decree script). `tmx <name> [cmd]` attaches, creating it if needed. The

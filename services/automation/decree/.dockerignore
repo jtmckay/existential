@@ -1,8 +1,9 @@
-# Only the dependency manifests + entrypoint are needed to build the image.
+# Only the dependency manifests, entrypoint and tmx are needed to build the image.
 # Exclude runtime state, secrets, and shared code (mounted at runtime, never baked).
 *
 !Dockerfile
 !entrypoint.sh
+!tmx.sh
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml

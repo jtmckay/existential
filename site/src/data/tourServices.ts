@@ -111,7 +111,7 @@ export const TOUR: TourSection[] = [
         slug: 'code-server',
         name: 'code-server',
         blurb: 'The editor, in a browser tab',
-        what: 'The full editor in a browser tab, reachable from a tablet or a phone. It mounts the shared workspace, so what you edit here is the same tree your automations work in — and the terminal has npm and a persistent home for whatever AI CLI you install yourself.',
+        what: 'The full editor in a browser tab, reachable from a tablet or a phone. It mounts the shared workspace, so what you edit here is the same tree your automations work in — and the terminal has Claude Code and opencode ready, with a remote-control session you can pick up from your phone.',
         shot: '/img/services/code-server.webp',
         docs: '/docs/services/code-server',
         source: 'https://github.com/coder/code-server',

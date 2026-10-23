@@ -129,8 +129,9 @@ at all: decree records it as a `failed` run with `invalid_message`, and Grafana 
 ## Why not OpenCode
 
 Departments call the hermes endpoint directly — through `automation/lib/hermes.sh`, which shares
-`automation/lib/model.sh`'s request with every other script — and the stack ships no AI CLI at
-all. Hermes is itself an agent running its own
+`automation/lib/model.sh`'s request with every other script — and no decree script calls an AI
+CLI. code-server ships `claude` and `opencode` for a person to drive, aimed at a model, not at
+hermes. Hermes is itself an agent running its own
 tool loop against its own MCP servers, so OpenCode was an agent wrapping an agent, and its
 streaming parser rejects hermes' custom `event: hermes.tool.progress` SSE frames outright, which
 fails every turn where hermes actually uses a tool.

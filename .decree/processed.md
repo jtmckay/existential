@@ -3,3 +3,4 @@
 003-workspace-decree-project.md
 004-workspace-sync.md
 005-openai-compatible-models.md
+006-agents-in-code-server.md

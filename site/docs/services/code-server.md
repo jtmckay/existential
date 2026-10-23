@@ -26,11 +26,11 @@ EXIST_IS_SERVICES_CODE_SERVER=true
 
 Then `./existential.sh && docker compose up -d` from the repo root.
 
-First boot installs the code-server binary and four extensions before anything answers on
+First boot installs the code-server binary, four extensions, Claude Code and opencode before anything answers on
 `:8080` — a couple of minutes, and it reports `unhealthy` until then. Measured after that:
 ~210 MB idle with no client connected (58 MB of it real RSS, the rest reclaimable page cache),
-peaking at 1.3 GB during an install that also pulled two npm CLIs, so lighter now. The 2 GB
-limit is headroom for an editing session, not the resting cost.
+peaking at 1.3 GB during the first-boot install. The 2 GB limit is headroom for an editing
+session and an agent CLI, not the resting cost.
 
 ## Shared workspace
 
@@ -41,7 +41,24 @@ mount, and also the thing to be careful about when both are active.
 
 ## AI in the terminal
 
-The stack puts one thing there and installs nothing else.
+The terminal has three, ready on first boot: `claude`, `opencode` and `hermes`. They are for you
+to drive; decree scripts never call an AI CLI.
+
+**`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
+a remote-control session in tmux:
+
+```bash
+tmx -d claude claude remote-control   # starts it, unless one is already running
+tmx claude                            # attach to it
+```
+
+`tmx` starts a named tmux session only if that name is not already running, so the first line
+is safe to run again: it never starts a second copy.
+
+**`opencode`** is already pointed at the stack's chat model: `entrypoint.sh` writes its provider
+from the chat role's endpoint (`EXIST_MODEL_URL_CHAT`, else `EXIST_MODEL_URL`) and
+`EXIST_MODEL_CHAT` on every boot, so there is nothing to configure. Your own
+`~/.config/opencode/opencode.json` is merged over it.
 
 **`hermes "..."`** is the stack's own agent, one prompt at a time. It is
 `automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) every decree
@@ -74,12 +91,11 @@ docker exec -it -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
 In the browser, the equivalents are the [Hermes dashboard](../ai/hermes) (sessions, skills,
 agent config) and [Open WebUI](../ai/open-web-ui) (conversation).
 
-**Your own CLI.** The container ships no AI coding agent and names none — install what you use
-(`npm i -g <package>`) in the terminal. It sticks: `entrypoint.sh` symlinks npm's global prefix
-and the XDG dirs (`~/.npm-global`, `~/.config`, `~/.local`, `~/.cache`) onto the
-`code_server_data` volume, so both the install and its credentials survive a container
-recreation (`docker compose down && up`, an image rebuild, `./existential.sh reset`) instead of
-silently vanishing.
+**Installs and logins persist.** Both CLIs, anything you `npm i -g` yourself, and their logins
+live on the `code_server_data` volume: `entrypoint.sh` symlinks npm's global prefix and the XDG
+dirs (`~/.npm-global`, `~/.config`, `~/.local`, `~/.cache`) there, and Claude Code's
+`CLAUDE_CONFIG_DIR` points there, so all of it survives a container recreation (`docker compose down && up`, an image
+rebuild, `./existential.sh reset`) instead of silently vanishing.
 
 A tool that keeps state somewhere else — its own `~/.toolname/` or `~/.toolname.json` — needs
 one setup step, once, before you log it in:
