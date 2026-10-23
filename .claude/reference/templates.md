@@ -40,8 +40,8 @@ These resolve in a fixed order, each feeding the next, all **after** the `EXIST_
 `EXIST_ASK_PASSWORD` passes:
 
 1. `EXIST_HOST_IP` → `$EXIST_DETECTED_HOST_IP`, passed in by `existential.sh`. `_detect_host_ip`
-   prefers `tailscale ip -4` (validated against `100.64.0.0/10`, so an installed-but-down
-   tailscale falls through) and otherwise uses `ip route get 1.1.1.1`. Detection **must** happen
+   uses `ip route get 1.1.1.1`, except that Tailscale (optional) wins when its `tailscale ip -4`
+   is up (validated against `100.64.0.0/10`, so an installed-but-down tailscale falls through). Detection **must** happen
    on the host: `templates.sh` runs inside the adhoc container, where both answer for the
    container. Non-IPv4 renders blank.
 2. `EXIST_NIP_DOMAIN` → `<EXIST_LOCAL_HOST_IP with dots→dashes>.nip.io`. Public wildcard DNS that

@@ -43,9 +43,9 @@ a local AI that can act on everything in it.
 
 ## 🚀 Quick start
 
-Prerequisites: [Docker](https://www.docker.com/get-started/) and
-[Tailscale](https://tailscale.com/download) — tailscale is how every device you own reaches
-the stack, and the first run derives your hostnames from its address.
+Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
+host it, and this repo. Everything is reachable from your own network on the first run; reaching
+it from outside the house is [any VPN you like](https://existential.company/docs/hosting/vpn).
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

@@ -41,7 +41,6 @@ const count = (match: (s: TourSection) => boolean) =>
   );
 
 const CORE_CARDS = count((s) => s.tier === 'core' && s.kind === 'hosted');
-const CORE_CLIENTS = count((s) => s.tier === 'core' && s.kind === 'recommended');
 const EXTRA = count((s) => s.tier === 'extra');
 
 function TourHeader(): ReactNode {
@@ -53,9 +52,8 @@ function TourHeader(): ReactNode {
         </Heading>
         <p className={styles.heroLede}>
           <strong>{CORE_SERVICES} services make up the core</strong> — on
-          hardware you own, every one of them free and open source — plus {CORE_CLIENTS}{' '}
-          {CORE_CLIENTS === 1 ? 'client' : 'clients'} you install on your own machines to reach them, and {EXTRA} optional
-          services you can turn on. The {CORE_CARDS} below are the ones worth a screenshot;
+          hardware you own, every one of them free and open source, plus {EXTRA} optional services you
+          can turn on. The {CORE_CARDS} below are the ones worth a screenshot;
           the rest are plumbing — the reverse proxy, the automation engine, a log store and
           a metrics store. Scroll through and see what they look
           like.

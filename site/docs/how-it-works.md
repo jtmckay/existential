@@ -213,26 +213,30 @@ hostname above — faster, and no TLS to trust.
 ## Hostnames that just work
 
 `EXIST_DOMAIN` defaults to `<your-host-ip-with-dashes>.nip.io`, derived automatically on the
-first run. The IP comes from `tailscale ip -4`, falling back to your LAN address if tailscale
-isn't running:
+first run from this machine's LAN address:
 
 ```
-EXIST_LOCAL_HOST_IP=100.101.102.103          (tailnet address)
+EXIST_LOCAL_HOST_IP=192.168.1.20          (LAN address)
         ↓
-EXIST_DOMAIN=100-101-102-103.nip.io   →  https://dashy.100-101-102-103.nip.io
+EXIST_DOMAIN=192-168-1-20.nip.io   →  https://dashy.192-168-1-20.nip.io
 ```
 
 [nip.io](https://nip.io) is public wildcard DNS: any name ending in `<ip>.nip.io` resolves
-straight back to that IP. Nothing to register, nothing to configure. **Every device you own
-can reach the stack immediately — no pihole, no `/etc/hosts`, no DNS setup.**
+straight back to that IP. Nothing to register, nothing to configure. **Every device on your
+network can reach the stack immediately — no pihole, no `/etc/hosts`, no DNS setup.**
 
 The two halves do different jobs. **nip.io supplies the wildcard**, so a new service needs no
-DNS change — ever. **Tailscale supplies the reachability**, and because a `100.64.0.0/10`
-address only routes inside your tailnet, the name is public but the stack is not: your laptop
-reaches it from a hotel, and nobody else reaches it at all. No router config, no port
-forwarding, nothing exposed.
+DNS change — ever. **Your network supplies the reachability**: the name is public, but a LAN
+address only routes inside your house. No router config, no port forwarding, nothing exposed.
+Reaching it from elsewhere is a VPN back to that network, any one you like — see
+[VPN](./hosting/vpn.md).
 
-:::danger Don't use a MagicDNS name
+If you use Tailscale and it is up, the first run prefers its `100.64.0.0/10` tailnet address
+over the LAN one (`tailscale ip -4`), so the same names reach the stack from every device on
+your tailnet, and from nowhere else.
+
+:::danger If you use Tailscale, don't use a MagicDNS name
+
 Setting `EXIST_DOMAIN=my-box.tailnet.ts.net` looks correct and fails. MagicDNS resolves that
 **exact node name** and nothing beneath it — there is no wildcard under a node — so
 `dashy.my-box.tailnet.ts.net` is NXDOMAIN and the whole `<slug>.<domain>` convention collapses.
@@ -296,8 +300,9 @@ you to change both.
 | **nip.io** *(default)* | Zero setup. Needs internet for DNS. | Not possible — you don't control the `nip.io` zone. |
 | **pihole** | Fully offline. Resolves locally. | **Fully offline *and* no warnings.** See below. |
 
-Neither question is about *reachability* — that is tailscale's job, and it is orthogonal to
-both. You can move along either axis without touching your tailnet.
+Neither question is about *reachability* — that is your network's (or your VPN's) job, and it
+is orthogonal to both. You can move along either axis without touching it.
+
 
 The bottom-right cell is the good one, and it needs a domain you own — but **not** a public
 A record, and **not** any inbound connectivity.

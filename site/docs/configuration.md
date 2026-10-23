@@ -280,17 +280,17 @@ docker compose.
 covered end to end in [The Pieces → Hostnames that just
 work](./how-it-works.md#hostnames-that-just-work). The short version:
 
-- `EXIST_LOCAL_HOST_IP` is filled in automatically — the tailnet address when tailscale is
-  up (`tailscale ip -4`), otherwise the LAN address the kernel would use to reach the
-  internet. It must stay **above** `EXIST_DOMAIN` in the file: the `EXIST_NIP_DOMAIN`
+- `EXIST_LOCAL_HOST_IP` is filled in automatically — the LAN address the kernel would use
+  to reach the internet, or the tailnet address instead if you use Tailscale and it is up
+  (`tailscale ip -4`). It must stay **above** `EXIST_DOMAIN` in the file: the `EXIST_NIP_DOMAIN`
   placeholder is derived from it, and placeholders resolve top-down.
 - `EXIST_DOMAIN` defaults to `<your-ip-with-dashes>.nip.io`, public wildcard DNS that maps
   the name straight back to that IP — so `https://dashy.<domain>` works from any phone or
-  laptop with no pihole and no `/etc/hosts`. With tailscale up, the name resolves publicly
-  but only *routes* from inside your tailnet.
-- **Never** set `EXIST_DOMAIN` to a MagicDNS name like `<node>.ts.net`. MagicDNS resolves
-  exact node names only — there is no wildcard beneath one — so every `<slug>.` under it
-  is NXDOMAIN.
+  laptop on your network with no pihole and no `/etc/hosts`. The name resolves publicly but
+  only *routes* from inside your network (or your tailnet, with Tailscale).
+- If you use Tailscale, **never** set `EXIST_DOMAIN` to a MagicDNS name like
+  `<node>.ts.net`. MagicDNS resolves exact node names only — there is no wildcard beneath
+  one — so every `<slug>.` under it is NXDOMAIN.
 - `EXIST_PEER_HOST_IP` is only for peer mode, where Caddy lives on a separate front-door
   host. Blank means single-host.
 - `EXIST_PUBLIC_DOMAIN` adds real Let's Encrypt certs alongside the local hostnames. It

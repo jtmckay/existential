@@ -89,9 +89,9 @@ _ensure_host_ids() {
 
 # The address of this machine, preferring its tailnet address.
 #
-# Tailscale is a prerequisite (README / getting-started), so when it is up its
-# 100.64.0.0/10 address is the better answer: it reaches every device you
-# enrolled rather than only this LAN, and it survives the machine moving
+# Tailscale is optional — the LAN address below works on its own — but for a
+# user who runs it, its 100.64.0.0/10 address is the better answer: it reaches
+# every device enrolled rather than only this LAN, and it survives the machine moving
 # networks. `<ts-ip-with-dashes>.nip.io` then gives WILDCARD DNS for an address
 # that is only routable inside the tailnet — private by construction, with no
 # tailnet DNS config at all.
@@ -145,7 +145,7 @@ _ensure_host_access() {
             if [[ "$ip" =~ ^100\.([6-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]; then
                 echo "Detected tailnet IP: ${ip} (reachable from every device on your tailnet)"
             else
-                echo "Detected LAN IP: ${ip} (no tailscale — reachable from this LAN only)"
+                echo "Detected LAN IP: ${ip} (reachable from devices on this network)"
             fi
         fi
     fi

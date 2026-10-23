@@ -32,29 +32,28 @@ Core does this for you; here is the same thing, by hand, so you know what it did
 
 ── How the address works ─────────────────────────────────────────────────
 
-EXIST_DOMAIN defaults to `<your-tailnet-ip-with-dashes>.nip.io`, filled in for
-you on the first run from `tailscale ip -4`. nip.io is public wildcard DNS: it
-answers EVERY subdomain by mapping the name back to that IP, so
-`https://dashy.${EXIST_DOMAIN}` works on any device with nothing configured.
-Because the IP is a tailnet address, only devices on your tailnet can actually
-route to it. New services need no DNS change, ever.
+EXIST_DOMAIN defaults to `<your-lan-ip-with-dashes>.nip.io`, filled in for you
+on the first run. nip.io is public wildcard DNS: it answers EVERY subdomain by
+mapping the name back to that IP, so `https://dashy.${EXIST_DOMAIN}` works on
+any device on this network with nothing configured. New services need no DNS
+change, ever.
 
-There is one trap worth naming: do NOT set EXIST_DOMAIN to a MagicDNS name like
+If you use Tailscale and it is up, the first run takes the tailnet address
+(`tailscale ip -4`) instead, so the same names work from every device on your
+tailnet. In that case, do NOT set EXIST_DOMAIN to a MagicDNS name like
 `<node>.ts.net`. MagicDNS resolves that exact node name and nothing beneath it —
 there is no wildcard under a node — so every `<slug>.` under it is NXDOMAIN.
 
-── Put your devices on the tailnet ───────────────────────────────────────
+── Reaching it from outside the house ────────────────────────────────────
 
-Anything that should reach the stack — laptop, phone, tablet — needs to be
-logged into the same tailnet as this machine.
+Nothing here faces the internet, and nothing needs to. To reach the stack from
+elsewhere, put your devices on a VPN back to this network (WireGuard, OpenVPN,
+Tailscale, Headscale), or answer the domain with a piHole on another server.
+The options, side by side:
+  https://existential.company/docs/hosting/vpn
 
-  1. Install Tailscale: https://tailscale.com/download
-  2. Log in with the same account you used on this host.
-  3. Check it worked:  nslookup dashy.${EXIST_DOMAIN}
-     (any subdomain works — the wildcard answers them all)
-
-That is the whole network setup. No router changes, no DNS server, no port
-forwarding, and nothing exposed to the internet.
+Check a device can resolve it:  nslookup dashy.${EXIST_DOMAIN}
+(any subdomain works — the wildcard answers them all)
 
 ── Trust Caddy's internal CA ─────────────────────────────────────────────
 

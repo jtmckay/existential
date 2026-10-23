@@ -20,7 +20,7 @@ Portainer mounts `/var/run/docker.sock` (`:ro` — see below) so it can drive th
 list, create, start, stop and delete anything, on any container. That is root-equivalent on
 the host: anyone who can log into Portainer can start a privileged container that bind-mounts
 `/` and own the machine. Treat the admin password as a root password, and don't expose
-`portainer.<domain>` beyond the LAN/Tailscale.
+`portainer.<domain>` beyond the LAN or your VPN.
 
 The socket is mounted **read-only**, and that is worth being precise about: it is not a
 security boundary. Verified directly — authenticating and then issuing a real

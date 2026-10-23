@@ -124,9 +124,8 @@ function Stage({
           <Heading as="h2" id={headingId} className={styles.stageTitle}>
             {section.name}
           </Heading>
-          {/* Two independent facts. A section can be neither, either or both:
-              'recommended' means you install it rather than the stack hosting it
-              (true of two Core sections), 'extra' means Core does not include it. */}
+          {/* Two independent facts: 'recommended' means you install it rather than
+              the stack hosting it, 'extra' means Core does not include it. */}
           {section.kind === 'recommended' && (
             <span className={styles.stageBadge}>You install this one · not hosted</span>
           )}

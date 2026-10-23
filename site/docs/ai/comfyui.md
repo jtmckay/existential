@@ -50,7 +50,7 @@ generated images and saved workflows are all one mount. On the host that is `vol
 :::warning No authentication
 ComfyUI has no login of its own, and nothing is put in front of it. Anyone who can reach
 `https://comfyui.EXIST_DOMAIN` can queue workflows, read and write files under the volume, and install custom nodes — which is arbitrary Python
-executed in the container. Keep it on the tailnet; do not put it behind a public A record.
+executed in the container. Keep it on your network or VPN; do not put it behind a public A record.
 :::
 
 ## API

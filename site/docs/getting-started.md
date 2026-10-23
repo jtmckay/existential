@@ -8,8 +8,6 @@ sidebar_position: 2
 
 - [Docker](https://www.docker.com/get-started/), usable without sudo
   (`sudo usermod -aG docker "$USER"`, then log out and back in) — `existential.sh` refuses to run under sudo
-- [Tailscale](https://tailscale.com/download), logged in on this machine and on every
-  device that should reach the stack
 - A machine to host the services (see [Hosting](./hosting/))
 - Git clone the repo
   ```
@@ -54,17 +52,26 @@ Either way, `./existential.sh` on its own does the same work without the questio
 3. Generates a unified `docker-compose.yml` from all enabled services
 4. Generates a master `.env` by merging `.env.shared` with every enabled service's `.env`
 
-It also fills in `EXIST_LOCAL_HOST_IP` from `tailscale ip -4` (falling back to your LAN address
-if tailscale isn't running) and derives `EXIST_DOMAIN` as `<that-ip-with-dashes>.nip.io`. nip.io
-is public wildcard DNS, so every `https://<slug>.<domain>` resolves on any device with nothing
-configured — while the tailnet address means only your own devices can route to it. No DNS
-server, no router changes, no ports open to the internet.
+It also fills in `EXIST_LOCAL_HOST_IP` with this machine's LAN address and derives `EXIST_DOMAIN`
+as `<that-ip-with-dashes>.nip.io`. nip.io is public wildcard DNS, so every
+`https://<slug>.<domain>` resolves on any device with nothing configured, and every phone and
+laptop on the same network reaches it. No DNS server, no router changes, no ports open to the
+internet. If you use Tailscale and it is up, its tailnet address is preferred instead, so the
+same names work from every device on your tailnet.
 
 :::warning
-Don't set `EXIST_DOMAIN` to a MagicDNS name like `my-box.tailnet.ts.net`. MagicDNS resolves that
-exact node name and nothing beneath it, so every `<slug>.` under it fails to resolve. Use the
-tailnet **IP** in nip.io form — tailscale carries the traffic, nip.io supplies the wildcard.
+If you use Tailscale, don't set `EXIST_DOMAIN` to a MagicDNS name like `my-box.tailnet.ts.net`.
+MagicDNS resolves that exact node name and nothing beneath it, so every `<slug>.` under it fails
+to resolve. Use the tailnet **IP** in nip.io form — tailscale carries the traffic, nip.io
+supplies the wildcard.
 :::
+
+### Reaching it from outside the house
+
+Nothing in the stack faces the internet, and nothing needs to. To reach it from elsewhere, put
+your devices on a VPN back to your network (WireGuard, OpenVPN, Tailscale, Headscale), or answer
+the domain with a piHole on another server. The options sit side by side in
+[VPN](./hosting/vpn.md).
 
 ### The hardware questions
 

@@ -106,8 +106,8 @@ an optional add-on, one quest or one flag away. What each piece does is
 
 ## Try it
 
-Prerequisites: [Docker](https://www.docker.com/get-started/) and
-[Tailscale](https://tailscale.com/download).
+Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
+host it, and this repo.
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

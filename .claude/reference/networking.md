@@ -7,15 +7,19 @@ asked at setup: `_ensure_host_access` detects the IP and derives the domain. Set
 `x.internal` (piHole required, fully offline, and a second stack can take `y.internal`) or to a
 domain you own — a value already present is never overwritten.
 
-**Tailscale is a prerequisite, and `_detect_host_ip` prefers its address** (`tailscale ip -4`,
-range-checked against `100.64.0.0/10`) over the LAN one. Split the two jobs: **nip.io supplies
-the wildcard**, tailscale supplies the reachability — the name resolves publicly, but a CGNAT
-address only routes inside the tailnet, so nothing is exposed and no router or DNS config is
-needed. **Never use a MagicDNS name as `EXIST_DOMAIN`**: MagicDNS answers exact node names only,
-so `<slug>.<node>.ts.net` is NXDOMAIN and the whole convention collapses (`_warn_if_no_gateway`
-catches `*.ts.net` and says so). `tailscale serve` is out for the same reason — one hostname per
-node, path-routed. Per-service tailscale sidecars would mean a node per container, which breaks
-"adding a service is adding a folder".
+**Tailscale is optional, never a prerequisite.** The default is the LAN: `_detect_host_ip` takes
+the address the kernel routes the internet through, and every device on that network reaches
+`<slug>.<domain>` with nothing installed. Remote access is any VPN (`site/docs/hosting/vpn.md`
+lists them side by side, favouring none). For a user who runs Tailscale, a tailnet address that
+is up is preferred over the LAN one (`tailscale ip -4`, range-checked against `100.64.0.0/10`).
+Split the two jobs: **nip.io supplies the wildcard**, the network supplies the reachability —
+the name resolves publicly, but a LAN or CGNAT address only routes inside that network, so
+nothing is exposed and no router or DNS config is needed. **Never use a MagicDNS name as
+`EXIST_DOMAIN`**: MagicDNS answers exact node names only, so `<slug>.<node>.ts.net` is NXDOMAIN
+and the whole convention collapses (`_warn_if_no_gateway` catches `*.ts.net` and says so).
+`tailscale serve` is out for the same reason — one hostname per node, path-routed. Per-service
+tailscale sidecars would mean a node per container, which breaks "adding a service is adding a
+folder". Don't add a VPN service or prerequisite to replace it.
 
 **Caddy's `Caddyfile.exist.Caddyfile` is the single source of truth for which `<slug>.<domain>`
 hostnames exist** — `validate conventions` keys off it.

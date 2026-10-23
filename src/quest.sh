@@ -236,11 +236,12 @@ quest_done() {
 
 # ── Closing suggestion: reaching it from elsewhere ────────────────────────────
 #
-# Nothing to decide up front. existential.sh detects the host IP — the tailnet
-# address when tailscale is up — and derives a nip.io domain from it, so every
-# service is reachable at https://<slug>.<domain> from every device on the
-# tailnet with no DNS setup. Local-only DNS is a later, optional upgrade, so it
-# belongs at the END of a run as a suggestion rather than a question at the start.
+# Nothing to decide up front. existential.sh detects the host IP — the LAN
+# address, or the tailnet one if the user runs Tailscale — and derives a nip.io
+# domain from it, so every service is reachable at https://<slug>.<domain> from
+# that network with no DNS setup. Remote access (any VPN) and local-only DNS are
+# later, optional upgrades, so they belong at the END of a run as suggestions
+# rather than questions at the start.
 _access_tip() {
     local domain
     domain="$(env_get EXIST_DOMAIN)"
@@ -256,9 +257,9 @@ _access_tip() {
             echo "  which is your tailnet address — so it works from any phone or laptop"
             echo "  logged into your tailnet, anywhere, and from nowhere else. No setup."
         else
-            echo "  so it works from phones and laptops on the same network too. No setup."
-            echo "  ${_C_YELLOW}Tailscale is not running${_C_RESET} — start it and re-run ./existential.sh to"
-            echo "  get an address that reaches your devices off this LAN too."
+            echo "  so it works from phones and laptops on this network too. No setup."
+            echo "  From anywhere else, put your devices on a VPN back to this network:"
+            echo "    https://existential.company/docs/hosting/vpn"
         fi
     elif [[ -n "$domain" ]]; then
         # A domain the user chose: .internal (needs pihole) or one they own.

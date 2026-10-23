@@ -6,15 +6,12 @@
  * does — that is how portainer, pihole and eight add-ons once came to read as
  * part of the system. "It ships in some quest" is not the test.
  *
- * `tier: 'core'` is the Core *experience*, which is slightly wider than the compose file:
- * every hosted service in `src/quests/00-core.md`'s `services:` block, plus the client
- * that completes it — the devices section, Tailscale, closes the run. It carries
- * `kind: 'recommended'` because you install it yourself, but it is Core's story, not an
- * add-on. Everything else is `tier: 'extra'`.
+ * `tier: 'core'` is every hosted service in `src/quests/00-core.md`'s `services:` block,
+ * and Core's story ends with them. Everything else is `tier: 'extra'`.
  *
- * ORDER IS LOAD-BEARING and asserted by the renderer's divider: the hosted Core sections,
- * then "Also on your devices" as the last Core section — and only then the extras, behind
- * a full-width divider, each carrying its own badge. The page header counts the tiers
+ * ORDER IS LOAD-BEARING and asserted by the renderer's divider: the hosted Core sections
+ * first — and only then the extras, behind a full-width divider, each carrying its own
+ * badge. The page header counts the tiers
  * separately. Adding a service to Core means moving its card up into a 'core' section;
  * the tiers are not decoration. Note `hermes-agent-dashboard` is `hermes`.
  *
@@ -85,10 +82,8 @@ export type TourSection = {
    */
   kind: 'hosted' | 'recommended';
   /**
-   * 'core'  — part of the Core experience: the hosted services the Core quest
-   *           installs, plus the devices section that closes them. These come
-   *           up wired together and are
-   *           what the page promises.
+   * 'core'  — the hosted services the Core quest installs. These come up wired
+   *           together and are what the page promises.
    * 'extra' — everything else: real services in the repo, but a flag you turn on
    *           yourself. Every 'extra' section renders after every 'core' one and
    *           behind the divider, so nobody reads an add-on as part of the system.
@@ -178,26 +173,6 @@ export const TOUR: TourSection[] = [
         shot: '/img/services/actual-budget.webp',
         docs: '/docs/services/actual-budget',
         source: 'https://github.com/actualbudget/actual',
-      },
-    ],
-  },
-  {
-    name: 'Also on your devices',
-    kicker: 'The rest of what we would install',
-    kind: 'recommended',
-    tier: 'core',
-    lede: 'The clients that get you at your own data from whatever machine or phone is in front of you.',
-    services: [
-      {
-        slug: 'tailscale',
-        name: 'Tailscale',
-        blurb: 'Reach it all from anywhere, without opening a port',
-        what: 'A private network that follows your devices around, built on WireGuard. Your laptop and phone behave as though they were on the home LAN, so every service stays reachable from a hotel or a train without any of it facing the open internet — nothing to port-forward, nothing to expose, no attack surface added.',
-        chrome: 'Tailscale — a private network across your devices',
-        docs: '/docs/hosting/vpn',
-        source: 'https://github.com/tailscale/tailscale',
-        tag: 'Free for personal use',
-        note: 'The clients are open source (BSD-3), but the coordination service that introduces your devices to each other is Tailscale’s own, and hosted. Headscale is an open-source replacement for that piece if you would rather run it yourself.',
       },
     ],
   },
