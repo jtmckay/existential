@@ -9,6 +9,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [sqlite_backup](sqlite_backup.md): Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
 - [triage](triage.md): Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
 - [volume_backup](volume_backup.md): Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.
+- [workspace_sync](workspace_sync.md): Two-way sync workspace/ with a folder in Nextcloud, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
 
 ```mermaid
 flowchart LR
@@ -19,6 +20,7 @@ flowchart LR
     sqlite_backup["sqlite_backup"]
     triage["triage"]
     volume_backup["volume_backup"]
+    workspace_sync["workspace_sync"]
     cron__actual_budget_volume_backup_nightly[/"cron: actual-budget-volume-backup-nightly"/]
     cron__actual_budget_volume_backup_weekly[/"cron: actual-budget-volume-backup-weekly"/]
     cron__appsmith_volume_backup_nightly[/"cron: appsmith-volume-backup-nightly"/]
@@ -52,6 +54,7 @@ flowchart LR
     cron__triage[/"cron: triage"/]
     cron__uptime_kuma_sqlite_backup_nightly[/"cron: uptime-kuma-sqlite-backup-nightly"/]
     cron__uptime_kuma_sqlite_backup_weekly[/"cron: uptime-kuma-sqlite-backup-weekly"/]
+    cron__workspace_sync[/"cron: workspace-sync"/]
     cron__workspace_volume_backup_nightly[/"cron: workspace-volume-backup-nightly"/]
     cron__workspace_volume_backup_weekly[/"cron: workspace-volume-backup-weekly"/]
     cron__actual_budget_volume_backup_nightly -->|cron| volume_backup
@@ -87,7 +90,9 @@ flowchart LR
     cron__triage -->|cron| triage
     cron__uptime_kuma_sqlite_backup_nightly -->|cron| sqlite_backup
     cron__uptime_kuma_sqlite_backup_weekly -->|cron| sqlite_backup
+    cron__workspace_sync -->|cron| workspace_sync
     cron__workspace_volume_backup_nightly -->|cron| volume_backup
     cron__workspace_volume_backup_weekly -->|cron| volume_backup
     triage -->|emits| notify
+    workspace_sync -->|emits| notify
 ```

@@ -180,6 +180,28 @@ It's more than a shared folder:
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
 
+### Nextcloud on another server
+
+When Nextcloud runs elsewhere, `automation-backup` keeps `workspace/` in sync with a folder
+there: its `workspace-sync` cron runs an `rclone bisync` every five minutes, both ways. Set
+`EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and `EXIST_NEXTCLOUD_APP_PASSWORD` (an app
+password from Nextcloud's *Settings → Security*) in `.env`; the folder is
+`EXIST_NEXTCLOUD_WORKSPACE_DIR`, `workspace` by default. Until all three are set the cron does
+nothing. The credentials stay in `.env`, never under `workspace/`.
+
+- **What never syncs:** anything a `.gitignore` under `workspace/` ignores, and every `.git/`.
+  That is how decree's run state stays local, and how you keep any output local: ignore it.
+- **Scripts stay runnable.** WebDAV drops file modes, so every sync marks
+  `workspace/.decree/scripts/` executable again.
+- **A mass delete waits for you.** A sync that would delete over half the files on one side
+  deletes nothing, notifies you, and holds every later sync until you answer
+  `docker exec automation-backup decree event <wait id> delete` (or `keep`, which copies each
+  missing file back). `decree status` in `automation-backup` shows the wait.
+
+With Nextcloud in this stack, the same keys work: the sync talks to the `nextcloud` container
+directly. Its `workspace` folder is already this tree, so point `EXIST_NEXTCLOUD_WORKSPACE_DIR`
+at another folder if you want a second copy.
+
 ### Bringing in real notes (e.g. an Obsidian vault)
 
 Two different mechanisms, for two different jobs:

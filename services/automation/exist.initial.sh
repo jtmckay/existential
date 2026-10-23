@@ -103,7 +103,10 @@ done
 # triage runs in automation-backup, not automation — it needs the read-only
 # /repo mount, and that mount is deliberately kept out of the container that
 # hands prompts to hermes. See .claude/reference/services.md.
-for _cron in triage.md clean-runs.md; do
+#
+# workspace-sync rides along: it does nothing until its Nextcloud keys are set,
+# so turning it on is filling in .env, not finding a cron file.
+for _cron in triage.md clean-runs.md workspace-sync.md; do
     if [[ ! -e "${SCRIPT_DIR}/backup/cron/${_cron}" ]]; then
         cp "${SCRIPT_DIR}/backup/cron.example/${_cron}" "${SCRIPT_DIR}/backup/cron/${_cron}"
         echo "[automation] ${_cron%.md} cron activated (automation-backup)."

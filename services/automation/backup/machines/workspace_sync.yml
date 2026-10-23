@@ -1,0 +1,35 @@
+name: workspace_sync
+description: Two-way sync workspace/ with a folder in Nextcloud, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
+store:
+  bisync: rclone bisync's listings and lock. Every state reads and writes it.
+  synced: The remote the listings in bisync/ are for; a different one makes workspace_sync merge (--resync) instead of sync.
+  held: Present while a large delete waits for a person; workspace_sync skips until delete or keep removes it.
+initial: sync
+states:
+  sync:
+    invoke: workspace_sync
+    transitions: { done: done, too_many_deletes: confirm_deletes }
+  # rclone refused a sync that would delete over half the files on one side.
+  confirm_deletes:
+    invoke:
+      person:
+        question: >-
+          A workspace sync would delete over half the files on one side, so it
+          stopped and deleted nothing. Its run log lists them.
+        ask: ask
+    transitions:
+      delete:
+        target: delete
+        description: The deletes are intended; sync them.
+      keep:
+        target: keep
+        description: Keep every file; copy each missing one back from the side that still has it.
+    emits: [notify]
+  delete:
+    invoke: delete
+    transitions: { done: done }
+  keep:
+    invoke: keep
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

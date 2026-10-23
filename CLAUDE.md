@@ -237,7 +237,8 @@ covers how existential uses it. The rules worth keeping here:
 seeded once per file from the repo's `automation/`) runs everything that reasons, routes or reaches a service API, including
 every migration. `automation-backup` (`services/automation/backup/`) mounts `volumes/`
 wholesale, **the repo read-only**, and takes the master `.env`. It runs the backups plus
-anything else that needs that bulk access and makes no AI call (`triage`, `notes_pull`).
+anything else that needs that bulk access and makes no AI call (`triage`, `notes_pull`,
+`workspace_sync`).
 **`/repo` is mounted there and nowhere else**: `automation` puts what it reads in front of a
 model, so what that container can read is what a prompt injection can read. Both run
 `automation/lib/`; `automation-backup` runs the repo's `automation/scripts/`, `automation` its
