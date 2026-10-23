@@ -182,8 +182,49 @@ It's more than a shared folder:
   them. The repo's own machines are copied in once and never again, so your edits win. Its
   `.gitignore` keeps run state local; secrets never live there. See
   [Writing a routine](./writing-a-routine).
+- **`workspace/.capture/`** is everything you put in, as one stream — see
+  [Capture](#capture).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
+
+### Capture
+
+What you asked an agent is the best record of what you were trying to do, so it is kept.
+`workspace/.capture/` holds one JSON line per thing you typed — `ts`, `source`, `context` (the
+directory, where known) and `text` — in one file per writer and month
+(`2026-10-code-server.jsonl`), so two machines syncing the workspace never edit the same file.
+It syncs like the rest of the workspace.
+
+Only what you typed is captured: never an AI's response, tool output or a transcript. Before
+anything is written, secrets of common shapes — API keys and tokens (Anthropic, OpenAI, GitHub,
+AWS, Slack, Google, JWTs, `Bearer …`), `password=`/`token=`/`api_key:` style assignments and
+private key blocks — are replaced by a marker naming the kind, such as
+`[REDACTED:anthropic-key]`. Capture never blocks the prompt: the write happens after the hook
+has returned, and a failure is silent to you and logged to `workspace/.capture/errors.log`. It
+writes nothing outside `workspace/.capture/`. One script does all of it:
+`automation/lib/capture/capture.sh` (bash and `jq`).
+
+| Source | On | Off |
+|---|---|---|
+| Claude Code in [code-server](./services/code-server) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
+| opencode in code-server | By default: a plugin, `automation/lib/capture/opencode.ts` | The same key |
+| Claude Code on another machine (a laptop, the host) | `bash automation/lib/capture/capture.sh install <workspace dir>` from a checkout of this repo, with the workspace synced there | `bash automation/lib/capture/capture.sh uninstall` |
+| Anything that can POST: a phone shortcut, an ntfy action, a voice memo transcript | `POST /capture` on `automation-webhook` (below) | Delete the `/capture` entry from `workspace/.decree/decree-go-rest.yml` |
+
+`install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s), beside
+whatever hooks you already have; `uninstall` removes only that one.
+
+```bash
+curl -X POST https://automation-webhook.<domain>/capture \
+  -H "Authorization: Bearer $AUTOMATION_WEBHOOK_SECRET" \
+  --data-binary '{"source":"phone","text":"buy filters"}'
+```
+
+The body is `{"source", "text"}` JSON (plus an optional `context`), or plain text, which is
+filed with source `webhook`. The secret is `AUTOMATION_WEBHOOK_SECRET` in
+`services/automation/.env`. An install from before capture existed keeps its own
+`workspace/.decree/decree-go-rest.yml`; copy the `/capture` entry from
+`automation/decree-go-rest.yml` into it.
 
 ### Nextcloud on another server
 

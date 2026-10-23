@@ -7,3 +7,4 @@
 007-remote-ai-box-guide.md
 008-value-proposition.md
 009-docs-match-the-repo.md
+010-capture.md

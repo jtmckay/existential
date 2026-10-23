@@ -64,9 +64,10 @@ flowchart TB
 
 ### Reading that in three lines
 
-1. **You work in one folder.** `workspace/` holds `notes/` (an Obsidian vault) and `.decree/`
-   (your automations). code-server opens it in a browser, with `claude` and `opencode` in the
-   terminal; [Nextcloud](./storage/nextcloud), if you add it, syncs it to your other devices.
+1. **You work in one folder.** `workspace/` holds `notes/` (an Obsidian vault), `.decree/`
+   (your automations) and `.capture/` (your agent prompts and anything else you capture — see
+   [Capture](./getting-started#capture)). code-server opens it in a browser, with `claude`
+   and `opencode` in the terminal; [Nextcloud](./storage/nextcloud), if you add it, syncs it to your other devices.
 2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule, a
    webhook or an inbox message, against your apps and your data, and tells you through ntfy.
    Every run log lands in Loki.

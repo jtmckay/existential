@@ -1,0 +1,11 @@
+name: capture
+description: Append the message body (JSON {source, text} or plain text) to the capture stream, workspace/.capture/.
+data:
+  source: { type: string, default: webhook }
+initial: append
+states:
+  append:
+    invoke: capture
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

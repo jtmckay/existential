@@ -79,6 +79,11 @@ services:
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
+      # What you type into claude and opencode lands in workspace/.capture/
+      # (automation/lib/capture/); entrypoint.sh wires both unless this is false.
+      - CODE_SERVER_CAPTURE=${CODE_SERVER_CAPTURE:-true}
+      - CAPTURE_DIR=/workspace/.capture
+      - CAPTURE_HOST=code-server
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
@@ -88,6 +93,8 @@ services:
       - ../../automation/lib/hermes-cli.sh:/opt/hermes/hermes-cli.sh:ro
       - ../../automation/lib/hermes.sh:/opt/hermes/hermes.sh:ro
       - ../../automation/lib/model.sh:/opt/hermes/model.sh:ro
+      # capture.sh (Claude Code's prompt hook) and opencode.ts (opencode's plugin).
+      - ../../automation/lib/capture:/opt/capture:ro
       # code-server's standalone install + extensions (reinstallable — just
       # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, whatever
       # you `npm i -g` in the terminal plus its login state — not just a

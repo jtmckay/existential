@@ -44,6 +44,10 @@ else
         "$(jq -r .provider.existential.options.baseURL <<<"$cfg")"
     assert_eq "opencode declares the chat model" "gemma4:e2b-it-qat" \
         "$(jq -r '.provider.existential.models["gemma4:e2b-it-qat"].name' <<<"$cfg")"
+    assert_eq "opencode loads no plugin when capture is off" "[]" "$(jq -c .plugin <<<"$cfg")"
+    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "file:///opt/capture/opencode.ts")"
+    assert_eq "opencode loads the capture plugin when on" '["file:///opt/capture/opencode.ts"]' \
+        "$(jq -c .plugin <<<"$cfg")"
 fi
 
 # ── tmx ───────────────────────────────────────────────────────────────────────

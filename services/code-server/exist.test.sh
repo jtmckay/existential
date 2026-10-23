@@ -27,15 +27,17 @@ env_var_set "code-server password" CODE_SERVER_PASSWORD
 probe_service "code-server auth gate" code-server 8080 / 302
 
 # entrypoint.sh symlinks the `hermes` command in the integrated terminal to
-# /opt/hermes/hermes-cli.sh, which is a read-only bind of automation/lib/. A
+# /opt/hermes/hermes-cli.sh, which is a read-only bind of automation/lib/ (as are
+# the capture hook and plugin under /opt/capture). A
 # missing source is the one failure mode that stays silent: docker materialises
 # an empty directory for it, the `-x` guard in entrypoint.sh then fails quietly,
 # and the terminal just has no `hermes`. Read-only: check the mount sources on
 # disk rather than reaching into the container.
-for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh automation/lib/model.sh; do
+for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh automation/lib/model.sh \
+            automation/lib/capture/capture.sh automation/lib/capture/opencode.ts; do
     if [ ! -f "/repo/${_src}" ]; then
         fail "code-server ${_src} mounted" "/repo/${_src} is missing" \
-             "The compose file binds it read-only into /opt/hermes — restore it and recreate the container"
+             "The compose file binds it read-only into the container — restore it and recreate it"
     elif [ "${_src}" = "automation/lib/hermes-cli.sh" ] && [ ! -x "/repo/${_src}" ]; then
         fail "code-server ${_src} mounted" "/repo/${_src} is not executable" \
              "entrypoint.sh only links it onto PATH when it is: chmod 755 ${_src}"

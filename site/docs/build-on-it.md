@@ -39,6 +39,9 @@ curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \
 - **Path parameters** must match `[A-Za-z0-9_\-!]+` (or the endpoint's own pattern), 200 bytes
   max. Anything else is rejected rather than sanitised.
 
+To add a line to your [capture stream](./getting-started#capture) from a phone shortcut or any
+other tool, `POST /capture` with `{"source": "...", "text": "..."}` as the body.
+
 | Status | Meaning |
 |---|---|
 | `201` | Queued. Body: `{"id": "20261005T073848Z-734a8f", "path": ".decree/inbox/….md", "machine": "notify"}` |

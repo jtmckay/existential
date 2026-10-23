@@ -6,6 +6,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [actual_budget_parse](actual_budget_parse.md): Run a bank's parse script against one email and emit the transaction it finds to actual_budget.
 - [agent_task](agent_task.md): Hand a task to a hermes profile and file the answer in workspace/ai/, then notify.
 - [calendar_extract](calendar_extract.md): Mirror Nextcloud Calendar events in a window around today into workspace/ai/calendar/ as one note per event.
+- [capture](capture.md): Append the message body (JSON {source, text} or plain text) to the capture stream, workspace/.capture/.
 - [check_versions](check_versions.md): Compare every pinned image tag against upstream, and notify once when any has an update.
 - [clean_runs](clean_runs.md): Delete this project's finished runs older than OLDER_THAN; Loki keeps the history.
 - [comfy](comfy.md): Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workflows/, the message body as the prompt.
@@ -41,6 +42,7 @@ flowchart LR
     actual_budget_parse["actual_budget_parse"]
     agent_task["agent_task"]
     calendar_extract["calendar_extract"]
+    capture["capture"]
     check_versions["check_versions"]
     clean_runs["clean_runs"]
     comfy["comfy"]

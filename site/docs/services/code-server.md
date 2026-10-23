@@ -61,6 +61,11 @@ from the chat role's endpoint (`EXIST_MODEL_URL_CHAT`, else `EXIST_MODEL_URL`) a
 `EXIST_MODEL_CHAT` on every boot, so there is nothing to configure. Your own
 `~/.config/opencode/opencode.json` is merged over it.
 
+**What you type into `claude` and `opencode` is captured** to `workspace/.capture/`, secrets
+redacted, responses never: `entrypoint.sh` installs Claude Code's prompt hook and opencode's
+plugin on every boot, and `CODE_SERVER_CAPTURE=false` turns both off. See
+[Capture](../getting-started#capture).
+
 **`hermes "..."`** is the stack's own agent, one prompt at a time. It is
 `automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) a decree
 script uses — bind-mounted read-only at `/opt/hermes/` and symlinked onto `PATH` by `entrypoint.sh`, so

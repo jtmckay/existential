@@ -29,6 +29,13 @@ endpoints:
       machine: notify
       params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: high, ntfy_tags: white_check_mark }
 
+  # The capture stream, workspace/.capture/: a phone shortcut or any tool adds a
+  # line. The body is {"source": "...", "text": "..."} or plain text. Delete this
+  # entry to turn webhook capture off.
+  - path: /capture
+    message:
+      machine: capture
+
   # ComfyUI generation from anything that can POST. The body is the prompt;
   # everything else is a path parameter, because the body is never parsed.
   #

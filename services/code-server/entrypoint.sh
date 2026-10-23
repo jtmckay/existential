@@ -103,10 +103,11 @@ done
 # OPENCODE_CONFIG here, and opencode merges it under the user's own
 # ~/.config/opencode, so a person's settings there still win.
 _opencode_config() {
-    local url="$1" model="$2"
-    jq -n --arg url "$url" --arg model "$model" '{
+    local url="$1" model="$2" plugin="${3:-}"
+    jq -n --arg url "$url" --arg model "$model" --arg plugin "$plugin" '{
         "$schema": "https://opencode.ai/config.json",
         model: ("existential/" + $model),
+        plugin: (if $plugin == "" then [] else [$plugin] end),
         provider: {existential: {
             name: "existential",
             npm: "@ai-sdk/openai-compatible",
@@ -115,9 +116,22 @@ _opencode_config() {
         }}
     }'
 }
+# Capture (automation/lib/capture/): what a person types into claude or opencode
+# is appended to workspace/.capture/. Claude Code's prompt hook goes into its
+# settings.json, opencode's plugin into the config above. Applied every boot, so
+# CODE_SERVER_CAPTURE=false plus a recreate is the whole off switch. Never fatal.
+_capture_plugin=""
+if [[ "${CODE_SERVER_CAPTURE:-true}" != false ]]; then
+    bash /opt/capture/capture.sh install /workspace >/dev/null \
+        || echo "[code-server] WARN: Claude Code capture hook not installed"
+    _capture_plugin="file:///opt/capture/opencode.ts"
+else
+    bash /opt/capture/capture.sh uninstall >/dev/null \
+        || echo "[code-server] WARN: Claude Code capture hook not removed"
+fi
 # shellcheck source=/dev/null
 . /opt/hermes/model.sh
-_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" > "$INSTALL_PREFIX/opencode.json"
+_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" > "$INSTALL_PREFIX/opencode.json"
 
 # `python` for the tools that assume it; the image ships python3 only. PATH
 # here is not the login shell's, so ask about python3 rather than testing
