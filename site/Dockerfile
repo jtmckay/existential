@@ -17,6 +17,8 @@ USER node
 # Install from the lockfile first so this layer caches across source edits.
 COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci
+# Exists in the image so the anonymous volume over it (docker-compose.yml) is node-owned.
+RUN mkdir .docusaurus
 
 EXPOSE 3000
 

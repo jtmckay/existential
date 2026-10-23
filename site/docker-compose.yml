@@ -6,3 +6,4 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.docusaurus   # its own build cache: a build run elsewhere can't leave paths here it can't resolve
