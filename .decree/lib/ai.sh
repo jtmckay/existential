@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The AI helper the built-in machines' scripts source: `. "$DECREE_LIB/ai.sh"`,
 # then `ai "<prompt>"` asks the AI and prints its reply.
 #

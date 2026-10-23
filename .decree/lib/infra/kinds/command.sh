@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # A command that must be on PATH, at the version if the line gives one (found in the output
 # of `<name> --version`). install cannot know this system's package manager, so it names the
 # command for a person to install, and fails.

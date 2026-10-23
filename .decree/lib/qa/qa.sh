@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # qa's settings and its guard, which qa's scripts source.
 #
 # Where the chaos tests live, apart from the project's other tests.
