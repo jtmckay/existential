@@ -17,8 +17,7 @@ everyone else. Nothing names its source.
 
 The homepage hero and the first section after it read as below, in these exact words.
 
-- **V1. Tagline** (hero subtitle, and the site tagline): Your best brain day now carries your
-  worst.
+- **V1. Tagline** (hero subtitle, and the site tagline): Your best brain day now accessible.
 - **V2.** On a clear day you can see exactly what to do. Then the fog rolls in, and the idea
   sits in a note you won't open for three weeks.
 - **V3.** Existential keeps the clear day running. What you decide when you're sharp becomes an
