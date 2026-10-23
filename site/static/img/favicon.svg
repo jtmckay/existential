@@ -2,13 +2,13 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="100mm"
-   height="100mm"
-   viewBox="0 0 100 100"
+   width="108mm"
+   height="108mm"
+   viewBox="0 0 108 108"
    version="1.1"
    id="svg1"
-   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
-   sodipodi:docname="yinyang.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   sodipodi:docname="favicon.svg"
    inkscape:export-filename="yinyang_120.png"
    inkscape:export-xdpi="30.48"
    inkscape:export-ydpi="30.48"
@@ -26,15 +26,31 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.8211619"
-     inkscape:cx="221.02828"
-     inkscape:cy="117.51641"
+     inkscape:zoom="1.6423238"
+     inkscape:cx="152.83222"
+     inkscape:cy="156.79003"
      inkscape:window-width="1440"
      inkscape:window-height="1258"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="0"
-     inkscape:current-layer="svg1" />
+     inkscape:current-layer="svg1"
+     showgrid="false">
+    <inkscape:grid
+       id="grid1"
+       units="mm"
+       originx="4.0000001"
+       originy="4.0000001"
+       spacingx="0.99999999"
+       spacingy="0.99999999"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="false" />
+  </sodipodi:namedview>
   <defs
      id="defs1">
     <clipPath
@@ -90,11 +106,19 @@
   <circle
      style="display:inline;fill:#ffffff;stroke:none;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
      id="path1-35"
-     cx="-50"
-     cy="50"
+     cx="-54"
+     cy="54"
      r="50"
      inkscape:label="path1"
      transform="scale(-1,1)" />
+  <circle
+     style="display:inline;fill:#ffffff;stroke:none;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
+     id="path1-35-5"
+     cx="-54"
+     cy="54"
+     inkscape:label="path1"
+     transform="scale(-1,1)"
+     r="54" />
   <circle
      style="display:inline;fill:#000000;stroke:none;stroke-width:0;stroke-dasharray:none;stroke-opacity:1"
      id="path1"
@@ -103,42 +127,42 @@
      r="50"
      inkscape:label="path1"
      clip-path="url(#clipPath4)"
-     transform="matrix(-1,0,0,1,100,0)" />
+     transform="matrix(-1,0,0,1,104,4)" />
   <circle
      style="display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.264583"
      id="path1-3"
-     cx="-50"
-     cy="75"
+     cx="-54"
+     cy="79"
      r="25"
      transform="scale(-1,1)" />
   <path
      style="fill:none;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
-     d="M 65.45,30.9 80.9,48 H 50"
+     d="M 69.45,34.9 84.9,52 H 54"
      id="path5"
      sodipodi:nodetypes="ccc" />
   <circle
      style="display:inline;fill:#000000;fill-opacity:1;stroke-width:0.264583"
      id="path1-3-1"
-     cx="-50"
-     cy="25"
+     cx="-54"
+     cy="29"
      r="25"
      inkscape:label="path1-3-1"
      transform="scale(-1,1)" />
   <path
      style="fill:#ffffff;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
-     d="M 56.4,26.9 73,44.7 H 51"
+     d="M 60.4,30.9 77,48.7 H 55"
      id="path5-9"
      sodipodi:nodetypes="ccc" />
   <circle
      style="fill:#ffffff;stroke:none;stroke-width:3.28827;stroke-dasharray:none;stroke-opacity:1"
      id="path4"
-     cx="50.900002"
-     cy="27.25"
+     cx="54.900002"
+     cy="31.25"
      r="15.45" />
   <circle
      style="fill:#027bcb;fill-opacity:1;stroke:none;stroke-width:1.59624;stroke-dasharray:none;stroke-opacity:1"
      id="path4-1"
-     cx="50.950001"
-     cy="27.299999"
+     cx="54.950001"
+     cy="31.299999"
      r="7.5" />
 </svg>
