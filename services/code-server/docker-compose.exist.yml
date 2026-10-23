@@ -74,6 +74,10 @@ services:
       # Claude Code's login and settings, on the volume (entrypoint.sh says why
       # this and not the $HOME symlinks).
       - CLAUDE_CONFIG_DIR=/code-server-data/home/.claude
+      # Claude Code's usage telemetry and Sentry error reports. The conversation
+      # itself goes to whichever provider you log in to; that is your choice.
+      - DISABLE_TELEMETRY=1
+      - DISABLE_ERROR_REPORTING=1
       # The provider block entrypoint.sh writes from the chat role below.
       - OPENCODE_CONFIG=/code-server-data/opencode.json
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}

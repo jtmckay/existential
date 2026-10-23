@@ -62,6 +62,7 @@ services:
     environment:
       - HF_TOKEN=${CHATTERBOX_HF_TOKEN}
       - HF_HUB_ENABLE_HF_TRANSFER=1
+      - HF_HUB_DISABLE_TELEMETRY=1
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       # librosa JIT-compiles through numba at import, and numba caches next to

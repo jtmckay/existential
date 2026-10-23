@@ -247,7 +247,10 @@ with path-based routing, so it cannot give forty services forty hostnames.
 :::
 
 The catch: that lookup goes to the internet. If your WAN link is down, the names stop
-resolving even on the host itself — which is what pihole fixes, below.
+resolving even on the host itself — which is what pihole fixes, below. And every lookup is a
+query to nip.io's public DNS, so nip.io sees your host's IP and each service name you look up.
+Local DNS (such as [pihole](./hosting/pihole.md)) or [a domain you own](#owned-domain-without-exposing-your-network)
+avoids that.
 
 ### Upgrading an existing install
 

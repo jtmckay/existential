@@ -145,6 +145,18 @@ managed by an internal supervisor (appsmith, lowcoder), and images caching into
 `/root` (whisperx — it is built with no `USER`, sets no `HF_HOME`, and so writes its
 HuggingFace and torch model caches to `/root/.cache`, which is the volume it mounts).
 
+## Telemetry ships off
+
+Existential collects nothing and phones nothing home, and that holds for every upstream service
+too. A new service ships with its telemetry, usage reporting, analytics and error reporting
+**off**, using the upstream project's own setting (env var, flag or config key, with a one-line
+comment saying what it sent). Check the image, not just the docs: a bundled library can report
+on its own (pyannote inside whisperx). An update check that only downloads a version number may
+stay; anything that sends usage, identifiers or content goes. No proxy or firewall rule stands
+in for a missing setting: if upstream has none, the service's docs page says so in one line.
+An AI provider the user configures is their choice and stays untouched.
+`src/test/unit/test-no-phone-home.sh` asserts each setting.
+
 ## GPU vendor wiring
 
 Templates declare the **nvidia** device reservation and nothing else. That is correct for the

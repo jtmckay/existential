@@ -15,6 +15,8 @@ Node-based Stable Diffusion UI for local, GPU-accelerated image generation. Work
 
 ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (LAN, via Caddy) and `http://comfyui:8188` (Docker internal DNS, for container-to-container calls). It queues and executes image generation jobs via its web UI or HTTP API. No cloud involved — everything runs on the local GPU.
 
+The ComfyUI web frontend reports browser errors to Comfy's Sentry, and upstream offers no setting to turn that off.
+
 ## Using a ComfyUI you already run
 
 The GPU does not have to be in this machine. `EXIST_COMFYUI_URL` in `.env.shared` is the one

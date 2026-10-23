@@ -31,6 +31,8 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Usage stats to stats.grafana.org. The update check (version only) stays.
+      - GF_ANALYTICS_REPORTING_ENABLED=false
       # provisioning/alerting/decree.yaml posts failed decree runs to ntfy.
       - NTFY_URL=${EXIST_NTFY_URL:-http://ntfy:80}
       - NTFY_USER=${EXIST_NTFY_USER:-}

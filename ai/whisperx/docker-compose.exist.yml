@@ -56,6 +56,9 @@ services:
       DEVICE: cuda
       COMPUTE_TYPE: int8
       DEFAULT_LANG: en
+      # pyannote ships usage metrics to otel.pyannote.ai unless told not to.
+      PYANNOTE_METRICS_ENABLED: "false"
+      HF_HUB_DISABLE_TELEMETRY: "1"
       # Diarization (pyannote) needs a HuggingFace token with the
       # pyannote/speaker-diarization-community-1 terms accepted — that is the
       # model whisperx 0.8.0 asks for (whisperx/diarize.py:101), not the 3.1 the

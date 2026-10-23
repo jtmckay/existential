@@ -193,6 +193,9 @@ from the repo root against the generated `docker-compose.yml`.
   service's `x-exist-gpu.<vendor>` block instead. One stray reservation docker cannot satisfy
   fails `docker compose up` for the *whole* stack. Vendor config lives **with the service**, so
   a new GPU service is still just a new folder. → `services.md`
+- **Telemetry ships off.** Every service turns off upstream telemetry, usage reporting and error
+  reporting with the project's own setting; no setting upstream → one line on its docs page.
+  → `services.md`
 - **Every container declares `deploy.resources.limits.memory`.** Size it at roughly 2-3x what the
   service uses idle, not at a worst case: docker sets `memory.swap.max == memory.max`, so a
   container gets its limit in RAM *plus the same again in swap* before anything is killed. The

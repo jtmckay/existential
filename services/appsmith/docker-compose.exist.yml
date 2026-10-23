@@ -56,6 +56,9 @@ services:
       # service's .env.exist values into its container, only environment:/
       # env_file: entries reach it, and this service had neither before.
       APPSMITH_ADMIN_EMAILS: ${APPSMITH_ADMIN_EMAILS}
+      # Usage telemetry and the Intercom support widget, both on upstream by default.
+      APPSMITH_DISABLE_TELEMETRY: "true"
+      APPSMITH_DISABLE_INTERCOM: "true"
     volumes:
       # Bundles MongoDB + Redis + Postgres internally, all under one directory
       # tree (data/mongodb, data/redis, data/postgres) — must be local (NFS

@@ -55,6 +55,7 @@ services:
       # as uid 1000 with no HF_HOME still dies trying to write
       # /.cache/huggingface/xet/logs) — this is not stale.
       HF_HOME: /data
+      HF_HUB_DISABLE_TELEMETRY: "1"
     # No ports published: Home Assistant reaches it over Docker DNS. Uncomment
     # only if HA runs on a different machine.
     #   ports:

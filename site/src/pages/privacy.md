@@ -6,7 +6,7 @@ Existential LLC ("we," "us," or "our") operates the Existential homelab platform
 
 ## The Short Version
 
-Existential itself collects no data from your self-hosted instance. Nothing you do inside your homelab — automations, files, messages, or any other activity — is sent to Existential LLC servers.
+Existential itself collects no data from your self-hosted instance. Nothing you do inside your homelab — automations, files, messages, or any other activity — is sent to Existential LLC servers. The services it installs ship with their own telemetry and usage reporting turned off wherever upstream offers a setting for it.
 
 ## What We Collect on This Website
 

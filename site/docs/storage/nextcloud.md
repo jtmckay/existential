@@ -161,6 +161,11 @@ docker exec nextcloud php /var/www/html/occ maintenance:mode --on
 docker exec nextcloud php /var/www/html/occ maintenance:mode --off
 ```
 
+Nextcloud's own update check is off, and so is the `survey_client` app: the check sends the
+install time, PHP version and a user-count bucket, not just a version request. Updating is
+bumping the image tag in `docker-compose.exist.yml`. `hooks/before-starting/03-no-phone-home.sh`
+re-applies both on every start.
+
 ### Restart order
 
 Only matters if `nextcloud_data`'s volume is `nfs: true` **and** `EXIST_NFS_HOST_MOUNT` points at

@@ -101,12 +101,14 @@ done
 # every other container caller, and its tag. Rewritten every boot so a changed
 # EXIST_MODEL_URL* or EXIST_MODEL_CHAT is picked up on recreate; compose points
 # OPENCODE_CONFIG here, and opencode merges it under the user's own
-# ~/.config/opencode, so a person's settings there still win.
+# ~/.config/opencode, so a person's settings there still win. share is off:
+# opencode sends nothing by default, but /share uploads a session to opncd.ai.
 _opencode_config() {
     local url="$1" model="$2" plugin="${3:-}"
     jq -n --arg url "$url" --arg model "$model" --arg plugin "$plugin" '{
         "$schema": "https://opencode.ai/config.json",
         model: ("existential/" + $model),
+        share: "disabled",
         plugin: (if $plugin == "" then [] else [$plugin] end),
         provider: {existential: {
             name: "existential",
@@ -153,6 +155,7 @@ fi
 exec "$CODE_SERVER_BIN" \
     --bind-addr 0.0.0.0:8080 \
     --auth password \
+    --disable-telemetry \
     --user-data-dir "$USER_DATA_DIR" \
     --extensions-dir "$EXTENSIONS_DIR" \
     /workspace

@@ -44,7 +44,9 @@ services:
       - aliasgroup1=https://${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true
-      - extra_params=--o:ssl.enable=false --o:ssl.termination=true
+      # home_mode: no welcome screen or feedback popups fetched from Collabora's
+      # servers, at the cost of 20 connections / 10 open documents.
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:home_mode.enable=true
     # ports disabled — access via https://collabora.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:

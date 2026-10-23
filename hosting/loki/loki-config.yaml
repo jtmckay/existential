@@ -47,3 +47,7 @@ limits_config:
   # 30d, a whole number of 24h index periods. Also what bounds label cardinality:
   # the docker job's per-container-id `filename` label only ages out via retention.
   retention_period: 720h
+
+# Usage reporting to stats.grafana.org.
+analytics:
+  reporting_enabled: false

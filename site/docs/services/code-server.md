@@ -66,6 +66,10 @@ redacted, responses never: `entrypoint.sh` installs Claude Code's prompt hook an
 plugin on every boot, and `CODE_SERVER_CAPTURE=false` turns both off. See
 [Capture](../getting-started#capture).
 
+**Nothing about your use is reported upstream.** code-server runs with `--disable-telemetry`,
+Claude Code with `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, and opencode with sharing
+disabled. Your conversation goes to the provider you log in to or point it at, under their terms.
+
 **`hermes "..."`** is the stack's own agent, one prompt at a time. It is
 `automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) a decree
 script uses — bind-mounted read-only at `/opt/hermes/` and symlinked onto `PATH` by `entrypoint.sh`, so

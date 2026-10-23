@@ -11,6 +11,10 @@ sidebar_position: 4
 
 Document editor embedded in Nextcloud — LibreOffice running as a server.
 
+It runs in home mode (`--o:home_mode.enable=true`), so the editor fetches no welcome screen or
+feedback popups from Collabora's servers. The cost is a cap of 20 connections and 10 open
+documents, plenty for a household.
+
 ## Domain Setup
 
 Point the `collabora` subdomain in your DNS to Caddy, and ensure Caddy proxies to the Collabora container.
