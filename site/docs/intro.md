@@ -10,7 +10,7 @@ The system as one box — what it is and what it does for you. Zoom in one step 
 [Level 2 · The Pieces](./how-it-works).
 :::
 
-**Your best brain day now carries your worst.**
+**Your best brain day now accessible.**
 
 On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits in a
 note you won't open for three weeks. Existential keeps the clear day running. What you decide

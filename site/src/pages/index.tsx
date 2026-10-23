@@ -87,7 +87,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Your best brain day now carries your worst. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look.">
+      description="Your best brain day now accessible. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look.">
       <HomepageHeader />
       <main>
         <HomepageWhy />

@@ -12,7 +12,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # shellcheck disable=SC2034  # V2-V9 are read by name, through ${!v}
 {
-V1='Your best brain day now carries your worst.'
+V1='Your best brain day now accessible.'
 V2="On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits in a note you won't open for three weeks."
 V3="Existential keeps the clear day running. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look."
 V4="Every system you've tried needed you to remember to use it. That's the one thing a bad day takes."
