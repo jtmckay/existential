@@ -68,7 +68,9 @@ plugin on every boot, and `CODE_SERVER_CAPTURE=false` turns both off. See
 
 **Nothing about your use is reported upstream.** code-server runs with `--disable-telemetry`,
 Claude Code with `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, and opencode with sharing
-disabled. Your conversation goes to the provider you log in to or point it at, under their terms.
+disabled. Your conversation goes to whichever AI provider you log in to or point it at, under that
+provider's terms; Existential itself sends and collects nothing. A model on your own hardware is
+the private option, a hosted one the easy option.
 
 **`hermes "..."`** is the stack's own agent, one prompt at a time. It is
 `automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) a decree
