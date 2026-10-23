@@ -138,6 +138,6 @@ This describes the product, not the person, and nothing in the audience depends 
 - **Given** `.claude/reference/audience.md`
   **When** it is read
   **Then** it contains A1 through A42 as written above
-- **Given** `site/`
+- **Given** the homepage source (`site/src/pages/index.tsx` and the components it renders)
   **When** it is searched (case-insensitive) for "ADHD"
   **Then** nothing is found
