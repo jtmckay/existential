@@ -24,24 +24,27 @@ sidebar_position: 2
 ```
 
 On a first run this asks two hardware questions and then offers **Core** — the whole system
-wired together, rather than forty checkboxes. Say yes and you get files, the house, the agent,
-its memory and voice, plus notifications and monitoring:
+wired together, rather than forty checkboxes. Say yes and you get a work dir you open in a
+browser, a terminal there to talk to an AI, and decree to automate it, plus notifications and
+monitoring. No GPU, no model downloads:
 
 | | |
 |---|---|
-| **Front door** | Caddy (TLS + hostnames), Dashy (the dashboard) |
-| **Files** | Nextcloud (files + file events), code-server (editor over the workspace) |
-| **House** | Home Assistant |
-| **Automation** | Decree, ntfy (where automations report in) |
-| **Monitoring** | Loki, Prometheus, Grafana — Decree's run logs and dashboards |
-| **Agent** | Ollama, Hermes, Honcho (memory), OpenViking (context), Firecrawl |
-| **Voice** | wyoming-whisper (speech to text), wyoming-piper (text to speech) |
+| **Network access** | Caddy (TLS + hostnames), Dashy (the dashboard) |
+| **Workspace** | code-server (editor + terminal over the work dir) |
+| **Automation** | Decree (and its webhook), ntfy (where automations report in) |
+| **Observability** | Loki, Prometheus, Grafana (Decree's run logs and dashboards), Uptime Kuma |
+| **Apps** | Actual Budget |
+
+Files (Nextcloud), the house (Home Assistant), DNS (piHole) and GPU models usually run on other
+servers, so Core leaves them out; each is an unnumbered quest (**Nextcloud**, **Voice & Home**,
+**Local AI**).
 
 Decline and you fall through to the full picker, then the quest list. The numbered quests there
-are those same seven rows one at a time — Core, taken apart — so you can build up to the same
+are those same five rows one at a time — Core, taken apart — so you can build up to the same
 stack in pieces and see every step instead of having it done for you. They cross themselves off
-as you finish them, and running Core crosses off all six at once. Everything unnumbered is an
-integration or automation past Core.
+as you finish them, and running Core crosses off every one that can be checked from disk.
+Everything unnumbered is an integration or automation past Core.
 
 Either way, `./existential.sh` on its own does the same work without the questions:
 

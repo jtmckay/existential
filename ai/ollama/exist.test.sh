@@ -70,8 +70,8 @@ probe_caddy "ollama /api/tags" ollama /api/tags 200
 NAMES=$(echo "$TAGS" | jq -r '.models[]?.name // empty' 2>/dev/null || true)
 
 if [ -z "$NAMES" ]; then
-    # No models AT ALL is the pull step not having run yet, not a fault. Only the
-    # Core quest copies the ollama migrations; the Local AI Lab quest deliberately
+    # No models AT ALL is the pull step not having run yet, not a fault. No
+    # quest copies the ollama migrations itself; the Local AI quest deliberately
     # leaves pulling to the user (`./existential.sh run ollama pull-models`), so a
     # fresh install of it legitimately has an empty ollama. Failing here reported
     # a working stack as broken. Drift is still caught: one model present and the

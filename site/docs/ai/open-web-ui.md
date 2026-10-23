@@ -13,9 +13,9 @@ Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible e
 
 ## Enable
 
-Not part of Core — Core reaches the agent by voice (Home Assistant), from code-server's terminal
+Not part of Core. Hermes answers by voice (Home Assistant), from code-server's terminal
 (`hermes "..."`), and from decree routines. Turn this on when you want a chat window in a browser
-tab: it is offered by the **Local AI Lab** quest, or set it yourself:
+tab — it needs the **Local AI** quest's Hermes — set it yourself:
 
 ```bash
 EXIST_IS_AI_OPEN_WEBUI=true

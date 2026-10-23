@@ -3,20 +3,20 @@
  *
  * CORE FIRST, EVERYTHING ELSE BEHIND THE DIVIDER. The page is headed "What you actually
  * get", so a card for something Core does not install must never sit among the ones it
- * does — that is how portainer, pihole, uptime-kuma and eight add-ons came to read as
+ * does — that is how portainer, pihole and eight add-ons once came to read as
  * part of the system. "It ships in some quest" is not the test.
  *
  * `tier: 'core'` is the Core *experience*, which is slightly wider than the compose file:
  * every hosted service in `src/quests/00-core.md`'s `services:` block, plus the client
- * apps that complete it — Obsidian opens the run, and the devices section closes it.
- * Those carry `kind: 'recommended'` because you install them yourself, but they are Core's
- * story, not add-ons. Everything else is `tier: 'extra'`.
+ * that completes it — the devices section, Tailscale, closes the run. It carries
+ * `kind: 'recommended'` because you install it yourself, but it is Core's story, not an
+ * add-on. Everything else is `tier: 'extra'`.
  *
- * ORDER IS LOAD-BEARING and asserted by the renderer's divider: Obsidian first, the hosted
- * Core sections, then "Also on your devices" as the last Core section — and only then the
- * extras, behind a full-width divider, each carrying its own badge. The page header counts
- * the tiers separately. Adding a service to Core means moving its card up into a 'core'
- * section; the tiers are not decoration. Note `hermes-agent-dashboard` is core `hermes`.
+ * ORDER IS LOAD-BEARING and asserted by the renderer's divider: the hosted Core sections,
+ * then "Also on your devices" as the last Core section — and only then the extras, behind
+ * a full-width divider, each carrying its own badge. The page header counts the tiers
+ * separately. Adding a service to Core means moving its card up into a 'core' section;
+ * the tiers are not decoration. Note `hermes-agent-dashboard` is `hermes`.
  *
  * Blurbs are lifted from `services/dashy/dashy-conf.exist.yml`, the stack's existing
  * source of truth for "which services have a web UI worth linking to"; `source` comes
@@ -86,8 +86,8 @@ export type TourSection = {
   kind: 'hosted' | 'recommended';
   /**
    * 'core'  — part of the Core experience: the hosted services the Core quest
-   *           installs, plus the client apps that bookend them (Obsidian first,
-   *           the devices section last). These come up wired together and are
+   *           installs, plus the devices section that closes them. These come
+   *           up wired together and are
    *           what the page promises.
    * 'extra' — everything else: real services in the repo, but a flag you turn on
    *           yourself. Every 'extra' section renders after every 'core' one and
@@ -101,33 +101,112 @@ export type TourSection = {
 
 export const TOUR: TourSection[] = [
   {
-    name: 'Notes',
-    kicker: 'Where a second brain starts',
-    kind: 'recommended',
+    name: 'Reaching in, and being reached',
+    kicker: 'The work dir you open, and the channel it answers on',
+    kind: 'hosted',
     tier: 'core',
-    lede: 'You install this one yourself. It writes plain files into a folder Nextcloud syncs, which is how everything downstream gets at your notes.',
+    lede: 'Open the work dir from a browser on any machine and talk to an AI about it in the terminal — then hear about it on your phone when a routine finishes, or breaks.',
     services: [
       {
-        slug: 'obsidian',
-        name: 'Obsidian',
-        blurb: 'Notes and tasks, as plain Markdown files',
-        what: 'The front door to the whole thing: a fast editor over a folder of Markdown files, with backlinks, graph view, and Kanban boards for tasks. The vault sits in a directory Nextcloud syncs, so the notes reach the rest of the stack as plain files — no API, no export step, nothing to integrate.',
-        shot: '/img/services/obsidian.webp',
-        chrome: 'Obsidian — desktop app, reads your vault folder',
-        docs: '/docs/services/obsidian',
-        source: 'https://obsidian.md',
-        proprietary: true,
-        tag: 'Free — but not open source',
-        note: 'Free without limits — no sign-up, personal and commercial use alike. Paid Sync, Publish and a commercial licence are there if you want to support the developers. It isn’t open source — but your notes stay plain .md files in a folder you own, so the editor is replaceable.',
+        slug: 'code-server',
+        name: 'code-server',
+        blurb: 'The editor, in a browser tab',
+        what: 'The full editor in a browser tab, reachable from a tablet or a phone. It mounts the shared workspace, so what you edit here is the same tree your automations work in — and the terminal has npm and a persistent home for whatever AI CLI you install yourself.',
+        shot: '/img/services/code-server.webp',
+        docs: '/docs/services/code-server',
+        source: 'https://github.com/coder/code-server',
+      },
+      {
+        slug: 'ntfy',
+        name: 'Ntfy',
+        blurb: 'Push notifications',
+        what: 'Push notifications to your phone from a one-line HTTP request, no app account and no vendor in between. Every automation in the stack uses it to tell you a backup finished, a transcript is ready, or something broke.',
+        shot: '/img/services/ntfy.webp',
+        docs: '/docs/services/ntfy',
+        source: 'https://github.com/binwiederhier/ntfy',
       },
     ],
   },
   {
-    name: 'The pillars',
-    kicker: 'What everything else hangs off',
+    name: 'Where you look',
+    kicker: 'The pages you keep open',
     kind: 'hosted',
     tier: 'core',
-    lede: 'Nextcloud carries your files — the Obsidian vault among them. Home Assistant carries what the house is doing. Hermes reads both. Everything after this section is either a way in for you, or something that gives Hermes more to work with.',
+    lede: 'Dashy is the bookmark: one tile per service you turned on, with a red dot the moment something stops answering. Grafana is where you go when something feels slow — it graphs everything the stack emits, every automation run included. Uptime Kuma watches the machines this one cannot see into.',
+    services: [
+      {
+        slug: 'dashy',
+        name: 'Dashy',
+        blurb: 'The front door to everything else',
+        what: 'One page with a tile for every service you enabled, grouped and status-checked — a red dot appears the moment something stops answering. It is the bookmark you actually keep, and it is generated from the same config that decides what runs.',
+        shot: '/img/services/dashy.webp',
+        docs: '/docs/services/dashy',
+        source: 'https://github.com/Lissy93/dashy',
+      },
+      {
+        slug: 'grafana',
+        name: 'Grafana',
+        blurb: 'Dashboards',
+        what: 'Graphs of everything the stack emits — container health, disk headroom, how long the nightly jobs took, whether the GPU is actually being used. The one screen to check when something feels slow.',
+        shot: '/img/services/grafana.webp',
+        docs: '/docs/hosting/grafana',
+        source: 'https://github.com/grafana/grafana',
+      },
+      {
+        slug: 'uptime-kuma',
+        name: 'Uptime Kuma',
+        blurb: 'Service availability monitor',
+        what: 'Pings every service on a schedule and keeps a wall of green squares. When one turns red it pushes a notification, so you hear about an outage from your own hardware rather than from someone trying to use it.',
+        shot: '/img/services/uptime-kuma.webp',
+        docs: '/docs/hosting/uptime-kuma',
+        source: 'https://github.com/louislam/uptime-kuma',
+      },
+    ],
+  },
+  {
+    name: 'Your money',
+    kicker: 'The first app, and the first thing decree can feed',
+    kind: 'hosted',
+    tier: 'core',
+    lede: 'One everyday app ships with Core, because it is the one automations already know how to post to.',
+    services: [
+      {
+        slug: 'actual-budget',
+        name: 'Actual Budget',
+        blurb: 'Personal finance',
+        what: 'Envelope budgeting that is fast and genuinely pleasant to use — every dollar gets a job, and the month either balances or it doesn’t. Transactions can arrive automatically, so the only thing left to do is categorize.',
+        shot: '/img/services/actual-budget.webp',
+        docs: '/docs/services/actual-budget',
+        source: 'https://github.com/actualbudget/actual',
+      },
+    ],
+  },
+  {
+    name: 'Also on your devices',
+    kicker: 'The rest of what we would install',
+    kind: 'recommended',
+    tier: 'core',
+    lede: 'The clients that get you at your own data from whatever machine or phone is in front of you.',
+    services: [
+      {
+        slug: 'tailscale',
+        name: 'Tailscale',
+        blurb: 'Reach it all from anywhere, without opening a port',
+        what: 'A private network that follows your devices around, built on WireGuard. Your laptop and phone behave as though they were on the home LAN, so every service stays reachable from a hotel or a train without any of it facing the open internet — nothing to port-forward, nothing to expose, no attack surface added.',
+        chrome: 'Tailscale — a private network across your devices',
+        docs: '/docs/hosting/vpn',
+        source: 'https://github.com/tailscale/tailscale',
+        tag: 'Free for personal use',
+        note: 'The clients are open source (BSD-3), but the coordination service that introduces your devices to each other is Tailscale’s own, and hosted. Headscale is an open-source replacement for that piece if you would rather run it yourself.',
+      },
+    ],
+  },
+  {
+    name: 'Your files, your house, your own models',
+    kicker: 'Usually on another server — turn them on where they live',
+    kind: 'hosted',
+    tier: 'extra',
+    lede: 'Nextcloud carries your files — the Obsidian vault among them. Home Assistant carries what the house is doing. Hermes, on a local model, reads both, and OpenViking is what it looks things up in.',
     services: [
       {
         slug: 'hermes-agent-dashboard',
@@ -156,69 +235,6 @@ export const TOUR: TourSection[] = [
         docs: '/docs/storage/nextcloud',
         source: 'https://github.com/nextcloud/server',
       },
-    ],
-  },
-  {
-    name: 'Where you look',
-    kicker: 'The two pages you keep open',
-    kind: 'hosted',
-    tier: 'core',
-    lede: 'Dashy is the bookmark: one tile per service you turned on, with a red dot the moment something stops answering. Grafana is where you go when something feels slow — it graphs everything the stack emits, every automation run included.',
-    services: [
-      {
-        slug: 'dashy',
-        name: 'Dashy',
-        blurb: 'The front door to everything else',
-        what: 'One page with a tile for every service you enabled, grouped and status-checked — a red dot appears the moment something stops answering. It is the bookmark you actually keep, and it is generated from the same config that decides what runs.',
-        shot: '/img/services/dashy.webp',
-        docs: '/docs/services/dashy',
-        source: 'https://github.com/Lissy93/dashy',
-      },
-      {
-        slug: 'grafana',
-        name: 'Grafana',
-        blurb: 'Dashboards',
-        what: 'Graphs of everything the stack emits — container health, disk headroom, how long the nightly jobs took, whether the GPU is actually being used. The one screen to check when something feels slow.',
-        shot: '/img/services/grafana.webp',
-        docs: '/docs/hosting/grafana',
-        source: 'https://github.com/grafana/grafana',
-      },
-    ],
-  },
-  {
-    name: 'Reaching in, and being reached',
-    kicker: 'The editor you work in, and the channel it answers on',
-    kind: 'hosted',
-    tier: 'core',
-    lede: 'Edit the same tree the agent works in, from a browser on any machine — then hear about it on your phone when a routine finishes, or breaks.',
-    services: [
-      {
-        slug: 'code-server',
-        name: 'code-server',
-        blurb: 'The editor, in a browser tab',
-        what: 'The full editor in a browser tab, reachable from a tablet or a phone. It mounts the shared workspace, so what you edit here is the same tree the agent works in — and the terminal has a `hermes` command for the stack’s own agent, plus npm and a persistent home for whatever coding CLI you install yourself.',
-        shot: '/img/services/code-server.webp',
-        docs: '/docs/services/code-server',
-        source: 'https://github.com/coder/code-server',
-      },
-      {
-        slug: 'ntfy',
-        name: 'Ntfy',
-        blurb: 'Push notifications',
-        what: 'Push notifications to your phone from a one-line HTTP request, no app account and no vendor in between. Every automation in the stack uses it to tell you a backup finished, a transcript is ready, or something broke.',
-        shot: '/img/services/ntfy.webp',
-        docs: '/docs/services/ntfy',
-        source: 'https://github.com/binwiederhier/ntfy',
-      },
-    ],
-  },
-  {
-    name: 'Underneath',
-    kicker: 'Where the bytes live, and what it knows',
-    kind: 'hosted',
-    tier: 'core',
-    lede: 'The part you stop noticing once it works: the index that lets the agent answer from your own material instead of only from what it was trained on.',
-    services: [
       {
         slug: 'openviking',
         name: 'OpenViking',
@@ -231,12 +247,25 @@ export const TOUR: TourSection[] = [
     ],
   },
   {
-    name: 'Also on your devices',
-    kicker: 'The rest of what we would install',
+    name: 'Notes and documents',
+    kicker: 'The clients that go with Nextcloud',
     kind: 'recommended',
-    tier: 'core',
-    lede: 'The clients that get you at your own data from whatever machine or phone is in front of you.',
+    tier: 'extra',
+    lede: 'You install these yourself. They write plain files into a folder Nextcloud syncs, which is how everything downstream gets at your notes.',
     services: [
+      {
+        slug: 'obsidian',
+        name: 'Obsidian',
+        blurb: 'Notes and tasks, as plain Markdown files',
+        what: 'The front door to the whole thing: a fast editor over a folder of Markdown files, with backlinks, graph view, and Kanban boards for tasks. The vault sits in a directory Nextcloud syncs, so the notes reach the rest of the stack as plain files — no API, no export step, nothing to integrate.',
+        shot: '/img/services/obsidian.webp',
+        chrome: 'Obsidian — desktop app, reads your vault folder',
+        docs: '/docs/services/obsidian',
+        source: 'https://obsidian.md',
+        proprietary: true,
+        tag: 'Free — but not open source',
+        note: 'Free without limits — no sign-up, personal and commercial use alike. Paid Sync, Publish and a commercial licence are there if you want to support the developers. It isn’t open source — but your notes stay plain .md files in a folder you own, so the editor is replaceable.',
+      },
       {
         slug: 'onlyoffice',
         name: 'ONLYOFFICE Desktop',
@@ -246,17 +275,6 @@ export const TOUR: TourSection[] = [
         chrome: 'ONLYOFFICE Desktop — edits the files Nextcloud syncs',
         docs: '/docs/services/onlyoffice',
         source: 'https://github.com/ONLYOFFICE/DesktopEditors',
-      },
-      {
-        slug: 'tailscale',
-        name: 'Tailscale',
-        blurb: 'Reach it all from anywhere, without opening a port',
-        what: 'A private network that follows your devices around, built on WireGuard. Your laptop and phone behave as though they were on the home LAN, so every service stays reachable from a hotel or a train without any of it facing the open internet — nothing to port-forward, nothing to expose, no attack surface added.',
-        chrome: 'Tailscale — a private network across your devices',
-        docs: '/docs/hosting/vpn',
-        source: 'https://github.com/tailscale/tailscale',
-        tag: 'Free for personal use',
-        note: 'The clients are open source (BSD-3), but the coordination service that introduces your devices to each other is Tailscale’s own, and hosted. Headscale is an open-source replacement for that piece if you would rather run it yourself.',
       },
       {
         slug: 'mobile',
@@ -289,7 +307,7 @@ export const TOUR: TourSection[] = [
         slug: 'chatterbox',
         name: 'Chatterbox',
         blurb: 'Text-to-speech, running locally',
-        what: 'Turns text into speech on your own GPU, with voice cloning from a short sample, over an OpenAI-compatible HTTP API. Home Assistant does not use it — HA speaks the Wyoming protocol and Core ships wyoming-piper for that — so this is here for audio you generate yourself, from a routine or your own code.',
+        what: 'Turns text into speech on your own GPU, with voice cloning from a short sample, over an OpenAI-compatible HTTP API. Home Assistant does not use it — HA speaks the Wyoming protocol and the Voice & Home quest ships wyoming-piper for that — so this is here for audio you generate yourself, from a routine or your own code.',
         docs: '/docs/ai/chatterbox',
         source: 'https://github.com/resemble-ai/chatterbox',
       },
@@ -297,7 +315,7 @@ export const TOUR: TourSection[] = [
         slug: 'open-webui',
         name: 'Open WebUI',
         blurb: 'Chat UI routed through hermes-agent',
-        what: 'A chat window in a tab — threads, file uploads, model switching, all of it running against your own GPU instead of somebody’s API. It looks like the chat app you already use, except nothing you type leaves the house. Core talks to the agent by voice and from the terminal; turn this on when you want the browser too.',
+        what: 'A chat window in a tab — threads, file uploads, model switching, all of it running against your own GPU instead of somebody’s API. It looks like the chat app you already use, except nothing you type leaves the house. Hermes answers by voice and from the terminal; turn this on when you want the browser too.',
         shot: '/img/services/open-webui.webp',
         docs: '/docs/ai/open-web-ui',
         source: 'https://github.com/open-webui/open-webui',
@@ -318,15 +336,6 @@ export const TOUR: TourSection[] = [
         what: 'A web UI over Docker: which containers are up, what they are logging, and a shell into any of them. The fastest way to answer “why is that one red” without SSH-ing in and remembering the flags.',
         docs: '/docs/hosting/portainer',
         source: 'https://github.com/portainer/portainer',
-      },
-      {
-        slug: 'uptime-kuma',
-        name: 'Uptime Kuma',
-        blurb: 'Service availability monitor',
-        what: 'Pings every service on a schedule and keeps a wall of green squares. When one turns red it pushes a notification, so you hear about an outage from your own hardware rather than from someone trying to use it.',
-        shot: '/img/services/uptime-kuma.webp',
-        docs: '/docs/hosting/uptime-kuma',
-        source: 'https://github.com/louislam/uptime-kuma',
       },
       {
         slug: 'pihole',
@@ -363,15 +372,6 @@ export const TOUR: TourSection[] = [
         shot: '/img/services/mealie.webp',
         docs: '/docs/services/mealie',
         source: 'https://github.com/mealie-recipes/mealie',
-      },
-      {
-        slug: 'actual-budget',
-        name: 'Actual Budget',
-        blurb: 'Personal finance',
-        what: 'Envelope budgeting that is fast and genuinely pleasant to use — every dollar gets a job, and the month either balances or it doesn’t. Transactions can arrive automatically, so the only thing left to do is categorize.',
-        shot: '/img/services/actual-budget.webp',
-        docs: '/docs/services/actual-budget',
-        source: 'https://github.com/actualbudget/actual',
       },
       {
         slug: 'nocodb',

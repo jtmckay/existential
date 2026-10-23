@@ -26,14 +26,10 @@
 # `./existential.sh validate` to verify.
 #
 # Core services with no useful tile are deliberately absent. No HTTP endpoint
-# of their own: honcho (internal API only), wyoming-whisper and
-# wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki
-# (Grafana is the window onto it), decree (background daemon), and caddy
-# itself. Has an endpoint but nothing a browser tile can show: automation-webhook
-# is a POST-only, bearer-authed inbox receiver with no GET route worth linking
-# (services/automation/webhook/README.md). Firecrawl gets a tile below, but its
-# active block points at the docs page, not the live service — see the item
-# for why.
+# of their own: loki (Grafana is the window onto it), decree (background
+# daemon), and caddy itself. Has an endpoint but nothing a browser tile can
+# show: automation-webhook is a POST-only, bearer-authed inbox receiver with no
+# GET route worth linking (services/automation/webhook/README.md).
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
 # a red dot when unreachable. That covers runtime health; the comment-flip
@@ -67,31 +63,8 @@ appConfig:
 
 sections:
   - name: Interface
-    icon: fas fa-robot
+    icon: fas fa-laptop-code
     items:
-      - title: Hermes
-        url: https://hermes-agent-dashboard.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/hermes
-        icon: fas fa-frog
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: The agent — routing, sessions and ops dashboard
-
-      - title: Home Assistant
-        url: https://homeassistant.EXIST_DOMAIN
-        # url: https://existential.company/docs/services/homeassistant
-        icon: hl-home-assistant
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Smart home automation, plus voice via wyoming-whisper/piper
-      - title: Nextcloud
-        url: https://nextcloud.EXIST_DOMAIN
-        # url: https://existential.company/docs/storage/nextcloud
-        icon: si-nextcloud
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: File sync + collaboration
-
       - title: code-server
         url: https://code-server.EXIST_DOMAIN
         # url: https://existential.company/docs/services/code-server
@@ -103,27 +76,15 @@ sections:
         icon: si-coder
         statusCheck: true
         statusCheckAllowInsecure: true
-        description: Editor and terminal over the shared workspace — the same tree the agent works in
+        description: The work dir — editor, plus a terminal for the AI CLI you use
 
-
-  - name: Infrastructure
-    icon: fas fa-hard-drive
-    items:
-      - title: Ollama
-        url: https://ollama.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/ollama
-        icon: si-ollama
+      - title: Actual Budget
+        url: https://actual-budget.EXIST_DOMAIN
+        # url: https://existential.company/docs/services/actual-budget
+        icon: fas fa-wallet
         statusCheck: true
         statusCheckAllowInsecure: true
-        description: Local models (API — every other AI service talks to this)
-
-      - title: OpenViking
-        url: https://openviking.EXIST_DOMAIN
-        # url: https://existential.company/docs/ai/openviking
-        icon: fas fa-database
-        statusCheck: true
-        statusCheckAllowInsecure: true
-        description: Context database — notes, scraped resources, agent memory
+        description: Personal finance
 
   - name: Observability
     icon: fas fa-chart-line
@@ -143,6 +104,14 @@ sections:
         statusCheck: true
         statusCheckAllowInsecure: true
         description: Metrics store behind Grafana (raw query UI)
+
+      - title: Uptime Kuma
+        url: https://uptime-kuma.EXIST_DOMAIN
+        # url: https://existential.company/docs/hosting/uptime-kuma
+        icon: si-uptimekuma
+        statusCheck: true
+        statusCheckAllowInsecure: true
+        description: Is the rest of the homelab up?
 
       - title: ntfy
         url: https://ntfy.EXIST_DOMAIN

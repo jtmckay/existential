@@ -4,9 +4,8 @@
 #
 # lib/ is mounted read-only into the daemon, so the probe processor has to be
 # placed from out here. So do the webhook registration and rclone remote
-# migrations: Core copies them in itself, but the Files & Workspace slice
-# writes nothing — its guide has the user `cp` them — so without this the slice
-# boots with no file events at all.
+# migrations: the Nextcloud quest writes nothing — its guide has the user `cp`
+# them — so without this a run boots with no file events at all.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.

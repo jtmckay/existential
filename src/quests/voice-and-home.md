@@ -1,7 +1,7 @@
 ---
 name: Voice & Home
 tagline: Home Assistant runs the house; whisper and piper let you talk to it, and the agent answers
-e2e: true
+e2e: false
 services:
   - var: EXIST_IS_SERVICES_HOMEASSISTANT
     label: Home Assistant (the house)
@@ -15,10 +15,12 @@ done:
     - automation/migrations/26-homeassistant-wyoming-hermes.md
 ---
 
-The last slice of Core, and the one with a voice. Home Assistant is the house;
-whisper turns speech into text and piper turns text back into speech, both on
-CPU so they never evict the chat model from the card. The Assist pipeline ties
-them to Hermes, so asking the house a question reaches your own agent.
+Home Assistant is the house; whisper turns speech into text and piper turns
+text back into speech, both on CPU so they never evict the chat model from the
+card. The Assist pipeline ties them to Hermes, so asking the house a question
+reaches your own agent. Core does not install any of it — Home Assistant
+usually has a box of its own — and the voice pipeline needs the **Local AI**
+quest's Hermes to answer.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
 
@@ -77,4 +79,4 @@ voice and by the agent.
 
 A custom wake word on your phone, and Tasker on the other end: the
 **Wake Word & Voice Triggers** quest. Routines that react to house events on a
-schedule: the **Automation** slice, already running.
+schedule: the **Automation** slice of Core.

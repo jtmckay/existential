@@ -1,25 +1,16 @@
 ---
 name: Core
-tagline: The whole system, wired together — files, house, agent, memory, voice
+tagline: Open the work dir, talk to an AI, have decree automate it
 e2e: true
-# Core is only meaningful with a chat model behind it, and a CI runner has no
-# GPU — so e2e runs ollama on the CPU against the 1B model pinned in
-# src/test/fixtures/env.shared. That is slow per token but fast to pull, and it
-# means the flagship path is exercised on every run rather than only when
-# someone has a second box to point at.
 services:
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy (TLS + hostnames)
   - var: EXIST_IS_SERVICES_DASHY
     label: Dashy (the dashboard — links to everything below)
-  - var: EXIST_IS_NAS_NEXTCLOUD
-    label: Nextcloud (files + file events)
   - var: EXIST_IS_SERVICES_CODE_SERVER
     label: code-server (editor + terminal over the workspace)
-  - var: EXIST_IS_SERVICES_HOMEASSISTANT
-    label: Home Assistant (the house)
   - var: EXIST_IS_SERVICES_AUTOMATION
-    label: Decree (automation engine)
+    label: Decree (automation engine + its webhook)
   - var: EXIST_IS_SERVICES_NTFY
     label: ntfy (push notifications — where automations report in)
   - var: EXIST_IS_HOSTING_LOKI
@@ -28,71 +19,11 @@ services:
     label: Prometheus (metrics store)
   - var: EXIST_IS_HOSTING_GRAFANA
     label: Grafana (the window onto both — ships Decree dashboards)
-  - var: EXIST_IS_AI_OLLAMA
-    label: Ollama (local models)
-  - var: EXIST_IS_AI_HERMES
-    label: Hermes (the agent)
-  - var: EXIST_IS_AI_HONCHO
-    label: Honcho (agent memory)
-  - var: EXIST_IS_AI_OPENVIKING
-    label: OpenViking (context database)
-  - var: EXIST_IS_AI_FIRECRAWL
-    label: Firecrawl (web crawler for the agent)
-  - var: EXIST_IS_AI_WYOMING_WHISPER
-    label: wyoming-whisper (speech to text)
-  - var: EXIST_IS_AI_WYOMING_PIPER
-    label: wyoming-piper (text to speech)
+  - var: EXIST_IS_HOSTING_UPTIME_KUMA
+    label: Uptime Kuma (is the rest of the homelab up?)
+  - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
+    label: Actual Budget (personal finance)
 copies:
-  # Ollama models. Without these migrations ollama starts with NO models and
-  # every other AI service fails its first request — the single most common
-  # "I enabled it and nothing works" cause.
-  - src: automation-examples/migrations/10-ollama-pull-chat-model.md
-    dst: automation/migrations/
-    label: "ollama: pull the chat model (EXIST_MODEL_CHAT)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: automation-examples/migrations/11-ollama-set-chat-context.md
-    dst: automation/migrations/
-    label: "ollama: apply the chat context window (EXIST_MODEL_CHAT_NUM_CTX)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: automation-examples/migrations/12-ollama-pull-extract-model.md
-    dst: automation/migrations/
-    label: "ollama: pull the extraction model (EXIST_MODEL_EXTRACT)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: automation-examples/migrations/13-ollama-pull-embed-model.md
-    dst: automation/migrations/
-    label: "ollama: pull the embedding model (EXIST_MODEL_EMBED)"
-    requires: EXIST_IS_AI_OLLAMA
-  - src: automation-examples/migrations/14-ollama-pull-vision-model.md
-    dst: automation/migrations/
-    label: "ollama: pull the vision model (skips when EXIST_MODEL_VISION is blank)"
-    requires: EXIST_IS_AI_OLLAMA
-  # file-processor's download step for anything reached through Nextcloud's
-  # WebDAV (rclone_src: nextcloud). Without it every such download fails with
-  # "didn't find section in config file".
-  - src: automation-examples/migrations/23-nextcloud-rclone-remote.md
-    dst: automation/migrations/
-    label: "nextcloud: configure the rclone remote (WebDAV, admin creds)"
-    requires: EXIST_IS_NAS_NEXTCLOUD
-  # Nextcloud's file events -> decree's /files webhook -> file-router. Without
-  # it Nextcloud works and nothing downstream ever hears about a file.
-  - src: automation-examples/migrations/27-nextcloud-file-events.md
-    dst: automation/migrations/
-    label: "nextcloud: send file events to decree (webhook_listeners)"
-    requires: EXIST_IS_NAS_NEXTCLOUD
-  # Without this, https://homeassistant.<domain> redirects every page to the
-  # setup wizard until a human creates an admin account by hand.
-  - src: automation-examples/migrations/25-homeassistant-onboarding.md
-    dst: automation/migrations/
-    label: "homeassistant: create the admin account (EXIST_USERNAME login)"
-    requires: EXIST_IS_SERVICES_HOMEASSISTANT
-  # Wyoming STT/TTS + a conversation-agent entry pointed at Hermes (not raw
-  # OpenAI — see exist.initial.sh's extended_openai_conversation install) +
-  # the Assist pipeline tying them together. Needs the migration above to
-  # have created an account first.
-  - src: automation-examples/migrations/26-homeassistant-wyoming-hermes.md
-    dst: automation/migrations/
-    label: "homeassistant: wire up Wyoming STT/TTS + Hermes as the Assist pipeline"
-    requires: EXIST_IS_SERVICES_HOMEASSISTANT
   - src: automation-examples/cron/clean-runs.md
     dst: automation/cron/
     label: "decree: clean-runs.md (prune old run logs weekly)"
@@ -101,127 +32,76 @@ copies:
     dst: automation/cron/
     label: "decree: health-checks.md"
     requires: EXIST_IS_SERVICES_AUTOMATION
-  # Keeps workspace/ searchable. Core installs openviking as the agent's context
-  # database, but nothing puts anything IN it — without this cron hermes answers
-  # from the model alone and the "it knows your material" half of Core is inert.
-  # Same tree hermes and code-server already share, so there is nothing to place.
-  - src: automation-examples/cron/openviking-index-knowledgebase.md
-    dst: automation/cron/
-    label: "decree: openviking-index-knowledgebase.md (index workspace/ every 15m)"
-    requires: EXIST_IS_AI_OPENVIKING
-  # Needs the same index the entry above builds, so it rides the same requires.
-  # note-connect.sh defaults NOTES_DIR to /workspace, so this needs nothing
-  # else Core doesn't already provide. To opt out later, delete
-  # automation/cron/note-connect.md — enabled: true in config.yml with no
-  # cron file behind it never fires.
-  - src: automation-examples/cron/note-connect.md
-    dst: automation/cron/
-    label: "decree: note-connect.md (surface connections to what you already know, hourly)"
-    requires: EXIST_IS_AI_OPENVIKING
 ---
 
-Core is the whole system in one pass: your files, your house, a local agent
-that reads both, and a voice to talk to it. Everything below runs on your
-hardware — no API keys, no accounts, nothing leaving the box.
+Core is three things: open the work dir, talk to an AI about it, and have
+decree automate what you would otherwise do by hand. Everything below runs on
+one ordinary box. No GPU, no model downloads.
 
 What you get:
-  Nextcloud              files, the workspace folder your desktop client syncs,
-                         and the file events that let Decree react to them
-  code-server            editor and terminal over the workspace — the tree the
-                         agent works in, from any browser
-  Home Assistant         the house, plus voice via wyoming-whisper/piper
-  Ollama                 the local models everything else talks to
-  Hermes                 the agent — the thing you actually converse with
-  Honcho + OpenViking    what it remembers, and what it can look things up in
-  Firecrawl              turns a URL into clean text the agent can read
-  Decree                 runs it all on a schedule, headless
+  code-server            the work dir in a browser tab: editor, plus a terminal
+                         where you run the AI CLI you use
+  Decree                 runs routines on a schedule, a webhook or an inbox
+                         message, headless
   ntfy                   how a finished automation tells you it finished
   Loki + Grafana         every Decree run log, searchable, with two dashboards
                          wired up before you get there
   Prometheus             the metrics behind those dashboards
+  Uptime Kuma            whether the rest of your homelab is up
+  Actual Budget          budgeting, and the first app decree can post to
   Caddy                  https://<service>.<domain> for every one of them
   Dashy                  one page linking to all of the above
 
-No browser chat window is part of Core. You talk to hermes by voice through
-Home Assistant, or with `hermes "..."` in code-server's terminal, or from its
-own dashboard once you set HERMES_DASHBOARD_TUI=1 (commented out in
-ai/hermes/docker-compose.yml). For a full chat UI in a tab, enable Open WebUI —
-it is one flag away: EXIST_IS_AI_OPEN_WEBUI=true.
+Files (Nextcloud), the house (Home Assistant), DNS (piHole) and GPU models
+usually run on other servers, so Core leaves them out. Each is one unnumbered
+quest away: **Nextcloud**, **Voice & Home**, **Local AI**.
 
-Core is the fast path, not the only one. Quests 01–06 are these same seventeen
-services cut into six pieces you can do one at a time, by hand — same services,
-same templates, spelled out instead of copied for you. Run Core and all six
-cross themselves off; run them individually and you arrive at the same stack.
+Core is the fast path, not the only one. Quests 01–05 are these same ten
+services cut into five pieces you can do one at a time, by hand. Run Core and
+01–04 cross themselves off (Apps ends in a password only its own UI knows);
+run them individually and you arrive at the same stack.
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 
-Roughly 34 containers. The observability half is seven of them and costs about
-1 GB in practice; every one carries a memory limit, so a runaway query cannot
-take the box down with it. The models are sized to the VRAM you picked at the
-start: one multimodal model handles chat, background memory work and images,
-with bge-m3 alongside it for embeddings. Speech-to-text and text-to-speech
-run on CPU so they never evict the LLM mid-answer.
+About 15 containers, no GPU and nothing to download beyond the images. Every
+one carries a memory limit, so a runaway query cannot take the box down with
+it. `./existential.sh run footprint core` adds them up.
 
 code-server idles around 200 MB with nobody connected; its 2 GB limit is
-headroom for an actual editing session (language servers, a terminal, whatever
-CLI you install in it), not the resting cost. Its first boot downloads the
-editor and four extensions before it answers — a couple of minutes on a fresh
-install, and the only core container that makes you wait for a download that
-isn't a model.
-
-Re-size any time with `./existential.sh run models`, or edit the "Model
-Selection" block in .env.shared directly:
-
-    EXIST_MODEL_CHAT          the agent's brain — MUST support tool calling
-    EXIST_MODEL_CHAT_NUM_CTX  its context window — 64k on every tier, because
-                              hermes needs it
-    EXIST_MODEL_EXTRACT       background memory work — same tag as chat
-    EXIST_MODEL_VISION        OCR and image chat — same tag as chat
-    EXIST_MODEL_EMBED         embeddings — do NOT change after first ingestion
-    EXIST_MODEL_STT           Home Assistant speech to text (CPU)
-    EXIST_MODEL_TTS_VOICE     Home Assistant voice (CPU)
-
-Honcho's config and OpenViking's embedding settings are rendered from those,
-so the whole stack can never disagree about which model it is using.
+headroom for an actual editing session (language servers, a terminal, the CLI
+you install in it). Its first boot downloads the editor and four extensions
+before it answers, a couple of minutes on a fresh install.
 
 ── After `docker compose up -d` ────────────────────────────────────────────
 
-Almost nothing. ./existential.sh already seeded hermes' config before the
-container starts, so the agent comes up pointed at ollama, with honcho memory
-on and the OpenViking + Firecrawl MCP servers registered. Models pull
-themselves: the ollama migrations you just copied run in the decree daemon as
-soon as ollama is healthy (~5.5 GB at the 8 GB default, a few minutes).
-
-  Watch the pulls:  docker logs -f automation
   Check everything: ./existential.sh test services
 
-Grafana comes up with the Loki and Prometheus datasources already wired and two
-Decree dashboards already loaded — an overview and a per-run detail view. When a
-routine misbehaves, that is where you look, rather than in `docker logs automation`:
-alloy labels every run log with its message_id, chain and seq, so a routed
-chain reads end to end. Grafana's credentials are generated for you, in
-hosting/grafana/.env.
+Open https://dashy.<domain>: your landing page, with a link and a live status
+dot for every core service. ./existential.sh prints the URL when it finishes.
 
-ntfy provisions itself the same way: its entrypoint creates your admin login
-(services/ntfy/.env) and the exist-bot publisher (EXIST_NTFY_USER /
-EXIST_NTFY_PASSWORD in .env.shared) on first boot, and Decree publishes as the
-bot. Point the ntfy mobile app at https://ntfy.<domain>, log in as the admin,
-and subscribe to the "decree" topic. `./existential.sh run ntfy setup` is only
-needed if you would rather use a bearer token than the generated password.
+1. Open https://code-server.<domain> (password: CODE_SERVER_PASSWORD in
+   services/code-server/.env), open a terminal, and install the AI CLI you use
+   (`npm i -g <package>`). It survives container recreation. That terminal,
+   over the work dir, is where you talk to the AI.
 
-Then open https://dashy.<domain> — that is your landing page, with a link and a
-live status dot for every core service. ./existential.sh prints the URL when it
-finishes.
+2. Subscribe to ntfy. Its entrypoint already created your admin login
+   (services/ntfy/.env) and the exist-bot publisher Decree uses. Point the ntfy
+   mobile app at https://ntfy.<domain>, log in as the admin, and subscribe to
+   the "decree" topic.
 
-One thing genuinely needs you, because it happens inside another app's UI:
+3. Grafana comes up with Loki and Prometheus wired and two Decree dashboards
+   loaded. When a routine misbehaves, look there: every run log is labelled
+   with its message_id, chain and seq. Credentials: hosting/grafana/.env.
 
-1. Nextcloud's admin credentials were generated for you — they are in
-   nas/nextcloud/.env as NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD. It
-   installs itself and lands on a login page, with the workspace already
-   mounted as a "workspace" folder in Files. Point the Nextcloud desktop client
-   at it (nextcloud.com/install) and sync that folder — that is where you edit.
+Two apps make you create the first account in their own UI:
 
-To CHANGE what was seeded (each overwrites; the seeding never does):
-  ./existential.sh run hermes setup      # pick a different model/provider
-  ./existential.sh run openviking mcp    # re-register an MCP server
-  ./existential.sh run models            # re-size for a different GPU
+4. Uptime Kuma: open https://uptime-kuma.<domain>, create the admin, add
+   monitors for your other machines, and point notifications at ntfy
+   (server http://ntfy:80).
+
+5. Actual Budget: open https://actual-budget.<domain>, set the password,
+   create a budget file.
+
+Then automate something: the **Automation** quest shows the one mechanism
+(copy a template into automation/cron/), and every unnumbered quest is a
+variation on it.

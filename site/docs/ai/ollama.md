@@ -18,7 +18,7 @@ You do not pick models here. Model choice is global and lives in the *Model Sele
 [Configuration → Models](../configuration#models).
 
 The models are pulled for you: the `10-ollama-*` … `14-ollama-*` decree migrations run as soon as
-ollama answers `/api/tags`, and the Core quest copies them in. If you skipped that, pull manually:
+ollama answers `/api/tags`, once you copy them in (the **Local AI** quest). If you skipped that, pull manually:
 
 ```bash
 ./existential.sh run ollama pull-models

@@ -152,7 +152,7 @@ qbody() {
 
 # True when the hardware answer, not the user, is why a service is off — so it
 # does not count as missing. Answering "models live on another machine" turns
-# EXIST_IS_AI_OLLAMA off for good; without this, Core and Local AI would both
+# EXIST_IS_AI_OLLAMA off for good; without this, Local AI would
 # sit permanently at "some services not yet enabled" naming a service the stack
 # is never going to run. Same rule _enable_quest_services applies on the way in.
 quest_skips_service() {
@@ -200,8 +200,8 @@ will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 # run". A manual quest names them under `done:` — the files its guide told you
 # to copy, the .env.shared keys it told you to set.
 #
-# This is why quests 01-06 are exactly a partition of Core: running Core writes
-# every file they name, so all six cross themselves off without knowing Core
+# This is why quests 01-05 are exactly a partition of Core: running Core writes
+# every file they name, so each slice crosses itself off without knowing Core
 # exists.
 quest_done() {
     local _f="$1" _p _k _declared=0
@@ -227,7 +227,7 @@ quest_done() {
 # body IS the instructions — mkdir/cp/restart commands written in prose, meant
 # to be read and typed (or copy-pasted) by hand. That is deliberate: Core is
 # the one path optimized for minimal input, because it IS the base system:
-# without its migrations ollama has no models and nothing else works.
+# without its crons decree never prunes its run logs or checks it is alive.
 # Everywhere past that, the point is for the user (or an agent driving this
 # repo) to see and understand the mechanism — a markdown file living at
 # cron.example/ that gets copied to cron/ to activate — not have it happen
@@ -326,9 +326,9 @@ _enable_quest_services() {
     for _v in "${_qvars[@]}"; do
         [[ "$(env_get "$_v")" == "true" ]] && continue
         # A quest lists the services it needs, but the hardware answer outranks
-        # the list. Core names EXIST_IS_AI_OLLAMA, and the vendor question is
-        # asked BEFORE the Core plan runs — so without this, answering "ollama
-        # on another machine" and then accepting Core re-enabled the local
+        # the list. Local AI names EXIST_IS_AI_OLLAMA, and the vendor question is
+        # asked BEFORE any quest runs — so without this, answering "ollama
+        # on another machine" and then picking Local AI re-enabled the local
         # ollama seconds after quest had just turned it off.
         if [[ -n "$_vendor" ]] && vendor_forbids_service "$_vendor" "$_v"; then
             echo "  ${_C_DIM:-}↷ ${_v} stays off — EXIST_GPU_VENDOR=${_vendor}${_C_RESET:-}"
@@ -517,7 +517,7 @@ if _defaults_only && [ -f "$CORE_QUEST" ]; then
     if [[ "${_core_choice%%	*}" == "core" ]]; then
         # Choosing Core is the decision. Everything below follows from it, so
         # show the whole plan and confirm ONCE — never make the templates a
-        # second question: without them ollama starts with no models at all.
+        # second question: they are part of what Core IS.
         echo ""
         hr
         echo "  Here is what Core will do"
@@ -722,7 +722,7 @@ _quest_fzf_out=$(
             --header="  Pick quests — what do you want to set up?
   ↑↓ navigate   Space toggle   Enter confirm
   ${_C_GREEN}✓${_C_RESET} = already done   ${_C_GREEN}●${_C_RESET} = ready to start   ${_C_YELLOW}○${_C_RESET} = needs services enabled first
-  01-06 are Core, one slice at a time. Hit Enter with nothing selected to open the highlighted one" \
+  01-05 are Core, one slice at a time. Hit Enter with nothing selected to open the highlighted one" \
             --prompt="Quest ❯ " \
             --no-info \
             --bind 'space:toggle+down'

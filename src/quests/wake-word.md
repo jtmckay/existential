@@ -19,7 +19,7 @@ HA + Tasker wiring: https://existential.company/docs/decree/hawake-homeassistant
 AutoVoice (no training): https://existential.company/docs/decree/autovoice
 
 Prerequisites:
-  - Home Assistant running (Quest 06 — Voice & Home)
+  - Home Assistant running (the Voice & Home quest)
   - Android phone with Tasker + TaskerHA installed
 
 HAwake setup (custom wake word):

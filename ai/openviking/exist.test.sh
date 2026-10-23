@@ -118,8 +118,8 @@ else
     elif ! printf '%s' "${TAGS}" | grep -q '"name"'; then
         # ollama is up but holds NO models at all, so the pull step has not been
         # run yet — a setup state, not a fault, and the same distinction
-        # ai/ollama/exist.test.sh draws. Only the Core quest copies the ollama
-        # migrations; the Local AI Lab quest hands pulling to the user, so a
+        # ai/ollama/exist.test.sh draws. No quest copies the ollama
+        # migrations itself; the Local AI quest hands them to the user, so a
         # fresh install of it legitimately has an empty ollama and failing here
         # reported a working stack as broken. A wrong model with others present
         # still fails below, which is the drift this check exists for.

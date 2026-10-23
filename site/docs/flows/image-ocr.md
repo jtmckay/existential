@@ -106,7 +106,7 @@ telegram/1745000000_AgADjk.jpg.ocr.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** with file events on (see [File Processor](../decree/file-change-processing#setup) — Core does it)
+- **Nextcloud** with file events on (the Nextcloud quest sets this up — see [File Processor](../decree/file-change-processing#setup))
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
@@ -124,7 +124,7 @@ Any Ollama-compatible vision model works. `llava` is a solid general-purpose cho
 
 ### Step 2 — file events and rclone
 
-Core already did this. By hand, follow [File Processor → Setup](../decree/file-change-processing#setup):
+The Nextcloud quest walks through this. Or follow [File Processor → Setup](../decree/file-change-processing#setup):
 two migrations, one for the `nextcloud` rclone remote and one that registers the webhooks.
 
 ### Step 3 — Point a camera at it

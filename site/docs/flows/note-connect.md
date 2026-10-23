@@ -65,13 +65,16 @@ you stop needing to double-check it yourself.
 The same pairing is never surfaced twice. Edit the note again later and a *different*
 connection can still come through — just not the one you already saw.
 
-## It ships with Core
+## It ships with Local AI
 
-Unlike every other flow on this page, there is no quest to pick. `./existential.sh quest` →
-**Core** copies `note-connect.md` into `automation/cron/` for you, alongside the cron that
-indexes `workspace/` into OpenViking in the first place — the same `requires:` gate, since one
-is pointless without the other. Nothing else to enable, and `NOTES_DIR` defaults to `/workspace`, the same
-tree [Hermes](../ai/hermes) already reads and [OpenViking](../ai/openviking) already indexes.
+The **Local AI** quest (`./existential.sh quest`) has you copy `note-connect.md` into
+`automation/cron/`, alongside the cron that indexes `workspace/` into OpenViking in the first
+place, since one is pointless without the other. `NOTES_DIR` defaults to `/workspace`, the same
+tree [Hermes](../ai/hermes) already reads and [OpenViking](../ai/openviking) already indexes:
+
+```bash
+cp automation-examples/cron/note-connect.md automation/cron/
+```
 
 **Opting out is a file deletion, nothing more:**
 
@@ -81,12 +84,6 @@ rm automation/cron/note-connect.md
 
 A machine with no cron file behind it never fires — there's no config flag to also flip.
 Delete the file, and it's gone until you copy it back from `automation-examples/cron/`.
-
-Running a custom, non-Core install instead? Copy that same file yourself:
-
-```bash
-cp automation-examples/cron/note-connect.md automation/cron/
-```
 
 ### Pointing it at a different vault
 
@@ -118,7 +115,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 ### Prerequisites
 
 - `workspace/` actually indexed — this is where "something you already know" comes from. On by
-  default once [OpenViking](../ai/openviking) is enabled, which Core enables
+  default once [OpenViking](../ai/openviking) is enabled and its index cron copied (the Local AI quest)
 - [Hermes](../ai/hermes) running with the `research` profile provisioned — `ai/hermes/entrypoint.sh`
   does this automatically on boot from `ai/hermes/profiles/research/`; restart `hermes-agent`
   if you enabled Hermes before OpenViking

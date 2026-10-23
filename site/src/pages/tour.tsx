@@ -12,20 +12,20 @@ import styles from './tour.module.css';
  * How many services Core installs — one per service folder it enables, which is
  * one per `EXIST_IS_*` flag in `src/quests/00-core.md`'s `services:` block. That
  * is the stack's own unit of a service (a folder), and the closest thing it has
- * to a pod: several of them run more than one container (honcho is three,
- * firecrawl is six), and `./existential.sh quest` turns each on or off as one
+ * to a pod: several of them run more than one container (automation is three,
+ * prometheus is three), and `./existential.sh quest` turns each on or off as one
  * thing.
  *
  * NOT the number of cards below, which is what this number used to be — the page
- * said "N apps make up the core" while N counted screenshots. Most of Core has no
- * screen to show (a cache, a log store, a metrics store, the model server, the
- * voice pipeline, the agent's memory), so the card count undersold it by half.
+ * said "N apps make up the core" while N counted screenshots. Part of Core has no
+ * screen to show (the reverse proxy, the automation engine, a log store, a
+ * metrics store), so the card count undersold it.
  *
  * Hardcoded on purpose: this module is bundled for the browser, so it cannot read
  * the quest file at runtime, and a codegen step for one integer is worse than a
  * test. `./existential.sh validate conventions` fails if the two disagree.
  */
-const CORE_SERVICES = 17;
+const CORE_SERVICES = 10;
 
 /**
  * Counts cards, so summary cards like `mobile` don't inflate the tally.
@@ -54,10 +54,10 @@ function TourHeader(): ReactNode {
         <p className={styles.heroLede}>
           <strong>{CORE_SERVICES} services make up the core</strong> — on
           hardware you own, every one of them free and open source — plus {CORE_CLIENTS}{' '}
-          clients you install on your own machines to reach them, and {EXTRA} optional
+          {CORE_CLIENTS === 1 ? 'client' : 'clients'} you install on your own machines to reach them, and {EXTRA} optional
           services you can turn on. The {CORE_CARDS} below are the ones worth a screenshot;
-          the rest are plumbing — a cache, a log store, a metrics store, the model server,
-          the voice pipeline, the agent's memory. Scroll through and see what they look
+          the rest are plumbing — the reverse proxy, the automation engine, a log store and
+          a metrics store. Scroll through and see what they look
           like.
         </p>
       </div>

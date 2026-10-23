@@ -46,7 +46,7 @@ that has one, or use the CPU-only model tier. See
 ### Do I have to turn everything on?
 
 No — every service is a flag, and disabled services render nothing and cost nothing. The
-`quest` picker offers **Core** (files, house, agent, memory, voice, monitoring) as one yes/no, or
+`quest` picker offers **Core** (work dir, terminal, automation, notifications, monitoring) as one yes/no, or
 you can go service by service. See [Enable/Disable Services](./getting-started#enabledisable-services).
 
 ### What happens to my data if I stop using Existential?

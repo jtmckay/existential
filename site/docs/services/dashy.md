@@ -67,15 +67,10 @@ for temporary tweaks.
 The shipped template lists the CORE stack (`src/quests/00-core.md`) only. A few core
 services are deliberately absent:
 
-- **No HTTP endpoint of their own**: honcho (internal API only), wyoming-whisper and
-  wyoming-piper (reached by Home Assistant over the Wyoming protocol), loki (Grafana is the
-  window onto it), decree (the background daemon has no UI), and caddy itself.
+- **No HTTP endpoint of their own**: loki (Grafana is the window onto it), decree (the
+  background daemon has no UI), and caddy itself.
 - **Has an endpoint, but nothing a tile can show**: `automation-webhook` is a POST-only,
   bearer-authed inbox receiver with no GET route worth linking.
-- **Firecrawl** does get a tile, but its active block points at the docs page rather than
-  `firecrawl.<domain>` — Caddy 401s every request there without
-  `Authorization: Bearer $CADDY_FIRECRAWL_API_KEY`, which a dashboard tile can't supply, so a
-  live/statusCheck block would just read permanently down.
 
 ## Health & resources
 

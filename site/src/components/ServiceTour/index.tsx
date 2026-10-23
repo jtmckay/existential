@@ -69,8 +69,8 @@ function Shot({
  *
  * Rendered once, immediately before the first `tier: 'extra'` section. It exists
  * because the failure mode of this page is a reader assuming every card is part
- * of the system — which is exactly what happened with portainer, pihole and
- * uptime-kuma sitting inside "Underneath". Sections above it are the product;
+ * of the system — which is exactly what happened with portainer and pihole
+ * sitting inside "Underneath". Sections above it are the product;
  * sections below it are a flag you flip yourself.
  */
 function BeyondCore(): ReactNode {

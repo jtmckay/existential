@@ -75,7 +75,7 @@ to the frontmatter; the body is free-form prose.
 ### The two kinds of quest
 
 **Numbered = Core, one slice at a time.** `00-core.md` is the whole system in one pass;
-`01`–`06` are exactly a *partition* of it — every Core service and every Core `copies:` entry
+`01`–`05` are exactly a *partition* of it — every Core service and every Core `copies:` entry
 belongs to exactly one of them, and to no two. Adding a service to Core means adding it to the
 slice that owns it. e2e only ever runs numbered quests (`[0-9][0-9]-*.md`), which is the other
 reason the numbered range is the product and not a catalogue.
@@ -103,8 +103,9 @@ on disk. A quest must SAY how it is finished, one of two ways:
 guides end in work this repo cannot see (a ComfyUI checkpoint, a Spotify OAuth grant, a wake
 word trained on a phone), and a wrong ✓ there costs more than a missing ✓ everywhere.
 
-Because 01–06 partition Core, running Core writes every file they name and all six cross
-themselves off with no knowledge of each other.
+Because 01–05 partition Core, running Core writes every file they name and every slice that
+declares `done:` crosses itself off with no knowledge of each other. (`05-apps` declares none:
+it ends in a password set in Actual Budget's own UI.)
 
 `quest_skips_service` is the one exception to "enabled": a service the GPU-vendor answer forbids
 (local ollama under `EXIST_GPU_VENDOR=external`) is not missing, it is refused — the same rule

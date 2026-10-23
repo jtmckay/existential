@@ -1,7 +1,7 @@
 ---
 name: Local AI
 tagline: Ollama serving the models, Hermes as the agent, Honcho for memory, OpenViking for your material
-e2e: true
+e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
     label: Ollama (local models)
@@ -24,11 +24,12 @@ done:
     - automation/cron/note-connect.md
 ---
 
-The brain slice of Core: a model server, an agent in front of it, memory that
-survives the session, and an index of your own material for it to answer from.
+A model server, an agent in front of it, memory that survives the session, and
+an index of your own material for it to answer from.
 
-Core does all of it. Below is the same thing by hand — and the model rules are
-worth reading either way, because they are the ones people get wrong.
+Core does not install any of it: GPU models usually run on another machine.
+Do this on the box with the card, or point EXIST_OLLAMA_URL at one. The model
+rules below are the ones people get wrong.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ external provider can be active at a time; `hermes memory off` switches back.
 ── 5. Index your own material ────────────────────────────────────────────
 
 OpenViking is installed empty. Without the cron below, hermes answers from the
-model alone and the "it knows your material" half of this slice is inert. The
+model alone and the "it knows your material" half of this quest is inert. The
 knowledgebase is `workspace/` — the same tree code-server and hermes share, so
 there is no second directory to keep in step.
 

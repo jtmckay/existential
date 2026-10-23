@@ -525,6 +525,22 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
     fi
 )
 
+# ── Section: Core's membership ───────────────────────────────────────────────
+# Core is "open the work dir, talk to an AI, have decree automate it". The
+# partition and tour count are validate-conventions' job; this pins WHAT is in
+# it, so a service creeping back into Core is a deliberate edit here too.
+
+echo ""
+echo "=== Core quest: membership ==="
+
+CORE_MD="${REPO}/src/quests/00-core.md"
+_core_fm="$(awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$CORE_MD")"
+assert_eq "Core enables exactly its ten services" \
+    "EXIST_IS_HOSTING_CADDY EXIST_IS_HOSTING_GRAFANA EXIST_IS_HOSTING_LOKI EXIST_IS_HOSTING_PROMETHEUS EXIST_IS_HOSTING_UPTIME_KUMA EXIST_IS_SERVICES_ACTUAL_BUDGET EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_DASHY EXIST_IS_SERVICES_NTFY" \
+    "$(awk '/^services:/{f=1;next} /^[^ ]/{f=0} f && /var:/{print $3}' <<< "$_core_fm" | sort | xargs)"
+assert_eq "Core copies no ollama, homeassistant, openviking or nextcloud template" \
+    "" "$(grep -E '^\s*-?\s*src:' <<< "$_core_fm" | grep -iE 'ollama|homeassistant|openviking|nextcloud|note-connect' || true)"
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

@@ -1,30 +1,27 @@
 ---
-name: Files & Workspace
-tagline: Nextcloud, file events, and one workspace you, your devices and the agent share
-e2e: true
+name: Nextcloud
+tagline: File sync for your devices, and the file events that let decree react to an upload
+e2e: false
 services:
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud (files + file events)
-  - var: EXIST_IS_SERVICES_CODE_SERVER
-    label: code-server (editor + terminal over the workspace)
+  - var: EXIST_IS_SERVICES_AUTOMATION
+    label: Decree (receives the file events)
 done:
   files:
     - automation/migrations/23-nextcloud-rclone-remote.md
     - automation/migrations/27-nextcloud-file-events.md
 ---
 
-The storage slice of Core. Nextcloud is what your phone and laptop sync to, and
-the reason a file landing in it can *trigger* something. The workspace
-(`volumes/workspace_data`) is the one tree you, code-server, hermes and
-OpenViking all see — Nextcloud serves it as the `workspace` folder, so the
-desktop client keeps a copy on every machine you use.
-
-Core does everything below in one go. Do it yourself to understand the wiring.
+Nextcloud is what your phone and laptop sync to, and the reason a file landing
+in it can *trigger* something. It serves the workspace (`volumes/workspace_data`,
+the tree code-server already edits) as the `workspace` folder, so the desktop
+client keeps a copy on every machine you use. Core does not install it — files
+usually live on another server — so this is the whole setup, by hand.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
 
        EXIST_IS_NAS_NEXTCLOUD=true
-       EXIST_IS_SERVICES_CODE_SERVER=true
 
        ./existential.sh
        docker compose up -d
@@ -66,9 +63,8 @@ side is just where it lives.
 
 ── 5. Check it ───────────────────────────────────────────────────────────
 
-       ./existential.sh test nextcloud code-server
+       ./existential.sh test nextcloud
 
-Editor and terminal over the same tree: https://code-server.${EXIST_DOMAIN}
 Files: https://nextcloud.${EXIST_DOMAIN}
 
 ── Where the data actually lives ─────────────────────────────────────────
