@@ -1,4 +1,5 @@
 ---
+service: hosting/prometheus
 sidebar_position: 9
 ---
 

@@ -1,4 +1,5 @@
 ---
+service: services/immich
 sidebar_position: 4
 ---
 

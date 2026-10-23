@@ -1,4 +1,5 @@
 ---
+service: ai/whisperx
 sidebar_position: 3
 ---
 

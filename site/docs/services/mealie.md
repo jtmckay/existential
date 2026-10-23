@@ -1,4 +1,5 @@
 ---
+service: services/mealie
 sidebar_position: 7
 ---
 

@@ -1,4 +1,5 @@
 ---
+service: services/code-server
 sidebar_position: 11
 ---
 
@@ -61,7 +62,7 @@ from the chat role's endpoint (`EXIST_MODEL_URL_CHAT`, else `EXIST_MODEL_URL`) a
 `~/.config/opencode/opencode.json` is merged over it.
 
 **`hermes "..."`** is the stack's own agent, one prompt at a time. It is
-`automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) every decree
+`automation/lib/hermes-cli.sh` — the same curl wrapper (`lib/hermes.sh` on `lib/model.sh`) a decree
 script uses — bind-mounted read-only at `/opt/hermes/` and symlinked onto `PATH` by `entrypoint.sh`, so
 there is one implementation of "talk to hermes" rather than one per container. Hermes runs its
 own tool loop, so it reaches OpenViking, Firecrawl and Playwright without any wiring here:

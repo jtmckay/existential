@@ -1,4 +1,5 @@
 ---
+service: ai/comfyui
 sidebar_position: 6
 ---
 

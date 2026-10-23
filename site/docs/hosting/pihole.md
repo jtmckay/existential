@@ -1,4 +1,5 @@
 ---
+service: hosting/pihole
 sidebar_position: 12
 ---
 

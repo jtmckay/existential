@@ -1,4 +1,5 @@
 ---
+service: nas/nextcloud
 sidebar_position: 3
 ---
 

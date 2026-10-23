@@ -1,4 +1,5 @@
 ---
+service: ai/ollama
 sidebar_position: 2
 ---
 

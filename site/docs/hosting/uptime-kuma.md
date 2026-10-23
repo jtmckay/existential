@@ -1,4 +1,5 @@
 ---
+service: hosting/uptime-kuma
 sidebar_position: 8
 ---
 

@@ -1,4 +1,5 @@
 ---
+service: services/automation
 sidebar_position: 1
 ---
 

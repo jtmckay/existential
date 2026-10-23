@@ -27,8 +27,8 @@ services/code-server/.env.
 
 ── 2. Talk to an AI there ────────────────────────────────────────────────
 
-Open https://code-server.${EXIST_DOMAIN}, open a terminal, and install the AI
-coding CLI you use (`npm i -g <package>`). The install and its login survive a
+Open https://code-server.${EXIST_DOMAIN} and open a terminal: `claude` (Claude
+Code) and `opencode` are already on PATH. Log in once; the login survives a
 container recreation, because the home directory lives on a volume. From then
 on that terminal is where you start a conversation about the work dir.
 

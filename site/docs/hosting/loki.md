@@ -1,4 +1,5 @@
 ---
+service: hosting/loki
 sidebar_position: 10
 ---
 

@@ -1,4 +1,5 @@
 ---
+service: services/actual-budget
 sidebar_position: 1
 ---
 

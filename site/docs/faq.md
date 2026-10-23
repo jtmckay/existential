@@ -14,9 +14,10 @@ doesn't know about the note you wrote last week. Each one is a separate subscrip
 account, and a separate place your data lives — and a provider can change or degrade the product
 under you at any point.
 
-Existential's agent sits behind [one local endpoint](./how-it-works#the-ai-spine-slot-by-slot)
-with your files already in reach — [OpenViking](./ai/openviking) indexes `workspace/`, so
-anything you write down is something it can already read and cite, no upload step required — and
+Existential works where your files already are: `workspace/`, open in code-server with `claude` and
+`opencode` in its terminal, and automated by decree, which reaches a model at
+[one OpenAI-compatible URL](./how-it-works#the-ai-slot-by-slot). Add **Local AI** and [OpenViking](./ai/openviking) indexes `workspace/`, so
+anything you write down is something the agent can already read and cite, no upload step required — and
 [Honcho](./ai/honcho) gives it memory of *you* across sessions, not just within one. It runs on
 your hardware, with your data, and no subscription.
 

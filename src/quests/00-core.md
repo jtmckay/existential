@@ -80,8 +80,8 @@ Open https://dashy.<domain>: your landing page, with a link and a live status
 dot for every core service. ./existential.sh prints the URL when it finishes.
 
 1. Open https://code-server.<domain> (password: CODE_SERVER_PASSWORD in
-   services/code-server/.env), open a terminal, and install the AI CLI you use
-   (`npm i -g <package>`). It survives container recreation. That terminal,
+   services/code-server/.env) and open a terminal: `claude` and `opencode` are
+   already there, and their logins survive container recreation. That terminal,
    over the work dir, is where you talk to the AI.
 
 2. Subscribe to ntfy. Its entrypoint already created your admin login

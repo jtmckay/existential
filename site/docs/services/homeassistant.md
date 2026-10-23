@@ -1,4 +1,5 @@
 ---
+service: services/homeassistant
 sidebar_position: 10
 ---
 

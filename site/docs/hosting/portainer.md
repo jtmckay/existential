@@ -1,4 +1,5 @@
 ---
+service: hosting/portainer
 sidebar_position: 4
 ---
 

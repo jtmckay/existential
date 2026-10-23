@@ -1,4 +1,5 @@
 ---
+service: hosting/grafana
 sidebar_position: 11
 ---
 

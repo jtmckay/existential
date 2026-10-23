@@ -1,4 +1,5 @@
 ---
+service: hosting/caddy
 sidebar_position: 5
 ---
 

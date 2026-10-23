@@ -1,4 +1,5 @@
 ---
+service: services/dashy
 sidebar_position: 2
 ---
 

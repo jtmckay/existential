@@ -1,4 +1,5 @@
 ---
+service: services/ntfy
 sidebar_position: 9
 ---
 

@@ -211,8 +211,8 @@ export const TOUR: TourSection[] = [
       {
         slug: 'hermes-agent-dashboard',
         name: 'Hermes',
-        blurb: 'The agent everything else plugs into',
-        what: 'The middle of the whole diagram. Your notes, files and house state go in; the voice assistant, the editor’s terminal and every automation all come out of it. One OpenAI-compatible endpoint holding the models, the tools and the skills, with a dashboard for watching what it actually did.',
+        blurb: 'An agent with tools, over the stack’s model URL',
+        what: 'An agent that runs its own tool loop: it reads your notes and files, searches the web through Firecrawl and looks things up in OpenViking. It talks to the same OpenAI-compatible model URL as everything else, answers by voice, from code-server’s terminal and from automations that need an agent, and has a dashboard for watching what it actually did.',
         shot: '/img/services/hermes-agent-dashboard.webp',
         docs: '/docs/ai/hermes',
         source: 'https://github.com/NousResearch/hermes-agent',

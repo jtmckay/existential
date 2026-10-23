@@ -1,4 +1,5 @@
 ---
+service: services/nocodb
 sidebar_position: 8
 ---
 

@@ -1,4 +1,5 @@
 ---
+service: ai/openviking
 sidebar_position: 11
 ---
 

@@ -192,6 +192,33 @@ printf -- '---\nname: AI two\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\
     > "$partdup/src/quests/02-ai.md"
 expect_fail "conventions: rejects two slices claiming one service" tsx "$CONV" "$partdup"
 
+# ── Docs: a page per service, links that land, Core's list ───────────────────
+# docfix <dir>: one service folder (ai/foo), its page, a one-service Core, and a
+# README whose "What Core installs" links that page. Each case breaks one part.
+docfix() {
+    local d; d="$(mkfix)"
+    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/src/quests"
+    printf 'services:\n  foo:\n    container_name: foo\n' > "$d/ai/foo/docker-compose.exist.yml"
+    printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
+    printf -- '---\nname: Core\nservices:\n  - var: EXIST_IS_AI_FOO\n    label: Foo\n---\n\nCore.\n' > "$d/src/quests/00-core.md"
+    printf '# X\n\n## What Core installs\n\n- [Foo](https://existential.company/docs/ai/foo)\n\n## Next\n' > "$d/README.md"
+    echo "$d"
+}
+docok="$(docfix)"
+expect_pass "conventions: accepts documented services and a matching Core list" tsx "$CONV" "$docok"
+
+docnopage="$(docfix)"; mkdir -p "$docnopage/ai/bar"
+expect_fail "conventions: rejects a service folder with no docs page" tsx "$CONV" "$docnopage"
+
+docgone="$(docfix)"; printf -- '---\nservice: ai/gone\n---\n' > "$docgone/site/docs/ai/gone.md"
+expect_fail "conventions: rejects a page documenting a missing service" tsx "$CONV" "$docgone"
+
+doclink="$(docfix)"; printf '\n[Bar](https://existential.company/docs/ai/bar)\n' >> "$doclink/README.md"
+expect_fail "conventions: rejects a README link to a missing docs page" tsx "$CONV" "$doclink"
+
+doccore="$(docfix)"; sed -i 's/^- \[Foo\].*$/- Foo/' "$doccore/README.md"
+expect_fail "conventions: rejects a README Core list that leaves a Core service out" tsx "$CONV" "$doccore"
+
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 

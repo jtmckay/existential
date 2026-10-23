@@ -17,76 +17,87 @@ This is where the real names appear. Everything on this page is a replaceable ch
 
 ```mermaid
 flowchart TB
-    ha["Home Assistant<br/><i>voice, in the house</i>"]
-    owui["Open WebUI<br/><i>chat in a browser</i>"]
-    dec["decree<br/><i>routines, nobody present</i>"]
+    you["<b>You</b><br/><i>browser · phone</i>"]
 
-    hermes["<b>Hermes</b> — the one endpoint<br/><i>OpenAI-compatible · sessions · skills</i>"]
-    ollama["Ollama<br/><i>the models</i>"]
-    stt["wyoming-whisper<br/><i>speech → text</i>"]
-    tts["wyoming-piper<br/><i>text → speech</i>"]
+    subgraph core["Core"]
+        edge["Caddy · Dashy<br/><i>a name, a certificate, one landing page</i>"]
+        cs["code-server<br/><i>editor + terminal · claude · opencode</i>"]
+        ws["<b>workspace/</b><br/><i>notes/ · .decree/</i>"]
+        dec["decree<br/><i>runs workspace/.decree, nobody present</i>"]
+        ntfy["ntfy<br/><i>tells you it finished</i>"]
+        apps["Actual Budget<br/><i>the first app decree posts to</i>"]
+        obs["Loki · Prometheus · Grafana · Uptime Kuma<br/><i>run logs, metrics, is it up</i>"]
+    end
 
-    viking["OpenViking<br/><i>what it knows</i>"]
-    honcho["Honcho<br/><i>what it remembers about you</i>"]
-    craw["Firecrawl<br/><i>reading the web</i>"]
+    model["A model at an OpenAI-compatible /v1 URL<br/><i>ollama · llama.cpp · another box</i>"]
 
-    apps["Your apps<br/><i>notes · photos · money · files · recipes …</i>"]
-    platform["<b>The platform</b> — free to every service<br/><i>Caddy names + TLS · volumes and NAS · logs and metrics</i>"]
+    subgraph addons["Optional add-ons"]
+        ai["Local AI<br/><i>Ollama · Hermes · OpenViking · Honcho · Firecrawl</i>"]
+        voice["Voice &amp; Home<br/><i>Home Assistant · wyoming-whisper · wyoming-piper</i>"]
+        files["Nextcloud<br/><i>syncs workspace/ to your devices</i>"]
+        more["More apps<br/><i>Immich · Mealie · NocoDB · …</i>"]
+    end
 
-    ha --> hermes
-    owui --> hermes
-    dec --> hermes
-    ha --> stt
-    ha --> tts
-    hermes --> ollama
-    hermes --> viking
-    hermes --> honcho
-    hermes --> craw
+    you --> edge
+    edge --> cs
+    cs <--> ws
+    dec <--> ws
+    dec --> ntfy
     dec <--> apps
-    hermes --> platform
-    apps --> platform
+    dec --> obs
+    cs -. opencode .-> model
+    dec -. model.sh .-> model
+    ai -. serves .-> model
+    files <-. sync .-> ws
 
-    classDef surface fill:#e8f4fd,stroke:#027bcb,color:#111
-    classDef gateway fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
-    classDef model fill:#f4f4f4,stroke:#999,color:#333
-    classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
-    classDef reach fill:#fdf6e8,stroke:#c98a1b,color:#333
-    class ha,owui,dec surface
-    class hermes gateway
-    class ollama,stt,tts,apps model
-    class viking,honcho,craw reach
-    class platform base
+    classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111
+    classDef hub fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
+    classDef box fill:#f4f4f4,stroke:#999,color:#333
+    classDef ext fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
+    class you me
+    class ws hub
+    class edge,cs,dec,ntfy,apps,obs box
+    class model,ai,voice,files,more ext
+    style core fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
+    style addons fill:#fff,stroke:#999,stroke-dasharray:4 3,color:#333
 ```
 
 ### Reading that in three lines
 
-1. **Everything talks to Hermes.** Voice, browser and automation all hit one
-   OpenAI-compatible endpoint. Nothing else knows which model is loaded.
-2. **decree is the hands.** It watches for things happening and runs routines against your
-   apps and your data — calling Hermes when the work needs judgment.
-3. **The platform is free to every service.** A name, a certificate, a place to put data and
-   somewhere its logs go come with the folder; a service doesn't opt in.
+1. **You work in one folder.** `workspace/` holds `notes/` (an Obsidian vault) and `.decree/`
+   (your automations). code-server opens it in a browser, with `claude` and `opencode` in the
+   terminal; [Nextcloud](./storage/nextcloud), if you add it, syncs it to your other devices.
+2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule, a
+   webhook or an inbox message, against your apps and your data, and tells you through ntfy.
+   Every run log lands in Loki.
+3. **A model is a URL.** Anything that needs one, a decree script or opencode, reaches it at an
+   OpenAI-compatible `/v1` address. Ollama on this box, llama.cpp on
+   [another one](./hosting/ai-box), anything that serves `/v1`: nothing else changes.
 
-## The AI spine, slot by slot
+The platform is free to every service: a name, a certificate, a place to put data and somewhere
+its logs go come with the folder, and a service doesn't opt in.
+
+## The AI, slot by slot
+
+None of this is in Core. Core needs only a model URL, and only for the automations that ask a
+model something; the **Local AI** quest adds the first five rows, **Voice & Home** the next ones.
 
 | Slot | Ships as | Why it's separate |
 |---|---|---|
-| **Gateway** | [Hermes](./ai/hermes) | One OpenAI-compatible URL and API key for every surface. Sessions, skills and memory live here, so they're shared rather than per-app. |
-| **Models** | [Ollama](./ai/ollama) | Loads and serves the weights. Swapping model is a config change behind the gateway; no surface notices. |
+| **Models** | [Ollama](./ai/ollama), or any OpenAI-compatible server | Loads and serves the weights at `EXIST_MODEL_URL`. Each role (chat, extract, embed, vision) can point somewhere else — see [Configuration](./configuration#endpoints--putting-roles-on-different-machines). |
+| **Agent** | [Hermes](./ai/hermes) | An agent with tools, skills and sessions, over that same model URL. Optional: decree reaches a model without it, and uses it only for work that needs an agent. |
 | **Knowledge** | [OpenViking](./ai/openviking) | A `viking://` context database holding memory, resources and skills, so the agent has somewhere durable to keep what it knows rather than re-deriving it each session. |
 | **Memory** | [Honcho](./ai/honcho) | Cross-session memory about *you*. Without it every conversation starts cold; with it, what it learned last week is still there. |
 | **The web** | [Firecrawl](./ai/firecrawl) | Turns a URL into clean markdown a model can read, so no surface or routine has to carry its own browser automation. |
 | **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper) | What Home Assistant listens with. Speaks the Wyoming protocol HA expects, and runs on CPU so it never evicts the model from the GPU. |
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper) | The voice it answers in, over the same protocol and also on CPU — a spoken reply has to land immediately. |
+| **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
 | **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
-| **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
-| **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation, pointed at Hermes rather than at a model. Opt-in, like Hermes itself: Hermes also answers by voice, from code-server's terminal (`hermes "..."`), and from automations. |
-| **No-human surface** | [decree](./decree/) | The automation engine. Routines call the gateway exactly like you would. |
+| **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation in a browser. Opt-in: Hermes also answers by voice, from code-server's terminal (`hermes "..."`), and from automations. |
 
-The reason for the gateway is the whole thesis in miniature: **figure the model, the key, the
-skills and the memory out once, and three surfaces inherit it.** Without it you would configure
-each one separately and they would drift.
+The reason for one URL is the whole thesis in miniature: **figure the model out once, and
+everything that needs one inherits it.** Swap what serves it and no caller notices.
 
 :::caution[Editing the stack is not one of the surfaces]
 Hermes is not a coding backend for this repo — it is an agent running its own tool loop, and
@@ -354,6 +365,9 @@ internal CA is the only option there, which is why the default keeps it.
 
 ## Core vs. complementary services
 
+This is about the network, not the Core quest: Core's own monitoring is complementary by this
+test.
+
 Not everything needs to be on that network. A service is **core** if it talks to other
 services over the bridge. A service is **complementary** if it either talks over a normal URL
 or protocol, or if nothing in the stack talks to it at all.
@@ -375,8 +389,9 @@ complementary.** If it's a bare container name, it's core.
 
 ## Recommended deployment
 
-Even on a single machine, it's worth thinking of this as three separate stacks. It costs
-nothing now and means moving one of them later is a config change rather than a migration.
+Even on a single machine, it's worth thinking of this as separate stacks. It costs nothing now
+and means moving one of them later is a config change rather than a migration. Core is already
+cut this way: it is the middle box, and the others are add-ons that usually live elsewhere.
 
 ```
 ┌─ NAS stack ──────────────┐   Storage and files.
@@ -385,8 +400,13 @@ nothing now and means moving one of them later is a config change rather than a 
 └──────────────────────────┘
 
 ┌─ Core stack ─────────────┐   The actual system.
-│  decree, Hermes, Ollama, │   Wants CPU/GPU and RAM.
-│  Caddy, OpenViking, …    │   One network, container-name DNS.
+│  code-server, decree,    │   Wants CPU and RAM, no GPU.
+│  ntfy, Caddy, Grafana, … │   One network, container-name DNS.
+└──────────────────────────┘
+
+┌─ AI box ─────────────────┐   The models.
+│  Ollama or llama.cpp,    │   Wants the GPU.
+│  ComfyUI, …              │   Reached over an OpenAI-compatible /v1 URL.
 └──────────────────────────┘
 
 ┌─ Standalone ─────────────┐   Independent appliances.
@@ -396,9 +416,14 @@ nothing now and means moving one of them later is a config change rather than a 
 ```
 
 **Why split the NAS.** Storage and compute want different hardware and different reboot
-schedules. Restarting Ollama to load a new model shouldn't interrupt file sync, and adding
-disks shouldn't take the AI stack down. Because the core reaches storage through rclone and
-S3, moving the NAS to its own box means changing an endpoint — not rewiring anything.
+schedules. Adding disks shouldn't take the rest of the stack down. Because the core reaches
+storage through rclone and WebDAV, moving the NAS to its own box means changing an endpoint —
+not rewiring anything. `workspace/` then [stays in sync with
+it](./getting-started#nextcloud-on-another-server).
+
+**Why split the models.** Restarting a model server to load a new model shouldn't interrupt
+anything else, and the GPU is rarely in the same box as the disks. Every caller reaches a model
+by URL, so the [AI box](./hosting/ai-box) is a value in `.env.shared`.
 
 **Why pi-hole is separate.** It's your LAN's DNS server. It should stay up when you're
 rebuilding the stack, which is exactly when you're most likely to break something.
@@ -413,6 +438,6 @@ you rebuild everything else.
 1. Set that service's `EXIST_IS_*` flag to `false` on the original host and re-run
    `./existential.sh`.
 2. Bring the service up on the new host.
-3. Update the endpoint that pointed at it — the rclone remote, the S3 URL, or the DNS record.
+3. Update the endpoint that pointed at it — the rclone remote, the model URL, or the DNS record.
 
 Nothing else changes. That is the entire point of the split.

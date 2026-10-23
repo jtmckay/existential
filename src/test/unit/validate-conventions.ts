@@ -21,6 +21,9 @@
  *      (e.g. `hermes.internal` → `hermes-agent`) is a convention violation — it implies
  *      a container that doesn't exist. When a container needs two URLs (two ports), the
  *      primary slug is the container name and any alias starts with `{container}-`.
+ * 13. Every service folder has exactly one docs page (`service:` frontmatter), every such
+ *      page names a real folder, and every README.md link into the docs site resolves.
+ * 14. README.md and site/docs/intro.md list exactly Core's services under "## What Core installs".
  */
 
 import * as fs from 'fs';
@@ -700,6 +703,80 @@ function main(): number {
         `site/src/pages/tour.tsx: CORE_SERVICES is ${stated[1]} but src/quests/00-core.md enables ` +
         `${coreCount} services — update the constant (it is what the tour page claims)`,
       );
+    }
+  }
+
+  // (13) Every service folder has a docs page, and every docs link lands on one.
+  // A page owns a folder by naming it in its frontmatter (`service: ai/ollama`);
+  // the filename can't be the key because storage/ is nas/, open-web-ui is
+  // open-webui, and the automation folder's page is decree/decree.md. README.md
+  // links the site by absolute URL, which the site build never checks, so its
+  // links are resolved here; links inside site/docs/ are the build's job.
+  const docsDir = path.join(REPO_ROOT, 'site/docs');
+  const pageService = new Map<string, string>();   // docs path (no .md) -> service folder
+  if (fs.existsSync(docsDir)) {
+    const walk = (dir: string): string[] => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e =>
+      e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.md') ? [path.join(dir, e.name)] : []);
+    for (const f of walk(docsDir)) {
+      const rel = path.relative(docsDir, f).replace(/\.md$/, '');
+      if (rel.startsWith('graveyard/')) continue;
+      const fm = fs.readFileSync(f, 'utf8').match(/^---\n([\s\S]*?)\n---/);
+      const svc = fm?.[1].match(/^service:\s*(\S+)\s*$/m)?.[1];
+      if (!svc) continue;
+      if (!CATEGORY_DIRS.includes(svc.split("/")[0]) || !fs.existsSync(path.join(REPO_ROOT, svc))) {
+        errors.push(`site/docs/${rel}.md: documents service ${svc}, which has no folder — move the page to graveyard/ or fix the path`);
+      } else if ([...pageService.values()].includes(svc)) {
+        errors.push(`site/docs/${rel}.md: documents ${svc}, which another page already claims — one page per service`);
+      }
+      pageService.set(rel, svc);
+    }
+    const documented = new Set(pageService.values());
+    for (const cat of CATEGORY_DIRS) {
+      const catDir = path.join(REPO_ROOT, cat);
+      if (!fs.existsSync(catDir)) continue;
+      for (const e of fs.readdirSync(catDir, {withFileTypes: true})) {
+        if (e.isDirectory() && !documented.has(`${cat}/${e.name}`)) {
+          errors.push(`${cat}/${e.name}: no docs page — add one under site/docs/ with \`service: ${cat}/${e.name}\` in its frontmatter`);
+        }
+      }
+    }
+  }
+  const docExists = (p: string): boolean => {
+    p = p.replace(/[#?].*$/, '').replace(/\/$/, '');
+    return [`${p}.md`, `${p}/index.md`, `${p}/${path.basename(p)}.md`]
+      .some(c => fs.existsSync(path.join(docsDir, c)));
+  };
+  const readmePath = path.join(REPO_ROOT, 'README.md');
+  const readme = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, 'utf8') : '';
+  for (const m of readme.matchAll(/https:\/\/existential\.company\/docs\/([^)\s]*)/g)) {
+    if (!docExists(m[1])) errors.push(`README.md: links docs/${m[1]}, which is no page in site/docs/`);
+  }
+
+  // (14) README.md and the intro page each list what Core installs, under a
+  // `## What Core installs` heading, as links to service pages. The services
+  // those pages document must be exactly Core's `services:` block.
+  if (coreFm) {
+    const coreSet = new Set(fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/));
+    const varFor = (svc: string) => 'EXIST_IS_' + svc.replace('/', '_').toUpperCase().replace(/-/g, '_');
+    for (const [file, linkRe] of [
+      ['README.md', /\]\(https:\/\/existential\.company\/docs\/([^)#\s]+)/g],
+      ['site/docs/intro.md', /\]\(\.\/([^)#\s]+)/g],
+    ] as const) {
+      const full = path.join(REPO_ROOT, file);
+      if (!fs.existsSync(full)) continue;
+      const section = fs.readFileSync(full, 'utf8').match(/^## What Core installs\n([\s\S]*?)(?=^## |(?![\s\S]))/m);
+      if (!section) {
+        errors.push(`${file}: no "## What Core installs" section to check against src/quests/00-core.md`);
+        continue;
+      }
+      const listed = new Set<string>();
+      for (const m of section[1].matchAll(linkRe)) {
+        const p = m[1].replace(/\.md$/, '').replace(/\/$/, '');
+        const svc = pageService.get(p) ?? pageService.get(`${p}/index`) ?? pageService.get(`${p}/${path.basename(p)}`);
+        if (svc) listed.add(varFor(svc));
+      }
+      for (const v of coreSet) if (!listed.has(v)) errors.push(`${file}: "What Core installs" leaves out ${v}, which Core enables`);
+      for (const v of listed) if (!coreSet.has(v)) errors.push(`${file}: "What Core installs" lists ${v}, which Core does not enable`);
     }
   }
 

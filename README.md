@@ -55,53 +55,67 @@ from a service folder.
 
 📖 **[Getting Started](https://existential.company/docs/getting-started)** for the full walkthrough.
 
+## What Core installs
+
+The first `quest` offers **Core**: open the work dir, talk to an AI about it, have decree
+automate it. Ten services on one ordinary box, no GPU and no model downloads.
+
+| | |
+|---|---|
+| [code-server](https://existential.company/docs/services/code-server) | The work dir in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
+| [Decree](https://existential.company/docs/decree/) | The automation engine and its webhook: machines run on a schedule, a webhook or an inbox message |
+| [ntfy](https://existential.company/docs/services/ntfy) | How a finished automation tells you it finished |
+| [Loki](https://existential.company/docs/hosting/loki) · [Prometheus](https://existential.company/docs/hosting/prometheus) · [Grafana](https://existential.company/docs/hosting/grafana) | Every decree run log, searchable, with dashboards wired up |
+| [Uptime Kuma](https://existential.company/docs/hosting/uptime-kuma) | Whether the rest of your homelab is up |
+| [Actual Budget](https://existential.company/docs/services/actual-budget) | Budgeting, and the first app decree posts to |
+| [Caddy](https://existential.company/docs/hosting/caddy) | `https://<service>.<domain>` for every one of them |
+| [Dashy](https://existential.company/docs/services/dashy) | One page linking to all of the above |
+
 ## How it fits together
 
-Everything reaches the AI the same way — voice, browser and automation all hit one
-OpenAI-compatible endpoint, so the model, key, skills and memory are configured once instead of
-three times.
+You work in one folder, `workspace/`: `notes/` (an Obsidian vault) and `.decree/` (your
+automations, as machines, scripts and cron files). code-server opens it in a browser; decree
+runs what is in `.decree/`. Anything that needs a model reaches it through one
+OpenAI-compatible `/v1` URL, served by ollama, llama.cpp or anything else, on this box or
+another one.
 
 ```mermaid
 flowchart TB
-    ha["Home Assistant<br/>voice, in the house"]
-    owui["Open WebUI<br/>chat in a browser"]
-    dec["decree<br/>routines, nobody present"]
+    you["You<br/>browser · phone"]
 
-    hermes["Hermes — the one endpoint<br/>OpenAI-compatible · sessions · skills"]
-    ollama["Ollama<br/>the models"]
-    stt["WhisperX<br/>speech → text"]
-    tts["Chatterbox<br/>text → speech"]
+    subgraph core["Core"]
+        cs["code-server<br/>editor + terminal · claude · opencode"]
+        ws["workspace/<br/>notes/ · .decree/"]
+        dec["decree<br/>runs workspace/.decree"]
+        ntfy["ntfy<br/>tells you it finished"]
+        apps["Actual Budget"]
+        obs["Loki · Prometheus · Grafana · Uptime Kuma"]
+        edge["Caddy · Dashy<br/>names, TLS, one landing page"]
+    end
 
-    viking["OpenViking<br/>what it knows"]
-    honcho["Honcho<br/>what it remembers about you"]
-    craw["Firecrawl<br/>reading the web"]
+    model["A model at an OpenAI-compatible /v1 URL<br/>ollama · llama.cpp · another box"]
+    addons["Optional add-ons<br/>Local AI · Nextcloud · Voice &amp; Home · more apps"]
 
-    apps["Your apps<br/>notes · photos · money · files · recipes …"]
-    platform["The platform — free to every service<br/>Caddy names + TLS · volumes and NAS · logs and metrics"]
-
-    ha --> hermes
-    owui --> hermes
-    dec --> hermes
-    ha --> stt
-    ha --> tts
-    hermes --> ollama
-    hermes --> viking
-    hermes --> honcho
-    hermes --> craw
+    you --> edge
+    edge --> cs
+    cs <--> ws
+    dec <--> ws
+    dec --> ntfy
     dec <--> apps
-    hermes --> platform
-    apps --> platform
+    dec --> obs
+    cs -. "opencode" .-> model
+    dec -. "automation/lib/model.sh" .-> model
+    addons -. "a quest or a flag each" .-> core
 
-    classDef surface fill:#e8f4fd,stroke:#027bcb,color:#111
-    classDef gateway fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
-    classDef model fill:#f4f4f4,stroke:#999,color:#333
-    classDef base fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
-    classDef reach fill:#fdf6e8,stroke:#c98a1b,color:#333
-    class ha,owui,dec surface
-    class hermes gateway
-    class ollama,stt,tts,apps model
-    class viking,honcho,craw reach
-    class platform base
+    classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111
+    classDef hub fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
+    classDef box fill:#f4f4f4,stroke:#999,color:#333
+    classDef ext fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
+    class you me
+    class ws hub
+    class cs,dec,ntfy,apps,obs,edge box
+    class model,addons ext
+    style core fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
 ```
 
 Every service is a folder. Its flag — `EXIST_IS_<CATEGORY>_<SLUG>` — is derived from the path,
@@ -110,62 +124,54 @@ templates render, no secrets are generated, nothing lands on disk.
 
 📖 **[The Pieces](https://existential.company/docs/how-it-works)** for the whole model.
 
-## What's in it
+## Optional add-ons
 
-### AI
+Everything else is an add-on: a quest (`./existential.sh quest`) or one `EXIST_IS_*` flag, and
+none of it is needed for Core to work.
+
+### Local AI
 
 | | |
 |---|---|
-| [Hermes](https://existential.company/docs/ai/hermes) | Agent gateway — one OpenAI-compatible endpoint for every surface |
-| [Ollama](https://existential.company/docs/ai/ollama) | Local models |
+| [Ollama](https://existential.company/docs/ai/ollama) | Local models, served at the same OpenAI-compatible URL |
+| [Hermes](https://existential.company/docs/ai/hermes) | An agent with tools and skills, over that same URL |
 | [Open WebUI](https://existential.company/docs/ai/open-web-ui) | Day-to-day chat |
-| [WhisperX](https://existential.company/docs/ai/whisperx) | Speech → text, with speaker diarization |
-| [Chatterbox](https://existential.company/docs/ai/chatterbox) | Text → speech |
 | [OpenViking](https://existential.company/docs/ai/openviking) | Context database — memory, resources, skills |
 | [Honcho](https://existential.company/docs/ai/honcho) | Cross-session memory |
 | [Firecrawl](https://existential.company/docs/ai/firecrawl) | Web scraping API for agents |
+| [WhisperX](https://existential.company/docs/ai/whisperx) | Speech → text, with speaker diarization |
+| [Chatterbox](https://existential.company/docs/ai/chatterbox) | Text → speech |
 | [ComfyUI](https://existential.company/docs/ai/comfyui) | Image and video generation |
 | [MCP](https://existential.company/docs/ai/mcp) | Tool servers for agents |
 
-### Your stuff
+### Voice & Home
 
 | | |
 |---|---|
-| [Actual Budget](https://existential.company/docs/services/actual-budget) | Budgeting |
-| [Immich](https://existential.company/docs/services/immich) | Photos and video |
-| [Obsidian](https://existential.company/docs/services/obsidian) | Notes and tasks (desktop app, plain files) |
-| [Mealie](https://existential.company/docs/services/mealie) | Recipes and meal planning |
 | [Home Assistant](https://existential.company/docs/services/homeassistant) | Home automation and voice |
-| [Ntfy](https://existential.company/docs/services/ntfy) | Notifications |
+| [wyoming-whisper](https://existential.company/docs/ai/wyoming-whisper) · [wyoming-piper](https://existential.company/docs/ai/wyoming-piper) | What Home Assistant listens and speaks with |
 
-### Storage
+### Files
 
 | | |
 |---|---|
-| [Nextcloud](https://existential.company/docs/storage/nextcloud) | File sync and sharing |
+| [Nextcloud](https://existential.company/docs/storage/nextcloud) | File sync and sharing, or a Nextcloud elsewhere that `workspace/` syncs with |
 | [Collabora](https://existential.company/docs/storage/collabora) | Document editing in the browser |
+| [Obsidian](https://existential.company/docs/services/obsidian) | The desktop app for `workspace/notes/` (not a container) |
 
-### Build your own
+### More apps and tools
 
 | | |
 |---|---|
-| [Decree](https://existential.company/docs/decree/) | The automation engine — routines, cron, webhooks |
+| [Immich](https://existential.company/docs/services/immich) | Photos and video |
+| [Mealie](https://existential.company/docs/services/mealie) | Recipes and meal planning |
 | [NocoDB](https://existential.company/docs/services/nocodb) | Database as a spreadsheet |
 | [Appsmith](https://existential.company/docs/services/appsmith) | Internal tool builder |
 | [Lowcoder](https://existential.company/docs/services/lowcoder) | Customer-facing app builder |
-| [code-server](https://existential.company/docs/services/code-server) | VS Code in the browser |
 | [IT-Tools](https://existential.company/docs/services/it-tools) | Developer odds and ends |
-
-### Hosting and monitoring
-
-| | |
-|---|---|
-| [Caddy](https://existential.company/docs/hosting/caddy) | Hostnames and TLS for everything |
 | [pi-hole](https://existential.company/docs/hosting/pihole) | LAN DNS and ad blocking |
-| [Dashy](https://existential.company/docs/services/dashy) | One page linking to all of it |
 | [Portainer](https://existential.company/docs/hosting/portainer) | Container management |
-| [Grafana](https://existential.company/docs/hosting/grafana) · [Loki](https://existential.company/docs/hosting/loki) · [Prometheus](https://existential.company/docs/hosting/prometheus) | Dashboards, logs, metrics |
-| [Uptime Kuma](https://existential.company/docs/hosting/uptime-kuma) | Notifications when something goes down |
+| [Docker log rotation](https://existential.company/docs/hosting/docker) | Caps container logs on the host |
 
 Considered and rejected alternatives, with reasons, live in the
 [graveyard](https://existential.company/docs/graveyard/).

@@ -1,4 +1,5 @@
 ---
+service: services/appsmith
 sidebar_position: 10
 ---
 

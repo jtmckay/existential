@@ -1,4 +1,5 @@
 ---
+service: ai/open-webui
 sidebar_position: 5
 ---
 

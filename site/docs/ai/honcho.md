@@ -1,4 +1,5 @@
 ---
+service: ai/honcho
 sidebar_position: 10
 ---
 

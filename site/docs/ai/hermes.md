@@ -1,4 +1,5 @@
 ---
+service: ai/hermes
 sidebar_position: 3
 ---
 

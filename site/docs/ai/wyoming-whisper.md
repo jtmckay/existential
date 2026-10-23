@@ -1,4 +1,5 @@
 ---
+service: ai/wyoming-whisper
 sidebar_position: 7
 ---
 

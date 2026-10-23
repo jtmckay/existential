@@ -148,21 +148,25 @@ to fold it into the root `.env`, then `docker compose up -d` to pick it up.
 
 ## Workspace
 
-The workspace is *your* directory. It lives in `volumes/workspace_data`, and it is the same tree
-Nextcloud serves as its **`workspace`** folder, [Hermes](./ai/hermes) mounts at
-`/opt/data/workspace` and [code-server](./services/code-server) mounts at `/workspace`. Put
-notes, plans, reference material — anything you want the agent to know about — there. Use it.
+The workspace is *your* directory, `workspace/`: `notes/` for your notes (an Obsidian vault)
+and `.decree/` for your automations. It lives in `volumes/workspace_data`. In Core,
+[code-server](./services/code-server) opens it at `/workspace`, with an editor and a terminal
+where `claude` and `opencode` are ready, and the `automation` daemon runs what is in its
+`.decree/`. Add-ons mount the same tree: [Nextcloud](./storage/nextcloud) serves it as its
+**`workspace`** folder and [Hermes](./ai/hermes) at `/opt/data/workspace`. Put notes, plans,
+reference material — anything you want an agent to know about — there. Use it.
 
-The way to work in it is the **Nextcloud desktop client** (nextcloud.com/install): log in at
-`https://nextcloud.<domain>` and sync the `workspace` folder. The server copy is just where it
-lives; your editing happens on your own machines.
+To edit it on your own machines, sync it: with Nextcloud in the stack, the **Nextcloud desktop
+client** (nextcloud.com/install) logs in at `https://nextcloud.<domain>` and syncs the
+`workspace` folder; with a Nextcloud elsewhere, see
+[below](#nextcloud-on-another-server).
 
 It's more than a shared folder:
 
-- **It's the agent's knowledgebase.** [OpenViking](./ai/openviking) indexes everything in it
-  every 15 minutes, and Hermes reaches that index as an MCP tool — so anything you put in the
+- **It's the agent's knowledgebase**, once **Local AI** is enabled.
+  [OpenViking](./ai/openviking) indexes everything in it every 15 minutes, and Hermes reaches that index as an MCP tool — so anything you put in the
   workspace is something the agent can find and cite, no upload step required.
-- **Saving a file fires a webhook event.** Every upload through Nextcloud is a file event
+- **Saving a file fires a webhook event**, with Nextcloud in the stack. Every upload through it is a file event
   Decree can react to — that's how the Workspace Agent quest (`./existential.sh quest`, or
   `src/quests/workspace-agent.md`) turns "you edited a note" into "an agent went and did
   something about it." See

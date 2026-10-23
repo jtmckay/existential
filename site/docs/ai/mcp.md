@@ -1,4 +1,5 @@
 ---
+service: ai/mcp
 sidebar_position: 4
 ---
 

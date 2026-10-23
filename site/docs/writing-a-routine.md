@@ -92,13 +92,19 @@ To retry a flaky step, give that state attempts: `invoke: { script: { name: my_j
 Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a
 machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
+To ask a model, source `$DECREE_LIB/model.sh` and call `model_chat <system> <user>` (or
+`model_gate <criteria> <text>` for a yes/no). It talks to the role's OpenAI-compatible `/v1` URL
+(`EXIST_MODEL_URL`), so ollama, llama.cpp or a box elsewhere all answer it, and it needs no hermes.
+A step that needs an agent with tools uses `hermes.sh` instead, and only when hermes is enabled.
+
 :::warning[Which daemon?]
 There are two, and each is its own decree project: **`automation`** (`workspace/.decree`) and
 **`automation-backup`** (`services/automation/backup/`, with its own `machines/`, running the
 repo's `automation/scripts/`). Both use the repo's `automation/lib/`.
 
 `automation` is where anything that **reasons, routes, calls a service API, or runs a service's
-one-time migrations** belongs. It alone has the hermes gateway credential.
+one-time migrations** belongs. It alone has the model endpoints and, when hermes is enabled, its
+gateway credential.
 
 `automation-backup` is where anything that needs **bulk volume data or every credential at
 once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. It is not

@@ -1,4 +1,5 @@
 ---
+service: hosting/docker-daemon
 sidebar_position: 3
 ---
 
