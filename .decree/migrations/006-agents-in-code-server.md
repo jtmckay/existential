@@ -17,6 +17,10 @@ that conversation going from a phone.
 - The terminal has `tmux` and the repo's `tmx` function (`.claude/reference/services.md`).
   `tmx -d claude claude remote-control` starts a remote-control session, re-attachable with
   `tmx claude`, and never starts a second copy while one is running.
+- The code-server docs page says, in a sentence or two, where conversations go: to whichever
+  AI provider the user configures, under that provider's terms. Existential itself sends and
+  collects nothing. A model on your own hardware is the private option, a hosted one the easy
+  option.
 - The repo's rules say that code-server ships these CLIs for a person to drive, and that
   decree scripts never call an AI CLI.
 
