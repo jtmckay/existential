@@ -325,7 +325,7 @@ export const TOUR: TourSection[] = [
   },
   {
     name: 'Apps',
-    kicker: 'Pick the ones that match something you actually do',
+    kicker: 'Turn on only the ones you would really open',
     kind: 'hosted',
     tier: 'extra',
     lede: 'Ordinary self-hosted apps, sharing the network, the storage and the login you already have. Nothing else depends on any of them — turn one off and the rest carries on.',

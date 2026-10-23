@@ -48,15 +48,13 @@ function TourHeader(): ReactNode {
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
         <Heading as="h1" className="hero__title">
-          What you actually get
+          What's inside
         </Heading>
         <p className={styles.heroLede}>
-          <strong>{CORE_SERVICES} services make up the core</strong> — on
-          hardware you own, every one of them free and open source, plus {EXTRA} optional services you
-          can turn on. The {CORE_CARDS} below are the ones worth a screenshot;
-          the rest are plumbing — the reverse proxy, the automation engine, a log store and
-          a metrics store. Scroll through and see what they look
-          like.
+          <strong>{CORE_SERVICES} services make up Core</strong>, on hardware you own, every one
+          of them free and open source, plus {EXTRA} more you can turn on whenever you want them.
+          The {CORE_CARDS} below are the ones you'll open; the rest run underneath: the reverse
+          proxy, the automation engine, a log store and a metrics store.
         </p>
       </div>
     </header>
@@ -68,11 +66,11 @@ function TourClosing(): ReactNode {
     <section className={styles.closing}>
       <div className="container">
         <Heading as="h2" className={styles.closingTitle}>
-          Pick the ones you want.
+          Start small. Add when you need it.
         </Heading>
         <p className={styles.closingLede}>
-          Nothing here is all-or-nothing — each app is a flag you flip. The ones you enable come
-          up wired together; the ones you don't never touch your disk.
+          Each app is a flag. Turn one on and it comes up wired into the rest; leave it off and it
+          never touches your disk. Change your mind next month: nothing you set up is lost.
         </p>
         <div className={styles.buttons}>
           <Link className="button button--primary button--lg" to="/docs/getting-started">
@@ -97,7 +95,7 @@ export default function Tour(): ReactNode {
   return (
     <Layout
       title="Tour"
-      description="A scrolling look at every app in the Existential stack — what it looks like and what it's for.">
+      description="A look at every app in Existential: what it looks like and what it's for.">
       <TourHeader />
       <main>
         <ServiceTour />
