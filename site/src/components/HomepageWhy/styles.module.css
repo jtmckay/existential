@@ -21,3 +21,7 @@
 .lede:last-child {
   margin-bottom: 0;
 }
+
+.lede + .title {
+  margin-top: 3.5rem;
+}

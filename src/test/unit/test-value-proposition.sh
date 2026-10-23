@@ -38,6 +38,20 @@ else
     _ok "no retired pitch"
 fi
 
+# The section right after the hero makes the two beats, each with what does it.
+WHY=site/src/components/HomepageWhy/index.tsx
+first=$(grep -A2 "<HomepageHeader />" "${REPO_DIR}/site/src/pages/index.tsx" | grep -o "<Homepage[A-Za-z]* />" | sed -n 2p)
+if [[ "$first" == "<HomepageWhy />" ]]; then _ok "beats follow the hero"; else _fail "beats follow the hero" "got $first"; fi
+for beat in "ratchet" "best day sets the floor" "next good day climbs" "Your attention is yours" "No algorithm" "decree machine" "you were here" "ntfy" "capture"; do
+    if grep -qiF "$beat" "${REPO_DIR}/$WHY"; then _ok "beat: $beat"; else _fail "beat: $beat" "missing from $WHY"; fi
+done
+
+if hit=$(cd "$REPO_DIR" && grep -rniE "full potential" site/src README.md site/docs/intro.md); then
+    _fail "no self-help phrasing" "$hit"
+else
+    _ok "no self-help phrasing"
+fi
+
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 
 echo ""
