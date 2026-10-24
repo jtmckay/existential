@@ -86,7 +86,6 @@ Say it out loud and have it turn into something real, without opening an app.
 The most tedious recurring paperwork in most people's lives, handled without attention.
 
 - [Bank Alert → Gmail → Budget](./transaction-gmail-actual-budget) — transaction emails become budget entries
-- [Bank Alert → Receipt Split](./receipt-split) — one charge, split into its real line items
 
 ## Building your own
 

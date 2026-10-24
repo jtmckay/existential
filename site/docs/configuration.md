@@ -165,7 +165,7 @@ VRAM is spread rather than shared. Every key ships **blank**, and blank means "w
 | `EXIST_MODEL_URL_CHAT` | Chat / reasoning | hermes, open-webui, decree scripts, the newsletter |
 | `EXIST_MODEL_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
 | `EXIST_MODEL_URL_EMBED` | Embeddings | openviking's vector store, honcho |
-| `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr, telegram_receipt |
+| `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr |
 
 A worked split, with a 24 GB card and an 8 GB one:
 

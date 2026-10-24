@@ -1,6 +1,6 @@
 # actual_budget
 
-Post one transaction to Actual Budget, the amount as the message body; tell Telegram when it is configured.
+Post one transaction to Actual Budget, the amount as the message body.
 
 Machine: [machines/actual_budget.yml](../machines/actual_budget.yml)
 

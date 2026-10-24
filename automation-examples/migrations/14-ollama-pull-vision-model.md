@@ -5,7 +5,7 @@ params:
 ---
 Pull the vision model — EXIST_MODEL_VISION. Used by the ollama-ocr file
 processor (automation/lib/file-processors.example/ollama-ocr.sh) for text
-extraction from images sent via Telegram or dropped into Nextcloud, and
+extraction from images dropped into Nextcloud, and
 available in Open WebUI for image chat.
 
 EXIST_MODEL_VISION defaults to the SAME tag as EXIST_MODEL_CHAT: every tier

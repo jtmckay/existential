@@ -1,6 +1,6 @@
 ---
 name: Image OCR
-tagline: Extract text from images dropped into Nextcloud or sent via Telegram
+tagline: Extract text from images dropped into Nextcloud
 e2e: false
 services:
   - var: EXIST_IS_AI_OLLAMA
@@ -16,7 +16,7 @@ done:
     - automation/lib/file-processors/ollama-ocr.sh
 ---
 
-Drop an image into Nextcloud (or send one to your Telegram bot) and Decree
+Drop an image into Nextcloud and Decree
 runs OCR via an Ollama vision model, saving the extracted text next to the
 original file.
 
@@ -54,11 +54,6 @@ Setup:
      decree — no restart needed:
        cp automation/lib/file-processors.example/ollama-ocr.sh \
           automation/lib/file-processors/
-
-Telegram OCR flow:
-  If the Telegram Bot quest is active, photos sent to your Telegram bot are
-  already uploaded into Nextcloud's telegram/ folder by telegram-poll. The ollama-ocr processor picks
-  them up automatically — no extra steps.
 
 Logs for each run land in volumes/workspace_data/.decree/runs/ and are queryable in Grafana
 via the Decree Overview dashboard.

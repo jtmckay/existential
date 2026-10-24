@@ -76,7 +76,7 @@ The same works from code-server's terminal, over the work dir:
 
 Want it over HTTP? The **Capture** quest adds automation-webhook. Want
 buttons? The **Decree Routine UI** quest generates a Lowcoder panel. Want it on
-your phone? The **Telegram Bot** quest.
+your phone? ntfy, below.
 
 ── 5. Subscribe to ntfy ──────────────────────────────────────────────────
 

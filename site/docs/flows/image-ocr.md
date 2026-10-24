@@ -53,21 +53,19 @@ use — the OCR pipeline does not care which one you chose, and you can run seve
 | Route | Good for | Setup |
 |---|---|---|
 | **Nextcloud auto-upload** | The default. Your phone's camera roll syncs, and every photo is OCR'd. No bot, no token. | Turn on the Nextcloud mobile app's auto-upload |
-| **A Telegram bot** | Deliberate capture — you choose what gets sent, rather than everything you photograph | [Option B](#option-b--telegram-bot) |
 | **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg nextcloud:scans/file.jpg` |
 | **Any WebDAV client** | Other apps writing to Nextcloud directly | Nothing — the upload is the trigger |
 
 :::tip[Start with auto-upload]
 If you already run Nextcloud, camera auto-upload is the shortest path to this flow working:
-photograph something, and the text exists a few seconds later. The Telegram route is
-worth it when you want a *deliberate* inbox rather than your whole camera roll.
+photograph something, and the text exists a few seconds later.
 :::
 
 ## How It Works
 
 ### 1. The image lands in Nextcloud
 
-However it got there — camera sync, a bot, rclone, another app — the flow starts the moment
+However it got there — camera sync, rclone, another app — the flow starts the moment
 the upload finishes. Nothing polls the image itself.
 
 ### 2. Nextcloud fires the webhook
@@ -100,8 +98,8 @@ A match enqueues a `file_processor` message with `is_pre_signed: false` — the 
 The shell processor pipes that output via `rclone rcat` to Nextcloud at the same path with `.ocr.txt` appended:
 
 ```
-telegram/1745000000_AgADjk.jpg
-telegram/1745000000_AgADjk.jpg.ocr.txt   ← created automatically
+scans/2026-03-02-receipt.jpg
+scans/2026-03-02-receipt.jpg.ocr.txt   ← created automatically
 ```
 
 ## Prerequisites
@@ -136,35 +134,7 @@ That is the whole OCR pipeline. Now pick how images arrive.
 In the Nextcloud mobile app, turn on **Auto upload**. Every photo you take syncs up and gets
 OCR'd. There is nothing else to configure — the upload is the trigger.
 
-#### Option B — Telegram bot
-
-Use this when you want a deliberate inbox instead of your whole camera roll: you photograph
-something and *choose* to send it.
-
-Create the bot via [@BotFather](https://t.me/BotFather) with `/newbot` and copy the token, then:
-
-```bash
-mkdir -p automation/secrets/telegram
-cat > automation/secrets/telegram/credentials.env << 'EOF'
-TELEGRAM_BOT_TOKEN=your-token-here
-EOF
-```
-
-The secrets directory is bind-mounted into the decree container at `/secrets/telegram/`.
-
-Copy and activate the example cron:
-
-```bash
-cp automation-examples/cron/telegram-poll.md \
-   volumes/workspace_data/.decree/cron/
-```
-
-`telegram_ingest` polls `getUpdates` every minute, tracks a cursor in
-`/secrets/telegram/offset.txt` so nothing is processed twice, and pipes each new photo through
-`rclone rcat` into `TELEGRAM_RCLONE_DEST`. From there it is an ordinary Nextcloud upload and the
-flow above takes over. The daemon rescans `cron/` every tick, so there is nothing to restart.
-
-#### Option C — rclone
+#### Option B — rclone
 
 For scanners, batch imports, or anything already on disk:
 
@@ -177,7 +147,6 @@ rclone copyto /path/to/scan.jpg nextcloud:documents/scan.jpg \
 
 | Variable | Default | Description |
 |---|---|---|
-| `TELEGRAM_RCLONE_DEST` | `nextcloud:telegram` | *Telegram route only* — where downloaded images are stored (triggers the OCR pipeline) |
 | `FILE_SUFFIX` | `.ocr.txt` | Suffix appended to the image path for the OCR output |
 | `OUTPUT_RCLONE` | `nextcloud` | rclone remote where the OCR result is saved |
 | `OCR_MODEL` | `EXIST_MODEL_VISION` | Vision model used for text extraction. Chosen globally in `.env.shared`, not per-flow. |
@@ -188,7 +157,7 @@ rclone copyto /path/to/scan.jpg nextcloud:documents/scan.jpg \
 Upload a test image straight into Nextcloud to bypass whichever capture route you chose and verify the OCR pipeline on its own — the upload fires the event itself:
 
 ```bash
-rclone copyto /path/to/test.jpg nextcloud:telegram/test.jpg \
+rclone copyto /path/to/test.jpg nextcloud:scans/test.jpg \
   --config automation/secrets/rclone/rclone.conf
 ```
 

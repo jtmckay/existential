@@ -244,36 +244,6 @@ Each route sets explicit `patterns:`. The default parameter charset is `[A-Za-z0
 has no `.`, so `ref.png` would be rejected with a `400` without one. Config edits load without a
 restart; an invalid edit keeps the old endpoints serving and shows up in `/healthz`.
 
-## Telegram → ComfyUI Workflow
-
-Nothing wires Telegram to ComfyUI out of the box — the shipped `telegram_ingest` machine
-(`automation/scripts/telegram_ingest.sh`) polls for inbound *photo* messages and
-routes them into the OCR pipeline, not text commands. A `/imagine <prompt>` workflow is
-something you'd write yourself, following the same shape:
-
-```
-User sends: /imagine a sunset over mountains
-        │
-        ▼
-your script polls the Telegram Bot API (see telegram_ingest.sh for the pattern)
-        │
-        ▼
-Extracts the prompt, POSTs the workflow to comfyui:8188/prompt
-        │
-        ▼
-Polls /history/{id} until "outputs" appears
-        │
-        ▼
-Downloads image via /view?filename=...&type=output
-        │
-        ▼
-Sends image back to the Telegram chat via Bot API
-```
-
-See [Telegram integration](../integrations/telegram) for bot credentials setup, and
-[Writing an Automation](../writing-a-routine) for how a new machine gets written and run
-on a schedule.
-
 ## Designing Workflows
 
 Adding a flow to the `comfy` machine is adding two files to

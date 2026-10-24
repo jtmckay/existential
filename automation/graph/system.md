@@ -2,7 +2,7 @@
 
 Every machine, the `emits` and `invokes` edges between them, and cron entry points.
 
-- [actual_budget](actual_budget.md): Post one transaction to Actual Budget, the amount as the message body; tell Telegram when it is configured.
+- [actual_budget](actual_budget.md): Post one transaction to Actual Budget, the amount as the message body.
 - [actual_budget_parse](actual_budget_parse.md): Run a bank's parse script against one email and emit the transaction it finds to actual_budget.
 - [agent_task](agent_task.md): Hand a task to a hermes profile and file the answer in workspace/ai/, then notify.
 - [calendar_extract](calendar_extract.md): Mirror Nextcloud Calendar events in a window around today into workspace/ai/calendar/ as one note per event.
@@ -33,9 +33,6 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [openviking_index_dir](openviking_index_dir.md): Upload a directory tree to OpenViking and keep the index in step with it — new, changed and deleted files.
 - [routines_snapshot](routines_snapshot.md): Copy decree's graph, machines and endpoints into workspace/ai/decree/, so hermes knows what it can ask decree for.
 - [service_health](service_health.md): Probe one service's HTTP endpoint and fail unless it answers with the expected status.
-- [telegram_ingest](telegram_ingest.md): Poll the Telegram bot for new images and save each to an rclone destination, where Nextcloud's file events pick it up.
-- [telegram_notify](telegram_notify.md): Tell Telegram about a new Actual Budget transaction, and remember it so a receipt photo in reply can split it.
-- [telegram_receipt](telegram_receipt.md): Poll the Telegram bot and route each reply — a receipt photo splits its transaction, "no" reverts a split, any other photo is saved for OCR.
 - [you_were_here](you_were_here.md): The "you were here" digest, written to workspace/notes/you-were-here.md and today's archive, pushed through ntfy when something changed.
 
 ```mermaid
@@ -71,9 +68,6 @@ flowchart LR
     openviking_index_dir["openviking_index_dir"]
     routines_snapshot["routines_snapshot"]
     service_health["service_health"]
-    telegram_ingest["telegram_ingest"]
-    telegram_notify["telegram_notify"]
-    telegram_receipt["telegram_receipt"]
     you_were_here["you_were_here"]
     cron__calendar_extract[/"cron: calendar-extract"/]
     cron__check_versions[/"cron: check-versions"/]
@@ -89,8 +83,6 @@ flowchart LR
     cron__notify[/"cron: notify"/]
     cron__openviking_index_knowledgebase[/"cron: openviking-index-knowledgebase"/]
     cron__routines_snapshot[/"cron: routines-snapshot"/]
-    cron__telegram_poll[/"cron: telegram-poll"/]
-    cron__telegram_receipt_poll[/"cron: telegram-receipt-poll"/]
     cron__you_were_here[/"cron: you-were-here"/]
     cron__calendar_extract -->|cron| calendar_extract
     cron__check_versions -->|cron| check_versions
@@ -106,10 +98,7 @@ flowchart LR
     cron__notify -->|cron| notify
     cron__openviking_index_knowledgebase -->|cron| openviking_index_dir
     cron__routines_snapshot -->|cron| routines_snapshot
-    cron__telegram_poll -->|cron| telegram_ingest
-    cron__telegram_receipt_poll -->|cron| telegram_receipt
     cron__you_were_here -->|cron| you_were_here
-    actual_budget -->|emits| telegram_notify
     actual_budget_parse -->|emits| actual_budget
     agent_task -->|emits| notify
     check_versions -->|emits| notify

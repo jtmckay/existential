@@ -1,8 +1,8 @@
 ---
 name: Budget Automation
-tagline: Bank alert emails become Actual Budget transactions, and a receipt photo splits one into line items
+tagline: Bank alert emails become Actual Budget transactions
 e2e: false
-e2e_skip: Requires a Gmail OAuth grant, a Telegram bot, and real bank alert mail
+e2e_skip: Requires a Gmail OAuth grant and real bank alert mail
 services:
   - var: EXIST_IS_SERVICES_ACTUAL_BUDGET
     label: Actual Budget
@@ -13,14 +13,10 @@ done:
     - volumes/workspace_data/.decree/cron/gmail-sync.md
 ---
 
-Two halves of the same loop. A cron polls a Gmail label every 15 minutes,
-parses bank alert emails with a bank-specific parser, and posts transactions to
-Actual Budget. Then — optionally — Decree pings you on Telegram, you reply with
-a photo of the receipt, and it splits that transaction into line items without
-you leaving the chat.
+A cron polls a Gmail label every 15 minutes, parses bank alert emails with a
+bank-specific parser, and posts transactions to Actual Budget.
 
 Docs: https://existential.company/docs/decree/transaction-gmail-actual-budget
-      https://existential.company/docs/decree/receipt-split
 
 ── 0. First run of Actual Budget ─────────────────────────────────────────
 
@@ -36,7 +32,6 @@ Its whole database lives in one volume — one cron file backs it up, see the
 ── 1. Prerequisites ──────────────────────────────────────────────────────
 
   - Gmail connected — the **Gmail Integration** quest
-  - Telegram bot connected, for the receipt half — the **Telegram Bot** quest
 
 ── 2. Label the mail ─────────────────────────────────────────────────────
 
@@ -58,16 +53,12 @@ Then point a Gmail label at it and an Actual Budget account:
 
        ./existential.sh run automation gmail-transactions-cron
 
-── 4. Activate the pollers ───────────────────────────────────────────────
+── 4. Activate the poller ────────────────────────────────────────────────
 
        mkdir -p volumes/workspace_data/.decree/cron/
 
        # Pulls new mail every 15 minutes
        cp automation-examples/cron/gmail-sync.md volumes/workspace_data/.decree/cron/
-
-       # Receipt half — checks for photo replies every 30 minutes, matches them
-       # to outstanding transactions and triggers the split
-       cp automation-examples/cron/telegram-receipt-poll.md volumes/workspace_data/.decree/cron/
 
 ── 5. Watch the first one land ───────────────────────────────────────────
 

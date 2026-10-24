@@ -290,12 +290,6 @@ webhook, which turns the request body into a decree message. A doorbell, a tempe
 threshold, or a voice command all arrive the same way. The
 [HAwake](./hawake-homeassistant) flow is the worked example.
 
-### A message on your phone
-
-`telegram_ingest` polls a bot for new messages and `rclone`s attachments into storage — where,
-being an object write, they become the file trigger above. See
-[Telegram](../integrations/telegram).
-
 ## Cost and pacing
 
 Decree runs one message at a time, and the department timeout (`agent_task`'s `agent_timeout` param) defaults to 900
@@ -350,7 +344,7 @@ are copied back to the vault over rclone instead.
 | Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) research when configured |
 | Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` (research and sales) |
 | Indexing notes for retrieval | **Ships.** A decree cron uploads `workspace/` into [OpenViking](../ai/openviking) every 15 minutes and keeps it queryable |
-| Notifying you | **Ships.** `notify` → ntfy, or `telegram_notify` |
+| Notifying you | **Ships.** `notify` → ntfy |
 | **What counts as worth acting on** | **Yours.** One line of prompt, and the whole point of the flow |
 
 The judgment is deliberately a setting rather than a decision made for you — what counts as an

@@ -16,7 +16,7 @@ PROMPT="${PROMPT:-}"
 
 # Env vars from file-processor:
 #   FILE_SOURCE     full rclone source path
-#   FILE_KEY        path after "remote:"        e.g. "bucket/telegram/receipt.jpg"
+#   FILE_KEY        path after "remote:"        e.g. "bucket/scans/receipt.jpg"
 #   FILE_ACTION     "created" or "removed"
 #   FILE_PATH       absolute local temp path    set because IS_PRE_SIGNED=false
 #   PRE_SIGNED_URL  empty (IS_PRE_SIGNED=false)

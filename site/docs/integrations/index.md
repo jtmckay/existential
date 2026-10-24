@@ -20,4 +20,3 @@ Exact commands differ per integration — see each page below.
 | [Actual Budget](./actual-budget) | Post transactions to Actual Budget from bank alert emails |
 | [Gmail](./gmail) | Read-only Gmail access for the `gmail_sync` automation |
 | [rclone](./rclone) | Remote file storage — Nextcloud, Dropbox, S3, and more |
-| [Telegram](./telegram) | Transaction notifications and receipt-photo split flow |

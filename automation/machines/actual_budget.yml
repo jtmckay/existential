@@ -1,5 +1,5 @@
 name: actual_budget
-description: Post one transaction to Actual Budget, the amount as the message body; tell Telegram when it is configured.
+description: Post one transaction to Actual Budget, the amount as the message body.
 data:
   account_id: { type: string, default: "" }
   payee_name: { type: string, default: "" }
@@ -12,6 +12,5 @@ states:
   post:
     invoke: actual_budget
     transitions: { done: done }
-    emits: [telegram_notify]
   done: { final: true }
   failed: { final: true }

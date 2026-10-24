@@ -35,34 +35,12 @@ amount_raw=$(awk '
 
 # ── Post transaction ──────────────────────────────────────────────────────────
 
-_post_output=$(TXN_ACCOUNT_ID="$account_id" \
+TXN_ACCOUNT_ID="$account_id" \
 TXN_PAYEE_NAME="$payee_name" \
 TXN_DATE="$date" \
 TXN_NOTES="$notes" \
 TXN_CATEGORY_ID="$category_id" \
 TXN_AMOUNT="$amount_raw" \
-    "$TSX" "$DECREE_LIB/actual-budget/post-transaction.ts")
-echo "$_post_output"
+    "$TSX" "$DECREE_LIB/actual-budget/post-transaction.ts"
 
 echo "Posted ${amount_raw} → ${payee_name} (account: ${account_id})"
-
-# ── Sidecar: Telegram notification (optional) ─────────────────────────────────
-# Fires only when /secrets/telegram/credentials.env exists and TELEGRAM_CHAT_ID is set.
-
-_tg_creds="/secrets/telegram/credentials.env"
-if [ -f "$_tg_creds" ]; then
-    # shellcheck source=/dev/null  # runtime path, contents are credentials
-    source "$_tg_creds"
-    if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
-        _txn_id=$(echo "$_post_output" | grep -oP '(?<=\(id: )[^)]+' || true)
-        if [ -n "$_txn_id" ]; then
-            # Convert cents to dollars for display (amount_raw is decimal dollars)
-            _amount_cents=$(echo "$amount_raw" | awk '{printf "%d", $1 * 100}')
-            decree emit --machine telegram_notify --param transaction_id="$_txn_id" \
-                --param account_id="$account_id" --param amount_cents="$_amount_cents" \
-                --param payee_name="$payee_name" --param date="$date" --param notes="$notes" \
-                </dev/null >/dev/null
-            echo "Queued Telegram notification for transaction ${_txn_id}."
-        fi
-    fi
-fi
