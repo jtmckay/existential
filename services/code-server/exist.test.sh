@@ -46,4 +46,27 @@ for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh automation/lib
     fi
 done
 
+# Search (ai/qmd): with the add-on on, entrypoint.sh registers qmd with Claude
+# Code, allows its tools and copies the recall skill. Read the files it wrote
+# rather than reaching into the container.
+if [ "${EXIST_IS_AI_QMD:-false}" = "true" ]; then
+    _home=/repo/volumes/code_server_data/home/.claude
+    _fix="Recreate code-server so its entrypoint wires search: docker compose up -d --force-recreate code-server; then docker logs code-server | grep qmd"
+    if [ "$(jq -r '.mcpServers.qmd.url // empty' "${_home}/.claude.json" 2>/dev/null)" = "http://qmd:8181/mcp" ]; then
+        ok "code-server Claude Code has the qmd MCP"
+    else
+        fail "code-server Claude Code has the qmd MCP" "${_home}/.claude.json has no qmd server at http://qmd:8181/mcp" "$_fix"
+    fi
+    if jq -e '.permissions.allow | index("mcp__qmd")' "${_home}/settings.json" >/dev/null 2>&1; then
+        ok "code-server allows mcp__qmd"
+    else
+        fail "code-server allows mcp__qmd" "${_home}/settings.json does not allow mcp__qmd" "$_fix"
+    fi
+    if [ -f /repo/volumes/workspace_data/.claude/skills/recall/SKILL.md ]; then
+        ok "code-server recall skill"
+    else
+        fail "code-server recall skill" "workspace/.claude/skills/recall/SKILL.md is missing" "$_fix"
+    fi
+fi
+
 finish

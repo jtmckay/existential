@@ -140,7 +140,7 @@ fi
 # both CLIs. Claude Code gets it at user scope with its read-only tools allowed
 # without a prompt, plus the recall skill at the workspace root, which says when
 # and how to search; opencode gets it in the config below; the terminal gets a
-# `search` command (lib/recall/search.sh, linked like `hermes`). A blank URL
+# `search` command (lib/recall/search.sh, linked like `hermes`). Turning the add-on off
 # removes all of it on the next boot. Never fatal: search is optional.
 _search=""; [[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _search=http://qmd:8181/mcp
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
