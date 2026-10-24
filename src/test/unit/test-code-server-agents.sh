@@ -6,6 +6,8 @@
 #   tmx       services/automation/decree/tmx.sh (the image's /etc/profile.d copy)
 #             must never start a second session under a name already running —
 #             `tmx -d claude claude remote-control` is safe to re-run.
+#   mermaid   DEFAULT_EXTENSIONS must include a mermaid-rendering markdown
+#             preview, so .decree/graph/<machine>.md shows as a diagram.
 #
 # entrypoint.sh cannot be sourced (its top level installs and execs code-server),
 # so the helper is extracted by name, as test-hermes-model.sh does. The tmx half
@@ -49,6 +51,13 @@ else
     assert_eq "opencode loads the capture plugin when on" '["file:///opt/capture/opencode.ts"]' \
         "$(jq -c .plugin <<<"$cfg")"
 fi
+
+# ── mermaid ───────────────────────────────────────────────────────────────────
+awk '/^DEFAULT_EXTENSIONS=\(/{f=1} f{print} f&&/^\)$/{f=0}' "$ENTRY" > "${TMP}/ext.sh"
+# shellcheck disable=SC1091  # generated above
+. "${TMP}/ext.sh"
+assert_eq "markdown preview renders mermaid" "bierner.markdown-mermaid" \
+    "$(printf '%s\n' "${DEFAULT_EXTENSIONS[@]:-}" | grep -x bierner.markdown-mermaid)"
 
 # ── tmx ───────────────────────────────────────────────────────────────────────
 if ! command -v tmux >/dev/null; then

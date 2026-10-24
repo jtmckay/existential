@@ -12,11 +12,15 @@ CODE_SERVER_BIN="$INSTALL_PREFIX/bin/code-server"
 USER_DATA_DIR="$INSTALL_PREFIX/user-data"
 EXTENSIONS_DIR="$INSTALL_PREFIX/extensions"
 SETTINGS_FILE="$USER_DATA_DIR/User/settings.json"
+# From Open VSX (code-server's default gallery), into the volume, so they
+# survive recreation. markdown-mermaid draws the ```mermaid diagrams in each
+# machine's .decree/graph/<name>.md in the built-in markdown preview.
 DEFAULT_EXTENSIONS=(
     eamodio.gitlens
     dbaeumer.vscode-eslint
     esbenp.prettier-vscode
     bradlc.vscode-tailwindcss
+    bierner.markdown-mermaid
 )
 
 # $HOME (/home/decree, baked in by automation/Dockerfile for the shared

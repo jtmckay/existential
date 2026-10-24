@@ -28,7 +28,7 @@ EXIST_IS_SERVICES_CODE_SERVER=true
 
 Then `./existential.sh && docker compose up -d` from the repo root.
 
-First boot installs the code-server binary, four extensions, Claude Code and opencode before anything answers on
+First boot installs the code-server binary, five extensions, Claude Code and opencode before anything answers on
 `:8080` — a couple of minutes, and it reports `unhealthy` until then. Measured after that:
 ~210 MB idle with no client connected (58 MB of it real RSS, the rest reclaimable page cache),
 peaking at 1.3 GB during the first-boot install. The 2 GB limit is headroom for an editing
@@ -40,6 +40,14 @@ It mounts the repo's top-level `workspace/` directory, the same tree
 [Hermes](../ai/hermes)' agent container sees at `/opt/data/workspace`. Edits made in the
 browser and edits made by an agent land in the same files — that's the point of the shared
 mount, and also the thing to be careful about when both are active.
+
+## Seeing your flows
+
+Open any machine's graph in `.decree/graph/` (`capture.md`, say) and run **Markdown: Open
+Preview**: it draws as a diagram. That is the
+[Markdown Preview Mermaid Support](https://open-vsx.org/extension/bierner/markdown-mermaid)
+extension, which `entrypoint.sh` installs from Open VSX onto the `code_server_data` volume, so it
+survives a recreation like the rest.
 
 ## AI in the terminal
 

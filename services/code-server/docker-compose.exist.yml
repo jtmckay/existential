@@ -54,7 +54,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      # First boot installs the code-server binary, 4 extensions and the two
+      # First boot installs the code-server binary, 5 extensions and the two
       # AI CLIs before anything binds :8080 — measured ~70s on a fast
       # connection; generous for a slow one.
       start_period: 180s
