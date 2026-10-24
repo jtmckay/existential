@@ -77,9 +77,16 @@ reads to a model, so what it can read is what a prompt injection can read.
   `src/test/unit/test-file-handlers.sh`.
 - **Telemetry is the event log.** alloy ships `runs/*/events.jsonl` and script
   logs to Loki and derives `decree_runs_total{daemon, machine, state}` and
-  `decree_run_duration_milliseconds` for Prometheus. A failed run alerts through
-  Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy. There
-  are no hooks. `clean_runs` prunes runs older than 7 days.
+  `decree_run_duration_milliseconds` for Prometheus. A failed `automation-backup` run
+  alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
+  There are no hooks. `clean_runs` prunes runs older than 7 days.
+- **A run that needs you pages you:** `automation/lib/attention-notify.sh`, looped by the
+  `automation` entrypoint (`ATTENTION_NOTIFY=1`), turns each new file in
+  `workspace/.decree/attention/` (failed, interrupted, waiting on a person, a hold) into one
+  `notify` run, keyed per run, status and state in `/data/attention-notified`. It is not a
+  decree run and never reports a `notify` run, so a broken ntfy cannot loop. Grafana's alert
+  covers only `automation-backup`, so nothing is sent twice. Tested by
+  `src/test/unit/test-attention-notify.sh`.
 - **Activating a cron** is copying its template into that project's `cron/`.
   Cron files are re-read every tick, so no restart. Six are on by default, copied by
   `exist.initial.sh` whenever the active copy is missing: `triage`, `clean-runs` and

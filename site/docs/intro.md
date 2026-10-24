@@ -93,7 +93,7 @@ Tailscale on the host gives it real HTTPS on every device you log in.
 |---|---|
 | [code-server](./services/code-server) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
 | [Decree](./decree/) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
-| [ntfy](./services/ntfy) | How a finished automation tells you it finished |
+| [ntfy](./services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
 
 Everything else (Caddy hostnames, monitoring, the webhook and Nextcloud for capture, apps,
 local models and agents, voice and Home Assistant) is an optional add-on, one quest or one flag

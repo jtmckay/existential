@@ -63,7 +63,9 @@ see above), and a backup alert (`BackupNotRun`: no `volume_backup`, `db_backup` 
 
 **There is no Alertmanager in this stack.** These rules are visible at
 `https://prometheus.<domain>/alerts` and nowhere else. The one alert that reaches you is
-[Grafana](./grafana)'s: any decree run that ends in `failed` sends an ntfy notification.
+[Grafana](./grafana)'s: an `automation-backup` run that ends in `failed` sends an ntfy notification.
+The `automation` daemon reports its own failed and waiting runs without either
+([When a run needs you](../decree/decree#when-a-run-needs-you)).
 
 ## Viewing metrics
 

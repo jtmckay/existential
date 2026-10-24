@@ -72,7 +72,7 @@ Tailscale's own HTTPS from every device you log in.
 |---|---|
 | [code-server](https://existential.company/docs/services/code-server) | The work dir in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
 | [Decree](https://existential.company/docs/decree/) | The automation daemon: machines run on a schedule or an inbox message |
-| [ntfy](https://existential.company/docs/services/ntfy) | How a finished automation tells you it finished |
+| [ntfy](https://existential.company/docs/services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
 
 Everything else is an add-on, one quest away: Caddy hostnames, monitoring, the webhook and
 Nextcloud for capture, apps, local AI, voice and the house.

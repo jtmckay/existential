@@ -51,6 +51,8 @@ services:
       - GRAPH_WATCH=1
       # Start handlers.yml's machines when workspace files change (entrypoint.sh).
       - FILE_HANDLERS=1
+      # One ntfy message per run that fails or waits on you (entrypoint.sh).
+      - ATTENTION_NOTIFY=1
       - IN_CONTAINER=1
       # The image's HOME (/home/decree) is the container's throwaway layer, so
       # anything written there is lost on recreate — including rclone's config,

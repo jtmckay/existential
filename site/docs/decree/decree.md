@@ -40,6 +40,20 @@ echo | docker exec -i automation decree emit --machine <name>   # run one by han
 Every machine and how they chain is drawn in `automation/graph/system.md` (and
 `services/automation/backup/graph/` for the other daemon), which GitHub renders.
 
+## When a run needs you
+
+A run in `workspace/.decree` that fails, or stops to wait for a person, sends one ntfy message
+on the `decree` topic. The message names the machine and what happened, and gives the command
+that continues the run: `docker exec automation decree process --retry <id>` for a failed run,
+or one `docker exec automation decree event <wait id> <option>` per answer. A run sends one
+message per state, so a run that stays failed doesn't send it again. Nothing to set up beyond
+ntfy itself.
+
+It comes from what decree already writes to `.decree/attention/`, read every few seconds by
+`automation/lib/attention-notify.sh` in the `automation` container. A failed `notify` run is never
+reported, so a broken ntfy can't loop. Backup runs (`automation-backup`) report through
+[Grafana](../hosting/grafana)'s alert when monitoring is on.
+
 ## Integrations
 
 Gmail and rclone are configured through interactive setup scripts. See [Integrations](../integrations/) for setup instructions.

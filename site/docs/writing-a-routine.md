@@ -85,8 +85,9 @@ Three things in there are load-bearing:
   swallows its own errors and exits 0 reports success for work it never did.
 - **It must be executable** (`chmod 755`). Decree runs scripts by path, and `decree check`
   refuses one without the bit.
-- **A failed run pages you.** Grafana alerts on any run that ends in `failed` and sends it to
-  ntfy, once per machine every 6 hours while it keeps failing. Nothing to wire up.
+- **A failed run pages you.** A run that fails, or waits for a person, sends one ntfy message
+  naming the machine and the command that continues it
+  ([When a run needs you](./decree/decree#when-a-run-needs-you)). Nothing to wire up.
 
 To retry a flaky step, give that state attempts: `invoke: { script: { name: my_job, attempts: 3 } }`.
 Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a

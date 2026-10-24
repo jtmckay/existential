@@ -30,7 +30,8 @@ the sort of step that gets missed and then looks like a broken notification path
 ntfy to create its auth database first, since `ntfy user add` cannot run before that exists, and
 it is a no-op on every later start.
 
-Decree publishes as that user, so automations report in with no further configuration.
+Decree publishes as that user, so automations report in with no further configuration, and a
+run that fails or waits for you says so on the `decree` topic ([Decree](../decree/decree#when-a-run-needs-you)).
 
 ### Using a token instead
 

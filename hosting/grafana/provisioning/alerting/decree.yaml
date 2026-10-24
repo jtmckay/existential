@@ -1,4 +1,7 @@
-# A decree run that ended in `failed` -> one ntfy notification.
+# A backup daemon run that ended in `failed` -> one ntfy notification. The
+# `automation` daemon reports its own failed and waiting runs, with the command
+# that continues each (automation/lib/attention-notify.sh), so it is left out
+# here rather than sent twice.
 #
 # decree 0.5 has no hooks: a run's record is its events.jsonl, which alloy
 # ships to Loki and turns into decree_runs_total{machine, state} on its own
@@ -47,7 +50,7 @@ groups:
             model:
               refId: A
               instant: true
-              expr: sum by (machine) (increase(decree_runs_total{state="failed"}[10m]))
+              expr: sum by (machine) (increase(decree_runs_total{daemon="automation-backup",state="failed"}[10m]))
           - refId: B
             datasourceUid: __expr__
             model:
@@ -63,6 +66,6 @@ groups:
         annotations:
           summary: "decree: {{ $$labels.machine }} failed"
           description: >-
-            A {{ $$labels.machine }} run ended in failed. `docker exec automation
-            decree status` (or automation-backup) lists it with the command that
+            A {{ $$labels.machine }} run ended in failed. `docker exec automation-backup
+            decree status` lists it with the command that
             retries it; its log is in Loki under {job="decree"}.

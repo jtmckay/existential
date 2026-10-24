@@ -14,3 +14,4 @@
 014-target-audience.md
 015-nothing-phones-home.md
 016-file-change-events.md
+017-failures-reach-you.md

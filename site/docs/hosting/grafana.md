@@ -22,7 +22,7 @@ Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) lo
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Pre-built Decree monitoring |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
-| decree alert | `provisioning/alerting/decree.yaml` | A failed decree run → one ntfy notification |
+| decree alert | `provisioning/alerting/decree.yaml` | A failed `automation-backup` run → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
 
@@ -44,8 +44,10 @@ This is the main place to check when a Decree automation fails or behaves unexpe
 - **New datasource**: add a YAML file to `hosting/grafana/provisioning/datasources/`.
 - **Alerts**: unified alerting. `provisioning/alerting/decree.yaml` provisions the ntfy contact
   point (a webhook, authenticated as `EXIST_NTFY_USER`) and the `decree run failed` rule, on
-  `increase(decree_runs_total{state="failed"}[10m]) > 0`, repeating at most every 6 hours per
-  machine. Rules made in the UI persist in the `grafana_data` volume.
+  `increase(decree_runs_total{daemon="automation-backup",state="failed"}[10m]) > 0`, repeating at
+  most every 6 hours per machine. The `automation` daemon reports its own runs without Grafana
+  ([When a run needs you](../decree/decree#when-a-run-needs-you)), so it is left out. Rules made in
+  the UI persist in the `grafana_data` volume.
 
 ## Data flow summary
 

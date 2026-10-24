@@ -41,6 +41,13 @@ if [[ "${FILE_HANDLERS:-}" == 1 ]]; then
   ( while :; do node .decree/lib/file-handlers.ts || true; sleep 5; done ) &
 fi
 
+# ATTENTION_NOTIFY=1 (the `automation` daemon): each run that fails or waits on a
+# person becomes one ntfy message (automation/lib/attention-notify.sh). It runs
+# beside the daemon, not as a decree run, so its own failure leaves nothing to report.
+if [[ "${ATTENTION_NOTIFY:-}" == 1 ]]; then
+  ( while :; do bash .decree/lib/attention-notify.sh || true; sleep 5; done ) &
+fi
+
 # The decree skill for Claude, at the workspace root, so `claude` started in
 # /workspace (code-server's terminal) already knows how to write a machine.
 # This project's notes (automation/lib/skill-notes.md) are appended to SKILL.md.
