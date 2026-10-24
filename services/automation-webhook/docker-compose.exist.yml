@@ -43,7 +43,3 @@ x-exist-volumes:
   # The user's workspace; this container sees only its .decree project. Declared
   # identically everywhere it is mounted.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

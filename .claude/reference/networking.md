@@ -87,10 +87,8 @@ the Caddyfile never bakes a domain either.
 
 For the exact `EXIST_DOMAIN` form to use per file type, see `templates.md`.
 
-## Peer mode
+## One Caddy, one host
 
-Caddy + piHole on a separate front-door host: the front-door runs a tiny static
-`Caddyfile.frontdoor.example` (copied to the live `Caddyfile`) that wildcard-forwards every
-`<slug>.<domain>` to `EXIST_PEER_HOST_IP`, where a *second* Caddy runs the normal rendered
-Caddyfile and routes to containers over Docker DNS. No per-slug peer config, no host-port
-deconfliction — the front-door never changes as services are added.
+There is exactly one Caddy, on the host that runs the services: no front-door or
+second-Caddy mode. Load is spread across machines per model role (`EXIST_MODEL_URL_*`,
+`models.md`), never by splitting the proxy.

@@ -21,7 +21,7 @@ env_get() {
 }
 
 REMOTE=$(env_get "EXIST_BACKUP_RCLONE_REMOTE")
-[ -n "$REMOTE" ] || die "EXIST_BACKUP_RCLONE_REMOTE not set — run ./existential.sh run backup-config"
+[ -n "$REMOTE" ] || die "EXIST_BACKUP_RCLONE_REMOTE not set — run ./existential.sh run rclone"
 
 DOCKER_CMD="${DOCKER_CMD:-docker}"
 command -v "$DOCKER_CMD" >/dev/null 2>&1 || die "${DOCKER_CMD} not found on PATH"

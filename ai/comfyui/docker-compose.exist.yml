@@ -75,7 +75,3 @@ services:
 x-exist-volumes:
   # db: ComfyUI keeps a SQLite database at ComfyUI/user/comfyui.db.
   comfyui_data: { db: true }
-
-networks:
-  exist:
-    external: true

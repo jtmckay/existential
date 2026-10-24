@@ -14,10 +14,10 @@
 # PDF hit as its page (the last "## Page N" heading above the hit).
 #
 # Run by path (hence 755): code-server links it onto PATH as `search` when
-# EXIST_SEARCH_MCP_URL is set; on the host, `./existential.sh run qmd search`.
+# the Search add-on is on; on the host, `./existential.sh run qmd search`.
 set -euo pipefail
 
-url="${EXIST_SEARCH_MCP_URL:-http://qmd:8181/mcp}"; url="${url%/mcp}"
+url="${QMD_URL:-http://qmd:8181}"
 (( $# )) || { echo "usage: search <the words you remember>" >&2; exit 2; }
 
 body=$(jq -nc --arg q "$*" '{searches: [{type: "lex", query: $q}, {type: "vec", query: $q}], limit: 10, rerank: false}')

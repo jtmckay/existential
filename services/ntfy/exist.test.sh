@@ -14,9 +14,7 @@ skip_if_disabled
 load_env_exist
 
 NTFY_URL="${NTFY_URL:-${EXIST_NTFY_URL:-http://ntfy:80}}"
-NTFY_TOKEN="${NTFY_TOKEN:-${EXIST_NTFY_TOKEN:-}}"
-# The bot user ntfy's entrypoint creates on first boot. A token is the opt-in
-# alternative and wins when both are set — same precedence as notify.sh.
+# The bot user ntfy's entrypoint creates on first boot, as notify.sh uses it.
 NTFY_USER="${NTFY_USER:-${EXIST_NTFY_USER:-}}"
 NTFY_PASSWORD="${NTFY_PASSWORD:-${EXIST_NTFY_PASSWORD:-}}"
 
@@ -68,10 +66,7 @@ esac
 
 AUTH_ARGS=()
 AUTH_KIND=""
-if [ -n "$NTFY_TOKEN" ]; then
-    AUTH_ARGS=(-H "Authorization: Bearer ${NTFY_TOKEN}")
-    AUTH_KIND="token"
-elif [ -n "$NTFY_USER" ] && [ -n "$NTFY_PASSWORD" ]; then
+if [ -n "$NTFY_USER" ] && [ -n "$NTFY_PASSWORD" ]; then
     AUTH_ARGS=(-u "${NTFY_USER}:${NTFY_PASSWORD}")
     AUTH_KIND="user ${NTFY_USER}"
 fi

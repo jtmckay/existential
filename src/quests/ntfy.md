@@ -22,7 +22,7 @@ On its first boot ntfy created two users from your generated credentials:
 
 Decree publishes as the bot over basic auth. ntfy denies every publish by
 default (auth-default-access: deny-all), so the bot is the reason anything is
-delivered at all — and it is a plain user scoped to EXIST_NTFY_TOPICS, not an
+delivered at all — and it is a plain user that can only publish, not an
 admin.
 
 ── Step 1: Subscribe ────────────────────────────────────────────────────
@@ -41,15 +41,3 @@ Or send one by hand as the bot:
   curl -u "$EXIST_NTFY_USER:$EXIST_NTFY_PASSWORD" \
        -d "Hello from existential" \
        http://ntfy.x.internal/decree
-
-── Optional: use a bearer token instead ─────────────────────────────────
-
-  ./existential.sh run ntfy setup
-
-Mints a token for the bot and writes EXIST_NTFY_TOKEN to .env.shared. A token
-takes precedence over the user/password wherever both are set. You do not need
-this — it exists for sharing publish access without sharing the password.
-
-Telegram fallback:
-  If ntfy rejects the publish or is unreachable, Decree falls back to Telegram
-  if configured. See the Telegram Bot quest.

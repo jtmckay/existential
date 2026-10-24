@@ -252,7 +252,3 @@ x-exist-volumes:
   # The user's own files, shared with hermes, code-server and decree. Local, not
   # nfs: exist.initial.sh scripts seed READMEs into volumes/workspace_data.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

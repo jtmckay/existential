@@ -30,7 +30,6 @@ services:
       # whisperx's async endpoints default to cuda/float16 regardless of the
       # service's own env — so it needs the same vendor answer generate-compose uses.
       - EXIST_GPU_VENDOR=${EXIST_GPU_VENDOR:-}
-      - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
       # you_were_here links its push to code-server on this name.
       - EXIST_TAILNET_NAME=${EXIST_TAILNET_NAME:-}
@@ -38,8 +37,6 @@ services:
       # These are created by ntfy's own entrypoint — nothing to run by hand.
       - NTFY_USER=${EXIST_NTFY_USER:-}
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
-      - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
       - NOTES_REMOTE_DIR=${AUTOMATION_NOTES_DIR}
       - DROPBOX_DEST_DIR=${AUTOMATION_DROPBOX_DEST_DIR}
       # Gateway credentials for routines that need a model (note-triage,
@@ -178,12 +175,9 @@ services:
       - IN_CONTAINER=1
       # Same six as the daemon above: triage reports through notify. env_file
       # brings in the master .env, but notify.sh reads these unprefixed.
-      - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
       - NTFY_USER=${EXIST_NTFY_USER:-}
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${EXIST_TELEGRAM_BOT_TOKEN:-}
-      - TELEGRAM_CHAT_ID=${EXIST_TELEGRAM_CHAT_ID:-}
     volumes:
       # Its own decree project — own machines/, cron/, runs/ and inbox/ — with
       # the scripts and lib/ shared, read-only, from automation/.
@@ -222,7 +216,3 @@ x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

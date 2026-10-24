@@ -50,11 +50,11 @@ _provision() {
     if [ -n "${NTFY_BOT_USER:-}" ] && [ -n "${NTFY_BOT_PASSWORD:-}" ]; then
         NTFY_PASSWORD="$NTFY_BOT_PASSWORD" \
             ntfy user add --ignore-exists "$NTFY_BOT_USER"
-        # Re-applied every boot on purpose: this is the one thing that must
-        # track NTFY_BOT_TOPICS, and `ntfy access` replaces the rule for a
-        # topic pattern rather than stacking duplicates.
-        ntfy access "$NTFY_BOT_USER" "${NTFY_BOT_TOPICS:-*}" rw
-        echo "[ntfy] ${NTFY_BOT_USER} may publish to ${NTFY_BOT_TOPICS:-*}."
+        # Every topic: routines name their own (decree, alerts, exist-md, ...)
+        # on this private instance. Re-applied every boot; `ntfy access`
+        # replaces the rule rather than stacking duplicates.
+        ntfy access "$NTFY_BOT_USER" '*' rw
+        echo "[ntfy] ${NTFY_BOT_USER} may publish to every topic."
     fi
 }
 

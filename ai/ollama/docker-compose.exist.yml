@@ -72,7 +72,3 @@ services:
 
 x-exist-volumes:
   ollama_cache: {}
-
-networks:
-  exist:
-    external: true

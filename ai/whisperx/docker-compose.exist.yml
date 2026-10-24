@@ -89,7 +89,3 @@ services:
 x-exist-volumes:
   whisperx_db_data: { db: true }
   whisperx_cache: {}
-
-networks:
-  exist:
-    external: true

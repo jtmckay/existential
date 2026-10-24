@@ -11,10 +11,6 @@
 # service only touches this file (and Dashy, if you want a link). `validate
 # conventions` keys off these blocks.
 #
-# The service host runs THIS Caddyfile in both single-host and peer mode. In peer
-# mode a front-door Caddy (Caddyfile.frontdoor-lan / -public.example) wildcard-forwards every
-# `<slug>.<domain>` here.
-#
 # ── Stable local TLS ( `import internal_tls` ) ─────────────────────────────
 # We deliberately do NOT use `tls internal`: Caddy auto-rotates its internal
 # leaf certs (~12h) and keeps the CA in the caddy_data volume, so a volume wipe

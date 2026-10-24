@@ -13,13 +13,8 @@ Install using the [official Docker guide](https://docs.docker.com/engine/install
 
 ## Network
 
-The `exist` network is automatically created when running `docker compose up`. To create it manually:
-
-```bash
-docker network create --driver bridge exist
-```
-
-It is a plain single-host bridge network — not an overlay, and not encrypted.
+`docker compose up` creates the `exist` network and owns it: never create it by hand. It is a
+plain single-host bridge network, not an overlay, and not encrypted.
 
 ## Privileged Port Error
 

@@ -107,7 +107,3 @@ services:
 x-exist-volumes:
   mealie_data: { nfs: true }
   mealie_pg_data: { db: true }
-
-networks:
-  exist:
-    external: true

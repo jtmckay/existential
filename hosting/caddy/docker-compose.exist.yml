@@ -50,7 +50,6 @@ services:
       # Resolved at container start from the stack-wide EXIST_DOMAIN, so changing
       # the domain needs no re-render. Set CADDY_DOMAIN in caddy's .env to override
       # for this service only. The Caddyfile reads it as {$CADDY_DOMAIN}.
-      # PEER/PUBLIC are only used by the front-door swap-in Caddyfiles.
       - CADDY_DOMAIN=${CADDY_DOMAIN:-$EXIST_DOMAIN}
       # Same deal for comfyui.<domain>: EXIST_COMFYUI_URL may name a ComfyUI on
       # another machine, in which case no local container is started.
@@ -59,13 +58,7 @@ services:
       # Caddyfile) -- caddy is where the bearer key is enforced. Blank when
       # firecrawl is disabled, which fails that host closed.
       - CADDY_FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
-      - EXIST_PEER_HOST_IP=${EXIST_PEER_HOST_IP}
-      - EXIST_PUBLIC_DOMAIN=${EXIST_PUBLIC_DOMAIN}
 
 x-exist-volumes:
   caddy_data: {}
   caddy_config_cache: {}
-
-networks:
-  exist:
-    external: true

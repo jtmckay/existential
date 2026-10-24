@@ -88,15 +88,6 @@ Enable EXIST_IS_HOSTING_PIHOLE=true, then point your router's DNS (usually
 under DHCP or LAN, at http://192.168.1.1) at ${EXIST_LOCAL_HOST_IP}. Devices
 pick up the new resolver on their next DHCP lease renewal.
 
-── Optional: Second machine (peer mode) ──────────────────────────────────
-
-Running services on a SECOND machine? Keep caddy on this (front-door) host, set
-EXIST_PEER_HOST_IP to the other machine's IP, and swap in
-hosting/caddy/Caddyfile.frontdoor-lan.example — it forwards every
-<slug>.<domain> to the second machine's Caddy. No per-service DNS or port
-config needed. For an internet-facing entrypoint (real domain + public certs)
-use the -public variant.
-
 ── Optional: Public domain (real HTTPS with Let's Encrypt) ───────────────
 
 To also expose services at https://<slug>.yourdomain.com:

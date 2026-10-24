@@ -25,7 +25,3 @@ services:
 
 x-exist-volumes:
   uptime_kuma_data: { db: true }
-
-networks:
-  exist:
-    external: true

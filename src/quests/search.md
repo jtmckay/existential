@@ -21,7 +21,6 @@ machine, and no GPU is needed.
 In .env.shared:
 
        EXIST_IS_AI_QMD=true
-       EXIST_SEARCH_MCP_URL=http://qmd:8181/mcp
 
        ./existential.sh
        docker compose up -d --build qmd

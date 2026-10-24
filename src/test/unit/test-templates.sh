@@ -154,11 +154,11 @@ out="$(render "$TMP/t_cli")"
 assert_contains "EXIST_CLI with no default resolves empty (no tty)" "EMAIL=" "$out"
 assert_not_contains "EXIST_CLI token consumed" "EXIST_CLI" "$out"
 
-# ── EXIST_CLI: DEFAULT_FROM falls back to an earlier resolved value ────────────
+# ── EXIST_CLI: DEFAULT gives a literal fallback ───────────────────────────────
 
-printf 'HOST=EXIST_USERNAME\n# DEFAULT_FROM: HOST\nPEER=EXIST_CLI\n' > "$TMP/t_default_from"
-out="$(render "$TMP/t_default_from")"
-assert_contains "DEFAULT_FROM resolves to earlier field's value" "PEER=alice" "$out"
+printf '# DEFAULT: admin\nNAME=EXIST_CLI\n' > "$TMP/t_default"
+out="$(render "$TMP/t_default")"
+assert_contains "DEFAULT is used when nothing is entered" "NAME=admin" "$out"
 
 # ── Regression: EXIST_CLI on line 1 must not crash (the (( )) set -e landmine) ─
 
@@ -171,12 +171,12 @@ fi
 
 # ── Regression: '&' in a resolved value renders literally (no re-injection) ────
 
-printf 'AMP=EXIST_AMP\n# DEFAULT_FROM: AMP\nX=EXIST_CLI\n' > "$TMP/t_amp"
+printf '# DEFAULT: a&b\nX=EXIST_CLI\n' > "$TMP/t_amp"
 if out="$(try_render "$TMP/t_amp")"; then
-    assert_contains "ampersand value renders literally via DEFAULT_FROM" "X=a&b" "$out"
+    assert_contains "ampersand value renders literally via DEFAULT" "X=a&b" "$out"
     assert_not_contains "no token remains after & value (no infinite loop)" "EXIST_CLI" "$out"
 else
-    _fail "ampersand value renders literally via DEFAULT_FROM" "render_template exited non-zero (likely looped)"
+    _fail "ampersand value renders literally via DEFAULT" "render_template exited non-zero (likely looped)"
 fi
 
 # ── Rendering .env.shared itself must NOT self-substitute its own keys ─────────
@@ -340,9 +340,9 @@ assert_contains "new secret key got a generated value" "RECON_KEY=HX" "$(cat "$_
 assert_not_contains "the literal placeholder never lands" "EXIST_32_CHAR_HEX_KEY" "$(cat "$_RDST")"
 
 # A new EXIST_CLI key is a question whose answer is the user's. It arrives blank
-# — the established "not yet answered" sentinel — rather than guessed from
-# DEFAULT_FROM, which resolves against the template and could contradict the user.
-printf 'RECON_OLD=default-value\n# DEFAULT_FROM: RECON_OLD\nRECON_ASK=EXIST_CLI\n' > "$_RSRC"
+# — the established "not yet answered" sentinel — rather than guessed from its
+# DEFAULT, which could contradict the user.
+printf 'RECON_OLD=default-value\n# DEFAULT: guessed\nRECON_ASK=EXIST_CLI\n' > "$_RSRC"
 printf 'RECON_OLD=user-edited-this\n' > "$_RDST"
 out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
 assert_eq "new EXIST_CLI key appended blank" "RECON_ASK=" "$(grep '^RECON_ASK=' "$_RDST")"

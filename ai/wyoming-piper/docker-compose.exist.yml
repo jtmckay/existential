@@ -65,7 +65,3 @@ services:
 
 x-exist-volumes:
   wyoming_piper_cache: {}
-
-networks:
-  exist:
-    external: true

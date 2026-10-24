@@ -9,7 +9,7 @@ enable-signup: false
 auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 
-# Users, tokens, and access rules are created via: ./existential.sh run ntfy setup
+# Users and access rules are created by entrypoint.sh on every boot.
 
 cache-file: "/var/lib/ntfy/cache.db"
 attachment-cache-dir: "/var/lib/ntfy/attachments"

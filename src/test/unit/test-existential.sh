@@ -5,7 +5,7 @@
 #   - Pure helpers (_enable_var_for, _has_any_enabled, service_is_enabled,
 #     _find_service_dir_for_slug) are tested by sourcing existential.sh with
 #     Docker stubbed out so the runtime-detection block is harmless.
-#   - CLI behaviour (--help, unknown options, unknown actions, run dispatch)
+#   - CLI behaviour (--help, unknown actions, run dispatch)
 #     is tested by invoking existential.sh as a subprocess.
 #
 # Rules (from .claude/reference/testing.md):
@@ -176,7 +176,6 @@ make_fake_repo() {
     mkdir -p "${root}/nas/nextcloud"
     mkdir -p "${root}/src/lib"
     # create stub src/lib scripts so _list_setup_actions has something to list
-    touch "${root}/src/lib/backup-config.sh"
     touch "${root}/src/lib/rclone.sh"
     echo "$root"
 }
@@ -426,24 +425,6 @@ assert_exit "existential.sh under sudo → exits 1" 1 \
     env PATH="${_fakeroot}:$PATH" SUDO_USER=someone bash "$EXISTENTIAL" --help
 assert_output_contains "existential.sh under sudo → points at the docker group" "usermod -aG docker" \
     env PATH="${_fakeroot}:$PATH" SUDO_USER=someone bash "$EXISTENTIAL" --help
-
-# ── Section: CLI — unknown options ────────────────────────────────────────────
-
-echo ""
-echo "=== CLI: unknown options ==="
-
-assert_exit "existential.sh --bogus → exit 1"        1 bash "$EXISTENTIAL" --bogus
-assert_exit "existential.sh --FORCE → exit 1"        1 bash "$EXISTENTIAL" --FORCE
-# Output on stderr should mention the unknown option
-(
-    out=$(bash "$EXISTENTIAL" --bogus 2>&1) || true
-    if echo "$out" | grep -qF "Unknown option"; then
-        _ok "existential.sh --bogus → stderr mentions 'Unknown option'"
-    else
-        _fail "existential.sh --bogus → stderr mentions 'Unknown option'" \
-              "output: $(echo "$out" | head -3)"
-    fi
-)
 
 # ── Section: CLI — unknown actions ────────────────────────────────────────────
 

@@ -10,10 +10,6 @@
 # there are no per-slug A-records. Adding a service never touches this file; the
 # slug just needs a reverse_proxy block in hosting/caddy/Caddyfile, which is the
 # single source of truth for what `<slug>.<domain>` actually exists.
-#
-# The wildcard always points at the host running Caddy (EXIST_LOCAL_HOST_IP). In
-# peer mode that front-door Caddy forwards onward to EXIST_PEER_HOST_IP — see
-# hosting/caddy/Caddyfile.frontdoor-lan.example (or -public.example).
 
 services:
   pihole:
@@ -85,7 +81,6 @@ services:
       # line per slug (exactly the per-slug maintenance the wildcard removes).
       # Leave commented unless a specific subdomain must point somewhere else:
       # FTLCONF_dns_hosts: |
-      #   ${EXIST_PEER_HOST_IP} immich.${EXIST_DOMAIN}      # this one service lives on the peer host
       #   192.168.1.99 grafana.${EXIST_DOMAIN}              # pin grafana at a fixed box
     volumes:
       # pihole.toml, gravity.db and the pihole-FTL.db query log (SQLite + WAL).
@@ -109,7 +104,3 @@ services:
 x-exist-volumes:
   # gravity.db + pihole-FTL.db are SQLite (WAL) — never on NFS.
   pihole_data: { db: true }
-
-networks:
-  exist:
-    external: true

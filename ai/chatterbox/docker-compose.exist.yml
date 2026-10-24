@@ -85,7 +85,3 @@ x-exist-volumes:
   chatterbox_cache: {}
   chatterbox_logs_cache: {}
   chatterbox_outputs_data: {}
-
-networks:
-  exist:
-    external: true

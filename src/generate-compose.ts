@@ -506,7 +506,6 @@ function merge(
   hostRepoRoot: string,
   enabled: string[],
   nfsHostMount: string,
-  networkExternal = false,
   gpuVendor = 'nvidia',
 ): Record<string, unknown> {
   // First pass: collect every enabled service's x-exist-volumes declarations.
@@ -544,8 +543,9 @@ function merge(
     }
   }
 
-  // Always use the configured exist network definition, ignoring per-service declarations.
-  networks['exist'] = networkExternal ? { external: true } : { driver: 'bridge' };
+  // Compose creates and owns the exist network; a service template's own
+  // declaration of it is ignored, so nobody ever creates it by hand.
+  networks['exist'] = { driver: 'bridge' };
 
   const result: Record<string, unknown> = {};
   if (Object.keys(services).length) result['services'] = services;
@@ -663,18 +663,6 @@ function main(): void {
   process.stderr.write(`Enabled (${enabled.length}): ${enabled.join(', ')}\n`);
 
   const nfsHostMount = (env['EXIST_NFS_HOST_MOUNT'] ?? '').trim();
-  if ((env['EXIST_NFS_SERVER_ADDRESS'] ?? '').trim() && !nfsHostMount) {
-    process.stderr.write(
-      'ERROR: EXIST_NFS_SERVER_ADDRESS is set but EXIST_NFS_HOST_MOUNT is empty.\n' +
-      '  Persistent data is bind-mounted from a host path — the NFS share must be mounted\n' +
-      '  on the host (fstab/autofs), then set EXIST_NFS_HOST_MOUNT to that mountpoint\n' +
-      '  (e.g. /mnt/nas). See the NAS Storage quest. Refusing to silently fall back to\n' +
-      '  local disk for data you expect on NFS.\n',
-    );
-    process.exit(1);
-  }
-
-  const networkExternal = (env['EXIST_NETWORK_EXTERNAL'] ?? 'false').toLowerCase() === 'true';
 
   const gpuVendor = resolveGpuVendor(env);
   if (gpuVendor !== 'nvidia') {
@@ -684,7 +672,7 @@ function main(): void {
     );
   }
 
-  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, networkExternal, gpuVendor);
+  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, gpuVendor);
 
   mergeEnv(repoRoot, enabled);
 

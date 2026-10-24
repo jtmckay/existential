@@ -88,29 +88,20 @@ assert_contains "master .env carries the do-not-edit header" "DO NOT EDIT" "$env
 # ── NFS volume binds to the host mount when one is configured ──────────────────
 
 repo="$(new_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_SERVER_ADDRESS=1.2.3.4\nEXIST_NFS_HOST_MOUNT=/mnt/nas\n' > "$repo/.env.shared"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_HOST_MOUNT=/mnt/nas\n' > "$repo/.env.shared"
 tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
 compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
 assert_contains "nfs volume binds to host mount" "/mnt/nas/foo_nfs:/srv" "$compose"
 assert_contains "non-nfs volume still binds locally" "/host/realrepo/volumes/named_vol:/cache" "$compose"
 assert_not_contains "no Docker-managed volumes remain" "type: nfs" "$compose"
 
-# ── NFS server set without a host mount is a hard error ───────────────────────
+# ── The exist network is always Compose's own ─────────────────────────────────
 
 repo="$(new_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_SERVER_ADDRESS=1.2.3.4\n' > "$repo/.env.shared"
-rc=0
-err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || rc=$?
-assert_contains "errors when NFS server set without host mount" "EXIST_NFS_HOST_MOUNT" "$err"
-[[ "$rc" -ne 0 ]] && _ok "NFS-without-host-mount exits non-zero" || _fail "NFS-without-host-mount exits non-zero" "got rc=$rc"
-
-# ── External network mode ─────────────────────────────────────────────────────
-
-repo="$(new_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NETWORK_EXTERNAL=true\n' > "$repo/.env.shared"
+printf 'EXIST_IS_SERVICES_FOO=true\n' > "$repo/.env.shared"
 tsx "$GC" "$repo" docker-compose.yml >/dev/null 2>&1 || true
 compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
-assert_contains "EXIST_NETWORK_EXTERNAL=true marks network external" "external: true" "$compose"
+assert_not_contains "the exist network is never external" "external: true" "$compose"
 
 # ── No services enabled ───────────────────────────────────────────────────────
 

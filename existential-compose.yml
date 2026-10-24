@@ -22,7 +22,6 @@ services:
       - IN_CONTAINER=1
       - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
       - SECRETS_DIR=/secrets
-      - NTFY_TOKEN=${EXIST_NTFY_TOKEN:-}
       - NTFY_URL=${EXIST_NTFY_URL:-}
     volumes:
       - ./automation/secrets:/secrets:z

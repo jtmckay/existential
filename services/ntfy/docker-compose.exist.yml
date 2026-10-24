@@ -19,7 +19,7 @@ services:
       - "127.0.0.1:44680:80"
     # entrypoint.sh creates the admin and bot users from the env below, then
     # execs `ntfy serve`. server.yml denies every publish by default, so without
-    # it a fresh install accepts nothing until someone runs `run ntfy setup`.
+    # it a fresh install would accept nothing.
     entrypoint: /entrypoint.sh
     command:
       - serve
@@ -38,7 +38,6 @@ services:
       # sending and receiving halves can never disagree about the credential.
       - NTFY_BOT_USER=${EXIST_NTFY_USER:-}
       - NTFY_BOT_PASSWORD=${EXIST_NTFY_PASSWORD:-}
-      - NTFY_BOT_TOPICS=${EXIST_NTFY_TOPICS:-*}
     volumes:
       # Message + attachment cache (transient, TTL'd) — a _cache, not backed up.
       - ntfy_cache:/var/lib/ntfy
@@ -60,7 +59,3 @@ services:
 
 x-exist-volumes:
   ntfy_cache: {}
-
-networks:
-  exist:
-    external: true

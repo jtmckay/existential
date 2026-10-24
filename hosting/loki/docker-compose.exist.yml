@@ -93,7 +93,3 @@ x-exist-volumes:
   loki_alloy_data: {}
   # automation's runs live in workspace/.decree; declared identically everywhere.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

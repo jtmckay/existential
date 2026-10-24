@@ -26,24 +26,12 @@ install would otherwise accept nothing until someone ran a manual command — wh
 the sort of step that gets missed and then looks like a broken notification path. Its
 `entrypoint.sh` creates two users on first boot: your admin login, from `NTFY_ADMIN_USER` /
 `NTFY_ADMIN_PASSWORD` in `services/ntfy/.env`, and the publishing bot, from `EXIST_NTFY_USER` /
-`EXIST_NTFY_PASSWORD` in `.env.shared` — granted read-write on `EXIST_NTFY_TOPICS`. It waits for
+`EXIST_NTFY_PASSWORD` in `.env.shared` — granted read-write on every topic. It waits for
 ntfy to create its auth database first, since `ntfy user add` cannot run before that exists, and
 it is a no-op on every later start.
 
 Decree publishes as that user, so automations report in with no further configuration, and a
 run that fails or waits for you says so on the `decree` topic ([Decree](../decree/decree#when-a-run-needs-you)).
-
-### Using a token instead
-
-`EXIST_NTFY_TOKEN` takes precedence over the user and password when it is set, and ships blank.
-To mint one:
-
-```bash
-./existential.sh run ntfy setup
-```
-
-Leave it blank unless you want a token — a value ntfy does not recognise fails every publish with
-a 401, and because the token wins, the working user/password path is never tried.
 
 ### Customization
 

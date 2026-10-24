@@ -26,7 +26,7 @@ if [[ -z "${REPO_DIR:-}" ]]; then
     if [[ -n "${IN_CONTAINER:-}" ]]; then
         REPO_DIR="/repo"
     else
-        REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+        REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     fi
 fi
 

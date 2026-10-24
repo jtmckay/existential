@@ -204,12 +204,10 @@ render_template() {
 
     # EXIST_CLI — read text prompt.
     # Shows the contiguous comment block directly above the field as context.
-    # If that block contains `# DEFAULT_FROM: EXIST_FOO`, the value of EXIST_FOO
-    # (already resolved above) is used as the default when the user enters nothing.
-    # `# DEFAULT: <value>` gives a literal default instead.
+    # `# DEFAULT: <value>` in that block is used when the user enters nothing.
     while grep -q "EXIST_CLI" <<<"$content"; do
         local match line_content key_name context
-        local default_from default_val escaped
+        local default_val escaped
         match=$(grep -n "EXIST_CLI" <<<"$content" | head -1)
         line_num="${match%%:*}"
         line_content="${match#*:}"
@@ -217,22 +215,15 @@ render_template() {
 
         context="$(_context_above "$line_num" "$content")"
 
-        default_from=$(printf '%s\n' "$context" | \
-            sed -n 's/^# *DEFAULT_FROM: *\([A-Z_][A-Z0-9_]*\) *$/\1/p' | head -1)
-        default_val=""
-        if [[ -n "$default_from" ]]; then
-            default_val=$(grep -E "^${default_from}=" <<<"$content" | head -1 | cut -d= -f2-)
-        else
-            # `# DEFAULT: <value>` — a literal default, for a question every
-            # first run asks and most people should answer with Enter.
-            default_val=$(printf '%s\n' "$context" | sed -n 's/^# *DEFAULT: *\(.*[^ ]\) *$/\1/p' | head -1)
-        fi
+        # A literal default, for a question every first run asks and most
+        # people should answer with Enter.
+        default_val=$(printf '%s\n' "$context" | sed -n 's/^# *DEFAULT: *\(.*[^ ]\) *$/\1/p' | head -1)
 
         # When re-rendering an existing file (an _ALWAYS_RENDER destination),
         # recover the current value
         # from the destination by extracting what was previously substituted at
         # this line position. Matches both key=VALUE and bare-token (e.g. YAML
-        # volume) contexts. Current value takes priority over DEFAULT_FROM.
+        # volume) contexts. Current value takes priority over DEFAULT.
         if [[ -e "$dst" ]]; then
             local _tpl_line _before_cli _after_cli _dst_line _stripped _current_val
             _tpl_line=$(sed -n "${line_num}p" <<<"$content")
@@ -574,8 +565,8 @@ _reconcile_env_keys() {
         # Classify by the placeholder on the TEMPLATE line, not the rendered one.
         # An EXIST_CLI key is a question whose answer belongs to the user, so it
         # is appended blank — this repo's established "not yet answered" sentinel
-        # — rather than guessed from DEFAULT_FROM, which resolves against the
-        # template's own values and could contradict something the user set.
+        # — rather than guessed from its DEFAULT, which could contradict
+        # something the user set.
         # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY,
         # EXIST_ASK_PASSWORD — which generates when it cannot ask) and static
         # defaults both take the rendered value: a service arriving for the first

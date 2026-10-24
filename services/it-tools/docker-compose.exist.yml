@@ -38,7 +38,3 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - '43491:80'
-
-networks:
-  exist:
-    external: true

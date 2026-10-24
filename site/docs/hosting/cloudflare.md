@@ -51,10 +51,7 @@ certificate, so strict costs nothing.
    tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
    ```
 
-   In peer mode that is the front door's `Caddyfile` (start from
-   `Caddyfile.frontdoor-public.example`, which ships the same line pointing at
-   `public.pem`). On a single host you are hand-managing `hosting/caddy/Caddyfile` —
-   do **not** use `run caddy public-domain`, which regenerates `Caddyfile.public`
+   That is hand-managing `hosting/caddy/Caddyfile`, so do **not** use `run caddy public-domain`, which regenerates `Caddyfile.public`
    from scratch on every run and would overwrite the change. Then
    `docker compose restart caddy` from the repo root.
 

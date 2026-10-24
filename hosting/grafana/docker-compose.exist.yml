@@ -52,7 +52,3 @@ services:
 
 x-exist-volumes:
   grafana_data: { db: true }
-
-networks:
-  exist:
-    external: true

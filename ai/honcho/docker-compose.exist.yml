@@ -147,7 +147,3 @@ services:
 
 x-exist-volumes:
   honcho_postgres_data: { db: true }
-
-networks:
-  exist:
-    external: true

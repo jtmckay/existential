@@ -38,8 +38,6 @@ Setup:
 
   3. Edit .env.shared and set:
          EXIST_NFS_HOST_MOUNT=/mnt/nas             # the host mountpoint above
-         EXIST_NFS_SERVER_ADDRESS=<your-nas-ip>    # documentation only
-         EXIST_NFS_BASE_PATH=<nfs-export-base-path># documentation only
 
   4. Re-render so the generated compose binds persistent volumes to the mount:
          ./existential.sh reset && ./existential.sh
@@ -48,6 +46,4 @@ Setup:
      overwrites. Your volumes are never touched.
 
 If EXIST_NFS_HOST_MOUNT is blank, all data stays under <repo>/volumes/.
-Setting EXIST_NFS_SERVER_ADDRESS without EXIST_NFS_HOST_MOUNT is a hard
-error (it refuses to silently write NFS data to local disk). You can skip
-this quest and add NFS later at any time.
+You can skip this quest and add NFS later at any time.

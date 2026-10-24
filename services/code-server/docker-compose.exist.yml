@@ -89,9 +89,9 @@ services:
       - CODE_SERVER_CAPTURE=${CODE_SERVER_CAPTURE:-true}
       - CAPTURE_DIR=/workspace/.capture
       - CAPTURE_HOST=code-server
-      # The search MCP endpoint (http://qmd:8181/mcp with the Search add-on):
-      # entrypoint.sh hands it to both CLIs. Blank = no search.
-      - EXIST_SEARCH_MCP_URL=${EXIST_SEARCH_MCP_URL:-}
+      # The Search add-on (ai/qmd): when on, entrypoint.sh hands its MCP
+      # endpoint to both CLIs and puts `search` on PATH; when off, none of it.
+      - EXIST_IS_AI_QMD=${EXIST_IS_AI_QMD:-false}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
@@ -118,7 +118,3 @@ x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

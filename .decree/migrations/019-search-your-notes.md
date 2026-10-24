@@ -36,13 +36,14 @@ tool that sends a report off the machine without asking. qmd met every requireme
   - qmd still answers keyword search;
   - its log says `NEURAL INDEX NOT READY` with the reason;
   - `./existential.sh run qmd test` fails.
-- **Clients.** With `EXIST_SEARCH_MCP_URL` set, code-server's Claude Code and opencode both
+- **Clients.** With `EXIST_IS_AI_QMD=true`, code-server's Claude Code and opencode both
   use the one index over MCP:
   - Claude Code's read-only qmd tools run without a prompt.
   - The `recall` skill is at `workspace/.claude/skills/recall/`.
-  - With the URL blank, none of the three is present.
-- **A terminal command.** `search <words>` in code-server's terminal (with
-  `EXIST_SEARCH_MCP_URL` set) and `./existential.sh run qmd search <words>` on the host
+  - With the add-on off, none of the three is present. There is no second setting:
+    the one switch turns search on everywhere.
+- **A terminal command.** `search <words>` in code-server's terminal (with the add-on
+  on) and `./existential.sh run qmd search <words>` on the host
   run the same hybrid search without MCP or an AI, print `path:line` and the passage
   for each hit, best first, and say when files are still keyword-only. An empty result
   says that it is not proof of absence.
@@ -75,7 +76,8 @@ tool that sends a report off the machine without asking. qmd met every requireme
   the workspace is never written to.
 - No query or document text leaves the machine. The only outbound connection is the model
   download.
-- Core does not depend on qmd: code-server reaches it only through `EXIST_SEARCH_MCP_URL`.
+- Core works the same with qmd off: code-server wires search only when `EXIST_IS_AI_QMD`
+  is true.
 
 ## Acceptance Criteria
 
@@ -101,7 +103,7 @@ tool that sends a report off the machine without asking. qmd met every requireme
   **When** a refresh has run
   **Then** keyword search still answers, the log says `NEURAL INDEX NOT READY`, and
   `./existential.sh run qmd test` exits non-zero
-- **Given** `EXIST_SEARCH_MCP_URL=http://qmd:8181/mcp`
+- **Given** `EXIST_IS_AI_QMD=true`
   **When** code-server starts
-  **Then** `claude mcp get qmd` names that URL, `settings.json` allows `mcp__qmd`,
+  **Then** `claude mcp get qmd` names `http://qmd:8181/mcp`, `settings.json` allows `mcp__qmd`,
   `workspace/.claude/skills/recall/SKILL.md` exists, and `search` is on the terminal's PATH

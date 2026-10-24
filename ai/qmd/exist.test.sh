@@ -98,20 +98,9 @@ fi
 # The terminal command (`search` in code-server, `run qmd search` on the host).
 if [[ "${DOCS:-0}" != 0 ]]; then
     _cli="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/automation/lib/recall/search.sh"
-    if EXIST_SEARCH_MCP_URL="${QMD_URL}/mcp" "$_cli" e >/dev/null 2>&1; then
+    if QMD_URL="${QMD_URL}" "$_cli" e >/dev/null 2>&1; then
         ok "the search command answers"
     else
         fail "the search command answers" "automation/lib/recall/search.sh e failed" "./existential.sh run qmd search e"
     fi
 fi
-
-# ── 4. Something uses it ─────────────────────────────────────────────────────
-
-if [[ -z "${EXIST_SEARCH_MCP_URL:-}" ]]; then
-    warn "a client is connected to qmd" "EXIST_SEARCH_MCP_URL is blank, so code-server's Claude Code and opencode don't know qmd exists" \
-         "Set EXIST_SEARCH_MCP_URL=http://qmd:8181/mcp in .env.shared, then: docker compose up -d --force-recreate code-server"
-else
-    ok "clients point at ${EXIST_SEARCH_MCP_URL}"
-fi
-
-finish

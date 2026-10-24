@@ -45,7 +45,7 @@
 # Cloudflare origin pair (user-supplied):
 **/cloudflare-key.pem
 **/cloudflare.pem
-# Your own public-domain wildcard pair (Caddyfile.frontdoor-public.example):
+# Your own public-domain wildcard pair, if you hand-manage the Caddyfile:
 **/public-key.pem
 **/public.pem
 # Stable *.internal cert + CA, minted by caddy/exist.initial.sh (keys are secret;

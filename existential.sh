@@ -509,7 +509,6 @@ _run_service_action() {
 _run_general_utility() {
     local name="$1"; shift
     case "$name" in
-        backup-config)  run_adhoc bash "/src/lib/backup-config.sh" "$@" ;;
         backup-restore) bash "${SCRIPT_DIR}/src/lib/backup-restore.sh" "$@" ;;
         # Host-side: needs the Docker socket to borrow root, which adhoc lacks —
         # and reclaiming ownership of the repo from inside a container bind-mounted
@@ -543,47 +542,58 @@ run_setup() {
     _run_service_action "$first" "${2:-initial}" "${@:3}"
 }
 
+# ── The build, shared by the bare command and `quest` ─────────────────────────
+
+# Render every enabled service's templates. A blank EXIST_DOMAIN /
+# EXIST_LOCAL_HOST_IP is back-filled *before* rendering: render_template
+# substitutes blank shared values as the empty string, and a destination is
+# written once and never re-rendered, so a template that bakes a bare
+# EXIST_DOMAIN token would otherwise get "" baked in permanently by the very run
+# that fills the value in. No-op on a first run (no .env.shared yet);
+# templates.sh fills both itself there.
+_render() {
+    _ensure_host_access
+    run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
+    _reload_env_shared
+}
+
+# Everything after rendering: ids, Tailscale, the compose file, setup scripts.
+_build() {
+    _ensure_host_ids
+    _tailscale_serve_core
+    echo ""
+    echo "Generating docker-compose.yml..."
+    run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
+    _warn_if_no_gateway
+    run_initials
+    echo "Done! Next step:  docker compose up -d"
+    _report_dashboard
+}
+
 # ── Usage ─────────────────────────────────────────────────────────────────────
 
 usage() {
     cat <<EOF
-Usage: $0 <action> [args]
+Usage: $0 [action]
 
 Actions:
-  (default)           Render *.exist.* templates, run exist.initial.sh for all
-                      enabled services (idempotent), then generate docker-compose.yml.
-                      Auto-launches quest picker if no services are enabled.
-  quest               Interactive onboarding wizard — pick what to build, then
-                      run full setup. Re-run anytime to add more services.
-  reset               Archive every rendered config file to archive/<timestamp>/
-                      so the next run renders fresh. Lists what it will move and
-                      asks first. NEVER touches volumes — your data stays put.
-  run                 List available run actions.
-  run <name>          Run a general utility (src/lib/<name>.sh) or a
-                      service's exist.initial.sh.
-  run <slug> <act>    Run <category>/<slug>/exist.<act>.sh.
-  run fix-permissions Reclaim paths owned by another user and restore tracked
-                      file modes (recovery hatch — for when Docker created a
-                      bind-mount source as root). --dry-run to preview.
-  test [name]         Run tests. 'all' (default) runs general infra tests +
-                      every enabled service's exist.test.sh. 'secrets' asserts no
-                      rendered secrets are tracked; 'guards'/'harness' prove the
-                      secret guards / test plumbing trip on bad input; 'lint'
-                      shellchecks every tracked shell script; 'typecheck' runs
-                      tsc --noEmit over the TypeScript; 'decree' runs decree
-                      check over both projects and every template; 'selfcheck'
-                      proves each unit suite fails on a forced assertion;
-                      'unit'/'integration'/'services' run those suites. Anything
-                      else is a service slug.
-  validate [name]     On-demand checks: all (default), conventions, drift.
-  e2e                 End-to-end: fzf quest picker → fresh clone → render → docker up → test → down.
-  e2e --all           Run all e2e-testable quests without prompting.
-  e2e <pattern>...    Run e2e-testable quests matching name/filename pattern(s),
-                      e.g. 'e2e automation' or 'e2e ai finance'.
-  e2e down            Spin down leftover e2e containers/networks/volumes/work dirs
-                      from a crashed run (recovery hatch — never touches the real stack).
-
-Options:
+  (none)                 Render templates for enabled services, run their setup
+                         scripts, generate docker-compose.yml. Opens the quest
+                         picker when nothing is enabled yet.
+  quest                  Pick what to build, then the same.
+  reset                  Archive every rendered file to archive/<timestamp>/ so the
+                         next run renders fresh. Asks first; never touches volumes.
+  run                    List every action.
+  run <utility> [args]   A general utility in src/lib/ (rclone, models, footprint, ...).
+  run <slug> [action] [args]
+                         A service's exist.<action>.sh (action defaults to initial).
+  test [name]            all (default); secrets, guards, harness, lint, typecheck,
+                         decree, selfcheck, unit, integration or services; any
+                         unit or integration suite by name; or a service slug.
+  validate [name]        all (default), conventions or drift.
+  e2e [--all|down|<pattern>...]
+                         Does a fresh install come up working? Clone, render, up,
+                         test, down, per quest.
 EOF
 }
 
@@ -602,14 +612,6 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     return 0
 fi
 
-while [[ $# -gt 0 && "$1" == --* ]]; do
-    case "$1" in
-        --help)  usage; exit 0 ;;
-        *)       echo "Unknown option: $1" >&2; usage; exit 1 ;;
-    esac
-    shift
-done
-
 action="${1:-default}"
 [[ $# -gt 0 ]] && shift || true
 
@@ -620,15 +622,7 @@ case "$action" in
 
         ensure_git_hooks
         ensure_adhoc_built
-        # Back-fill a blank EXIST_DOMAIN / EXIST_LOCAL_HOST_IP *before* rendering.
-        # render_template substitutes blank shared values as the empty string, and
-        # a destination is written once and never re-rendered — so a template that
-        # bakes a bare EXIST_DOMAIN token would otherwise get "" baked in
-        # permanently by the very run that fills the value in. No-op on a first
-        # run (no .env.shared yet); templates.sh fills both itself there.
-        _ensure_host_access
-        run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
-        _reload_env_shared
+        _render
 
         if ! _has_any_enabled; then
             echo ""
@@ -642,19 +636,9 @@ case "$action" in
             fi
             echo ""
             run_adhoc env REPO_DIR=/repo bash /src/quest.sh
-            _ensure_host_access
-            run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
-            _reload_env_shared
+            _render
         fi
-        _ensure_host_ids
-        _tailscale_serve_core
-        echo ""
-        echo "Generating docker-compose.yml..."
-        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
-        _warn_if_no_gateway
-        run_initials
-        echo "Done! Next step:  docker compose up -d"
-        _report_dashboard
+        _build
         [[ "$_is_first_run" == "true" ]] && _report_login
         echo ""
         echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
@@ -663,24 +647,14 @@ case "$action" in
         # Before anything is archived, while docker-compose.yml still exists.
         _offer_stack_down
         ensure_adhoc_built
-        run_adhoc env REPO_DIR=/repo bash /src/lib/reset.sh
+        run_adhoc env REPO_DIR=/repo bash /src/reset.sh
         ;;
     quest)
         ensure_git_hooks
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/quest.sh "$@"
-        _ensure_host_access
-        run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
-        _reload_env_shared
-        _ensure_host_ids
-        _tailscale_serve_core
-        echo ""
-        echo "Generating docker-compose.yml..."
-        run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
-        _warn_if_no_gateway
-        run_initials
-        echo "Done! Next step:  docker compose up -d"
-        _report_dashboard
+        _render
+        _build
         ;;
     run)
         run_setup "$@"
@@ -726,9 +700,17 @@ case "$action" in
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
             integration) run_adhoc bash /src/test/run-all.sh integration ;;
             services)    run_adhoc bash /src/test/run-all.sh services ;;
-            syntax|existential|templates|compose) run_adhoc bash "/src/test/unit/test-${1}.sh" ;;
-            gmail|rclone)                          run_adhoc bash "/src/test/integration/test-${1}.sh" ;;
-            *)                   _run_service_action "${1}" "test" ;;
+            # A suite by name (src/test/{unit,integration}/test-<name>.sh), else
+            # a service's exist.test.sh. No suite shares a name with a service.
+            *)
+                if [[ -f "${SCRIPT_DIR}/src/test/unit/test-${1}.sh" ]]; then
+                    run_adhoc bash "/src/test/unit/test-${1}.sh"
+                elif [[ -f "${SCRIPT_DIR}/src/test/integration/test-${1}.sh" ]]; then
+                    run_adhoc bash "/src/test/integration/test-${1}.sh"
+                else
+                    _run_service_action "${1}" "test"
+                fi
+                ;;
         esac
         ;;
     validate)

@@ -6,7 +6,7 @@
 #   tmx       services/automation/decree/tmx.sh (the image's /etc/profile.d copy)
 #             must never start a second session under a name already running —
 #             `tmx -d claude claude remote-control` is safe to re-run.
-#   search    with a search URL, opencode gets it as a remote MCP server; without, none.
+#   search    with search on, opencode gets qmd as a remote MCP server; without, none.
 #   mermaid   DEFAULT_EXTENSIONS must include a mermaid-rendering markdown
 #             preview, so .decree/graph/<machine>.md shows as a diagram.
 #
@@ -51,7 +51,7 @@ else
     cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "file:///opt/capture/opencode.ts")"
     assert_eq "opencode loads the capture plugin when on" '["file:///opt/capture/opencode.ts"]' \
         "$(jq -c .plugin <<<"$cfg")"
-    assert_eq "opencode has no MCP server without a search URL" "{}" "$(jq -c .mcp <<<"$cfg")"
+    assert_eq "opencode has no MCP server with search off" "{}" "$(jq -c .mcp <<<"$cfg")"
     cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "" "http://qmd:8181/mcp")"
     assert_eq "opencode reaches search as a remote MCP server" '{"type":"remote","url":"http://qmd:8181/mcp","enabled":true}' \
         "$(jq -c .mcp.qmd <<<"$cfg")"

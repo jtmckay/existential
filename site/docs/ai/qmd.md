@@ -21,14 +21,7 @@ from them, and nothing in this setup keeps knowledge anywhere else.
 
 ## Enable
 
-In `.env.shared`:
-
-```bash
-EXIST_IS_AI_QMD=true
-EXIST_SEARCH_MCP_URL=http://qmd:8181/mcp
-```
-
-Then `./existential.sh && docker compose up -d --build qmd`, and
+In `.env.shared`, `EXIST_IS_AI_QMD=true`. Then `./existential.sh && docker compose up -d --build qmd`, and
 `docker compose up -d --force-recreate code-server` so Claude Code and opencode pick it
 up. `./existential.sh run qmd test` checks it. `./existential.sh quest` offers it as **Search**.
 
@@ -139,7 +132,7 @@ result is a ranking only.
 No MCP and no AI needed:
 
 ```bash
-search restic forget            # in code-server's terminal, when EXIST_SEARCH_MCP_URL is set
+search restic forget            # in code-server's terminal
 ./existential.sh run qmd search restic forget      # on the host
 ```
 
@@ -158,10 +151,10 @@ A coding agent on the host with no MCP set up can run the same command.
 
 ## Using it from AI tools
 
-**Claude Code** in code-server: with `EXIST_SEARCH_MCP_URL` set, code-server's
+**Claude Code** in code-server: with `EXIST_IS_AI_QMD=true`, code-server's
 entrypoint registers the server (`claude mcp add --transport http --scope user qmd …`),
 allows its read-only tools without a prompt (`mcp__qmd` in `settings.json`), and copies
-the recall skill to `workspace/.claude/skills/recall/`. Blank the URL and recreate
+the recall skill to `workspace/.claude/skills/recall/`. Turn the add-on off and recreate
 code-server to remove all three.
 
 **opencode** in code-server gets the same server as a `remote` MCP entry in the config

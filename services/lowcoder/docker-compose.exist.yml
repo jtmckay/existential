@@ -259,7 +259,3 @@ x-exist-volumes:
   lowcoder_mongo_data: { db: true }
   lowcoder_mongo_config_data: { db: true }
   lowcoder_redis_cache: { db: true }
-
-networks:
-  exist:
-    external: true

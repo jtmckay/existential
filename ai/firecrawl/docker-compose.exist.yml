@@ -233,7 +233,3 @@ x-exist-volumes:
   # means re-crawling.
   firecrawl_rabbitmq_cache: { db: true }
   firecrawl_postgres_data: { db: true }
-
-networks:
-  exist:
-    external: true

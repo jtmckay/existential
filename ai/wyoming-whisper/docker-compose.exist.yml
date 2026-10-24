@@ -97,7 +97,3 @@ services:
 
 x-exist-volumes:
   wyoming_whisper_cache: {}
-
-networks:
-  exist:
-    external: true

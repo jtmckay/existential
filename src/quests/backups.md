@@ -23,10 +23,10 @@ Nightly copies are kept 7 days, weekly copies 28.
 
 ── 1. Say where backups go ───────────────────────────────────────────────
 
-Nothing is backed up anywhere until this is set. It writes
-EXIST_BACKUP_RCLONE_REMOTE:
+Nothing is backed up anywhere until this is set. Add the remote, then name the
+destination when it asks; that writes EXIST_BACKUP_RCLONE_REMOTE:
 
-       ./existential.sh run backup-config
+       ./existential.sh run rclone
 
 ── 2. Copy a cron per service you actually enabled ───────────────────────
 

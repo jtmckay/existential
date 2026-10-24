@@ -214,7 +214,3 @@ x-exist-volumes:
   # the database, and `db: true` together with `nfs: true` is a hard error in
   # validate-conventions, so this is enforced rather than merely documented.
   immich_pg_data: { db: true }
-
-networks:
-  exist:
-    external: true

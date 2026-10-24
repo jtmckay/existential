@@ -136,13 +136,13 @@ else
     bash /opt/capture/capture.sh uninstall >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not removed"
 fi
-# Search (ai/qmd, or any MCP server at EXIST_SEARCH_MCP_URL): one index for
+# Search (ai/qmd, when EXIST_IS_AI_QMD is true): one index for
 # both CLIs. Claude Code gets it at user scope with its read-only tools allowed
 # without a prompt, plus the recall skill at the workspace root, which says when
 # and how to search; opencode gets it in the config below; the terminal gets a
 # `search` command (lib/recall/search.sh, linked like `hermes`). A blank URL
 # removes all of it on the next boot. Never fatal: search is optional.
-_search="${EXIST_SEARCH_MCP_URL:-}"
+_search=""; [[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _search=http://qmd:8181/mcp
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
 {
     "$NPM_BIN/claude" mcp remove qmd --scope user >/dev/null 2>&1 || true
@@ -157,7 +157,7 @@ _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
     else
         rm -rf /workspace/.claude/skills/recall "$NPM_BIN/search"
     fi
-} || echo "[code-server] WARN: search (EXIST_SEARCH_MCP_URL) not wired into Claude Code"
+} || echo "[code-server] WARN: search (ai/qmd) not wired into Claude Code"
 # shellcheck source=/dev/null
 . /opt/hermes/model.sh
 _opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"

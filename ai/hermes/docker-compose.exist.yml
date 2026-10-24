@@ -148,7 +148,3 @@ x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
-
-networks:
-  exist:
-    external: true

@@ -51,7 +51,3 @@ services:
     # Uncomment to expose directly:
     #   ports:
     #     - 9980:9980
-
-networks:
-  exist:
-    external: true

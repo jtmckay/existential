@@ -58,7 +58,3 @@ x-exist-volumes:
   # Declared identically everywhere it is mounted.
   workspace_data: {}
   qmd_cache: { db: true }
-
-networks:
-  exist:
-    external: true

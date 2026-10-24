@@ -287,7 +287,7 @@ filled in by `./existential.sh` once `tailscale serve` works there and never ove
 builds its base URL from it (`https://<name>:8443`), and the morning digest links to
 code-server at `https://<name>`. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
 
-The rest are the Caddy add-on's. `EXIST_LOCAL_HOST_IP`, `EXIST_DOMAIN`, `EXIST_PEER_HOST_IP` and
+The rest are the Caddy add-on's. `EXIST_LOCAL_HOST_IP`, `EXIST_DOMAIN` and
 `EXIST_PUBLIC_DOMAIN` are covered end to end in [The Pieces → Hostnames that just
 work](./how-it-works.md#hostnames-that-just-work). The short version:
 
@@ -302,33 +302,25 @@ work](./how-it-works.md#hostnames-that-just-work). The short version:
 - If you use Tailscale, **never** set `EXIST_DOMAIN` to a MagicDNS name like
   `<node>.ts.net`. MagicDNS resolves exact node names only — there is no wildcard beneath
   one — so every `<slug>.` under it is NXDOMAIN.
-- `EXIST_PEER_HOST_IP` is only for peer mode, where Caddy lives on a separate front-door
-  host. Blank means single-host.
 - `EXIST_PUBLIC_DOMAIN` adds real Let's Encrypt certs alongside the local hostnames. It
   requires that you own the domain, that `<domain>` and `*.<domain>` resolve to your
   public IP, and that ports 80 and 443 are forwarded to this machine. Run
   `./existential.sh run caddy public-domain` after changing it.
 
-`EXIST_NETWORK_EXTERNAL` and `EXIST_DOCKER_NETWORK_SUBNET` describe the `exist` bridge
-network — set the first to `true` only if you create the network yourself with
-`docker network create`.
+The `exist` network is created by `docker compose up`, never by hand: Compose owns it.
 
 ## Storage
 
 Persistent data is host bind mounts, never Docker-managed volumes. Without an NFS host
 mount, every volume lives under `<repo>/volumes/<name>`.
 
-The NFS trio ships blank and **none of them is a first-run question** — a NAS is a thing
-you either have or you don't. The NAS Storage quest (`./existential.sh quest`) walks
-through mounting the export and filling them in, and you can run it at any time.
+`EXIST_NFS_HOST_MOUNT` ships blank and is **not** a first-run question — a NAS is a thing
+you either have or you don't. Mount the NFS export on the **host** (fstab/autofs), then
+point `EXIST_NFS_HOST_MOUNT` at that mountpoint; Docker never mounts NFS itself. The NAS
+Storage quest (`./existential.sh quest`) walks through it, at any time.
 
-To do it by hand, mount the NFS export on the **host** (fstab/autofs), then point
-`EXIST_NFS_HOST_MOUNT` at that mountpoint. `EXIST_NFS_SERVER_ADDRESS` and
-`EXIST_NFS_BASE_PATH` only document where the export lives (the quest reads them); Docker
-no longer mounts NFS itself.
-
-`EXIST_BACKUP_RCLONE_REMOTE` is any rclone remote (`<remote>:<path>`), set by
-`./existential.sh run backup-config`. Blank disables scheduled DB backups; volume backups
+`EXIST_BACKUP_RCLONE_REMOTE` is any rclone remote (`<remote>:<path>`), set
+at the end of `./existential.sh run rclone`. Blank disables scheduled DB backups; volume backups
 are invoked manually.
 
 ## Shared service credentials
@@ -336,17 +328,9 @@ are invoked manually.
 The remaining keys are secrets shared *between* services, generated on render:
 
 - `EXIST_HERMES_API_KEY` — the hermes gateway key, shared by hermes-agent and open-webui.
-- `EXIST_NTFY_URL` / `EXIST_NTFY_TOKEN` — push notifications. The URL is container-to-container
-  (Docker DNS). `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are the publishing identity, created by
-  ntfy's own entrypoint on first boot — nothing to run by hand. `EXIST_NTFY_TOKEN` is optional and
-  ships blank; it takes precedence when set, so a stale or unrecognised value 401s every publish
-  and the working user/password path is never tried. Mint one with `./existential.sh run ntfy setup`.
-  `EXIST_NTFY_TOPICS` is what that identity is granted read/write on — `*` by default, because
-  services publish to topics of their own naming (`decree`, `alerts`, `exist-md`, …). Narrow it
-  only if you also rename those topics, or publishes start failing with a permission error.
-- `EXIST_TELEGRAM_BOT_TOKEN` / `EXIST_TELEGRAM_CHAT_ID` — the fallback `notify.sh` uses when
-  ntfy is unreachable. Create a bot with [BotFather](https://t.me/BotFather) (`/newbot`), then
-  message it and read the chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+- `EXIST_NTFY_URL` — push notifications, container-to-container (Docker DNS).
+  `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are the publishing identity, created by ntfy's own
+  entrypoint on first boot and allowed to publish to every topic — nothing to run by hand.
 - `EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN` — the bearer token Nextcloud's file-event webhooks
   send to decree's `/files` endpoint. Nextcloud stores it once, when the
   `nextcloud-file-events` migration registers them — see

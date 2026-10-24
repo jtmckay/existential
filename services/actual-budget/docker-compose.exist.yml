@@ -49,7 +49,3 @@ services:
 
 x-exist-volumes:
   actual_budget_data: { db: true }
-
-networks:
-  exist:
-    external: true

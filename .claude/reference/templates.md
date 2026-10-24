@@ -21,9 +21,8 @@ recoverable. A rendered `.env` is never overwritten in place at all.
 - `EXIST_NIP_DOMAIN` — a wildcard-DNS domain derived from it.
 - bare `EXIST_*` — pulls the matching var from root `.env.shared`.
 
-An `EXIST_CLI` line can fall back to another var with a `# DEFAULT_FROM: EXIST_FOO` comment
-directly above it, or to a literal with `# DEFAULT: <value>` (either is used if the user enters
-blank). Add a new generator only when a template
+An `EXIST_CLI` line can fall back to a literal with a `# DEFAULT: <value>` comment directly
+above it, used if the user enters blank. Add a new generator only when a template
 actually needs it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`,
 `EXIST_TIMESTAMP`) were carried for nothing and removed.
 
@@ -134,7 +133,7 @@ comment carries a URL to the relevant section rather than the explanation:
 EXIST_MODEL_CHAT_NUM_CTX=65536
 ```
 
-Two comment forms are structural and stay regardless: `# DEFAULT_FROM: EXIST_FOO` or `# DEFAULT: <value>`
+Two comment forms are structural and stay regardless: `# DEFAULT: <value>`
 above an `EXIST_CLI` line, and `# convention-exempt: upstream-env` at the top of a wholesale upstream env
 file. When you add or change a key, update its doc section in the same task.
 
@@ -146,6 +145,4 @@ file. When you add or change a key, update its doc section in the same task.
   `conf.yml` and does no substitution of its own); it is in `_ALWAYS_RENDER`, so a domain change
   propagates on the next plain `./existential.sh`. Note the bare-token sed rewrites **prose
   too** — don't name the variable in that file's comments or the name is replaced with its value.
-- `.example` swap-ins (`Caddyfile.frontdoor.example`) → `{$EXIST_DOMAIN}` (Caddy expands from
-  its container env). Never put `{$EXIST_DOMAIN}` in a rendered file — the bare-token sed would
-  corrupt it.
+- Never put `{$EXIST_DOMAIN}` in a rendered file — the bare-token sed would corrupt it.
