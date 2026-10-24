@@ -396,6 +396,26 @@ assert_output_contains "existential.sh --help → prints Actions" \
 assert_output_contains "existential.sh --help → mentions reset" \
     "reset" bash "$EXISTENTIAL" --help
 
+# ── Section: _report_login — the end of a first run ──────────────────────────
+#
+# A first run where both defaults were accepted has to say what the username is
+# and where both live, next to ntfy's phone-app login — and never the password.
+
+FAKE_LOGIN="$(make_fake_repo login)"
+printf 'EXIST_USERNAME=admin\nEXIST_PASSWORD=s3cretPassw0rdValue\nEXIST_IS_SERVICES_NTFY=true\nEXIST_TAILNET_NAME=box.tail1.ts.net\n' \
+    > "${FAKE_LOGIN}/.env.shared"
+_login_out="$(_source_existential "$FAKE_LOGIN" "_report_login" 2>&1)"
+for _want in "admin" "EXIST_USERNAME in .env.shared" "EXIST_PASSWORD in .env.shared" \
+             "https://box.tail1.ts.net:8443" "services/ntfy/.env"; do
+    if grep -qF -- "$_want" <<<"$_login_out"; then _ok "_report_login names: ${_want}"
+    else _fail "_report_login names: ${_want}" "$_login_out"; fi
+done
+if grep -qF "s3cretPassw0rdValue" <<<"$_login_out"; then
+    _fail "_report_login never prints the password" "$_login_out"
+else
+    _ok "_report_login never prints the password"
+fi
+
 # ── Section: CLI — refuses sudo ───────────────────────────────────────────────
 
 _fakeroot="${TMPDIR_ROOT}/fakeroot-bin"

@@ -261,11 +261,17 @@ unaffected, they are CPU already.
 
 ## Identity and permissions
 
-`EXIST_EMAIL`, `EXIST_USERNAME` and `EXIST_PASSWORD` are the default credentials seeded
-into services that need an admin account on first boot. The first run asks for all three;
-pressing Enter at the password generates a 24-character one. A password you type has to be
-8 or more characters of `A-Za-z0-9._-` — that value is written unquoted into env files, YAML
-and JSON all over the stack, so anything else would break a service rather than the prompt.
+`EXIST_USERNAME` and `EXIST_PASSWORD` are your login: ntfy's (the phone app logs in with them)
+and every admin account a service creates on first boot. They are the only two things the first
+run asks about you. Enter accepts the defaults: `admin`, and a generated 24-character password.
+The run ends by naming the username and pointing at the key that holds the password; it never
+prints the password. A password you type has to be 8 or more characters of `A-Za-z0-9._-`:
+that value is written unquoted into env files, YAML and JSON all over the stack, so anything
+else would break a service rather than the prompt.
+
+`EXIST_EMAIL` ships blank, because nothing in Core needs one. The first run that enables an
+add-on whose template uses it (Open WebUI, NocoDB, Appsmith) asks for it once, before that
+service renders, and fills it in; a blank answer asks again next run.
 
 `EXIST_PUID` / `EXIST_PGID` are the host user and group every container runs as
 (referenced in compose files as `${EXIST_PUID:-1000}:${EXIST_PGID:-1000}`), so files

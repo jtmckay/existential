@@ -74,8 +74,9 @@ before it answers, a couple of minutes on a fresh install.
 
 2. Subscribe to ntfy. Its entrypoint already created your admin login
    (services/ntfy/.env) and the exist-bot publisher Decree uses. Point the ntfy
-   mobile app at https://<machine>.<tailnet>.ts.net:8443, log in as the admin,
-   and subscribe to the "decree" topic.
+   mobile app at https://<machine>.<tailnet>.ts.net:8443, log in with your username
+   and password (EXIST_USERNAME / EXIST_PASSWORD in .env.shared), and subscribe to
+   the "decree" topic.
 
 3. Keep the workspace safe: put it under git, with a remote you choose. It is
    the simplest backup there is, and Core ships no other.

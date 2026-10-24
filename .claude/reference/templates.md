@@ -22,14 +22,17 @@ recoverable. A rendered `.env` is never overwritten in place at all.
 - bare `EXIST_*` — pulls the matching var from root `.env.shared`.
 
 An `EXIST_CLI` line can fall back to another var with a `# DEFAULT_FROM: EXIST_FOO` comment
-directly above it (used if the user enters blank). Add a new generator only when a template
+directly above it, or to a literal with `# DEFAULT: <value>` (either is used if the user enters
+blank). Add a new generator only when a template
 actually needs it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`,
 `EXIST_TIMESTAMP`) were carried for nothing and removed.
 
 **Keep the first run's prompt count near zero.** Anything the machine can determine, it should:
 a prompt whose right answer is "press Enter" is not setup, and a blank answer to a prompt that
-*matters* is worse than no prompt at all. `.env.exist.shared` is down to two `EXIST_CLI` lines
-(`EXIST_EMAIL`, `EXIST_USERNAME`) plus the `EXIST_ASK_PASSWORD` one; the NFS trio ships blank and
+*matters* is worse than no prompt at all. `.env.exist.shared` asks exactly two things: `EXIST_USERNAME`
+(`EXIST_CLI`, default `admin`) and `EXIST_PASSWORD` (`EXIST_ASK_PASSWORD`), which a unit test
+holds it to. `EXIST_EMAIL` ships blank and `_ask_email_if_needed` asks it once, the first run an
+enabled service's template uses it; the NFS trio ships blank and
 belongs to the NAS Storage quest. Before adding an `EXIST_CLI`, check whether detection or a quest
 can carry it instead — or whether, like `EXIST_PASSWORD`, the machine can answer it and the prompt
 is only there to let a human override.
@@ -131,8 +134,8 @@ comment carries a URL to the relevant section rather than the explanation:
 EXIST_MODEL_CHAT_NUM_CTX=65536
 ```
 
-Two comment forms are structural and stay regardless: `# DEFAULT_FROM: EXIST_FOO` above an
-`EXIST_CLI` line, and `# convention-exempt: upstream-env` at the top of a wholesale upstream env
+Two comment forms are structural and stay regardless: `# DEFAULT_FROM: EXIST_FOO` or `# DEFAULT: <value>`
+above an `EXIST_CLI` line, and `# convention-exempt: upstream-env` at the top of a wholesale upstream env
 file. When you add or change a key, update its doc section in the same task.
 
 ## `EXIST_DOMAIN` form by file type

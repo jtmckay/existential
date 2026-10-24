@@ -206,6 +206,7 @@ render_template() {
     # Shows the contiguous comment block directly above the field as context.
     # If that block contains `# DEFAULT_FROM: EXIST_FOO`, the value of EXIST_FOO
     # (already resolved above) is used as the default when the user enters nothing.
+    # `# DEFAULT: <value>` gives a literal default instead.
     while grep -q "EXIST_CLI" <<<"$content"; do
         local match line_content key_name context
         local default_from default_val escaped
@@ -221,6 +222,10 @@ render_template() {
         default_val=""
         if [[ -n "$default_from" ]]; then
             default_val=$(grep -E "^${default_from}=" <<<"$content" | head -1 | cut -d= -f2-)
+        else
+            # `# DEFAULT: <value>` — a literal default, for a question every
+            # first run asks and most people should answer with Enter.
+            default_val=$(printf '%s\n' "$context" | sed -n 's/^# *DEFAULT: *\(.*[^ ]\) *$/\1/p' | head -1)
         fi
 
         # When re-rendering an existing file (an _ALWAYS_RENDER destination),
@@ -758,6 +763,34 @@ _process_templates_in() {
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 }
 
+# EXIST_EMAIL ships blank, meaning "not yet asked": nothing in Core needs one,
+# and every question before the stack is up is a chance to stall. It is asked the
+# first time an enabled service's template uses it, before that service renders,
+# and then filled in — only ever filled in, like EXIST_DOMAIN — so never again.
+# A blank answer leaves it blank and asks next run.
+_ask_email_if_needed() {
+    local f="${REPO_DIR}/.env.shared" svc_dir needs="" val
+    local re='^[^[:space:]|&\\]+@[^[:space:]|&\\]+$'
+    grep -q '^EXIST_EMAIL=$' "$f" 2>/dev/null || return 0
+    while IFS= read -r svc_dir; do
+        service_is_enabled "$svc_dir" || continue
+        if grep -rqs --include='*.exist*' 'EXIST_EMAIL' "$svc_dir"; then
+            needs="${svc_dir#"$REPO_DIR/"}"; break
+        fi
+    done < <(_find_service_dirs)
+    [[ -n "$needs" ]] && _prompt_available || return 0
+
+    printf '\n# %s creates an admin account, and that needs an email.\n' "$needs" >&2
+    while :; do
+        val="$(_prompt_tty EXIST_EMAIL 'you@example.com')"
+        [[ -z "$val" || "$val" =~ $re ]] && break
+        printf '  That does not look like an email address.\n' >&2
+    done
+    [[ -n "$val" ]] || return 0
+    sed -i "s|^EXIST_EMAIL=$|EXIST_EMAIL=${val}|" "$f"
+    _reload_env_shared
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 # Guarded so the file can be sourced (e.g. by src/test/unit/test-templates.sh) to load
 # the functions without rendering anything. Runs only when executed directly.
@@ -776,6 +809,7 @@ _main() {
         if [[ "$_rc" == 0 || "$_STATS_KEYS_ADDED" -gt 0 ]]; then _reload_env_shared; fi
     fi
     _load_env_shared
+    _ask_email_if_needed
 
     while IFS= read -r svc_dir; do
         if service_is_enabled "$svc_dir"; then

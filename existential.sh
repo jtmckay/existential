@@ -385,6 +385,21 @@ _report_dashboard() {
     echo "  Every core service is linked from there."
 }
 
+# The first run asked for a username and a password, and pressing Enter at both
+# is the expected answer — so say what you got and where it lives, at the end,
+# where the next step (logging in) happens. The password itself is never printed.
+_report_login() {
+    local f="${SCRIPT_DIR}/.env.shared" user tailnet
+    user=$(grep -m1 '^EXIST_USERNAME=' "$f" 2>/dev/null | cut -d= -f2-)
+    echo ""
+    echo "  Your login:  ${user:-<blank>}   (EXIST_USERNAME in .env.shared)"
+    echo "  Password:    EXIST_PASSWORD in .env.shared"
+    grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null || return 0
+    tailnet=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
+    echo "  ntfy's phone app: add the server https://${tailnet:-<machine>.<tailnet>.ts.net}:8443"
+    echo "  and log in with both (also in services/ntfy/.env as NTFY_ADMIN_USER / NTFY_ADMIN_PASSWORD)."
+}
+
 # ── Service init scripts (exist.initial.sh) ───────────────────────────────────
 # Runs on every `./existential.sh` call for each enabled service that ships
 # exist.initial.sh. Scripts must be idempotent — they check for existing state
@@ -640,6 +655,7 @@ case "$action" in
         run_initials
         echo "Done! Next step:  docker compose up -d"
         _report_dashboard
+        [[ "$_is_first_run" == "true" ]] && _report_login
         echo ""
         echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
         ;;

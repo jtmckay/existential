@@ -15,3 +15,4 @@
 015-nothing-phones-home.md
 016-file-change-events.md
 017-failures-reach-you.md
+018-first-run-asks-two-things.md

@@ -426,6 +426,49 @@ else
         "ai/newsvc/.env absent — the new flag was not reloaded"
 fi
 
+# ── A Core first run asks two things ──────────────────────────────────────────
+#
+# Username and password, each with a default Enter accepts; no email. Checked on
+# the real templates, since that is where a third question would creep back in.
+_REAL=/repo; [[ -f "$_REAL/.env.exist.shared" ]] || _REAL="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+_asks="$(grep -E '=(EXIST_CLI|EXIST_ASK_PASSWORD)$' "$_REAL/.env.exist.shared" | cut -d= -f1 | sort | tr '\n' ' ')"
+assert_eq ".env.exist.shared asks exactly a username and a password" "EXIST_PASSWORD EXIST_USERNAME " "$_asks"
+out="$(render "$_REAL/.env.exist.shared" "$TMP/.env.shared")"
+assert_eq "the username defaults to admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' <<<"$out")"
+assert_eq "EXIST_EMAIL ships blank (not yet asked)" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' <<<"$out")"
+for _svc in $(sed -n 's/^  - var: EXIST_IS_SERVICES_\(.*\)$/\1/p' "$_REAL/src/quests/00-core.md"); do
+    _svc="${_svc,,}"; _svc="services/${_svc//_/-}"
+    if grep -rqsE --include='*.exist*' 'EXIST_EMAIL|EXIST_CLI' "$_REAL/$_svc"; then
+        _fail "Core's ${_svc} asks nothing and needs no email"
+    else
+        _ok "Core's ${_svc} asks nothing and needs no email"
+    fi
+done
+
+printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
+assert_contains "# DEFAULT: is the literal default when nobody answers" "WHO=admin" "$(render "$TMP/t_default")"
+
+# EXIST_EMAIL is asked once, the first time an enabled service uses it.
+mkdir -p "$TMP/ai/mailsvc"
+printf 'MAILSVC_ADMIN_EMAIL=EXIST_EMAIL\n' > "$TMP/ai/mailsvc/.env.exist"
+printf 'EXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=false\n' > "$TMP/.env.shared"
+_ask() { ( _prompt_available() { true; }
+           _prompt_tty() { echo asked >> "$TMP/.asked"; printf 'me@example.test'; }
+           _reload_env_shared; _ask_email_if_needed ) >/dev/null 2>&1 </dev/null; }
+_ask
+assert_eq "no enabled service needs an email → not asked" "" "$(cat "$TMP/.asked" 2>/dev/null)"
+assert_contains "and EXIST_EMAIL stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+sed -i 's/^EXIST_IS_AI_MAILSVC=false$/EXIST_IS_AI_MAILSVC=true/' "$TMP/.env.shared"
+_ask
+assert_eq "an enabled service that uses it → asked once" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
+assert_eq "the answer is filled in" "EXIST_EMAIL=me@example.test" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+_ask
+assert_eq "and never asked again" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
+printf 'EXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=true\n' > "$TMP/.env.shared"
+( _reload_env_shared; _ask_email_if_needed ) >/dev/null 2>&1 </dev/null
+assert_eq "no terminal → no question, still blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+rm -rf "$TMP/ai/mailsvc"
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
