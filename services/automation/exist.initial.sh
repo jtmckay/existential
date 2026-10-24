@@ -134,19 +134,44 @@ if [[ ! -e "${WORKSPACE_README}" ]]; then
     cat > "${WORKSPACE_README}" << 'WORKSPACEEOF'
 # workspace/
 
-Shared with every agent (Hermes at `/opt/data/workspace`, code-server at
-`/workspace`), synced to your own machines through Nextcloud's `workspace`
-folder, and indexed into OpenViking, so anything here is searchable and
-citable. One subdirectory means something specific; everything else is
-ordinary content — notes, plans, reference material, whatever you want an
-agent to know about.
+Your folder, shared with every agent the stack runs (code-server at
+`/workspace`, Hermes at `/opt/data/workspace`). Everything here is ordinary
+content — notes, plans, reference material — except:
 
-- **`ai/`** — automation output, not yours to write to. See `ai/README.md`,
-  and `ai/decree/` for what decree can run and how to ask it to.
+- **`notes/`** — your notes, plain markdown. Start with `my-first-note.md`.
 - **`.decree/`** — your automations: the decree project the `automation`
   daemon runs. `graph/` draws every machine and is redrawn when one changes.
+- **`.claude/`** — the decree skill, so `claude` started here knows how to
+  write a machine.
+- **`ai/`** — automation output, not yours to write to. See `ai/README.md`,
+  and `ai/decree/` for what decree can run and how to ask it to.
 
 Nothing regenerates this file — delete it once you have your bearings.
 WORKSPACEEOF
     echo "[decree] workspace/README.md created."
+fi
+
+# notes/my-first-note.md — the loop, in the user's terms. Written once; an edit
+# or a delete stays that way.
+FIRST_NOTE="${WORKSPACE_DIR}/notes/my-first-note.md"
+if [[ ! -e "${FIRST_NOTE}" ]]; then
+    mkdir -p "${WORKSPACE_DIR}/notes"
+    cat > "${FIRST_NOTE}" << 'NOTEEOF'
+# My first note
+
+This folder is yours. Write here: ideas, lists, things you keep meaning to do.
+
+When something should happen on its own — a reminder, a weekly look back,
+tidying a folder — open a terminal here in code-server, start `claude`, and say
+what should happen, in your own words.
+
+Claude writes it as an automation in `.decree/`, the folder next to `notes/`.
+It starts running on its own, and `.decree/graph/` draws what it does.
+
+To hear back when it runs, install ntfy on your phone and subscribe to your
+stack's topic.
+
+Edit this note or delete it; nothing writes it again.
+NOTEEOF
+    echo "[decree] workspace/notes/my-first-note.md created."
 fi

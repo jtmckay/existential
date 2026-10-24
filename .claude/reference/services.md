@@ -237,7 +237,9 @@ decree project:
   it is absent, so the user's edits win. `lib/` is the repo's, mounted read-only over it;
   `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
   so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
-  redraws `graph/` whenever a machine or cron file changes, for Obsidian.
+  redraws `graph/` whenever a machine or cron file changes, and writes the decree skill to
+  `workspace/.claude/skills/decree/` whenever the image's decree version changes (stamped in
+  `/data`). `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
 - **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
   `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
   it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.

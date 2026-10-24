@@ -15,8 +15,8 @@ if [[ $# -gt 0 ]]; then
 fi
 
 # GRAPH_WATCH=1 (the `automation` daemon, whose project is workspace/.decree):
-# redraw graph/ whenever a machine or cron file changes, so Obsidian shows the
-# current graphs. Checked on the daemon's own tick; a machine decree cannot
+# redraw graph/ whenever a machine or cron file changes, so the graphs in the
+# workspace are always current. Checked on the daemon's own tick; a machine decree cannot
 # parse is reported once and redrawn when it next changes.
 if [[ "${GRAPH_WATCH:-}" == 1 ]]; then
   (
@@ -30,6 +30,22 @@ if [[ "${GRAPH_WATCH:-}" == 1 ]]; then
       sleep 2
     done
   ) &
+fi
+
+# The decree skill for Claude, at the workspace root, so `claude` started in
+# /workspace (code-server's terminal) already knows how to write a machine.
+# Rewritten only when the image's decree version changes: `decree skill`
+# overwrites its own files and leaves anything else in that folder alone.
+if [[ "${GRAPH_WATCH:-}" == 1 && -d /workspace/.decree ]]; then
+  stamp=/data/.decree-skill-version
+  version="$(decree --version)"
+  if [[ ! -f /workspace/.claude/skills/decree/SKILL.md || "$(cat "$stamp" 2>/dev/null)" != "$version" ]]; then
+    if (cd /workspace && decree skill --ai claude --no-color >/dev/null); then
+      echo "$version" > "$stamp"
+    else
+      echo "[entrypoint] decree skill failed" >&2
+    fi
+  fi
 fi
 
 # The daemon runs migrations itself, in order, each one waiting on the service

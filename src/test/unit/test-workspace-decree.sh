@@ -3,8 +3,8 @@
 # workspace/.decree, the `automation` daemon's project, from the repo's
 # automation/: every shipped machine and script lands once, an edit or an extra
 # file is never overwritten, an older install's crons and migrations move over,
-# the you-were-here digest and look-back crons are on by default, and nothing secret is written
-# under workspace/.
+# the you-were-here digest and look-back crons are on by default, notes/my-first-note.md
+# is written once, and nothing secret is written under workspace/.
 #
 # Runs the real script against a scratch copy of the files it reads. Read-only
 # against the repo; the scratch dir is removed in the trap.
@@ -59,8 +59,15 @@ check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/wor
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
 check "the you-were-here digest is on by default" "cmp -s '${R}/automation-examples/cron/you-were-here.md' '${P}/cron/you-were-here.md'"
 check "the weekly and monthly look backs are on by default" "cmp -s '${R}/automation-examples/cron/look-back-weekly.md' '${P}/cron/look-back-weekly.md' && cmp -s '${R}/automation-examples/cron/look-back-monthly.md' '${P}/cron/look-back-monthly.md'"
+N="${R}/volumes/workspace_data/notes/my-first-note.md"
+check "notes/my-first-note.md is written" "[[ -s '${N}' ]]"
+for _w in claude .decree ntfy; do
+    check "the first note mentions ${_w}" "grep -qiF '${_w}' '${N}'"
+done
+check "nothing in the workspace names Nextcloud" "! grep -rqi 'nextcloud' '${R}/volumes/workspace_data/README.md' '${N}'"
 
 # The user's edits win, and their own files stay.
+printf 'my note\n' > "${N}"
 printf '# mine\n' > "${P}/machines/notify.yml"
 printf 'mine\n' > "${P}/machines/mine.yml"
 rm "${P}/machines/clean_runs.yml"
@@ -70,6 +77,7 @@ check "second run exits 0" "[[ $_rc -eq 0 ]]"
 check "an edited machine is never overwritten" "[[ \"\$(cat '${P}/machines/notify.yml')\" == '# mine' ]]"
 check "a user's own machine is left alone" "[[ -f '${P}/machines/mine.yml' ]]"
 check "a removed shipped machine comes back, like a rendered file" "[[ -f '${P}/machines/clean_runs.yml' ]]"
+check "an edited first note is kept" "[[ \"\$(cat '${N}')\" == 'my note' ]]"
 check "an edited digest schedule is kept" "grep -qF '0 6 * * *' '${P}/cron/you-were-here.md'"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

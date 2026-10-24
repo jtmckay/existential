@@ -36,7 +36,7 @@ POST, a message another machine emitted, `decree emit` by hand — they all end 
 
 A machine lives in `workspace/.decree/machines/<name>.yml` (on the host,
 `volumes/workspace_data/.decree/`), next to your notes, and its graph is redrawn in
-`workspace/.decree/graph/` for Obsidian as soon as you save it. To ship one with the repo, put it
+`workspace/.decree/graph/` as soon as you save it. To ship one with the repo, put it
 in `automation/machines/` instead: each shipped file is copied into a workspace that lacks it,
 and never again, so your edits win. Names are snake_case. Start with the
 simplest one, a single state, and add states only when a real run shows the need:

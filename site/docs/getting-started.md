@@ -158,12 +158,16 @@ to fold it into the root `.env`, then `docker compose up -d` to pick it up.
 
 ## Workspace
 
-The workspace is *your* directory, `workspace/`: `notes/` for your notes (an Obsidian vault)
-and `.decree/` for your automations. It lives in `volumes/workspace_data`. In Core,
-[code-server](./services/code-server) opens it at `/workspace`, with an editor and a terminal
-where `claude` and `opencode` are ready, and the `automation` daemon runs what is in its
-`.decree/`. Add-ons mount the same tree: [Nextcloud](./storage/nextcloud) serves it as its
-**`workspace`** folder and [Hermes](./ai/hermes) at `/opt/data/workspace`. Put notes, plans,
+The workspace is *your* directory, `workspace/`: `notes/` for your notes (plain markdown; a
+fresh install starts it with `my-first-note.md`) and `.decree/` for your automations. It lives
+in `volumes/workspace_data`. In Core, [code-server](./services/code-server) opens it at
+`/workspace`, with an editor and a terminal where `claude` and `opencode` are ready, and the
+`automation` daemon runs what is in its `.decree/`. Start `claude` there and say what you want
+automated: the workspace carries the decree skill in `.claude/skills/decree/`, refreshed when
+the stack's decree changes, so it already knows how to write a machine. Nothing in the
+workspace needs Nextcloud or [Obsidian](./services/obsidian); either is optional.
+Add-ons mount the same tree: [Nextcloud](./storage/nextcloud) serves it as its **`workspace`**
+folder and [Hermes](./ai/hermes) at `/opt/data/workspace`. Put notes, plans,
 reference material — anything you want an agent to know about — there. Use it.
 
 To edit it on your own machines, sync it: with Nextcloud in the stack, the **Nextcloud desktop
@@ -188,8 +192,9 @@ It's more than a shared folder:
   indexed like everything else, so an agent can build on a previous run's output.
 - **`workspace/.decree/`** is your automations: the decree project the `automation` daemon
   runs. Machines, scripts, cron files and migrations written there run on the next tick, and
-  `graph/` holds a Mermaid diagram of every machine, redrawn when one changes, so Obsidian shows
-  them. The repo's own machines are copied in once and never again, so your edits win. Its
+  `graph/` holds a Mermaid diagram of every machine, redrawn when one changes, readable in the
+  editor's Markdown preview or Obsidian. The repo's own machines are copied in once and never
+  again, so your edits win. Its
   `.gitignore` keeps run state local; secrets never live there. See
   [Writing a routine](./writing-a-routine).
 - **`workspace/.capture/`** is everything you put in, as one stream — see

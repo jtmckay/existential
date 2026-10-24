@@ -15,5 +15,8 @@ skip_if_disabled
 # ── 1. Rendered state ────────────────────────────────────────────────────────
 
 file_present "decree inbox present" /repo/volumes/workspace_data/.decree/inbox
+file_present "first note present" /repo/volumes/workspace_data/notes/my-first-note.md
+# entrypoint.sh writes it on the daemon's first start.
+file_present "decree skill for claude present" /repo/volumes/workspace_data/.claude/skills/decree/SKILL.md
 
 finish
