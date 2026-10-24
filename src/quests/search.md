@@ -1,7 +1,7 @@
 ---
 name: Search
 tagline: Your notes, PDF and Word files, decisions and past prompts, searchable by meaning and by exact words, from a terminal or Claude Code and opencode
-e2e: false
+e2e: true
 services:
   - var: EXIST_IS_AI_QMD
     label: qmd (hybrid keyword + neural search over the workspace, as MCP)

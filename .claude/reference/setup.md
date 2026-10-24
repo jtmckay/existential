@@ -77,8 +77,7 @@ to the frontmatter; the body is free-form prose.
 **Numbered = Core, one slice at a time.** `00-core.md` is the whole system in one pass;
 `01`–`03` are exactly a *partition* of it — every Core service and every Core `copies:` entry
 belongs to exactly one of them, and to no two. Adding a service to Core means adding it to the
-slice that owns it. e2e only ever runs numbered quests (`[0-9][0-9]-*.md`), which is the other
-reason the numbered range is the product and not a catalogue.
+slice that owns it.
 
 **Unnumbered = everything past Core.** One file per add-on, integration or automation, no
 prefix, no ordering. The add-ons (`network`, `monitoring`, `capture`, `apps`, `local-ai`,
@@ -118,8 +117,9 @@ service: Tailscale runs on the host. It declares `done.env: EXIST_TAILNET_NAME`,
 e2e answers one question — **does a fresh install come up working?** — because that is the one
 thing `triage` cannot see.
 
-It copies the **working tree** (not HEAD) into a throwaway clone → render → up → checks → down,
-and does *not* re-run per-service tests.
+It runs every quest marked `e2e: true`, Core's numbered slices first, or the ones a pattern
+names (`./existential.sh e2e search`). It copies the **working tree** (not HEAD) into a
+throwaway clone → render → up → checks → down, and does *not* re-run per-service tests.
 
 **An e2e check is a markdown file in `src/test/e2e/checks/`** — a decree message, dropped into
 the right daemon's inbox once the stack is up and its migrations have finished.

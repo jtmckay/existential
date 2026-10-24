@@ -1,0 +1,12 @@
+name: e2e_file_handlers
+description: e2e only — a workspace file a handler matches queues one run of the handler's machine; run with a path, assert the params a handler passed.
+data:
+  path: { type: string, default: "" }
+  change: { type: string, default: "" }
+initial: probe
+states:
+  probe:
+    invoke: e2e_file_handlers
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

@@ -576,7 +576,7 @@ function main(): number {
       }
       questFm.set(f, fm[1]);
       const lines = fm[1].split('\n');
-      // e2e only ever runs the numbered quests, so only they owe an excuse.
+      // Core's numbered slices are what e2e must cover, so only they owe an excuse.
       if (/^\d/.test(f)) {
         const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
         const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));

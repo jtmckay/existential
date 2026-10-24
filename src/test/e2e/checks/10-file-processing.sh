@@ -17,7 +17,7 @@ TOKEN="e2eprobe$(date +%s%N)"
 OBJECT="probe-${TOKEN}.txt"
 
 say()  { printf '  %s\n' "$*"; }
-fail() { printf '  FAIL  %s\n' "$*" >&2; exit 1; }
+fail() { printf '  FAIL  %s\n' "$*"; exit 1; }
 
 nc_curl() {
     curl -fsS --max-time 15 -u "${NEXTCLOUD_ADMIN_USER}:${NEXTCLOUD_ADMIN_PASSWORD}" "$@"
@@ -31,7 +31,7 @@ until_ok() {
         if "$@" >/dev/null 2>&1; then say "ok    ${what}"; return 0; fi
         sleep 2
     done
-    printf '  FAIL  %s — not observed within %ss\n' "$what" "$timeout" >&2
+    printf '  FAIL  %s — not observed within %ss\n' "$what" "$timeout"
     return 1
 }
 

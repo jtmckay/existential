@@ -83,11 +83,12 @@ quest_copies() {
     '
 }
 
-# Quests with e2e: false need external infrastructure (NAS/NFS, DNS, TLS) and
-# are excluded; validate-conventions.ts makes them carry an e2e_skip: reason.
+# Every quest marked e2e: true, Core's numbered slices first (they sort ahead
+# of the add-ons). The rest need external infrastructure (NAS/NFS, DNS, TLS);
+# validate-conventions.ts makes a numbered one carry an e2e_skip: reason.
 automatable_quests() {
     local yaml
-    for yaml in "${QUEST_DIR}"/[0-9][0-9]-*.md; do
+    for yaml in "${QUEST_DIR}"/*.md; do
         [ "$(e2e_fm_get "$yaml" e2e)" = true ] && echo "$yaml"
     done
     return 0
@@ -435,11 +436,13 @@ run_quest() {
     grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
     grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
-    # 3. Enable the quest's services, plus decree unconditionally — it is where
-    #    the checks RUN, and four e2e-able quests do not list it, which would
-    #    render a stack with nothing able to test it.
+    # 3. Enable the quest's services, plus decree and ntfy unconditionally:
+    #    decree is where the checks RUN, and ntfy is where it reports a failed
+    #    run. An add-on quest lists neither (a real install has them from Core),
+    #    and without ntfy one failure shows twice, the second as a notify run
+    #    that could not resolve the host.
     log "Enabling services..."
-    sed -i 's|^EXIST_IS_SERVICES_AUTOMATION=false|EXIST_IS_SERVICES_AUTOMATION=true|' "$WORK/.env.shared"
+    sed -i 's|^EXIST_IS_SERVICES_AUTOMATION=false|EXIST_IS_SERVICES_AUTOMATION=true|; s|^EXIST_IS_SERVICES_NTFY=false|EXIST_IS_SERVICES_NTFY=true|' "$WORK/.env.shared"
     vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
     for var in $(quest_vars "$yaml"); do
         # The quest lists what it wants; the vendor answer outranks it, the same

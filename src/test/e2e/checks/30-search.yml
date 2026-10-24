@@ -1,0 +1,9 @@
+name: e2e_search
+description: e2e only — a new workspace note is found by qmd by keyword, by meaning, over MCP and by the search command.
+initial: probe
+states:
+  probe:
+    invoke: e2e_search
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }
