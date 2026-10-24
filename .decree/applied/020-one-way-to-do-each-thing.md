@@ -25,9 +25,11 @@ publishing identity.
 - **ntfy has one login.** Every publisher uses `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD`, and
   that user may publish to every topic. `EXIST_NTFY_TOKEN`, `EXIST_NTFY_TOPICS` and
   `./existential.sh run ntfy setup` do not exist.
-- **Notifications go to ntfy only.** `notify.sh` has no Telegram fallback, and
-  `EXIST_TELEGRAM_BOT_TOKEN` / `EXIST_TELEGRAM_CHAT_ID` do not exist. The Telegram bot quest's
-  own routines keep their credentials file under `automation/secrets/telegram/`.
+- **Notifications go to ntfy only, and there is no Telegram.** No machine, script, library,
+  cron template, quest, setting or doc page sends to or reads from Telegram. The flows that
+  depended on it go with it: the bank-alert receipt split (and the split/revert helpers only
+  it used), photo capture by bot, and the ComfyUI bot recipe. Actual Budget transactions still
+  post from Gmail, and images still reach OCR through Nextcloud.
 - **Search is one switch.** `EXIST_IS_AI_QMD=true` turns search on in code-server
   (see `019-search-your-notes.md`); `EXIST_SEARCH_MCP_URL` does not exist.
 - **The backup destination is set where the remotes are.** `./existential.sh run rclone`
@@ -58,9 +60,9 @@ publishing identity.
 - **Given** the repo
   **When** `git grep` runs for `EXIST_PEER_HOST_IP`, `EXIST_NETWORK_EXTERNAL`,
   `EXIST_DOCKER_NETWORK_SUBNET`, `EXIST_NFS_SERVER_ADDRESS`, `EXIST_NFS_BASE_PATH`,
-  `EXIST_NTFY_TOKEN`, `EXIST_NTFY_TOPICS`, `EXIST_TELEGRAM_`, `EXIST_SEARCH_MCP_URL`,
+  `EXIST_NTFY_TOKEN`, `EXIST_NTFY_TOPICS`, `telegram` (any case), `EXIST_SEARCH_MCP_URL`,
   `DEFAULT_FROM`, `frontdoor`, `network create`, `run backup-config` or `run ntfy setup`
-  outside `graveyard/` and `.decree/applied/`
+  outside `graveyard/`, `.decree/applied/` and this file
   **Then** nothing is found
 - **Given** any enabled services
   **When** `docker-compose.yml` is generated
