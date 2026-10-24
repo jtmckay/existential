@@ -430,7 +430,7 @@ cut this way: it is the middle box, and the others are add-ons that usually live
 schedules. Adding disks shouldn't take the rest of the stack down. Because the core reaches
 storage through rclone and WebDAV, moving the NAS to its own box means changing an endpoint —
 not rewiring anything. `workspace/` then [stays in sync with
-it](./getting-started#nextcloud-on-another-server).
+it](./getting-started#syncing-with-a-nextcloud-optional).
 
 **Why split the models.** Restarting a model server to load a new model shouldn't interrupt
 anything else, and the GPU is rarely in the same box as the disks. Every caller reaches a model

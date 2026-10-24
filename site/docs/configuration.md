@@ -342,4 +342,4 @@ The remaining keys are secrets shared *between* services, generated on render:
   [File Processor](./decree/file-change-processing#setup).
 - `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`, `EXIST_NEXTCLOUD_APP_PASSWORD`,
   `EXIST_NEXTCLOUD_WORKSPACE_DIR` — the Nextcloud `workspace/` two-way syncs with; see
-  [Nextcloud on another server](./getting-started#nextcloud-on-another-server).
+  [Syncing with a Nextcloud](./getting-started#syncing-with-a-nextcloud-optional).

@@ -170,10 +170,10 @@ Add-ons mount the same tree: [Nextcloud](./storage/nextcloud) serves it as its *
 folder and [Hermes](./ai/hermes) at `/opt/data/workspace`. Put notes, plans,
 reference material — anything you want an agent to know about — there. Use it.
 
-To edit it on your own machines, sync it: with Nextcloud in the stack, the **Nextcloud desktop
-client** (nextcloud.com/install) logs in at `https://nextcloud.<domain>` and syncs the
+To edit it on your own machines, optionally sync it: with Nextcloud in the stack, the
+**Nextcloud desktop client** (nextcloud.com/install) logs in at `https://nextcloud.<domain>` and syncs the
 `workspace` folder; with a Nextcloud elsewhere, see
-[below](#nextcloud-on-another-server).
+[below](#syncing-with-a-nextcloud-optional).
 
 It's more than a shared folder:
 
@@ -327,14 +327,15 @@ notes only for the rest, so a year is about twelve files, not 365. An install fr
 copies the `/look-back` entries from `automation/decree-go-rest.yml` into its
 `workspace/.decree/decree-go-rest.yml`.
 
-### Nextcloud on another server
+### Syncing with a Nextcloud (optional)
 
-When Nextcloud runs elsewhere, `automation-backup` keeps `workspace/` in sync with a folder
-there: its `workspace-sync` cron runs an `rclone bisync` every five minutes, both ways. Set
-`EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and `EXIST_NEXTCLOUD_APP_PASSWORD` (an app
-password from Nextcloud's *Settings → Security*) in `.env`; the folder is
-`EXIST_NEXTCLOUD_WORKSPACE_DIR`, `workspace` by default. Until all three are set the cron does
-nothing. The credentials stay in `.env`, never under `workspace/`.
+Sync is optional: leave its keys blank and nothing syncs, and nothing else in the stack
+notices. Set them, and `automation-backup` keeps `workspace/` in sync with a folder in a
+Nextcloud, usually one on another server: its `workspace-sync` cron runs an `rclone bisync`
+every five minutes, both ways. The keys are `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and
+`EXIST_NEXTCLOUD_APP_PASSWORD` (an app password from Nextcloud's *Settings → Security*) in
+`.env`, all three; the folder is `EXIST_NEXTCLOUD_WORKSPACE_DIR`, `workspace` by default. The
+credentials stay in `.env`, never under `workspace/`.
 
 - **What never syncs:** anything a `.gitignore` under `workspace/` ignores, and every `.git/`.
   That is how decree's run state stays local, and how you keep any output local: ignore it.
