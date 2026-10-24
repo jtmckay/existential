@@ -276,8 +276,13 @@ docker compose.
 
 ## Hostnames, DNS and TLS
 
-`EXIST_LOCAL_HOST_IP`, `EXIST_DOMAIN`, `EXIST_PEER_HOST_IP` and `EXIST_PUBLIC_DOMAIN` are
-covered end to end in [The Pieces → Hostnames that just
+`EXIST_TAILNET_NAME` is Core's address: this host's Tailscale name (`box.tail1234.ts.net`),
+filled in by `./existential.sh` once `tailscale serve` works there and never overwritten. ntfy
+builds its base URL from it (`https://<name>:8443`), and the morning digest links to
+code-server at `https://<name>`. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
+
+The rest are the Caddy add-on's. `EXIST_LOCAL_HOST_IP`, `EXIST_DOMAIN`, `EXIST_PEER_HOST_IP` and
+`EXIST_PUBLIC_DOMAIN` are covered end to end in [The Pieces → Hostnames that just
 work](./how-it-works.md#hostnames-that-just-work). The short version:
 
 - `EXIST_LOCAL_HOST_IP` is filled in automatically — the LAN address the kernel would use

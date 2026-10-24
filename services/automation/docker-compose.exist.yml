@@ -31,6 +31,8 @@ services:
       - EXIST_GPU_VENDOR=${EXIST_GPU_VENDOR:-}
       - NTFY_TOKEN=${EXIST_NTFY_TOKEN}
       - NTFY_URL=${EXIST_NTFY_URL}
+      # you_were_here links its push to code-server on this name.
+      - EXIST_TAILNET_NAME=${EXIST_TAILNET_NAME:-}
       # ntfy denies every publish by default, so notify.sh needs a credential.
       # These are created by ntfy's own entrypoint — nothing to run by hand.
       - NTFY_USER=${EXIST_NTFY_USER:-}

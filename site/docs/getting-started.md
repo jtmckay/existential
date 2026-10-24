@@ -9,6 +9,9 @@ sidebar_position: 2
 - [Docker](https://www.docker.com/get-started/), usable without sudo
   (`sudo usermod -aG docker "$USER"`, then log out and back in) — `existential.sh` refuses to run under sudo
 - A machine to host the services (see [Hosting](./hosting/))
+- For Core, [Tailscale](https://tailscale.com/download), installed and logged in on that machine
+  and on every phone and laptop that should reach Core. Without it, see
+  [Reaching it without Tailscale](#reaching-it-without-tailscale)
 - Git clone the repo
   ```
   git clone https://github.com/jtmckay/existential.git
@@ -55,26 +58,43 @@ Either way, `./existential.sh` on its own does the same work without the questio
 3. Generates a unified `docker-compose.yml` from all enabled services
 4. Generates a master `.env` by merging `.env.shared` with every enabled service's `.env`
 
-It also fills in `EXIST_LOCAL_HOST_IP` with this machine's LAN address and derives `EXIST_DOMAIN`
-as `<that-ip-with-dashes>.nip.io`. nip.io is public wildcard DNS, so every
-`https://<slug>.<domain>` resolves on any device with nothing configured, and every phone and
-laptop on the same network reaches it. No DNS server, no router changes, no ports open to the
-internet. If you use Tailscale and it is up, its tailnet address is preferred instead, so the
-same names work from every device on your tailnet.
+With Tailscale up on the host, it also serves Core over HTTPS on the machine's tailnet name with
+`tailscale serve`: code-server at `https://<machine>.<tailnet>.ts.net` and ntfy at
+`https://<machine>.<tailnet>.ts.net:8443`, with a Let's Encrypt certificate every device already
+trusts. Both containers publish on the host's loopback only, so nothing in Core listens on the
+LAN, and only devices on your tailnet can connect. The serve config survives a reboot, and
+re-running `./existential.sh` doesn't duplicate it. It records the name as `EXIST_TAILNET_NAME`,
+which ntfy's base URL and the links the stack sends (the morning digest) use.
+
+That name appears in public certificate transparency logs, as every Let's Encrypt name does:
+visible, not reachable.
+
+Until Tailscale can serve, `./existential.sh` prints what is left and carries on: turning on
+**MagicDNS** and **HTTPS Certificates** in the
+[admin console](https://login.tailscale.com/admin/dns), and, once,
+`sudo tailscale set --operator=$USER` so your user may configure serve. It never runs sudo itself.
+
+### Reaching it without Tailscale
+
+A host without Tailscale is outside Core. There, the **Network** quest adds Caddy:
+`https://<slug>.<domain>` for every service, with certificates from its own CA, trusted once per
+device, as that quest's guide explains. For that, `./existential.sh` fills in
+`EXIST_LOCAL_HOST_IP` with this machine's LAN address and derives `EXIST_DOMAIN` as
+`<that-ip-with-dashes>.nip.io`. nip.io is public wildcard DNS, so every `https://<slug>.<domain>`
+resolves on any device with nothing configured, and every phone and laptop on the same network
+reaches it. If Tailscale is up after all, its tailnet address is preferred instead, so the same
+names work from every device on your tailnet.
 
 :::warning
-If you use Tailscale, don't set `EXIST_DOMAIN` to a MagicDNS name like `my-box.tailnet.ts.net`.
+Don't set `EXIST_DOMAIN` to a MagicDNS name like `my-box.tailnet.ts.net`.
 MagicDNS resolves that exact node name and nothing beneath it, so every `<slug>.` under it fails
 to resolve. Use the tailnet **IP** in nip.io form — tailscale carries the traffic, nip.io
 supplies the wildcard.
 :::
 
-### Reaching it from outside the house
-
-Nothing in the stack faces the internet, and nothing needs to. To reach it from elsewhere, put
-your devices on a VPN back to your network (WireGuard, OpenVPN, Tailscale, Headscale), or answer
-the domain with a piHole on another server. The options sit side by side in
-[VPN](./hosting/vpn.md).
+To reach Caddy's names from outside the house, put your devices on a VPN back to your network
+(WireGuard, OpenVPN, Tailscale, Headscale), or answer the domain with a piHole on another
+server. The options sit side by side in [VPN](./hosting/vpn.md).
 
 ### The hardware questions
 

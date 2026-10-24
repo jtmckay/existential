@@ -12,10 +12,11 @@ services:
           memory: 64M
     networks:
       - exist
-    # ports disabled — access via https://ntfy.<domain> (Caddy + pihole required)
-    # Uncomment to expose directly:
-    #   ports:
-    #     - 44680:80
+    # Loopback only: nothing in Core listens on the LAN. existential.sh puts
+    # this behind `tailscale serve` at https://<machine>.<tailnet>.ts.net:8443;
+    # the Caddy add-on reaches the container over the exist network instead.
+    ports:
+      - "127.0.0.1:44680:80"
     # entrypoint.sh creates the admin and bot users from the env below, then
     # execs `ntfy serve`. server.yml denies every publish by default, so without
     # it a fresh install accepts nothing until someone runs `run ntfy setup`.
@@ -24,9 +25,12 @@ services:
       - serve
     environment:
       - TZ=${NTFY_TZ} # optional: set desired timezone
-      # Resolved at container start from EXIST_DOMAIN. ntfy reads NTFY_<KEY> for
-      # any server.yml key and env wins, so this needs no re-render to change.
-      - NTFY_BASE_URL=${NTFY_BASE_URL:-https://ntfy.$EXIST_DOMAIN}
+      # entrypoint.sh picks the base URL from these at container start: the
+      # tailnet name when there is one, else https://ntfy.<domain>. ntfy reads
+      # NTFY_<KEY> for any server.yml key and env wins, so no re-render.
+      - NTFY_BASE_URL=${NTFY_BASE_URL:-}
+      - EXIST_TAILNET_NAME=${EXIST_TAILNET_NAME:-}
+      - EXIST_DOMAIN=${EXIST_DOMAIN:-}
       # Your login for the web UI and the mobile apps (services/ntfy/.env).
       - NTFY_ADMIN_USER=${NTFY_ADMIN_USER:-}
       - NTFY_ADMIN_PASSWORD=${NTFY_ADMIN_PASSWORD:-}

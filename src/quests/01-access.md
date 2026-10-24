@@ -3,6 +3,9 @@ name: Access
 tagline: Tailscale on the host and your devices — real HTTPS to Core, nothing to trust by hand
 e2e: false
 e2e_skip: Tailscale runs on the host, not in a container, so there is nothing to bring up
+done:
+  env:
+    - EXIST_TAILNET_NAME
 ---
 
 The access slice of Core. It has no container: Tailscale runs on the host, and
@@ -19,6 +22,10 @@ certificate to install anywhere.
      certificates.
 
   3. Install Tailscale on your phone and laptop, logged into the same tailnet.
+
+  4. Re-run ./existential.sh. It runs `tailscale serve` for you, never with
+     sudo; if your user may not configure serve yet, it says to run, once:
+       sudo tailscale set --operator=$USER
 
 Core then answers on this machine's tailnet name:
 

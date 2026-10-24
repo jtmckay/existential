@@ -61,10 +61,11 @@ services:
     entrypoint: ["/entrypoint.sh"]
     networks:
       - exist
-    # ports disabled — access via https://code-server.<domain> (Caddy + pihole required)
-    # Uncomment to expose directly:
-    #   ports:
-    #     - "42080:8080"
+    # Loopback only: nothing in Core listens on the LAN. existential.sh puts
+    # this behind `tailscale serve` at https://<machine>.<tailnet>.ts.net; the
+    # Caddy add-on reaches the container over the exist network instead.
+    ports:
+      - "127.0.0.1:42080:8080"
     environment:
       - IN_CONTAINER=1
       - PASSWORD=${CODE_SERVER_PASSWORD}

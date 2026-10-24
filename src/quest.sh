@@ -236,58 +236,49 @@ quest_done() {
 
 # ── Closing suggestion: reaching it from elsewhere ────────────────────────────
 #
-# Nothing to decide up front. existential.sh detects the host IP — the LAN
-# address, or the tailnet one if the user runs Tailscale — and derives a nip.io
-# domain from it, so every service is reachable at https://<slug>.<domain> from
-# that network with no DNS setup. Remote access (any VPN) and local-only DNS are
-# later, optional upgrades, so they belong at the END of a run as suggestions
-# rather than questions at the start.
+# Nothing to decide up front. Core is served on this host's tailnet name by
+# existential.sh (_tailscale_serve_core), which fills in EXIST_TAILNET_NAME once
+# that works. The Caddy add-on is the other path: existential.sh detects the host
+# IP and derives a nip.io domain, so https://<slug>.<domain> needs no DNS setup.
+# Either way these are suggestions at the END of a run, not questions at the start.
 _access_tip() {
-    local domain
+    local domain tailnet
     domain="$(env_get EXIST_DOMAIN)"
+    tailnet="$(env_get EXIST_TAILNET_NAME)"
     echo ""
     hr
     echo "  Reaching your services"
     hr
     echo ""
-    if [[ "$domain" == *.nip.io ]]; then
-        echo "  Ready to use on this machine: ${_C_GREEN}https://<service>.${domain}${_C_RESET}"
-        echo "  That name is public wildcard DNS pointing straight back at this host,"
-        if [[ "$domain" == 100-* ]]; then
-            echo "  which is your tailnet address — so it works from any phone or laptop"
-            echo "  logged into your tailnet, anywhere, and from nowhere else. No setup."
-        else
-            echo "  so it works from phones and laptops on this network too. No setup."
-            echo "  From anywhere else, put your devices on a VPN back to this network:"
-            echo "    https://existential.company/docs/hosting/vpn"
-        fi
-    elif [[ -n "$domain" ]]; then
-        # A domain the user chose: .internal (needs pihole) or one they own.
-        echo "  Services are served at ${_C_GREEN}https://<service>.${domain}${_C_RESET}"
+    if [[ -n "$tailnet" ]]; then
+        echo "  Core, over Tailscale with a certificate every device already trusts:"
+        echo "    code-server  ${_C_GREEN}https://${tailnet}${_C_RESET}"
+        echo "    ntfy         ${_C_GREEN}https://${tailnet}:8443${_C_RESET}"
+        echo "  from any phone or laptop logged into your tailnet, and from nowhere else."
+    else
+        echo "  Core is served over Tailscale. Install it and log in on this host and on"
+        echo "  every device that should reach Core (https://tailscale.com/download), then"
+        echo "  re-run ./existential.sh: it prints anything left to switch on."
+    fi
+    echo ""
+    if will_be_active EXIST_IS_HOSTING_CADDY; then
+        echo "  Caddy serves every service at ${_C_GREEN}https://<service>.${domain:-<EXIST_DOMAIN>}${_C_RESET}"
         case "$domain" in
+            *.nip.io)
+                echo "  That name is public wildcard DNS pointing straight back at this host,"
+                echo "  so it works from devices on this network. From anywhere else, use a"
+                echo "  VPN back to it:  https://existential.company/docs/hosting/vpn" ;;
             *.internal)
                 echo "  Nothing resolves .internal on its own — pihole answers it,"
                 echo "  or add /etc/hosts entries on each device." ;;
         esac
-    else
-        echo "  Services are served at https://<service>.<EXIST_DOMAIN>."
-    fi
-    echo ""
-    if will_be_active EXIST_IS_HOSTING_CADDY; then
-        echo "  Caddy fronts them with TLS from a local CA. Install its root cert"
-        echo "  once per device for a green padlock — copy it off this host:"
+        echo "  Its certificates come from a local CA: install its root once per device"
+        echo "  for a green padlock — copy it off this host:"
         echo "    hosting/caddy/certs/internal-ca.pem"
     else
-        echo "  ${_C_YELLOW}Caddy is not enabled${_C_RESET} — nothing is fronting those names. Enable it"
-        echo "  (EXIST_IS_HOSTING_CADDY=true), or uncomment the ports: block in each"
-        echo "  service's docker-compose.yml to reach them by port instead."
+        echo "  No Tailscale, or want https://<service>.<domain> names for add-ons?"
+        echo "    ./existential.sh quest  →  Network   (Caddy, on the LAN or any VPN)"
     fi
-    echo ""
-    echo "  Want more than that?"
-    echo "    • Names that resolve with no internet DNS, on your own domain:"
-    echo "        ./existential.sh quest  →  Network"
-    echo "    • Real certificates, no CA to install on each device:"
-    echo "        ./existential.sh run caddy public-domain"
     echo ""
 }
 
@@ -303,8 +294,8 @@ _access_tip() {
 CORE_QUEST="${QUESTS_DIR}/00-core.md"
 
 # True when the user has enabled nothing beyond what ships enabled by default.
-# Mirrors _has_any_enabled in existential.sh — caddy ships as true, so "is any
-# flag set?" would answer no-one's question. Keep the two in sync.
+# Mirrors _has_any_enabled in existential.sh, which says why it compares against
+# the template. Keep the two in sync.
 _defaults_only() {
     local k v
     while IFS='=' read -r k v || [[ -n "$k" ]]; do

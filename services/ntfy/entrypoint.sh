@@ -62,4 +62,15 @@ _provision() {
 # no bot is a bad notification path, but an ntfy that will not start is worse.
 _provision || echo "[ntfy] User provisioning failed — see above." >&2 &
 
+# The address the phone app and every link ntfy builds use: the tailnet name
+# existential.sh serves Core on, else the Caddy add-on's https://ntfy.<domain>.
+if [ -z "${NTFY_BASE_URL:-}" ]; then
+    if [ -n "${EXIST_TAILNET_NAME:-}" ]; then
+        NTFY_BASE_URL="https://${EXIST_TAILNET_NAME}:8443"
+    else
+        NTFY_BASE_URL="https://ntfy.${EXIST_DOMAIN:-}"
+    fi
+    export NTFY_BASE_URL
+fi
+
 exec ntfy "$@"

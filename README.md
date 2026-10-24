@@ -42,8 +42,11 @@ an AI of your choice that can act on everything in it.
 ## 🚀 Quick start
 
 Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
-host it, and this repo. Everything is reachable from your own network on the first run; reaching
-it from outside the house is [any VPN you like](https://existential.company/docs/hosting/vpn).
+host it, this repo, and, for Core, [Tailscale](https://tailscale.com/download) logged in on that
+machine and on every device that should reach it. Core is then served over HTTPS on the
+machine's tailnet name, with no certificate to install anywhere. Without Tailscale, the Caddy
+add-on serves `https://<slug>.<domain>` on your network or
+[any VPN](https://existential.company/docs/hosting/vpn).
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

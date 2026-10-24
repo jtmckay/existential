@@ -46,7 +46,7 @@ const MASTER_COMPOSE = path.join(REPO_ROOT, 'docker-compose.yml');
 const CATEGORY_DIRS = ['ai', 'services', 'hosting', 'nas'];
 
 const CONTAINER_NAME_RE  = /^\s*container_name:\s*([\w-]+)\s*$/;
-const PORT_LINE_RE       = /^\s*-\s*"?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))?"?\s*(?:#.*)?$/;
+const PORT_LINE_RE       = /^\s*-\s*"?(?:127\.0\.0\.1:)?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))?"?\s*(?:#.*)?$/;
 // Caddy hostnames use Caddy's env form `<slug>.{$CADDY_DOMAIN}` (resolved at runtime
 // from the container env, NOT rendered). The validator reads the file, so it matches
 // the literal token. (Dashy uses the bare EXIST_DOMAIN form — see DASHY_URL_RE.)

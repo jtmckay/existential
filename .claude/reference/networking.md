@@ -1,25 +1,35 @@
 # Networking
 
-The hostname suffix is `EXIST_DOMAIN`, defaulting to `EXIST_NIP_DOMAIN` →
-`<host-ip-with-dashes>.nip.io`, which public wildcard DNS resolves back to that IP — so
-`<slug>.<domain>` works on every device with **no piHole and no `/etc/hosts`**. Nothing is
-asked at setup: `_ensure_host_access` detects the IP and derives the domain. Set it to
-`x.internal` (piHole required, fully offline, and a second stack can take `y.internal`) or to a
-domain you own — a value already present is never overwritten.
+There are two paths to a browser, and **Core uses Tailscale**.
 
-**Tailscale is optional, never a prerequisite.** The default is the LAN: `_detect_host_ip` takes
-the address the kernel routes the internet through, and every device on that network reaches
-`<slug>.<domain>` with nothing installed. Remote access is any VPN (`site/docs/hosting/vpn.md`
-lists them side by side, favouring none). For a user who runs Tailscale, a tailnet address that
-is up is preferred over the LAN one (`tailscale ip -4`, range-checked against `100.64.0.0/10`).
-Split the two jobs: **nip.io supplies the wildcard**, the network supplies the reachability —
-the name resolves publicly, but a LAN or CGNAT address only routes inside that network, so
-nothing is exposed and no router or DNS config is needed. **Never use a MagicDNS name as
+**Core: `tailscale serve` on the tailnet name.** Core's two web apps need a certificate every
+device already trusts (code-server's webviews and the ntfy phone app refuse a warning), and a
+private CA means a root install on every device. So code-server and ntfy publish
+`127.0.0.1:42080` / `127.0.0.1:44680` — loopback only, nothing in Core listens on the LAN — and
+`_tailscale_serve_core` in `existential.sh` puts them on `https://<machine>.<tailnet>.ts.net` and
+`:8443` with `tailscale serve --bg` (persists across reboots; re-setting a port replaces its
+handler, and it skips one already set). It fills `EXIST_TAILNET_NAME` once serving works (fill
+only); ntfy's entrypoint builds its base URL from it and the digest links to it. It **never runs
+sudo and never fails**: no binary, not logged in, MagicDNS/HTTPS off (`CertDomains` empty) or
+no operator (`sudo tailscale set --operator=$USER`) each print the next step and the run goes on.
+`src/test/unit/test-remote-access.sh` drives it against a stub `tailscale`. Serve gives one
+hostname per node, so it stays Core's two apps on two ports; per-service tailscale sidecars
+would mean a node per container, which breaks "adding a service is adding a folder".
+
+**The Caddy add-on: `<slug>.<domain>`.** For a host without Tailscale, or add-ons that each want
+a name. Caddy ships **off**. The hostname suffix is `EXIST_DOMAIN`, defaulting to
+`EXIST_NIP_DOMAIN` → `<host-ip-with-dashes>.nip.io`, which public wildcard DNS resolves back to
+that IP — so `<slug>.<domain>` works on every device with **no piHole and no `/etc/hosts`**.
+Nothing is asked at setup: `_ensure_host_access` detects the IP and derives the domain. Set it to
+`x.internal` (piHole required, fully offline, and a second stack can take `y.internal`) or to a
+domain you own — a value already present is never overwritten. `_detect_host_ip` takes the
+address the kernel routes the internet through, except that a tailnet address that is up wins
+(`tailscale ip -4`, range-checked against `100.64.0.0/10`). Remote access to Caddy's names is
+any VPN (`site/docs/hosting/vpn.md` lists them side by side). Split the two jobs: **nip.io
+supplies the wildcard**, the network supplies the reachability — the name resolves publicly,
+but a LAN or CGNAT address only routes inside that network. **Never use a MagicDNS name as
 `EXIST_DOMAIN`**: MagicDNS answers exact node names only, so `<slug>.<node>.ts.net` is NXDOMAIN
 and the whole convention collapses (`_warn_if_no_gateway` catches `*.ts.net` and says so).
-`tailscale serve` is out for the same reason — one hostname per node, path-routed. Per-service
-tailscale sidecars would mean a node per container, which breaks "adding a service is adding a
-folder". Don't add a VPN service or prerequisite to replace it.
 
 **Caddy's `Caddyfile.exist.Caddyfile` is the single source of truth for which `<slug>.<domain>`
 hostnames exist** — `validate conventions` keys off it.

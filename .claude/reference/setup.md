@@ -105,8 +105,9 @@ guides end in work this repo cannot see (a ComfyUI checkpoint, a Spotify OAuth g
 word trained on a phone), and a wrong ✓ there costs more than a missing ✓ everywhere.
 
 Because 01–03 partition Core, running Core writes every file they name and every slice that
-declares `done:` crosses itself off with no knowledge of each other. (`01-access` declares
-none and has no service: Tailscale runs on the host, where nothing on disk proves it is set up.)
+declares `done:` crosses itself off with no knowledge of each other. (`01-access` has no
+service: Tailscale runs on the host. It declares `done.env: EXIST_TAILNET_NAME`, which
+`existential.sh` fills only once `tailscale serve` works.)
 
 `quest_skips_service` is the one exception to "enabled": a service the GPU-vendor answer forbids
 (local ollama under `EXIST_GPU_VENDOR=external`) is not missing, it is refused — the same rule

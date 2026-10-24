@@ -118,7 +118,7 @@ run_digest() {
     mkdir -p "$run"
     ( cd "$W" && PATH="${TMP}/bin:$(dirname "$TSX"):${PATH}" TZ=UTC PUSHES="${TMP}/pushes" \
         DECREE_LIB="${REPO_DIR}/automation/lib" DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="$run" \
-        DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_NOTE_LINK=workspace/notes/you-were-here.md \
+        DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_NOTE_LINK="" EXIST_TAILNET_NAME="${TAILNET_UNDER_TEST:-}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model DIGEST_NOW="$1" \
         bash "${REPO_DIR}/automation/scripts/you_were_here.sh" ) > "${run}.log" 2>&1
     echo $?
@@ -163,7 +163,8 @@ assert_eq "nothing changed, so nothing is pushed" "1" "$(pushes)"
 assert_has "...and the note is still refreshed" "$(cat "${TMP}/rundirs/2026-10-01T09:00:00Z.log")" "write: notes/you-were-here.md"
 cp "$DAY1" "${TMP}/day1.md"
 
-# ── day 2: the model answers, feeds.md exists, a checkbox was ticked ──────────
+# ── day 2: the model answers, feeds.md exists, a checkbox was ticked, Tailscale is up ──
+TAILNET_UNDER_TEST=box.tail1234.ts.net
 MODEL_URL_UNDER_TEST="http://127.0.0.1:${PORT}/v1"
 printf '# Feeds\n\n- http://127.0.0.1:%s/feed.xml\n' "$PORT" > "$W/notes/feeds.md"
 feed raised-beds-irrigation knitting-patterns stock-market-news
@@ -183,6 +184,7 @@ assert_eq "three items shown" "3" "$(grep -c '^- ' <<<"$FEEDS")"
 assert_eq "day 2 is pushed" "2" "$(pushes)"
 assert_has "the push starts with The picture" "$(head -n1 "${TMP}/pushes/2")" "## The picture"
 assert_has "the push shows link text, not paths" "$(cat "${TMP}/pushes/2")" "The garden is moving;"
+assert_has "with a tailnet name, the push links to code-server there" "$(cat "${TMP}/pushes/2")" "Full digest: notes/you-were-here.md, in https://box.tail1234.ts.net"
 assert_has "the ticked checkbox is under Done" "$(section "$DAY2" "Done")" "Ticked: compost delivery"
 assert_has "what you worked on today is under Done, with its source" "$(section "$DAY2" "Done")" "Worked on **shed**: 1 prompt via opencode"
 assert_has "feeds.md is a new note under Done" "$(section "$DAY2" "Done")" "New note: [notes/feeds.md]"

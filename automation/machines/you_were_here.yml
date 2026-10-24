@@ -3,8 +3,8 @@ description: The "you were here" digest, written to workspace/notes/you-were-her
 data:
   workspace: { type: string, default: /workspace }
   ntfy_topic: { type: string, default: exist }
-  # The last line of the push. A URL to the note (Nextcloud, Obsidian) works here.
-  note_link: { type: string, default: workspace/notes/you-were-here.md }
+  # The last line of the push. Blank: the note in code-server on EXIST_TAILNET_NAME. A URL to it (Nextcloud, Obsidian) works too.
+  note_link: { type: string, default: "" }
 store:
   state.json: The last digest (when, its window, its fingerprint) and the day each note, ticked checkbox and machine first appeared.
   feeds-shown.tsv: Feed links already shown, so an item is never in two digests.

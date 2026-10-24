@@ -87,10 +87,10 @@ _ensure_host_ids() {
 #
 # So detect the IP the same way EXIST_PUID/PGID are detected.
 
-# The address of this machine, preferring its tailnet address.
+# The address of this machine, preferring its tailnet address. Only the Caddy
+# add-on uses it (Core is served on the tailnet *name*, _tailscale_serve_core).
 #
-# Tailscale is optional — the LAN address below works on its own — but for a
-# user who runs it, its 100.64.0.0/10 address is the better answer: it reaches
+# The LAN address below works on its own, but when Tailscale is up its 100.64.0.0/10 address is the better answer: it reaches
 # every device enrolled rather than only this LAN, and it survives the machine moving
 # networks. `<ts-ip-with-dashes>.nip.io` then gives WILDCARD DNS for an address
 # that is only routable inside the tailnet — private by construction, with no
@@ -159,6 +159,77 @@ _ensure_host_access() {
     fi
 }
 
+# ── Core over Tailscale ───────────────────────────────────────────────────────
+#
+# Core's two web apps need a certificate every device already trusts: the editor
+# webviews in code-server won't run behind a warning, and the ntfy phone app won't
+# connect to one. `tailscale serve` terminates TLS with a Let's Encrypt cert for
+# this machine's tailnet name and proxies to the loopback ports the templates
+# publish. tailscaled keeps a `--bg` config across reboots, and setting a port
+# again replaces its handler, so a re-run never stacks a second one.
+#
+# Never sudo, never fail: whatever is missing is printed as the next step and the
+# run carries on. EXIST_TAILNET_NAME is only ever filled in, like EXIST_DOMAIN.
+_tailscale_serve_core() {
+    local f="${SCRIPT_DIR}/.env.shared" s port target status name serving out
+    local -a serves=()
+    grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" 2>/dev/null && serves+=("443 http://127.0.0.1:42080")
+    grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("8443 http://127.0.0.1:44680")
+    [[ ${#serves[@]} -gt 0 ]] || return 0
+
+    echo ""
+    if ! command -v tailscale >/dev/null 2>&1; then
+        echo "  ⚠  Core needs Tailscale, and it isn't installed on this host."
+        echo "     Install it and log in, here and on every device that should reach Core:"
+        echo "       https://tailscale.com/download"
+        echo "     then re-run ./existential.sh. Without Tailscale, the Caddy add-on serves"
+        echo "     https://<slug>.<domain> instead:  ./existential.sh quest  →  Network"
+        return 0
+    fi
+
+    status=$(tailscale status --json 2>/dev/null | tr -d ' \t\n') || true
+    if [[ "$status" != *'"BackendState":"Running"'* ]]; then
+        echo "  ⚠  Tailscale is installed but not logged in. Log in (sudo tailscale up),"
+        echo "     then re-run ./existential.sh to serve Core over HTTPS."
+        return 0
+    fi
+    name=$(sed 's/.*"Self":{//' <<<"$status" | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4) || true
+    name="${name%.}"
+
+    # CertDomains lists this node's name only once MagicDNS and HTTPS are both on.
+    if [[ -z "$name" || "$status" != *"\"CertDomains\":[\"${name}\""* ]] ||
+        ! serving=$(timeout 10 tailscale serve status --json </dev/null 2>&1); then
+        _tailscale_serve_steps "${serving:-}"
+        return 0
+    fi
+    serving=$(tr -d ' \t\n' <<<"$serving")
+
+    for s in "${serves[@]}"; do
+        port="${s%% *}" target="${s#* }"
+        [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"Proxy\":\"${target}\""* ]] && continue
+        if ! out=$(timeout 30 tailscale serve --bg --https="$port" "$target" </dev/null 2>&1); then
+            _tailscale_serve_steps "$out"
+            return 0
+        fi
+    done
+
+    if grep -q '^EXIST_TAILNET_NAME=$' "$f"; then
+        sed -i "s|^EXIST_TAILNET_NAME=$|EXIST_TAILNET_NAME=${name}|" "$f"
+    fi
+    echo "Core is served over Tailscale (HTTPS, trusted on every device in your tailnet):"
+    [[ " ${serves[*]} " == *" 443 "* ]] && echo "  code-server  https://${name}"
+    [[ " ${serves[*]} " == *" 8443 "* ]] && echo "  ntfy         https://${name}:8443"
+    return 0
+}
+
+_tailscale_serve_steps() {
+    echo "  ⚠  Tailscale can't serve Core over HTTPS yet. Do this once, then re-run ./existential.sh:"
+    [[ -n "$1" ]] && head -3 <<<"$1" | sed "s/^/       /"
+    echo "     1. https://login.tailscale.com/admin/dns: turn on MagicDNS and HTTPS Certificates."
+    echo "     2. Let your user configure serve (this script never runs sudo):"
+    echo "          sudo tailscale set --operator=\$USER"
+}
+
 # ── Service enablement ────────────────────────────────────────────────────────
 # SERVICE_CATEGORIES, _load_env_shared, _reload_env_shared, _enable_var_for,
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
@@ -166,11 +237,9 @@ _ensure_host_access() {
 
 # True when the user has enabled ANYTHING beyond what ships enabled by default.
 #
-# A bare "is any flag true?" is not the question: caddy ships as
-# EXIST_IS_HOSTING_CADDY=true, so that test passes on a completely fresh clone
-# and the first-run quest never fires. Compare against .env.exist.shared instead
-# — a flag that is true in both is a default, not a choice — so this stays right
-# if the set of default-enabled services ever changes.
+# Compared against .env.exist.shared rather than "is any flag true?": a flag
+# that is true in both is a default, not a choice. Nothing ships enabled today
+# (Caddy did once), so this only matters if that ever changes.
 _has_any_enabled() {
     local tmpl="${SCRIPT_DIR}/.env.exist.shared" k v
     [[ -f "${SCRIPT_DIR}/.env.shared" ]] || return 1
@@ -206,12 +275,14 @@ _warn_if_no_gateway() {
     esac
 
     if [[ "${caddy_on:-false}" != "true" ]]; then
+        # Core is reached over Tailscale (_tailscale_serve_core); only an add-on
+        # with a web UI needs Caddy, or its own ports: block uncommented.
+        grep -E '^EXIST_IS_[A-Z_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null \
+            | grep -qvE '^EXIST_IS_SERVICES_(CODE_SERVER|AUTOMATION|NTFY)=' || return 0
         echo ""
-        echo "  ⚠  Caddy is disabled, and port bindings are commented out by default."
-        echo "     Nothing will be reachable from a browser."
-        echo ""
-        echo "     Either enable Caddy (EXIST_IS_HOSTING_CADDY=true), or uncomment the"
-        echo "     'ports:' block in each service's docker-compose.yml, then re-run:"
+        echo "  ⚠  Caddy is disabled, so add-ons outside Core have no https://<slug>.<domain>"
+        echo "     name. Enable it (./existential.sh quest  →  Network), or uncomment the"
+        echo "     'ports:' block in that service's docker-compose.yml, then re-run:"
         echo "       ./existential.sh && docker compose up -d"
         echo ""
     elif [[ "$needs_tailnet_fix" == "true" ]]; then
@@ -560,6 +631,7 @@ case "$action" in
             _reload_env_shared
         fi
         _ensure_host_ids
+        _tailscale_serve_core
         echo ""
         echo "Generating docker-compose.yml..."
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
@@ -584,6 +656,7 @@ case "$action" in
         run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
         _reload_env_shared
         _ensure_host_ids
+        _tailscale_serve_core
         echo ""
         echo "Generating docker-compose.yml..."
         run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"

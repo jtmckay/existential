@@ -102,7 +102,8 @@ away. What each piece does is [Level 2](./how-it-works).
 ## Try it
 
 Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
-host it, and this repo.
+host it, this repo, and, for Core, [Tailscale](https://tailscale.com/download) logged in on that
+machine and on every device that should reach it.
 
 ```bash
 git clone https://github.com/jtmckay/existential.git

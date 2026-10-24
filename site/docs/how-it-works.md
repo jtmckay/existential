@@ -205,13 +205,33 @@ by container name:
 http://ollama:11434     http://firecrawl:3002     http://automation-webhook:8801
 ```
 
-No service discovery, no ports published to the host unless you ask. Browser access goes
-through Caddy at `https://<slug>.<domain>`; container-to-container traffic uses the plain
-hostname above — faster, and no TLS to trust.
+No service discovery. Core's two web apps publish one port each, on the host's loopback only,
+for `tailscale serve` to put on the tailnet name; every other service publishes nothing unless
+you ask, and browser access goes through the Caddy add-on at `https://<slug>.<domain>`.
+Container-to-container traffic uses the plain hostname above — faster, and no TLS to trust.
+
+## Core over Tailscale
+
+Core's two web apps need a certificate every device already trusts: code-server's editor
+webviews (the markdown preview that shows your graphs) don't run behind a certificate warning,
+and the ntfy phone app won't connect to one. A private CA means installing a root certificate on
+every phone and laptop. Tailscale issues publicly trusted Let's Encrypt certificates for a
+machine's tailnet name, so with it up on the host `./existential.sh` runs `tailscale serve`:
+
+```
+https://<machine>.<tailnet>.ts.net       →  127.0.0.1:42080  (code-server)
+https://<machine>.<tailnet>.ts.net:8443  →  127.0.0.1:44680  (ntfy)
+```
+
+No reverse proxy, no certificate to install, nothing listening on the LAN. The tailnet name
+appears in public certificate transparency logs: visible, not reachable. What it takes, and what
+`./existential.sh` prints until it is there, is in
+[Getting Started](./getting-started.md#setup).
 
 ## Hostnames that just work
 
-`EXIST_DOMAIN` defaults to `<your-host-ip-with-dashes>.nip.io`, derived automatically on the
+This is the Caddy add-on's side, for a host without Tailscale or for add-ons that each want a
+name. `EXIST_DOMAIN` defaults to `<your-host-ip-with-dashes>.nip.io`, derived automatically on the
 first run from this machine's LAN address:
 
 ```
@@ -241,8 +261,8 @@ Setting `EXIST_DOMAIN=my-box.tailnet.ts.net` looks correct and fails. MagicDNS r
 `dashy.my-box.tailnet.ts.net` is NXDOMAIN and the whole `<slug>.<domain>` convention collapses.
 Use the tailnet **IP** in nip.io form.
 
-The same reasoning rules out `tailscale serve`: it terminates TLS for one hostname per node
-with path-based routing, so it cannot give forty services forty hostnames.
+The same reasoning keeps `tailscale serve` to Core's two apps, one port each: it terminates TLS
+for one hostname per node, so it cannot give forty services forty hostnames. Caddy can.
 :::
 
 The catch: that lookup goes to the internet. If your WAN link is down, the names stop

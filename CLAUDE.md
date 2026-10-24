@@ -209,7 +209,9 @@ from the repo root against the generated `docker-compose.yml`.
   TSDB) is `db: true` and must **never** be `nfs: true`. **Anything gitignored is a volume** — a
   relative bind source is for tracked config only, never for state, however regenerable. **No
   `.gitkeep`** — `generate-compose.ts` creates the dirs for enabled services. → `volumes.md`
-- **Addressing.** Browser/cross-machine → `https://<slug>.<domain>` through Caddy;
+- **Addressing.** Core's two web apps → `https://<machine>.<tailnet>.ts.net` (code-server) and
+  `:8443` (ntfy) via `tailscale serve`, from ports published on `127.0.0.1` only; add-ons in a
+  browser → `https://<slug>.<domain>` through Caddy, which ships off;
   container-to-container → `http://<container>:<port>` over Docker DNS. Caddy's
   `Caddyfile.exist.Caddyfile` is the single source of truth for which hostnames exist. →
   `networking.md`

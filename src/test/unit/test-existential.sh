@@ -304,9 +304,9 @@ else
     _fail "_has_any_enabled: commented-out line → exits non-zero" "comment was matched"
 fi
 
-# Default-enabled services must NOT count as a user choice. caddy ships as
-# EXIST_IS_HOSTING_CADDY=true, so a bare "is any flag true?" would report an
-# untouched clone as configured and the first-run quest would never fire.
+# Default-enabled services must NOT count as a user choice: a flag that ships
+# true would otherwise report an untouched clone as configured, and the
+# first-run quest would never fire. (Caddy used to ship true.)
 _has_enabled_with_tmpl() {
     local env_content="$1" tmpl_content="$2"
     printf '%s\n' "$env_content"  > "${FAKE_HAS}/.env.shared"

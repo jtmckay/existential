@@ -55,16 +55,22 @@ Ntfy emojis: https://docs.ntfy.sh/emojis/
 ```bash
 curl -d "Backup completed successfully" \
   -H "Authorization: Bearer tk_REPLACE_BOT_TOKEN" \
-  https://ntfy.<domain>/exist/backup
+  https://<machine>.<tailnet>.ts.net:8443/exist/backup
 ```
 
 ## Services
 
-| Endpoint | URL |
-|---|---|
-| Web Interface | `https://ntfy.<domain>` |
-| API | `https://ntfy.<domain>/{topic}` |
-| Health Check | `https://ntfy.<domain>/v1/health` |
+In Core, ntfy is on the host's tailnet name, port 8443: `./existential.sh` runs `tailscale serve`
+for it, and the container publishes on loopback only. With the Caddy add-on and no tailnet name,
+it is `https://ntfy.<domain>`. `entrypoint.sh` sets ntfy's base URL, the address the phone app
+and ntfy's own links use, to whichever applies; `NTFY_BASE_URL` in `services/ntfy/.env`
+overrides it.
+
+| Endpoint | Core (Tailscale) | Caddy add-on |
+|---|---|---|
+| Web Interface | `https://<machine>.<tailnet>.ts.net:8443` | `https://ntfy.<domain>` |
+| API | `https://<machine>.<tailnet>.ts.net:8443/{topic}` | `https://ntfy.<domain>/{topic}` |
+| Health Check | `https://<machine>.<tailnet>.ts.net:8443/v1/health` | `https://ntfy.<domain>/v1/health` |
 
 ## Debugging
 

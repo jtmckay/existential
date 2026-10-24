@@ -45,8 +45,11 @@ individually and you arrive at the same stack.
 ── Before you start: Tailscale ─────────────────────────────────────────────
 
 Install Tailscale on this host and log in (https://tailscale.com/download),
-then do the same on every phone and laptop that should reach Core. Quest
-**01 Access** has the details.
+then do the same on every phone and laptop that should reach Core.
+./existential.sh serves Core on this machine's tailnet name for you, and
+prints what is left (MagicDNS and HTTPS in the admin console, one
+`sudo tailscale set --operator=$USER`) until it can. Quest **01 Access** has
+the details.
 
 ── Sizing ──────────────────────────────────────────────────────────────────
 

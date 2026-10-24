@@ -4,10 +4,12 @@ sidebar_position: 7
 
 # VPN
 
-On your own network the stack needs nothing: the first run's `<lan-ip-with-dashes>.nip.io`
-domain resolves on every device, and the LAN routes to it. A VPN is how a phone or laptop gets
-back onto that network from anywhere else, without exposing a single service to the open
-internet. None is required, and the stack does not care which you pick.
+Core is reached over Tailscale, on the host's tailnet name (see
+[Getting Started](../getting-started.md#setup)). This page is for the Caddy add-on, on a host
+without it: on your own network the first run's `<lan-ip-with-dashes>.nip.io` domain resolves
+on every device, and the LAN routes to it. A VPN is how a phone or laptop gets back onto that
+network from anywhere else, without exposing a single service to the open internet. Caddy does
+not care which you pick.
 
 ## Options
 

@@ -337,7 +337,11 @@ function write() {
   }
   // The push: The picture, Waiting on you, One next thing, Holding steady, then the
   // note. Cut at a section boundary to stay under ntfy's limit.
-  const footer = `Full digest: ${process.env.DECREE_DATA_NOTE_LINK || "workspace/notes/you-were-here.md"}`;
+  // note_link wins; else code-server on the tailnet name Core is served on.
+  const tailnet = process.env.EXIST_TAILNET_NAME;
+  const link = process.env.DECREE_DATA_NOTE_LINK ||
+    (tailnet ? `notes/you-were-here.md, in https://${tailnet}` : "workspace/notes/you-were-here.md");
+  const footer = `Full digest: ${link}`;
   let push = "";
   for (const part of [s.picture, s.waiting, s.next, s.steady].filter(Boolean).map(plain)) {
     if (Buffer.byteLength(`${push}${part}\n\n${footer}`) > NTFY_LIMIT) break;
