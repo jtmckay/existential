@@ -14,6 +14,9 @@ that conversation going from a phone.
   installs and logins survive container recreation.
 - opencode is configured to use the stack's OpenAI-compatible model endpoint, with nothing
   for the user to set beyond that endpoint.
+- code-server ships with a markdown preview that renders mermaid, so every machine's graph in
+  `.decree/graph/` shows as a diagram. That is how the user sees the flows they've set up.
+  The extension comes from Open VSX and survives container recreation.
 - The terminal has `tmux` and the repo's `tmx` function (`.claude/reference/services.md`).
   `tmx -d claude claude remote-control` starts a remote-control session, re-attachable with
   `tmx claude`, and never starts a second copy while one is running.
@@ -34,6 +37,9 @@ that conversation going from a phone.
 - **Given** a freshly recreated code-server container
   **When** `docker exec code-server bash -lc 'claude --version && opencode --version && tmux -V'` runs
   **Then** it exits 0
+- **Given** a freshly recreated code-server container
+  **When** its installed extensions are listed
+  **Then** a mermaid-rendering markdown preview is among them
 - **Given** a running `claude` tmux session
   **When** `tmx -d claude claude remote-control` runs again
   **Then** `tmux ls` still shows exactly one `claude` session

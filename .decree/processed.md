@@ -10,6 +10,6 @@
 010-capture.md
 011-you-were-here.md
 012-look-back.md
-013-tailscale-optional.md
+013-tailscale-https.md
 014-target-audience.md
 015-nothing-phones-home.md

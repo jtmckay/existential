@@ -1,49 +1,55 @@
 ---
 machine: develop
 ---
-# Tailscale is one way to reach the stack, not a prerequisite
+# Tailscale is part of Core: real HTTPS, nothing to trust by hand
 
 ## Overview
 
-The docs list Tailscale as a prerequisite and the setup output nags when it isn't running. It
-isn't needed: the stack works on the LAN with nothing installed, and remote access can be any
-VPN (Tailscale, WireGuard, OpenVPN, Headscale) or local DNS through a piHole on another
-server. Recommending one vendor's hosted coordination service by default contradicts "on
-hardware you own".
+Core's two web apps both need a certificate every device already trusts: code-server's editor
+webviews (the markdown preview that shows your graphs) don't run behind a certificate warning,
+and the ntfy phone app won't connect to one. A private CA means installing a root certificate
+on every phone and laptop, the most technical step a new user would hit. Tailscale issues
+publicly trusted Let's Encrypt certificates for a machine's tailnet name, so Core needs no
+reverse proxy and no certificate install anywhere.
 
 ## Outcome
 
-- The prerequisites in `README.md`, `site/docs/getting-started.md` and `site/docs/intro.md`
-  are Docker (usable without sudo), a machine, and the repo. Tailscale is not listed.
-- The default address story is the LAN: the first run derives `<lan-ip-with-dashes>.nip.io`,
-  reachable from devices on the same network with nothing configured.
-- Remote access is one short, vendor-neutral section ("Reaching it from outside the house")
-  that links to `site/docs/hosting/vpn.md`, which lists the VPN options side by side without
-  favouring one.
-- Host IP detection behaves as before: when a tailnet address is up, it is still preferred,
-  and the MagicDNS warning stays wherever it is relevant. Docs describe that as "if you use
-  Tailscale", not as the expected setup.
-- The quest run no longer prints a warning when Tailscale isn't running. On a LAN address it
-  says the services work from this network, and points at the VPN page for anywhere else.
-- Quest `01-network-access` replaces "Put your devices on the tailnet" with the
-  vendor-neutral remote-access section.
-- The service tour no longer has a Core "Also on your devices" section for Tailscale; Core's
-  story on the tour ends with the hosted Core services. The tour's header comment matches.
-- `.claude/reference/networking.md` and `templates.md` say Tailscale is optional.
+- Tailscale is part of Core. Core's guide (`src/quests/00-core.md`) walks through it: installed
+  and logged in on the host and on every device that should reach Core. README, Getting
+  Started and intro list it with Docker as what Core needs.
+- With Tailscale up on the host, `./existential.sh` serves Core over HTTPS on the machine's
+  tailnet name with `tailscale serve`: code-server at `https://<machine>.<tailnet>.ts.net` and
+  ntfy at `https://<machine>.<tailnet>.ts.net:8443`. The serve config persists across reboots,
+  and re-running `./existential.sh` doesn't duplicate it.
+- When Tailscale can't serve yet, `./existential.sh` prints the exact steps and carries on
+  without failing: enabling MagicDNS and HTTPS certificates in the admin console, and
+  `sudo tailscale set --operator=$USER` once, since it never runs sudo itself.
+- Core services publish their ports on the host's loopback only; nothing in Core listens on
+  the LAN.
+- ntfy's base URL and every link the stack sends (ntfy messages, the digest) use the tailnet
+  URL.
+- The docs say plainly that the tailnet name appears in public certificate transparency logs:
+  visible, not reachable.
+- A host without Tailscale is outside Core. There, the Caddy add-on provides `https://<slug>.<domain>` hostnames with its
+  internal CA (trusted once per device, as its guide explains), on the LAN or any VPN. Host
+  IP detection and the nip.io default behave as before for Caddy.
+- `.claude/reference/networking.md` describes both paths, and which one Core uses.
 
 ## Constraints
 
-- `_detect_host_ip`'s results don't change for any host.
-- No new prerequisite or service replaces Tailscale.
+- `existential.sh` never runs sudo, and never fails because Tailscale is missing or not yet
+  set up.
+- No new service in Core.
 
 ## Acceptance Criteria
 
-- **Given** `README.md`, `site/docs/getting-started.md` and `site/docs/intro.md`
-  **When** their prerequisites are read
-  **Then** Tailscale is not among them
+- **Given** a host with Tailscale up and HTTPS enabled for the tailnet
+  **When** `./existential.sh` runs twice
+  **Then** `tailscale serve status` shows code-server on 443 and ntfy on 8443, once each
 - **Given** a host with no tailscale binary
-  **When** the quest's closing access tip runs with a LAN nip.io domain
-  **Then** the output doesn't mention Tailscale and does point at the VPN docs
-- **Given** the docs site build
-  **When** it runs
-  **Then** it succeeds
+  **When** `./existential.sh` runs
+  **Then** it exits 0 and prints that Core needs Tailscale, how to install it, and the Caddy
+  add-on as the alternative
+- **Given** a Core install
+  **When** its published ports are listed
+  **Then** each is bound to 127.0.0.1
