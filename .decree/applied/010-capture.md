@@ -24,13 +24,17 @@ transcript, belong in the same place. Capture is the Input pillar made literal.
   is replaced by a marker that names the kind.
 - `POST /capture` on automation-webhook appends the posted text with a source name, so a phone
   shortcut or any other tool can add to the stream.
+- A prompt typed into an AI tool (one with a session id) is also appended to that session's
+  Markdown file in `workspace/ai/conversations/`, one per session per day, so search finds it
+  beside the notes. Its frontmatter names the tool, session and date; the file says these are
+  prompts as typed, not the AI's answers and not decisions.
 - Turning capture off is one documented step for each source.
 
 ## Constraints
 
 - Capture never blocks or slows the prompt. A failed capture is silent to the person and
   logged.
-- Nothing outside `workspace/.capture/` is written by capture.
+- Nothing outside `workspace/.capture/` and `workspace/ai/conversations/` is written by capture.
 
 ## Acceptance Criteria
 
@@ -46,3 +50,7 @@ transcript, belong in the same place. Capture is the Input pillar made literal.
 - **Given** `POST /capture` with the webhook's token and `{"source":"phone","text":"buy filters"}`
   **When** it is sent
   **Then** a line with that source and text is appended
+- **Given** two prompts in one Claude Code session
+  **When** they are captured
+  **Then** one file in `workspace/ai/conversations/` holds both, under their timestamps, redacted
+  like the stream, and a captured line with no session id adds no file

@@ -6,6 +6,8 @@
 #   shape      one {ts, source, context, session, text} line per prompt, nothing else
 #              of a hook's input (no transcript); empty text writes nothing; two
 #              prompts of one session share its id, another session's differs.
+#   markdown   a session's prompts land redacted in one ai/conversations/ file,
+#              each under its timestamp; a session-less capture adds no file.
 #   failure    an unwritable stream exits 0 and lands in errors.log.
 #   detached   the default write happens after capture.sh has already exited.
 #   install    the Claude Code hook is added once, survives a second install,
