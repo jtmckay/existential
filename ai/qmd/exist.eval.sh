@@ -114,6 +114,8 @@ echo; echo "Exclusions:"
 leaked=$(query '[{"type":"lex","query":"zebracobalt"}]' false)
 [[ -z "$leaked" ]] && good "gitignored, hidden and dotfiles, and a gitignored Word file, are not searchable" || bad "found: $leaked"
 [[ ! -e "$TMP/cache/documents/private" ]] && good "a gitignored Word file is never converted" || bad "converted: $(ls "$TMP/cache/documents/private")"
+hit=$(EXIST_SEARCH_MCP_URL="http://$IP:8181/mcp" "$REPO/automation/lib/recall/search.sh" magnesium anode 2>/dev/null | grep -m1 . || true)
+[[ "$hit" == "notes/manuals/water-heater-manual.pdf page 2 "* ]] && good "the search command names a PDF hit's file and page" || bad "search magnesium anode: $hit"
 [[ -s "$TMP/cache/documents/notes/scans/scanned-receipt.pdf.md.none" ]] && good "a PDF with no text layer is recorded, not indexed: $(cat "$TMP/cache/documents/notes/scans/scanned-receipt.pdf.md.none")" \
     || bad "no record that notes/scans/scanned-receipt.pdf has no text"
 

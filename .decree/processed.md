@@ -16,3 +16,4 @@
 016-file-change-events.md
 017-failures-reach-you.md
 018-first-run-asks-two-things.md
+019-search-your-notes.md

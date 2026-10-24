@@ -145,7 +145,7 @@ search restic forget            # in code-server's terminal, when EXIST_SEARCH_M
 
 It prints the best passage from each of the ten best files, best first, each as `path:line` (relative to the
 workspace; in code-server, a click opens the file) and the lines around the hit. A PDF
-or Word hit shows the original file. The command sends what you type as both the
+or Word hit shows the original file, and a PDF hit its page. The command sends what you type as both the
 keyword and the meaning search, so **type the words you remember**: that found every
 expected source on 24 of 25 test questions. A whole question works too, but its keyword
 half only helps when every word of it is in the note, so it found 21 of 25, the same

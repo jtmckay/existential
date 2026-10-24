@@ -10,7 +10,8 @@
 #
 # Prints the best passage of each of the 10 best hits, best first, each as path:line (relative to the
 # workspace) and the lines around the hit. A PDF or Word file is shown as the
-# file itself, since its line numbers count lines of the extracted text.
+# file itself, since its line numbers count lines of the extracted text, and a
+# PDF hit as its page (the last "## Page N" heading above the hit).
 #
 # Run by path (hence 755): code-server links it onto PATH as `search` when
 # EXIST_SEARCH_MCP_URL is set; on the host, `./existential.sh run qmd search`.
@@ -31,6 +32,17 @@ pending=$(curl -sS --max-time 10 "$url/mcp" -H 'Content-Type: application/json' 
 [[ "${pending:-0}" == 0 ]] ||
     echo "search: ${pending} file(s) have no neural index yet, so they match by exact words only (docker logs qmd)." >&2
 
+# The page of a PDF hit: the last "## Page N" heading at or above <line>, read
+# with the MCP get tool, since the extracted text lives only in qmd_cache.
+page() {  # <qmd://documents/... file> <line>
+    curl -sS --max-time 10 "$url/mcp" -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -d "$(jq -nc --arg f "$1" --argjson n "$2" '{jsonrpc: "2.0", id: 1, method: "tools/call",
+              params: {name: "get", arguments: {file: $f, fromLine: 1, maxLines: $n, lineNumbers: false}}}')" 2>/dev/null |
+        sed -n 's/^data: //p' | jq -r '.result.content[0].resource.text // empty' 2>/dev/null |
+        sed -n 's/^## Page \([0-9]*\)$/\1/p' | tail -1
+}
+
 if [[ "$(jq '.results | length' <<<"$res")" == 0 ]]; then
     echo "Nothing found. That doesn't mean it isn't there: try other words." >&2
     exit 1
@@ -47,9 +59,14 @@ jq -c 'def lines: split("\n") as $l
        | .[] | [.file, (.line | tostring), .title, (.snippet | lines)]' <<<"$res" |
 while IFS= read -r r; do
     file=$(jq -r '.[0]' <<<"$r"); line=$(jq -r '.[1]' <<<"$r"); title=$(jq -r '.[2]' <<<"$r")
-    file="${file#qmd://}"; coll="${file%%/*}"; file="${file#*/}"
+    uri=$file; file="${file#qmd://}"; coll="${file%%/*}"; file="${file#*/}"
     file=$(printf '%b' "${file//%/\\x}")   # qmd URL-encodes each path segment
-    if [[ "$coll" == documents ]]; then where="${file%.md}"; else where="$file:$line"; fi
+    if [[ "$coll" == documents ]]; then
+        where="${file%.md}"
+        if [[ "${where,,}" == *.pdf ]]; then p=$(page "$uri" "$line" || true); where+="${p:+ page $p}"; fi
+    else
+        where="$file:$line"
+    fi
     printf '\n%s  %s\n' "$where" "$title"
     jq -r '.[3]' <<<"$r" | sed 's/^/    /'
 done
