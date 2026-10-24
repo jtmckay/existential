@@ -1,30 +1,47 @@
 ---
-name: Nextcloud
-tagline: File sync for your devices, and the file events that let decree react to an upload
+name: Capture
+tagline: The webhook and Nextcloud — a POST, or a file from your phone, becomes decree work
 e2e: false
+e2e_skip: Nextcloud's file events need the desktop client or a real upload to mean anything; e2e covers the chain as its own check
 services:
+  - var: EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
+    label: automation-webhook (authenticated POSTs become decree messages)
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud (files + file events)
   - var: EXIST_IS_SERVICES_AUTOMATION
-    label: Decree (receives the file events)
+    label: Decree (runs what they queue)
 done:
   files:
     - volumes/workspace_data/.decree/migrations/23-nextcloud-rclone-remote.md
     - volumes/workspace_data/.decree/migrations/27-nextcloud-file-events.md
 ---
 
-Nextcloud is what your phone and laptop sync to, and the reason a file landing
-in it can *trigger* something. It serves the workspace (`volumes/workspace_data`,
-the tree code-server already edits) as the `workspace` folder, so the desktop
-client keeps a copy on every machine you use. Core does not install it — files
-usually live on another server — so this is the whole setup, by hand.
+An add-on, not part of Core: capture from outside the work dir.
+automation-webhook turns an authenticated POST into a decree message, which is
+how a phone shortcut, an ntfy action or another machine queues work. Nextcloud
+is the prime example of capture from a phone: it is what your phone and laptop
+sync to, and the reason a file landing in it can *trigger* something. It serves
+the workspace (`volumes/workspace_data`, the tree code-server already edits) as
+the `workspace` folder, so the desktop client keeps a copy on every machine you
+use. Files usually live on another server, so this is the whole setup, by hand.
+
+Nothing here is the only way in: everything the webhook triggers can also be
+started from code-server's terminal, e.g. `cd /workspace && echo | decree emit
+--machine look_back`.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
 
+       EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true
        EXIST_IS_NAS_NEXTCLOUD=true
 
        ./existential.sh
        docker compose up -d
+
+The webhook's endpoints (`/capture`, `/you-were-here`, `/look-back`, `/notify`,
+`/files`, ...) are `volumes/workspace_data/.decree/decree-go-rest.yml`; the
+bearer secret is AUTOMATION_WEBHOOK_SECRET in services/automation-webhook/.env.
+Reach it at https://automation-webhook.${EXIST_DOMAIN} through the **Network**
+quest's Caddy, or from any container at http://automation-webhook:8801.
 
 Nextcloud installs itself, mounts the workspace at `/workspace` in Files, and
 starts `nextcloud-cron`, which runs its background jobs — including delivering
@@ -63,7 +80,7 @@ side is just where it lives.
 
 ── 5. Check it ───────────────────────────────────────────────────────────
 
-       ./existential.sh test nextcloud
+       ./existential.sh test automation-webhook nextcloud
 
 Files: https://nextcloud.${EXIST_DOMAIN}
 

@@ -21,28 +21,31 @@ sidebar_position: 2
 ./existential.sh quest
 ```
 
-On a first run this asks two hardware questions and then offers **Core** — the whole system
+On a first run this asks two hardware questions and then offers **Core** — the whole loop
 wired together, rather than forty checkboxes. Say yes and you get a work dir you open in a
-browser, a terminal there to talk to an AI, and decree to automate it, plus notifications and
-monitoring. No GPU, no model downloads:
+browser, a terminal there to talk to an AI, decree to automate it, and ntfy to tell you. No GPU,
+no model downloads:
 
 | | |
 |---|---|
-| **Network access** | Caddy (TLS + hostnames), Dashy (the dashboard) |
+| **Access** | Tailscale on the host (no container): real HTTPS on every device you log in |
 | **Workspace** | code-server (editor + terminal over the work dir) |
-| **Automation** | Decree (and its webhook), ntfy (where automations report in) |
-| **Observability** | Loki, Prometheus, Grafana (Decree's run logs and dashboards), Uptime Kuma |
-| **Apps** | Actual Budget |
+| **Automation** | Decree (the automation daemon), ntfy (where automations report in) |
 
-Files (Nextcloud), the house (Home Assistant), DNS (piHole) and GPU models usually run on other
-servers, so Core leaves them out; each is an unnumbered quest (**Nextcloud**, **Voice & Home**,
-**Local AI**).
+Everything else is an add-on, one unnumbered quest each: **Network** (Caddy hostnames, LAN
+access without Tailscale), **Monitoring** (Dashy, Loki, Prometheus, Grafana, Uptime Kuma),
+**Capture** (automation-webhook, Nextcloud), **Apps** (Actual Budget, Mealie, IT Tools),
+**Local AI** and **Voice & Home**. Files, DNS, the house and GPU models usually run on other
+servers anyway.
+
+Core ships no backups. The simplest way to keep the workspace safe is to put
+`volumes/workspace_data` under git, with a remote you choose.
 
 Decline and you fall through to the full picker, then the quest list. The numbered quests there
-are those same five rows one at a time — Core, taken apart — so you can build up to the same
+are those same three rows one at a time — Core, taken apart — so you can build up to the same
 stack in pieces and see every step instead of having it done for you. They cross themselves off
 as you finish them, and running Core crosses off every one that can be checked from disk.
-Everything unnumbered is an integration or automation past Core.
+Everything unnumbered is an add-on, an integration or an automation past Core.
 
 Either way, `./existential.sh` on its own does the same work without the questions:
 
@@ -220,7 +223,7 @@ writes nothing outside `workspace/.capture/`. One script does all of it:
 | Claude Code in [code-server](./services/code-server) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
 | opencode in code-server | By default: a plugin, `automation/lib/capture/opencode.ts` | The same key |
 | Claude Code on another machine (a laptop, the host) | `bash automation/lib/capture/capture.sh install <workspace dir>` from a checkout of this repo, with the workspace synced there | `bash automation/lib/capture/capture.sh uninstall` |
-| Anything that can POST: a phone shortcut, an ntfy action, a voice memo transcript | `POST /capture` on `automation-webhook` (below) | Delete the `/capture` entry from `workspace/.decree/decree-go-rest.yml` |
+| Anything that can POST: a phone shortcut, an ntfy action, a voice memo transcript | `POST /capture` on `automation-webhook` (below), with the **Capture** add-on (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | Delete the `/capture` entry from `workspace/.decree/decree-go-rest.yml` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s), beside
 whatever hooks you already have; `uninstall` removes only that one.
@@ -233,7 +236,8 @@ curl -X POST https://automation-webhook.<domain>/capture \
 
 The body is `{"source", "text"}` JSON (plus an optional `context`), or plain text, which is
 filed with source `webhook`. The secret is `AUTOMATION_WEBHOOK_SECRET` in
-`services/automation/.env`. An install from before capture existed keeps its own
+`services/automation-webhook/.env`. Without the webhook, the same machine runs from
+code-server's terminal: `cd /workspace && echo 'buy filters' | decree emit --machine capture`. An install from before capture existed keeps its own
 `workspace/.decree/decree-go-rest.yml`; copy the `/capture` entry from
 `automation/decree-go-rest.yml` into it.
 
@@ -272,7 +276,8 @@ sources they came from, which is what a [work look back](#look-back) filters on.
 
 The cron is active by default (`workspace/.decree/cron/you-were-here.md`, from
 `automation-examples/cron/you-were-here.md`); edit its time there, or set its cron to
-`0 0 31 2 *` to turn it off. `POST /you-were-here` on `automation-webhook` writes one now, and
+`0 0 31 2 *` to turn it off. `POST /you-were-here` on `automation-webhook` (the Capture add-on),
+or `echo | decree emit --machine you_were_here` in code-server's terminal, writes one now, and
 the machine's `note_link` param sets the push's last line, such as a URL to the note.
 An install from before this keeps its own `workspace/.decree/decree-go-rest.yml`; copy the
 `/you-were-here` entry from `automation/decree-go-rest.yml` into it.
@@ -301,8 +306,9 @@ period up to `to` (today when blank), and `from`/`to` (`YYYY-MM-DD`) set either 
 docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null
 ```
 
-`POST /look-back` on `automation-webhook` does the year so far, `/look-back/month` a period,
-`/look-back/month/work` a period at work only.
+With the Capture add-on, `POST /look-back` on `automation-webhook` does the year so far,
+`/look-back/month` a period, `/look-back/month/work` a period at work only. From code-server's
+terminal it is the same command as above, run in `/workspace` without `docker exec automation`.
 
 **Work only**: `scope=work` keeps what `workspace/notes/you-were-here/scope.md` names: projects,
 workspace folders (`notes/work/`) and capture sources (`claude-code`), one `- ` line each under

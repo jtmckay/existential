@@ -126,7 +126,7 @@ export const TOUR: TourSection[] = [
     name: 'Where you look',
     kicker: 'The pages you keep open',
     kind: 'hosted',
-    tier: 'core',
+    tier: 'extra',
     lede: 'Dashy is the bookmark: one tile per service you turned on, with a red dot the moment something stops answering. Grafana is where you go when something feels slow — it graphs everything the stack emits, every automation run included. Uptime Kuma watches the machines this one cannot see into.',
     services: [
       {
@@ -155,24 +155,6 @@ export const TOUR: TourSection[] = [
         shot: '/img/services/uptime-kuma.webp',
         docs: '/docs/hosting/uptime-kuma',
         source: 'https://github.com/louislam/uptime-kuma',
-      },
-    ],
-  },
-  {
-    name: 'Your money',
-    kicker: 'The first app, and the first thing decree can feed',
-    kind: 'hosted',
-    tier: 'core',
-    lede: 'One everyday app ships with Core, because it is the one automations already know how to post to.',
-    services: [
-      {
-        slug: 'actual-budget',
-        name: 'Actual Budget',
-        blurb: 'Personal finance',
-        what: 'Envelope budgeting that is fast and genuinely pleasant to use — every dollar gets a job, and the month either balances or it doesn’t. Transactions can arrive automatically, so the only thing left to do is categorize.',
-        shot: '/img/services/actual-budget.webp',
-        docs: '/docs/services/actual-budget',
-        source: 'https://github.com/actualbudget/actual',
       },
     ],
   },
@@ -302,7 +284,7 @@ export const TOUR: TourSection[] = [
     kicker: 'Extra visibility and extra plumbing',
     kind: 'hosted',
     tier: 'extra',
-    lede: 'Core already gives every service a hostname, a certificate, logs and metrics. These add to that rather than provide it.',
+    lede: 'Core reaches its two web apps over Tailscale. These are for a homelab that wants its own DNS and a window onto every container.',
     services: [
       {
         slug: 'portainer',
@@ -330,6 +312,15 @@ export const TOUR: TourSection[] = [
     tier: 'extra',
     lede: 'Ordinary self-hosted apps, sharing the network, the storage and the login you already have. Nothing else depends on any of them — turn one off and the rest carries on.',
     services: [
+      {
+        slug: 'actual-budget',
+        name: 'Actual Budget',
+        blurb: 'Personal finance',
+        what: 'Envelope budgeting that is fast and genuinely pleasant to use — every dollar gets a job, and the month either balances or it doesn’t. Transactions can arrive automatically, so the only thing left to do is categorize.',
+        shot: '/img/services/actual-budget.webp',
+        docs: '/docs/services/actual-budget',
+        source: 'https://github.com/actualbudget/actual',
+      },
       {
         slug: 'immich',
         name: 'Immich',

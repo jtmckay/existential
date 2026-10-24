@@ -285,7 +285,8 @@ until the service answers, so a slow starter holds back only its own migrations,
 migration that fails blocks the ones after it until `decree process --retry`. Add a migration for
 a new service and you add its `wait_for_*` script.
 
-**`automation-webhook` does not use this image.** It is decree-go-rest
+**`automation-webhook` does not use this image**, and is its own service folder
+(`services/automation-webhook/`, its own flag, outside Core). It is decree-go-rest
 (`ghcr.io/jtmckay/decree-go-rest`, pinned to its release tag; it bundles the same decree version), with
 its own daemon off, over the `automation` project mounted read-only plus a writable `inbox/`.
 Each endpoint in `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`) turns an authenticated POST into a `decree emit`

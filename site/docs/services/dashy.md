@@ -65,8 +65,9 @@ for temporary tweaks.
 
 ## What's on the dashboard, and what isn't
 
-The shipped template lists the CORE stack (`src/quests/00-core.md`) only. A few core
-services are deliberately absent:
+Dashy is part of the **Monitoring** add-on, not Core. The shipped template is a starting set:
+Core's two web apps (code-server, ntfy), the rest of the Monitoring quest, and Actual Budget.
+A few services are deliberately absent:
 
 - **No HTTP endpoint of their own**: loki (Grafana is the window onto it), decree (the
   background daemon has no UI), and caddy itself.

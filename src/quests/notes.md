@@ -23,7 +23,7 @@ Pipeline each run:
   4. Push to Dropbox      (automation/lib/notes/push-dropbox.sh)
 
 Prerequisites:
-  - Nextcloud running (the Nextcloud quest)
+  - Nextcloud running (the Capture quest)
   - Dropbox rclone remote configured:
       ./existential.sh run rclone
   - Nextcloud rclone credentials in automation/secrets/

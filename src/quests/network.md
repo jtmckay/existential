@@ -1,12 +1,10 @@
 ---
-name: Network Access
-tagline: "Caddy + Dashy — every service reachable at https://<slug>.<domain>, from one page"
+name: Network
+tagline: "Caddy — https://<slug>.<domain> for every service, on the LAN or any VPN"
 e2e: true
 services:
   - var: EXIST_IS_HOSTING_CADDY
     label: Caddy (TLS + hostnames)
-  - var: EXIST_IS_SERVICES_DASHY
-    label: Dashy (the dashboard)
 done:
   env:
     - EXIST_DOMAIN
@@ -14,27 +12,29 @@ done:
     - hosting/caddy/certs/internal-ca.pem
 ---
 
-The first slice of Core: a name and a padlock for everything else you turn on.
-Core does this for you; here is the same thing, by hand, so you know what it did.
+An add-on, not part of Core: Core reaches its two web apps over Tailscale's own
+HTTPS. Add Caddy when you want `https://<slug>.<domain>` hostnames, LAN access
+without Tailscale, or a name for each of many web add-ons.
 
 ── What to do ────────────────────────────────────────────────────────────
 
-  1. Enable the two services (the picker you just came from does this):
+  1. Enable it (the picker you just came from does this):
        EXIST_IS_HOSTING_CADDY=true
-       EXIST_IS_SERVICES_DASHY=true
 
   2. Render and start:
        ./existential.sh
        docker compose up -d
 
-  3. Open https://dashy.${EXIST_DOMAIN} — that page links to every other
-     service you enable from here on, with no tile to add by hand.
+  3. Every web service you enable now answers at
+     https://<slug>.${EXIST_DOMAIN}, e.g. https://code-server.${EXIST_DOMAIN}.
+     For one page that links to all of them, add Dashy (the **Monitoring**
+     quest).
 
 ── How the address works ─────────────────────────────────────────────────
 
 EXIST_DOMAIN defaults to `<your-lan-ip-with-dashes>.nip.io`, filled in for you
 on the first run. nip.io is public wildcard DNS: it answers EVERY subdomain by
-mapping the name back to that IP, so `https://dashy.${EXIST_DOMAIN}` works on
+mapping the name back to that IP, so `https://code-server.${EXIST_DOMAIN}` works on
 any device on this network with nothing configured. New services need no DNS
 change, ever.
 
@@ -52,7 +52,7 @@ Tailscale, Headscale), or answer the domain with a piHole on another server.
 The options, side by side:
   https://existential.company/docs/hosting/vpn
 
-Check a device can resolve it:  nslookup dashy.${EXIST_DOMAIN}
+Check a device can resolve it:  nslookup code-server.${EXIST_DOMAIN}
 (any subdomain works — the wildcard answers them all)
 
 ── Trust Caddy's internal CA ─────────────────────────────────────────────

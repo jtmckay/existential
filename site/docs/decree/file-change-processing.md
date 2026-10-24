@@ -166,8 +166,8 @@ Decree picks up the new file immediately — no restart needed.
 
 ## Setup
 
-:::note[The Nextcloud quest]
-The **Nextcloud** quest (`./existential.sh quest`) walks through copying both migrations below.
+:::note[The Capture quest]
+The **Capture** quest (`./existential.sh quest`) turns on Nextcloud and automation-webhook, and walks through copying both migrations below.
 Core does not include Nextcloud, so this is always a step you take.
 :::
 

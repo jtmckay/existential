@@ -75,13 +75,14 @@ to the frontmatter; the body is free-form prose.
 ### The two kinds of quest
 
 **Numbered = Core, one slice at a time.** `00-core.md` is the whole system in one pass;
-`01`–`05` are exactly a *partition* of it — every Core service and every Core `copies:` entry
+`01`–`03` are exactly a *partition* of it — every Core service and every Core `copies:` entry
 belongs to exactly one of them, and to no two. Adding a service to Core means adding it to the
 slice that owns it. e2e only ever runs numbered quests (`[0-9][0-9]-*.md`), which is the other
 reason the numbered range is the product and not a catalogue.
 
-**Unnumbered = everything past Core.** One file per integration or automation, no prefix, no
-ordering.
+**Unnumbered = everything past Core.** One file per add-on, integration or automation, no
+prefix, no ordering. The add-ons (`network`, `monitoring`, `capture`, `apps`, `local-ai`,
+`voice-and-home`) keep the setup steps Core used to do for their services.
 
 Only `00-core.md` uses `copies:` to auto-activate templates; that is deliberate, since Core IS
 the base system and should ask as little as possible. **Every other quest — the numbered slices
@@ -103,9 +104,9 @@ on disk. A quest must SAY how it is finished, one of two ways:
 guides end in work this repo cannot see (a ComfyUI checkpoint, a Spotify OAuth grant, a wake
 word trained on a phone), and a wrong ✓ there costs more than a missing ✓ everywhere.
 
-Because 01–05 partition Core, running Core writes every file they name and every slice that
-declares `done:` crosses itself off with no knowledge of each other. (`05-apps` declares none:
-it ends in a password set in Actual Budget's own UI.)
+Because 01–03 partition Core, running Core writes every file they name and every slice that
+declares `done:` crosses itself off with no knowledge of each other. (`01-access` declares
+none and has no service: Tailscale runs on the host, where nothing on disk proves it is set up.)
 
 `quest_skips_service` is the one exception to "enabled": a service the GPU-vendor answer forbids
 (local ollama under `EXIST_GPU_VENDOR=external`) is not missing, it is refused — the same rule

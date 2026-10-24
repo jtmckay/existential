@@ -5,6 +5,8 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+  - var: EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
+    label: automation-webhook (receives the POSTs)
   - var: EXIST_IS_NAS_NEXTCLOUD
     label: Nextcloud
   - var: EXIST_IS_AI_HERMES
@@ -49,16 +51,16 @@ The loop break — the one thing worth understanding:
 
 Setup:
 
-  If you ran the Core quest, the Nextcloud half already happened: the rclone
-  remote and the file-event webhooks. What
-  Core does NOT set up is the agent half, since it's specific to this quest:
+  If you ran the **Capture** quest, the Nextcloud half already happened: the
+  rclone remote and the file-event webhooks. What it does NOT set up is the
+  agent half, since it's specific to this quest:
 
   1. Copy the agent-handoff processor:
        mkdir -p automation/lib/file-processors/
        cp automation/lib/file-processors.example/agent-handoff.sh \
           automation/lib/file-processors/
 
-  2. If you did NOT run Core, you need the Nextcloud half too — enable the
+  2. If you did NOT run Capture, you need the Nextcloud half too — enable the
      services listed at the top of this quest, run
      `./existential.sh && docker compose up -d`, then copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and

@@ -25,7 +25,9 @@ layout beyond what's below — is free to change. Don't build against it.
 ## 1. Send something in
 
 `automation-webhook` ([decree-go-rest](https://github.com/jtmckay/decree-go-rest)) turns an
-HTTP POST into work. It is the only inbound entry point you need.
+HTTP POST into work. It is the only inbound entry point you need, and an add-on: turn it on
+with the **Capture** quest (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`). See
+[Automation Webhook](./decree/automation-webhook).
 
 ```bash
 curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \

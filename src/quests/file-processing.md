@@ -7,6 +7,8 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+  - var: EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
+    label: automation-webhook (receives the POSTs)
 ---
 
 When a file is uploaded to Nextcloud, its webhook triggers file-router, which
@@ -48,7 +50,7 @@ straight into the workspace do not — that is what keeps an agent's own output
 from triggering another run.
 
 Setup:
-  1. Core already did this. By hand: copy
+  1. The **Capture** quest does this. By hand: copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
      27-nextcloud-file-events.md into volumes/workspace_data/.decree/migrations/. file-router and
      file-processor are enabled by default.

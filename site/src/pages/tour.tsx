@@ -12,20 +12,19 @@ import styles from './tour.module.css';
  * How many services Core installs — one per service folder it enables, which is
  * one per `EXIST_IS_*` flag in `src/quests/00-core.md`'s `services:` block. That
  * is the stack's own unit of a service (a folder), and the closest thing it has
- * to a pod: several of them run more than one container (automation is three,
+ * to a pod: some of them run more than one container (automation is two,
  * prometheus is three), and `./existential.sh quest` turns each on or off as one
  * thing.
  *
  * NOT the number of cards below, which is what this number used to be — the page
  * said "N apps make up the core" while N counted screenshots. Part of Core has no
- * screen to show (the reverse proxy, the automation engine, a log store, a
- * metrics store), so the card count undersold it.
+ * screen to show (the automation engine), so the card count undersold it.
  *
  * Hardcoded on purpose: this module is bundled for the browser, so it cannot read
  * the quest file at runtime, and a codegen step for one integer is worse than a
  * test. `./existential.sh validate conventions` fails if the two disagree.
  */
-const CORE_SERVICES = 10;
+const CORE_SERVICES = 3;
 
 /**
  * Counts cards, so summary cards like `mobile` don't inflate the tally.
@@ -53,8 +52,8 @@ function TourHeader(): ReactNode {
         <p className={styles.heroLede}>
           <strong>{CORE_SERVICES} services make up Core</strong>, on hardware you own, every one
           of them free and open source, plus {EXTRA} more you can turn on whenever you want them.
-          The {CORE_CARDS} below are the ones you'll open; the rest run underneath: the reverse
-          proxy, the automation engine, a log store and a metrics store.
+          The {CORE_CARDS} below are the ones you'll open; the other runs underneath: the
+          automation engine.
         </p>
       </div>
     </header>

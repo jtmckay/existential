@@ -27,7 +27,7 @@ services/code-server/.env.
 
 ── 2. Talk to an AI there ────────────────────────────────────────────────
 
-Open https://code-server.${EXIST_DOMAIN} and open a terminal: `claude` (Claude
+Open https://<machine>.<tailnet>.ts.net (the **Access** slice) and open a terminal: `claude` (Claude
 Code) and `opencode` are already on PATH. Log in once; the login survives a
 container recreation, because the home directory lives on a volume. From then
 on that terminal is where you start a conversation about the work dir.
@@ -37,5 +37,5 @@ on that terminal is where you start a conversation about the work dir.
 ── What to build on this ─────────────────────────────────────────────────
 
 Have decree run the repeatable parts (the **Automation** slice). To sync the
-workspace to your other machines, add the **Nextcloud** quest. For a local
+workspace to your other machines, add the **Capture** quest's Nextcloud. For a local
 model and agent, add the **Local AI** quest.

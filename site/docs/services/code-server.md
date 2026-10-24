@@ -14,7 +14,8 @@ from a machine that isn't the one running it, including a tablet or phone.
 
 ## Access
 
-- Browser: `https://code-server.EXIST_DOMAIN`
+- Browser: `https://<machine>.<tailnet>.ts.net` over Tailscale (Core), or
+  `https://code-server.EXIST_DOMAIN` with the Caddy add-on
 - Password: `CODE_SERVER_PASSWORD` in `services/code-server/.env`
 
 ## Enable

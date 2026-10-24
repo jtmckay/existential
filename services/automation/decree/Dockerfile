@@ -19,7 +19,7 @@ ARG RCLONE_SHA256=09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb
 ARG YQ_VERSION=4.44.3
 ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
 # A pre-release, pinned by tag: bump it deliberately, and keep it equal to the
-# decree inside automation-webhook's image (docker-compose.exist.yml). The
+# decree inside automation-webhook's image (../../automation-webhook/docker-compose.exist.yml). The
 # release's own install.sh fetches its static binary and checks its sha256.
 ARG DECREE_TAG=v0.5.0-beta.13
 RUN apt-get update \

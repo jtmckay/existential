@@ -36,9 +36,11 @@ Templates live in `services/automation/backup/cron.example/`; copying one into
        B=services/automation/backup
        mkdir -p "$B/cron"
 
-       # Core services
+       # The workspace: your files + the agent's
+       cp $B/cron.example/workspace-volume-backup-nightly.md   $B/cron/
+
+       # The add-ons that hold your data
        cp $B/cron.example/nextcloud-db-backup-nightly.md       $B/cron/   # DB only
-       cp $B/cron.example/workspace-volume-backup-nightly.md   $B/cron/   # the workspace: your files + the agent's
        cp $B/cron.example/hermes-volume-backup-nightly.md      $B/cron/   # agent config + skills
        cp $B/cron.example/openviking-volume-backup-nightly.md  $B/cron/   # the vector index
        cp $B/cron.example/honcho-db-backup-nightly.md          $B/cron/   # agent memory

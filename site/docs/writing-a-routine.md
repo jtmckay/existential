@@ -144,7 +144,7 @@ machine until you put it in `cron/`.
 
 ### Webhook — when something out there happens
 
-`automation-webhook` turns an authenticated HTTP POST into a message. Endpoints are configuration
+`automation-webhook` (the **Capture** add-on) turns an authenticated HTTP POST into a message. Endpoints are configuration
 only: add one to `automation/decree-go-rest.yml` and it is live, no restart. This is how Home
 Assistant, a phone shortcut, or any external service reaches the stack. See
 [Build On It](./build-on-it) for the request contract.

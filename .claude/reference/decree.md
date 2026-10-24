@@ -55,7 +55,8 @@ reads to a model, so what it can read is what a prompt injection can read.
 
 ## Around the daemons
 
-- **Webhook:** `automation-webhook` runs decree-go-rest with its daemon off, over
+- **Webhook:** `automation-webhook` (its own folder and flag, an add-on outside Core;
+  everything it triggers also runs from code-server's terminal) runs decree-go-rest with its daemon off, over
   the `automation` project (read-only, `inbox/` writable). Endpoints are
   `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`); edits load
   without a restart. Hermes gets the `/hermes/*` endpoints on its own secret.

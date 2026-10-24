@@ -211,46 +211,6 @@ services:
       - ../../:/repo:ro
     tty: false
 
-  # decree-go-rest: authenticated POSTs become `decree emit` messages in
-  # automation's inbox. Endpoints are workspace/.decree/decree-go-rest.yml (seeded —
-  # it names environment variables, never secrets). It runs no work and can
-  # write nothing but inbox/; the `automation` daemon runs what it queues.
-  automation-webhook:
-    container_name: automation-webhook
-    # Bundles decree 0.5.0-beta.13 — keep it equal to decree/Dockerfile's tag.
-    image: ghcr.io/jtmckay/decree-go-rest:0.5.0
-    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
-    restart: unless-stopped
-    # Covers the 10 s it gives requests in flight.
-    stop_grace_period: 15s
-    # Static Go binary, plus a decree process per request; ~10 MiB idle.
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    depends_on:
-      - automation
-    networks:
-      - exist
-    # ports disabled — access via https://automation-webhook.<domain> (Caddy + pihole required)
-    environment:
-      # The default bearer secret, and the one Nextcloud's file events carry.
-      - DECREE_GO_REST_SECRET=${AUTOMATION_WEBHOOK_SECRET}
-      - FILES_WEBHOOK_TOKEN=${EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN}
-      # hermes' own, for its /hermes/* endpoints.
-      - HERMES_WEBHOOK_SECRET=${EXIST_HERMES_WEBHOOK_TOKEN}
-      # GET /openapi.json, which Lowcoder (or anything) reads as a data source.
-      - DECREE_GO_REST_OPENAPI=true
-    volumes:
-      - workspace_data/.decree:/project/.decree:ro,z
-      - workspace_data/.decree/inbox:/project/.decree/inbox:z
-    healthcheck:
-      # -config too: without it -healthcheck looks for ./decree-go-rest.yml.
-      test: ["CMD", "decree-go-rest", "-config", "/project/.decree/decree-go-rest.yml", "-healthcheck"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-
 x-exist-volumes:
   decree_data: {}
   # The user's workspace, shared with nextcloud (which serves it to the desktop

@@ -200,7 +200,7 @@ will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
 # run". A manual quest names them under `done:` — the files its guide told you
 # to copy, the .env.shared keys it told you to set.
 #
-# This is why quests 01-05 are exactly a partition of Core: running Core writes
+# This is why quests 01-03 are exactly a partition of Core: running Core writes
 # every file they name, so each slice crosses itself off without knowing Core
 # exists.
 quest_done() {
@@ -285,7 +285,7 @@ _access_tip() {
     echo ""
     echo "  Want more than that?"
     echo "    • Names that resolve with no internet DNS, on your own domain:"
-    echo "        ./existential.sh quest  →  Network Access"
+    echo "        ./existential.sh quest  →  Network"
     echo "    • Real certificates, no CA to install on each device:"
     echo "        ./existential.sh run caddy public-domain"
     echo ""
@@ -725,7 +725,7 @@ _quest_fzf_out=$(
             --header="  Pick quests — what do you want to set up?
   ↑↓ navigate   Space toggle   Enter confirm
   ${_C_GREEN}✓${_C_RESET} = already done   ${_C_GREEN}●${_C_RESET} = ready to start   ${_C_YELLOW}○${_C_RESET} = needs services enabled first
-  01-05 are Core, one slice at a time. Hit Enter with nothing selected to open the highlighted one" \
+  01-03 are Core, one slice at a time. Hit Enter with nothing selected to open the highlighted one" \
             --prompt="Quest ❯ " \
             --no-info \
             --bind 'space:toggle+down'

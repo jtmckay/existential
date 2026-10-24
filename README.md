@@ -62,18 +62,17 @@ from a service folder.
 ## What Core installs
 
 The first `quest` offers **Core**: open the work dir, talk to an AI about it, have decree
-automate it. Ten services on one ordinary box, no GPU and no model downloads.
+automate it. Three services on one ordinary box, no GPU and no model downloads, reached over
+Tailscale's own HTTPS from every device you log in.
 
 | | |
 |---|---|
 | [code-server](https://existential.company/docs/services/code-server) | The work dir in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
-| [Decree](https://existential.company/docs/decree/) | The automation engine and its webhook: machines run on a schedule, a webhook or an inbox message |
+| [Decree](https://existential.company/docs/decree/) | The automation daemon: machines run on a schedule or an inbox message |
 | [ntfy](https://existential.company/docs/services/ntfy) | How a finished automation tells you it finished |
-| [Loki](https://existential.company/docs/hosting/loki) · [Prometheus](https://existential.company/docs/hosting/prometheus) · [Grafana](https://existential.company/docs/hosting/grafana) | Every decree run log, searchable, with dashboards wired up |
-| [Uptime Kuma](https://existential.company/docs/hosting/uptime-kuma) | Whether the rest of your homelab is up |
-| [Actual Budget](https://existential.company/docs/services/actual-budget) | Budgeting, and the first app decree posts to |
-| [Caddy](https://existential.company/docs/hosting/caddy) | `https://<service>.<domain>` for every one of them |
-| [Dashy](https://existential.company/docs/services/dashy) | One page linking to all of the above |
+
+Everything else is an add-on, one quest away: Caddy hostnames, monitoring, the webhook and
+Nextcloud for capture, apps, local AI, voice and the house.
 
 ## How it fits together
 
@@ -90,25 +89,22 @@ flowchart TB
     you["You<br/>browser · phone"]
 
     subgraph core["Core"]
+        ts["Tailscale (host)<br/>real HTTPS, no reverse proxy"]
         cs["code-server<br/>editor + terminal · claude · opencode"]
         ws["workspace/<br/>notes/ · .decree/"]
         dec["decree<br/>runs workspace/.decree"]
         ntfy["ntfy<br/>tells you it finished"]
-        apps["Actual Budget"]
-        obs["Loki · Prometheus · Grafana · Uptime Kuma"]
-        edge["Caddy · Dashy<br/>names, TLS, one landing page"]
     end
 
     model["A model at an OpenAI-compatible /v1 URL<br/>ollama · llama.cpp · another box"]
-    addons["Optional add-ons<br/>Local AI · Nextcloud · Voice &amp; Home · more apps"]
+    addons["Optional add-ons<br/>Caddy · monitoring · capture · apps · Local AI · Voice &amp; Home"]
 
-    you --> edge
-    edge --> cs
+    you --> ts
+    ts --> cs
+    ts --> ntfy
     cs <--> ws
     dec <--> ws
     dec --> ntfy
-    dec <--> apps
-    dec --> obs
     cs -. "opencode" .-> model
     dec -. "automation/lib/model.sh" .-> model
     addons -. "a quest or a flag each" .-> core
@@ -119,7 +115,7 @@ flowchart TB
     classDef ext fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
     class you me
     class ws hub
-    class cs,dec,ntfy,apps,obs,edge box
+    class ts,cs,dec,ntfy box
     class model,addons ext
     style core fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
 ```

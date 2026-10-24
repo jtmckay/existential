@@ -9,6 +9,8 @@ services:
     label: Nextcloud
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+  - var: EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
+    label: automation-webhook (receives the POSTs)
 done:
   files:
     - automation/lib/file-processors/ollama-ocr.sh
@@ -36,7 +38,7 @@ Processor convention (ollama-ocr.sh):
   PROMPT        optional system prompt to guide extraction (default: auto)
 
 Setup:
-  1. File events must be on — Core does it. By hand: copy
+  1. File events must be on — the **Capture** quest does it. By hand: copy
      automation-examples/migrations/23-nextcloud-rclone-remote.md and
      27-nextcloud-file-events.md into volumes/workspace_data/.decree/migrations/. file-router and
      file-processor are enabled by default.

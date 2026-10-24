@@ -13,8 +13,8 @@ done:
     - volumes/workspace_data/.decree/cron/health-checks.md
 ---
 
-The engine slice of Core. Decree runs routines on a schedule, on a webhook, or
-on a message you drop in its inbox; ntfy is where a finished routine tells you
+The engine slice of Core. Decree runs routines on a schedule or on a message
+you drop in its inbox; ntfy is where a finished routine tells you
 about it. Everything past this quest is "a cron file and a routine".
 
 Docs: https://existential.company/docs/decree
@@ -41,7 +41,7 @@ that owns it and it is live:
        # Prunes old run logs weekly, so volumes/workspace_data/.decree/runs/ cannot grow forever
        cp automation-examples/cron/clean-runs.md volumes/workspace_data/.decree/cron/
 
-       # Probes a service URL every 15 minutes (see the Service Health quest)
+       # Probes ntfy every 15 minutes (see the Service Health quest)
        cp automation-examples/cron/health-checks.md volumes/workspace_data/.decree/cron/
 
 That is it. Every unnumbered quest in this picker is a variation on those three
@@ -70,14 +70,18 @@ Decree is headless — there is no click-through UI. Run a machine by hand:
        echo | docker exec -i automation decree emit --machine clean_runs
        docker exec automation decree status
 
-Or over HTTP at https://automation-webhook.${EXIST_DOMAIN} (an API, not a UI).
-Want buttons? The **Decree Routine UI** quest generates a Lowcoder panel. Want
-it on your phone? The **Telegram Bot** quest.
+The same works from code-server's terminal, over the work dir:
+
+       cd /workspace && echo | decree emit --machine clean_runs
+
+Want it over HTTP? The **Capture** quest adds automation-webhook. Want
+buttons? The **Decree Routine UI** quest generates a Lowcoder panel. Want it on
+your phone? The **Telegram Bot** quest.
 
 ── 5. Subscribe to ntfy ──────────────────────────────────────────────────
 
 ntfy set itself up on first boot — there is no token to mint. Install the app
-or open https://ntfy.${EXIST_DOMAIN}, sign in with the admin credentials in
+or open https://<machine>.<tailnet>.ts.net:8443 (the **Access** slice), sign in with the admin credentials in
 `services/ntfy/.env`, and subscribe to the `decree` topic. Full detail, and the
 bot account routines publish as: the **Notifications (ntfy)** quest.
 
@@ -85,5 +89,5 @@ bot account routines publish as: the **Notifications (ntfy)** quest.
 
 ── Where the runs go ─────────────────────────────────────────────────────
 
-Every run writes a log to `volumes/workspace_data/.decree/runs/`. Turn on the **Observability**
+Every run writes a log to `volumes/workspace_data/.decree/runs/`. Turn on the **Monitoring**
 quest and those become searchable in Grafana with a dashboard already built.

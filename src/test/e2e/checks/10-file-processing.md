@@ -1,7 +1,7 @@
 ---
 machine: e2e_file_processing
 e2e_check: 10-file-processing
-requires: EXIST_IS_NAS_NEXTCLOUD EXIST_IS_SERVICES_AUTOMATION
+requires: EXIST_IS_NAS_NEXTCLOUD EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
 ---
 
 File uploaded to Nextcloud → webhook_listeners → nextcloud-cron's worker →

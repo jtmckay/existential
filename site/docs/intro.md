@@ -86,21 +86,18 @@ this page: the pieces are replaceable, the shape isn't.*
 ## What Core installs
 
 The first `./existential.sh quest` offers **Core**: open the work dir, talk to an AI about it,
-have decree automate it. It runs on one ordinary box, with no GPU and no model downloads.
+have decree automate it. It runs on one ordinary box, with no GPU and no model downloads, and
+Tailscale on the host gives it real HTTPS on every device you log in.
 
 | | |
 |---|---|
 | [code-server](./services/code-server) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
-| [Decree](./decree/) | Runs the automations in `workspace/.decree/` on a schedule, a webhook or an inbox message |
+| [Decree](./decree/) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
 | [ntfy](./services/ntfy) | How a finished automation tells you it finished |
-| [Loki](./hosting/loki) · [Prometheus](./hosting/prometheus) · [Grafana](./hosting/grafana) | Every automation's run log, searchable, with dashboards |
-| [Uptime Kuma](./hosting/uptime-kuma) | Whether the rest of your homelab is up |
-| [Actual Budget](./services/actual-budget) | Budgeting, and the first app decree posts to |
-| [Caddy](./hosting/caddy) · [Dashy](./services/dashy) | A name and a certificate for each of them, and one page linking to all of it |
 
-Everything else (local models and agents, Nextcloud, voice and Home Assistant, more apps) is
-an optional add-on, one quest or one flag away. What each piece does is
-[Level 2](./how-it-works).
+Everything else (Caddy hostnames, monitoring, the webhook and Nextcloud for capture, apps,
+local models and agents, voice and Home Assistant) is an optional add-on, one quest or one flag
+away. What each piece does is [Level 2](./how-it-works).
 
 ## Try it
 

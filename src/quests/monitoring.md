@@ -1,8 +1,10 @@
 ---
-name: Observability
-tagline: Loki for logs, Prometheus for metrics, Grafana as the window onto both
+name: Monitoring
+tagline: Dashy for one page of links, Loki and Prometheus behind Grafana, Uptime Kuma for the rest of the homelab
 e2e: true
 services:
+  - var: EXIST_IS_SERVICES_DASHY
+    label: Dashy (the dashboard)
   - var: EXIST_IS_HOSTING_LOKI
     label: Loki (log store)
   - var: EXIST_IS_HOSTING_PROMETHEUS
@@ -16,13 +18,15 @@ done:
     - hosting/grafana/.env
 ---
 
-The "can I see what happened?" slice of Core. Decree's run logs land in Loki,
+An add-on, not part of Core: "can I see what happened?" Dashy is one page
+linking to every web service you enable. Decree's run logs land in Loki,
 its success/duration gauges in Prometheus, and Grafana ships with both
 datasources and the Decree dashboards already wired. Uptime Kuma watches the
 other machines in your homelab, which this box's metrics cannot see.
 
 ── 1. Enable and start ───────────────────────────────────────────────────
 
+       EXIST_IS_SERVICES_DASHY=true
        EXIST_IS_HOSTING_LOKI=true
        EXIST_IS_HOSTING_PROMETHEUS=true
        EXIST_IS_HOSTING_GRAFANA=true
@@ -31,8 +35,12 @@ other machines in your homelab, which this box's metrics cannot see.
        ./existential.sh
        docker compose up -d
 
+Each is reached at https://<slug>.${EXIST_DOMAIN}, so this needs the
+**Network** quest's Caddy.
+
 ── 2. Look at it ─────────────────────────────────────────────────────────
 
+  Dashy:       https://dashy.${EXIST_DOMAIN}       → a tile for every service
   Grafana:     https://grafana.${EXIST_DOMAIN}     → Decree Overview dashboard
   Prometheus:  https://prometheus.${EXIST_DOMAIN}
   Uptime Kuma: https://uptime-kuma.${EXIST_DOMAIN}
@@ -44,7 +52,7 @@ Uptime Kuma is the one thing here you set up by hand: its first page creates
 the admin account, and monitors are added in its UI. Point its notifications at
 ntfy (server `http://ntfy:80`).
 
-       ./existential.sh test grafana loki prometheus uptime-kuma
+       ./existential.sh test dashy grafana loki prometheus uptime-kuma
 
 ── 3. What is already collected ──────────────────────────────────────────
 

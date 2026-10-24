@@ -20,13 +20,11 @@ flowchart TB
     you["<b>You</b><br/><i>browser · phone</i>"]
 
     subgraph core["Core"]
-        edge["Caddy · Dashy<br/><i>a name, a certificate, one landing page</i>"]
+        ts["Tailscale (host)<br/><i>real HTTPS on every device you log in</i>"]
         cs["code-server<br/><i>editor + terminal · claude · opencode</i>"]
         ws["<b>workspace/</b><br/><i>notes/ · .decree/</i>"]
         dec["decree<br/><i>runs workspace/.decree, nobody present</i>"]
         ntfy["ntfy<br/><i>tells you it finished</i>"]
-        apps["Actual Budget<br/><i>the first app decree posts to</i>"]
-        obs["Loki · Prometheus · Grafana · Uptime Kuma<br/><i>run logs, metrics, is it up</i>"]
     end
 
     model["A model at an OpenAI-compatible /v1 URL<br/><i>ollama · llama.cpp · another box</i>"]
@@ -34,17 +32,16 @@ flowchart TB
     subgraph addons["Optional add-ons"]
         ai["Local AI<br/><i>Ollama · Hermes · OpenViking · Honcho · Firecrawl</i>"]
         voice["Voice &amp; Home<br/><i>Home Assistant · wyoming-whisper · wyoming-piper</i>"]
-        files["Nextcloud<br/><i>syncs workspace/ to your devices</i>"]
-        more["More apps<br/><i>Immich · Mealie · NocoDB · …</i>"]
+        files["Capture<br/><i>automation-webhook · Nextcloud syncs workspace/</i>"]
+        more["Network · Monitoring · Apps<br/><i>Caddy · Dashy · Grafana · Actual Budget · …</i>"]
     end
 
-    you --> edge
-    edge --> cs
+    you --> ts
+    ts --> cs
+    ts --> ntfy
     cs <--> ws
     dec <--> ws
     dec --> ntfy
-    dec <--> apps
-    dec --> obs
     cs -. opencode .-> model
     dec -. model.sh .-> model
     ai -. serves .-> model
@@ -56,7 +53,7 @@ flowchart TB
     classDef ext fill:#fff,stroke:#666,stroke-dasharray:4 3,color:#333
     class you me
     class ws hub
-    class edge,cs,dec,ntfy,apps,obs box
+    class ts,cs,dec,ntfy box
     class model,ai,voice,files,more ext
     style core fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
     style addons fill:#fff,stroke:#999,stroke-dasharray:4 3,color:#333
@@ -68,18 +65,19 @@ flowchart TB
    (your automations) and `.capture/` (your agent prompts and anything else you capture — see
    [Capture](./getting-started#capture)). code-server opens it in a browser, with `claude`
    and `opencode` in the terminal; [Nextcloud](./storage/nextcloud), if you add it, syncs it to your other devices.
-2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule, a
-   webhook or an inbox message, against your apps and your data, and tells you through ntfy.
+2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule or an
+   inbox message (or a webhook, with the Capture add-on), against your apps and your data, and tells you through ntfy.
    Every morning it writes a [you were here](./getting-started#you-were-here) digest of what
    needs you, what is holding steady and where you left off, and every Sunday and month-end a
    [look back](./getting-started#look-back) over them.
-   Every run log lands in Loki.
+   With the Monitoring add-on, every run log lands in Loki.
 3. **A model is a URL.** Anything that needs one, a decree script or opencode, reaches it at an
    OpenAI-compatible `/v1` address. Ollama on this box, llama.cpp on
    [another one](./hosting/ai-box), anything that serves `/v1`: nothing else changes.
 
-The platform is free to every service: a name, a certificate, a place to put data and somewhere
-its logs go come with the folder, and a service doesn't opt in.
+The platform is free to every service: a place to put data comes with the folder, and with the
+Network and Monitoring add-ons so do a name, a certificate and somewhere its logs go. A service
+doesn't opt in.
 
 ## The AI, slot by slot
 
@@ -377,7 +375,7 @@ internal CA is the only option there, which is why the default keeps it.
 
 ## Core vs. complementary services
 
-This is about the network, not the Core quest: Core's own monitoring is complementary by this
+This is about the network, not the Core quest: the Monitoring add-on is complementary by this
 test.
 
 Not everything needs to be on that network. A service is **core** if it talks to other
@@ -413,7 +411,7 @@ cut this way: it is the middle box, and the others are add-ons that usually live
 
 ┌─ Core stack ─────────────┐   The actual system.
 │  code-server, decree,    │   Wants CPU and RAM, no GPU.
-│  ntfy, Caddy, Grafana, … │   One network, container-name DNS.
+│  ntfy                    │   One network, container-name DNS.
 └──────────────────────────┘
 
 ┌─ AI box ─────────────────┐   The models.

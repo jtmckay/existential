@@ -5,6 +5,8 @@ e2e: false
 services:
   - var: EXIST_IS_SERVICES_AUTOMATION
     label: Decree
+  - var: EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
+    label: automation-webhook (receives the POSTs)
   - var: EXIST_IS_SERVICES_LOWCODER
     label: Lowcoder
 ---
@@ -27,7 +29,7 @@ Setup:
      type OpenAPI:
          Spec URL:  http://automation-webhook:8801/openapi.json
          Auth:      Bearer token, AUTOMATION_WEBHOOK_SECRET from
-                    services/automation/.env
+                    services/automation-webhook/.env
 
   3. Build the app: each endpoint is now a query. A path parameter becomes a
      query input to bind to a text field; the request body is plain text.

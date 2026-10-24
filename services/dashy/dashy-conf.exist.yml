@@ -10,10 +10,11 @@
 # Note: the bare-token substitution rewrites prose too, so avoid writing the
 # domain variable's name in these comments — it would be replaced with its value.
 #
-# SCOPE: this dashboard lists the CORE stack only (src/quests/00-core.md) — the
-# services every install has. Anything else you enable is yours to add: claim the
-# rendered dashy-conf.yml (EXIST_KEEP=true in its header) and edit it on the host,
-# so a later ./existential.sh run cannot overwrite your additions.
+# SCOPE: a starting set, not every service: Core's two web apps, the Monitoring
+# quest (src/quests/monitoring.md) and Actual Budget. Anything else you enable is
+# yours to add: claim the rendered dashy-conf.yml (EXIST_KEEP=true in its header)
+# and edit it on the host, so a later ./existential.sh run cannot overwrite your
+# additions.
 #
 # Each item has TWO adjacent blocks: the active one points at the live service
 # (https://<slug>.<domain>), the commented one points at the public docs page. Flip
@@ -25,11 +26,11 @@
 # piHole resolves the whole domain with one wildcard record). Run
 # `./existential.sh validate` to verify.
 #
-# Core services with no useful tile are deliberately absent. No HTTP endpoint
-# of their own: loki (Grafana is the window onto it), decree (background
-# daemon), and caddy itself. Has an endpoint but nothing a browser tile can
-# show: automation-webhook is a POST-only, bearer-authed inbox receiver with no
-# GET route worth linking (services/automation/webhook/README.md).
+# Services with no useful tile are deliberately absent. No HTTP endpoint of
+# their own: loki (Grafana is the window onto it), decree (background daemon),
+# and caddy itself. Has an endpoint but nothing a browser tile can show:
+# automation-webhook is a POST-only, bearer-authed inbox receiver with no GET
+# route worth linking (site/docs/decree/automation-webhook.md).
 #
 # Dashy's native `statusCheck: true` pings the URL on a schedule and overlays
 # a red dot when unreachable. That covers runtime health; the comment-flip

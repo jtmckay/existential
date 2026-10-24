@@ -223,7 +223,7 @@ curl -X POST https://automation-webhook.EXIST_DOMAIN/comfy/video-ltx-first-last/
   -d 'a slow camera push between the two frames'
 ```
 
-The secret is `AUTOMATION_WEBHOOK_SECRET` in `services/automation/.env`.
+The secret is `AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`.
 Output goes to `output/comfy/<name>/`.
 
 The shape is dictated by two deliberate properties of the webhook (decree-go-rest's SPEC.md):
