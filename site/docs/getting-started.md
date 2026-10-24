@@ -240,9 +240,14 @@ anything is written, secrets of common shapes — API keys and tokens (Anthropic
 AWS, Slack, Google, JWTs, `Bearer …`), `password=`/`token=`/`api_key:` style assignments and
 private key blocks — are replaced by a marker naming the kind, such as
 `[REDACTED:anthropic-key]`. Capture never blocks the prompt: the write happens after the hook
-has returned, and a failure is silent to you and logged to `workspace/.capture/errors.log`. It
-writes nothing outside `workspace/.capture/`. One script does all of it:
-`automation/lib/capture/capture.sh` (bash and `jq`).
+has returned, and a failure is silent to you and logged to `workspace/.capture/errors.log`.
+
+A prompt typed into an AI tool (one with a session id) is also appended to
+`workspace/ai/conversations/<date>-<tool>-<session>.md`, one Markdown file per session per
+day, so [search](./ai/qmd) finds your earlier questions beside your notes. The file says what
+it is: prompts as typed, no answers, questions and not decisions. Nothing else is written
+outside `workspace/.capture/`. One script does all of it: `automation/lib/capture/capture.sh`
+(bash and `jq`).
 
 | Source | On | Off |
 |---|---|---|

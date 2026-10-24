@@ -143,6 +143,7 @@ none of it is needed for Core to work.
 | [Ollama](https://existential.company/docs/ai/ollama) | Local models, served at the same OpenAI-compatible URL |
 | [Hermes](https://existential.company/docs/ai/hermes) | An agent with tools and skills, over that same URL |
 | [Open WebUI](https://existential.company/docs/ai/open-web-ui) | Day-to-day chat |
+| [qmd](https://existential.company/docs/ai/qmd) | Search your notes by meaning and exact words, from Claude Code and opencode |
 | [OpenViking](https://existential.company/docs/ai/openviking) | Context database — memory, resources, skills |
 | [Honcho](https://existential.company/docs/ai/honcho) | Cross-session memory |
 | [Firecrawl](https://existential.company/docs/ai/firecrawl) | Web scraping API for agents |

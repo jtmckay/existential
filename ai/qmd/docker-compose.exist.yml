@@ -1,0 +1,64 @@
+# Refs:
+#   Upstream: https://github.com/tobi/qmd
+#
+# qmd — search over the workspace's Markdown for the AI tools you use: keyword
+# (BM25) and neural (embeddinggemma-300M, on CPU) in one query, fused, served
+# as MCP. One index for every client; nothing leaves the machine.
+#
+# Services:
+#   qmd — MCP over Streamable HTTP at http://qmd:8181/mcp (no published port)
+#
+# Volumes:
+#   workspace_data, read-only — the notes it indexes; qmd never writes to them.
+#   qmd_cache (db: true) — the SQLite index, its config and the downloaded
+#   model. Rebuilt from the workspace if deleted, so nothing here needs a backup.
+#
+# Access: the exist network only. qmd's HTTP server has no authentication, so
+# it is never published; QMD_ALLOWED_HOSTS refuses any other Host header.
+# Telemetry: qmd has none. Its only outbound connection is the one-time model
+# download from huggingface.co.
+
+services:
+  qmd:
+    container_name: qmd
+    build: .
+    image: existential/qmd:local
+    restart: unless-stopped
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # entrypoint.sh leaves its refresh loop running beside the server; tini
+    # reaps the qmd processes that loop starts.
+    init: true
+    # Measured: 300-630 MiB with the embedding model loaded and a 152-file index.
+    # The headroom is for a refresh pass embedding while the server answers.
+    # A query with reranking (rerank: true, qmd's own default) loads two more
+    # models and peaked at 4.6 GiB: that is what the recall skill avoids.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    networks:
+      - exist
+    environment:
+      - QMD_ALLOWED_HOSTS=qmd:8181
+      - QMD_REFRESH_SECONDS=${QMD_REFRESH_SECONDS:-60}
+      - QMD_EMBED_MODEL=${QMD_EMBED_MODEL:-}
+      - QMD_IGNORE=${QMD_IGNORE:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8181/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - workspace_data:/workspace:ro
+      - qmd_cache:/cache
+
+x-exist-volumes:
+  # The user's workspace, shared with nextcloud, code-server and decree.
+  # Declared identically everywhere it is mounted.
+  workspace_data: {}
+  qmd_cache: { db: true }
+
+networks:
+  exist:
+    external: true

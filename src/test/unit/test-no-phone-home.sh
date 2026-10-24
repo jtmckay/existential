@@ -44,6 +44,7 @@ if [[ -x "${REPO_DIR}/$HOOK" ]]; then _ok "nextcloud hook is executable"; else _
 
 # No setting upstream: said once, on the docs page
 _has "comfyui says it cannot"        site/docs/ai/comfyui.md "upstream offers no setting to turn that off"
+_has "qmd says it sends nothing"     site/docs/ai/qmd.md "none: qmd sends nothing"
 
 # Docs and the rule
 _has "nip.io lookup is disclosed"    site/docs/how-it-works.md "nip.io sees your host's IP and each service name you look up"

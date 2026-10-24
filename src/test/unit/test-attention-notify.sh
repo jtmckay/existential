@@ -71,7 +71,7 @@ EOF
 chmod +x "$TMP/bin/curl"
 touch "$TMP/published"
 
-cd "$P"
+cd "$P" || exit 1
 export PATH="$TMP/bin:$PATH" NTFY_USER=u NTFY_PASSWORD=p
 export ATTENTION_DIR="$P/.decree/attention" ATTENTION_SEEN="$TMP/seen"
 pass() { bash "$NOTIFIER" && decree process --quiet >/dev/null 2>&1; true; }

@@ -10,7 +10,10 @@
 # One JSON line per capture — {ts, source, context, session, text} — in
 # $CAPTURE_DIR/<YYYY-MM>-<CAPTURE_HOST>.jsonl: one file per writer, so two machines
 # syncing the workspace never edit the same file. Secrets of common shapes are
-# replaced by [REDACTED:<kind>] before anything is written.
+# replaced by [REDACTED:<kind>] before anything is written. A prompt with a
+# session id (an AI CLI's) is also appended, as Markdown, to
+# $CAPTURE_MD_DIR (default: ai/conversations/ beside $CAPTURE_DIR), where search
+# indexes it.
 #
 # Never blocks and never fails its caller: the write runs detached (CAPTURE_WAIT=1
 # waits, for a decree run that should reflect it), always exits 0, and a failure
@@ -50,6 +53,23 @@ _append() {             # <source> <input>
     line="$(jq -Rsc --arg source "$1" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$JQ_PROGRAM" <<<"$2")" || return 1
     [[ -n "$line" ]] || return 0
     printf '%s\n' "$line" >> "${CAPTURE_DIR}/$(date -u +%Y-%m)-${CAPTURE_HOST}.jsonl"
+    _markdown "$line"
+}
+
+# A prompt typed into an AI CLI (it has a session id) is also appended to that
+# session's Markdown, one file per session per day, so search finds it beside
+# the notes. Each prompt is a blockquote under its timestamp, so a heading in it
+# stays text, and the file says these are questions, not decisions.
+# shellcheck disable=SC2016  # jq, not shell
+_markdown() {           # <capture line>
+    local dir name
+    [[ "$(jq -r '.session // empty' <<<"$1")" ]] || return 0
+    dir="${CAPTURE_MD_DIR:-$(dirname "$CAPTURE_DIR")/ai/conversations}"
+    name="$(jq -r '"\(.ts[0:10])-\(.source)-\(.session[0:8])"' <<<"$1" | tr -c 'A-Za-z0-9._\n-' '-')"
+    mkdir -p "$dir"
+    [[ -f "$dir/$name.md" ]] || jq -r '"---\nkind: conversation\nsource: \(.source | tojson)\nsession: \(.session | tojson)\ndate: \(.ts[0:10])\ncontext: \(.context | tojson)\n---\n\n# Prompts typed into \(.source) on \(.ts[0:10])\n\nWhat the person asked, as typed (secrets redacted). The AI'"'"'s answers are not kept. These are questions and ideas from the moment, not decisions."' \
+        <<<"$1" > "$dir/$name.md"
+    jq -r '"\n## \(.ts)\n\n" + (.text | split("\n") | map("> " + .) | join("\n"))' <<<"$1" >> "$dir/$name.md"
 }
 
 _capture() {            # <source> <input>

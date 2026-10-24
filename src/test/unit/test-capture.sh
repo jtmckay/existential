@@ -78,6 +78,24 @@ cap "$D" t '{"prompt":"   "}' >/dev/null
 assert_eq "an empty prompt writes nothing" "$before" "$(cat "$D"/*-test.jsonl | wc -l)"
 assert_eq "one file per writer, per month" "$(date -u +%Y-%m)-test.jsonl" "$(cd "$D" && ls ./*.jsonl | sed 's|^\./||')"
 
+# ── markdown ──────────────────────────────────────────────────────────────────
+# A session's prompts also land as one Markdown file per session per day, in
+# ai/conversations/ beside .capture/; a capture with no session id does not.
+M="${TMP}/m"
+CAPTURE_DIR="${M}/.capture" CAPTURE_HOST=test CAPTURE_WAIT=1 bash "$CAPTURE" claude-code \
+    <<<"$(jq -n '{prompt: "# not a heading\nshould we use syncthing? password=hunter2", cwd: "/workspace/p", session_id: "3f2a9c1e-77"}')"
+CAPTURE_DIR="${M}/.capture" CAPTURE_HOST=test CAPTURE_WAIT=1 bash "$CAPTURE" claude-code \
+    <<<'{"prompt":"second one","session_id":"3f2a9c1e-77"}'
+CAPTURE_DIR="${M}/.capture" CAPTURE_HOST=test CAPTURE_WAIT=1 bash "$CAPTURE" phone <<<'buy filters'
+md="${M}/ai/conversations/$(date -u +%F)-claude-code-3f2a9c1e.md"
+body="$(cat "$md" 2>/dev/null)"
+assert_eq "one file for the session, none for the session-less capture" "1" "$(find "${M}/ai/conversations" -name '*.md' | wc -l)"
+assert_has "frontmatter says it is a conversation" "$body" $'kind: conversation\nsource: "claude-code"\nsession: "3f2a9c1e-77"'
+assert_has "...and says these are not decisions" "$body" "not decisions"
+assert_has "a prompt's heading stays text" "$body" "> # not a heading"
+assert_lacks "redacted in Markdown too" "$body" "hunter2"
+assert_eq "each prompt under its own timestamp" "2" "$(grep -c '^## ' "$md" 2>/dev/null)"
+
 # ── failure ───────────────────────────────────────────────────────────────────
 F="${TMP}/f"; mkdir -p "$F/$(date -u +%Y-%m)-test.jsonl"   # a directory where the file goes
 CAPTURE_DIR="$F" CAPTURE_HOST=test CAPTURE_WAIT=1 bash "$CAPTURE" t <<<'{"prompt":"x"}' 2>/dev/null

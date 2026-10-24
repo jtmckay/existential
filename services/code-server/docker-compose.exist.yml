@@ -89,6 +89,9 @@ services:
       - CODE_SERVER_CAPTURE=${CODE_SERVER_CAPTURE:-true}
       - CAPTURE_DIR=/workspace/.capture
       - CAPTURE_HOST=code-server
+      # The search MCP endpoint (http://qmd:8181/mcp with the Search add-on):
+      # entrypoint.sh hands it to both CLIs. Blank = no search.
+      - EXIST_SEARCH_MCP_URL=${EXIST_SEARCH_MCP_URL:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
@@ -100,6 +103,8 @@ services:
       - ../../automation/lib/model.sh:/opt/hermes/model.sh:ro
       # capture.sh (Claude Code's prompt hook) and opencode.ts (opencode's plugin).
       - ../../automation/lib/capture:/opt/capture:ro
+      # The recall skill entrypoint.sh copies into the workspace when search is on.
+      - ../../automation/lib/recall:/opt/recall:ro
       # code-server's standalone install + extensions (reinstallable — just
       # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, whatever
       # you `npm i -g` in the terminal plus its login state — not just a

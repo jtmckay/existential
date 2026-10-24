@@ -1,0 +1,25 @@
+# kind	lex (keywords, as the recall skill writes them)	vec (the question in plain words)	expected: groups separated by spaces, alternatives by |
+# Paths are relative to the eval workspace: this fixture at the root, plus the repo's
+# own docs copied in as distractors (docs/ = site/docs, reference/ = .claude/reference
+# and CLAUDE.md, migrations/ = .decree/migrations).
+exact	"restic forget"	how long do I keep old backup snapshots	notes/projects/homelab-backups.md
+exact	exist-alerts	which topic do my alerts go to	notes/projects/ntfy-alerts.md
+exact	"Priya Raman"	who is Priya	notes/people.md
+exact	"Orange Seal"	which tubeless sealant do I use	notes/scratch-to-rename.md
+exact	WIREGUARD_MTU	what MTU did I set for the tunnel	notes/projects/home-server-runbook.md
+exact	x-exist-volumes	where are a service's volumes declared	reference/volumes.md|reference/CLAUDE.md
+exact	"memory.swap.max"	why a container's memory limit also allows swap	reference/CLAUDE.md
+concept	watering schedule	how often should the plants get water	notes/projects/garden-irrigation.md
+concept	deep work evening energy	what did I learn about when to do focused work	notes/reading-log-2026.md
+concept	restore drill	have I ever tested recovering my data	notes/projects/homelab-backups.md
+concept	screens sleep	does avoiding devices at night help me rest	notes/sleep.md
+concept	lends pressure washer	who can I borrow cleaning equipment from	notes/people.md
+concept	tunnel packet size	why is the vpn link limited to smaller packets	notes/projects/home-server-runbook.md
+concept	"repo" mounted prompt injection	why is the container that talks to the model kept away from the source code	reference/CLAUDE.md|reference/decree.md|reference/services.md
+concept	certificate transparency	will strangers be able to see my computer's name once I turn on https	migrations/013-tailscale-https.md|docs/getting-started.md|docs/how-it-works.md|reference/networking.md
+concept	tmux session tmx	keep a long running program alive after I close the terminal	reference/services.md|reference/CLAUDE.md
+concept	n8n license	why did we stop using the visual workflow builder	docs/graveyard/automation/n8n.md
+history	notes phone sync	how do my notes get to my phone	decisions/2026-05-01-notes-sync.md
+history	syncthing decision	did we settle on syncthing	decisions/2026-05-01-notes-sync.md
+multi	syncthing nextcloud	sync tool discussion and final choice	ai/conversations/2026-04-10-claude-sync-tool.md decisions/2026-05-01-notes-sync.md
+multi	backup alerts ntfy	how would I hear that last night's backup failed, and how is the backup run	notes/projects/ntfy-alerts.md notes/projects/homelab-backups.md

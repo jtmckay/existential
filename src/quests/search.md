@@ -1,0 +1,53 @@
+---
+name: Search
+tagline: Your notes, decisions and past prompts, searchable by meaning and by exact words from Claude Code and opencode
+e2e: false
+services:
+  - var: EXIST_IS_AI_QMD
+    label: qmd (hybrid keyword + neural search over the workspace, as MCP)
+  - var: EXIST_IS_SERVICES_CODE_SERVER
+    label: code-server (where Claude Code and opencode use it)
+---
+
+An add-on, not part of Core. qmd indexes every Markdown file in the workspace
+and answers both kinds of search at once: exact words (names, commands,
+identifiers) and meaning (a note you wrote in other words). Claude Code and
+opencode in code-server share the one index over MCP. Nothing leaves the
+machine, and no GPU is needed.
+
+── 1. Enable and start ───────────────────────────────────────────────────
+
+In .env.shared:
+
+       EXIST_IS_AI_QMD=true
+       EXIST_SEARCH_MCP_URL=http://qmd:8181/mcp
+
+       ./existential.sh
+       docker compose up -d --build qmd
+       docker compose up -d --force-recreate code-server
+
+The first start downloads the embedding model (about 320 MB) and indexes the
+workspace: about a minute for 150 notes on a laptop CPU. After that, a saved
+note is searchable within a minute.
+
+── 2. Check it ───────────────────────────────────────────────────────────
+
+       ./existential.sh run qmd test
+
+It runs a keyword search and a meaning search and says whether every file has
+its neural vectors. Until they do, those files are found by keyword only, and
+the test (and `docker logs qmd`) says so.
+
+── 3. Use it ─────────────────────────────────────────────────────────────
+
+Ask Claude in code-server's terminal about something you wrote: "what did I
+decide about syncing notes to my phone?". The recall skill in
+workspace/.claude/skills/recall/ tells it when to search, how to phrase the
+search, and to cite the file. It searches when your notes could change the
+answer, not on every message.
+
+What you type into claude and opencode is kept in workspace/ai/conversations/,
+so earlier questions are searchable too, marked as questions, not decisions.
+
+What is in the index, what is kept out and how to change it:
+site/docs/ai/qmd.md.

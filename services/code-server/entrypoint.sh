@@ -108,12 +108,13 @@ done
 # ~/.config/opencode, so a person's settings there still win. share is off:
 # opencode sends nothing by default, but /share uploads a session to opncd.ai.
 _opencode_config() {
-    local url="$1" model="$2" plugin="${3:-}"
-    jq -n --arg url "$url" --arg model "$model" --arg plugin "$plugin" '{
+    local url="$1" model="$2" plugin="${3:-}" search="${4:-}"
+    jq -n --arg url "$url" --arg model "$model" --arg plugin "$plugin" --arg search "$search" '{
         "$schema": "https://opencode.ai/config.json",
         model: ("existential/" + $model),
         share: "disabled",
         plugin: (if $plugin == "" then [] else [$plugin] end),
+        mcp: (if $search == "" then {} else {qmd: {type: "remote", url: $search, enabled: true}} end),
         provider: {existential: {
             name: "existential",
             npm: "@ai-sdk/openai-compatible",
@@ -135,9 +136,29 @@ else
     bash /opt/capture/capture.sh uninstall >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not removed"
 fi
+# Search (ai/qmd, or any MCP server at EXIST_SEARCH_MCP_URL): one index for
+# both CLIs. Claude Code gets it at user scope with its read-only tools allowed
+# without a prompt, plus the recall skill at the workspace root, which says when
+# and how to search; opencode gets it in the config below. A blank URL removes
+# all three on the next boot. Never fatal: search is optional.
+_search="${EXIST_SEARCH_MCP_URL:-}"
+_claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
+{
+    "$NPM_BIN/claude" mcp remove qmd --scope user >/dev/null 2>&1 || true
+    [[ -s "$_claude_settings" ]] || echo '{}' > "$_claude_settings"
+    jq --arg on "${_search:+1}" '.permissions.allow = (((.permissions.allow // []) - ["mcp__qmd"]) + (if $on == "1" then ["mcp__qmd"] else [] end))' \
+        "$_claude_settings" > "$_claude_settings.tmp" && mv "$_claude_settings.tmp" "$_claude_settings"
+    if [[ -n "$_search" ]]; then
+        "$NPM_BIN/claude" mcp add --transport http --scope user qmd "$_search" >/dev/null
+        mkdir -p /workspace/.claude/skills/recall
+        cp /opt/recall/SKILL.md /workspace/.claude/skills/recall/SKILL.md
+    else
+        rm -rf /workspace/.claude/skills/recall
+    fi
+} || echo "[code-server] WARN: search (EXIST_SEARCH_MCP_URL) not wired into Claude Code"
 # shellcheck source=/dev/null
 . /opt/hermes/model.sh
-_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" > "$INSTALL_PREFIX/opencode.json"
+_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"
 
 # `python` for the tools that assume it; the image ships python3 only. PATH
 # here is not the login shell's, so ask about python3 rather than testing

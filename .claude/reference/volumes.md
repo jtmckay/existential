@@ -77,8 +77,9 @@ it — an unmounted, undeclared `volumes/<name>_backup` is just litter, and the 
 the moment a template declares one.
 
 **Decision rule:** does losing it cost the user anything they can't get back? → `_data`. Would the
-stack simply re-download or rebuild it? → `_cache`. An embedded database is always `_data` **and**
-`db: true`.
+stack simply re-download or rebuild it? → `_cache`. An embedded database is always `db: true`, and `_data` unless the stack rebuilds
+it from files it doesn't own: qmd's SQLite index is rebuilt from the workspace, so it is
+`qmd_cache` with `db: true`.
 
 ## No .gitkeep
 
