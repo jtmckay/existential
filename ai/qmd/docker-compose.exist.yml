@@ -1,17 +1,17 @@
 # Refs:
 #   Upstream: https://github.com/tobi/qmd
 #
-# qmd — search over the workspace's Markdown for the AI tools you use: keyword
+# qmd — search over the workspace's Markdown, PDF and Word files: keyword
 # (BM25) and neural (embeddinggemma-300M, on CPU) in one query, fused, served
-# as MCP. One index for every client; nothing leaves the machine.
+# as MCP and REST. One index for every client; nothing leaves the machine.
 #
 # Services:
 #   qmd — MCP over Streamable HTTP at http://qmd:8181/mcp (no published port)
 #
 # Volumes:
 #   workspace_data, read-only — the notes it indexes; qmd never writes to them.
-#   qmd_cache (db: true) — the SQLite index, its config and the downloaded
-#   model. Rebuilt from the workspace if deleted, so nothing here needs a backup.
+#   qmd_cache (db: true) — the SQLite index, its config, the downloaded
+#   model and the text taken from PDF and Word files. Rebuilt from the workspace if deleted, so nothing here needs a backup.
 #
 # Access: the exist network only. qmd's HTTP server has no authentication, so
 # it is never published; QMD_ALLOWED_HOSTS refuses any other Host header.
@@ -28,7 +28,7 @@ services:
     # entrypoint.sh leaves its refresh loop running beside the server; tini
     # reaps the qmd processes that loop starts.
     init: true
-    # Measured: 300-630 MiB with the embedding model loaded and a 152-file index.
+    # Measured: 270-630 MiB with the embedding model loaded and a 159-file index.
     # The headroom is for a refresh pass embedding while the server answers.
     # A query with reranking (rerank: true, qmd's own default) loads two more
     # models and peaked at 4.6 GiB: that is what the recall skill avoids.

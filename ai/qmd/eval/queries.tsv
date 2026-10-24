@@ -23,3 +23,7 @@ history	notes phone sync	how do my notes get to my phone	decisions/2026-05-01-no
 history	syncthing decision	did we settle on syncthing	decisions/2026-05-01-notes-sync.md
 multi	syncthing nextcloud	sync tool discussion and final choice	ai/conversations/2026-04-10-claude-sync-tool.md decisions/2026-05-01-notes-sync.md
 multi	backup alerts ntfy	how would I hear that last night's backup failed, and how is the backup run	notes/projects/ntfy-alerts.md notes/projects/homelab-backups.md
+exact	"AR-5521"	which part number is the replacement anode for the water heater	notes/manuals/water-heater-manual.pdf
+concept	anode rod	how often should the sacrificial rod in the water heater be swapped	notes/manuals/water-heater-manual.pdf
+concept	sewer backup	am I covered if the basement floods because the drain backs up	notes/insurance/home-insurance-policy.docx
+exact	"HO 04 95"	which endorsement adds water backup coverage to the house policy	notes/insurance/home-insurance-policy.docx

@@ -139,8 +139,9 @@ fi
 # Search (ai/qmd, or any MCP server at EXIST_SEARCH_MCP_URL): one index for
 # both CLIs. Claude Code gets it at user scope with its read-only tools allowed
 # without a prompt, plus the recall skill at the workspace root, which says when
-# and how to search; opencode gets it in the config below. A blank URL removes
-# all three on the next boot. Never fatal: search is optional.
+# and how to search; opencode gets it in the config below; the terminal gets a
+# `search` command (lib/recall/search.sh, linked like `hermes`). A blank URL
+# removes all of it on the next boot. Never fatal: search is optional.
 _search="${EXIST_SEARCH_MCP_URL:-}"
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
 {
@@ -152,8 +153,9 @@ _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
         "$NPM_BIN/claude" mcp add --transport http --scope user qmd "$_search" >/dev/null
         mkdir -p /workspace/.claude/skills/recall
         cp /opt/recall/SKILL.md /workspace/.claude/skills/recall/SKILL.md
+        ln -sfn /opt/recall/search.sh "$NPM_BIN/search"
     else
-        rm -rf /workspace/.claude/skills/recall
+        rm -rf /workspace/.claude/skills/recall "$NPM_BIN/search"
     fi
 } || echo "[code-server] WARN: search (EXIST_SEARCH_MCP_URL) not wired into Claude Code"
 # shellcheck source=/dev/null

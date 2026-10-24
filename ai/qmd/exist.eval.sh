@@ -2,11 +2,12 @@
 # exist.eval.sh — measure qmd's retrieval on a fixed fixture, in a throwaway
 # container, and check that the index follows the files.
 #
-#   ./existential.sh run qmd eval            keyword-only vs neural-only vs hybrid
+#   ./existential.sh run qmd eval            keyword-only vs neural-only vs hybrid vs the search command
 #   QMD_EVAL_RERANK=1 ./existential.sh run qmd eval    also hybrid + reranking (slow on CPU)
 #
 # The corpus is ai/qmd/eval/workspace (personal notes with a long runbook, code
-# blocks, a conversation and the decision that followed it) plus this repo's own
+# blocks, a conversation and the decision that followed it, a PDF manual, a Word
+# policy and a scanned PDF with no text) plus this repo's own
 # docs copied in as distractors. Secret-shaped, hidden and gitignored files are
 # planted at run time, never tracked. Queries and expected sources:
 # ai/qmd/eval/queries.tsv.
@@ -43,6 +44,7 @@ cp "$REPO"/.decree/migrations/*.md "$W/migrations/"
 echo "# Bank: PIN zebracobalt" > "$W/private/bank.md"
 echo "# Run log zebracobalt" > "$W/.decree/runs/log.md"
 echo "TOKEN=zebracobalt" > "$W/.env"
+cp "$HERE/eval/private-tax-return.docx" "$W/private/tax-return.docx"
 ln -s "$MODELS" "$TMP/cache/qmd/models"
 chmod -R a+rX "$TMP"
 
@@ -59,12 +61,14 @@ until grep -q . "$TMP/cache/refresh.status" 2>/dev/null; do
 done
 ready=$(( $(date +%s) - started ))
 docs=$(find "$W" -name '*.md' -not -path '*/.*' | wc -l)
-echo "First index: $(cat "$TMP/cache/refresh.status") after ${ready}s (${docs} Markdown files, model download included on a first run)"
+files=$(find "$W" \( -iname '*.pdf' -o -iname '*.docx' \) -not -path '*/.*' | wc -l)
+echo "First index: $(cat "$TMP/cache/refresh.status") after ${ready}s (${docs} Markdown, ${files} PDF/Word files, model download included on a first run)"
 [[ "$(cat "$TMP/cache/refresh.status")" == ok* ]] || bad "neural index not ready: $(cat "$TMP/cache/refresh.status")"
 
-query() {  # <json searches> <rerank true|false> → result paths, one per line
+query() {  # <json searches> <rerank true|false> → result paths, one per line (a document as its original file)
     curl -s --max-time 120 "http://$IP:8181/query" -H 'Content-Type: application/json' \
-        -d "{\"searches\": $1, \"limit\": 5, \"rerank\": $2}" | jq -r '.results[].file' | sed -E 's#^qmd://[^/]+/##'
+        -d "{\"searches\": $1, \"limit\": 5, \"rerank\": $2}" | jq -r '.results[].file' |
+        sed -E 's#^qmd://[^/]+/##; s#\.(pdf|docx)\.md$#.\1#I'
 }
 
 # ── retrieval ────────────────────────────────────────────────────────────────
@@ -77,6 +81,10 @@ arm() {  # <name> <lex|vec|hybrid> <rerank>
             lex)    s=$(jq -nc --arg l "$lex" '[{type:"lex",query:$l}]') ;;
             vec)    s=$(jq -nc --arg v "$vec" '[{type:"vec",query:$v}]') ;;
             hybrid) s=$(jq -nc --arg l "$lex" --arg v "$vec" '[{type:"lex",query:$l},{type:"vec",query:$v}]') ;;
+            # What the `search` command sends: the one thing typed, as both;
+            # measured with the keywords typed, and with the question typed.
+            cmdlex) s=$(jq -nc --arg l "$lex" '[{type:"lex",query:$l},{type:"vec",query:$l}]') ;;
+            cmdvec) s=$(jq -nc --arg v "$vec" '[{type:"lex",query:$v},{type:"vec",query:$v}]') ;;
         esac
         t0=$(date +%s%N); paths=$(query "$s" "$rerank" | awk '!seen[$0]++'); ms=$(( ms + ($(date +%s%N) - t0) / 1000000 ))
         top=$(head -1 <<<"$paths"); ok1=0; ok5=1
@@ -96,13 +104,18 @@ echo; echo "Retrieval (queries.tsv):"
 arm keyword-only lex false
 arm neural-only vec false
 arm hybrid hybrid false
+arm search-keywords cmdlex false
+arm search-question cmdvec false
 [[ -n "${QMD_EVAL_RERANK:-}" ]] && arm hybrid+rerank hybrid true
 (( RECALL[hybrid] >= RECALL[keyword-only] )) || bad "hybrid found fewer expected sources than keyword-only"
 
 # ── exclusions ───────────────────────────────────────────────────────────────
 echo; echo "Exclusions:"
 leaked=$(query '[{"type":"lex","query":"zebracobalt"}]' false)
-[[ -z "$leaked" ]] && good "gitignored, hidden and dotfiles are not searchable" || bad "found: $leaked"
+[[ -z "$leaked" ]] && good "gitignored, hidden and dotfiles, and a gitignored Word file, are not searchable" || bad "found: $leaked"
+[[ ! -e "$TMP/cache/documents/private" ]] && good "a gitignored Word file is never converted" || bad "converted: $(ls "$TMP/cache/documents/private")"
+[[ -s "$TMP/cache/documents/notes/scans/scanned-receipt.pdf.md.none" ]] && good "a PDF with no text layer is recorded, not indexed: $(cat "$TMP/cache/documents/notes/scans/scanned-receipt.pdf.md.none")" \
+    || bad "no record that notes/scans/scanned-receipt.pdf has no text"
 
 # ── freshness ────────────────────────────────────────────────────────────────
 echo; echo "Freshness (refresh every ${REFRESH}s):"
@@ -121,6 +134,10 @@ rm "$W/notes/to-delete.md"
 within "delete gone" 60 bash -c "[[ -z \"\$(lex_top Corolla)\" ]]"
 printf '# Climbing\n\nThursday sessions moved to the Boulder Barn.\n' > "$W/notes/climbing.md"
 within "new note searchable" 60 bash -c "[[ \"\$(lex_top 'Boulder Barn')\" == notes/climbing.md ]]"
+mv "$W/notes/manuals/water-heater-manual.pdf" "$W/notes/manuals/gw-50.pdf"
+within "renamed PDF followed" 60 bash -c "[[ \"\$(lex_top magnesium)\" == notes/manuals/gw-50.pdf ]]"
+rm "$W/notes/insurance/home-insurance-policy.docx"
+within "deleted Word file gone" 60 bash -c "[[ -z \"\$(lex_top engagement)\" && ! -e '$TMP/cache/documents/notes/insurance' ]]"
 echo "notes/daily/" >> "$W/.gitignore"
 within "newly gitignored folder dropped" 60 bash -c "[[ -z \"\$(lex_top dentist)\" ]]"
 MEM=$(docker stats --no-stream --format '{{.MemUsage}}' "$NAME" | cut -d/ -f1)

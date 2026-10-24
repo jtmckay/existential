@@ -98,7 +98,7 @@ model something; the **Local AI** quest adds the first five rows, **Voice & Home
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
 | **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation in a browser. Opt-in: Hermes also answers by voice, from code-server's terminal (`hermes "..."`), and from automations. |
-| **Search** | [qmd](./ai/qmd) | Finds what you wrote, by exact words and by meaning, for Claude Code and opencode in code-server. Its own add-on (**Search**), on the CPU, with no model URL needed. |
+| **Search** | [qmd](./ai/qmd) | Finds what you wrote or keep (notes, PDF and Word files), by exact words and by meaning, from a terminal or for Claude Code and opencode in code-server. Its own add-on (**Search**), on the CPU, with no model URL needed. |
 
 The reason for one URL is the whole thesis in miniature: **figure the model out once, and
 everything that needs one inherits it.** Swap what serves it and no caller notices.

@@ -14,7 +14,9 @@ QMD_URL="${QMD_URL:-http://qmd:8181}"
 
 # ── 1. Listening ─────────────────────────────────────────────────────────────
 
-probe_service "qmd /health" qmd 8181 /health 200
+# Direct only: qmd has no Caddy hostname (it is never published), so
+# probe_service's Caddy layer would fail on every install with Caddy on.
+http_probe "qmd /health" "${QMD_URL}/health" 200
 
 # ── 2. Index status ──────────────────────────────────────────────────────────
 #
@@ -58,6 +60,19 @@ elif [[ -n "${PENDING}" ]]; then
     ok "qmd neural index ready (every file has vectors)"
 fi
 
+# PDF and Word files are converted to text before indexing; one with no text
+# layer (a scan: there is no OCR) is recorded instead, and is not searchable.
+for _d in /repo/volumes/qmd_cache/documents /volumes/qmd_cache/documents; do
+    [[ -d "$_d" ]] || continue
+    CONVERTED=$(find "$_d" -name '*.md' | wc -l); NOTEXT=$(find "$_d" -name '*.none' | wc -l)
+    ok "qmd indexes ${CONVERTED} PDF/Word file(s)"
+    if (( NOTEXT > 0 )); then
+        warn "every PDF/Word file has text" "${NOTEXT} have no text layer (scans; OCR is not supported), so search can't see them" \
+             "docker logs qmd | grep 'not searchable'"
+    fi
+    break
+done
+
 # ── 3. Both halves of a search answer ────────────────────────────────────────
 search() {  # <type> <query>
     curl -sS --max-time 30 "${QMD_URL}/query" -H 'Host: qmd:8181' -H 'Content-Type: application/json' \
@@ -77,6 +92,16 @@ if [[ "${DOCS:-0}" != 0 ]]; then
         ok "qmd keyword search answers"
     else
         fail "qmd keyword search answers" "no results for a one-letter keyword prefix" "docker logs qmd"
+    fi
+fi
+
+# The terminal command (`search` in code-server, `run qmd search` on the host).
+if [[ "${DOCS:-0}" != 0 ]]; then
+    _cli="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/automation/lib/recall/search.sh"
+    if EXIST_SEARCH_MCP_URL="${QMD_URL}/mcp" "$_cli" e >/dev/null 2>&1; then
+        ok "the search command answers"
+    else
+        fail "the search command answers" "automation/lib/recall/search.sh e failed" "./existential.sh run qmd search e"
     fi
 fi
 

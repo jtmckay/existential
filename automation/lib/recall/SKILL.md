@@ -1,14 +1,14 @@
 ---
 name: recall
-description: Search the person's own notes, project knowledge, decisions and past AI prompts (the qmd MCP tools). Use when their context could change your answer - their plans, past decisions, preferences, people, projects, setup or commands - or when they refer to something they wrote, decided or asked before. Not for general knowledge or trivial exchanges.
+description: Search the person's own notes, project knowledge, decisions, PDF and Word files, and past AI prompts (the qmd MCP tools). Use when their context could change your answer - their plans, past decisions, preferences, people, projects, setup or commands - or when they refer to something they wrote, decided or asked before. Not for general knowledge or trivial exchanges.
 ---
 
 # Recall: search the person's workspace
 
 The `qmd` MCP server indexes every Markdown file in the workspace (`/workspace`):
 notes, project docs, decisions, automation output (`ai/`) and the prompts the
-person typed into AI tools (`ai/conversations/`). Hidden folders and anything in a
-`.gitignore` are not indexed. This file is rewritten whenever code-server starts.
+person typed into AI tools (`ai/conversations/`), plus the text of every PDF and
+Word (.docx) file. Hidden folders and anything in a `.gitignore` are not indexed. This file is rewritten whenever code-server starts.
 
 The tools being available does not mean anything was searched. Nothing is
 retrieved unless you call them.
@@ -68,6 +68,11 @@ question; don't paste whole files back to the person.
   fact. Say "on 2026-04-10 you asked about…", and look for a later note or
   decision before treating it as settled.
 - **`ai/`** (everything else) was written by an automation. Treat it as a draft.
+- **`qmd://documents/<path>.md`** is the text extracted from the PDF or Word file
+  `<path>` in the workspace: a manual, a policy, a statement the person keeps, not
+  necessarily wrote. Cite `<path>` and the `## Page N` heading above the hit, not
+  the line, which counts lines of the extracted text. A scanned PDF has no text
+  and is not in the index.
 - A result's score is a ranking, not a confidence. Don't quote it as one.
 
 ## Saying what you found

@@ -1,6 +1,6 @@
 ---
 name: Search
-tagline: Your notes, decisions and past prompts, searchable by meaning and by exact words from Claude Code and opencode
+tagline: Your notes, PDF and Word files, decisions and past prompts, searchable by meaning and by exact words, from a terminal or Claude Code and opencode
 e2e: false
 services:
   - var: EXIST_IS_AI_QMD
@@ -9,8 +9,9 @@ services:
     label: code-server (where Claude Code and opencode use it)
 ---
 
-An add-on, not part of Core. qmd indexes every Markdown file in the workspace
-and answers both kinds of search at once: exact words (names, commands,
+An add-on, not part of Core. qmd indexes every Markdown, PDF and Word file in
+the workspace (text only: a scanned PDF has none, and there is no OCR) and
+answers both kinds of search at once: exact words (names, commands,
 identifiers) and meaning (a note you wrote in other words). Claude Code and
 opencode in code-server share the one index over MCP. Nothing leaves the
 machine, and no GPU is needed.
@@ -45,6 +46,13 @@ decide about syncing notes to my phone?". The recall skill in
 workspace/.claude/skills/recall/ tells it when to search, how to phrase the
 search, and to cite the file. It searches when your notes could change the
 answer, not on every message.
+
+Or search yourself, in code-server's terminal or on the host:
+
+       search restic forget
+       ./existential.sh run qmd search restic forget
+
+Type the words you remember; a whole question finds less.
 
 What you type into claude and opencode is kept in workspace/ai/conversations/,
 so earlier questions are searchable too, marked as questions, not decisions.

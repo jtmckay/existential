@@ -18,6 +18,6 @@ The AI stack provides local model hosting, chat interfaces, transcription, and t
 | [Firecrawl](./firecrawl) | Web scraping and crawling API for agents |
 | [Honcho](./honcho) | Cross-session memory for Hermes |
 | [OpenViking](./openviking) | Context database — memory, resources, and skills |
-| [qmd](./qmd) | Hybrid keyword + neural search over the workspace, as MCP for Claude Code and opencode |
+| [qmd](./qmd) | Hybrid keyword + neural search over the workspace's notes, PDF and Word files, from a terminal or as MCP for Claude Code and opencode |
 | [wyoming-whisper](./wyoming-whisper) | Speech to text for Home Assistant voice, on CPU |
 | [wyoming-piper](./wyoming-piper) | Text to speech for Home Assistant voice, on CPU |

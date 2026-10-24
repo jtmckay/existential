@@ -470,7 +470,7 @@ _find_service_dir_for_slug() {
 }
 
 _run_service_action() {
-    local slug="$1" action="$2"
+    local slug="$1" action="$2"; shift 2
     local svc_dir
     svc_dir="$(_find_service_dir_for_slug "$slug")" || {
         echo "Unknown run target: $slug" >&2
@@ -488,7 +488,7 @@ _run_service_action() {
         return 1
     fi
 
-    bash "$script"
+    bash "$script" "$@"
 }
 
 _run_general_utility() {
@@ -523,8 +523,9 @@ run_setup() {
         return $?
     fi
 
-    # Otherwise it's a service action: `run <slug> [action]` (action → initial).
-    _run_service_action "$first" "${2:-initial}"
+    # Otherwise it's a service action: `run <slug> [action] [args...]` (action →
+    # initial); the args go to the action's script.
+    _run_service_action "$first" "${2:-initial}" "${@:3}"
 }
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
