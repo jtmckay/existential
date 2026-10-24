@@ -238,8 +238,11 @@ decree project:
   `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
   so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
   redraws `graph/` whenever a machine or cron file changes, and writes the decree skill to
-  `workspace/.claude/skills/decree/` whenever the image's decree version changes (stamped in
-  `/data`). `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
+  `workspace/.claude/skills/decree/`, with `automation/lib/skill-notes.md` appended, whenever
+  the image's decree version or those notes change (stamped in `/data`). With
+  `FILE_HANDLERS=1` it keeps `automation/lib/file-handlers.ts` running (plain `node`, not
+  `tsx`: it never exits, and tsx holds a second node beside it), which watches `/workspace`
+  and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
 - **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
   `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
   it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.

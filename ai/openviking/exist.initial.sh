@@ -54,9 +54,10 @@ purpose:
 - It **is** indexed into OpenViking, along with the rest of `workspace/`. Past
   output is searchable, so an agent can find and build on what an earlier run
   produced.
-- Writing here **never** fires a file event. Routines write straight to disk,
-  and only uploads through Nextcloud raise events, so an answer cannot trigger
-  another run. Your desktop client still downloads it like any other folder.
+- Writing here starts nothing unless a file handler in
+  `.decree/handlers.yml` matches it: keep handler patterns off `ai/` and an
+  answer cannot trigger another run. Your desktop client still downloads it
+  like any other folder.
 
 Delete this README once you have your bearings — nothing regenerates it while
 it exists, and nothing depends on it.

@@ -12,7 +12,8 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    # The automation daemon. ~45 MiB idle, but it runs tsx in-process.
+    # The automation daemon (~45 MiB idle, but it runs tsx in-process) and the
+    # file-handlers watcher (~80 MiB).
     deploy:
       resources:
         limits:
@@ -48,6 +49,8 @@ services:
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       # Redraw workspace/.decree/graph/ whenever a machine changes (entrypoint.sh).
       - GRAPH_WATCH=1
+      # Start handlers.yml's machines when workspace files change (entrypoint.sh).
+      - FILE_HANDLERS=1
       - IN_CONTAINER=1
       # The image's HOME (/home/decree) is the container's throwaway layer, so
       # anything written there is lost on recreate — including rclone's config,
@@ -133,9 +136,8 @@ services:
       # mount the subtree it needs, not the root.
       - ../../ai/hermes/profiles:/repo/ai/hermes/profiles:ro
       # The shared workspace, read-write: agent_task files its output in
-      # workspace/ai/. Writes here fire no file events (only uploads through
-      # Nextcloud do), which is what keeps an agent's own output from
-      # triggering another run.
+      # workspace/ai/. file-handlers.ts watches all of it; only a handler in
+      # .decree/handlers.yml turns a change into a run.
       - workspace_data:/workspace:z
     tty: false
 

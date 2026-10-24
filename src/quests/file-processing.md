@@ -45,9 +45,9 @@ Env vars available inside every processor script:
 All patterns are non-exclusive — multiple processors can match one file.
 Temp files are deleted automatically after the processor exits.
 
-Only uploads THROUGH Nextcloud fire. Files hermes, code-server or decree write
-straight into the workspace do not — that is what keeps an agent's own output
-from triggering another run.
+Only uploads THROUGH Nextcloud fire here. Files hermes, code-server or decree
+write straight into the workspace do not. For workspace files, a file handler
+(workspace/.decree/handlers.yml) sees every change, whoever made it.
 
 Setup:
   1. The **Capture** quest does this. By hand: copy

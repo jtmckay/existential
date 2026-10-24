@@ -23,8 +23,8 @@
 #   a cron and keeps it in sync.
 #
 #   workspace/ai/ — automation output — IS indexed, so an agent can find and
-#   build on its earlier work. Writing it fires no file event (only uploads
-#   through Nextcloud do), which is what stops that output triggering a run.
+#   build on its earlier work. Writing it fires no Nextcloud event, and no file
+#   handler should match it, which is what stops that output triggering a run.
 #
 #   It is mounted on the DECREE daemon, not on openviking. openviking's HTTP and MCP
 #   APIs both refuse host filesystem paths outright, so a bind mount on the

@@ -5,7 +5,8 @@
 # into workspace/notes/ (or wherever NOTES_PULL_SUBDIR points), so a vault
 # that lives somewhere else becomes part of the workspace/ knowledgebase —
 # indexed by OpenViking and synced to Nextcloud clients like anything else
-# under workspace/. It is written straight to disk, so it fires no file events.
+# under workspace/. It is written straight to disk, so it fires no Nextcloud file
+# events; a file handler whose pattern matches it does run.
 #
 # Why rsync over SSH and not another rclone remote: the source is assumed to
 # be a plain filesystem reachable over SSH (a NAS, a synced folder on another

@@ -83,9 +83,12 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 
 The user's own content is the `workspace_data` volume — one tree mounted by nextcloud (as a
 Local external storage the desktop client syncs), hermes, code-server and decree, and indexed
-into openviking. **Only uploads through Nextcloud fire file events**; anything the stack writes
-straight to disk (agent output in `workspace/ai/`) never does, and that is
-the loop break. User-facing detail: `site/docs/getting-started.md#workspace`.
+into openviking. **Every change in the workspace is seen** (`automation/lib/file-handlers.ts`, in
+`automation`), but only a handler in `workspace/.decree/handlers.yml` turns one into a run, and a
+`.gitignore`'d path or anything in `.git/` never does. The loop break is the handlers' patterns:
+an automation writes where its own handler does not match (agent output in `workspace/ai/`).
+Nextcloud's file events are an optional second path. User-facing detail:
+`site/docs/decree/file-handlers.md`.
 
 - `.decree/` = the decree project for *developing this repo* on the host (`develop`, `infra`,
   `qa`), not part of the stack. `develop` is implement → gate, and its gate is `.githooks/pre-push`.

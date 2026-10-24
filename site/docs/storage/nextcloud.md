@@ -96,8 +96,10 @@ same tree hermes and code-server see. See [Getting Started → Workspace](../get
 Nextcloud runs as `EXIST_PUID`, not `www-data`, for exactly this reason: every writer of that
 volume has to be the same uid.
 
-Every upload through Nextcloud — anywhere, not just the workspace — fires a file event to
-Decree. See [File Processor](../decree/file-change-processing).
+Nextcloud is optional sync for the workspace, not what triggers automations there: the stack
+sees a workspace change itself, whoever made it ([File Handlers](../decree/file-handlers)).
+Every upload through Nextcloud — anywhere, not just the workspace — can also fire a file event
+to Decree. See [File Processor](../decree/file-change-processing).
 
 ## Collabora (office document editing)
 

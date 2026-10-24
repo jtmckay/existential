@@ -269,7 +269,9 @@ whatever you actually want caught. See [Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
-Anything uploaded through Nextcloud fires a file event → the webhook → `file_router`, which
+In the workspace, a [file handler](../decree/file-handlers) is the trigger: one line in
+`.decree/handlers.yml` runs a machine with the file's `path` once it has been quiet.
+Anything uploaded through Nextcloud, anywhere in it, can also fire a file event → the webhook → `file_router`, which
 matches your **file processor** on a path regex and an optional content gate:
 
 ```bash

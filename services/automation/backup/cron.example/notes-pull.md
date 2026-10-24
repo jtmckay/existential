@@ -17,9 +17,10 @@ automatically:
   - shows up in Nextcloud's `workspace` folder, and so on every desktop client
     syncing it
 
-It is written straight to disk, so it fires no file events: a pulled vault
-never triggers a file processor on its own. Edit one of those notes through
-Nextcloud, though, and that upload does.
+It is written straight to disk, so it fires no Nextcloud file events: a pulled
+vault never triggers a file processor on its own. Edit one of those notes through
+Nextcloud, though, and that upload does. A file handler whose pattern matches
+`notes/` sees the pull like any other change.
 
 Setup:
 

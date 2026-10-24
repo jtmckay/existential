@@ -20,7 +20,7 @@
 # Only uploads THROUGH Nextcloud raise events — the desktop client, the web UI,
 # WebDAV, rclone. Hermes, code-server and decree write workspace_data straight
 # to disk; nextcloud-cron's scan makes those visible to clients but fires
-# nothing. That is what stops an agent's own output from triggering another run.
+# nothing here. (A file handler in workspace/.decree/handlers.yml does see them.)
 #
 # Event shapes (verified against nextcloud:34.0.3):
 #

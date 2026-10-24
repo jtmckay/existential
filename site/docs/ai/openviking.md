@@ -52,10 +52,9 @@ and MCP APIs both refuse host filesystem paths outright, so content only ever re
 upload — which is also why there is no watched-directory setup.
 
 `workspace/ai/` — where the agent automations write — is indexed like everything else, so
-an agent can find and build on what an earlier run produced. It is written straight to
-disk, and only uploads through Nextcloud fire file events, which is what stops that output
-from triggering more runs. See
-[File Processor](../decree/file-change-processing).
+an agent can find and build on what an earlier run produced. Writing there
+starts nothing unless a [file handler](../decree/file-handlers) matches it, so keep handler
+patterns off `ai/` and that output never triggers more runs.
 
 ## What it stores
 

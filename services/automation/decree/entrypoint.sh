@@ -32,15 +32,26 @@ if [[ "${GRAPH_WATCH:-}" == 1 ]]; then
   ) &
 fi
 
+# FILE_HANDLERS=1 (the `automation` daemon): a change to a workspace file starts
+# the machine of every handler in .decree/handlers.yml that matches it
+# (automation/lib/file-handlers.ts). It re-reads handlers.yml itself; this loop
+# only brings it back if it dies. Plain node, which strips the types itself:
+# it never exits, and tsx would hold a second node and esbuild beside it.
+if [[ "${FILE_HANDLERS:-}" == 1 ]]; then
+  ( while :; do node .decree/lib/file-handlers.ts || true; sleep 5; done ) &
+fi
+
 # The decree skill for Claude, at the workspace root, so `claude` started in
 # /workspace (code-server's terminal) already knows how to write a machine.
-# Rewritten only when the image's decree version changes: `decree skill`
-# overwrites its own files and leaves anything else in that folder alone.
+# This project's notes (automation/lib/skill-notes.md) are appended to SKILL.md.
+# Rewritten only when the image's decree version or the notes change: `decree
+# skill` overwrites its own files and leaves anything else in that folder alone.
 if [[ "${GRAPH_WATCH:-}" == 1 && -d /workspace/.decree ]]; then
   stamp=/data/.decree-skill-version
-  version="$(decree --version)"
+  version="$(decree --version) $(cksum < .decree/lib/skill-notes.md)"
   if [[ ! -f /workspace/.claude/skills/decree/SKILL.md || "$(cat "$stamp" 2>/dev/null)" != "$version" ]]; then
     if (cd /workspace && decree skill --ai claude --no-color >/dev/null); then
+      cat .decree/lib/skill-notes.md >> /workspace/.claude/skills/decree/SKILL.md
       echo "$version" > "$stamp"
     else
       echo "[entrypoint] decree skill failed" >&2

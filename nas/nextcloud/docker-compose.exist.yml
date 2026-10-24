@@ -124,8 +124,8 @@ services:
   #   cron.php         every due job — the standard cron, which also switches
   #                    Nextcloud from AJAX to cron mode on its first run.
   #   files:scan       picks up what hermes/code-server/decree wrote straight to
-  #                    disk, so desktop clients see it. It fires NO file events
-  #                    (verified): an agent's write never triggers an automation.
+  #                    disk, so desktop clients see it. It fires NO Nextcloud
+  #                    file events (verified); only a file handler can see those writes.
   nextcloud-cron:
     container_name: nextcloud-cron
     image: nextcloud:34.0.3

@@ -66,6 +66,15 @@ reads to a model, so what it can read is what a prompt injection can read.
   its credentials. Keep secrets out of `workspace/` for the same reason.
 - **What hermes knows:** `routines_snapshot` copies `graph/system.md`, the
   machines and the endpoints into `workspace/ai/decree/`.
+- **File handlers:** `automation/lib/file-handlers.ts`, kept running by the `automation`
+  entrypoint, watches all of `/workspace` and emits `--param path= --param change=` for every
+  entry in `workspace/.decree/handlers.yml` whose glob matches, after the file is `quiet`
+  seconds unchanged (30 by default; a delete fires at once). `.git/` and anything `git
+  check-ignore` ignores never fires, the same rule as `workspace_sync`; nothing else is
+  filtered. A handler's machine must declare `path` and `change`, or `decree emit` refuses it
+  and the watcher logs that. The decree skill learns this from `automation/lib/skill-notes.md`.
+  Nextcloud's `/files` webhook is the optional older path. Tested by
+  `src/test/unit/test-file-handlers.sh`.
 - **Telemetry is the event log.** alloy ships `runs/*/events.jsonl` and script
   logs to Loki and derives `decree_runs_total{daemon, machine, state}` and
   `decree_run_duration_milliseconds` for Prometheus. A failed run alerts through

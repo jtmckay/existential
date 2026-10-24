@@ -200,14 +200,15 @@ It's more than a shared folder:
 - **It's the agent's knowledgebase**, once **Local AI** is enabled.
   [OpenViking](./ai/openviking) indexes everything in it every 15 minutes, and Hermes reaches that index as an MCP tool — so anything you put in the
   workspace is something the agent can find and cite, no upload step required.
-- **Saving a file fires a webhook event**, with Nextcloud in the stack. Every upload through it is a file event
-  Decree can react to — that's how the Workspace Agent quest (`./existential.sh quest`, or
-  `src/quests/workspace-agent.md`) turns "you edited a note" into "an agent went and did
-  something about it." See
-  [File Processor](./decree/file-change-processing#triggering-on-workspace-edits).
-- **What the stack writes does not fire.** Hermes, code-server and Decree write straight to
-  disk. Nextcloud picks those files up within a minute, so they reach your devices, but they
-  raise no event — which is what stops an agent's own answer from triggering another run.
+- **A change to a file can start an automation.** The stack watches the whole workspace, so
+  dropping a PDF in a folder or finishing a note runs whatever a handler in
+  `.decree/handlers.yml` names for that path, whoever made the change. A handler fires once the
+  file has been quiet for 30 seconds, so autosaves make one run. See
+  [File Handlers](./decree/file-handlers).
+- **You decide what does not fire.** A path a `.gitignore` in the workspace ignores, and
+  anything in a `.git/`, never fires a handler. Beyond that the handlers decide: keep drafts
+  out of a handler's folder until they're ready, and send an automation's output somewhere its
+  own pattern doesn't reach.
 - **`workspace/ai/`** is where agent output lands (`agent_task`'s answers, for instance). It's
   indexed like everything else, so an agent can build on a previous run's output.
 - **`workspace/.decree/`** is your automations: the decree project the `automation` daemon

@@ -9,7 +9,7 @@
 # Volumes:
 #   workspace_data — primary working directory, the same tree hermes, decree and
 #   Nextcloud mount. Edits here reach desktop clients via nextcloud-cron's scan,
-#   but fire no file events: only uploads through Nextcloud do.
+#   and start whatever file handler in workspace/.decree/handlers.yml matches.
 
 services:
   code-server:

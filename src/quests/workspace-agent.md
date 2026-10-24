@@ -44,10 +44,11 @@ PATTERN match is what keeps that from mattering: the shipped processor is scoped
 to `^nextcloud:workspace/`.
 
 The loop break — the one thing worth understanding:
-  Only uploads THROUGH Nextcloud fire events. The agent writes workspace/ai/
+  Only uploads THROUGH Nextcloud fire its events. The agent writes workspace/ai/
   straight to disk, so its answer is indexed and shows up on your desktop, but
-  can never trigger another run. The same goes for edits in code-server's
-  editor: they sync to your devices, but do not fire.
+  never fires this webhook. Edits in code-server's editor sync to your devices
+  but do not fire it either. They do reach a file handler
+  (workspace/.decree/handlers.yml), so keep handler patterns off ai/.
 
 Setup:
 

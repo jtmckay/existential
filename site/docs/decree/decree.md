@@ -11,15 +11,15 @@ external services like Gmail.
 
 Everything it runs is the same three things: a **script** (bash that does one job), a
 **machine** (a few lines of YAML naming the script and the params it takes), and a **trigger**
-(something that decides when to run it). A trigger — a cron file, an HTTP POST, a file landing
-in Nextcloud, another machine — produces a markdown message with `machine:` in its frontmatter,
+(something that decides when to run it). A trigger — a cron file, an HTTP POST, a file changing
+in the workspace, another machine — produces a markdown message with `machine:` in its frontmatter,
 and the daemon runs that machine with the message's `params:` as its data. That is the whole
 model.
 
 | To… | Read |
 |---|---|
 | Write your own automation | [Writing an Automation](../writing-a-routine) — machines, scripts, triggers, chaining |
-| Run something when a file appears | [File Change Processing](./file-change-processing) |
+| Run something when a file changes | [File Handlers](./file-handlers) |
 | Hand a task to a specific agent profile | [Routing to Departments](./routing) |
 | See it all assembled on a real problem | [Note → Action](../flows/note-to-action) |
 | Reach the stack from outside over HTTP | [Build On It](../build-on-it) |
@@ -46,6 +46,7 @@ Gmail and rclone are configured through interactive setup scripts. See [Integrat
 
 ## File events
 
-No manual setup — Nextcloud posts every upload to the webhook's `/files` endpoint, and
-machines read the file back through the `nextcloud` rclone remote. See
-[File Change Processing](./file-change-processing).
+The `automation` container watches the workspace, and a change to a file a handler in
+`workspace/.decree/handlers.yml` matches runs that handler's machine. See
+[File Handlers](./file-handlers). With Nextcloud in the stack, its uploads can also post to
+the webhook's `/files` endpoint: [File Change Processing](./file-change-processing).

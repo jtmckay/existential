@@ -61,7 +61,7 @@ check "the you-were-here digest is on by default" "cmp -s '${R}/automation-examp
 check "the weekly and monthly look backs are on by default" "cmp -s '${R}/automation-examples/cron/look-back-weekly.md' '${P}/cron/look-back-weekly.md' && cmp -s '${R}/automation-examples/cron/look-back-monthly.md' '${P}/cron/look-back-monthly.md'"
 N="${R}/volumes/workspace_data/notes/my-first-note.md"
 check "notes/my-first-note.md is written" "[[ -s '${N}' ]]"
-for _w in claude .decree ntfy; do
+for _w in claude .decree ntfy 'matching file' .gitignore; do
     check "the first note mentions ${_w}" "grep -qiF '${_w}' '${N}'"
 done
 check "nothing in the workspace names Nextcloud" "! grep -rqi 'nextcloud' '${R}/volumes/workspace_data/README.md' '${N}'"

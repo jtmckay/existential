@@ -29,8 +29,8 @@ INDEX_DIR. It skips churn — git internals, dependency trees — not content.
 
 `workspace/ai/` is deliberately NOT excluded. That directory holds the output of
 the agent automations, and indexing it is what lets a later run find and build on
-an earlier one. The loop is broken elsewhere: routines write it straight to disk,
-and only uploads through Nextcloud fire file events, so it never triggers another run.
+an earlier one. The loop is broken elsewhere: routines write it straight to disk, which
+fires no Nextcloud event, and no file handler should match it.
 
 To index a second directory, copy this file with a new name and give it its own
 INDEX_DIR and INDEX_PREFIX. The two keep separate manifests.

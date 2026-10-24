@@ -168,6 +168,9 @@ what should happen, in your own words.
 Claude writes it as an automation in `.decree/`, the folder next to `notes/`.
 It starts running on its own, and `.decree/graph/` draws what it does.
 
+A change to a matching file can start an automation too ("when a PDF lands in
+`inbox/`, file it"); a folder listed in a `.gitignore` never starts one.
+
 To hear back when it runs, install ntfy on your phone and subscribe to your
 stack's topic.
 

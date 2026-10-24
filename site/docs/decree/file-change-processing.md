@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # File Processor
@@ -11,7 +11,10 @@ running job. If you are here to see what the system *does*, start at
 [Build On It](../build-on-it) are the pages you want.
 :::
 
-React to files being created, updated, renamed or deleted in Nextcloud. When a file event arrives at the Decree webhook, `file_router` matches the file path against registered processors and fans out one `file_processor` job per match. Each job downloads the file (or generates a share link if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
+React to files being created, updated, renamed or deleted in Nextcloud, anywhere in it. For
+files in the workspace you don't need this: a [file handler](./file-handlers) sees every
+change there, whoever made it, with no Nextcloud at all. This page is the optional Nextcloud
+path. When a file event arrives at the Decree webhook, `file_router` matches the file path against registered processors and fans out one `file_processor` job per match. Each job downloads the file (or generates a share link if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
 
 A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file_processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
 
@@ -68,10 +71,10 @@ delivery that fails is logged by Nextcloud and not retried.
 
 The request includes `Authorization: Bearer <EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN>`.
 
-:::warning[Only uploads through Nextcloud fire]
+:::warning[Only uploads through Nextcloud fire here]
 Hermes, code-server and decree write the workspace straight to disk. Nextcloud notices those
-files (so your desktop client gets them) but raises **no event** for them. That is what stops
-an agent's own output from triggering another run.
+files (so your desktop client gets them) but raises **no event** for them. A
+[file handler](./file-handlers) does see them.
 :::
 
 ### 2. file_router — match and fan out
@@ -262,12 +265,13 @@ and `jq`, and `/workspace/ai` mounted into the decree container.
 
 ## Triggering on workspace edits
 
-The workspace (`volumes/workspace_data`) is mounted into Nextcloud as the `workspace` folder,
-so editing a note in the Nextcloud desktop client *is* an upload, and fires straight away. There
-is no sync job and no second copy — see [Getting Started](../getting-started#workspace).
+Use a [file handler](./file-handlers): it sees every change in the workspace, from any
+writer, and `.gitignore` keeps a folder out of it. With Nextcloud in the stack the workspace
+is also its `workspace` folder, so an edit in the desktop client is an upload and fires here
+too.
 
-`workspace/ai/` is where `agent_task` writes. It is written straight to disk, so it shows up on
-your devices and is indexed by OpenViking, but it can never trigger a run.
+`workspace/ai/` is where `agent_task` writes. It is written straight to disk, so it never
+fires a Nextcloud event; a handler whose pattern reaches `ai/` does see it.
 
 ## Hermes asking decree for work
 
