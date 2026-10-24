@@ -458,7 +458,24 @@ echo "=== CLI: run (no args) ==="
         _fail "existential.sh run (no args) → prints Usage" \
               "output: $(echo "$out" | head -5)"
     fi
+    # reset has one entry point (./existential.sh reset); backup-config is gone.
+    for gone in reset backup-config; do
+        if echo "$out" | grep -qE "run ${gone}\$"; then
+            _fail "existential.sh run (no args) → does not list ${gone}"
+        else
+            _ok "existential.sh run (no args) → does not list ${gone}"
+        fi
+    done
 )
+
+# ── Section: CLI — `test <name>` finds a suite by file name ──────────────────
+
+echo ""
+echo "=== CLI: test <name> dispatch ==="
+
+# DOCKER_CMD=echo makes run_adhoc print the command it would run in adhoc.
+assert_output_contains "test existential → runs src/test/unit/test-existential.sh" \
+    "/src/test/unit/test-existential.sh" env DOCKER_CMD=echo bash "$EXISTENTIAL" test existential
 
 # ── Section: CLI — `run` with two args dispatches to service action ───────────
 

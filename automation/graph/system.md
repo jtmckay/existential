@@ -28,7 +28,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [note_develop](note_develop.md): Take one flagged note and draft what can be done without its author, ending with the questions only they can answer.
 - [note_triage](note_triage.md): Ask the model one yes/no question per new or changed note, and hand the ones that pass to TRIAGE_ROUTINE.
 - [notes](notes.md): Pull the notes vault from Nextcloud, compile it, index it, and push the result to Dropbox.
-- [notify](notify.md): Send the message body to ntfy, falling back to Telegram when ntfy is unreachable.
+- [notify](notify.md): Send the message body to ntfy.
 - [ollama_pull](ollama_pull.md): Pull an Ollama model by role (or tag), or rebuild it with a context window; idempotent.
 - [openviking_index_dir](openviking_index_dir.md): Upload a directory tree to OpenViking and keep the index in step with it — new, changed and deleted files.
 - [routines_snapshot](routines_snapshot.md): Copy decree's graph, machines and endpoints into workspace/ai/decree/, so hermes knows what it can ask decree for.

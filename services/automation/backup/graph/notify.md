@@ -1,6 +1,6 @@
 # notify
 
-Send the message body to ntfy, falling back to Telegram when ntfy is unreachable.
+Send the message body to ntfy.
 
 Machine: [machines/notify.yml](../machines/notify.yml)
 

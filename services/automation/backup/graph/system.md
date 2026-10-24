@@ -5,7 +5,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [clean_runs](clean_runs.md): Delete this project's finished runs older than OLDER_THAN; Loki keeps the history.
 - [db_backup](db_backup.md): Dump each listed database (postgres, mariadb, mongo), upload the dumps with rclone under the tier, and prune past retention.
 - [notes_pull](notes_pull.md): Rsync-pull an external notes vault into workspace/notes, one way, without --delete unless asked.
-- [notify](notify.md): Send the message body to ntfy, falling back to Telegram when ntfy is unreachable.
+- [notify](notify.md): Send the message body to ntfy.
 - [sqlite_backup](sqlite_backup.md): Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
 - [triage](triage.md): Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
 - [volume_backup](volume_backup.md): Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.

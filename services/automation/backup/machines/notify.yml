@@ -1,5 +1,5 @@
 name: notify
-description: Send the message body to ntfy, falling back to Telegram when ntfy is unreachable.
+description: Send the message body to ntfy.
 data:
   ntfy_topic: { type: string, default: decree }
   ntfy_title: { type: string, default: "" }

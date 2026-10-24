@@ -17,3 +17,4 @@
 017-failures-reach-you.md
 018-first-run-asks-two-things.md
 019-search-your-notes.md
+020-one-way-to-do-each-thing.md
