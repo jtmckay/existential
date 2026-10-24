@@ -3,8 +3,12 @@
   text-align: center;
 }
 
-.why + .why {
+.why:nth-of-type(even) {
   background: var(--ifm-color-emphasis-100);
+}
+
+.title {
+  margin-bottom: 1.5rem;
 }
 
 .lede {

@@ -8,7 +8,6 @@ import HomepageCapabilities from '@site/src/components/HomepageCapabilities';
 import HomepageHow from '@site/src/components/HomepageHow';
 import HomepageWho from '@site/src/components/HomepageWho';
 import HomepageWhy from '@site/src/components/HomepageWhy';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
 
 import styles from './index.module.css';
 
@@ -27,10 +26,8 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <p className={styles.heroLede}>
-          On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits
-          in a note you won't open for three weeks. Existential keeps the clear day running. What
-          you decide when you're sharp becomes an automation that comes to you on its own, on the
-          days you'd never think to look.
+          Can't remember what you've forgotten? Change your environment to remember for you. Existential is that environment. It's just a notepad, until you tell
+          it what to do.
         </p>
         <div className={styles.buttons}>
           <Link
@@ -87,14 +84,13 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Your best brain day now accessible. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look.">
+      description="Your best brain day now accessible. Can't remember what you've forgotten? Change your environment to remember for you. Existential is that environment. It's just a notepad, until you tell it what to do.">
       <HomepageHeader />
       <main>
         <HomepageWhy />
         <HomepageWho />
         <HomepageHow />
         <HomepageCapabilities />
-        <HomepageFeatures />
         <HomepageClosing />
       </main>
     </Layout>

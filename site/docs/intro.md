@@ -12,14 +12,11 @@ The system as one box — what it is and what it does for you. Zoom in one step 
 
 **Your best brain day now accessible.**
 
-On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits in a
-note you won't open for three weeks. Existential keeps the clear day running. What you decide
-when you're sharp becomes an automation that comes to you on its own, on the days you'd never
-think to look.
+Can't remember what you've forgotten? Change your environment to remember for you. Existential is that environment. It's just a notepad, until you tell it what to do.
 
 Everything else on your phone surfaces what someone else decided needs your attention. This
-surfaces what you decided. What you're building is your Diagram: the plan your best day wrote,
-followed on every other one.
+surfaces what you decided. What you're building is your Diagram: the plan from your best day,
+followed on the rest.
 
 Underneath it is a curated set of open-source apps (notes, photos, money, files, dashboards,
 monitoring, home automation) run as one system: each with a name you can type, a certificate

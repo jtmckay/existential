@@ -18,33 +18,26 @@ everyone else. Nothing names its source.
 The homepage hero and the first section after it read as below, in these exact words.
 
 - **V1. Tagline** (hero subtitle, and the site tagline): Your best brain day now accessible.
-- **V2.** On a clear day you can see exactly what to do. Then the fog rolls in, and the idea
-  sits in a note you won't open for three weeks.
-- **V3.** Existential keeps the clear day running. What you decide when you're sharp becomes an
-  automation that comes to you on its own, on the days you'd never think to look.
-- **V4.** Every system you've tried needed you to remember to use it. That's the one thing a
+- **V2.** Can't remember what you've forgotten? Change your environment to remember for you.
+- **V3.** Existential is that environment. It's just a notepad, until you tell it what to do.
+- **V4.** Every system you've tried needed you to remember to use it. That's the first thing a
   bad day takes.
-- **V5.** Your good days stop going to catching up. Each one starts where the last one left
-  off.
-- **V6.** Everything else on your phone surfaces what someone else decided needs your
+- **V5.** Everything else on your phone surfaces what someone else decided needs your
   attention. This surfaces what you decided.
-- **V7.** What you're building is your Diagram: the plan your best day wrote, followed on every
-  other one.
+- **V6.** What you're building is your Diagram: the plan from your best day, followed on the
+  rest.
 
-- **V8.** When you outgrow how you set it up, and you will, rebuild it your way. Nothing you
-  built is lost: it's all plain files, and it's where the next version starts.
-- **V9.** Existential makes no money from you: no ads, no attention to sell, nothing collected.
-  Which AI you talk to is your choice, as private or as easy as you want. Your data improves
-  you.
+V2 and V3 are the hero lede. The first section after the hero is headed **Intentional
+attention** and holds V4 through V6.
 
-V2 and V3 are the hero lede. V4 through V7 are the first section after the hero. V8 and V9
-are the second.
+"Environment" is the pitch's word for what Existential sets up around you. The implementation
+keeps calling the folder the workspace.
 
 Everything else that pitches the project says the same thing, in the voice
 `.claude/reference/audience.md` sets:
 
 - The rest of the homepage, `README.md`'s opening, `site/docs/intro.md`'s opening and the site's
-  meta description carry this proposition. Where they repeat V1 to V9 they use the same words.
+  meta description carry this proposition. Where they repeat V1 to V6 they use the same words.
 - No copy assumes the reader is technical. How to install belongs on Getting Started, not in
   the pitch.
 - No copy pitches something else ("second brain", "the software already exists", "nothing
@@ -61,8 +54,8 @@ Everything else that pitches the project says the same thing, in the voice
   **When** it runs
   **Then** it succeeds
 - **Given** the built homepage
-  **When** its hero and first two sections are read
-  **Then** they show V1 through V9 exactly
+  **When** its hero and first section are read
+  **Then** they show V1 through V6 exactly, and the heading "Intentional attention"
 - **Given** `site/src/`, `site/docusaurus.config.ts`, `README.md` and `site/docs/intro.md`
   **When** they are searched (case-insensitive) for "second brain", "software already exists",
   "nothing leaves the house" and "unplug the internet"

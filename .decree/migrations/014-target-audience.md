@@ -41,6 +41,12 @@ checked against.
 - **A39.** What they decided matters, brought back to them. Not a summary of what other people
   decided needs their attention: an email brief is the attention economy with better
   manners. It can summarize email too, but only because they asked it to.
+- **A43.** They can't rely on remembering at the moment it matters, so willpower is the wrong
+  fix. What works is changing their environment: what they meant to do is already waiting
+  where they'll be when it matters. Existential is that environment. The same structure is
+  what makes an AI useful to them, because the AI forgets between conversations too, and a
+  structured environment lets it fill vague gaps well. Copy says "environment"; the
+  implementation's folder stays "workspace".
 
 ### What their life looks like
 
@@ -137,7 +143,7 @@ This describes the product, not the person, and nothing in the audience depends 
 
 - **Given** `.claude/reference/audience.md`
   **When** it is read
-  **Then** it contains A1 through A42 as written above
+  **Then** it contains A1 through A43 as written above
 - **Given** the homepage source (`site/src/pages/index.tsx` and the components it renders)
   **When** it is searched (case-insensitive) for "ADHD"
   **Then** nothing is found

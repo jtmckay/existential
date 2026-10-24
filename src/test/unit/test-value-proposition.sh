@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # test-value-proposition.sh — the homepage, README and intro make one pitch.
 #
-# V1-V9 (migration 008) are exact copy: V1 is the site tagline, V2-V3 the hero lede, V4-V7
-# the first section after the hero and V8-V9 the second. Retired pitches, claims the repo does
+# V1-V6 (migration 008) are exact copy: V1 is the site tagline, V2-V3 the hero lede and V4-V6
+# the one section after the hero ("Intentional attention"). Retired pitches, claims the repo does
 # not back, and any name for where "Diagram" comes from must not creep back in.
 set -euo pipefail
 
@@ -10,17 +10,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 [[ -d "${REPO_DIR}/site/docs" ]] || REPO_DIR="/repo"
 
-# shellcheck disable=SC2034  # V2-V9 are read by name, through ${!v}
+# shellcheck disable=SC2034  # V2-V6 are read by name, through ${!v}
 {
 V1='Your best brain day now accessible.'
-V2="On a clear day you can see exactly what to do. Then the fog rolls in, and the idea sits in a note you won't open for three weeks."
-V3="Existential keeps the clear day running. What you decide when you're sharp becomes an automation that comes to you on its own, on the days you'd never think to look."
-V4="Every system you've tried needed you to remember to use it. That's the one thing a bad day takes."
-V5="Your good days stop going to catching up. Each one starts where the last one left off."
-V6="Everything else on your phone surfaces what someone else decided needs your attention. This surfaces what you decided."
-V7="What you're building is your Diagram: the plan your best day wrote, followed on every other one."
-V8="When you outgrow how you set it up, and you will, rebuild it your way. Nothing you built is lost: it's all plain files, and it's where the next version starts."
-V9="Existential makes no money from you: no ads, no attention to sell, nothing collected. Which AI you talk to is your choice, as private or as easy as you want. Your data improves you."
+V2="Can't remember what you've forgotten? Change your environment to remember for you."
+V3="Existential is that environment. It's just a notepad, until you tell it what to do."
+V4="Every system you've tried needed you to remember to use it. That's the first thing a bad day takes."
+V5="Everything else on your phone surfaces what someone else decided needs your attention. This surfaces what you decided."
+V6="What you're building is your Diagram: the plan from your best day, followed on the rest."
 }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -52,16 +49,17 @@ done
 
 WHY=site/src/components/HomepageWhy/index.tsx
 first=$(grep -A2 "<HomepageHeader />" "${REPO_DIR}/site/src/pages/index.tsx" | grep -o "<Homepage[A-Za-z]* />" | sed -n 2p)
-if [[ "$first" == "<HomepageWhy />" ]]; then _ok "V4-V9 follow the hero"; else _fail "V4-V9 follow the hero" "got $first"; fi
-for v in V4 V5 V6 V7 V8 V9; do _has "$v on the homepage" "$WHY" "${!v}"; done
-# V4-V7 are the first section, V8-V9 the second.
+if [[ "$first" == "<HomepageWhy />" ]]; then _ok "V4-V6 follow the hero"; else _fail "V4-V6 follow the hero" "got $first"; fi
+for v in V4 V5 V6; do _has "$v on the homepage" "$WHY" "${!v}"; done
+_has "the first section is headed Intentional attention" "$WHY" "Intentional attention"
+# V4-V6 are one section.
 sections=$(_flat "$WHY" | sed 's/<section/\n<section/g' | grep -c '^<section')
 order=$(_flat "$WHY" | sed 's/<section/\n<section/g' | grep '^<section' |
-    while read -r s; do for v in V4 V5 V6 V7 V8 V9; do grep -qF "${!v}" <<<"$s" && printf '%s ' "$v"; done; echo '|'; done | tr -d '\n')
-if [[ "$sections" == 2 && "$order" == "V4 V5 V6 V7 |V8 V9 |" ]]; then
-    _ok "V4-V7 then V8-V9, in two sections"
+    while read -r s; do for v in V4 V5 V6; do grep -qF "${!v}" <<<"$s" && printf '%s ' "$v"; done; echo '|'; done | tr -d '\n')
+if [[ "$sections" == 1 && "$order" == "V4 V5 V6 |" ]]; then
+    _ok "V4-V6, in one section"
 else
-    _fail "V4-V7 then V8-V9, in two sections" "got $sections sections: $order"
+    _fail "V4-V6, in one section" "got $sections sections: $order"
 fi
 
 # Retired pitches, unbacked claims ("nothing leaves the house": Claude Code and a remote
