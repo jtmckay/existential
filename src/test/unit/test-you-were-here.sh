@@ -201,6 +201,7 @@ assert_has "Worth learning links the article Wikipedia found for the model's sub
 assert_has "...and says what it is for" "$LEARN" "For what you've been looking into: drip irrigation."
 assert_eq "day 2 is pushed" "2" "$(pushes)"
 assert_has "the push starts with The picture" "$(head -n1 "${TMP}/pushes/2")" "## The picture"
+assert_lacks "the push leaves out Worth learning" "$(cat "${TMP}/pushes/2")" "Worth learning"
 assert_has "the push shows link text, not paths" "$(cat "${TMP}/pushes/2")" "The garden is moving;"
 assert_has "with a tailnet name, the push links to code-server there" "$(cat "${TMP}/pushes/2")" "Full digest: notes/you-were-here.md, in https://box.tail1234.ts.net"
 assert_has "the ticked checkbox is under Done" "$(section "$DAY2" "Done")" "Ticked: compost delivery"

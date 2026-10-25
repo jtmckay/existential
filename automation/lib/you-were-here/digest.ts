@@ -8,9 +8,9 @@
 //                      notes/you-were-here.md and today's archive, saves the store, and
 //                      writes $DECREE_RUN_DIR/ntfy.md only when something changed
 //
-// Every section but The picture, One next thing and the feed reasons is built here,
-// from files, so the digest works with no model at all. Links are written relative
-// to the workspace and rebased for the note they land in.
+// Every section but The picture, One next thing, the feed reasons and Worth learning's
+// subject is built here, from files, so the digest works with no model at all. Links are
+// written relative to the workspace and rebased for the note they land in.
 //
 // "Recent" is since the last digest; when nothing new came in since then, it stays
 // the window of the last digest that showed something new, so a gap never empties it.
@@ -396,7 +396,7 @@ function write() {
     (tailnet ? `notes/you-were-here.md, in https://${tailnet}` : "workspace/notes/you-were-here.md");
   const footer = `Full digest: ${link}`;
   let push = "";
-  for (const part of [s.picture, s.waiting, s.next, s.steady, s.learn].filter(Boolean).map(plain)) {
+  for (const part of [s.picture, s.waiting, s.next, s.steady].filter(Boolean).map(plain)) {
     if (Buffer.byteLength(`${push}${part}\n\n${footer}`) > NTFY_LIMIT) break;
     push += `${part}\n\n`;
   }
