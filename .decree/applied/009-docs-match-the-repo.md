@@ -34,7 +34,7 @@ OpenAI-compatible URL, hermes being optional, agents in code-server) changed wha
 - **Given** the docs site build
   **When** it runs
   **Then** it succeeds with no broken links
-- **Given** Core's `services:` list in `src/quests/00-core.md`
+- **Given** the services `.env.exist.shared` ships on
   **When** it is compared with what `README.md` and `site/docs/intro.md` say Core installs
   **Then** they agree
 - **Given** a docs link to a service page, or a service folder
