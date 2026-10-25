@@ -4,8 +4,8 @@
 #
 # lib/ is mounted read-only into the daemon, so the probe processor has to be
 # placed from out here. So do the webhook registration and rclone remote
-# migrations: the Capture quest writes nothing — its guide has the user `cp`
-# them — so without this a run boots with no file events at all.
+# migrations, the nextcloud-capture flow's, so any unit with Nextcloud on boots
+# with file events whether or not it turned that flow on.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -28,6 +28,6 @@ echo "  staged the example file-processor as the probe"
 
 mkdir -p "$WORK/volumes/workspace_data/.decree/migrations"
 for _m in 23-nextcloud-rclone-remote.md 27-nextcloud-file-events.md; do
-    cp -n "$WORK/automation-examples/migrations/$_m" "$WORK/volumes/workspace_data/.decree/migrations/"
+    cp -n "$WORK/flows/nextcloud-capture/migrations/$_m" "$WORK/volumes/workspace_data/.decree/migrations/"
 done
 echo "  staged the nextcloud migrations (rclone remote, file events)"

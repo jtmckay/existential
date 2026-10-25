@@ -32,16 +32,17 @@ touch "${REPO}/automation/.env" "${PROJECT}/.env"
 # more (its routine is gone) is only archived. Processed migrations are left
 # alone: decree never reads them again.
 _archive="${REPO}/archive/decree-0.4-$(date +%Y%m%d-%H%M%S)"
-_upgrade_dir() {         # <active dir> <template dir> [processed.md]
-    local active="$1" templates="$2" processed="${3:-}" f name
+_upgrade_dir() {         # <active dir> <template glob, NAME for the file> [processed.md]
+    local active="$1" templates="$2" processed="${3:-}" f name t
     for f in "$active"/*.md; do
         [[ -f "$f" ]] && grep -q '^routine:' "$f" || continue
         name="${f##*/}"
         [[ -n "$processed" && -f "$processed" ]] && grep -qxF "$name" "$processed" && continue
         mkdir -p "${_archive}/${active#"${REPO}/"}"
         cp -p "$f" "${_archive}/${active#"${REPO}/"}/"
-        if [[ -f "${templates}/${name}" ]]; then
-            cat "${templates}/${name}" > "$f"   # preserve inode: a live bind mount
+        t="$(compgen -G "${templates//NAME/${name}}" | head -1 || true)"
+        if [[ -n "$t" ]]; then
+            cat "$t" > "$f"   # preserve inode: a live bind mount
             echo "[automation] ${active#"${REPO}/"}/${name}: replaced by its decree 0.5 template."
         else
             rm -f "$f"
@@ -49,9 +50,9 @@ _upgrade_dir() {         # <active dir> <template dir> [processed.md]
         fi
     done
 }
-_upgrade_dir "${REPO}/automation/cron" "${REPO}/automation-examples/cron"
-_upgrade_dir "${REPO}/automation/migrations" "${REPO}/automation-examples/migrations" "${REPO}/automation/processed.md"
-_upgrade_dir "${SCRIPT_DIR}/backup/cron" "${SCRIPT_DIR}/backup/cron.example"
+_upgrade_dir "${REPO}/automation/cron" "${REPO}/flows/*/cron/NAME"
+_upgrade_dir "${REPO}/automation/migrations" "${REPO}/flows/*/migrations/NAME" "${REPO}/automation/processed.md"
+_upgrade_dir "${SCRIPT_DIR}/backup/cron" "${SCRIPT_DIR}/backup/cron.example/NAME"
 [[ -d "$_archive" ]] && echo "[automation] the 0.4 copies are in ${_archive#"${REPO}/"}/ — re-apply any schedule you had customised."
 # The 0.4 daemon configs and their hash files: nothing reads them any more.
 rm -f "${SCRIPT_DIR}/decree/config.yml" "${SCRIPT_DIR}/backup/config.yml" \
@@ -96,8 +97,8 @@ done
 # one that needs it — and clean-runs comes with it, because triage fires every
 # few minutes and this daemon's runs/ is its own. But cron/ is gitignored (it is
 # the user's active set), so the tracked templates are the only copies in git
-# and nothing ticks until something puts them in place. No quest owns this: 18
-# quests can enable automation, and triage has to work from all of them. Guarded
+# and nothing ticks until something puts them in place. Every install with
+# automation needs it, whichever flows are on. Guarded
 # on absence: edit or delete an active copy and it stays that way.
 #
 # triage runs in automation-backup, not automation — it needs the read-only
@@ -113,15 +114,18 @@ for _cron in triage.md clean-runs.md workspace-sync.md; do
     fi
 done
 
-# The "you were here" digest is on by default: it is the stack bringing back what
-# you already decided, so it should not wait for someone to find a cron file. The
-# weekly and monthly look backs come with it: a year-scale look back reads them.
-# Guarded on absence, like triage above: an edited copy stays as you left it.
-for _cron in you-were-here.md look-back-weekly.md look-back-monthly.md; do
-    if [[ ! -e "${PROJECT}/cron/${_cron}" ]]; then
-        cp "${REPO}/automation-examples/cron/${_cron}" "${PROJECT}/cron/${_cron}"
-        echo "[automation] ${_cron%.md} cron activated (automation)."
-    fi
+# The default flows (`default: true` in flows/<name>/flow.md: the digest, the
+# look backs, clean-runs, health-checks) are on until `./existential.sh flow off`
+# names one in .decree/flows-off. Each missing file is copied in; an edited copy
+# stays as you left it.
+REPO_DIR="$REPO"   # read by src/utils/flows.sh
+export REPO_DIR
+# shellcheck source=../../src/utils/flows.sh
+. "${REPO}/src/utils/flows.sh"
+for _flow in $(flow_defaults); do
+    while IFS= read -r _f; do
+        [[ -n "$_f" ]] && echo "[automation] ${_flow}: ${_f#"${FLOWS_DECREE}/"} activated."
+    done < <(flow_activate "$_flow")
 done
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/

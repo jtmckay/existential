@@ -104,7 +104,7 @@ scans/2026-03-02-receipt.jpg.ocr.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** with file events on (the Capture quest sets this up — see [File Processor](../decree/file-change-processing#setup))
+- **Nextcloud** with file events on (see [File Processor](../decree/file-change-processing#setup))
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
@@ -120,10 +120,12 @@ docker exec ollama ollama pull llava
 
 Any Ollama-compatible vision model works. `llava` is a solid general-purpose choice; `llava-phi3` is faster on CPU.
 
-### Step 2 — file events and rclone
+### Step 2 — turn it on
 
-The Capture quest walks through this. Or follow [File Processor → Setup](../decree/file-change-processing#setup):
-two migrations, one for the `nextcloud` rclone remote and one that registers the webhooks.
+`./existential.sh flow on image-ocr` turns on Nextcloud's file events (two migrations: the
+`nextcloud` rclone remote and the webhooks, see
+[File Processor → Setup](../decree/file-change-processing#setup)) and copies the `ollama-ocr`
+processor into `automation/lib/file-processors/`.
 
 ### Step 3 — Point a camera at it
 

@@ -85,4 +85,4 @@ for f in "$EXIST_ENV" "${REPO_DIR:-/repo}/.env"; do
         echo "EXIST_BACKUP_RCLONE_REMOTE=${dest}" >> "$f"
     fi
 done
-echo "Saved EXIST_BACKUP_RCLONE_REMOTE=${dest}. Next: pick what to back up (the Backups quest)."
+echo "Saved EXIST_BACKUP_RCLONE_REMOTE=${dest}. Next: pick what to back up: https://existential.company/docs/integrations/rclone#backups"

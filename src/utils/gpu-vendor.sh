@@ -6,8 +6,8 @@
 # answer "none" fixes the VRAM answer at 0, so asking for a VRAM number before
 # knowing whether there is a card is asking a question that may not apply.
 #
-# Consumed by src/quest.sh (the first-run questions) and src/lib/models.sh
-# (`./existential.sh run models`, to change your mind later). The value lands in
+# Consumed by src/lib/models.sh (the first-run questions, and
+# `./existential.sh run models` to change your mind later) and src/flows.sh. The value lands in
 # .env.shared as EXIST_GPU_VENDOR and is read by src/generate-compose.ts, which
 # is where a vendor actually changes the generated compose file.
 #
@@ -38,7 +38,7 @@
 #
 #   external  Same compose treatment as `none` — this machine has no card to
 #           reserve. What differs is intent: the models run on ANOTHER box's
-#           model server, named by EXIST_MODEL_URL. So quest still asks for VRAM,
+#           model server, named by EXIST_MODEL_URL. So the first run still asks for VRAM,
 #           because the question is about the REMOTE machine's card, and it
 #           disables EXIST_IS_AI_OLLAMA because nothing local serves models —
 #           see vendor_disabled_services below, which is where that rule lives.
@@ -73,7 +73,7 @@ GPU_VENDORS=(
 # models onto a machine that will never query them.
 #
 # This rule used to be written out at each call site, and the call sites drifted:
-# quest.sh applied it when the vendor question was first answered, then Core's
+# the old picker applied it when the vendor question was first answered, then Core's
 # own service list turned EXIST_IS_AI_OLLAMA straight back on seconds later;
 # `run models` never applied it at all; and e2e.sh carried a private copy so the
 # harness stayed correct while real installs did not. One list, three consumers.

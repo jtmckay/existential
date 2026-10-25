@@ -227,9 +227,8 @@ assert_eq "the archive is per day" "3" "$(find "$W/notes/you-were-here" -name '*
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 assert_eq "the cron template runs this machine" "you_were_here" \
-    "$(awk '/^machine:/{print $2; exit}' "${REPO_DIR}/automation-examples/cron/you-were-here.md")"
-assert_has "exist.initial.sh activates it by default" "$(cat "${REPO_DIR}/services/automation/exist.initial.sh")" \
-    "for _cron in you-were-here.md "
+    "$(awk '/^machine:/{print $2; exit}' "${REPO_DIR}/flows/you-were-here/cron/you-were-here.md")"
+assert_has "it is a default flow, on in every install" "$(cat "${REPO_DIR}/flows/you-were-here/flow.md")" "default: true"
 assert_eq "POST /you-were-here queues this machine" "you_were_here" \
     "$(awk '/- path: \/you-were-here$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
 assert_lacks "no second feed parser" "$(cat "${REPO_DIR}/automation/lib/you-were-here/digest.ts")" "<item"

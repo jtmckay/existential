@@ -104,9 +104,8 @@ to Decree. See [File Processor](../decree/file-change-processing).
 ## Collabora (office document editing)
 
 Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
-installed and pointed at it. `automation-examples/migrations/22-nextcloud-richdocuments.md`
-does this the same way every other post-startup setup is done: copy it to
-`volumes/workspace_data/.decree/migrations/` and restart `automation` to activate. It also sets
+installed and pointed at it. The `office-documents` flow's migration does this the same way
+every other post-startup setup is done, once: `./existential.sh flow on office-documents`. It also sets
 `richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
 Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
 just the actual Collabora container.
@@ -128,9 +127,8 @@ Collabora's own admin console lives at `https://collabora.<domain>`, gated by
 
 Nextcloud ships CalDAV enabled regardless (the `dav` app), but the Calendar app itself —
 the UI at `/apps/calendar`, and the "Personal"/"Contact birthdays" calendars it auto-creates
-per user — has to be turned on. `automation-examples/migrations/24-nextcloud-calendar.md` does
-that the same way `richdocuments` above gets installed: copy it to `volumes/workspace_data/.decree/migrations/` and
-restart `automation` to activate.
+per user — has to be turned on. The `calendar` flow's migration does that the same way
+`richdocuments` above gets installed: `./existential.sh flow on calendar`.
 
 To do it by hand instead:
 
@@ -140,9 +138,8 @@ docker exec nextcloud php /var/www/html/occ app:install calendar
 
 ### Indexed by OpenViking, answerable by hermes
 
-A calendar app on its own is just a UI — nothing about it is searchable by the stack. Copy
-`automation-examples/cron/calendar-extract.md` to `volumes/workspace_data/.decree/cron/` (restart `automation`) and
-every event, recent-past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, gets mirrored into
+A calendar app on its own is just a UI — nothing about it is searchable by the stack. The same
+flow's `calendar-extract` cron mirrors every event, recent-past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, gets mirrored into
 `workspace/ai/calendar/<calendar>/` as one markdown note per event. That's the same tree
 `openviking-index-knowledgebase` already indexes, so a hermes department with OpenViking access
 can answer "what's on my calendar" or "when's Leon's birthday" the way it answers anything else

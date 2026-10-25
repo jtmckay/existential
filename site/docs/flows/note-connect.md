@@ -65,25 +65,16 @@ you stop needing to double-check it yourself.
 The same pairing is never surfaced twice. Edit the note again later and a *different*
 connection can still come through — just not the one you already saw.
 
-## It ships with Local AI
+## Turning it on
 
-The **Local AI** quest (`./existential.sh quest`) has you copy `note-connect.md` into
-`volumes/workspace_data/.decree/cron/`, alongside the cron that indexes `workspace/` into OpenViking in the first
-place, since one is pointless without the other. `NOTES_DIR` defaults to `/workspace`, the same
+`./existential.sh flow on note-connect` turns on Hermes and the `knowledgebase` flow (the cron
+that indexes `workspace/` into OpenViking in the first place, since one is pointless without the
+other), and copies `note-connect.md` into `volumes/workspace_data/.decree/cron/`. `NOTES_DIR` defaults to `/workspace`, the same
 tree [Hermes](../ai/hermes) already reads and [OpenViking](../ai/openviking) already indexes:
 
-```bash
-cp automation-examples/cron/note-connect.md volumes/workspace_data/.decree/cron/
-```
-
-**Opting out is a file deletion, nothing more:**
-
-```bash
-rm volumes/workspace_data/.decree/cron/note-connect.md
-```
-
-A machine with no cron file behind it never fires — there's no config flag to also flip.
-Delete the file, and it's gone until you copy it back from `automation-examples/cron/`.
+**Opting out is `./existential.sh flow off note-connect`**, which deletes that cron file and
+nothing else. A machine with no cron file behind it never fires — there's no config flag to also
+flip.
 
 ### Pointing it at a different vault
 
@@ -115,7 +106,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 ### Prerequisites
 
 - `workspace/` actually indexed — this is where "something you already know" comes from. On by
-  default once [OpenViking](../ai/openviking) is enabled and its index cron copied (the Local AI quest)
+  default once [OpenViking](../ai/openviking) is enabled and its index cron on (the `knowledgebase` flow)
 - [Hermes](../ai/hermes) running with the `research` profile provisioned — `ai/hermes/entrypoint.sh`
   does this automatically on boot from `ai/hermes/profiles/research/`; restart `hermes-agent`
   if you enabled Hermes before OpenViking

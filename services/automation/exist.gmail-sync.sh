@@ -224,8 +224,7 @@ echo ""
 
 # Nothing to enable: gmail_sync runs once its cron file is in volumes/workspace_data/.decree/cron/.
 if [ ! -f "/repo/volumes/workspace_data/.decree/cron/gmail-sync.md" ]; then
-    echo "To sync on a schedule, activate its cron:"
-    echo "  cp automation-examples/cron/gmail-sync.md volumes/workspace_data/.decree/cron/"
+    echo "To sync on a schedule:  ./existential.sh flow on gmail"
 fi
 
 # ── Sync label cache ──────────────────────────────────────────────────────────

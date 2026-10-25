@@ -13,8 +13,8 @@ existential adds on top. Both daemons run decree **0.5.0-beta.13**, pinned in
 | project (`/work/.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation/backup/` |
 | machines | seeded once per file from `automation/machines/` | `services/automation/backup/machines/` |
 | scripts, lib | scripts seeded from `automation/scripts/`; `automation/lib/` read-only | `automation/scripts/`, `automation/lib/`, read-only |
-| cron templates | `automation-examples/cron/` | `services/automation/backup/cron.example/` |
-| migrations | `automation-examples/migrations/` | none |
+| cron templates | `flows/<name>/cron/` (`./existential.sh flow on`) | `services/automation/backup/cron.example/` |
+| migrations | `flows/<name>/migrations/` | none |
 | runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI |
 
 Each project has its own `inbox/`, `runs/`, `store/`, `cron/` and `processed.md`.

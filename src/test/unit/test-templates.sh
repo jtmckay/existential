@@ -436,7 +436,7 @@ assert_eq ".env.exist.shared asks exactly a username and a password" "EXIST_PASS
 out="$(render "$_REAL/.env.exist.shared" "$TMP/.env.shared")"
 assert_eq "the username defaults to admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' <<<"$out")"
 assert_eq "EXIST_EMAIL ships blank (not yet asked)" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' <<<"$out")"
-for _svc in $(sed -n 's/^  - var: EXIST_IS_SERVICES_\(.*\)$/\1/p' "$_REAL/src/quests/00-core.md"); do
+for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist.shared"); do
     _svc="${_svc,,}"; _svc="services/${_svc//_/-}"
     if grep -rqsE --include='*.exist*' 'EXIST_EMAIL|EXIST_CLI' "$_REAL/$_svc"; then
         _fail "Core's ${_svc} asks nothing and needs no email"

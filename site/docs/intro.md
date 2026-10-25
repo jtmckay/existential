@@ -85,7 +85,7 @@ this page: the pieces are replaceable, the shape isn't.*
 
 ## What Core installs
 
-The first `./existential.sh quest` offers **Core**: open the work dir, talk to an AI about it,
+The first `./existential.sh` builds **Core**: open the work dir, talk to an AI about it,
 have decree automate it. It runs on one ordinary box, with no GPU and no model downloads, and
 Tailscale on the host gives it real HTTPS on every device you log in.
 
@@ -96,7 +96,7 @@ Tailscale on the host gives it real HTTPS on every device you log in.
 | [ntfy](./services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
 
 Everything else (Caddy hostnames, monitoring, the webhook and Nextcloud for capture, apps,
-local models and agents, voice and Home Assistant) is an optional add-on, one quest or one flag
+local models and agents, voice and Home Assistant) is an optional add-on, one flow or one flag
 away. What each piece does is [Level 2](./how-it-works).
 
 ## Try it
@@ -109,7 +109,7 @@ machine and on every device that should reach it.
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh quest      # pick your services
+./existential.sh            # asks about your GPU, builds Core
 docker compose up -d
 ```
 

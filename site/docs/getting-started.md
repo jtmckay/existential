@@ -25,11 +25,11 @@ sidebar_position: 2
 ## Setup
 
 ```bash
-./existential.sh quest
+./existential.sh
+docker compose up -d
 ```
 
-On a first run this asks two hardware questions and then offers **Core** — the whole loop
-wired together, rather than forty checkboxes. Say yes and you get a work dir you open in a
+The first run asks two hardware questions (below) and builds **Core**: a work dir you open in a
 browser, a terminal there to talk to an AI, decree to automate it, and ntfy to tell you. No GPU,
 no model downloads:
 
@@ -39,22 +39,31 @@ no model downloads:
 | **Workspace** | code-server (editor + terminal over the work dir) |
 | **Automation** | Decree (the automation daemon), ntfy (where automations report in) |
 
-Everything else is an add-on, one unnumbered quest each: **Network** (Caddy hostnames, LAN
-access without Tailscale), **Monitoring** (Dashy, Loki, Prometheus, Grafana, Uptime Kuma),
-**Capture** (automation-webhook, Nextcloud), **Apps** (Actual Budget, Mealie, IT Tools),
-**Local AI** and **Voice & Home**. Files, DNS, the house and GPU models usually run on other
-servers anyway.
+Core comes with four [flows](./flows/) already on: the [morning digest](#you-were-here), the
+[look backs](#look-back), and two that keep decree tidy and tell you when ntfy stops answering.
 
 Core ships no backups. The simplest way to keep the workspace safe is to put
 `volumes/workspace_data` under git, with a remote you choose.
 
-Decline and you fall through to the full picker, then the quest list. The numbered quests there
-are those same three rows one at a time — Core, taken apart — so you can build up to the same
-stack in pieces and see every step instead of having it done for you. They cross themselves off
-as you finish them, and running Core crosses off every one that can be checked from disk.
-Everything unnumbered is an add-on, an integration or an automation past Core.
+### Turning on more
 
-Either way, `./existential.sh` on its own does the same work without the questions:
+```bash
+./existential.sh flow                 # pick from the list
+./existential.sh flow on newsletter   # or by name
+```
+
+A **flow** is one thing the stack does for you, such as your own newsletter, transcribing voice
+memos, or bank alerts becoming budget entries. Turning one on turns on the services it needs and
+switches on its machine, then rebuilds; `docker compose up -d` starts what is new. It prints
+anything left that only you can do (an OAuth grant, a password to set). `flow off <name>` turns
+the machine off again and leaves the services alone. The list, with what each one needs, is
+[Flows](./flows/#turning-one-on).
+
+A service no flow needs (Caddy, Grafana, Mealie, ...) is one flag in `.env.shared`:
+`EXIST_IS_<CATEGORY>_<SLUG>=true`, then `./existential.sh` again. Its docs page has anything else
+to do.
+
+Each run of `./existential.sh` does the same work:
 
 1. Renders every `*.exist.*` template into its live counterpart, prompting for `EXIST_CLI` values
    and generating passwords and keys for the rest
@@ -80,9 +89,9 @@ Until Tailscale can serve, `./existential.sh` prints what is left and carries on
 
 ### Reaching it without Tailscale
 
-A host without Tailscale is outside Core. There, the **Network** quest adds Caddy:
-`https://<slug>.<domain>` for every service, with certificates from its own CA, trusted once per
-device, as that quest's guide explains. For that, `./existential.sh` fills in
+A host without Tailscale is outside Core. There, [Caddy](./hosting/caddy)
+(`EXIST_IS_HOSTING_CADDY=true`) gives every service `https://<slug>.<domain>`, with certificates
+from its own CA, trusted once per device, as its page explains. For that, `./existential.sh` fills in
 `EXIST_LOCAL_HOST_IP` with this machine's LAN address and derives `EXIST_DOMAIN` as
 `<that-ip-with-dashes>.nip.io`. nip.io is public wildcard DNS, so every `https://<slug>.<domain>`
 resolves on any device with nothing configured, and every phone and laptop on the same network
@@ -127,7 +136,8 @@ edits and generated secrets survive; any key that is new in a template is append
 
 ## Enable/Disable Services
 
-Edit `.env.shared` and set services to `true` or `false`:
+A flow turns on what it needs (`./existential.sh flow on <name>`). For anything else, edit
+`.env.shared` and set services to `true` or `false`:
 
 ```bash
 EXIST_IS_AI_OLLAMA=true
@@ -258,7 +268,7 @@ outside `workspace/.capture/`. One script does all of it: `automation/lib/captur
 | Claude Code in [code-server](./services/code-server) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
 | opencode in code-server | By default: a plugin, `automation/lib/capture/opencode.ts` | The same key |
 | Claude Code on another machine (a laptop, the host) | `bash automation/lib/capture/capture.sh install <workspace dir>` from a checkout of this repo, with the workspace synced there | `bash automation/lib/capture/capture.sh uninstall` |
-| Anything that can POST: a phone shortcut, an ntfy action, a voice memo transcript | `POST /capture` on `automation-webhook` (below), with the **Capture** add-on (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | Delete the `/capture` entry from `workspace/.decree/decree-go-rest.yml` |
+| Anything that can POST: a phone shortcut, an ntfy action, a voice memo transcript | `POST /capture` on `automation-webhook` (below), with the webhook add-on (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | Delete the `/capture` entry from `workspace/.decree/decree-go-rest.yml` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s), beside
 whatever hooks you already have; `uninstall` removes only that one.
@@ -315,9 +325,9 @@ landed, runs that finished, notes created and what you worked on. A past day's f
 touched again. No streaks and no "you missed N days". The **Worked on** lines name the capture
 sources they came from, which is what a [work look back](#look-back) filters on.
 
-The cron is active by default (`workspace/.decree/cron/you-were-here.md`, from
-`automation-examples/cron/you-were-here.md`); edit its time there, or set its cron to
-`0 0 31 2 *` to turn it off. `POST /you-were-here` on `automation-webhook` (the Capture add-on),
+It is a default flow, so its cron is on in every install
+(`workspace/.decree/cron/you-were-here.md`); edit its time there, or turn it off with
+`./existential.sh flow off you-were-here`. `POST /you-were-here` on `automation-webhook` (an add-on),
 or `echo | decree emit --machine you_were_here` in code-server's terminal, writes one now, and
 the machine's `note_link` param sets the push's last line, such as a URL to the note.
 An install from before this keeps its own `workspace/.decree/decree-go-rest.yml`; copy the
@@ -347,7 +357,7 @@ period up to `to` (today when blank), and `from`/`to` (`YYYY-MM-DD`) set either 
 docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null
 ```
 
-With the Capture add-on, `POST /look-back` on `automation-webhook` does the year so far,
+With the webhook add-on, `POST /look-back` on `automation-webhook` does the year so far,
 `/look-back/month` a period, `/look-back/month/work` a period at work only. From code-server's
 terminal it is the same command as above, run in `/workspace` without `docker exec automation`.
 

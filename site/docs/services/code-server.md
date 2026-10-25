@@ -20,7 +20,7 @@ from a machine that isn't the one running it, including a tablet or phone.
 
 ## Enable
 
-Part of Core (the Workspace slice), so it is already on if you took that quest. Otherwise:
+Part of Core, so it ships on. If you turned it off:
 
 ```bash
 EXIST_IS_SERVICES_CODE_SERVER=true

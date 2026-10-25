@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-[[ -f "${SRC_DIR}/quest.sh" ]] || SRC_DIR="/src"
+[[ -f "${SRC_DIR}/flows.sh" ]] || SRC_DIR="/src"
 REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 [[ -f "${REPO_DIR}/existential.sh" ]] || REPO_DIR="/repo"
 
@@ -80,7 +80,7 @@ out="$(_serve "$WORK/nobin")"
 _has "no tailscale: exits 0" "$out" "rc=0"
 _has "no tailscale: says Core needs it" "$out" "Core needs Tailscale"
 _has "no tailscale: says how to install it" "$out" "https://tailscale.com/download"
-_has "no tailscale: names the Caddy add-on" "$out" "Network"
+_has "no tailscale: names the Caddy add-on" "$out" "EXIST_IS_HOSTING_CADDY=true"
 
 # Up, but HTTPS not enabled for the tailnet: the exact steps, no serve, no sudo.
 out="$(TS_STATUS="$NO_HTTPS" _serve "$WORK/bin:$WORK/nobin")"
@@ -117,32 +117,6 @@ _has "EXIST_TAILNET_NAME is filled in" "$(cat "$WORK/.env.shared")" "EXIST_TAILN
 printf 'EXIST_IS_SERVICES_AUTOMATION=true\n' > "$WORK/.env.shared"
 out="$(_serve "$WORK/nobin")"
 [[ "$out" == "rc=0" ]] && _ok "no Core web app enabled: silent" || _fail "no Core web app enabled: silent" "$out"
-
-# ── The quest's closing access tip ────────────────────────────────────────────
-
-_tip() {
-    (
-        EXIST_ENV="$1"
-        _C_GREEN='' _C_YELLOW='' _C_RESET=''
-        hr() { :; }
-        env_get() { grep -E "^${1}=" "$EXIST_ENV" 2>/dev/null | head -1 | cut -d= -f2-; }
-        will_be_active() { [[ "$(env_get "$1")" == "true" ]]; }
-        eval "$(awk '/^_access_tip\(\)/,/^}/' "${SRC_DIR}/quest.sh")"
-        _access_tip
-    )
-}
-
-printf 'EXIST_TAILNET_NAME=%s\nEXIST_DOMAIN=192-168-1-20.nip.io\nEXIST_IS_HOSTING_CADDY=false\n' "$TS_NAME" > "$WORK/tip.env"
-out="$(_tip "$WORK/tip.env")"
-_has "tip: Core's code-server URL on the tailnet" "$out" "https://${TS_NAME}"
-_has "tip: Core's ntfy URL on the tailnet" "$out" "https://${TS_NAME}:8443"
-_lacks "tip: no Caddy, no CA to install" "$out" "internal-ca.pem"
-
-printf 'EXIST_TAILNET_NAME=\nEXIST_DOMAIN=192-168-1-20.nip.io\nEXIST_IS_HOSTING_CADDY=true\n' > "$WORK/tip.env"
-out="$(_tip "$WORK/tip.env")"
-_has "tip without a tailnet name: how to get Tailscale" "$out" "https://tailscale.com/download"
-_has "tip with Caddy: its hostnames" "$out" "https://<service>.192-168-1-20.nip.io"
-_has "tip with Caddy on the LAN: points at the VPN docs" "$out" "docs/hosting/vpn"
 
 # ── Host detection still prefers a tailnet address (Caddy's nip.io) ───────────
 

@@ -253,7 +253,7 @@ fi
 # it is minutes, so both curls burn their 120s and the check reports "no
 # response" -- a timeout dressed up as a broken hermes. EXIST_VRAM_GB=0 is the
 # stack's own record that there is no GPU (e2e's fixture sets it, so does the
-# "No GPU" answer in quest), so say so and stop rather than cry wolf every tick.
+# "No GPU" answer on the first run), so say so and stop rather than cry wolf every tick.
 if [ "${EXIST_VRAM_GB:-}" = "0" ]; then
     skip "hermes memory: chat completion round-trip" \
          "no GPU (EXIST_VRAM_GB=0) - two ~20k-token inferences would time out"

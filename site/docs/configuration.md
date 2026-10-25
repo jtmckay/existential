@@ -40,13 +40,13 @@ the output:
   `(needs a value)` — fill it in and re-run.
 
 New services arrive switched off, since their `EXIST_IS_<CATEGORY>_<SLUG>` flag is appended as
-`false`. Run `./existential.sh quest` to turn one on.
+`false`. Set it `true`, or turn on a [flow](./flows/#turning-one-on) that needs it.
 
 ## Service enablement
 
 `EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder. That flag is the whole
 plugin system: see [The Pieces](./how-it-works.md#1-choose--a-flag-per-service). Set them
-by hand, or run `./existential.sh quest` and pick from a list.
+by hand, or let `./existential.sh flow on <name>` set the ones a flow needs.
 
 ## Models
 
@@ -219,8 +219,8 @@ host.
 
 ## GPU vendor
 
-`EXIST_GPU_VENDOR` is `nvidia`, `amd`, `none`, or `external`. It is the **first** question quest asks,
-and its presence is the record of having asked — quest never re-asks once it is set, and
+`EXIST_GPU_VENDOR` is `nvidia`, `amd`, `none`, or `external`. It is the **first** question the first run asks,
+and its presence is the record of having asked — nothing re-asks once it is set, and
 `./existential.sh run models` is the way back. It ships **blank** for that reason: a value
 in the template means the first run never gets to ask.
 
@@ -241,7 +241,7 @@ this setting already assumed. Both blank means nobody was ever asked (a fresh cl
 e2e harness) and resolves to `none`, because guessing `nvidia` there loses the whole `up` on
 any host that hasn't got one.
 
-**`external` is how a machine with no GPU still runs the whole agent path.** Quest turns off the
+**`external` is how a machine with no GPU still runs the whole agent path.** The answer turns off the
 local Ollama and asks for the URL of one that already has the VRAM, and every role follows it
 unless you override that role's endpoint above.
 
@@ -316,8 +316,8 @@ mount, every volume lives under `<repo>/volumes/<name>`.
 
 `EXIST_NFS_HOST_MOUNT` ships blank and is **not** a first-run question — a NAS is a thing
 you either have or you don't. Mount the NFS export on the **host** (fstab/autofs), then
-point `EXIST_NFS_HOST_MOUNT` at that mountpoint; Docker never mounts NFS itself. The NAS
-Storage quest (`./existential.sh quest`) walks through it, at any time.
+point `EXIST_NFS_HOST_MOUNT` at that mountpoint; Docker never mounts NFS itself.
+[Storage](./storage/#a-nas-for-the-bulk-files) walks through it, at any time.
 
 `EXIST_BACKUP_RCLONE_REMOTE` is any rclone remote (`<remote>:<path>`), set
 at the end of `./existential.sh run rclone`. Blank disables scheduled DB backups; volume backups

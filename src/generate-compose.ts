@@ -40,7 +40,7 @@ function loadEnv(filePath: string): Record<string, string> {
 
 // ── Service discovery ──────────────────────────────────────────────────────────
 
-const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automation', 'automation-examples', 'node_modules', 'volumes']);
+const SKIP_DIRS = new Set(['graveyard', '.git', 'site', 'src', 'automation', 'flows', 'node_modules', 'volumes']);
 
 function serviceEnvKey(relPath: string): string {
   return 'EXIST_IS_' + relPath.toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -385,7 +385,7 @@ const GPU_VENDORS = ['nvidia', 'amd', 'none', 'external'] as const;
  *                 meant nvidia. Those .env.shared files keep generating exactly
  *                 the compose file they generated before this setting existed.
  *   VRAM blank  — NOTHING has been answered. Both keys ship blank, so this is a
- *                 render that never reached quest: a fresh clone, CI, the e2e
+ *                 render that never reached the first-run question: a fresh clone, CI, the e2e
  *                 harness. Assuming nvidia there hands every non-nvidia host a
  *                 reservation its daemon cannot satisfy, and docker fails the
  *                 whole `up`, not just the GPU service. `none` is the only safe

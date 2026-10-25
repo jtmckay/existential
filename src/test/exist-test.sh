@@ -119,7 +119,7 @@ warn() {
 
 # A check that CANNOT run in this environment, said plainly instead of failed.
 # Skipping with a reason beats failing in a way that looks like a broken stack
-# -- the same rule e2e applies to a quest it cannot run.
+# -- the same rule e2e applies to a flow it cannot run.
 #
 # Prints "SKIP", deliberately not "skipped -- ": run-all.sh reads that phrase as
 # "the whole suite was skipped" and would hide every other result in the file.

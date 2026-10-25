@@ -3,7 +3,7 @@
 #
 # The table is the single place that decides which models a user ends up
 # running, and it is consumed by two callers that write straight into
-# .env.shared (src/quest.sh on first run, src/lib/models.sh later). A silent
+# .env.shared (src/lib/models.sh, on the first run and after). A silent
 # typo here — a tag that does not exist, a tier that emits no EXIST_MODEL_CHAT,
 # an embedding dimension that stops matching its model — surfaces much later as
 # ollama 404s or a corrupt vector index. So assert the shape, not the taste.
@@ -71,7 +71,7 @@ if [[ -f "$_shipped" ]]; then
     while IFS='=' read -r _k _v; do
         [[ -n "$_k" ]] || continue
         # EXIST_VRAM_GB is the record of HAVING BEEN ASKED, not a model value, so
-        # it ships blank on purpose — quest's picker fires only while it is empty.
+        # it ships blank on purpose — the first run asks only while it is empty.
         # Asserting it against the default tier is what pinned it at 8 and made
         # the question unreachable. The six model keys still have to agree.
         [[ "$_k" == "EXIST_VRAM_GB" ]] && continue
@@ -81,8 +81,8 @@ if [[ -f "$_shipped" ]]; then
 
     # ...and the blankness itself is load-bearing, so assert it directly.
     [[ -z "$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)" ]] \
-        && _ok "EXIST_VRAM_GB ships blank (so quest asks on first run)" \
-        || _fail "EXIST_VRAM_GB ships blank (so quest asks on first run)" \
+        && _ok "EXIST_VRAM_GB ships blank (so the first run asks)" \
+        || _fail "EXIST_VRAM_GB ships blank (so the first run asks)" \
                  "ships '$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)'"
 
     [[ -z "$_drift" ]] \

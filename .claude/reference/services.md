@@ -33,7 +33,7 @@ docker compose up -d  (user runs)
   4. decree daemon    Runs pending one-time migrations from workspace/.decree/migrations/, in order,
                        each waiting on its service (the automation daemon only)
 On demand:
-  exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented as quest
+  exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented on the service's docs page
   exist.test.sh       ./existential.sh run <slug> test — read-only validation
 ```
 
@@ -43,7 +43,7 @@ On demand:
 | `entrypoint.sh` | Config the service owns, seeds at first boot, and re-reads only at startup — see below. |
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
-| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document in a quest. |
+| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or in a flow's body. |
 | `exist.test.sh` | Every service with a container ships one. Also what triage and the migration gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
@@ -177,7 +177,7 @@ in the stack with it. A blank `EXIST_GPU_VENDOR` falls back to the older `EXIST_
 signal, so installs predating the question keep generating exactly what they did before.
 
 When **both** are blank nothing has ever been answered — that is the shipped default, i.e. a
-render that never reached quest (a fresh clone, CI, the e2e harness) — and it resolves to
+render that never reached the first-run question (a fresh clone, CI, the e2e harness) — and it resolves to
 `none`, not nvidia. It has to: otherwise a fresh clone on an AMD or CPU host gets a reservation
 docker cannot satisfy and loses the entire `up`. Guessing wrong the safe way costs an nvidia
 host acceleration until it answers the question; the other way costs everyone else a stack that

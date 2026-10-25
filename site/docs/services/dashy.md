@@ -66,7 +66,7 @@ for temporary tweaks.
 ## What's on the dashboard, and what isn't
 
 Dashy is part of the **Monitoring** add-on, not Core. The shipped template is a starting set:
-Core's two web apps (code-server, ntfy), the rest of the Monitoring quest, and Actual Budget.
+Core's two web apps (code-server, ntfy), the monitoring services, and Actual Budget.
 A few services are deliberately absent:
 
 - **No HTTP endpoint of their own**: loki (Grafana is the window onto it), decree (the

@@ -32,14 +32,14 @@
 # an id scheme this has no business depending on.
 
 # Read one frontmatter value out of a message.md. Frontmatter only — a check's
-# prose body is free-form and must never be parsed as data (same rule quest_fm
-# applies in e2e.sh).
+# prose body is free-form and must never be parsed as data (the same rule
+# src/utils/flows.sh applies to a flow.md).
 e2e_fm_get() {
     local file="$1" key="$2"
     [ -f "$file" ] || return 0
     # Trailing whitespace is trimmed as well as leading: a caller comparing
     # against a literal (`[ "$(e2e_fm_get "$f" e2e)" = true ]`) would otherwise
-    # match NEITHER branch on `e2e:  true   `, and a quest would vanish from the
+    # match NEITHER branch on `e2e:  true   `, and a flow would vanish from the
     # run list and the excluded list at once, with no warning.
     awk -v k="^${2}:" 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f && $0 ~ k' "$file" \
         | head -1 | sed "s/^${key}:[[:space:]]*//; s/[[:space:]]*\$//"

@@ -2,7 +2,7 @@
 # test-existential.sh — unit tests for existential.sh pure-bash functions and CLI.
 #
 # Strategy: combination approach.
-#   - Pure helpers (_enable_var_for, _has_any_enabled, service_is_enabled,
+#   - Pure helpers (_enable_var_for, service_is_enabled,
 #     _find_service_dir_for_slug) are tested by sourcing existential.sh with
 #     Docker stubbed out so the runtime-detection block is harmless.
 #   - CLI behaviour (--help, unknown actions, run dispatch)
@@ -232,95 +232,6 @@ if [[ "$_slug_missing_rc" -ne 0 ]]; then
     _ok "_find_service_dir_for_slug unknown slug → non-zero exit"
 else
     _fail "_find_service_dir_for_slug unknown slug → non-zero exit" "expected non-zero, got 0"
-fi
-
-# ── Section: _has_any_enabled ─────────────────────────────────────────────────
-
-echo ""
-echo "=== _has_any_enabled ==="
-
-FAKE_HAS="$(make_fake_repo has_enabled)"
-
-_has_enabled_with_env() {
-    local env_content="$1"
-    local env_file="${FAKE_HAS}/.env.shared"
-    printf '%s\n' "$env_content" > "$env_file"
-    local rc=0
-    _source_existential "$FAKE_HAS" "_has_any_enabled" >/dev/null 2>&1 || rc=$?
-    rm -f "$env_file"
-    return $rc
-}
-
-# At least one EXIST_IS_*=true → should return 0 (true)
-if _has_enabled_with_env "EXIST_IS_AI_HERMES=true"; then
-    _ok "_has_any_enabled: single true entry → exits 0"
-else
-    _fail "_has_any_enabled: single true entry → exits 0" "returned non-zero"
-fi
-
-# Multiple entries, one true
-if _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_AUTOMATION=true'; then
-    _ok "_has_any_enabled: mixed entries with one true → exits 0"
-else
-    _fail "_has_any_enabled: mixed entries with one true → exits 0" "returned non-zero"
-fi
-
-# All false → should return non-zero
-if ! _has_enabled_with_env $'EXIST_IS_AI_HERMES=false\nEXIST_IS_SERVICES_AUTOMATION=false'; then
-    _ok "_has_any_enabled: all false → exits non-zero"
-else
-    _fail "_has_any_enabled: all false → exits non-zero" "unexpectedly returned 0"
-fi
-
-# No .env.shared → should return non-zero (grep fails on missing file)
-rm -f "${FAKE_HAS}/.env.shared"
-if ! _source_existential "$FAKE_HAS" "_has_any_enabled" >/dev/null 2>&1; then
-    _ok "_has_any_enabled: no .env.shared → exits non-zero"
-else
-    _fail "_has_any_enabled: no .env.shared → exits non-zero" "unexpectedly returned 0"
-fi
-
-# Commented-out line should NOT count
-if ! _has_enabled_with_env "# EXIST_IS_AI_HERMES=true"; then
-    _ok "_has_any_enabled: commented-out line → exits non-zero"
-else
-    _fail "_has_any_enabled: commented-out line → exits non-zero" "comment was matched"
-fi
-
-# Default-enabled services must NOT count as a user choice: a flag that ships
-# true would otherwise report an untouched clone as configured, and the
-# first-run quest would never fire. (Caddy used to ship true.)
-_has_enabled_with_tmpl() {
-    local env_content="$1" tmpl_content="$2"
-    printf '%s\n' "$env_content"  > "${FAKE_HAS}/.env.shared"
-    printf '%s\n' "$tmpl_content" > "${FAKE_HAS}/.env.exist.shared"
-    local rc=0
-    _source_existential "$FAKE_HAS" "_has_any_enabled" >/dev/null 2>&1 || rc=$?
-    rm -f "${FAKE_HAS}/.env.shared" "${FAKE_HAS}/.env.exist.shared"
-    return $rc
-}
-
-if ! _has_enabled_with_tmpl "EXIST_IS_HOSTING_CADDY=true" "EXIST_IS_HOSTING_CADDY=true"; then
-    _ok "_has_any_enabled: only a default-enabled service → exits non-zero"
-else
-    _fail "_has_any_enabled: only a default-enabled service → exits non-zero" \
-          "a shipped default was counted as a user choice"
-fi
-
-if _has_enabled_with_tmpl $'EXIST_IS_HOSTING_CADDY=true\nEXIST_IS_AI_HERMES=true' \
-                          $'EXIST_IS_HOSTING_CADDY=true\nEXIST_IS_AI_HERMES=false'; then
-    _ok "_has_any_enabled: default plus one user choice → exits 0"
-else
-    _fail "_has_any_enabled: default plus one user choice → exits 0" "returned non-zero"
-fi
-
-# A trailing comment in the template must not stop the default from matching.
-if ! _has_enabled_with_tmpl "EXIST_IS_SERVICES_IMMICH=true" \
-                            "EXIST_IS_SERVICES_IMMICH=true # run this from its own dir"; then
-    _ok "_has_any_enabled: default with a trailing comment → exits non-zero"
-else
-    _fail "_has_any_enabled: default with a trailing comment → exits non-zero" \
-          "the trailing comment defeated the default match"
 fi
 
 # ── Section: service_is_enabled ───────────────────────────────────────────────
@@ -556,20 +467,22 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
 )
 
 # ── Section: Core's membership ───────────────────────────────────────────────
-# Core is "open the work dir, talk to an AI, have decree automate it". The
-# partition is validate-conventions' job; this pins WHAT is in
-# it, so a service creeping back into Core is a deliberate edit here too.
+# Core is "open the work dir, talk to an AI, have decree automate it": what
+# .env.exist.shared ships on. This pins WHAT is in it, so a service creeping
+# into Core is a deliberate edit here too, and a default flow never needs more.
 
 echo ""
-echo "=== Core quest: membership ==="
+echo "=== Core: membership ==="
 
-CORE_MD="${REPO}/src/quests/00-core.md"
-_core_fm="$(awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$CORE_MD")"
-assert_eq "Core enables exactly its three services" \
+assert_eq "Core ships exactly its three services on" \
     "EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_NTFY" \
-    "$(awk '/^services:/{f=1;next} /^[^ ]/{f=0} f && /var:/{print $3}' <<< "$_core_fm" | sort | xargs)"
-assert_eq "Core copies no ollama, homeassistant, openviking or nextcloud template" \
-    "" "$(grep -E '^\s*-?\s*src:' <<< "$_core_fm" | grep -iE 'ollama|homeassistant|openviking|nextcloud|note-connect' || true)"
+    "$(grep -oE '^EXIST_IS_[A-Z_]+=true' "${REPO}/.env.exist.shared" | cut -d= -f1 | sort | xargs)"
+_beyond_core="$(REPO_DIR="$REPO"; . "${REPO}/src/utils/flows.sh"
+    for n in $(flow_names); do
+        [[ "$(flow_get "$n" default)" == true ]] || continue
+        for f in $(flow_closure "$n"); do flow_list "$f" services; done
+    done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)' || true; } | sort -u | xargs)"
+assert_eq "a default flow needs nothing beyond Core" "" "$_beyond_core"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).

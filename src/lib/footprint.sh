@@ -2,7 +2,7 @@
 # footprint.sh — how much memory a selection of services can ever use.
 #
 #   ./existential.sh run footprint            # what you have enabled
-#   ./existential.sh run footprint core       # what the Core quest asks for
+#   ./existential.sh run footprint core       # what ships on: Core
 #   ./existential.sh run footprint all        # every service in the repo
 #
 # Every container declares a `deploy.resources.limits.memory`, sized at roughly
@@ -39,7 +39,6 @@ SCRIPT_DIR="$REPO_DIR"
 . "${REPO_DIR}/src/utils/service-common.sh"
 
 MODE="${1:-enabled}"
-CORE_QUEST="${REPO_DIR}/src/quests/00-core.md"
 
 _C_RESET=$'\033[0m'; _C_BOLD=$'\033[1m'; _C_DIM=$'\033[2m'
 _C_GREEN=$'\033[32m'; _C_YELLOW=$'\033[33m'; _C_CYAN=$'\033[36m'
@@ -103,11 +102,9 @@ _selected_dirs() {
             _find_service_dirs
             ;;
         core)
-            # The Core quest's own service list is the source of truth — the
-            # same list quest ticks — so this can never drift from what Core
-            # actually installs.
+            # Core is what .env.exist.shared ships on, so this cannot drift from it.
             local -a vars=()
-            mapfile -t vars < <(awk '/^services:/{f=1;next} /^copies:/{f=0} f && /var:/{print $3}' "$CORE_QUEST")
+            mapfile -t vars < <(grep -oE '^EXIST_IS_[A-Z_]+=true' "${REPO_DIR}/.env.exist.shared" | cut -d= -f1)
             for dir in $(_find_service_dirs); do
                 local v; v="$(_enable_var_for "$dir")"
                 printf '%s\n' "${vars[@]}" | grep -qx "$v" && echo "$dir"
@@ -127,7 +124,7 @@ _selected_dirs() {
 
 case "$MODE" in
     all)     _title="every service in the repository" ;;
-    core)    _title="the Core quest" ;;
+    core)    _title="Core" ;;
     enabled) _title="your enabled services" ;;
 esac
 

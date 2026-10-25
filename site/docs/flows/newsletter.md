@@ -33,7 +33,7 @@ A link is never in two issues: the machine remembers every one it has sent, in i
 3. Turn the schedule on:
 
    ```bash
-   cp automation-examples/cron/newsletter.md volumes/workspace_data/.decree/cron/
+   ./existential.sh flow on newsletter
    ```
 
    Run one now from code-server's terminal with `cd /workspace && echo | decree emit

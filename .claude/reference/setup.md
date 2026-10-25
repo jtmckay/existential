@@ -1,4 +1,4 @@
-# Setup: render, reset, quest, e2e
+# Setup: render, reset, flows, e2e
 
 The mechanics behind `./existential.sh`. The rules are in `CLAUDE.md`; this is how they work.
 
@@ -45,80 +45,48 @@ Because it archives the generated root `docker-compose.yml` too, it first offers
 `docker compose down` a stack that is still up. That offer is host-side: `reset` itself runs in
 the adhoc container, which has no docker socket.
 
-## Quest
+## The first run
 
-`quest` launches the interactive picker first.
-
-On a **first run** — nothing enabled beyond the shipped defaults, which `_has_any_enabled`
-checks against `.env.exist.shared` rather than by counting `true`s — quest asks two hardware
-questions and then leads with a single **Core, or no thanks** choice (`src/quests/00-core.md`)
-instead of forty service checkboxes. Declining falls through to the full picker.
+A bare `./existential.sh` with `EXIST_GPU_VENDOR` blank (and a terminal) runs
+`src/lib/models.sh` with `FIRST_RUN=1` before building. There is no picker: Core is what
+`.env.exist.shared` ships on, so the first run builds it.
 
 The hardware questions are **GPU vendor first** (`src/utils/gpu-vendor.sh` →
 `EXIST_GPU_VENDOR`), then VRAM (`src/utils/model-tiers.sh` → `EXIST_VRAM_GB`). Answering
 *No GPU* sets `EXIST_VRAM_GB=0` itself and **skips** the VRAM question, so the VRAM picker is
-always asked with `--gpu-only`. `EXIST_GPU_VENDOR` records that the pair was asked, so they are
-never re-asked; `./existential.sh run models` is the way back and re-asks both. The VRAM picker's
-last entry takes a model name instead of a number (`custom:<tag>`) — see
-`.claude/reference/models.md`.
+always asked with `--gpu-only`; *models live elsewhere* (`external`) asks for `EXIST_MODEL_URL`
+first. `EXIST_GPU_VENDOR` records that the pair was asked, so they are never re-asked;
+`./existential.sh run models` is the way back and re-asks both. The VRAM picker's last entry
+takes a model name instead of a number (`custom:<tag>`) — see `.claude/reference/models.md`.
 
-### Quest file format
+## Flows
 
-A quest is a markdown file in `src/quests/`: YAML frontmatter for the data (`name`, `tagline`,
-`e2e`, `services`, `done`, and — Core only — `copies`), the body for the guide — the same shape
-as decree's cron and migration files.
+A flow is a folder in `flows/`: `flow.md` plus the files that switch on its machine
+(`cron/*.md` and `migrations/*.md`, copied into `volumes/workspace_data/.decree/`; `examples/`
+is for reading). `src/utils/flows.sh` reads it, sourced by `src/flows.sh` (the command),
+`e2e.sh` and automation's `exist.initial.sh`. It is awk over flat frontmatter, not yq, because
+e2e and `exist.initial.sh` run on the host. The keys are documented in its header; keep the
+frontmatter flat (scalars, block lists of plain values) or the reader will not see it.
 
-It is read by `yq` in `quest.sh` (`qmeta` / `qbody`), **not** by decree, so decree's "extra keys
-become env vars" contract does not apply here. Everything that reads a quest must scope itself
-to the frontmatter; the body is free-form prose.
+`flow on <name>` turns on the flows it needs (`flows:`, depth first), sets every service flag
+they name (`services:`) unless the GPU answer forbids one (`vendor_forbids_service`: a local
+ollama under `external`), copies each file not already in place (a migration already in
+`processed.md` counts as in place), and prints the body: only what is left for a person. Then
+`existential.sh` renders and builds. `flow off` deletes only copies identical to the flow's
+file, never touches services, and names a `default: true` flow in `.decree/flows-off`, which
+`exist.initial.sh` reads before re-activating the defaults. `src/flows.sh` exits 3 for "nothing
+changed" (a list, an empty pick), which skips the rebuild.
 
-### The two kinds of quest
-
-**Numbered = Core, one slice at a time.** `00-core.md` is the whole system in one pass;
-`01`–`03` are exactly a *partition* of it — every Core service and every Core `copies:` entry
-belongs to exactly one of them, and to no two. Adding a service to Core means adding it to the
-slice that owns it.
-
-**Unnumbered = everything past Core.** One file per add-on, integration or automation, no
-prefix, no ordering. The add-ons (`network`, `monitoring`, `capture`, `apps`, `local-ai`,
-`voice-and-home`) keep the setup steps Core used to do for their services.
-
-Only `00-core.md` uses `copies:` to auto-activate templates; that is deliberate, since Core IS
-the base system and should ask as little as possible. **Every other quest — the numbered slices
-included — writes nothing.** Its activation steps (`mkdir`/`cp`/`docker compose restart`) go in
-its guide body, to be read and typed. The point past Core is for the user (or an agent driving
-this repo) to see and understand the cron.example/ → cron/ mechanism rather than have a picker
-do it invisibly, so these files are documentation and training as much as setup.
-
-### `done:` — crossing a quest off
-
-`quest_done` marks a quest finished when its services are enabled **and** it can point at proof
-on disk. A quest must SAY how it is finished, one of two ways:
-
-- `copies:` (Core only) — done when no destination is still pending.
-- `done.files` — paths, relative to the repo, that its guide told you to create.
-  `done.env` — `.env.shared` keys its guide told you to fill in; non-blank is done.
-
-**A quest that declares neither is never crossed off.** That asymmetry is the point: several
-guides end in work this repo cannot see (a ComfyUI checkpoint, a Spotify OAuth grant, a wake
-word trained on a phone), and a wrong ✓ there costs more than a missing ✓ everywhere.
-
-Because 01–03 partition Core, running Core writes every file they name and every slice that
-declares `done:` crosses itself off with no knowledge of each other. (`01-access` has no
-service: Tailscale runs on the host. It declares `done.env: EXIST_TAILNET_NAME`, which
-`existential.sh` fills only once `tailscale serve` works.)
-
-`quest_skips_service` is the one exception to "enabled": a service the GPU-vendor answer forbids
-(local ollama under `EXIST_GPU_VENDOR=external`) is not missing, it is refused — the same rule
-`_enable_quest_services` applies on the way in.
+Every flow is in the table on `site/docs/flows/index.md`, and its names resolve (`validate
+conventions`). The setup steps for a service no flow needs live on the service's docs page.
 
 ## e2e
 
 e2e answers one question — **does a fresh install come up working?** — because that is the one
 thing `triage` cannot see.
 
-It runs every quest marked `e2e: true`, Core's numbered slices first, or the ones a pattern
-names (`./existential.sh e2e search`). It copies the **working tree** (not HEAD) into a
+It runs Core (the install as it ships), then every flow marked `e2e: true` over it, or the units a
+pattern names (`./existential.sh e2e search`). It copies the **working tree** (not HEAD) into a
 throwaway clone → render → up → checks → down, and does *not* re-run per-service tests.
 
 **An e2e check is a markdown file in `src/test/e2e/checks/`** — a decree message, dropped into
@@ -126,5 +94,5 @@ the right daemon's inbox once the stack is up and its migrations have finished.
 Adding a check is adding a file. Contract: `src/test/e2e/checks/README.md`.
 
 Every run's evidence — `results.md`, each run's `message.md`, `events.jsonl` and script logs,
-and unhealthy containers' logs — is copied to `e2e-out/<stamp>-<quest>/` before teardown.
+and unhealthy containers' logs — is copied to `e2e-out/<stamp>-<unit>/` before teardown.
 Gitignored, and written even when a run crashes.

@@ -16,7 +16,7 @@ skip_if_disabled
 # ── Config ────────────────────────────────────────────────────────────────────
 
 # Model choice is global, never per-service: EXIST_MODEL_CHAT is written by the
-# VRAM tier table (src/utils/model-tiers.sh) via quest / `run models`. Hardcoding
+# VRAM tier table (src/utils/model-tiers.sh) via the first run / `run models`. Hardcoding
 # a tag here made this test demand gemma4:26b on every machine — a tag that is
 # not even in the tier table — so a correctly configured CPU-tier host failed.
 load_env_exist
@@ -70,10 +70,9 @@ probe_caddy "ollama /api/tags" ollama /api/tags 200
 NAMES=$(echo "$TAGS" | jq -r '.models[]?.name // empty' 2>/dev/null || true)
 
 if [ -z "$NAMES" ]; then
-    # No models AT ALL is the pull step not having run yet, not a fault. No
-    # quest copies the ollama migrations itself; the Local AI quest deliberately
-    # leaves pulling to the user (`./existential.sh run ollama pull-models`), so a
-    # fresh install of it legitimately has an empty ollama. Failing here reported
+    # No models AT ALL is the pull step not having run yet, not a fault: the
+    # pulls are the local-models flow, or `./existential.sh run ollama
+    # pull-models`, so a fresh install legitimately has an empty ollama. Failing here reported
     # a working stack as broken. Drift is still caught: one model present and the
     # configured one missing falls through to the fail below.
     skip "model '${MODEL}' present" \

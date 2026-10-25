@@ -15,11 +15,11 @@ talks to it.
 ## Models
 
 You do not pick models here. Model choice is global and lives in the *Model Selection* block of
-`.env.shared`, filled in from a VRAM tier table by the question quest asks on first run — see
+`.env.shared`, filled in from a VRAM tier table by the question the first run asks — see
 [Configuration → Models](../configuration#models).
 
 The models are pulled for you: the `10-ollama-*` … `14-ollama-*` decree migrations run as soon as
-ollama answers `/api/tags`, once you copy them in (the **Local AI** quest). If you skipped that, pull manually:
+ollama answers `/api/tags`, once the `local-models` flow is on (`./existential.sh flow on local-models`). Without it, pull manually:
 
 ```bash
 ./existential.sh run ollama pull-models

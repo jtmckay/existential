@@ -121,9 +121,9 @@ A machine that nothing points at never runs. There is no list to register it in.
 
 ### Cron — on a schedule
 
-Add a file to `automation-examples/cron/<name>.md` (tracked), then copy it into
-`volumes/workspace_data/.decree/cron/` (active). The daemon rescans the directory every tick, so there is
-nothing to restart:
+Put a file in `volumes/workspace_data/.decree/cron/<name>.md` (in code-server,
+`/workspace/.decree/cron/`). The daemon rescans the directory every tick, so there is nothing to
+restart:
 
 ```markdown
 ---
@@ -136,16 +136,13 @@ params:
 What this schedule is for. The body is free text.
 ```
 
-```bash
-cp automation-examples/cron/my-job.md volumes/workspace_data/.decree/cron/
-```
-
-The copy-to-activate split is deliberate: examples ship for everyone, and nothing runs on your
-machine until you put it in `cron/`.
+To ship one for everyone, make it a flow: `flows/<name>/flow.md` (what it needs, what is
+left to do) and the cron file beside it in `flows/<name>/cron/`. `./existential.sh flow on
+<name>` then copies it in; nothing runs on a machine until someone turns it on.
 
 ### Webhook — when something out there happens
 
-`automation-webhook` (the **Capture** add-on) turns an authenticated HTTP POST into a message. Endpoints are configuration
+`automation-webhook` (an add-on, `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK`) turns an authenticated HTTP POST into a message. Endpoints are configuration
 only: add one to `automation/decree-go-rest.yml` and it is live, no restart. This is how Home
 Assistant, a phone shortcut, or any external service reaches the stack. See
 [Build On It](./build-on-it) for the request contract.
@@ -219,7 +216,7 @@ Common reasons a job appears to do nothing:
 
 | Symptom | Cause |
 |---|---|
-| No run at all | Nothing triggers it: the cron file is in `automation-examples/`, not `volumes/workspace_data/.decree/cron/` |
+| No run at all | Nothing triggers it: the cron file is in `flows/`, not `volumes/workspace_data/.decree/cron/` — `./existential.sh flow on <name>` |
 | A `failed` run with `invalid_message` | The message names a machine that project does not have, or a param its `data:` does not declare |
 | A chained job never runs | The emitting script's `decree emit` failed; its log says why |
 | Runs, ends `done`, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |

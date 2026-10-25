@@ -5,7 +5,8 @@
 # The projects in the repo are not checkable as they sit: cron/, migrations/
 # and inbox/ are the user's gitignored active sets, and automation-backup's
 # scripts and lib come from automation/. So each is assembled in a temp dir from
-# tracked content, with EVERY template a quest could copy dropped into place —
+# tracked content, with EVERY file a flow could switch on dropped into place, and
+# every flow's examples/ in the inbox —
 # that is what makes M1-M3 validate the templates' machine and params against
 # the machines' data, which is the mistake a rename or a new param makes.
 #
@@ -52,8 +53,19 @@ check() {
     fi
 }
 
-p=$(assemble automation "${REPO}/automation/machines" "${REPO}/automation/graph" "${REPO}/automation-examples/cron" \
-        "${REPO}/automation-examples/migrations" "${REPO}/automation-examples/inbox")
+# Every flow's files, gathered by kind. Two flows shipping one name would have
+# one overwrite the other on a real install, so that fails here.
+mkdir -p "${TMP}/flows"/{cron,migrations,inbox}
+for f in "${REPO}"/flows/*/{cron,migrations,examples}/*.md; do
+    [[ -f "$f" ]] || continue
+    k="${f%/*}"; k="${k##*/}"; [[ "$k" == examples ]] && k=inbox
+    if [[ -e "${TMP}/flows/${k}/${f##*/}" ]]; then
+        echo "FAIL  ${f#"${REPO}/"}: another flow ships ${k}/${f##*/} too" >&2; rc=1
+    fi
+    cp "$f" "${TMP}/flows/${k}/"
+done
+p=$(assemble automation "${REPO}/automation/machines" "${REPO}/automation/graph" "${TMP}/flows/cron" \
+        "${TMP}/flows/migrations" "${TMP}/flows/inbox")
 check automation "$p" "${REPO}/automation/graph"
 
 p=$(assemble backup "${REPO}/services/automation/backup/machines" \

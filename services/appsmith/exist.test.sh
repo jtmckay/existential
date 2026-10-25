@@ -22,7 +22,7 @@ probe_service_any "appsmith UI"             appsmith 80 /                  "^(20
 #   {"responseMeta":{"status":200,...},"data":{"email":"anonymousUser",
 #    "isAnonymous":true,"isEmptyInstance":true,...}}
 # so the old 401 expectation could not have passed against any appsmith. It went
-# unnoticed because this quest kept failing at the container-health gate before
+# unnoticed because its e2e run kept failing at the container-health gate before
 # the service tests ran.
 #
 # This is also the one check here that actually exercises the backend and its

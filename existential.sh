@@ -5,7 +5,7 @@
 # off to domain scripts inside the container. All heavy lifting lives in:
 #
 #   src/templates.sh        — render *.exist.* templates (fzf prompts, placeholders)
-#   src/quest.sh            — interactive service picker
+#   src/flows.sh            — turn curated flows (machines + the services they need) on and off
 #   src/generate-compose.ts — merge enabled services → docker-compose.yml
 #   src/lib/                — general utilities (backup, rclone, etc.)
 #   <service>/exist.*.sh    — service-specific setup scripts
@@ -183,7 +183,7 @@ _tailscale_serve_core() {
         echo "     Install it and log in, here and on every device that should reach Core:"
         echo "       https://tailscale.com/download"
         echo "     then re-run ./existential.sh. Without Tailscale, the Caddy add-on serves"
-        echo "     https://<slug>.<domain> instead:  ./existential.sh quest  →  Network"
+        echo "     https://<slug>.<domain> instead: set EXIST_IS_HOSTING_CADDY=true"
         return 0
     fi
 
@@ -269,24 +269,6 @@ _start_on_boot() {
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
 # (sourced near the top). The helpers below are specific to this entry point.
 
-# True when the user has enabled ANYTHING beyond what ships enabled by default.
-#
-# Compared against .env.exist.shared rather than "is any flag true?": a flag
-# that is true in both is a default, not a choice. Nothing ships enabled today
-# (Caddy did once), so this only matters if that ever changes.
-_has_any_enabled() {
-    local tmpl="${SCRIPT_DIR}/.env.exist.shared" k v
-    [[ -f "${SCRIPT_DIR}/.env.shared" ]] || return 1
-    while IFS='=' read -r k v || [[ -n "$k" ]]; do
-        k="${k%%#*}"; k="${k// /}"
-        [[ "$k" =~ ^EXIST_IS_ ]] || continue
-        v="${v%%#*}"; v="${v// /}"
-        [[ "$v" == "true" ]] || continue
-        grep -qE "^${k}=true([[:space:]]*#.*)?\$" "$tmpl" 2>/dev/null || return 0
-    done < "${SCRIPT_DIR}/.env.shared"
-    return 1
-}
-
 # ── Access warning ─────────────────────────────────────────────────────────────
 
 _warn_if_no_gateway() {
@@ -315,7 +297,7 @@ _warn_if_no_gateway() {
             | grep -qvE '^EXIST_IS_SERVICES_(CODE_SERVER|AUTOMATION|NTFY)=' || return 0
         echo ""
         echo "  ⚠  Caddy is disabled, so add-ons outside Core have no https://<slug>.<domain>"
-        echo "     name. Enable it (./existential.sh quest  →  Network), or uncomment the"
+        echo "     name. Set EXIST_IS_HOSTING_CADDY=true in .env.shared, or uncomment the"
         echo "     'ports:' block in that service's docker-compose.yml, then re-run:"
         echo "       ./existential.sh && docker compose up -d"
         echo ""
@@ -441,7 +423,7 @@ _report_login() {
 #
 # Only pre-startup, non-interactive work belongs here (creating files,
 # applying system config). Post-startup automated work lives in decree
-# migrations; interactive steps are documented as quest guides.
+# migrations; interactive steps are documented on the service's docs page.
 
 run_initials() {
     _load_env_shared
@@ -576,7 +558,7 @@ run_setup() {
     _run_service_action "$first" "${2:-initial}" "${@:3}"
 }
 
-# ── The build, shared by the bare command and `quest` ─────────────────────────
+# ── The build, shared by the bare command and `flow` ──────────────────────────
 
 # Render every enabled service's templates. A blank EXIST_DOMAIN /
 # EXIST_LOCAL_HOST_IP is back-filled *before* rendering: render_template
@@ -613,9 +595,11 @@ Usage: $0 [action]
 
 Actions:
   (none)                 Render templates for enabled services, run their setup
-                         scripts, generate docker-compose.yml. Opens the quest
-                         picker when nothing is enabled yet.
-  quest                  Pick what to build, then the same.
+                         scripts, generate docker-compose.yml. The first run
+                         asks about the GPU, then builds Core.
+  flow [list|on|off] [name...]
+                         What the stack does for you: each flow turns on the
+                         services it needs and its machine, then the same.
   reset                  Archive every rendered file to archive/<timestamp>/ so the
                          next run renders fresh. Asks first; never touches volumes.
   run                    List every action.
@@ -628,7 +612,7 @@ Actions:
   validate [name]        all (default), conventions or drift.
   e2e [--all|down|<pattern>...]
                          Does a fresh install come up working? Clone, render, up,
-                         test, down, per quest.
+                         test, down: Core, then each flow marked e2e.
 EOF
 }
 
@@ -659,24 +643,16 @@ case "$action" in
         ensure_adhoc_built
         _render
 
-        if ! _has_any_enabled; then
-            echo ""
-            if [[ "$_is_first_run" == "true" ]]; then
-                echo "✓ Initial setup complete."
-                echo ""
-                echo "Launching quest to choose your services..."
-            else
-                echo "No services are enabled yet."
-                echo "Tip: run ./existential.sh quest anytime to pick what to build."
-            fi
-            echo ""
-            run_adhoc env REPO_DIR=/repo bash /src/quest.sh
+        # The two hardware questions, once: EXIST_GPU_VENDOR is the record of
+        # having asked, and `run models` is the way back.
+        if [[ -z "$(grep -m1 '^EXIST_GPU_VENDOR=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2-)" && -t 0 ]]; then
+            run_adhoc env REPO_DIR=/repo FIRST_RUN=1 bash /src/lib/models.sh
             _render
         fi
         _build
         [[ "$_is_first_run" == "true" ]] && _report_login
         echo ""
-        echo "Tip: run ./existential.sh quest to spin up more services or set up pre-baked automations."
+        echo "Tip: ./existential.sh flow  picks what else the stack does for you."
         ;;
     reset)
         # Before anything is archived, while docker-compose.yml still exists.
@@ -684,10 +660,13 @@ case "$action" in
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/reset.sh
         ;;
-    quest)
+    flow)
         ensure_git_hooks
         ensure_adhoc_built
-        run_adhoc env REPO_DIR=/repo bash /src/quest.sh "$@"
+        # 3 is "nothing changed": a list, or a picker left without a choice.
+        _rc=0; run_adhoc env REPO_DIR=/repo bash /src/flows.sh "$@" || _rc=$?
+        [[ "$_rc" -eq 3 ]] && exit 0
+        [[ "$_rc" -eq 0 ]] || exit "$_rc"
         _render
         _build
         ;;

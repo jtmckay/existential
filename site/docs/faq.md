@@ -25,7 +25,7 @@ your hardware, with your data, and no subscription.
 
 The plumbing — hostnames, TLS, storage tiers, secrets, backups, logging, the automation engine —
 is [solved once, for everything](./how-it-works), not once per app. Setting it up is mostly
-answering `./existential.sh quest` and flipping a `true`/`false` flag per service. Turning on an
+running `./existential.sh`, then `./existential.sh flow on` for each thing you want it to do. Turning on an
 automation is usually a line of prompt in a cron file's frontmatter, not writing code — see
 [the four knobs](./flows/#the-four-knobs).
 
@@ -47,8 +47,8 @@ at another machine that has one, or use the CPU-only model tier. See
 ### Do I have to turn everything on?
 
 No — every service is a flag, and disabled services render nothing and cost nothing. The
-`quest` picker offers **Core** (work dir, terminal, automation, notifications) as one yes/no, or
-you can go service by service. See [Enable/Disable Services](./getting-started#enabledisable-services).
+first run builds **Core** (work dir, terminal, automation, notifications); everything past it is a
+flow or a flag you turn on. See [Enable/Disable Services](./getting-started#enabledisable-services).
 
 ### What happens to my data if I stop using Existential?
 

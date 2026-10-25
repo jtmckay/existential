@@ -33,6 +33,13 @@ it is a no-op on every later start.
 Decree publishes as that user, so automations report in with no further configuration, and a
 run that fails or waits for you says so on the `decree` topic ([Decree](../decree/decree.md#when-a-run-needs-you)).
 
+### Subscribe
+
+Install the ntfy app (or open ntfy in a browser: `https://<machine>.<tailnet>.ts.net:8443` in
+Core), sign in with the admin login above, and subscribe to the `decree` topic, where routines
+report by default (a routine can name its own with `ntfy_topic:`). Check it with
+`./existential.sh test ntfy`.
+
 ### Customization
 
 Ntfy emojis: https://docs.ntfy.sh/emojis/

@@ -9,7 +9,8 @@ sidebar_position: 2
 authenticated HTTP POST into a message in the `automation` daemon's inbox. It runs no work
 itself and can write nothing but `inbox/`; decree runs what it queues.
 
-It is an add-on, not part of Core: the **Capture** quest turns it on, with Nextcloud.
+It is an add-on, not part of Core: `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`, or a flow that
+needs it (`nextcloud-capture`).
 
 ```bash
 EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true
@@ -42,7 +43,7 @@ curl -X POST https://automation-webhook.<domain>/notify/backup \
 ```
 
 Containers reach it at `http://automation-webhook:8801`; a browser or phone needs the
-**Network** quest's Caddy for `https://automation-webhook.<domain>`.
+[Caddy](../hosting/caddy) add-on for `https://automation-webhook.<domain>`.
 
 ## Without it
 

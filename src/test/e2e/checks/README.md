@@ -13,9 +13,8 @@ daemons have finished their migrations. The daemon runs them and writes
 `runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log}` for each, and
 `e2e.sh` copies that out to `e2e-out/` and grades it.
 
-Checks are dropped in rather than shipped in `automation-examples/` — that
-directory is what a user's quest copies from, and test code has no business in
-the product tree.
+Checks are dropped in rather than shipped in `flows/` — that directory is what
+a user's install copies from, and test code has no business in the product tree.
 
 ## Why messages, and why after the migrations
 
@@ -23,7 +22,7 @@ A failed migration blocks every migration after it, so as migrations the first
 failing check would hide every later one. The one that actually bit us is
 timing: **migrations run as the daemon boots**, so a check written as a
 migration judges a stack that is still starting. Run that way, `00-services`
-failed hermes, appsmith, lowcoder, nocodb and nextcloud across four quests whose
+failed hermes, appsmith, lowcoder, nocodb and nextcloud across four runs whose
 containers the health gate then found perfectly healthy.
 
 And each decree pass drains the inbox *before* it runs migrations, so a check
@@ -113,5 +112,5 @@ report PASS while the router was failing on every event it routed. The
 product's own migrations are graded on the same terms. Runs without an
 `e2e_check` key are named by their machine.
 
-A quest also fails if the daemons never finished their migrations, or if there
+A unit also fails if the daemons never finished their migrations, or if there
 were no runs at all: a run that verified nothing must not read green.

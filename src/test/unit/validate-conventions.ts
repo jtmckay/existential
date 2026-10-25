@@ -588,113 +588,6 @@ function main(): number {
   errors.push(...checkRestartPolicy());
 
 
-  // Quest files: markdown with YAML frontmatter, then the guide as the body.
-  // Scope every check to the frontmatter — the body is free-form prose, and a
-  // guide that happens to show an `e2e: false` line in an example is not config.
-  const questsDir = path.join(REPO_ROOT, 'src/quests');
-  const questFm = new Map<string, string>();   // filename -> frontmatter body
-  if (fs.existsSync(questsDir)) {
-    for (const f of fs.readdirSync(questsDir).filter(n => n.endsWith('.md'))) {
-      const content = fs.readFileSync(path.join(questsDir, f), 'utf8');
-      const fm = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!fm) {
-        errors.push(`src/quests/${f}: no YAML frontmatter — a quest is fenced metadata, then the guide`);
-        continue;
-      }
-      questFm.set(f, fm[1]);
-      const lines = fm[1].split('\n');
-      // Core's numbered slices are what e2e must cover, so only they owe an excuse.
-      if (/^\d/.test(f)) {
-        const hasE2eFalse = lines.some(l => /^e2e:\s*false/.test(l));
-        const hasE2eSkip  = lines.some(l => /^e2e_skip:\s*\S/.test(l));
-        if (hasE2eFalse && !hasE2eSkip) {
-          errors.push(
-            `src/quests/${f}: has 'e2e: false' but no 'e2e_skip:' explanation — add one`,
-          );
-        }
-      }
-      if (!lines.some(l => /^name:\s*\S/.test(l))) {
-        errors.push(`src/quests/${f}: frontmatter has no 'name:' — the picker needs it`);
-      }
-    }
-  }
-
-  // The numbered quests ARE Core, cut into slices you can do one at a time. That
-  // only holds if they partition it exactly: every Core service and every file
-  // Core copies belongs to one slice and no two. Break the partition and quest.sh
-  // silently stops crossing a slice off after a Core run — a wrong ✓, or a missing
-  // one, with nothing to point at. So it is checked rather than remembered.
-  //
-  // Walked line by line, not with a block regex: `copies:`
-  // entries carry `requires:` keys naming the same EXIST_IS_ flags, so a block
-  // regex over the whole frontmatter would count them twice.
-  const fmList = (body: string, key: string, item: RegExp): string[] => {
-    const lines = body.split('\n');
-    const start = lines.findIndex(l => new RegExp(`^${key}:\\s*$`).test(l));
-    if (start === -1) return [];
-    const out: string[] = [];
-    for (const line of lines.slice(start + 1)) {
-      if (/^\S/.test(line)) break;                       // next top-level key
-      const m = line.match(item);
-      if (m) out.push(m[1]);
-    }
-    return out;
-  };
-  // Core's `copies:` are src/dst pairs; the file that ends up on disk is what a
-  // slice names in `done.files`, so compare destinations.
-  const copyDests = (body: string): string[] => {
-    const out: string[] = [];
-    let dst = '';
-    const lines = body.split('\n');
-    const start = lines.findIndex(l => /^copies:\s*$/.test(l));
-    if (start === -1) return out;
-    let src = '';
-    for (const line of lines.slice(start + 1)) {
-      if (/^\S/.test(line)) break;
-      const s = line.match(/^\s*-\s*src:\s*(\S+)/);
-      if (s) { src = s[1]; continue; }
-      const d = line.match(/^\s*dst:\s*(\S+)/);
-      if (d) { dst = d[1]; if (src) out.push(dst.replace(/\/$/, '') + '/' + path.basename(src)); }
-    }
-    return out;
-  };
-
-  const coreFm = questFm.get('00-core.md');
-  const slices = [...questFm.keys()].filter(f => /^\d/.test(f) && f !== '00-core.md').sort();
-  if (coreFm && slices.length) {
-    const owner = new Map<string, string>();
-    const claim = (what: string, kind: string, f: string) => {
-      const prev = owner.get(what);
-      if (prev) {
-        errors.push(`src/quests: ${kind} ${what} is claimed by both ${prev} and ${f} — a slice owns it alone`);
-      } else owner.set(what, f);
-    };
-    for (const f of slices) {
-      const body = questFm.get(f)!;
-      for (const v of fmList(body, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) claim(v, 'service', f);
-      for (const p of fmList(body, 'done', /^\s*-\s*(\S+)/))                     claim(p, 'file', f);
-    }
-    for (const v of fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) {
-      if (!owner.has(v)) {
-        errors.push(`src/quests/00-core.md: ${v} is in Core but in no numbered slice — add it to the one that owns it`);
-      }
-    }
-    for (const d of copyDests(coreFm)) {
-      if (!owner.has(d)) {
-        errors.push(`src/quests/00-core.md: copies ${d}, which no numbered slice names in done.files — a Core run would not cross that slice off`);
-      }
-    }
-    // The other direction: a slice must not promise a service Core does not install.
-    const coreVars = new Set(fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/));
-    for (const f of slices) {
-      for (const v of fmList(questFm.get(f)!, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/)) {
-        if (!coreVars.has(v)) {
-          errors.push(`src/quests/${f}: enables ${v}, which is not part of Core — numbered quests are Core's slices, everything else is an unnumbered quest`);
-        }
-      }
-    }
-  }
-
   // (13) Every service folder has a docs page, and every docs link lands on one.
   // A page owns a folder by naming it in its frontmatter (`service: ai/ollama`);
   // the filename can't be the key because storage/ is nas/, open-web-ui is
@@ -741,12 +634,67 @@ function main(): number {
     if (!docExists(m[1])) errors.push(`README.md: links docs/${m[1]}, which is no page in site/docs/`);
   }
 
+  // (15) Flows: flows/<name>/flow.md, frontmatter then what is left for a person.
+  // Read the way src/utils/flows.sh reads it (flat scalars, block lists), so a
+  // manifest this accepts is one the picker, e2e and exist.initial.sh can read.
+  // The body is prose: an example in it is never config.
+  const flowsDir = path.join(REPO_ROOT, 'flows');
+  const fmList = (body: string, key: string): string[] => {
+    const lines = body.split('\n');
+    const start = lines.findIndex(l => new RegExp(`^${key}:\\s*$`).test(l));
+    if (start === -1) return [];
+    const out: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      const m = line.match(/^\s+-\s+(\S+)/);
+      if (!m) break;
+      out.push(m[1]);
+    }
+    return out;
+  };
+  const varFor = (svc: string) => 'EXIST_IS_' + svc.replace('/', '_').toUpperCase().replace(/-/g, '_');
+  const serviceVars = new Set<string>();
+  for (const cat of CATEGORY_DIRS) {
+    const catDir = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catDir)) continue;
+    for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (e.isDirectory()) serviceVars.add(varFor(`${cat}/${e.name}`));
+  }
+  if (fs.existsSync(flowsDir)) {
+    const names = fs.readdirSync(flowsDir, {withFileTypes: true}).filter(e => e.isDirectory()).map(e => e.name);
+    // The Flows page lists every flow by id, so the catalogue a reader sees is the one that ships.
+    const catalogue = path.join(docsDir, 'flows/index.md');
+    const listed = fs.existsSync(catalogue) ? fs.readFileSync(catalogue, 'utf8') : null;
+    for (const n of names) {
+      const where = `flows/${n}/flow.md`;
+      const file = path.join(flowsDir, n, 'flow.md');
+      if (!fs.existsSync(file)) { errors.push(`flows/${n}: no flow.md — a flow is its manifest plus the files that switch it on`); continue; }
+      if (listed !== null && !listed.includes(`| \`${n}\` |`)) errors.push(`flows/${n}: not in the table in site/docs/flows/index.md — add a row`);
+      const fm = fs.readFileSync(file, 'utf8').match(/^---\n([\s\S]*?)\n---/);
+      if (!fm) { errors.push(`${where}: no frontmatter fence`); continue; }
+      for (const key of ['name', 'tagline', 'docs']) {
+        if (!new RegExp(`^${key}:\\s*\\S`, 'm').test(fm[1])) errors.push(`${where}: no '${key}:' — the picker needs it`);
+      }
+      const docs = fm[1].match(/^docs:\s*\/docs\/(\S*)/m)?.[1];
+      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${where}: docs /docs/${docs} is no page in site/docs/`);
+      for (const v of fmList(fm[1], 'services')) {
+        if (!serviceVars.has(v)) errors.push(`${where}: services names ${v}, which is no service folder`);
+      }
+      for (const f of fmList(fm[1], 'flows')) {
+        if (!names.includes(f)) errors.push(`${where}: flows names ${f}, which is no flow`);
+      }
+      for (const pr of fmList(fm[1], 'processors')) {
+        if (!fs.existsSync(path.join(REPO_ROOT, 'automation/lib/file-processors.example', pr))) {
+          errors.push(`${where}: processors names ${pr}, which is not in automation/lib/file-processors.example/`);
+        }
+      }
+    }
+  }
+
   // (14) README.md and the intro page each list what Core installs, under a
   // `## What Core installs` heading, as links to service pages. The services
-  // those pages document must be exactly Core's `services:` block.
-  if (coreFm) {
-    const coreSet = new Set(fmList(coreFm, 'services', /^\s*-\s*var:\s*(EXIST_IS_\S+)/));
-    const varFor = (svc: string) => 'EXIST_IS_' + svc.replace('/', '_').toUpperCase().replace(/-/g, '_');
+  // those pages document must be exactly what .env.exist.shared ships on.
+  const sharedTmpl = path.join(REPO_ROOT, '.env.exist.shared');
+  if (fs.existsSync(sharedTmpl)) {
+    const coreSet = new Set([...fs.readFileSync(sharedTmpl, 'utf8').matchAll(/^(EXIST_IS_[A-Z_]+)=true\b/gm)].map(m => m[1]));
     for (const [file, linkRe] of [
       ['README.md', /\]\(https:\/\/existential\.company\/docs\/([^)#\s]+)/g],
       ['site/docs/intro.md', /\]\(\.\/([^)#\s]+)/g],
@@ -755,7 +703,7 @@ function main(): number {
       if (!fs.existsSync(full)) continue;
       const section = fs.readFileSync(full, 'utf8').match(/^## What Core installs\n([\s\S]*?)(?=^## |(?![\s\S]))/m);
       if (!section) {
-        errors.push(`${file}: no "## What Core installs" section to check against src/quests/00-core.md`);
+        errors.push(`${file}: no "## What Core installs" section to check against .env.exist.shared`);
         continue;
       }
       const listed = new Set<string>();

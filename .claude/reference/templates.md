@@ -32,7 +32,7 @@ a prompt whose right answer is "press Enter" is not setup, and a blank answer to
 (`EXIST_CLI`, default `admin`) and `EXIST_PASSWORD` (`EXIST_ASK_PASSWORD`), which a unit test
 holds it to. `EXIST_EMAIL` ships blank and `_ask_email_if_needed` asks it once, the first run an
 enabled service's template uses it; the NFS trio ships blank and
-belongs to the NAS Storage quest. Before adding an `EXIST_CLI`, check whether detection or a quest
+belongs to the storage docs. Before adding an `EXIST_CLI`, check whether detection or a flow
 can carry it instead — or whether, like `EXIST_PASSWORD`, the machine can answer it and the prompt
 is only there to let a human override.
 

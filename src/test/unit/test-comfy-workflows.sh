@@ -16,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-[[ -f "${SRC_DIR}/quest.sh" ]] || SRC_DIR="/src"
+[[ -f "${SRC_DIR}/flows.sh" ]] || SRC_DIR="/src"
 
 REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"

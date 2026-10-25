@@ -128,85 +128,37 @@ printf 'alpha\nbeta\n' > "$insync/x.exist.txt"
 printf 'alpha\nbeta\n' > "$insync/x.txt"
 expect_pass "drift: passes when rendered matches template" tsx "$DRIFT" "$insync"
 
-# ── Quest frontmatter ─────────────────────────────────────────────────────────
-# Quests are markdown: fenced YAML metadata, then the guide. The checks must
-# read only the frontmatter, or a guide that shows `e2e: false` in an example
-# would be validated as if it were the quest's own config.
+# ── Flows ─────────────────────────────────────────────────────────────────────
+# A flow is flows/<name>/flow.md: frontmatter, then what is left for a person.
+# Every name it gives must resolve, and the body is prose, never config.
 
-qfix() { local d; d="$(mkfix)"; mkdir -p "$d/src/quests"; echo "$d"; }
-
-noskip="$(qfix)"
-printf -- '---\nname: X\ne2e: false\n---\n\nA guide.\n' > "$noskip/src/quests/01-x.md"
-expect_fail "conventions: rejects e2e:false with no e2e_skip" tsx "$CONV" "$noskip"
-
-withskip="$(qfix)"
-printf -- '---\nname: X\ne2e: false\ne2e_skip: needs a real NAS\n---\n\nA guide.\n' > "$withskip/src/quests/01-x.md"
-expect_pass "conventions: accepts e2e:false with e2e_skip" tsx "$CONV" "$withskip"
-
-nofm="$(qfix)"
-printf -- 'name: X\ne2e: true\n' > "$nofm/src/quests/01-x.md"
-expect_fail "conventions: rejects a quest with no frontmatter fence" tsx "$CONV" "$nofm"
-
-noname="$(qfix)"
-printf -- '---\ne2e: true\n---\n\nA guide.\n' > "$noname/src/quests/01-x.md"
-expect_fail "conventions: rejects a quest with no name:" tsx "$CONV" "$noname"
-
-# The body is prose. An example inside it must not be read as configuration.
-bodyonly="$(qfix)"
-printf -- '---\nname: X\ne2e: true\n---\n\nSet this in your own quest:\n\ne2e: false\n' \
-    > "$bodyonly/src/quests/01-x.md"
-expect_pass "conventions: ignores e2e:false appearing in the guide body" tsx "$CONV" "$bodyonly"
-
-# ── Core / slice partition ────────────────────────────────────────────────────
-# The numbered quests ARE Core, one slice at a time, and quest.sh crosses a slice
-# off by finding the files Core copied. That only works while the slices partition
-# Core exactly, so the partition is checked rather than remembered.
-
-core_fm() {
-    printf -- '---\nname: Core\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ncopies:\n  - src: automation-examples/cron/clean-runs.md\n    dst: volumes/workspace_data/.decree/cron/\n    label: clean-runs\n---\n\nCore.\n'
+ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flow
+    local d; d="$(mkfix)"
+    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/flows/foo"
+    printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
+    printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
+    printf -- '---\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/flows/foo/flow.md"
+    echo "$d"
 }
-
-partok="$(qfix)"
-core_fm > "$partok/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
-    > "$partok/src/quests/01-ai.md"
-expect_pass "conventions: accepts slices that partition Core exactly" tsx "$CONV" "$partok"
-
-partsvc="$(qfix)"
-core_fm > "$partsvc/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices: []\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
-    > "$partsvc/src/quests/01-ai.md"
-expect_fail "conventions: rejects a Core service owned by no slice" tsx "$CONV" "$partsvc"
-
-partcopy="$(qfix)"
-core_fm > "$partcopy/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n---\n\nA guide.\n' \
-    > "$partcopy/src/quests/01-ai.md"
-expect_fail "conventions: rejects a Core copy no slice names in done.files" tsx "$CONV" "$partcopy"
-
-partextra="$(qfix)"
-core_fm > "$partextra/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n  - var: EXIST_IS_AI_COMFYUI\n    label: ComfyUI\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
-    > "$partextra/src/quests/01-ai.md"
-expect_fail "conventions: rejects a slice enabling a service Core does not" tsx "$CONV" "$partextra"
-
-partdup="$(qfix)"
-core_fm > "$partdup/src/quests/00-core.md"
-printf -- '---\nname: AI\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\ndone:\n  files:\n    - volumes/workspace_data/.decree/cron/clean-runs.md\n---\n\nA guide.\n' \
-    > "$partdup/src/quests/01-ai.md"
-printf -- '---\nname: AI two\ne2e: true\nservices:\n  - var: EXIST_IS_AI_OLLAMA\n    label: Ollama\n---\n\nA guide.\n' \
-    > "$partdup/src/quests/02-ai.md"
-expect_fail "conventions: rejects two slices claiming one service" tsx "$CONV" "$partdup"
+FLOW_OK=$'name: Foo\ntagline: does foo\ndocs: /docs/ai/foo\nservices:\n  - EXIST_IS_AI_FOO'
+expect_pass "conventions: accepts a flow whose names all resolve" tsx "$CONV" "$(ffix "$FLOW_OK")"
+expect_fail "conventions: rejects a flow with no tagline" tsx "$CONV" "$(ffix $'name: Foo\ndocs: /docs/ai/foo')"
+expect_fail "conventions: rejects a flow whose docs page does not exist" tsx "$CONV" "$(ffix "${FLOW_OK/ai\/foo/ai\/bar}")"
+expect_fail "conventions: rejects a flow naming a service with no folder" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\n  - EXIST_IS_AI_BAR')"
+expect_fail "conventions: rejects a flow needing a flow that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nflows:\n  - bar')"
+expect_fail "conventions: rejects a flow copying a processor that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nprocessors:\n  - bar.sh')"
+noflowmd="$(mkfix)"; mkdir -p "$noflowmd/flows/foo/cron"
+expect_fail "conventions: rejects a flow folder with no flow.md" tsx "$CONV" "$noflowmd"
 
 # ── Docs: a page per service, links that land, Core's list ───────────────────
 # docfix <dir>: one service folder (ai/foo), its page, a one-service Core, and a
 # README whose "What Core installs" links that page. Each case breaks one part.
 docfix() {
     local d; d="$(mkfix)"
-    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/src/quests"
+    mkdir -p "$d/ai/foo" "$d/site/docs/ai"
     printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
-    printf -- '---\nname: Core\nservices:\n  - var: EXIST_IS_AI_FOO\n    label: Foo\n---\n\nCore.\n' > "$d/src/quests/00-core.md"
+    printf 'EXIST_DOMAIN=\nEXIST_IS_AI_FOO=true\n' > "$d/.env.exist.shared"
     printf '# X\n\n## What Core installs\n\n- [Foo](https://existential.company/docs/ai/foo)\n\n## Next\n' > "$d/README.md"
     echo "$d"
 }

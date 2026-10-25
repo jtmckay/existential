@@ -5,7 +5,7 @@
  * scene, with the services it runs on named after it, small. A service with no flow
  * behind it has no place here.
  *
- * CORE FIRST. `tier: 'core'` runs on what `src/quests/00-core.md` installs (code-server,
+ * CORE FIRST. `tier: 'core'` runs on what `.env.exist.shared` ships on (code-server,
  * decree, ntfy), plus a chat model wherever `needsModel` says so: a model is not part of
  * Core, so a flow that uses one says it. Everything else is `tier: 'addon'` and names
  * the add-on it needs.

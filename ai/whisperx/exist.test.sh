@@ -24,9 +24,9 @@ probe_service "whisperx /speakers"     whisperx 8000 /speakers     200
 # step 401s: the task fails, every health route stays green, and the whole point
 # of running whisperx over wyoming-whisper (speaker labels) is silently gone.
 #
-# warn, not fail. The token comes from huggingface.co and no quest can render it,
+# warn, not fail. The token comes from huggingface.co and nothing can render it,
 # so a fresh install always starts without one — and as a failure that made e2e
-# report a working stack as broken for a step the quest guide asks the user to do
+# report a working stack as broken for a step the transcription flow asks the user to do
 # by hand (it is prompted for at render time via EXIST_CLI, and left blank when
 # nobody is at the keyboard). A warning still says it on every triage pass, which
 # is what the silent-diarization-loss argument above actually needs.

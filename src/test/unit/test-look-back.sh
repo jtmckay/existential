@@ -216,13 +216,12 @@ assert_eq "no day note was rewritten" "$SUMS" "$(cd "$A" && find . -name '20*-*-
 assert_eq "a bad date fails the run" "1" "$(run_lb 2026-10-02T09:00:00Z from=2026-13-01)"
 
 # ── wiring ────────────────────────────────────────────────────────────────────
-cron() { awk -v k="$2:" '$1 == k {print $2; exit}' "${REPO_DIR}/automation-examples/cron/$1"; }
+cron() { awk -v k="$2:" '$1 == k {print $2; exit}' "${REPO_DIR}/flows/look-back/cron/$1"; }
 assert_eq "the weekly cron runs this machine" "look_back" "$(cron look-back-weekly.md machine)"
 assert_eq "...for the week" "week" "$(cron look-back-weekly.md period)"
 assert_eq "the monthly cron runs this machine" "look_back" "$(cron look-back-monthly.md machine)"
 assert_eq "...only at month-end" "true" "$(cron look-back-monthly.md period_end_only)"
-assert_has "exist.initial.sh activates both" "$(grep '^for _cron in you-were-here.md' "${REPO_DIR}/services/automation/exist.initial.sh")" \
-    "look-back-weekly.md look-back-monthly.md"
+assert_has "both are a default flow, on in every install" "$(cat "${REPO_DIR}/flows/look-back/flow.md")" "default: true"
 assert_eq "POST /look-back queues this machine" "look_back" \
     "$(awk '/- path: \/look-back$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
 

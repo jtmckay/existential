@@ -7,8 +7,8 @@
 # Why this and not whisperx: HA's Assist pipeline speaks the Wyoming protocol
 # (a line-oriented TCP protocol), not HTTP. WhisperX is a FastAPI service, so HA
 # cannot drive it without a bridge — and the two do different jobs. WhisperX
-# transcribes long recordings with speaker diarization (the auto-transcription
-# quest); this handles short, latency-sensitive voice commands.
+# transcribes long recordings with speaker diarization (the transcription
+# flow); this handles short, latency-sensitive voice commands.
 #
 # Deliberately CPU-only. The GPU is already holding the chat model plus
 # embeddings, and whisperx's large-v3 takes another ~3 GB when it runs. A GPU

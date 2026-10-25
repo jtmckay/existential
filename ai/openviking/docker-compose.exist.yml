@@ -36,7 +36,7 @@
 #
 # Setup:
 #   1. ./existential.sh run   — renders templates, writes ov.conf, and creates
-#                               workspace/ai/ (quest activates the indexer cron)
+#                               workspace/ai/ (the knowledgebase flow activates the indexer cron)
 #   2. docker compose up -d   — starts openviking; decree indexes the workspace
 #
 # That is the whole setup. Hermes' own exist.initial.sh registers openviking as

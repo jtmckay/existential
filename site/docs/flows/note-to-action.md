@@ -111,13 +111,13 @@ own, which is the part worth understanding.
 
 ## Setting it up, step by step
 
-### 1. Pick the quest
+### 1. Turn it on
 
 ```bash
-./existential.sh quest      # pick "Note Triage"
+./existential.sh flow on note-triage
 ```
 
-That copies `note-triage.md` from `automation-examples/cron/` into `volumes/workspace_data/.decree/cron/`, and that
+That copies `note-triage.md` from `flows/note-triage/cron/` into `volumes/workspace_data/.decree/cron/`, and that
 is the whole switch: the daemon rescans `cron/` every tick. The cron file's `TRIAGE_ROUTINE`
 param picks `note_develop` (the default) or `idea_workup` for the department fan-out described
 below.
@@ -156,7 +156,7 @@ criteria cannot poison the "is this new?" check.
 
 ### Prerequisites
 
-- Notes landing in `/data/notes` — activate the **Notes Sync** quest, or point `NOTES_DIR` at a
+- Notes landing in `/data/notes` — turn on the `notes-to-dropbox` flow, or point `NOTES_DIR` at a
   vault you already sync
 - A model at the chat endpoint (`EXIST_MODEL_URL_CHAT`, or `EXIST_MODEL_URL`) — triage, dedupe and
   `note_develop` call it directly through `automation/lib/model.sh`. [Hermes](../ai/hermes) is

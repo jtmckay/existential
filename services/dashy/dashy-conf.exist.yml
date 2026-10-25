@@ -10,8 +10,8 @@
 # Note: the bare-token substitution rewrites prose too, so avoid writing the
 # domain variable's name in these comments — it would be replaced with its value.
 #
-# SCOPE: a starting set, not every service: Core's two web apps, the Monitoring
-# quest (src/quests/monitoring.md) and Actual Budget. Anything else you enable is
+# SCOPE: a starting set, not every service: Core's two web apps, the monitoring
+# services (Grafana, Prometheus, Loki, Uptime Kuma) and Actual Budget. Anything else you enable is
 # yours to add: claim the rendered dashy-conf.yml (EXIST_KEEP=true in its header)
 # and edit it on the host, so a later ./existential.sh run cannot overwrite your
 # additions.

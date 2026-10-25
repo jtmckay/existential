@@ -23,7 +23,7 @@ from them, and nothing in this setup keeps knowledge anywhere else.
 
 In `.env.shared`, `EXIST_IS_AI_QMD=true`. Then `./existential.sh && docker compose up -d --build qmd`, and
 `docker compose up -d --force-recreate code-server` so Claude Code and opencode pick it
-up. `./existential.sh run qmd test` checks it. `./existential.sh quest` offers it as **Search**.
+up. `./existential.sh run qmd test` checks it. `./existential.sh flow on search` does all of this but the recreate.
 
 Search is optional. If qmd is down, or its model never downloaded, editing, capture and
 every automation work as before. The only thing missing is search.

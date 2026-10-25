@@ -16,7 +16,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | add a hostname, Caddy block, or piHole/TLS change | `.claude/reference/networking.md` |
 | write or change a test | `.claude/reference/testing.md` |
 | add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
-| change `existential.sh`, `reset`, a quest, or an e2e check | `.claude/reference/setup.md` |
+| change `existential.sh`, `reset`, a flow, or an e2e check | `.claude/reference/setup.md` |
 | change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
 | work on automation/decree | the `/decree` skill, then `.claude/reference/decree.md` |
 | change the homepage, `README.md`'s opening, or `site/docs/intro.md`'s opening | `.claude/reference/audience.md` |
@@ -35,6 +35,12 @@ management, productivity apps. All services are Docker containers on a bridge ne
 No registry, no plugin system. `EXIST_IS_<CATEGORY>_<SLUG>` is derived from the folder path, so
 *adding a service is adding a folder*. If a change makes that sentence less true, it is probably
 the wrong change. User-facing version: `site/docs/how-it-works.md`.
+
+**A flow is a folder too.** `flows/<name>/` is one curated thing the stack does: `flow.md` (the
+services it needs, the flows it needs, what is left for a person) plus the cron files and
+migrations that switch on its machine. `./existential.sh flow on <name>` sets the flags and copies
+the files in; *adding a flow is adding a folder*. Core is what `.env.exist.shared` ships on, and
+`default: true` flows are on in every install.
 
 ---
 
@@ -62,8 +68,8 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 6. **Services set themselves up deterministically.** Host-side pre-startup work →
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
    boot → the container's own **`entrypoint.sh`**, which is the one place that can write it
-   (see `services.md`). Post-startup setup → decree migrations (run once). Manual steps → quest
-   guides.
+   (see `services.md`). Post-startup setup → decree migrations (run once). Manual steps → the
+   flow's body, or the service's docs page.
 7. **Services validate themselves** via `exist.test.sh`. Every service ships one.
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
@@ -149,8 +155,8 @@ values, blanks included, are never touched. `reset` archives every rendered file
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
-`validate [conventions|drift]`, `e2e [pattern...]`, and `quest` (the interactive picker, which
-also asks the two hardware questions on a first run). e2e answers one question — **does a fresh
+`validate [conventions|drift]`, `e2e [pattern...]`, and `flow [list|on|off]` (the picker). The
+first bare run asks the two hardware questions (`src/lib/models.sh`), then builds Core. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,
 so adding a check is adding a file. → `setup.md`
 
@@ -275,11 +281,11 @@ scripts never call one.** Hermes runs its own tool loop, so work that needs a te
 the script, and hermes asks decree for follow-up work through automation-webhook's `/hermes/*`
 endpoints. Repo-editing belongs to a coding agent on the host, not to the stack.
 
-**Cron activation:** each project has its own `cron/` (active, not in git). Templates live in
-`automation-examples/cron/` for `automation` and `services/automation/backup/cron.example/`
-for `automation-backup`; neither matches `*.exist.*`, so nothing auto-renders them. Activate
-by copying a template into that project's `cron/`; the daemon rescans it every tick.
-`automation-examples/` also holds the `migrations/` and `inbox/` templates.
+**Cron activation:** each project has its own `cron/` (active, not in git). `automation`'s
+templates live in the flows (`flows/<name>/cron/`, `migrations/`, and `examples/` for inbox
+messages, never copied); `automation-backup`'s in `services/automation/backup/cron.example/`.
+Neither matches `*.exist.*`, so nothing auto-renders them. `./existential.sh flow on` copies a
+flow's in; a backup cron is copied by hand. The daemon rescans `cron/` every tick.
 
 **Gate:** `./existential.sh test decree` runs `decree check` on both projects with every
 template queued and fails on a stale committed `graph/`. Regenerate with

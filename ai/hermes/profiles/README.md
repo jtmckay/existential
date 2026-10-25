@@ -1,7 +1,7 @@
 # hermes profiles
 
 **A profile is a directory here.** Adding one is adding a directory — the same
-move this repo already makes for services, quests, cron jobs and e2e checks.
+move this repo already makes for services, flows, cron jobs and e2e checks.
 Nothing enumerates them.
 
 A hermes profile is its own `HERMES_HOME`: its own `config.yaml`, `.env`,
@@ -86,6 +86,6 @@ params:
 <the task>
 ```
 
-`hermes_router` emits exactly that message after picking a department. Setup
-guide: the **Hermes Departments** quest. Deeper reference:
+`hermes_router` emits exactly that message after picking a department. Setup and
+reference:
 <https://existential.company/docs/decree/routing>.

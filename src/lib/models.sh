@@ -3,7 +3,9 @@
 #
 #   ./existential.sh run models
 #
-# Re-asks the VRAM question from first-run setup and rewrites the EXIST_MODEL_*
+# existential.sh runs it once on the first run (FIRST_RUN=1, which skips the
+# "apply it" steps: the build that follows applies it). After that, this is how
+# to change your answers. Asks about the GPU and its VRAM and rewrites the EXIST_MODEL_*
 # globals in .env.shared. Everything downstream reads those, so this is the only
 # place a model needs changing: honcho's config is re-rendered from them,
 # openviking's embedding settings come from them, the ollama migrations pull
@@ -70,6 +72,18 @@ VENDOR="$(gpu_vendor_pick "${CURRENT_VENDOR:-$GPU_VENDOR_DEFAULT}")"
 if [[ "$VENDOR" == "none" ]]; then
     PICKED=0
 else
+    # The models live elsewhere: ask where. Checked for shape only, since that
+    # machine may well be off right now; `./existential.sh test services` says
+    # whether it answers.
+    if [[ "$VENDOR" == "external" ]]; then
+        _url_default="$(env_get EXIST_MODEL_URL)"; _url_default="${_url_default:-http://192.168.1.20:8080/v1}"
+        printf '     Where is the model server (ollama, llama.cpp, any OpenAI /v1)? [%s]\n     ❯ ' "$_url_default"
+        read -r _url; _url="${_url:-$_url_default}"; _url="${_url%/}"
+        [[ "$_url" == */v1 ]] || _url="${_url}/v1"
+        [[ "$_url" =~ ^https?:// ]] || { echo "     Not a URL; using ${_url_default}. Fix it in .env.shared if wrong."; _url="$_url_default"; }
+        env_set EXIST_MODEL_URL "$_url"
+        echo "     How much VRAM does that machine have?"
+    fi
     PICKED="$(model_tier_pick "${CURRENT_GB:-$MODEL_TIER_DEFAULT_GB}" --gpu-only)"
     [[ -n "$PICKED" ]] || { echo "  Unchanged."; echo ""; exit 0; }
 fi
@@ -93,9 +107,7 @@ fi
 env_set EXIST_GPU_VENDOR "$VENDOR"
 # The vendor answer can forbid services outright -- `external` means the
 # models are on another box, so a local ollama would pull multi-GB models
-# nothing here queries. quest.sh applies the same list on first run; this is
-# the documented way back, so it has to apply it too or changing your mind
-# here silently leaves the forbidden service running.
+# nothing here queries. A changed mind must not leave the forbidden service running.
 while IFS= read -r _svc; do
     [[ -n "$_svc" ]] || continue
     if [[ "$(env_get "$_svc")" == "true" ]]; then
@@ -114,6 +126,7 @@ echo ""
 echo "  ${_C_GREEN}✓${_C_RESET}  ${VLABEL}"
 echo "  ${_C_GREEN}✓${_C_RESET}  ${TLABEL} — ${TCHAT} (${TSIZE}), ${TCTX} context"
 echo ""
+[[ -n "${FIRST_RUN:-}" ]] && exit 0
 echo "  Apply it:"
 echo "    ./existential.sh                      # re-renders honcho's config,"
 echo "                                          # and the compose file for ${VENDOR}"

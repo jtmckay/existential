@@ -88,7 +88,6 @@ flowchart LR
     cron__note_connect[/"cron: note-connect"/]
     cron__note_triage[/"cron: note-triage"/]
     cron__notes[/"cron: notes"/]
-    cron__notify[/"cron: notify"/]
     cron__openviking_index_knowledgebase[/"cron: openviking-index-knowledgebase"/]
     cron__routines_snapshot[/"cron: routines-snapshot"/]
     cron__you_were_here[/"cron: you-were-here"/]
@@ -103,7 +102,6 @@ flowchart LR
     cron__note_connect -->|cron| note_connect
     cron__note_triage -->|cron| note_triage
     cron__notes -->|cron| notes
-    cron__notify -->|cron| notify
     cron__openviking_index_knowledgebase -->|cron| openviking_index_dir
     cron__routines_snapshot -->|cron| routines_snapshot
     cron__you_were_here -->|cron| you_were_here

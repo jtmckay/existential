@@ -2,7 +2,7 @@
 # model-tiers.sh — VRAM tier → model selection. SOURCED ONLY, never run.
 #
 # One table mapping "how much VRAM do you have" to the EXIST_MODEL_* globals.
-# Consumed by src/quest.sh (the first-run question) and src/lib/models.sh
+# Consumed by src/lib/models.sh (the first-run question, and `run models`)
 # (`./existential.sh run models`, to change your mind later).
 #
 # ── How the sizes were picked ─────────────────────────────────────────────────
@@ -94,7 +94,7 @@ MODEL_TIERS=(
 # everyone and the wrong one for anybody who already knows the model they want.
 # The picker's last entry takes a name instead, and the answer travels back as
 # the token `custom:<tag>` — a shape model_tier_row and model_tier_env both
-# understand, so neither caller (src/quest.sh, src/lib/models.sh) needs a second
+# understand, so its caller (src/lib/models.sh) needs no second
 # code path for it. Nothing validates the tag: only ollama can say whether it
 # exists, and `run ollama pull-models` is where that shows up.
 MODEL_TIER_CUSTOM_CTX="65536"
@@ -117,7 +117,7 @@ model_tier_row() {
 }
 
 # model_tier_env <gb|custom:tag> — echo the KEY=VALUE lines a tier implies, one
-# per line. The caller writes them (quest.sh uses env_set); this stays pure so it
+# per line. The caller writes them (models.sh uses env_set); this stays pure so it
 # can be tested without touching .env.shared.
 model_tier_env() {
     local row chat ctx

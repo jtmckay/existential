@@ -169,13 +169,10 @@ Decree picks up the new file immediately — no restart needed.
 
 ## Setup
 
-:::note[The Capture quest]
-The **Capture** quest (`./existential.sh quest`) turns on Nextcloud and automation-webhook, and walks through copying both migrations below.
-Core does not include Nextcloud, so this is always a step you take.
-:::
-
-Two decree migrations, copied from `automation-examples/migrations/` into
-`volumes/workspace_data/.decree/migrations/`:
+`./existential.sh flow on nextcloud-capture` turns on Nextcloud and automation-webhook and copies
+the two decree migrations below into `volumes/workspace_data/.decree/migrations/`. Core does not
+include Nextcloud, so this is always a step you take. The flows built on it (`image-ocr`,
+`transcription`, `workspace-agent`) turn it on themselves and copy their processor in:
 
 - **`23-nextcloud-rclone-remote.md`** — the `nextcloud` rclone remote (WebDAV, as the admin
   user) that `file_processor` downloads through. `rclone_src` on the webhook's `/files` route

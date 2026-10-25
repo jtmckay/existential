@@ -29,8 +29,9 @@ cp "${REPO_DIR}/services/automation/exist.initial.sh" "${R}/services/automation/
 cp -r "${REPO_DIR}/services/automation/backup/cron.example" "${R}/services/automation/backup/"
 cp -rp "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${R}/automation/"
 cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.yml" "${REPO_DIR}/automation/handlers.yml" "${R}/automation/"
-mkdir -p "${R}/automation-examples/cron"
-cp "${REPO_DIR}"/automation-examples/cron/{you-were-here,look-back-weekly,look-back-monthly}.md "${R}/automation-examples/cron/"
+mkdir -p "${R}/src/utils"
+cp -r "${REPO_DIR}/flows" "${R}/"
+cp "${REPO_DIR}/src/utils/flows.sh" "${R}/src/utils/"
 # An install from before workspace/.decree: an active cron, a migration and its ledger.
 mkdir -p "${R}/automation/cron" "${R}/automation/migrations" "${R}/automation/secrets/rclone"
 printf -- '---\ncron: "* * * * *"\nmachine: notify\n---\n' > "${R}/automation/cron/old.md"
@@ -58,8 +59,12 @@ check "an old install's migration moves over" "[[ -f '${P}/migrations/01-old.md'
 check "the migration ledger moves with them" "grep -qx '01-old.md' '${P}/processed.md'"
 check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/workspace_data'"
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
-check "the you-were-here digest is on by default" "cmp -s '${R}/automation-examples/cron/you-were-here.md' '${P}/cron/you-were-here.md'"
-check "the weekly and monthly look backs are on by default" "cmp -s '${R}/automation-examples/cron/look-back-weekly.md' '${P}/cron/look-back-weekly.md' && cmp -s '${R}/automation-examples/cron/look-back-monthly.md' '${P}/cron/look-back-monthly.md'"
+check "the you-were-here digest is on by default" "cmp -s '${R}/flows/you-were-here/cron/you-were-here.md' '${P}/cron/you-were-here.md'"
+check "the weekly and monthly look backs are on by default" "cmp -s '${R}/flows/look-back/cron/look-back-weekly.md' '${P}/cron/look-back-weekly.md' && cmp -s '${R}/flows/look-back/cron/look-back-monthly.md' '${P}/cron/look-back-monthly.md'"
+check "so are clean-runs and health-checks" "[[ -f '${P}/cron/clean-runs.md' && -f '${P}/cron/health-checks.md' ]]"
+check "a flow that is not default is not switched on" "[[ ! -e '${P}/cron/newsletter.md' ]]"
+echo you-were-here > "${P}/flows-off"; rm "${P}/cron/you-were-here.md"; run_init
+check "a default flow turned off stays off" "[[ ! -e '${P}/cron/you-were-here.md' ]]"
 N="${R}/volumes/workspace_data/notes/my-first-note.md"
 check "notes/my-first-note.md is written" "[[ -s '${N}' ]]"
 for _w in claude .decree ntfy 'matching file' .gitignore; do

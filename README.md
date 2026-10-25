@@ -52,7 +52,7 @@ add-on serves `https://<slug>.<domain>` on your network or
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh quest      # pick your services
+./existential.sh            # asks about your GPU, builds Core
 docker compose up -d
 ```
 
@@ -64,7 +64,7 @@ from a service folder.
 
 ## What Core installs
 
-The first `quest` offers **Core**: open the work dir, talk to an AI about it, have decree
+The first run builds **Core**: open the work dir, talk to an AI about it, have decree
 automate it. Three services on one ordinary box, no GPU and no model downloads, reached over
 Tailscale's own HTTPS from every device you log in.
 
@@ -74,7 +74,7 @@ Tailscale's own HTTPS from every device you log in.
 | [Decree](https://existential.company/docs/decree/) | The automation daemon: machines run on a schedule or an inbox message |
 | [ntfy](https://existential.company/docs/services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
 
-Everything else is an add-on, one quest away: Caddy hostnames, monitoring, the webhook and
+Everything else is an add-on, one flow or flag away: Caddy hostnames, monitoring, the webhook and
 Nextcloud for capture, apps, local AI, voice and the house.
 
 ## How it fits together
@@ -112,7 +112,7 @@ flowchart TB
     dec --> ntfy
     cs -. "opencode" .-> model
     dec -. "automation/lib/model.sh" .-> model
-    addons -. "a quest or a flag each" .-> core
+    addons -. "a flow or a flag each" .-> core
 
     classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111
     classDef hub fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
@@ -133,7 +133,7 @@ templates render, no secrets are generated, nothing lands on disk.
 
 ## Optional add-ons
 
-Everything else is an add-on: a quest (`./existential.sh quest`) or one `EXIST_IS_*` flag, and
+Everything else is an add-on: a flow (`./existential.sh flow`) or one `EXIST_IS_*` flag, and
 none of it is needed for Core to work.
 
 ### Local AI

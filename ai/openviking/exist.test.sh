@@ -99,7 +99,7 @@ else
     GOT_DIM=$(printf '%s' "${PROBE}" | jq -r '.data[0].embedding | length' 2>/dev/null || true)
     if [[ -z "${GOT_DIM}" || "${GOT_DIM}" == "null" || "${GOT_DIM}" == "0" ]]; then
         # A setup state as often as a fault — a fresh ollama has pulled nothing
-        # yet, and the Local AI quest hands those pulls to the user — so warn.
+        # yet, and the pulls are the local-models flow's to do — so warn.
         warn "openviking embedding model available" \
              "no embedding from ${EMBED_MODEL} at ${EMBED_BASE}: ${PROBE:-no response}" \
              "Is the server at EXIST_MODEL_URL_EMBED up with ${EMBED_MODEL} loaded? (ollama: ./existential.sh run ollama pull-models)"
@@ -152,13 +152,13 @@ if [[ -d /repo ]]; then
     # Without an active cron nothing ever indexes, and the only symptom is
     # searches quietly returning nothing. The indexer is a routine of the main
     # decree daemon, so its cron lives in that daemon's project dir — openviking
-    # ships no decree/ of its own. Quest activates it (`copies` in 00-core.md).
+    # ships no decree/ of its own. The knowledgebase flow activates it.
     if compgen -G "/repo/volumes/workspace_data/.decree/cron/*openviking-index*" >/dev/null; then
         ok "openviking indexer cron active"
     else
         warn "openviking indexer cron active" \
              "no openviking-index cron in volumes/workspace_data/.decree/cron/" \
-             "cp automation-examples/cron/openviking-index-knowledgebase.md volumes/workspace_data/.decree/cron/, then: docker compose restart automation"
+             "./existential.sh flow on knowledgebase"
     fi
 fi
 

@@ -67,7 +67,7 @@ flowchart TB
    and `opencode` in the terminal, and `claude` started there already knows how to write a
    decree machine; [Nextcloud](./storage/nextcloud), if you add it, syncs it to your other devices.
 2. **decree is the hands.** It runs the machines in `workspace/.decree/` on a schedule or an
-   inbox message (or a webhook, with the Capture add-on), against your apps and your data, and tells you through ntfy.
+   inbox message (or a webhook, with the automation-webhook add-on), against your apps and your data, and tells you through ntfy.
    Every morning it writes a [you were here](./getting-started#you-were-here) digest of what
    needs you, what is holding steady and where you left off, and every Sunday and month-end a
    [look back](./getting-started#look-back) over them.
@@ -83,7 +83,8 @@ doesn't opt in.
 ## The AI, slot by slot
 
 None of this is in Core. Core needs only a model URL, and only for the automations that ask a
-model something; the **Local AI** quest adds the first five rows, **Voice & Home** the next ones.
+model something; each row is a flag, and the flows that need one turn it on (`local-models`,
+`knowledgebase`, `home-voice`, ...).
 
 | Slot | Ships as | Why it's separate |
 |---|---|---|
@@ -96,7 +97,7 @@ model something; the **Local AI** quest adds the first five rows, **Voice & Home
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper) | The voice it answers in, over the same protocol and also on CPU — a spoken reply has to land immediately. |
 | **Voice front end** | [Home Assistant](./services/homeassistant) | Wake word, microphones, speakers, and the ability to actually *do* something in the house. |
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx) | A different job: long recordings with speaker labels, on the GPU, driven by decree rather than by HA. |
-| **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No quest enables it and nothing in the stack calls it yet — it is here for you to build against. |
+| **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox) | Optional, and off by default: expressive and cloneable over an OpenAI-compatible API, for audio generated outside the HA pipeline. No flow turns it on and nothing in the stack calls it yet — it is here for you to build against. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Day-to-day conversation in a browser. Opt-in: Hermes also answers by voice, from code-server's terminal (`hermes "..."`), and from automations. |
 | **Search** | [qmd](./ai/qmd) | Finds what you wrote or keep (notes, PDF and Word files), by exact words and by meaning, from a terminal or for Claude Code and opencode in code-server. Its own add-on (**Search**), on the CPU, with no model URL needed. |
 
@@ -397,7 +398,7 @@ internal CA is the only option there, which is why the default keeps it.
 
 ## Core vs. complementary services
 
-This is about the network, not the Core quest: the Monitoring add-on is complementary by this
+This is about the network, not what ships on: the monitoring services are complementary by this
 test.
 
 Not everything needs to be on that network. A service is **core** if it talks to other

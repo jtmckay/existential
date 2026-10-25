@@ -7,10 +7,11 @@
 # here. What triage cannot see is a first install — templates rendering,
 # migrations running, one service reaching another for the first time.
 #
-# Per selected quest: copy the WORKING TREE into a throwaway clone (tracked
-# files plus untracked-but-not-ignored ones, so uncommitted work is what gets
-# tested and secrets stay out by git's own ignore rules), enable the quest's
-# services, apply its copies:, render, up, then drop this run's CHECKS into the
+# Per unit, Core and then each flow marked `e2e: true`: copy the WORKING TREE
+# into a throwaway clone (tracked files plus untracked-but-not-ignored ones, so
+# uncommitted work is what gets tested and secrets stay out by git's own ignore
+# rules), turn the flow on (its services, the flows it needs, its files),
+# render, up, then drop this run's CHECKS into the
 # decree inbox once the stack is healthy and let the daemon run them. Evidence
 # lands in e2e-out/ before teardown.
 #
@@ -19,8 +20,8 @@
 # adding a file; nothing here enumerates them.
 #
 # Usage (via existential.sh):
-#   ./existential.sh e2e                 # every e2e-able quest
-#   ./existential.sh e2e automation      # quests matching a name/filename pattern
+#   ./existential.sh e2e                 # Core, then every e2e flow
+#   ./existential.sh e2e core search     # units matching a name pattern
 #   ./existential.sh e2e down            # reclaim artifacts from a crashed run
 #
 # Env:
@@ -32,8 +33,9 @@
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FIXTURES="${REPO_DIR}/src/test/fixtures"
-QUEST_DIR="${REPO_DIR}/src/quests"
 
+# shellcheck source=../../utils/flows.sh
+. "${REPO_DIR}/src/utils/flows.sh"
 # shellcheck source=../../utils/gpu-vendor.sh
 . "${REPO_DIR}/src/utils/gpu-vendor.sh"
 # Evidence collection, kept sourceable so harness-selftest.sh can drive it
@@ -53,61 +55,30 @@ hr()   { printf '[e2e] '; printf '%0.s─' {1..54}; echo; }
 # -p/-f pair was a chance to address the wrong stack.
 _compose() { local w="$1"; shift; docker compose -p "$E2E_PROJECT" -f "$w/docker-compose.yml" "$@"; }
 
-# ── Quest frontmatter ─────────────────────────────────────────────────────────
-# Scalars come from e2e_fm_get (results.sh). quest_fm survives for the two
-# LISTS, which a single-key reader cannot express. Everything is scoped to the
-# frontmatter: a guide that happens to show a `- var:` line in an example is
-# prose, not config.
+# ── Units ─────────────────────────────────────────────────────────────────────
+# "core" is the install as it ships; every other unit is a flow marked e2e: true,
+# turned on over Core the way `./existential.sh flow on` does it. The rest need
+# external infrastructure (a Gmail grant, a NAS, model checkpoints).
 
-quest_fm()   { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1"; }
-quest_name() { e2e_fm_get "$1" name; }
-quest_vars() { quest_fm "$1" | grep '^\s*- var:' | awk '{print $3}'; }
-
-# The quest's `copies:` — the migrations and cron files quest.sh installs for a
-# real install. Emits "src<TAB>dst<TAB>requires". Parsed here rather than with
-# yq because e2e.sh runs on the HOST, which has no yq (quest.sh has one; it runs
-# in adhoc). Skipping this is how every ollama migration came to be a
-# silent no-op under e2e.
-quest_copies() {
-    quest_fm "$1" | awk '
-        /^copies:[[:space:]]*$/ { in_copies = 1; next }
-        in_copies && /^[^ \t-]/ { in_copies = 0 }
-        !in_copies { next }
-        /^[[:space:]]*-[[:space:]]*src:/ {
-            if (src != "") print src "\t" dst "\t" req
-            src = $0; sub(/^[^:]*:[[:space:]]*/, "", src); dst = ""; req = ""; next
-        }
-        /^[[:space:]]*dst:/      { dst = $0; sub(/^[^:]*:[[:space:]]*/, "", dst); next }
-        /^[[:space:]]*requires:/ { req = $0; sub(/^[^:]*:[[:space:]]*/, "", req); next }
-        END { if (src != "") print src "\t" dst "\t" req }
-    '
-}
-
-# Every quest marked e2e: true, Core's numbered slices first (they sort ahead
-# of the add-ons). The rest need external infrastructure (NAS/NFS, DNS, TLS);
-# validate-conventions.ts makes a numbered one carry an e2e_skip: reason.
-automatable_quests() {
-    local yaml
-    for yaml in "${QUEST_DIR}"/*.md; do
-        [ "$(e2e_fm_get "$yaml" e2e)" = true ] && echo "$yaml"
-    done
+unit_name() { if [ "$1" = core ]; then echo Core; else flow_get "$1" name; fi; }
+units() {
+    local n
+    echo core
+    for n in $(flow_names); do [ "$(flow_get "$n" e2e)" = true ] && echo "$n"; done
     return 0
 }
 
-# Resolve name patterns ("automation", "ai finance") to quest paths, matched
-# case-insensitively against the quest's name: and its filename.
-quests_by_names() {
-    local -a all=(); mapfile -t all < <(automatable_quests)
-    local pat yaml found
+# Resolve name patterns ("core", "search") to units, matched case-insensitively
+# against the unit's id and its name.
+units_by_names() {
+    local -a all=(); mapfile -t all < <(units)
+    local pat u found
     for pat in "$@"; do
         found=""
-        for yaml in "${all[@]}"; do
-            if grep -qi -- "$pat" <<<"$(quest_name "$yaml")" \
-            || grep -qi -- "$pat" <<<"$(basename "$yaml" .md)"; then
-                echo "$yaml"; found=1
-            fi
+        for u in "${all[@]}"; do
+            if grep -qi -- "$pat" <<<"$u $(unit_name "$u")"; then echo "$u"; found=1; fi
         done
-        [ -n "$found" ] || log "No e2e-able quest matched '${pat}' — skipped" >&2
+        [ -n "$found" ] || log "No e2e unit matched '${pat}' — skipped" >&2
     done
 }
 
@@ -186,7 +157,7 @@ wait_settled() {
 # There are TWO daemons, each its own decree project with its own machines/,
 # inbox/ and runs/, so "the inbox" is a question with two answers. A message for
 # a machine its project does not have is a failed run (invalid_message), which
-# is how 00-services once failed every quest after triage moved projects.
+# is how 00-services once failed every run after triage moved projects.
 #
 # The daemon is DERIVED, never listed: a check names a machine, and the daemon
 # that owns it is whichever project has machines/<machine>.yml. `automation` is
@@ -218,9 +189,9 @@ check_daemon() {
     echo automation
 }
 
-# Checks whose `requires:` vars are all enabled in the clone. A quest without
+# Checks whose `requires:` vars are all enabled in the clone. A unit without
 # nextcloud must not get the file-event probe: staging it anyway would fail a stack that
-# is behaving exactly as that quest asked.
+# is behaving exactly as that unit asked.
 applicable_checks() {
     local work="$1" md var missing
     for md in "$CHECK_DIR"/[0-9][0-9]-*.md; do
@@ -244,11 +215,11 @@ applicable_checks() {
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
 # it is a message, not a migration. It is COPIED from checks/ rather than
-# shipped in automation-examples/, which is what a user's quest copies from:
-# test code has no business in the product tree.
+# shipped in flows/, which is what a user's install copies from: test code has
+# no business in the product tree.
 stage_checks() {
     local work="$1" md m st
-    [ -d "$work/automation/machines" ] || { log "  (no decree in this quest — no checks to stage)"; return 0; }
+    [ -d "$work/automation/machines" ] || { log "  (no decree in this unit — no checks to stage)"; return 0; }
 
     while IFS= read -r md; do
         [ -n "$md" ] || continue
@@ -313,7 +284,7 @@ drop_checks() {
         log "  → $(basename "$md" .md) (${d})"
         n=$(( n + 1 ))
     done < <(applicable_checks "$work")
-    [ "$n" -gt 0 ] || { log "  (no checks apply to this quest)"; return 1; }
+    [ "$n" -gt 0 ] || { log "  (no checks apply to this unit)"; return 1; }
     return 0
 }
 
@@ -329,9 +300,9 @@ await_checks() {
 # The clone is deleted on the way out, so anything not copied here is gone. This
 # is what makes a failure readable after the fact instead of only under E2E_KEEP.
 
-collect_quest_results() {
-    local work="$1" quest="$2" out slug rc=0 id name state stuck d
-    slug="$(printf '%s' "$quest" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
+collect_unit_results() {
+    local work="$1" unit="$2" out slug rc=0 id name state stuck d
+    slug="$(printf '%s' "$unit" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')"
     out="${E2E_OUT}/$(date '+%Y-%m-%d_%H-%M-%S')-${slug}"
 
     # Each daemon keeps its own runs/, and a check graded from the wrong one
@@ -370,15 +341,15 @@ collect_quest_results() {
     return "$rc"
 }
 
-# ── Per-quest runner ──────────────────────────────────────────────────────────
+# ── Per-unit runner ───────────────────────────────────────────────────────────
 
-WORK=""; QUEST_LABEL=""; COLLECTED=0
+WORK=""; UNIT_LABEL=""; COLLECTED=0
 
 cleanup() {
     # Collect first, if the run did not get that far itself — a crash, a failed
     # `up`, or a Ctrl+C is the case that most needs its evidence.
     if [ "$COLLECTED" -eq 0 ] && [ -n "$WORK" ] && [ -d "$(_daemon_dir automation "$WORK")/runs" ]; then
-        collect_quest_results "$WORK" "${QUEST_LABEL:-interrupted}" || true
+        collect_unit_results "$WORK" "${UNIT_LABEL:-interrupted}" || true
         COLLECTED=1
     fi
     if [ "${E2E_KEEP:-}" = "1" ] && [ -n "$WORK" ]; then
@@ -407,12 +378,12 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-run_quest() {
-    local yaml="$1" name vendor var src dst req n=0 health_rc=0 checks_rc=0
-    name=$(quest_name "$yaml")
+run_unit() {
+    local unit="$1" name vendor var src f n=0 health_rc=0 checks_rc=0
+    name=$(unit_name "$unit")
 
     hr; log "${name} — start"; hr
-    QUEST_LABEL="$name"; COLLECTED=0
+    UNIT_LABEL="$name"; COLLECTED=0
     WORK="${REPO_DIR}/.tmp-e2e-$(date '+%Y-%m-%d_%H-%M')-$$"
     mkdir -p "$WORK"
 
@@ -436,17 +407,12 @@ run_quest() {
     grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
     grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
-    # 3. Enable the quest's services, plus decree and ntfy unconditionally:
-    #    decree is where the checks RUN, and ntfy is where it reports a failed
-    #    run. An add-on quest lists neither (a real install has them from Core),
-    #    and without ntfy one failure shows twice, the second as a notify run
-    #    that could not resolve the host.
+    # 3. Core's services, then the flow's: its own and those of every flow it
+    #    needs. The vendor answer outranks the list, as `flow on` does.
     log "Enabling services..."
-    sed -i 's|^EXIST_IS_SERVICES_AUTOMATION=false|EXIST_IS_SERVICES_AUTOMATION=true|; s|^EXIST_IS_SERVICES_NTFY=false|EXIST_IS_SERVICES_NTFY=true|' "$WORK/.env.shared"
     vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
-    for var in $(quest_vars "$yaml"); do
-        # The quest lists what it wants; the vendor answer outranks it, the same
-        # rule quest.sh applies to a real install from the same list.
+    for var in $(grep -oE '^EXIST_IS_[A-Z_]+=true' "$WORK/.env.exist.shared" | cut -d= -f1) \
+               $( [ "$unit" = core ] || for f in $(flow_closure "$unit"); do flow_list "$f" services; done ); do
         if [ -n "$vendor" ] && vendor_forbids_service "$vendor" "$var"; then
             log "  skipping ${var} — EXIST_GPU_VENDOR=${vendor}"
             continue
@@ -463,17 +429,15 @@ run_quest() {
             || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
-    # 4. The quest's copies: — its migrations and cron files. requires: is
-    #    answered against the .env.shared step 3 has just written.
-    while IFS=$'\t' read -r src dst req; do
-        [ -n "$src" ] || continue
-        [ -n "$req" ] && ! grep -q "^${req}=true" "$WORK/.env.shared" && continue
-        [ -f "$WORK/$src" ] || { log "  warn: ${src} not in the clone — skipped"; continue; }
-        mkdir -p "$WORK/${dst%/}"
-        cp -n "$WORK/$src" "$WORK/${dst%/}/${src##*/}" 2>/dev/null || continue
-        n=$(( n + 1 ))
-    done < <(quest_copies "$yaml")
-    log "Applied ${n} quest copies"
+    # 4. The flow's files: its migrations, cron files and file processors, and
+    #    those of every flow it needs. Core's default flows arrive with
+    #    exist.initial.sh, below, exactly as on a real install.
+    if [ "$unit" != core ]; then
+        for f in $(flow_closure "$unit"); do
+            n=$(( n + $(REPO_DIR="$WORK" flow_activate "$f" | wc -l) ))
+        done
+    fi
+    log "Activated ${n} flow files"
 
     # 5. Stage the checks — before the render, because what this touches
     #    (machines/ and scripts/, seeded by exist.initial.sh, and the webhook route table) is read at boot.
@@ -536,7 +500,7 @@ run_quest() {
     drop_checks "$WORK" || checks_rc=1
     [ "$checks_rc" -eq 0 ] && { await_checks "$WORK" || checks_rc=1; }
 
-    collect_quest_results "$WORK" "$name" || checks_rc=1
+    collect_unit_results "$WORK" "$name" || checks_rc=1
     COLLECTED=1
 
     [ "$health_rc" -eq 0 ] && [ "$checks_rc" -eq 0 ] || return 1
@@ -579,20 +543,19 @@ docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build 
 
 declare -a SELECTED=()
 if [ "$#" -gt 0 ]; then
-    mapfile -t SELECTED < <(quests_by_names "$@" | awk '!seen[$0]++')
-    [ "${#SELECTED[@]}" -gt 0 ] || die "No e2e-able quests matched: $*"
+    mapfile -t SELECTED < <(units_by_names "$@" | awk '!seen[$0]++')
+    [ "${#SELECTED[@]}" -gt 0 ] || die "No e2e unit matched: $*"
 else
-    mapfile -t SELECTED < <(automatable_quests)
-    [ "${#SELECTED[@]}" -gt 0 ] || die "No automatable quests found."
+    mapfile -t SELECTED < <(units)
 fi
 
-log "Selected quests:"
-for yaml in "${SELECTED[@]}"; do log "  • $(quest_name "$yaml")"; done
+log "Selected:"
+for u in "${SELECTED[@]}"; do log "  • $(unit_name "$u")"; done
 
 declare -a PASS=() FAIL=()
-for yaml in "${SELECTED[@]}"; do
-    name=$(quest_name "$yaml")
-    if run_quest "$yaml"; then
+for u in "${SELECTED[@]}"; do
+    name=$(unit_name "$u")
+    if run_unit "$u"; then
         PASS+=("$name")
     else
         FAIL+=("$name")
