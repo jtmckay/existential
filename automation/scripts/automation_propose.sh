@@ -12,6 +12,8 @@
 set -euo pipefail
 # shellcheck source=../lib/model.sh
 source "${DECREE_LIB}/model.sh"
+# shellcheck source=../lib/firecrawl.sh
+source "${DECREE_LIB}/firecrawl.sh"
 
 WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
 name="$DECREE_DATA_NAME" when="$DECREE_DATA_WHEN" steps="$DECREE_DATA_STEPS" rel="$DECREE_DATA_NOTE_PATH"
@@ -32,6 +34,8 @@ Why it is wanted, quoting the person'"'"'s instruction.
 - What starts it: a note of theirs that is <the event>, or a file matching <a glob> changing,
   or a schedule (<when, in words>). Choose the one their instruction means.
 - What it produces, one bullet per step, as results (what is found or written).
+- When they ask for a judgement (is it worth building, buying, doing), the first result is
+  the verdict: favorable, unfavorable, or already done by someone, named.
 - Its results are written to ai/automations/<name>/ and their first lines sent to their phone.
 - Anything that needs the person (pay, sign up, send, decide) is listed for them, not done.
 ## Constraints
@@ -40,6 +44,11 @@ Why it is wanted, quoting the person'"'"'s instruction.
 ## Acceptance Criteria
 - **Given** <the trigger> **When** <it happens> **Then** <an observable result>
 (two or three of these)'
+if firecrawl_on; then system+='
+The stack can search and read the web, so research steps search it and cite their sources.'
+else system+='
+The stack cannot search the web: a step that needs it is listed for the person instead.'
+fi
 user="Name: ${name}
 When: ${when}
 Steps the person asked for:

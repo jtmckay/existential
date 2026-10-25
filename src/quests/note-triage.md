@@ -75,9 +75,9 @@ And in automation/.env, for every run (these are environment, not params):
                     note, e.g. nextcloud:Notes. Without it the draft stays in
                     /data/note-triage/output — do NOT point it at /data/notes,
                     that path is an rclone sync cache and gets wiped.
-  FIRECRAWL_URL     set to http://firecrawl:3002 to research before drafting.
-                    Without it, note_develop says where it would have looked
-                    instead of inventing a market.
+
+With Firecrawl enabled, note_develop searches the web before drafting; without
+it, it says where it would have looked instead of inventing a market.
 
 Activate the hourly scan:
   mkdir -p volumes/workspace_data/.decree/cron/

@@ -6,9 +6,8 @@
 # a draft plan, and — the part that matters — the questions it could not answer
 # without you.
 #
-# Optional web research: set FIRECRAWL_URL and FIRECRAWL_API_KEY and it will
-# search before drafting. Without them it says so in the output rather than
-# inventing a market.
+# With Firecrawl enabled it searches the web before drafting (lib/firecrawl.sh).
+# Without it, it says so in the output rather than inventing a market.
 #
 # Output is written locally and, when NOTE_OUTPUT_RCLONE_DEST is set, copied
 # back beside the original note. It is NOT written into NOTES_DIR — that path is
@@ -29,8 +28,6 @@ export MODEL_TEMPERATURE=0.2
 NOTE_OUTPUT_SUFFIX="${NOTE_OUTPUT_SUFFIX:-.plan.md}"
 NOTE_OUTPUT_RCLONE_DEST="${NOTE_OUTPUT_RCLONE_DEST:-}"
 NOTE_NOTIFY="${NOTE_NOTIFY:-true}"
-FIRECRAWL_URL="${FIRECRAWL_URL:-}"
-FIRECRAWL_API_KEY="${FIRECRAWL_API_KEY:-}"
 
 # --- Implementation ---
 
@@ -59,11 +56,13 @@ fi
 
 # shellcheck source=../lib/model.sh
 source "${DECREE_LIB}/model.sh"
+# shellcheck source=../lib/firecrawl.sh
+source "${DECREE_LIB}/firecrawl.sh"
 
 # --- Optional: web research ------------------------------------------------
 
 research=""
-if [ -n "$FIRECRAWL_URL" ]; then
+if firecrawl_on; then
     echo "Researching via Firecrawl..."
     query="$(model_chat \
         "Write a single web search query that would find existing products or companies doing what this note describes. Reply with the query text only, no quotes, no explanation." \
@@ -72,19 +71,11 @@ if [ -n "$FIRECRAWL_URL" ]; then
 
     if [ -n "$query" ]; then
         echo "  query: ${query}"
-        fc_args=(-fsS --max-time 120 -X POST "${FIRECRAWL_URL%/}/v1/search"
-            -H "Content-Type: application/json")
-        if [ -n "$FIRECRAWL_API_KEY" ]; then
-            fc_args+=(-H "Authorization: Bearer ${FIRECRAWL_API_KEY}")
-        fi
-        research="$(curl "${fc_args[@]}" \
-            -d "$(jq -n --arg q "$query" '{query:$q, limit:5}')" 2>/dev/null \
-            | jq -r '[.data[]? | "- \(.title // "untitled") — \(.url // "")\n  \(.description // "")"] | join("\n")' \
-            2>/dev/null || true)"
+        research="$(web_search "$query" 5 || true)"
     fi
 
     if [ -n "$research" ]; then
-        echo "  found $(printf '%s' "$research" | grep -c '^- ' || true) result(s)"
+        echo "  found $(printf '%s' "$research" | grep -c '^<source ' || true) result(s)"
     else
         echo "  no results (continuing without research)"
     fi

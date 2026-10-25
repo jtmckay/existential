@@ -18,6 +18,8 @@ set -euo pipefail
 source "${DECREE_LIB}/model.sh"
 # shellcheck source=../lib/automations/registry.sh
 source "${DECREE_LIB}/automations/registry.sh"
+# shellcheck source=../lib/firecrawl.sh
+source "${DECREE_LIB}/firecrawl.sh"
 
 name="${DECREE_DATA_AUTOMATION:?the migration names no automation}" from="${DECREE_DATA_FROM:-}"
 [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "develop: '${name}' is not a machine name" >&2; exit 1; }
@@ -39,6 +41,19 @@ language model), curl and jq. It prints its results as Markdown, one "## " headi
 step. A step needing the person becomes a "## For you" item. It never writes or deletes
 files, never reads /secrets, never sends data anywhere but ask and public read-only APIs.
 A file trigger never matches ai/, .decree/ or notes/automations/.'
+if firecrawl_on; then system+='
+It can read the web: web_search "<query>" [n] prints the top n results (default 5), each
+page'"'"'s text in a <source url="..."> tag, and web_read <url> prints one page. Search several angles, then
+give ask the sources with an instruction to use only them, say so when there are none, and cite each claim'"'"'s URL:
+    sources="$(web_search "<query>" 5; web_search "<another angle>" 5)"
+    echo "## <step>"; ask "<instructions>. Use only the sources below; cite URLs." "$NOTE
+
+$sources"
+A step whose answer the person will act on (build it or not, buy it or not) comes first,
+as "## Verdict", so it is what reaches their phone.'
+else system+='
+There is no web search: a step that needs the web says, in "## For you", where to look.'
+fi
 user="The spec:
 ${spec}"
 [[ -s "$errors" ]] && user+="
@@ -66,6 +81,7 @@ case "$kind" in
 esac
 if [[ "$code" != steps\(\)* ]]; then fails+=("no steps() function after the TRIGGER line")
 elif ! err="$(bash -n <<<"$code" 2>&1)"; then fails+=("the steps function does not parse: ${err}"); fi
+firecrawl_on || ! grep -qE '\bweb_(search|read)\b' <<<"$code" || fails+=("web_search and web_read need Firecrawl, which is off")
 fail_gate() {
     printf -- '- %s\n' "${fails[@]}" > "$errors"
     echo "develop: ${name} failed the gate:" >&2; cat "$errors" >&2

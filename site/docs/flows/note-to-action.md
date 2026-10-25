@@ -323,7 +323,6 @@ to every run:
 | `TRIAGE_MAX_CHARS` | `6000` | Note text is truncated to this many characters before judging |
 | `MODEL_TIMEOUT` | `120` (`300` in `note_develop`) | Seconds per model call before it's treated as no verdict |
 | `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note_develop`'s draft is copied, e.g. `nextcloud:Notes` |
-| `FIRECRAWL_URL` | *(unset)* | Set to `http://firecrawl:3002` for `note_develop` web research |
 
 No code changes either way.
 
@@ -341,7 +340,7 @@ are copied back to the vault over rclone instead.
 | Detecting new and changed notes | **Ships.** `note_triage` hashes the vault and diffs against the last run |
 | The triage call and the chain | **Ships.** `note_triage` → `decree emit` → next machine |
 | Knowing an idea is already evaluated | **Ships.** The ledger at `/data/note-triage/ideas.tsv` |
-| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) research when configured |
+| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) research when it is enabled |
 | Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` (research and sales) |
 | Indexing notes for retrieval | **Ships.** A decree cron uploads `workspace/` into [OpenViking](../ai/openviking) every 15 minutes and keeps it queryable |
 | Notifying you | **Ships.** `notify` → ntfy |

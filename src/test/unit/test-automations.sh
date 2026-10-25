@@ -13,8 +13,11 @@
 #   develop   builds machine, script and a note trigger; a file trigger becomes a
 #             handler, a cron trigger a cron file; a failed gate is undone and its
 #             errors are kept for the next attempt
+#   web       web_search and web_read return Firecrawl's pages as Markdown; develop
+#             tells the model about them only when Firecrawl is on, and refuses
+#             steps that use them when it is off
 #   trigger   a later note the model matches starts it, and only an accepted one;
-#             it writes its results and notifies
+#             it researches the web, writes its results and notifies the verdict
 #   edit      a changed spec of a built automation is run again
 #   remove    deleting the spec removes all of it
 #
@@ -38,28 +41,39 @@ assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found:
 TMP="$(mktemp -d)"; STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
-# ── The model: note_watch's question, the code request, and `ask` from steps ──
+# ── The model (note_watch's question, the code request, `ask` from steps) and
+# Firecrawl (/v2/search, /v2/scrape), on one port ──────────────────────────────
 cat > "${TMP}/stub.js" <<'JS'
 const http = require("node:http"), fs = require("node:fs");
 const dir = process.argv[2];
 http.createServer((req, res) => {
   let body = ""; req.on("data", (c) => (body += c));
   req.on("end", () => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.url === "/v2/search") {
+      const q = JSON.parse(body).query;
+      fs.appendFileSync(`${dir}/searches`, `${q}\n`);
+      return res.end(JSON.stringify({ success: true, data: { web: [
+        { url: "https://walkies.example/plans", title: "Walkies: dog walking plans",
+          description: "Monthly dog walking", markdown: `# Walkies\nMonthly plans from $99, for: ${q}` },
+      ] } }));
+    }
+    if (req.url === "/v2/scrape") return res.end(JSON.stringify({ success: true, data: { markdown: `# Page at ${JSON.parse(body).url}` } }));
     const m = JSON.parse(body || "{}").messages || [];
     const sys = (m[0] && m[0].content) || "", user = (m[1] && m[1].content) || "";
-    if (sys.includes("build one automation")) fs.writeFileSync(`${dir}/build-prompt`, user);
+    if (sys.includes("build one automation")) { fs.writeFileSync(`${dir}/build-prompt`, user); fs.writeFileSync(`${dir}/build-system`, sys); }
     const content = sys.includes("answer two questions") ? fs.readFileSync(`${dir}/watch-reply`, "utf8")
       : sys.includes("You write a decree migration") ? fs.readFileSync(`${dir}/spec-reply`, "utf8")
       : sys.includes("build one automation") ? fs.readFileSync(`${dir}/build-reply`, "utf8")
-      : `ANSWER to ${sys.slice(0, 20)} about ${user.split("\n")[0].slice(0, 40)}`;
-    res.setHeader("Content-Type", "application/json");
+      : `ANSWER to ${sys.slice(0, 20)} about ${user.split("\n")[0].slice(0, 40)}${user.includes("walkies.example") ? ", citing walkies.example" : ""}`;
     res.end(JSON.stringify({ choices: [{ message: { content } }] }));
   });
 }).listen(0, "127.0.0.1", function () { fs.writeFileSync(`${dir}/port`, String(this.address().port)); });
 JS
 node "${TMP}/stub.js" "$TMP" & STUB_PID=$!
 for _ in $(seq 50); do [[ -s "${TMP}/port" ]] && break; sleep 0.1; done
-MODEL="http://127.0.0.1:$(cat "${TMP}/port")/v1"
+STUB="http://127.0.0.1:$(cat "${TMP}/port")"
+MODEL="${STUB}/v1"
 
 # ── `decree`: emit is a file per message; check exits with $TMP/check-rc ──────
 mkdir -p "${TMP}/bin" "${TMP}/emits"
@@ -86,7 +100,7 @@ run() {  # run <script> [VAR=value...]: one decree run of a shipped script, in t
     mkdir -p "${TMP}/run" "${TMP}/store"
     ( cd "$W" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" DECREE_LIB="${REPO_DIR}/automation/lib" \
         DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="${TMP}/run" AUTOMATIONS_WORKSPACE="$W" \
-        EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST:-$MODEL}" EXIST_MODEL_CHAT=test-model "$@" \
+        EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST:-$MODEL}" EXIST_MODEL_CHAT=test-model FIRECRAWL_URL="$STUB" "$@" \
         bash "$script" ) > "${TMP}/last.log" 2>&1
     echo $?
 }
@@ -154,19 +168,38 @@ assert_eq "a name decree already has is refused" "1" "$(run "$SCRIPTS/reconcile.
 assert_eq "...and that machine is untouched" "name: notify" "$(cat "$W/.decree/machines/notify.yml")"
 rm -f "$W/notes/automations/notify.md"
 
+echo ""; echo "=== web ==="
+web() { ( export FIRECRAWL_URL="$1"; source "${REPO_DIR}/automation/lib/firecrawl.sh"; shift; "$@" ) 2>&1; }
+SOURCES="$(web "$STUB" web_search "dog walking subscriptions")"
+assert_has "web_search gives each result as a source with its URL" "$SOURCES" '<source url="https://walkies.example/plans">'
+assert_has "...its title" "$SOURCES" "# Walkies: dog walking plans"
+assert_has "...and the page's text" "$SOURCES" "Monthly plans from \$99, for: dog walking subscriptions"
+assert_has "web_read gives one page" "$(web "$STUB" web_read https://walkies.example/)" "# Page at https://walkies.example/"
+assert_has "with Firecrawl off, web_search says how to turn it on" "$(web "" web_search x)" "EXIST_IS_AI_FIRECRAWL=true"
+assert_has "...and an unreachable one says so" "$(web "http://127.0.0.1:9" web_search x)" "no answer from"
+assert_eq "...and fails" "1" "$(web "http://127.0.0.1:9" web_search x >/dev/null; echo $?)"
+
 echo ""; echo "=== develop ==="
 reset_emits
 develop() { run "$SCRIPTS/develop.sh" DECREE_MESSAGE="$W/.decree/migrations/${MIGRATION}" DECREE_DATA_AUTOMATION="$1" DECREE_DATA_FROM=notes/process.md; }
 cat > "${TMP}/build-reply" <<'BUILD'
 TRIGGER: {"kind": "note", "when": "a new business idea"}
 steps() {
-    echo "## Who already does it"
-    ask "List who already does this." "$NOTE"
+    local sources
+    sources="$(web_search "competitors: $(head -1 <<<"$NOTE")" 5)"
+    echo "## Verdict"
+    ask "Favorable, unfavorable, or already done. Use only the sources below; cite URLs." "$NOTE
+
+$sources"
+    echo "## Existing solutions"
+    printf '%s\n' "$sources" | sed -n 's/^<source url="\(.*\)">$/- \1/p'
     echo "## One-page plan"
     ask "Draft a one-page plan." "$NOTE"
 }
 BUILD
 assert_eq "develop builds it" "0" "$(develop $NAME)"
+assert_has "with Firecrawl on, the model is told to put a verdict first" "$(cat "${TMP}/build-system" 2>/dev/null)" '"## Verdict"'
+assert_has "...through web_search" "$(cat "${TMP}/build-system" 2>/dev/null)" 'web_search "<query>"'
 assert_has "its machine invokes its script" "$(cat "$W/.decree/machines/${NAME}.yml" 2>/dev/null)" "invoke: ${NAME}"
 assert_eq "its script is executable" "yes" "$([[ -x "$W/.decree/scripts/${NAME}.sh" ]] && echo yes || echo no)"
 assert_has "...and runs the built steps inside the shared frame" "$(cat "$W/.decree/scripts/${NAME}.sh" 2>/dev/null)" 'source "${DECREE_LIB}/automations/run.sh"'
@@ -199,6 +232,14 @@ assert_eq "...and is undone" "no" "$([[ -e "$W/.decree/machines/loop_thing.yml" 
 assert_lacks "...registry entry included" "$(cat "$W/.decree/automations.yml")" "loop_thing"
 assert_has "...the others are still there" "$(cat "$W/.decree/automations.yml")" "pdf_filer"
 
+# With Firecrawl off, the model is not told about the web, and steps that use it fail the gate.
+cp "$W/.decree/migrations/${MIGRATION}" "$W/.decree/migrations/A4-offline_thing.md"
+printf 'TRIGGER: {"kind": "note", "when": "x"}\nsteps() { web_search "x"; }\n' > "${TMP}/build-reply"
+assert_eq "with Firecrawl off, steps that search the web fail the gate" "1" "$(run "$SCRIPTS/develop.sh" DECREE_MESSAGE="$W/.decree/migrations/A4-offline_thing.md" DECREE_DATA_AUTOMATION=offline_thing FIRECRAWL_URL=)"
+assert_has "...saying why" "$(cat "${TMP}/last.log")" "need Firecrawl, which is off"
+assert_lacks "...and the model was not offered web_search" "$(cat "${TMP}/build-system")" "web_search"
+rm -f "${TMP}/run/gate.err"
+
 echo ""; echo "=== trigger ==="
 reset_emits
 printf '# Dog walking subscriptions\n\nA monthly plan for busy owners in my neighbourhood.\n' > "$W/notes/ideas/dog-walking.md"
@@ -212,6 +253,10 @@ assert_eq "the automation runs" "0" "$(run "$W/.decree/scripts/${NAME}.sh" DECRE
 RESULT="$(cat "$W/ai/automations/${NAME}/"*-dog-walking.md 2>/dev/null)"
 assert_has "its results are written to ai/automations/<name>/" "$RESULT" "## One-page plan"
 assert_has "...with what the model answered for each step" "$RESULT" "ANSWER to Draft a one-page pla"
+assert_has "it searched the web for the idea" "$(cat "${TMP}/searches" 2>/dev/null)" "competitors: # Dog walking subscriptions"
+assert_has "...and the verdict is drawn from those pages" "$RESULT" "ANSWER to Favorable, unfavorab about # Dog walking subscriptions, citing walkies.example"
+assert_has "...which it lists as existing solutions" "$RESULT" "https://walkies.example/plans"
+assert_has "the verdict is what reaches your phone" "$(head -3 "${TMP}/emits/1" 2>/dev/null)" "## Verdict"
 assert_has "...linked to the note it ran for" "$RESULT" "[notes/ideas/dog-walking.md](../../../notes/ideas/dog-walking.md)"
 assert_has "...and you are told where" "$(cat "${TMP}"/emits/* 2>/dev/null)" "All of it: ai/automations/${NAME}/"
 

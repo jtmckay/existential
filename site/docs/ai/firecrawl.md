@@ -29,6 +29,13 @@ Agents use it to fetch pages without each one carrying its own browser automatio
 - Browser/LAN: `https://firecrawl.EXIST_DOMAIN`, which requires
   `Authorization: Bearer $FIRECRAWL_API_KEY`
 - Agents: point an MCP client at `http://firecrawl-mcp:3003/mcp`
+- Decree scripts: source `automation/lib/firecrawl.sh` for `web_search <query> [n]` (results
+  with each page's text) and `web_read <url>`. Every [automation built from a
+  note](../flows/note-to-automation#research-on-the-web-with-firecrawl) has them.
+
+Search needs no account: with no search backend configured, Firecrawl queries DuckDuckGo
+itself. A search engine can rate-limit any one address, so a search can come back empty; a
+built automation is told to use only the sources it was given and to say when there are none.
 
 Self-hosted Firecrawl has no authentication of its own: `USE_DB_AUTHENTICATION=true` needs
 Supabase, and with it false the server accepts any API key, including none. Caddy carries the

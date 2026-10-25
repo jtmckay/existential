@@ -43,12 +43,22 @@ repo's own migrations work.
 - **Running.** A built automation writes its results to
   `ai/automations/<name>/<date>-<note>.md`, linked to the note or file that started it, and
   sends their first lines to ntfy.
+- **Research on the web, with Firecrawl.** When Firecrawl is enabled, a built automation's
+  steps have `web_search <query> [n]` (each result's page text, inside
+  `<source url="...">` tags) and `web_read <url>`, from `automation/lib/firecrawl.sh`, which
+  reaches `http://firecrawl:3002` over the bridge with no key. Any decree script may source it;
+  `note_develop` does. The proposal and the build prompt say research cites its sources, and
+  a judgement the person asked for (worth building or not) comes first as `## Verdict`:
+  favorable, unfavorable, or already done, by whom. That first section is what reaches the
+  phone. When Firecrawl is off, the model is not offered the web, and steps that use it fail
+  the gate.
 - **Keeping in step.** Editing an accepted spec updates its migration; once built, a spec
   that differs from `.decree/applied/` runs again, so `develop` rebuilds it. Deleting the spec
   removes the machine, script, trigger, registry entry and migration.
 - **Documented.** `site/docs/flows/note-to-automation.md` explains the flow, the proposal as a
-  migration, editing and removing, and what a built automation can reach; the tour lists it
-  among Core's flows.
+  migration, editing and removing, what a built automation can reach, and the business-idea
+  research automation as its worked Firecrawl example; the tour lists the flow among Core's,
+  and the business-idea research among the add-ons', on Firecrawl.
 
 ## Constraints
 
@@ -72,6 +82,13 @@ repo's own migrations work.
 - **Given** a built automation with a note trigger
   **When** a later note that is its event settles
   **Then** it runs and writes `ai/automations/<name>/<date>-<note>.md`
+- **Given** Firecrawl enabled and a built automation whose steps search the web
+  **When** a note that is its event settles
+  **Then** its result cites the URLs `web_search` returned, and its notification starts with
+  `## Verdict`
+- **Given** Firecrawl disabled and a build whose steps call `web_search`
+  **When** `develop` runs
+  **Then** the gate fails saying Firecrawl is off, and nothing is installed
 - **Given** a spec whose name is an existing shipped machine
   **When** it is accepted
   **Then** nothing is built and that machine is unchanged

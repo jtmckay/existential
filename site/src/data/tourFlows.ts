@@ -45,10 +45,10 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'Write "next time…", and it offers to do it',
     story:
-      'You jot down "next time I have a business idea, research who already does it and draft ' +
-      'a one-page plan." A minute later your phone offers to automate exactly that, with the ' +
-      'steps spelled out. Move the file to accept it, and the next idea you write down gets ' +
-      'researched and planned on its own, the results waiting in a note you can dig into with Claude.',
+      'You jot down "next time I write up a meeting, pull out who owes what and draft the ' +
+      'follow-up." A minute later your phone offers to automate exactly that, with the steps ' +
+      'spelled out. Move the file to accept it, and every meeting note after that comes back ' +
+      'with its follow-up drafted, waiting in a note you can dig into with Claude.',
     runsOn: ['Decree', 'ntfy', 'code-server'],
     needsModel: true,
     docs: '/docs/flows/note-to-automation',
@@ -107,6 +107,18 @@ export const FLOWS: TourFlow[] = [
       'nags twice.',
     runsOn: ['Decree', 'ntfy'],
     docs: '/docs/decree#when-a-run-needs-you',
+  },
+  {
+    tier: 'addon',
+    title: 'Every business idea, researched before you fall for it',
+    story:
+      'Write once: "next time I have a business idea, look up competitors and do a market ' +
+      'analysis, TAM included." From then on, each idea you jot down is researched on the web ' +
+      'in the background, and your phone leads with the verdict: favorable, unfavorable, or ' +
+      'already done, by whom. Every figure in the full write-up links to the page it came from.',
+    runsOn: ['Firecrawl', 'Decree', 'ntfy'],
+    needsModel: true,
+    docs: '/docs/flows/note-to-automation#research-on-the-web-with-firecrawl',
   },
   {
     tier: 'addon',

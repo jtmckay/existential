@@ -39,11 +39,12 @@ services:
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
       - NOTES_REMOTE_DIR=${AUTOMATION_NOTES_DIR}
       - DROPBOX_DEST_DIR=${AUTOMATION_DROPBOX_DEST_DIR}
-      # Gateway credentials for routines that need a model (note-triage,
-      # note-develop). Empty when hermes/firecrawl are disabled — those
-      # routines are opt-in and their pre-checks report the gap clearly.
+      # Gateway credential for routines that go through hermes. Empty when
+      # hermes is disabled — those routines are opt-in.
       - HERMES_API_KEY=${HERMES_API_KEY:-}
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      # lib/firecrawl.sh reaches http://firecrawl:3002 when this is true: over
+      # the bridge firecrawl takes no key (caddy gates only the LAN side).
+      - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
       # Redraw workspace/.decree/graph/ whenever a machine changes (entrypoint.sh).
       - GRAPH_WATCH=1
       # Start handlers.yml's machines when workspace files change (entrypoint.sh).
