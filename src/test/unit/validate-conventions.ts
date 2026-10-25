@@ -625,7 +625,7 @@ function main(): number {
   // silently stops crossing a slice off after a Core run — a wrong ✓, or a missing
   // one, with nothing to point at. So it is checked rather than remembered.
   //
-  // Walked line by line for the same reason the tour count below is: `copies:`
+  // Walked line by line, not with a block regex: `copies:`
   // entries carry `requires:` keys naming the same EXIST_IS_ flags, so a block
   // regex over the whole frontmatter would count them twice.
   const fmList = (body: string, key: string, item: RegExp): string[] => {

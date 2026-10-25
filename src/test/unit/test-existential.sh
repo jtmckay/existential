@@ -557,7 +557,7 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
 
 # ── Section: Core's membership ───────────────────────────────────────────────
 # Core is "open the work dir, talk to an AI, have decree automate it". The
-# partition and tour count are validate-conventions' job; this pins WHAT is in
+# partition is validate-conventions' job; this pins WHAT is in
 # it, so a service creeping back into Core is a deliberate edit here too.
 
 echo ""

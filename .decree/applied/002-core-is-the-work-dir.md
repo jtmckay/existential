@@ -37,16 +37,17 @@ every service in Core is one more thing a new user has to understand.
   or Nextcloud migrations or crons.
 - Core's guide body describes the new Core: what you get, sizing (no GPU, no model pulls),
   and what to do after `docker compose up -d`.
-- Everything that states what Core contains agrees with the quest: the tour page's service
-  count and core/extra tiers, `footprint core`, README's and intro's "What Core installs", and
-  the docs that say "Core already did this". After `docker compose up -d`, the guide sends the
+- Everything that states what Core contains agrees with the quest: the tour page's "With
+  Core" flows (each runs on Core's services, plus a chat model where it says so), `footprint
+  core`, README's and intro's "What Core installs", and the docs that say "Core already did
+  this". After `docker compose up -d`, the guide sends the
   user to code-server, not a dashboard.
 
 ## Constraints
 
 - No service folder is deleted. Giving automation-webhook its own flag may move it into its
   own folder; nothing else moves.
-- `./existential.sh validate conventions` keeps enforcing the slice partition and the tour count.
+- `./existential.sh validate conventions` keeps enforcing the slice partition.
 
 ## Acceptance Criteria
 

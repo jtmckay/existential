@@ -235,6 +235,10 @@ assert_eq "...machine, script and migration are gone" "no" "$([[ -e "$W/.decree/
 assert_lacks "...so is its registry entry" "$(cat "$W/.decree/automations.yml")" "$NAME"
 assert_lacks "...and note_watch can no longer start it" "$(yq -r '.states.watch.emits | join(" ")' "$W/.decree/machines/note_watch.yml")" "$NAME"
 
+# Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
+# FAIL→exit path is proven (run-all.sh selfcheck).
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 echo ""
 echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
 if [ "$FAIL" -gt 0 ]; then echo "Failed:"; for n in "${FAIL_NAMES[@]}"; do echo "  - $n"; done; exit 1; fi
