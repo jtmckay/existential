@@ -14,7 +14,7 @@ are on; Docker Desktop does only once it is running.
 ## Outcome
 
 - Every service in every template has `restart: unless-stopped`.
-- `./existential.sh` (and `quest`) leaves the engine set to bring the stack back at boot:
+- `./existential.sh` (and `flow`) leaves the engine set to bring the stack back at boot:
   - rootless Podman: it enables the user's `podman-restart.service` and turns on linger for
     the user, both without sudo, and prints the one command for whichever it could not do;
   - Docker with systemd: when `docker.service` is not enabled, it prints
