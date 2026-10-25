@@ -108,8 +108,8 @@ assert_not_contains "prefix key did not corrupt the longer one" "bobNAME" "$out"
 
 # ── Regression: a BLANK .env.shared value must still substitute ────────────────
 # Skipping blank values left the literal token in the rendered file, so an
-# unfilled shared key shipped the string "EXIST_SEAWEEDFS_URL" into a container
-# as a URL, and "EXIST_USERNAME" as a postgres role name. Empty is the honest
+# unfilled shared key shipped its own name into a container: a URL key as the
+# URL, "EXIST_USERNAME" as a postgres role name. Empty is the honest
 # render; a surviving placeholder never is.
 printf 'A=EXIST_BLANK\nB=${EXIST_BLANK}\n' > "$TMP/t_blank"
 out="$(render "$TMP/t_blank")"

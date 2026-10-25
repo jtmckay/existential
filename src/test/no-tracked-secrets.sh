@@ -37,10 +37,8 @@ while IFS= read -r f; do
     # its placeholders resolved to -- bare hex tokens and passwords that match none
     # of the content patterns below, so the template is the only signal.
     #
-    # Checked structurally rather than by extension. This used to be a case arm
-    # listing config.yml/config.yaml, which meant seaweedfs' rendered s3.json (both
-    # S3 identities) and notification.toml (the decree bearer token) were invisible
-    # to it -- a whole service's credentials, one .gitignore line away from public.
+    # Checked structurally rather than by extension: an extension list misses a
+    # rendered secret with any extension it does not name.
     # hosting/loki/loki-config.yaml is hand-committed upstream config with no
     # template, so it stays committable.
     case "$f" in

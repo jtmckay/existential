@@ -142,8 +142,7 @@ in CI):
   secrets. What counts as "rendered" is structural, not a list of extensions: if a sibling
   `*.exist.*` template would render INTO a file, that file is rendered and must not be tracked.
   Both guards share that rule via `src/utils/rendered-paths.sh`, so they cannot drift and a new
-  rendered file type is covered the day it is added. (It was an extension list once, which is
-  why seaweedfs' rendered `s3.json` and `notification.toml` were invisible to it.) A file with
+  rendered file type is covered the day it is added. A file with
   no template — `hosting/loki/loki-config.yaml`, hand-committed upstream config — stays
   committable.
 - **`guard-selftest.sh`** (`test guards`) — plants secret-shaped fixtures in throwaway repos and

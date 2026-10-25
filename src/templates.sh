@@ -116,9 +116,9 @@ render_template() {
             [[ "$key" =~ ^EXIST_ ]] || continue
             # A blank value still substitutes — as the empty string. Skipping it
             # (the old `-n "$value"` guard) left the literal token in the rendered
-            # file, so a shared key the user had not filled in shipped the string
-            # "EXIST_SEAWEEDFS_URL" into a container as if it were a URL, and
-            # EXIST_USERNAME as a postgres role name. Empty is the honest render
+            # file, so a shared key the user had not filled in shipped its own name
+            # into a container: a URL key as the URL, EXIST_USERNAME as a postgres
+            # role name. Empty is the honest render
             # of an empty value; a leftover placeholder never is.
             [[ -n "$key" ]] || continue
             _keys+=("$key")
@@ -408,9 +408,7 @@ _assert_always_render_safe() {
 #
 # This used to be an allowlist of names that "look like" credentials
 # (.env*, *.pem, *_password*.txt, config.y*ml). Rendered destinations carrying
-# live secrets did not match it and sat at the umask default of 644:
-#   nas/seaweedfs/s3.json          — the S3 root and nextcloud secretKeys
-#   nas/seaweedfs/notification.toml — the decree /s3 webhook bearer token
+# live secrets under other names did not match it and sat at the umask default of 644.
 # The same class of bug had already been found and fixed in the two secret
 # guards (see .githooks/pre-commit) and the lesson was not carried over here.
 # A list of names cannot be kept in sync with a growing set of templates, so
