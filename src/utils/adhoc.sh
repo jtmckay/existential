@@ -82,7 +82,7 @@ run_adhoc() {
     local user_flags=(--user "$(id -u):$(id -g)")
     ${ROOTLESS_PODMAN:-false} && user_flags=()
     $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" run --rm "${tty_flags[@]}" \
-        "${user_flags[@]}" \
+        ${user_flags[@]+"${user_flags[@]}"} \
         --entrypoint "" existential-adhoc "$@"
 }
 
@@ -114,7 +114,7 @@ adhoc_self_elevate() {
     ${ROOTLESS_PODMAN:-false} && user_flags=()
 
     exec $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" run --rm \
-        "${tty_flags[@]}" "${user_flags[@]}" \
+        "${tty_flags[@]}" ${user_flags[@]+"${user_flags[@]}"} \
         ${ADHOC_EXTRA_FLAGS[@]+"${ADHOC_EXTRA_FLAGS[@]}"} \
         --entrypoint "" existential-adhoc bash "$in_repo" "$@"
 }

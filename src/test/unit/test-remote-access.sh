@@ -69,7 +69,7 @@ cp "$WORK/.env.shared" "$WORK/env.fresh"
 _serve() {
     local rc=0
     ( set -euo pipefail
-      eval "$(awk '/^_tailscale_serve_core\(\)/,/^}/; /^_tailscale_serve_steps\(\)/,/^}/' "${REPO_DIR}/existential.sh")"
+      eval "$(awk '/^_sed_i\(\)/; /^_tailscale_serve_core\(\)/,/^}/; /^_tailscale_serve_steps\(\)/,/^}/' "${REPO_DIR}/existential.sh")"
       PATH="$1"; SCRIPT_DIR="$WORK"
       _tailscale_serve_core ) 2>&1 || rc=$?
     echo "rc=$rc"

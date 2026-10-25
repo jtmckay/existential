@@ -59,7 +59,9 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    toolchain — so Go is for compiled services, not scripts. Go services carry their own `go
    test` suite and are **not** part of `./existential.sh test` (see
    `.claude/reference/testing.md`). External tooling (hermes skills, upstream configs) stays in
-   whatever language it shipped in.
+   whatever language it shipped in. **Bash that runs on the host** (`existential.sh`, what it
+   sources, `exist.initial.sh`) **runs on a Mac too**: bash 3.2 and BSD tools, checked by
+   `./existential.sh test host`.
 3. **Configuration is YAML.** `.env` is for secrets/host-specific values only.
 4. **`src/` = host-run scripts. `automation/` = scheduled/webhook/decree-triggered work.**
    decree scripts in `automation/scripts/`; shared helpers in `automation/lib/`.

@@ -84,8 +84,9 @@ if [[ -f "${CONF}" ]]; then
         echo "[openviking] ov.conf api_base=${have_base} but the embed endpoint is ${EMBED_URL} — reconciling."
         # provider "ollama" is the openai embedder plus an ollama preflight, which
         # would probe whatever non-ollama server the endpoint now names.
-        sed -i -E -e "s#\"api_base\"[[:space:]]*:[[:space:]]*\"[^\"]*\"#\"api_base\": \"${EMBED_URL}\"#" \
-            -e 's#"provider"[[:space:]]*:[[:space:]]*"ollama"#"provider": "openai"#' "${CONF}"
+        sed -i.bak -E -e "s#\"api_base\"[[:space:]]*:[[:space:]]*\"[^\"]*\"#\"api_base\": \"${EMBED_URL}\"#" \
+            -e 's#"provider"[[:space:]]*:[[:space:]]*"ollama"#"provider": "openai"#' "${CONF}" \
+            && rm -f "${CONF}.bak"   # -i.bak: the in-place form a Mac's sed accepts too
     else
         echo "[openviking] ov.conf api_base=${have_base} (not one this script wrote) — leaving it alone."
     fi

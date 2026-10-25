@@ -44,7 +44,7 @@ echo ""
 
 if [ -f "$CREDENTIALS" ]; then
     read -rp "  Credentials already exist. Replace? (y/N): " answer
-    [[ "${answer,,}" == "y" ]] || { echo "Skipping."; exit 0; }
+    [[ "$answer" == [yY] ]] || { echo "Skipping."; exit 0; }
     echo ""
 fi
 

@@ -1,6 +1,6 @@
 # Testing
 
-Entry point: `./existential.sh test [lint|secrets|guards|harness|selfcheck|unit|integration|services]`
+Entry point: `./existential.sh test [lint|host|secrets|guards|harness|selfcheck|unit|integration|services]`
 (bare `test` runs them all).
 
 `src/test/` splits into `unit/` (no live services), `integration/` (live creds/containers),
@@ -166,6 +166,16 @@ in CI):
 - **`unit/test-validators.sh`** — opposite-tests the TS validators: builds violating fixture
   trees, asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
 
+## Host-side portability
+
+`./existential.sh test host` → `src/test/host-portable.sh`. `existential.sh`, the helpers it
+sources and every `exist.initial.sh` run on the host, so on a Mac they run under `/bin/bash`
+3.2 with BSD tools: no `mapfile`, `${x^^}` or `local -A`, an empty `"${a[@]}"` is unbound under
+`set -u`, `sed -i` needs a suffix (`sed -i.bak` works on both), and there is no `timeout`. The
+suite runs those pieces against a scratch copy of the repo with the bash that started it, then
+again in a digest-pinned `bash:3.2` container. That image has Linux tools, so the BSD half is
+proven only by the `macos` CI job, which runs it with `/bin/bash` on a real Mac.
+
 ## Shell lint
 
 `./existential.sh test lint` → `src/test/lint-shell.sh`. Runs shellcheck at `-S warning` over
@@ -231,7 +241,7 @@ patterns), which is deliberately older than what builds the binary.
 - **`pre-commit`** blocks secrets from entering the public repo — lean/fast, the one
   irreversible failure.
 - **`pre-push`** runs the host-side opposites first (`test guards`, `test secrets`,
-  `test harness` — cheap, no Docker, fail fast) then `test lint`, `test typecheck`, `test unit`,
+  `test harness` — cheap, no Docker, fail fast) then `test lint`, `test host`, `test typecheck`, `test unit`,
   `test selfcheck`, and `validate conventions` (heavier, needs Docker — gated once per push,
   not per commit).
 
@@ -244,7 +254,8 @@ pull request. It exists because a hook is local-only, is installed as a side eff
 first `./existential.sh` run, is bypassable with `--no-verify`, and never sees a PR — so the
 gates ran on one machine and nowhere else.
 
-Four jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`,
+Five jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`
+(shellcheck, then `test host`), `macos` (`host-portable.sh` under a Mac's `/bin/bash`),
 `go` (the webhook module's `go vet` + `go test`, which nothing else triggers — see below), and
 `unit` (builds the adhoc image, then `test unit`, `test selfcheck`, `validate conventions`).
 

@@ -55,6 +55,11 @@ fi
 
 # Same idea as `test lint`, for the other half of the codebase: tsx strips types
 # without checking them, so this is the only thing that reads tsconfig's strict.
+if ! ./existential.sh test host; then
+    echo "" >&2
+    echo "pre-push blocked: host-side code would not run on a Mac (bash 3.2 / BSD tools)." >&2
+    exit 1
+fi
 if ! ./existential.sh test typecheck; then
     echo "" >&2
     echo "pre-push blocked: TypeScript does not typecheck." >&2

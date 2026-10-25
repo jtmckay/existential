@@ -7,7 +7,7 @@
 # Volume restores wipe the target volume before extracting — stop consumer
 # containers manually before running this script and restart them yourself.
 
-set -euo pipefail
+set -euo pipefail   # runs on the host, a Mac included: bash 3.2, so no mapfile
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -96,7 +96,7 @@ if [ "$KIND" = "db" ]; then
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
-    mapfile -t services < <(rclone_lsf "${SIDECAR}" "${TIER}/" | sed 's:/$::' | grep -v '^volumes$')
+    services=(); while IFS= read -r _l; do services+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/" | sed 's:/$::' | grep -v '^volumes$')
     [ ${#services[@]} -gt 0 ] || die "No DB backups at ${REMOTE}/${TIER}/"
     for i in "${!services[@]}"; do echo "  [$((i + 1))] ${services[$i]}"; done
     echo ""
@@ -116,7 +116,7 @@ if [ "$KIND" = "db" ]; then
 
     echo ""
     echo "Snapshots:"
-    mapfile -t snaps < <(rclone_lsf "${SIDECAR}" "${TIER}/${CONTAINER}/" | sort)
+    snaps=(); while IFS= read -r _l; do snaps+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/${CONTAINER}/" | sort)
     [ ${#snaps[@]} -gt 0 ] || die "No snapshots for ${CONTAINER}."
     for i in "${!snaps[@]}"; do echo "  [$((i + 1))] ${snaps[$i]}"; done
     echo ""
@@ -181,7 +181,7 @@ if [ "$KIND" = "volume" ]; then
 
 echo ""
 echo "Volumes with backups in ${REMOTE}/${TIER}/volumes/:"
-mapfile -t vols < <(rclone_lsf "${SIDECAR}" "${TIER}/volumes/" | sed 's:/$::')
+vols=(); while IFS= read -r _l; do vols+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/volumes/" | sed 's:/$::')
 [ ${#vols[@]} -gt 0 ] || die "No volume backups at ${REMOTE}/${TIER}/volumes/"
 for i in "${!vols[@]}"; do echo "  [$((i + 1))] ${vols[$i]}"; done
 echo ""
@@ -192,7 +192,7 @@ VOLUME="${vols[$idx]}"
 
 echo ""
 echo "Snapshots:"
-mapfile -t snaps < <(rclone_lsf "${SIDECAR}" "${TIER}/volumes/${VOLUME}/" | sort)
+snaps=(); while IFS= read -r _l; do snaps+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/volumes/${VOLUME}/" | sort)
 [ ${#snaps[@]} -gt 0 ] || die "No snapshots for ${VOLUME}."
 for i in "${!snaps[@]}"; do echo "  [$((i + 1))] ${snaps[$i]}"; done
 echo ""
@@ -244,7 +244,7 @@ TARGETS=$(collect_targets sqlite-backup "$TIER")
 
 echo ""
 echo "SQLite databases with backups in ${REMOTE}/${TIER}/sqlite/:"
-mapfile -t db_names < <(rclone_lsf "${SIDECAR}" "${TIER}/sqlite/" | sed 's:/$::')
+db_names=(); while IFS= read -r _l; do db_names+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/sqlite/" | sed 's:/$::')
 [ ${#db_names[@]} -gt 0 ] || die "No SQLite backups at ${REMOTE}/${TIER}/sqlite/"
 for i in "${!db_names[@]}"; do echo "  [$((i + 1))] ${db_names[$i]}"; done
 echo ""
@@ -262,7 +262,7 @@ done <<< "$TARGETS"
 
 echo ""
 echo "Snapshots:"
-mapfile -t snaps < <(rclone_lsf "${SIDECAR}" "${TIER}/sqlite/${DB_NAME}/" | sort)
+snaps=(); while IFS= read -r _l; do snaps+=("$_l"); done < <(rclone_lsf "${SIDECAR}" "${TIER}/sqlite/${DB_NAME}/" | sort)
 [ ${#snaps[@]} -gt 0 ] || die "No snapshots for ${DB_NAME}."
 for i in "${!snaps[@]}"; do echo "  [$((i + 1))] ${snaps[$i]}"; done
 echo ""

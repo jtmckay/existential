@@ -38,11 +38,11 @@ flow_exists() { [[ -f "${FLOWS_DIR}/$1/flow.md" ]]; }
 
 # flow_closure <name>: the flows it needs, depth first, then itself; each once.
 flow_closure() {
-    local -A _seen=()
+    local _seen=" "   # a word list, not local -A: this runs on a Mac's bash 3.2
     _flow_visit() {
         local f
-        [[ -n "${_seen[$1]:-}" ]] && return 0
-        _seen[$1]=1
+        [[ "$_seen" == *" $1 "* ]] && return 0
+        _seen+="$1 "
         for f in $(flow_list "$1" flows); do _flow_visit "$f"; done
         echo "$1"
     }

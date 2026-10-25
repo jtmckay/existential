@@ -36,8 +36,7 @@ _enable_var_for() {
     local rel="${1#"$SCRIPT_DIR"/}"
     local cat="${rel%%/*}"
     local slug="${rel#*/}"; slug="${slug%%/*}"
-    local var="EXIST_IS_${cat^^}_${slug^^}"
-    echo "${var//-/_}"
+    printf 'EXIST_IS_%s_%s\n' "$cat" "$slug" | tr 'a-z-' 'A-Z_'   # tr, not ${x^^}: bash 3.2 on a Mac
 }
 
 service_is_enabled() {

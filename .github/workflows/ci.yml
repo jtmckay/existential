@@ -50,6 +50,19 @@ jobs:
       # Pulls the digest-pinned shellcheck image named in src/test/lint-shell.sh.
       - name: shellcheck
         run: ./existential.sh test lint
+      # Host-side code on this runner's bash, then again under bash 3.2.
+      - name: Host-side portability
+        run: ./existential.sh test host
+
+  # The same suite on a real Mac: /bin/bash 3.2, BSD sed, no `timeout`. No docker
+  # here, so it is the host-side pieces only, which is the part that differs.
+  macos:
+    name: Host-side on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host-side portability
+        run: /bin/bash src/test/host-portable.sh
 
   # Builds the adhoc image, which is the slow one (node +
   # database clients). Everything that needs tsx or the container lives here.

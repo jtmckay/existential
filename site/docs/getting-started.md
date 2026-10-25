@@ -12,7 +12,10 @@ sidebar_position: 2
   what rootless Podman needs for that (its restart service and linger), and says so if Docker itself
   isn't set to start at boot. Docker Desktop starts the stack once it is running, so turn on its
   "Start Docker Desktop when you sign in" setting
-- A machine to host the services (see [Hosting](./hosting/))
+- A machine to host the services (see [Hosting](./hosting/)): Linux, or a Mac with Docker
+  Desktop. On Windows, run everything inside WSL2: clone the repo into the Linux side (not
+  under `/mnt/c`), and install Tailscale inside WSL as well, because `existential.sh` looks for
+  the `tailscale` command there
 - For Core, [Tailscale](https://tailscale.com/download), installed and logged in on that machine
   and on every phone and laptop that should reach Core. Without it, see
   [Reaching it without Tailscale](#reaching-it-without-tailscale)

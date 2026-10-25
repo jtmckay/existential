@@ -37,8 +37,15 @@ if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
     . "${SCRIPT_DIR}/src/utils/service-common.sh"
 fi
 
-export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH"
+# The last entry is the Mac app's Tailscale binary; APFS ignores case, so `tailscale` finds it.
+export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH:/Applications/Tailscale.app/Contents/MacOS"
 export COMPOSE_IGNORE_ORPHANS=1
+
+# What runs here runs on a Mac too: bash 3.2 and BSD tools. `sed -i.bak` is the
+# in-place edit both seds accept, and macOS has no `timeout`, so perl's alarm
+# stands in for it.
+_sed_i() { sed -i.bak "$1" "$2" && rm -f "$2.bak"; }
+command -v timeout >/dev/null 2>&1 || timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
 # Point git at the repo's committed hooks (.githooks/pre-commit blocks secrets
 # from entering this public repo — see src/test/no-tracked-secrets.sh). Idempotent;
@@ -116,7 +123,11 @@ _detect_host_ip() {
         # 100.64.0.0/10 — anything else means tailscale is installed but down.
         [[ "$ip" =~ ^100\.([6-9][0-9]|1[0-1][0-9]|12[0-7])\.[0-9]+\.[0-9]+$ ]] && { printf '%s' "$ip"; return 0; }
     fi
-    ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+    if [[ "$(uname)" == Darwin ]]; then
+        ip=$(ipconfig getifaddr "$(route -n get 1.1.1.1 2>/dev/null | awk '/interface:/{print $2}')" 2>/dev/null || true)
+    else
+        ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+    fi
     [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || ip=""
     printf '%s' "$ip"
 }
@@ -141,7 +152,7 @@ _ensure_host_access() {
     if [[ -z "$ip" ]] && grep -q '^EXIST_LOCAL_HOST_IP=' "$f"; then
         ip="$(_detect_host_ip)"
         if [[ -n "$ip" ]]; then
-            sed -i "s|^EXIST_LOCAL_HOST_IP=.*|EXIST_LOCAL_HOST_IP=${ip}|" "$f"
+            _sed_i "s|^EXIST_LOCAL_HOST_IP=.*|EXIST_LOCAL_HOST_IP=${ip}|" "$f"
             if [[ "$ip" =~ ^100\.([6-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]; then
                 echo "Detected tailnet IP: ${ip} (reachable from every device on your tailnet)"
             else
@@ -154,7 +165,7 @@ _ensure_host_access() {
     domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
     if [[ -z "$domain" && -n "$ip" ]] && grep -q '^EXIST_DOMAIN=' "$f"; then
         domain="${ip//./-}.nip.io"
-        sed -i "s|^EXIST_DOMAIN=.*|EXIST_DOMAIN=${domain}|" "$f"
+        _sed_i "s|^EXIST_DOMAIN=.*|EXIST_DOMAIN=${domain}|" "$f"
         echo "Set EXIST_DOMAIN=${domain} (public wildcard DNS — every <slug>.<domain> resolves to ${ip}, no pihole needed)"
     fi
 }
@@ -214,7 +225,7 @@ _tailscale_serve_core() {
     done
 
     if grep -q '^EXIST_TAILNET_NAME=$' "$f"; then
-        sed -i "s|^EXIST_TAILNET_NAME=$|EXIST_TAILNET_NAME=${name}|" "$f"
+        _sed_i "s|^EXIST_TAILNET_NAME=$|EXIST_TAILNET_NAME=${name}|" "$f"
     fi
     echo "Core is served over Tailscale (HTTPS, trusted on every device in your tailnet):"
     [[ " ${serves[*]} " == *" 443 "* ]] && echo "  code-server  https://${name}"
@@ -226,6 +237,8 @@ _tailscale_serve_steps() {
     echo "  ⚠  Tailscale can't serve Core over HTTPS yet. Do this once, then re-run ./existential.sh:"
     [[ -n "$1" ]] && head -3 <<<"$1" | sed "s/^/       /"
     echo "     1. https://login.tailscale.com/admin/dns: turn on MagicDNS and HTTPS Certificates."
+    # The Mac app already runs as you; on Linux tailscaled is root's.
+    [[ "$(uname)" == Darwin ]] && return 0
     echo "     2. Let your user configure serve (this script never runs sudo):"
     echo "          sudo tailscale set --operator=\$USER"
 }
@@ -347,13 +360,12 @@ _offer_stack_down() {
     local compose="${SCRIPT_DIR}/docker-compose.yml"
     [[ -f "$compose" ]] || return 0
 
-    local -a ids=()
-    mapfile -t ids < <($DOCKER_CMD compose -f "$compose" ps -q 2>/dev/null)
-    # An empty `ps -q` can still yield a single empty element.
-    [[ ${#ids[@]} -eq 0 || -z "${ids[0]}" ]] && return 0
+    local n
+    n=$($DOCKER_CMD compose -f "$compose" ps -q 2>/dev/null | grep -c . || true)
+    [[ "$n" -gt 0 ]] || return 0
 
     echo ""
-    echo "  ⚠  ${#ids[@]} container(s) from this stack are still running."
+    echo "  ⚠  ${n} container(s) from this stack are still running."
     echo "     reset archives docker-compose.yml too, so stopping them afterwards"
     echo "     means doing it by hand — there is no compose file left to read."
     echo ""
@@ -369,7 +381,7 @@ _offer_stack_down() {
 
     local reply
     read -rp "  Run 'docker compose down' first? [Y/n] " reply
-    if [[ "${reply,,}" == "n" || "${reply,,}" == "no" ]]; then
+    if [[ "$reply" == [nN] || "$reply" == [nN][oO] ]]; then
         echo "  Leaving the stack running."
         echo ""
         return 0
@@ -473,12 +485,10 @@ _list_setup_actions() {
     echo ""
     echo "Service-specific (exist.*.sh):"
     while IFS= read -r svc_dir; do
-        local scripts=()
-        mapfile -t scripts < <(find "$svc_dir" -maxdepth 1 -name 'exist.*.sh' -type f 2>/dev/null | sort)
-        [ "${#scripts[@]}" -gt 0 ] || continue
         local slug="${svc_dir##*/}"
         local s sname
-        for s in "${scripts[@]}"; do
+        for s in "$svc_dir"/exist.*.sh; do
+            [[ -f "$s" ]] || continue
             sname="${s##*/}"; sname="${sname#exist.}"; sname="${sname%.sh}"
             if [[ "$sname" == "initial" ]]; then
                 echo "  $0 run ${slug}"
@@ -514,8 +524,10 @@ _run_service_action() {
         echo "No script at ${script#"$SCRIPT_DIR"/}" >&2
         echo "" >&2
         echo "Available actions for ${slug}:" >&2
-        find "$svc_dir" -maxdepth 1 -name 'exist.*.sh' -type f -printf '  %f\n' 2>/dev/null \
-            | sed 's/exist\.//; s/\.sh$//' >&2
+        local s
+        for s in "$svc_dir"/exist.*.sh; do
+            [[ -f "$s" ]] && s="${s##*/exist.}" && echo "  ${s%.sh}" >&2
+        done
         return 1
     fi
 
@@ -609,6 +621,7 @@ Actions:
   test [name]            all (default); secrets, guards, harness, lint, typecheck,
                          decree, selfcheck, unit, integration or services; any
                          unit or integration suite by name; or a service slug.
+                         host: what runs on the host also runs on a Mac.
   validate [name]        all (default), conventions or drift.
   e2e [--all|down|<pattern>...]
                          Does a fresh install come up working? Clone, render, up,
@@ -690,6 +703,8 @@ case "$action" in
                 # Static shell lint (throwaway shellcheck container). Placed with the
                 # host-side checks: it needs Docker but not a running stack.
                 bash "${SCRIPT_DIR}/src/test/lint-shell.sh" || _rc=1
+                # What runs on the host also runs on a Mac (bash 3.2, BSD tools).
+                bash "${SCRIPT_DIR}/src/test/host-portable.sh" || _rc=1
                 # The same gate for TypeScript. tsx strips types without checking
                 # them, so without this `"strict": true` means nothing.
                 bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" || _rc=1
@@ -708,6 +723,7 @@ case "$action" in
             guards)      bash "${SCRIPT_DIR}/src/test/guard-selftest.sh" ;;
             harness)     bash "${SCRIPT_DIR}/src/test/harness-selftest.sh" ;;
             lint)        bash "${SCRIPT_DIR}/src/test/lint-shell.sh" ;;
+            host)        bash "${SCRIPT_DIR}/src/test/host-portable.sh" ;;
             typecheck)   bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" ;;
             decree)      run_adhoc bash /src/test/decree-check.sh ;;
             selfcheck)   run_adhoc bash /src/test/run-all.sh selfcheck ;;

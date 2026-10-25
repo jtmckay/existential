@@ -88,7 +88,7 @@ _install_extended_openai_conversation() {
         return 0
     fi
     local actual_sha256
-    actual_sha256="$(sha256sum "$tmp_tar" | cut -d' ' -f1)"
+    actual_sha256="$({ sha256sum "$tmp_tar" 2>/dev/null || shasum -a 256 "$tmp_tar"; } | cut -d' ' -f1)"   # shasum on a Mac
     if [ "$actual_sha256" != "$eoc_sha256" ]; then
         rm -f "$tmp_tar"
         echo "  homeassistant: WARNING — extended_openai_conversation ${eoc_version} download" >&2

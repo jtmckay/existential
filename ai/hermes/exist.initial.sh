@@ -270,6 +270,18 @@ _hermes_write_model_block() {
     rm -f "$tmp"
 }
 
+# Replace one key's line inside the model: block, leaving every other line alone.
+_hermes_model_set() {   # <cfg> <key> <replacement line>
+    local tmp; tmp=$(mktemp)
+    awk -v k="$2" -v line="$3" '
+        !f && /^model:/ { f = 1; print; next }
+        f && /^[^[:space:]#]/ { f = 0 }
+        f && !done && $0 ~ "^[[:space:]]*" k ":" { print line; done = 1; next }
+        { print }
+    ' "$1" > "$tmp" && cat "$tmp" > "$1"
+    rm -f "$tmp"
+}
+
 _seed_hermes_config() {
     local repo="${SCRIPT_DIR}/../.."
     local data="${repo}/volumes/hermes_agent_data"
@@ -358,7 +370,7 @@ EOF
             echo "[hermes] config.yaml already has a model: block (context_length=${ctx}) — leaving it alone."
         else
             echo "[hermes] config.yaml context_length=${have} but EXIST_MODEL_CHAT_NUM_CTX=${ctx} — reconciling."
-            sed -i -E "0,/^[[:space:]]*context_length:.*/s//  context_length: ${ctx}/" "$cfg"
+            _hermes_model_set "$cfg" context_length "  context_length: ${ctx}"
         fi
 
         # base_url gets the same treatment, but only while it still holds a
@@ -372,7 +384,7 @@ EOF
             :
         elif [[ "$have_url" == http://* ]]; then
             echo "[hermes] config.yaml base_url=${have_url} but the chat endpoint is ${chat_url} — reconciling."
-            sed -i -E "0,/^[[:space:]]*base_url:.*/s##  base_url: ${chat_url}#" "$cfg"
+            _hermes_model_set "$cfg" base_url "  base_url: ${chat_url}"
         else
             echo "[hermes] config.yaml base_url=${have_url} (a hosted provider) — leaving it alone; EXIST_MODEL_URL_CHAT is ignored here."
         fi
