@@ -12,6 +12,9 @@
 #   day 2   model up, feeds.md present: The picture and a feed reason appear; the
 #           checkbox ticked since day 1 is under Done; day 1's archive is unchanged
 #   day 3   a feed item shown on day 2 is not shown again
+#   learn   Worth learning: no model, no section; the model's subject is looked up
+#           on (stubbed) Wikipedia; an article shown before or linked from a note
+#           is skipped
 #   wiring  the cron template is seeded and POST /you-were-here routes here
 #
 # Everything is written under a temp dir, removed in the trap.
@@ -51,6 +54,15 @@ const srv = http.createServer((req, res) => {
   req.resume();
   req.on("end", () => {
     if (req.url === "/feed.xml") { res.end(fs.readFileSync(`${dir}/feed.xml`)); return; }
+    // Wikipedia: search answers the same three titles, best first; a summary is "About <title>."
+    if (req.url.startsWith("/w/api.php?")) {
+      res.end(JSON.stringify({ query: { search: ["Drip irrigation", "Irrigation", "Rain barrel"].map((title) => ({ title })) } }));
+      return;
+    }
+    if (req.url.startsWith("/api/rest_v1/page/summary/")) {
+      res.end(JSON.stringify({ extract: `About ${decodeURIComponent(req.url.split("/").pop()).replace(/_/g, " ")}.` }));
+      return;
+    }
     if (req.method === "POST" && req.url === "/v1/chat/completions") {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ choices: [{ message: { content: fs.readFileSync(`${dir}/reply`, "utf8") } }] }));
@@ -120,6 +132,7 @@ run_digest() {
         DECREE_LIB="${REPO_DIR}/automation/lib" DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="$run" \
         DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_NOTE_LINK="" EXIST_TAILNET_NAME="${TAILNET_UNDER_TEST:-}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model DIGEST_NOW="$1" \
+        WIKIPEDIA_URL="http://127.0.0.1:${PORT}" \
         bash "${REPO_DIR}/automation/scripts/you_were_here.sh" ) > "${run}.log" 2>&1
     echo $?
 }
@@ -145,6 +158,7 @@ assert_has "the touched note lists its open checkboxes" "$(section "$NOTE" "Ever
 assert_lacks "no model, no picture" "$(cat "$NOTE")" "## The picture"
 assert_lacks "no model, no next thing" "$(cat "$NOTE")" "## One next thing"
 assert_lacks "no feeds.md, no feeds section" "$(cat "$NOTE")" "## From your feeds"
+assert_lacks "no model, no Worth learning" "$(cat "$NOTE")" "## Worth learning"
 assert_eq "one push" "1" "$(pushes)"
 PUSH="$(cat "${TMP}/pushes/1")"
 assert_has "the push carries the attention item" "$PUSH" "**gmail** is failed in fetch"
@@ -170,7 +184,8 @@ printf '# Feeds\n\n- http://127.0.0.1:%s/feed.xml\n' "$PORT" > "$W/notes/feeds.m
 feed raised-beds-irrigation knitting-patterns stock-market-news
 jq -n '{picture: "The garden is [moving](notes/garden.md); gmail [needs a look](.decree/attention/20260930T110000.000000Z-bbbbbb.md).",
         next: "Retry [gmail](.decree/attention/20260930T110000.000000Z-bbbbbb.md).",
-        reasons: {"https://example.test/raised-beds-irrigation": "You were sketching irrigation for the beds."}} | tostring' -r > "${TMP}/reply"
+        reasons: {"https://example.test/raised-beds-irrigation": "You were sketching irrigation for the beds."},
+        learn: "drip irrigation"} | tostring' -r > "${TMP}/reply"
 sed -i 's/- \[ \] compost delivery/- [x] compost delivery/' "$W/notes/garden.md"
 printf '%s\n' '{"ts":"2026-10-02T06:00:00Z","source":"opencode","context":"/workspace/shed","session":"s3","text":"measure the door frame"}' >> "$W/.capture/2026-09-test.jsonl"
 touch -d 2026-10-01T12:00:00Z "$W/notes/garden.md" "$W/notes/feeds.md"
@@ -181,6 +196,9 @@ FEEDS="$(section "$NOTE" "From your feeds")"
 assert_has "feeds.md present, feeds section present" "$(cat "$NOTE")" "## From your feeds"
 assert_has "the related item comes with its reason" "$FEEDS" "[raised-beds-irrigation](https://example.test/raised-beds-irrigation): You were sketching irrigation"
 assert_eq "three items shown" "3" "$(grep -c '^- ' <<<"$FEEDS")"
+LEARN="$(section "$NOTE" "Worth learning")"
+assert_has "Worth learning links the article Wikipedia found for the model's subject" "$LEARN" "[Drip irrigation](https://en.wikipedia.org/wiki/Drip_irrigation): About Drip irrigation."
+assert_has "...and says what it is for" "$LEARN" "For what you've been looking into: drip irrigation."
 assert_eq "day 2 is pushed" "2" "$(pushes)"
 assert_has "the push starts with The picture" "$(head -n1 "${TMP}/pushes/2")" "## The picture"
 assert_has "the push shows link text, not paths" "$(cat "${TMP}/pushes/2")" "The garden is moving;"
@@ -191,13 +209,19 @@ assert_has "feeds.md is a new note under Done" "$(section "$DAY2" "Done")" "New 
 assert_eq "day 1's archive is unchanged" "same" "$(cmp -s "$DAY1" "${TMP}/day1.md" && echo same)"
 assert_eq "both days are archived" "2026-10-01.md 2026-10-02.md" "$(ls "$W/notes/you-were-here/2026" | tr '\n' ' ' | sed 's/ $//')"
 
-# ── day 3: an item shown on day 2 is not shown again ──────────────────────────
-feed raised-beds-irrigation knitting-patterns stock-market-news compost-tea
+# ── day 3: an item shown on day 2, or already linked from a note, is not shown ─
+feed raised-beds-irrigation knitting-patterns stock-market-news compost-tea worm-farm
+printf '# Reading\n\n- https://example.test/worm-farm, watched it, worth redoing the bins\n- read https://en.wikipedia.org/wiki/Irrigation.\n' > "$W/notes/reading.md"
 assert_eq "day 3 runs" "0" "$(run_digest 2026-10-03T07:00:00Z)"
 FEEDS="$(section "$NOTE" "From your feeds")"
 assert_has "the new item is shown" "$FEEDS" "compost-tea"
 assert_lacks "an item already shown is not shown again" "$FEEDS" "raised-beds-irrigation"
 assert_lacks "...nor any other one" "$FEEDS" "knitting-patterns"
+assert_lacks "an item already linked from a note is not shown" "$FEEDS" "worm-farm"
+LEARN="$(section "$NOTE" "Worth learning")"
+assert_lacks "an article already suggested is not suggested again" "$LEARN" "Drip_irrigation"
+assert_lacks "an article a note links to is skipped" "$LEARN" "wiki/Irrigation)"
+assert_has "...so the next one Wikipedia found is suggested" "$LEARN" "[Rain barrel](https://en.wikipedia.org/wiki/Rain_barrel)"
 assert_eq "the archive is per day" "3" "$(find "$W/notes/you-were-here" -name '*.md' | wc -l | tr -d ' ')"
 
 # ── wiring ────────────────────────────────────────────────────────────────────

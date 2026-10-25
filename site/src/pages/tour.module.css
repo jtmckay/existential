@@ -39,9 +39,61 @@
   flex-wrap: wrap;
 }
 
-.closingNotice {
-  margin: 2rem auto 0;
+.section {
+  padding: 3.5rem 0 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.75rem;
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.sectionLede {
+  max-width: 40rem;
+  margin: 0 auto 2rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.3rem 1.4rem 1.2rem;
+  border-radius: 12px;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.cardTitle {
+  font-size: 1.15rem;
+  margin-bottom: 0.6rem;
+}
+
+.cardStory {
+  flex: 1;
+  margin: 0 0 1rem;
+  line-height: 1.55;
+}
+
+.cardRuns {
+  margin: 0;
   font-size: 0.85rem;
-  line-height: 1.6;
-  color: var(--ifm-color-emphasis-600);
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+}
+
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }

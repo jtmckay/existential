@@ -46,7 +46,7 @@ This is the main place to check when a Decree automation fails or behaves unexpe
   point (a webhook, authenticated as `EXIST_NTFY_USER`) and the `decree run failed` rule, on
   `increase(decree_runs_total{daemon="automation-backup",state="failed"}[10m]) > 0`, repeating at
   most every 6 hours per machine. The `automation` daemon reports its own runs without Grafana
-  ([When a run needs you](../decree/decree#when-a-run-needs-you)), so it is left out. Rules made in
+  ([When a run needs you](../decree/decree.md#when-a-run-needs-you)), so it is left out. Rules made in
   the UI persist in the `grafana_data` volume.
 
 ## Data flow summary

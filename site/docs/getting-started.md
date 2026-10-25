@@ -289,14 +289,20 @@ ntfy:
 - **Where you left off**: what you were asking agents about, by project, with the last
   prompt of each session, from [the capture stream](#capture).
 - **From your feeds**: only when `workspace/notes/feeds.md` exists. The feed URLs in it are
-  read with the same RSS reader as the newsletter, and the three to five new items closest to
-  what you were working on are shown, each once, ever.
+  read with the same RSS reader as the [newsletter](./flows/newsletter), and the three to five
+  new items closest to what you were working on are shown, each once, ever, and never one a
+  note of yours already links to.
+- **Worth learning**: one Wikipedia article on a subject you've been looking into. The model
+  names the subject, as a short phrase, from what you were working on; Wikipedia's own search
+  finds the article, so the link is always a real page. Never one suggested before, never one a
+  note already links to. Only that phrase is sent to Wikipedia. Set the machine's `wikipedia`
+  param to another language edition (`de`, `fr`), or blank to turn it off.
 - **Everything else** (the note only): decisions in `workspace/notes/decisions/`, captured
   prompts that read like a decision (listed as candidates, never as decided), notes touched
   with their open checkboxes, what is scheduled, and what changed since the last digest.
 
-Every section is built from files except The picture, One next thing and the feed reasons. The
-chat model writes those from the gathered facts, through `automation/lib/model.sh`, linking
+Every section is built from files except The picture, One next thing, the feed reasons and Worth
+learning's subject. The chat model writes those from the gathered facts, through `automation/lib/model.sh`, linking
 each claim to its source; when it is unreachable the digest goes out without them. The push is
 The picture, Waiting on you, One next thing and Holding steady, cut at a section boundary to
 fit ntfy's 4096 bytes, and is skipped when nothing changed since the last digest. "Recent"

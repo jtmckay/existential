@@ -89,17 +89,6 @@ offer is required; attribution is given here.
 | MariaDB | GPL-2.0 | https://github.com/MariaDB/server |
 | Valkey | BSD-3 | https://github.com/valkey-io/valkey |
 
-## Screenshots
-
-Screenshots on the [tour](/tour) come from two places: each project's own documentation or
-README imagery, and captures of the public demo instances those projects host themselves
-(`it-tools.tech`, `demo.home-assistant.io`, `play.min.io`). Both are reproduced to identify
-the software being run. They remain the property of their respective projects and are used
-here for identification only; each is credited with a link to its upstream source. No
-affiliation or endorsement is implied.
-
-The Obsidian, Dashy and Grafana screenshots are of this stack's own deployment.
-
 ## Branding & trademarks
 
 - **Open WebUI** branding is retained intact, as required by its license for deployments

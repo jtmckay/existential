@@ -29,9 +29,17 @@ needs you, and also what is holding steady so you don't need to think about it.
     and the last prompt of each captured session, which is where you left off.
   - **From your feeds**: present only when `workspace/notes/feeds.md` exists. The 3–5 new
     items most related to what you were working on, each with a one-line reason, never
-    repeated across digests.
+    repeated across digests, and never one a workspace note already links to (you saw it and
+    kept it).
+  - **Worth learning**: one Wikipedia article on a subject the person has been looking into.
+    The model names the subject as a short phrase; Wikipedia's search finds the article, so
+    the link is always a real page and the model never writes one. Never suggested twice,
+    never one a note already links to. Only the phrase leaves the machine; the machine's
+    `wikipedia` param is the language edition, and blank turns it off. With the model
+    unreachable, there is no subject and no section.
   - **Everything else**: note only.
-- Every section except The picture, One next thing, and the feed reasons is built from data,
+- Every section except The picture, One next thing, the feed reasons and Worth learning's
+  subject is built from data,
   with no model involved. The model writes only those parts, works only from the gathered
   facts, and links each claim to its source. With the model unreachable, the digest is
   still written and sent without them.

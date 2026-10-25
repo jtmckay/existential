@@ -127,23 +127,29 @@ function notes() {
     .map((rel) => {
       const text = read(path.join(WS, rel));
       const boxes = (mark: string) => [...text.matchAll(new RegExp(`^\\s*[-*] \\[${mark}\\] (.+)$`, "gm"))].map((m) => oneLine(m[1]));
-      return { path: rel, mtime: mtime(path.join(WS, rel)), open: boxes(" "), checked: boxes("[xX]"), title: (text.match(/^# (.+)$/m)?.[1] ?? path.basename(rel, ".md")).trim() };
+      return { path: rel, mtime: mtime(path.join(WS, rel)), open: boxes(" "), checked: boxes("[xX]"), title: (text.match(/^# (.+)$/m)?.[1] ?? path.basename(rel, ".md")).trim(), links: urls(text) };
     });
 }
 
 const STOP = new Set("that this with from have what when where which would could should there their about into your just like then than them they were been will make more some only also need want does done here back over each".split(" "));
 const words = (s: string) => new Set((s.toLowerCase().match(/[a-z][a-z0-9-]{3,}/g) ?? []).filter((w) => !STOP.has(w)));
 
-async function feeds(focus: Set<string>) {
+// Every URL in a text, without the punctuation a sentence puts after one.
+const urls = (text: string) => (text.match(/https?:\/\/[^\s)>\]]+/g) ?? []).map((u) => u.replace(/[.,;:!?'"]+$/, ""));
+
+// New items from the feeds in notes/feeds.md, most related to what you were
+// working on first. An item already shown in a digest, or already linked from
+// one of your notes (you saw it and kept it), is never offered again.
+async function feeds(focus: Set<string>, noted: Set<string>) {
   const file = path.join(WS, "notes", "feeds.md");
   if (!fs.existsSync(file)) return null;
   const shown = new Set(read(path.join(STORE, "feeds-shown.tsv")).split("\n").map((l) => l.split("\t")[0]).filter(Boolean));
-  const urls = [...new Set(read(file).match(/https?:\/\/[^\s)>\]]+/g) ?? [])];
+  const sources = [...new Set(urls(read(file)))];
   const items: { title: string; link: string; summary: string; score: number; published: string }[] = [];
-  for (const url of urls) {
+  for (const url of sources) {
     try {
       for (const i of await fetchFeed(url)) {
-        if (!i.link || shown.has(i.link) || items.some((x) => x.link === i.link)) continue;
+        if (!i.link || shown.has(i.link) || noted.has(i.link) || items.some((x) => x.link === i.link)) continue;
         const score = [...words(`${i.title} ${i.summary}`)].filter((w) => focus.has(w)).length;
         items.push({ title: oneLine(i.title, 120), link: i.link, summary: oneLine(i.summary, 300), score, published: i.pubDate });
       }
@@ -203,6 +209,7 @@ async function gather() {
   const today = (m: Record<string, string>) => Object.keys(m).filter((k) => m[k] === TODAY);
   const finishedToday = allRuns.filter((r) => r.at && day(new Date(r.at)) === TODAY && !SELF.includes(r.machine));
 
+  const noted = [...new Set(allNotes.flatMap((n) => n.links))];
   const facts = {
     now: NOW.toISOString(), today: TODAY, window_from: from, prev_fingerprint: prev?.fingerprint ?? "",
     waiting,
@@ -216,7 +223,8 @@ async function gather() {
       notes: allNotes.filter((n) => n.mtime > (prev?.last_at ?? from)).map((n) => n.path),
       runs: allRuns.filter((r) => r.at > (prev?.last_at ?? from) && !SELF.includes(r.machine)).map((r) => ({ machine: r.machine, state: r.state, path: `.decree/runs/${r.id}/message.md` })),
     },
-    feeds: await feeds(focus),
+    feeds: await feeds(focus, new Set(noted)),
+    noted,
     done: {
       ticked: today(next.checked).map((k) => { const [p, t] = k.split("\t"); return { path: p, text: t }; }),
       machines: today(next.machines),
@@ -257,16 +265,57 @@ const loadFacts = () => JSON.parse(read(path.join(RUN, "facts.json"))) as {
   notes: { path: string; title: string; open: string[] }[];
   changed: { captures: number; notes: string[]; runs: { machine: string; state: string; path: string }[] };
   feeds: { title: string; link: string }[] | null;
+  noted: string[];
   done: { ticked: { path: string; text: string }[]; machines: string[]; migrations: { file: string; path: string }[]; runs: { machine: string; state: string; path: string }[]; notes: string[]; threads: { project: string; count: number; sources: string[]; file: string }[] };
   next: Omit<State, "fingerprint">;
 };
 
-interface Model { picture?: string; next?: string; reasons?: Record<string, string> }
+interface Model { picture?: string; next?: string; reasons?: Record<string, string>; learn?: string }
+interface Learn { topic: string; title: string; url: string; extract: string }
+
+// ── learn ─────────────────────────────────────────────────────────────────────
+//
+// One encyclopedia article on a subject you have been looking into. The model
+// names the subject, as a short phrase, from the facts it was given; Wikipedia's
+// own search finds the article, so every link is a real page and the model never
+// writes one. Only that phrase leaves the machine. An article shown before, or
+// one a note already links to, is skipped. DECREE_DATA_WIKIPEDIA is the language
+// edition (en); blank turns this off. Any failure means no section, nothing else.
+const wikiKey = (u: string) => { try { return decodeURIComponent(u).replace(/^https?:\/\/([a-z-]+)\.(?:m\.)?wikipedia\.org\/wiki\//i, "$1:").replace(/ /g, "_").toLowerCase(); } catch { return u.toLowerCase(); } };
+
+async function learn() {
+  const lang = process.env.DECREE_DATA_WIKIPEDIA ?? "en";
+  let m: Model = {};
+  try { m = JSON.parse(read(path.join(RUN, "model.json")) || "{}"); } catch { m = {}; }
+  const topic = oneLine(m.learn ?? "", 80);
+  if (!lang || !topic) return;
+  const base = process.env.WIKIPEDIA_URL || `https://${lang}.wikipedia.org`;
+  const get = (u: string) => fetch(`${base}${u}`, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": "existential-you-were-here/1 (self-hosted digest)" } });
+  const shown = read(path.join(STORE, "learn-shown.tsv")).split("\n").map((l) => l.split("\t")[0]).filter(Boolean);
+  const skip = new Set([...shown, ...loadFacts().noted].map(wikiKey));
+  try {
+    const r = await get(`/w/api.php?action=query&list=search&format=json&srlimit=5&srsearch=${encodeURIComponent(topic)}`);
+    const hits = ((await r.json()) as { query?: { search?: { title: string }[] } }).query?.search ?? [];
+    for (const { title } of hits) {
+      const slug = encodeURIComponent(title.replace(/ /g, "_"));
+      const url = `https://${lang}.wikipedia.org/wiki/${slug}`;
+      if (skip.has(wikiKey(url))) continue;
+      const s = await get(`/api/rest_v1/page/summary/${slug}`);
+      const extract = s.ok ? (((await s.json()) as { extract?: string }).extract ?? "") : "";
+      writeAtomic(path.join(RUN, "learn.json"), JSON.stringify({ topic, title, url, extract: oneLine(extract, 280) }));
+      console.log(`learn: ${title} for "${topic}"`);
+      return;
+    }
+    console.log(`learn: no new article for "${topic}"`);
+  } catch (e) {
+    console.error(`learn: no article for "${topic}": ${(e as Error).message}`);
+  }
+}
 
 const list = (items: string[], empty: string) => (items.length ? items.map((i) => `- ${i}`).join("\n") : empty);
 const md = (s: string) => s.replace(/([\[\]])/g, "\\$1");
 
-function sections(f: Facts, m: Model) {
+function sections(f: Facts, m: Model, l: Learn | null) {
   const waiting = f.waiting.slice(0, 3).map((w) => `**${w.machine}** is ${w.status}${w.state ? ` in ${w.state}` : ""}${w.since ? ` since ${w.since.slice(0, 10)}` : ""} ([details](${w.path}))`);
   if (f.waiting.length > 3) waiting.push(`and ${f.waiting.length - 3} more in [.decree/attention/](.decree/attention/)`);
   const steady = f.steady.map((s) => `**${s.machine}**: last run succeeded ([run](${s.path}))`);
@@ -282,6 +331,7 @@ function sections(f: Facts, m: Model) {
     next: m.next?.trim() ? `## One next thing\n\n${m.next.trim()}` : "",
     steady: `## Holding steady\n\n${list(steady, "Nothing has run yet.")}`,
     leftOff: `## Where you left off\n\n${list(f.threads.map((t) => `**${md(t.project)}**: ${t.count} prompt${t.count === 1 ? "" : "s"}${t.sessions.map((s) => `\n  - last: "${md(s.text)}" ([capture](${s.file}))`).join("")}`), "Nothing captured since the last digest.")}`,
+    learn: l ? `## Worth learning\n\n[${md(l.title)}](${l.url})${l.extract ? `: ${l.extract}` : ""}\n\nFor what you've been looking into: ${md(l.topic)}.` : "",
     feeds: f.feeds === null ? "" : `## From your feeds\n\n${list(f.feeds.map((i) => `[${md(i.title || i.link)}](${i.link})${m.reasons?.[i.link] ? `: ${oneLine(m.reasons[i.link])}` : ""}`), "Nothing new in your feeds.")}`,
     rest: [
       "## Everything else",
@@ -313,9 +363,11 @@ function write() {
   const f = loadFacts();
   let m: Model = {};
   try { m = JSON.parse(read(path.join(RUN, "model.json")) || "{}"); } catch { m = {}; }
-  const s = sections(f, m);
+  let l: Learn | null = null;
+  try { l = JSON.parse(read(path.join(RUN, "learn.json")) || "null"); } catch { l = null; }
+  const s = sections(f, m, l);
   const head = `# You were here, ${f.today}`;
-  const body = [s.picture, s.waiting, s.next, s.steady, s.leftOff, s.feeds, s.rest].filter(Boolean).join("\n\n");
+  const body = [s.picture, s.waiting, s.next, s.steady, s.leftOff, s.feeds, s.learn, s.rest].filter(Boolean).join("\n\n");
 
   writeAtomic(path.join(WS, "notes", "you-were-here.md"), rebase(`${head}\n\n${body}\n`, "../"));
   const archive = path.join(WS, "notes", "you-were-here", f.today.slice(0, 4), `${f.today}.md`);
@@ -324,10 +376,11 @@ function write() {
 
   fs.mkdirSync(STORE, { recursive: true });
   if (f.feeds?.length) fs.appendFileSync(path.join(STORE, "feeds-shown.tsv"), f.feeds.map((i) => `${i.link}\t${f.today}\n`).join(""));
+  if (l) fs.appendFileSync(path.join(STORE, "learn-shown.tsv"), `${l.url}\t${f.today}\n`);
   // Only what the data says, never the model's prose or a run id, decides "changed".
   const fingerprint = crypto.createHash("sha256").update(JSON.stringify([
     f.waiting.map((w) => [w.path, w.status, w.state]), f.steady.map((x) => x.machine), f.schedules,
-    f.threads.map((t) => [t.project, t.count, t.sessions.map((s) => s.text)]), f.decisions, f.candidates, f.notes, f.feeds?.map((i) => i.link) ?? null,
+    f.threads.map((t) => [t.project, t.count, t.sessions.map((s) => s.text)]), f.decisions, f.candidates, f.notes, f.feeds?.map((i) => i.link) ?? null, l?.url ?? null,
   ])).digest("hex");
   writeAtomic(path.join(STORE, "state.json"), JSON.stringify({ ...f.next, fingerprint }, null, 2));
 
@@ -343,7 +396,7 @@ function write() {
     (tailnet ? `notes/you-were-here.md, in https://${tailnet}` : "workspace/notes/you-were-here.md");
   const footer = `Full digest: ${link}`;
   let push = "";
-  for (const part of [s.picture, s.waiting, s.next, s.steady].filter(Boolean).map(plain)) {
+  for (const part of [s.picture, s.waiting, s.next, s.steady, s.learn].filter(Boolean).map(plain)) {
     if (Buffer.byteLength(`${push}${part}\n\n${footer}`) > NTFY_LIMIT) break;
     push += `${part}\n\n`;
   }
@@ -353,5 +406,6 @@ function write() {
 
 const step = process.argv[2];
 if (step === "gather") gather().catch((e) => { console.error(e); process.exit(1); });
+else if (step === "learn") learn().catch((e) => { console.error(e); process.exit(1); });
 else if (step === "write") write();
-else { console.error("usage: digest.ts gather|write"); process.exit(1); }
+else { console.error("usage: digest.ts gather|learn|write"); process.exit(1); }

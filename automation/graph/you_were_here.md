@@ -12,6 +12,6 @@ stateDiagram-v2
     done --> [*]
     failed --> [*]
     note left of digest
-        store: feeds-shown.tsv, state.json
+        store: feeds-shown.tsv, learn-shown.tsv, state.json
     end note
 ```

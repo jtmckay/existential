@@ -87,7 +87,7 @@ Three things in there are load-bearing:
   refuses one without the bit.
 - **A failed run pages you.** A run that fails, or waits for a person, sends one ntfy message
   naming the machine and the command that continues it
-  ([When a run needs you](./decree/decree#when-a-run-needs-you)). Nothing to wire up.
+  ([When a run needs you](./decree/decree.md#when-a-run-needs-you)). Nothing to wire up.
 
 To retry a flaky step, give that state attempts: `invoke: { script: { name: my_job, attempts: 3 } }`.
 Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a
