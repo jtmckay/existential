@@ -160,6 +160,9 @@ you have just enabled, and leaves every file that already exists alone.
 docker compose up -d
 ```
 
+Then open code-server at `https://<machine>.<tailnet>.ts.net`: that is the [workspace](#workspace),
+and its terminal is where you start `claude`.
+
 Services bring themselves up: Decree waits for the services its migrations target to pass their
 `exist.test.sh`, then applies any one-time migrations. To see what is and is not working at any
 point:
