@@ -43,6 +43,18 @@ export const FLOWS: TourFlow[] = [
   },
   {
     tier: 'core',
+    title: 'Write "next time…", and it offers to do it',
+    story:
+      'You jot down "next time I have a business idea, research who already does it and draft ' +
+      'a one-page plan." A minute later your phone offers to automate exactly that, with the ' +
+      'steps spelled out. Move the file to accept it, and the next idea you write down gets ' +
+      'researched and planned on its own, the results waiting in a note you can dig into with Claude.',
+    runsOn: ['Decree', 'ntfy', 'code-server'],
+    needsModel: true,
+    docs: '/docs/flows/note-to-automation',
+  },
+  {
+    tier: 'core',
     title: 'A newsletter from only the feeds you picked',
     story:
       'Every Monday you get one issue: at most seven items from the blogs, channels and forums ' +

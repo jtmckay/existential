@@ -69,6 +69,8 @@ Anything you throw at it gets picked up, understood, and filed — without you c
 destination each time.
 
 - [Camera → OCR](./image-ocr) — photograph something, get back its text
+- [Note → Automation](./note-to-automation) — write "next time I…, do…" and it offers to automate exactly that
+- [Your Own Newsletter](./newsletter) — a weekly issue from only the feeds you picked, judged by a paragraph you wrote
 - [Note → Action](./note-to-action) — a thought worth chasing gets chased, and comes back with the right questions
 - [Note → Connection](./note-connect) — a new note gets checked against everything you already know, and the interesting links come back to you unasked
 

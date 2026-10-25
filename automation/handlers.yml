@@ -1,0 +1,17 @@
+# File handlers: when a workspace file matching `match` settles, decree runs
+# `machine` with `path` (workspace-relative) and `change` (created, modified or
+# deleted). Seeded once into workspace/.decree/; yours to edit, re-read on change.
+# site/docs/decree/file-handlers.md has the details.
+
+# A note that settles: is it a standing instruction ("next time X, do Y"), or the
+# trigger of an automation you accepted? Needs a chat model; does nothing without one.
+- match: "notes/**/*.md"
+  machine: note_watch
+  changes: [created, modified]
+  quiet: 60
+
+# An automation you accepted (moved up out of notes/automations/proposed/), edited
+# or deleted: build it (develop runs its migration), rebuild it, or remove it.
+- match: "notes/automations/*.md"
+  machine: reconcile
+  quiet: 5

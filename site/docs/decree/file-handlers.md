@@ -21,6 +21,11 @@ to run, and optionally which changes it cares about and how long the file must b
   quiet: 10                      # default: 30 seconds
 ```
 
+Two ship with the stack, in the `handlers.yml` seeded on first install (yours to edit after):
+`notes/**/*.md` runs `note_watch`, which offers to automate a standing instruction in a note
+([Note → Automation](../flows/note-to-automation)), and `notes/automations/*.md` runs
+`reconcile`, which has `develop` build the ones you accept.
+
 - **A change matching no handler does nothing.** A change matching several runs each of them.
 - **A handler fires once the file has been quiet** for `quiet` seconds: an editor's autosaves
   while you type reset the clock, so it runs once, after you stop. A delete fires at once.

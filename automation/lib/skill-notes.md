@@ -19,3 +19,9 @@ keeps a folder out of every handler. Nothing inside `.git/` and nothing a `.giti
 ignores ever fires one; beyond that, the handlers decide. A machine whose own output lands
 on a path its handler matches will run on that output too: send output somewhere the
 pattern does not reach.
+
+Accepted automations from notes (`notes/automations/<name>.md`) are migrations for this
+project's `develop` machine, filed into `.decree/migrations/` by `reconcile`. `develop`
+builds `.decree/machines/<name>.yml`, `.decree/scripts/<name>.sh` and the trigger, and lists
+it in `.decree/automations.yml`. All of that is rebuilt from the note on every edit: to change
+one, edit its file in `notes/automations/`, never the built copies.

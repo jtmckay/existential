@@ -1,0 +1,16 @@
+name: note_watch
+description: Read one changed note; propose an automation for a standing instruction in it, and start every accepted automation whose trigger it is.
+data:
+  path: { type: string, default: "" }
+  change: { type: string, default: "" }
+store:
+  proposed.tsv: Instructions already proposed (note path and automation name), so one note gets one proposal. note_watch reads and appends.
+initial: watch
+states:
+  watch:
+    invoke: note_watch
+    transitions: { done: done }
+    # develop adds each automation you accept with a note trigger; removing it takes it out.
+    emits: [automation_propose]
+  done: { final: true }
+  failed: { final: true }

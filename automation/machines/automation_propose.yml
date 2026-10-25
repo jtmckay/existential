@@ -1,0 +1,17 @@
+name: automation_propose
+description: Write a standing instruction from a note as an automation's migration (its intent and declarative requirements) in notes/automations/proposed/, and tell you.
+data:
+  note_path: { type: string, default: "" }
+  name: { type: string, default: "" }
+  when: { type: string, default: "" }
+  steps: { type: string, default: "" }
+initial: propose
+states:
+  propose:
+    # A small model sometimes leaves out a section: one more try.
+    invoke:
+      script: { name: automation_propose, attempts: 2 }
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

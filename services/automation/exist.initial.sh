@@ -78,7 +78,7 @@ _seed() {               # <src> <dst>: copy every file under src that dst lacks
 }
 _seed "${REPO}/automation/machines" "${PROJECT}/machines"
 _seed "${REPO}/automation/scripts" "${PROJECT}/scripts"
-for _f in .gitignore decree-go-rest.yml; do
+for _f in .gitignore decree-go-rest.yml handlers.yml; do
     [[ -e "${PROJECT}/${_f}" ]] || cp -p "${REPO}/automation/${_f}" "${PROJECT}/${_f}"
 done
 # An install from before this keeps its active crons and migrations, and its

@@ -1,0 +1,16 @@
+name: develop
+description: Build an accepted automation from its migration (notes/automations/<name>.md) - the machine, its script and its trigger - checked by decree check, or undone.
+data:
+  # From the migration's frontmatter, which automation_propose writes.
+  automation: { type: string, default: "" }
+  from: { type: string, default: "" }
+initial: develop
+states:
+  develop:
+    # The second attempt is shown what failed the first: one fix round, then you are told.
+    invoke:
+      script: { name: develop, attempts: 2 }
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

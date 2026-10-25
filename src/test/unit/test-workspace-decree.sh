@@ -28,7 +28,7 @@ mkdir -p "${R}/services/automation/backup" "${R}/automation"
 cp "${REPO_DIR}/services/automation/exist.initial.sh" "${R}/services/automation/"
 cp -r "${REPO_DIR}/services/automation/backup/cron.example" "${R}/services/automation/backup/"
 cp -rp "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${R}/automation/"
-cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.yml" "${R}/automation/"
+cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.yml" "${REPO_DIR}/automation/handlers.yml" "${R}/automation/"
 mkdir -p "${R}/automation-examples/cron"
 cp "${REPO_DIR}"/automation-examples/cron/{you-were-here,look-back-weekly,look-back-monthly}.md "${R}/automation-examples/cron/"
 # An install from before workspace/.decree: an active cron, a migration and its ledger.
@@ -48,6 +48,7 @@ _seeded=$(cd "${P}/machines" 2>/dev/null && ls *.yml | wc -l)
 check "every shipped machine is seeded" "[[ $_shipped -gt 0 && $_shipped -eq ${_seeded:-0} ]]"
 check "scripts stay executable" "[[ -x '${P}/scripts/notify.sh' ]]"
 check ".gitignore and decree-go-rest.yml are seeded" "[[ -f '${P}/.gitignore' && -f '${P}/decree-go-rest.yml' ]]"
+check "handlers.yml is seeded, watching notes" "grep -q 'machine: note_watch' '${P}/handlers.yml'"
 for _d in runs/ store/ inbox/ attention/ '*.log' '.env*'; do
     check ".gitignore ignores ${_d}" "grep -qxF '${_d}' '${P}/.gitignore'"
 done
