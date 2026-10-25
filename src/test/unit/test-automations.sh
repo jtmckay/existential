@@ -238,6 +238,7 @@ printf 'TRIGGER: {"kind": "note", "when": "x"}\nsteps() { web_search "x"; }\n' >
 assert_eq "with Firecrawl off, steps that search the web fail the gate" "1" "$(run "$SCRIPTS/develop.sh" DECREE_MESSAGE="$W/.decree/migrations/A4-offline_thing.md" DECREE_DATA_AUTOMATION=offline_thing FIRECRAWL_URL=)"
 assert_has "...saying why" "$(cat "${TMP}/last.log")" "need Firecrawl, which is off"
 assert_lacks "...and the model was not offered web_search" "$(cat "${TMP}/build-system")" "web_search"
+assert_eq "...and nothing is installed" "no" "$([[ -e "$W/.decree/machines/offline_thing.yml" || -e "$W/.decree/scripts/offline_thing.sh" ]] && echo yes || echo no)"
 rm -f "${TMP}/run/gate.err"
 
 echo ""; echo "=== trigger ==="
