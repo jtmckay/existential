@@ -243,8 +243,8 @@ _start_on_boot() {
     # No systemd (macOS, WSL without it): the engine's own settings decide.
     command -v systemctl >/dev/null 2>&1 || return 0
     adhoc_detect_runtime
-    local me; me="$(id -un)"
     if [[ "$DOCKER_CMD" == podman ]] && ${ROOTLESS_PODMAN:-false}; then
+        local me; me="$(id -un 2>/dev/null || echo "${USER:-$(id -u)}")"
         systemctl --user -q is-enabled podman-restart.service 2>/dev/null \
             || systemctl --user -q enable podman-restart.service 2>/dev/null \
             || echo "  ⚠  Podman won't restart the stack at boot. Once: systemctl --user enable podman-restart.service"

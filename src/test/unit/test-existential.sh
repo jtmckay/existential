@@ -422,6 +422,10 @@ if grep -qF "sudo systemctl enable docker" <<<"$_boot_out"; then _ok "_start_on_
 else _fail "_start_on_boot, Docker not enabled → prints the one command" "$_boot_out"; fi
 if grep -q "^systemctl.* enable " <<<"$_boot_out"; then _fail "_start_on_boot never enables a system unit itself" "$_boot_out"
 else _ok "_start_on_boot never enables a system unit itself"; fi
+_boot_out="$(_source_existential "$FAKE_BOOT" "systemctl() { return 0; }
+DOCKER_CMD=docker; docker() { echo Ubuntu; }; _start_on_boot" 2>&1)"
+if [[ -z "$_boot_out" ]]; then _ok "_start_on_boot, Docker enabled → prints nothing"
+else _fail "_start_on_boot, Docker enabled → prints nothing" "$_boot_out"; fi
 
 # ── Section: CLI — refuses sudo ───────────────────────────────────────────────
 

@@ -43,8 +43,13 @@ printf 'services:\n  foo:\n    container_name: notprefixed\n' > "$bad2/ai/foo/do
 expect_fail "conventions: rejects container_name not prefixed by slug" tsx "$CONV" "$bad2"
 
 clean="$(mkfix)"; mkdir -p "$clean/ai/foo"
-printf 'services:\n  foo:\n    container_name: foo\n' > "$clean/ai/foo/docker-compose.exist.yml"
+printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$clean/ai/foo/docker-compose.exist.yml"
 expect_pass "conventions: accepts a clean tree" tsx "$CONV" "$clean"
+
+# A service with no restart policy would not come back after a reboot → fail.
+norestart="$(mkfix)"; mkdir -p "$norestart/ai/foo"
+printf 'services:\n  foo:\n    container_name: foo\n' > "$norestart/ai/foo/docker-compose.exist.yml"
+expect_fail "conventions: rejects a service without restart: unless-stopped" tsx "$CONV" "$norestart"
 
 baduser="$(mkfix)"; mkdir -p "$baduser/ai/foo"
 printf 'services:\n  foo:\n    container_name: foo\n    user: "1000:1000"\n' > "$baduser/ai/foo/docker-compose.exist.yml"
@@ -55,7 +60,7 @@ printf 'services:\n  foo:\n    container_name: foo\n    environment:\n      HERM
 expect_fail "conventions: rejects hardcoded uid/gid env" tsx "$CONV" "$baduidenv"
 
 cleanuid="$(mkfix)"; mkdir -p "$cleanuid/ai/foo"
-printf 'services:\n  foo:\n    container_name: foo\n    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"\n' > "$cleanuid/ai/foo/docker-compose.exist.yml"
+printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"\n' > "$cleanuid/ai/foo/docker-compose.exist.yml"
 expect_pass "conventions: accepts the EXIST_PUID user form" tsx "$CONV" "$cleanuid"
 
 # ── networking: piHole wildcard + Caddy-as-source-of-truth ───────────────────
@@ -94,10 +99,11 @@ cat > "$cleannet/hosting/pihole/docker-compose.exist.yml" <<'EOF'
 services:
   pihole:
     container_name: pihole
+    restart: unless-stopped
     environment:
       FTLCONF_misc_dnsmasq_lines: 'address=/${EXIST_DOMAIN}/${EXIST_LOCAL_HOST_IP}'
 EOF
-printf 'services:\n  foo:\n    container_name: foo\n' > "$cleannet/ai/foo/docker-compose.exist.yml"
+printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$cleannet/ai/foo/docker-compose.exist.yml"
 cat > "$cleannet/hosting/caddy/Caddyfile.exist.Caddyfile" <<'EOF'
 foo.{$CADDY_DOMAIN} {
   reverse_proxy foo:8080
@@ -198,7 +204,7 @@ expect_fail "conventions: rejects two slices claiming one service" tsx "$CONV" "
 docfix() {
     local d; d="$(mkfix)"
     mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/src/quests"
-    printf 'services:\n  foo:\n    container_name: foo\n' > "$d/ai/foo/docker-compose.exist.yml"
+    printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
     printf -- '---\nname: Core\nservices:\n  - var: EXIST_IS_AI_FOO\n    label: Foo\n---\n\nCore.\n' > "$d/src/quests/00-core.md"
     printf '# X\n\n## What Core installs\n\n- [Foo](https://existential.company/docs/ai/foo)\n\n## Next\n' > "$d/README.md"

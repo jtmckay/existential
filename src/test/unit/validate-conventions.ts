@@ -24,6 +24,7 @@
  * 13. Every service folder has exactly one docs page (`service:` frontmatter), every such
  *      page names a real folder, and every README.md link into the docs site resolves.
  * 14. README.md and site/docs/intro.md list exactly Core's services under "## What Core installs".
+ * 15. Every service in every template is `restart: unless-stopped`.
  */
 
 import * as fs from 'fs';
@@ -404,6 +405,32 @@ function checkVolumeSpecs(): string[] {
   return errors;
 }
 
+// Every service comes back on its own once the engine starts, which is how the
+// stack starts with the machine (see site/docs/getting-started.md).
+function checkRestartPolicy(): string[] {
+  const errors: string[] = [];
+  for (const cat of CATEGORY_DIRS) {
+    const catDir = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catDir)) continue;
+    for (const slug of fs.readdirSync(catDir)) {
+      const file = path.join(catDir, slug, 'docker-compose.exist.yml');
+      if (!fs.existsSync(file)) continue;
+      let data: Record<string, unknown>;
+      try {
+        data = (yaml.load(fs.readFileSync(file, 'utf8')) ?? {}) as Record<string, unknown>;
+      } catch {
+        continue; // parse errors are reported by other checks
+      }
+      for (const [name, svc] of Object.entries((data['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
+        if ((svc ?? {})['restart'] !== 'unless-stopped') {
+          errors.push(`${cat}/${slug}/docker-compose.exist.yml: service '${name}' needs \`restart: unless-stopped\``);
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 function checkHardcodedUids(): string[] {
   const errors: string[] = [];
   for (const cat of CATEGORY_DIRS) {
@@ -559,6 +586,7 @@ function main(): number {
 
   // No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());
+  errors.push(...checkRestartPolicy());
 
 
   // Quest files: markdown with YAML frontmatter, then the guide as the body.

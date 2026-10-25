@@ -18,3 +18,4 @@
 018-first-run-asks-two-things.md
 019-search-your-notes.md
 020-one-way-to-do-each-thing.md
+021-starts-with-the-machine.md
