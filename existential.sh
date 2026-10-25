@@ -230,6 +230,40 @@ _tailscale_serve_steps() {
     echo "          sudo tailscale set --operator=\$USER"
 }
 
+# ── Back after a reboot ───────────────────────────────────────────────────────
+#
+# Every service is `restart: unless-stopped`, which brings it back whenever the
+# container engine starts, so the stack runs from boot until stopped by hand
+# exactly when the engine starts at boot. Docker from its packages does
+# (docker.service is enabled on install). Rootless Podman does not restart those
+# containers at all except through its user unit, podman-restart.service, and a
+# user unit runs at boot only with linger on. Both are the user's own to switch
+# on, so this does it. Anything that needs root is printed, never run.
+_start_on_boot() {
+    # No systemd (macOS, WSL without it): the engine's own settings decide.
+    command -v systemctl >/dev/null 2>&1 || return 0
+    adhoc_detect_runtime
+    local me; me="$(id -un)"
+    if [[ "$DOCKER_CMD" == podman ]] && ${ROOTLESS_PODMAN:-false}; then
+        systemctl --user -q is-enabled podman-restart.service 2>/dev/null \
+            || systemctl --user -q enable podman-restart.service 2>/dev/null \
+            || echo "  ⚠  Podman won't restart the stack at boot. Once: systemctl --user enable podman-restart.service"
+        [[ "$(loginctl show-user "$me" -p Linger --value 2>/dev/null)" == yes ]] \
+            || loginctl enable-linger "$me" 2>/dev/null \
+            || echo "  ⚠  Your user services won't start until you log in. Once: sudo loginctl enable-linger ${me}"
+    elif [[ "$DOCKER_CMD" == podman ]]; then
+        systemctl -q is-enabled podman-restart.service 2>/dev/null \
+            || echo "  ⚠  Podman won't restart the stack at boot. Once: sudo systemctl enable podman-restart.service"
+    elif [[ "$($DOCKER_CMD info --format '{{.OperatingSystem}}' 2>/dev/null)" == *"Docker Desktop"* ]]; then
+        # No docker.service to check: Desktop starts at sign-in if its own setting says so.
+        :
+    else
+        systemctl -q is-enabled docker.service 2>/dev/null \
+            || echo "  ⚠  Docker doesn't start at boot, so the stack won't either. Once: sudo systemctl enable docker"
+    fi
+    return 0
+}
+
 # ── Service enablement ────────────────────────────────────────────────────────
 # SERVICE_CATEGORIES, _load_env_shared, _reload_env_shared, _enable_var_for,
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
@@ -561,6 +595,7 @@ _render() {
 _build() {
     _ensure_host_ids
     _tailscale_serve_core
+    _start_on_boot
     echo ""
     echo "Generating docker-compose.yml..."
     run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"

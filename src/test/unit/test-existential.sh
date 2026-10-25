@@ -118,28 +118,10 @@ _source_existential() {
         distrobox-host-exec() { return 1; }
         export -f docker podman 2>/dev/null || true
 
-        # Source the script.  The top-level `case "$action"` block at the bottom
-        # of existential.sh will try to run because the file has no guard.  We
-        # intercept by setting positional params to something that hits `usage`
-        # (which just prints and exits 0) rather than any Docker branch.
-        # But actually the `while [[ $# -gt 0 ... ]]` loop and the `action=`
-        # assignment at the bottom are top-level — we need to isolate them.
-        #
-        # Technique: source the file in a sub-shell that receives "--help" as $1
-        # so it exits cleanly after printing usage, then re-source in a *second*
-        # sub-shell that will actually call the function under test.  That's
-        # double-source overhead per test.  A simpler approach: patch existential.sh
-        # so the entry-point block never fires when EXISTENTIAL_TEST_MODE=1.
-        # We can't modify the file, so instead we use bash's ability to source
-        # only up to a label via a process-substitution sed that strips the entry-
-        # point block.
-        #
-        # The entry point begins at the line:
-        #   while [[ $# -gt 0 && "$1" == --* ]]; do
-        # Everything before that line is safe to source.
-
+        # Source the definitions only: everything above the "Entry point"
+        # marker, so the dispatch at the bottom never runs.
         local src_lines
-        src_lines=$(grep -n 'while \[\[ \$# -gt 0' "$EXISTENTIAL" | head -1 | cut -d: -f1)
+        src_lines=$(grep -n '^# ── Entry point' "$EXISTENTIAL" | head -1 | cut -d: -f1)
         # shellcheck disable=SC1090
         . <(head -n "$(( src_lines - 1 ))" "$EXISTENTIAL")
 
@@ -154,6 +136,8 @@ _source_existential() {
         # $SCRIPT_DIR (now the fake tree) at call time.
         # shellcheck source=../../utils/service-common.sh
         . "${REPO}/src/utils/service-common.sh"
+        # shellcheck source=../../utils/adhoc.sh
+        . "${REPO}/src/utils/adhoc.sh"
 
         # Now the functions are defined.  Run the expression the caller provided.
         eval "$expr"
@@ -414,6 +398,30 @@ if grep -qF "s3cretPassw0rdValue" <<<"$_login_out"; then
 else
     _ok "_report_login never prints the password"
 fi
+
+# ── Section: _start_on_boot — the stack comes back after a reboot ────────────
+#
+# systemctl and loginctl are stubbed: each call is logged, and the answers say
+# nothing is enabled yet. Rootless Podman gets both turned on; Docker gets the
+# one root command printed, never run.
+
+FAKE_BOOT="$(make_fake_repo boot)"
+_boot_stubs='CALLS="${TMPDIR_ROOT}/boot-calls"; : > "$CALLS"
+systemctl() { echo "systemctl $*" >> "$CALLS"; [[ " $* " == *" enable "* ]]; }
+loginctl()  { echo "loginctl $*" >> "$CALLS"; [[ "$1" == enable-linger ]]; }
+id() { [[ "$1" == -un ]] && echo alice || command id "$@"; }'
+_boot_out="$(_source_existential "$FAKE_BOOT" "${_boot_stubs}
+DOCKER_CMD=podman ROOTLESS_PODMAN=true _start_on_boot; cat \"\$CALLS\"" 2>&1)"
+for _want in "systemctl --user -q enable podman-restart.service" "loginctl enable-linger alice"; do
+    if grep -qF -- "$_want" <<<"$_boot_out"; then _ok "_start_on_boot, rootless Podman → ${_want}"
+    else _fail "_start_on_boot, rootless Podman → ${_want}" "$_boot_out"; fi
+done
+_boot_out="$(_source_existential "$FAKE_BOOT" "${_boot_stubs}
+DOCKER_CMD=docker; docker() { echo Ubuntu; }; _start_on_boot; cat \"\$CALLS\"" 2>&1)"
+if grep -qF "sudo systemctl enable docker" <<<"$_boot_out"; then _ok "_start_on_boot, Docker not enabled → prints the one command"
+else _fail "_start_on_boot, Docker not enabled → prints the one command" "$_boot_out"; fi
+if grep -q "^systemctl.* enable " <<<"$_boot_out"; then _fail "_start_on_boot never enables a system unit itself" "$_boot_out"
+else _ok "_start_on_boot never enables a system unit itself"; fi
 
 # ── Section: CLI — refuses sudo ───────────────────────────────────────────────
 

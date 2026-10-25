@@ -7,7 +7,11 @@ sidebar_position: 2
 ## Prerequisites
 
 - [Docker](https://www.docker.com/get-started/), usable without sudo
-  (`sudo usermod -aG docker "$USER"`, then log out and back in) — `existential.sh` refuses to run under sudo
+  (`sudo usermod -aG docker "$USER"`, then log out and back in) — `existential.sh` refuses to run under sudo.
+  Once it has run, the stack starts with the machine until you stop it: `existential.sh` turns on
+  what rootless Podman needs for that (its restart service and linger), and says so if Docker itself
+  isn't set to start at boot. Docker Desktop starts the stack once it is running, so turn on its
+  "Start Docker Desktop when you sign in" setting
 - A machine to host the services (see [Hosting](./hosting/))
 - For Core, [Tailscale](https://tailscale.com/download), installed and logged in on that machine
   and on every phone and laptop that should reach Core. Without it, see
