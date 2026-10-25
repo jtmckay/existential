@@ -19,3 +19,4 @@
 019-search-your-notes.md
 020-one-way-to-do-each-thing.md
 021-starts-with-the-machine.md
+022-note-to-automation.md
