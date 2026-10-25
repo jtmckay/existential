@@ -14,7 +14,7 @@ reverse proxy and no certificate install anywhere.
 
 ## Outcome
 
-- Tailscale is part of Core. Core's guide (`src/quests/00-core.md`) walks through it: installed
+- Tailscale is part of Core. Getting Started walks through it: installed
   and logged in on the host and on every device that should reach Core. README, Getting
   Started and intro list it with Docker as what Core needs.
 - With Tailscale up on the host, `./existential.sh` serves Core over HTTPS on the machine's
