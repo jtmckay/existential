@@ -22,7 +22,7 @@ OpenAI-compatible URL, hermes being optional, agents in code-server) changed wha
   folder outside `graveyard/` has a docs page.
 - Statements a script can check stay checked. Where a doc names a count, a file, a key or
   a command, `./existential.sh validate` (or a unit test) fails when it stops being true, as
-  it already does for the tour page's Core count.
+  it already does for README's and intro's "What Core installs".
 
 ## Constraints
 
