@@ -31,7 +31,7 @@ and their graphs are mermaid in markdown, readable in the editor or Obsidian.
 - `workspace/.decree/graph/` is regenerated whenever a machine changes.
 - `workspace/.decree/.gitignore` ignores run state (runs, store, inbox, attention, logs).
 - The `automation-backup` project keeps working.
-- Quests, e2e, docs and validators that name `automation/migrations` or `automation/cron` name
+- Flows, e2e, docs and validators that name `automation/migrations` or `automation/cron` name
   the new location, and `./existential.sh test decree` checks the shipped machines.
 
 ## Constraints
