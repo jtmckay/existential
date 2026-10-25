@@ -14,11 +14,11 @@ publishing identity.
 ## Outcome
 
 - **One Caddy, one host.** There is no peer or front-door mode: no `EXIST_PEER_HOST_IP`, no
-  `Caddyfile.frontdoor-*.example`, and nothing in docs, quests or templates describes one.
+  `Caddyfile.frontdoor-*.example`, and nothing in docs, flows or templates describes one.
   `run caddy public-domain` is the way to add public hostnames.
 - **Compose owns the `exist` network.** The generated `docker-compose.yml` always declares it
   as Compose's own bridge, never `external`. No service template declares it, and no doc or
-  quest says to `docker network create` it. `EXIST_NETWORK_EXTERNAL` and
+  doc says to `docker network create` it. `EXIST_NETWORK_EXTERNAL` and
   `EXIST_DOCKER_NETWORK_SUBNET` do not exist.
 - **NAS storage is one setting.** `EXIST_NFS_HOST_MOUNT` is the only NFS key;
   `EXIST_NFS_SERVER_ADDRESS` and `EXIST_NFS_BASE_PATH` do not exist.
@@ -26,7 +26,7 @@ publishing identity.
   that user may publish to every topic. `EXIST_NTFY_TOKEN`, `EXIST_NTFY_TOPICS` and
   `./existential.sh run ntfy setup` do not exist.
 - **Notifications go to ntfy only, and there is no Telegram.** No machine, script, library,
-  cron template, quest, setting or doc page sends to or reads from Telegram. The flows that
+  cron template, flow, setting or doc page sends to or reads from Telegram. The flows that
   depended on it go with it: the bank-alert receipt split (and the split/revert helpers only
   it used), photo capture by bot, and the ComfyUI bot recipe. Actual Budget transactions still
   post from Gmail, and images still reach OCR through Nextcloud.
@@ -41,7 +41,7 @@ publishing identity.
   - `./existential.sh test <name>` runs `src/test/unit/test-<name>.sh` or
     `src/test/integration/test-<name>.sh` when one exists, else that service's
     `exist.test.sh`. No suite names are listed by hand.
-  - The bare command and `quest` share one render-and-build sequence.
+  - The bare command and `flow` share one render-and-build sequence.
   - `reset` is reached only as `./existential.sh reset`, which offers to stop the stack
     first; it is not listed or runnable as a `run` utility.
   - Unknown flags are unknown actions; `--help`, `-h` and `help` print the usage, which
