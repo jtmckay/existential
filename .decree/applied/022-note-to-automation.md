@@ -25,7 +25,7 @@ repo's own migrations work.
   automation, and only an automation listed in `.decree/automations.yml`. Its own files
   (`notes/automations/`) and the digests are never read. With no model reachable it does
   nothing and the run still succeeds.
-- **Proposing.** `automation_propose` writes `notes/automations/proposed/<name>.md`: frontmatter
+- **Proposing.** `automation_propose` writes `ai/proposed/<name>.md`: frontmatter
   `machine: develop`, `automation: <name>`, `from: <note>`, then Overview (the person's own
   words), Outcome (what starts it, what it produces, results in `ai/automations/<name>/` and
   a notification), Constraints and Acceptance Criteria. It contains no code. The person is
@@ -62,8 +62,8 @@ repo's own migrations work.
 
 ## Constraints
 
-- No AI CLI runs in the `automation` container: the workspace's `develop` builds through
-  `automation/lib/model.sh`.
+- The workspace's `develop` builds with Claude when the `automation` container is signed in to
+  it (`automation/lib/agent.sh`), and through `automation/lib/model.sh` when not.
 - Only a machine listed in `.decree/automations.yml` is ever replaced or removed; a name decree
   ships or the person wrote is refused.
 - The model writes only `steps` and the trigger; the machine file and the frame are templates.
@@ -73,7 +73,7 @@ repo's own migrations work.
 - **Given** a note "next time I have a business idea, research who already does it and draft
   a one-page plan" and a reachable model
   **When** it settles
-  **Then** `notes/automations/proposed/<name>.md` holds a `machine: develop` migration with
+  **Then** `ai/proposed/<name>.md` holds a `machine: develop` migration with
   Overview, Outcome, Constraints and Acceptance Criteria, and a notification says how to accept it
 - **Given** that proposal moved to `notes/automations/`
   **When** the daemon runs its migration
