@@ -21,3 +21,4 @@
 021-starts-with-the-machine.md
 022-note-to-automation.md
 023-flows-replace-quests.md
+024-machines-call-claude.md
