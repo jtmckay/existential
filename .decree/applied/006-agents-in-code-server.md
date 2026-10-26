@@ -24,12 +24,11 @@ that conversation going from a phone.
   AI provider the user configures, under that provider's terms. Existential itself sends and
   collects nothing. A model on your own hardware is the private option, a hosted one the easy
   option.
-- The repo's rules say that code-server ships these CLIs for a person to drive, and that
-  decree scripts never call an AI CLI.
+- The repo's rules say that code-server ships these CLIs for a person to drive, and that a
+  conversation in it is how new machines get written.
 
 ## Constraints
 
-- No other container installs an AI CLI.
 - code-server's memory limit still follows the convention (sized for a real editing session).
 
 ## Acceptance Criteria
