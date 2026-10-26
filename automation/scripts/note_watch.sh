@@ -17,9 +17,9 @@ WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
 REGISTRY="${AUTOMATIONS_REGISTRY:-.decree/automations.yml}"
 rel="${DECREE_DATA_PATH:?run by the notes file handler, with a path}"
 
-# Its own output and the digests are notes too; none of them is an instruction.
+# An automation spec is reconcile's, not an instruction.
 case "$rel" in
-    notes/automations/*|notes/you-were-here.md|notes/you-were-here/*) echo "note_watch: ${rel} is not watched"; exit 0 ;;
+    notes/automations/*) echo "note_watch: ${rel} is not watched"; exit 0 ;;
 esac
 [[ -s "${WS}/${rel}" ]] || { echo "note_watch: ${rel} is empty or gone"; exit 0; }
 text="$(head -c 6000 "${WS}/${rel}")"

@@ -7,7 +7,7 @@
 //                         with period_end_only set and the period not ending today,
 //                         writes nothing
 //   look-back.ts write    renders facts.json (+ model.json when the model answered) into
-//                         notes/you-were-here/<YYYY>/look-back-<from>-<to>.md and writes
+//                         ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and writes
 //                         $DECREE_RUN_DIR/ntfy.md
 //
 // The archive is the day notes lib/you-were-here/digest.ts writes; this only reads
@@ -22,7 +22,7 @@ import * as path from "node:path";
 
 const WS = process.env.DECREE_DATA_WORKSPACE || "/workspace";
 const RUN = process.env.DECREE_RUN_DIR!;
-const ARCHIVE = path.join(WS, "notes", "you-were-here");
+const ARCHIVE = path.join(WS, "ai", "you-were-here");
 const SCOPE_FILE = path.join(ARCHIVE, "scope.md");
 const NOW = process.env.LOOK_BACK_NOW ? new Date(process.env.LOOK_BACK_NOW) : new Date();
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -218,7 +218,7 @@ function gather() {
 
   const facts = {
     from, to, scope, today: TODAY,
-    file: path.join("notes", "you-were-here", to.slice(0, 4), name),
+    file: path.join("ai", "you-were-here", to.slice(0, 4), name),
     read: { lookBacks: archive.lookBacks, dayNotes: archive.dayNotes },
     highlights: [...highlights.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
       .map(([project, xs]) => ({ project, items: xs })),
@@ -253,7 +253,7 @@ function gather() {
   console.log(`gather: ${from} to ${to}, scope ${scope}: ${items.length} items from ${archive.lookBacks} look backs and ${archive.dayNotes} day notes`);
 }
 
-// Links from a look back, which sits in notes/you-were-here/<YYYY>/, to a day note in any year.
+// Links from a look back, which sits in ai/you-were-here/<YYYY>/, to a day note in any year.
 const dayLink = (date: string) => `../${date.slice(0, 4)}/${date}.md`;
 const md = (s: string) => s.replace(/([\[\]])/g, "\\$1");
 function label(i: Item) {

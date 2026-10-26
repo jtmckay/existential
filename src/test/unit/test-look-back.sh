@@ -80,7 +80,7 @@ pushes() { find "${TMP}/pushes" -name '*.args' | wc -l | tr -d ' '; }
 
 # ── The archive ───────────────────────────────────────────────────────────────
 W="${TMP}/workspace"
-A="$W/notes/you-were-here"
+A="$W/ai/you-were-here"
 # daynote <date> <decisions line or ""> <Done lines...>: an archived day, links as the digest rebases them.
 daynote() {
     local d="$1" decision="$2"; shift 2
@@ -161,7 +161,7 @@ assert_has "...and the runs" "$NUM" "Runs finished: 2 (1 not done)"
 assert_lacks "no model, no In short" "$(cat "$Q")" "## In short"
 assert_eq "one push" "1" "$(pushes)"
 assert_has "the push goes to notify" "$(cat "${TMP}/pushes/1.args")" "emit --machine notify --param ntfy_topic=exist"
-assert_has "the push points at the file" "$(cat "${TMP}/pushes/1")" "workspace/notes/you-were-here/2026/look-back-2026-07-01-2026-09-30.md"
+assert_has "the push points at the file" "$(cat "${TMP}/pushes/1")" "workspace/ai/you-were-here/2026/look-back-2026-07-01-2026-09-30.md"
 
 # ── scope ─────────────────────────────────────────────────────────────────────
 assert_has "scope.md is created on first use" "$(cat "$A/scope.md")" "## Projects"

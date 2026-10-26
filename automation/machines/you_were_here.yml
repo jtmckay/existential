@@ -1,5 +1,5 @@
 name: you_were_here
-description: The "you were here" digest, written to workspace/notes/you-were-here.md and today's archive, pushed through ntfy when something changed.
+description: The "you were here" digest, written to workspace/ai/you-were-here.md and today's archive, pushed through ntfy when something changed.
 data:
   workspace: { type: string, default: /workspace }
   ntfy_topic: { type: string, default: exist }

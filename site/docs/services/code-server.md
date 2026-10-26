@@ -52,7 +52,8 @@ survives a recreation like the rest.
 ## AI in the terminal
 
 The terminal has three, ready on first boot: `claude`, `opencode` and `hermes`. They are for you
-to drive; decree scripts never call an AI CLI.
+to drive, and talking to one here is how you make new automations. Machines call Claude too, from
+the automation container, with their own login: see [Decree](../decree/#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:

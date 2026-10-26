@@ -10,7 +10,7 @@
   changes: [created, modified]
   quiet: 60
 
-# An automation you accepted (moved up out of notes/automations/proposed/), edited
+# An automation you accepted (moved from ai/proposed/ into notes/automations/), edited
 # or deleted: build it (develop runs its migration), rebuild it, or remove it.
 - match: "notes/automations/*.md"
   machine: reconcile

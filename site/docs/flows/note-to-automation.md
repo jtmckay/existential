@@ -11,7 +11,7 @@ Write down how you want something handled next time, and the stack offers to do 
 
 A minute after you stop typing, your phone says: *When I write down a new business idea, I
 can look up competitors; do a market analysis with TAM; say whether it's worth building. To
-build it, move notes/automations/proposed/business_idea_research.md up to
+build it, move ai/proposed/business_idea_research.md into
 notes/automations/.* Move it, and a moment later: *Automation built.*
 
 From then on, every business idea you write down is researched in the background. A few
@@ -29,7 +29,7 @@ comes back as "where to look", never as an invented market.
 
 ## The proposal is a migration
 
-What lands in `notes/automations/proposed/` is a decree migration for the `develop` machine:
+What lands in `ai/proposed/` is a decree migration for the `develop` machine:
 the automation's intent and its requirements, never its code. **Overview** quotes what you
 asked for, **Outcome** says what starts it, what it produces and where the results go,
 **Constraints** says what it must not do, and **Acceptance Criteria** says how you'd know it
@@ -99,7 +99,9 @@ reach the stack's services, so its code is worth a look: `.decree/scripts/<name>
 code-server. A name decree already uses (`notify`, a machine you wrote) is refused, so an
 automation can never replace one.
 
-`develop` here builds with the chat model, not with Claude Code: no AI CLI runs inside the
-automation container, because its machines read your notes, and a note is the easiest place
-to hide an instruction. For anything bigger than a few steps, ask Claude in code-server, which
-writes the same kind of machine with you watching.
+`develop` builds with Claude when the automation container is [signed in to
+it](../decree/#claude-for-machines), and with the stack's chat model when not. With Claude
+signed in, a built automation can also hand a step to it, and Claude acts on its own. It can
+never change your notes, which the automation container sees read-only, so an instruction
+hidden in what it reads cannot rewrite what you asked for. For anything bigger than a few steps, ask Claude in
+code-server, which writes the same kind of machine with you watching.

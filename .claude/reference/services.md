@@ -243,6 +243,8 @@ decree project:
   `FILE_HANDLERS=1` it keeps `automation/lib/file-handlers.ts` running (plain `node`, not
   `tsx`: it never exits, and tsx holds a second node beside it), which watches `/workspace`
   and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
+  `workspace/notes/` is mounted read-only over `/workspace`, so nothing it runs, Claude in
+  `auto` mode included, changes a note; machines write under `workspace/ai/`.
 - **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
   `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
   it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.
@@ -250,7 +252,7 @@ decree project:
 | | `automation` | `automation-backup` |
 |---|---|---|
 | Runs | routing, notes, file_router, agent_task, the hermes endpoints, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
-| Sees | `ai/hermes/profiles` read-only, `/workspace` read-write, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
+| Sees | `ai/hermes/profiles` read-only, `/workspace` read-write but `notes/` read-only, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its scripts use | the **master `.env`** via `env_file` |
 | Model access | the role's OpenAI-compatible `/v1` URL (`lib/model.sh`); hermes, when enabled, through `lib/hermes.sh` | none — nothing here reasons |
 

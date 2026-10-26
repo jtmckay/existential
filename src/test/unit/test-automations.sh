@@ -91,7 +91,7 @@ reset_emits() { rm -f "${TMP}"/emits/*; }
 
 # ── The workspace, which is also the decree project root ─────────────────────
 W="${TMP}/ws"
-mkdir -p "$W/.decree/machines" "$W/.decree/scripts" "$W/.decree/migrations" "$W/notes/ideas"
+mkdir -p "$W/.decree/machines" "$W/.decree/scripts" "$W/.decree/migrations" "$W/notes/ideas" "$W/notes/automations"
 cp "${REPO_DIR}/automation/machines/note_watch.yml" "$W/.decree/machines/"
 printf 'name: notify\n' > "$W/.decree/machines/notify.yml"
 
@@ -100,6 +100,7 @@ run() {  # run <script> [VAR=value...]: one decree run of a shipped script, in t
     mkdir -p "${TMP}/run" "${TMP}/store"
     ( cd "$W" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" DECREE_LIB="${REPO_DIR}/automation/lib" \
         DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="${TMP}/run" AUTOMATIONS_WORKSPACE="$W" \
+        HOME="${TMP}/home" DECREE_STATE=run ANTHROPIC_API_KEY= CLAUDE_CODE_OAUTH_TOKEN= \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST:-$MODEL}" EXIST_MODEL_CHAT=test-model FIRECRAWL_URL="$STUB" "$@" \
         bash "$script" ) > "${TMP}/last.log" 2>&1
     echo $?
@@ -140,7 +141,7 @@ cat > "${TMP}/spec-reply" <<'MD'
 ## Acceptance Criteria
 - **Given** a new idea note **When** it settles **Then** a plan is in ai/automations/business_idea_workup/
 MD
-PROPOSAL="$W/notes/automations/proposed/${NAME}.md"
+PROPOSAL="$W/ai/proposed/${NAME}.md"
 propose() { run "$SCRIPTS/automation_propose.sh" DECREE_DATA_NOTE_PATH=notes/process.md DECREE_DATA_NAME="$1" \
     "DECREE_DATA_WHEN=I write down a new business idea" "DECREE_DATA_STEPS=- research who already does it
 - draft a one-page plan"; }
@@ -149,11 +150,11 @@ assert_has "the proposal is a migration for develop" "$(head -5 "$PROPOSAL" 2>/d
 assert_has "...naming its automation" "$(head -5 "$PROPOSAL" 2>/dev/null)" "automation: ${NAME}"
 assert_has "...and the note that asked" "$(head -5 "$PROPOSAL" 2>/dev/null)" "from: notes/process.md"
 assert_has "...with the intent and the outcome" "$(cat "$PROPOSAL" 2>/dev/null)" "## Outcome"
-assert_has "you are told how to accept it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "move notes/automations/proposed/${NAME}.md up to notes/automations/"
+assert_has "you are told how to accept it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "move ai/proposed/${NAME}.md into notes/automations/"
 reset_emits
 printf '# Something\n\n## Overview\nx\n' > "${TMP}/spec-reply"
 assert_eq "a migration missing a section fails the run" "1" "$(propose other_thing)"
-assert_eq "...and writes no proposal" "no" "$([[ -e "$W/notes/automations/proposed/other_thing.md" ]] && echo yes || echo no)"
+assert_eq "...and writes no proposal" "no" "$([[ -e "$W/ai/proposed/other_thing.md" ]] && echo yes || echo no)"
 
 echo ""; echo "=== accept ==="
 reset_emits
@@ -239,6 +240,38 @@ assert_eq "with Firecrawl off, steps that search the web fail the gate" "1" "$(r
 assert_has "...saying why" "$(cat "${TMP}/last.log")" "need Firecrawl, which is off"
 assert_lacks "...and the model was not offered web_search" "$(cat "${TMP}/build-system")" "web_search"
 assert_eq "...and nothing is installed" "no" "$([[ -e "$W/.decree/machines/offline_thing.yml" || -e "$W/.decree/scripts/offline_thing.sh" ]] && echo yes || echo no)"
+rm -f "${TMP}/run/gate.err"
+
+echo ""; echo "=== claude ==="
+# A stub claude: records what it was asked, answers with build-reply.
+cat > "${TMP}/bin/claude" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "${@: -1}" > "${STUBDIR}/claude-prompt"
+cat "${STUBDIR}/build-reply"
+SH
+chmod +x "${TMP}/bin/claude"
+SIGNED_IN=CLAUDE_CODE_OAUTH_TOKEN=test-token
+cp "$W/.decree/migrations/${MIGRATION}" "$W/.decree/migrations/A5-file_reader.md"
+printf 'TRIGGER: {"kind": "note", "when": "x"}\nsteps() {\n    echo "## Found"\n    agent "find my notes about x"\n}\nThat is the function.\n' > "${TMP}/build-reply"
+rm -f "${TMP}/build-system"
+assert_eq "signed in to Claude, develop builds with it" "0" "$(run "$SCRIPTS/develop.sh" DECREE_MESSAGE="$W/.decree/migrations/A5-file_reader.md" DECREE_DATA_AUTOMATION=file_reader "$SIGNED_IN")"
+assert_has "...asking it to build the automation" "$(cat "${TMP}/claude-prompt" 2>/dev/null)" "You build one automation"
+assert_has "...with the spec" "$(cat "${TMP}/claude-prompt" 2>/dev/null)" "The spec:"
+assert_has "...and telling it about agent" "$(cat "${TMP}/claude-prompt" 2>/dev/null)" 'agent "<task>"'
+assert_eq "...and the chat model is not asked" "no" "$([[ -e "${TMP}/build-system" ]] && echo yes || echo no)"
+assert_has "the built steps can call agent" "$(cat "$W/.decree/scripts/file_reader.sh" 2>/dev/null)" 'agent "find my notes about x"'
+assert_lacks "...and words after the function are no part of it" "$(cat "$W/.decree/scripts/file_reader.sh" 2>/dev/null)" "That is the function"
+printf 'source "${DECREE_LIB}/agent.sh"\nagent "hello"\n' > "${TMP}/agent-call.sh"
+assert_eq "agent answers when signed in" "0" "$(run "${TMP}/agent-call.sh" "$SIGNED_IN")"
+assert_has "...with Claude's reply" "$(cat "${TMP}/last.log")" "That is the function"
+assert_has "...and the call is logged" "$(cat "$W/.decree/ai-use.md" 2>/dev/null)" "| claude |"
+assert_eq "agent fails when not signed in" "1" "$(run "${TMP}/agent-call.sh")"
+assert_has "...saying how to sign in" "$(cat "${TMP}/last.log")" "docker exec -it automation claude"
+cp "$W/.decree/migrations/${MIGRATION}" "$W/.decree/migrations/A6-unsigned_thing.md"
+printf 'TRIGGER: {"kind": "note", "when": "x"}\nsteps() { agent "x"; }\n' > "${TMP}/build-reply"
+assert_eq "not signed in, steps that call agent fail the gate" "1" "$(run "$SCRIPTS/develop.sh" DECREE_MESSAGE="$W/.decree/migrations/A6-unsigned_thing.md" DECREE_DATA_AUTOMATION=unsigned_thing)"
+assert_has "...saying why" "$(cat "${TMP}/last.log")" "agent needs Claude signed in"
+assert_lacks "...and the chat model was not offered agent" "$(cat "${TMP}/build-system")" 'agent "<task>"'
 rm -f "${TMP}/run/gate.err"
 
 echo ""; echo "=== trigger ==="

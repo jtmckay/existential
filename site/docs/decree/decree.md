@@ -40,6 +40,42 @@ echo | docker exec -i automation decree emit --machine <name>   # run one by han
 Every machine and how they chain is drawn in `automation/graph/system.md` (and
 `services/automation/backup/graph/` for the other daemon), which GitHub renders.
 
+## Claude for machines
+
+AI comes in at two places. You talk to Claude in code-server's terminal, and that conversation
+is how new machines get written. Machines then call AI themselves while they run, in one of two
+ways:
+- `model_chat` (`automation/lib/model.sh`) is one answer from the stack's own model endpoint.
+- `agent` (`automation/lib/agent.sh`) is Claude Code, which can read and search your workspace.
+
+The automation container comes with Claude Code installed. Sign it in once:
+
+```bash
+docker exec -it automation claude    # then /login, then /exit
+```
+
+The login is kept in the container's home folder, `volumes/decree_data`, so it survives a
+rebuild. To use an API key instead, or a token from `claude setup-token`, set
+`AUTOMATION_ANTHROPIC_API_KEY` or `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN` in
+`services/automation/.env`, then run `docker compose up -d`.
+
+Once it is signed in:
+- the [automations you write in a note](../flows/note-to-automation) are built by Claude rather
+  than the chat model;
+- a step of one can hand Claude a task;
+- every call adds a line to `.decree/ai-use.md`;
+- a call that hits Claude's usage limit waits for it to reset, up to six hours, and otherwise
+  stops the run and tells you on ntfy.
+
+A machine's Claude runs with nobody there to say yes, so it acts on its own (Claude Code's
+`auto` mode). One thing it can never change is your notes, which are what you tell the stack
+to do: the automation container sees them read-only. A note, an email or a web page can hide
+an instruction, and this way such an instruction can never rewrite what you asked for.
+Everything else the container reaches, it can use: the rest of the workspace, the
+service credentials automation holds, the network. What machines write goes to
+`workspace/ai/`. `AUTOMATION_CLAUDE_PERMISSION_MODE=default` keeps Claude to reading and
+searching. Calls go to Anthropic under your account's terms.
+
 ## When a run needs you
 
 A run in `workspace/.decree` that fails, or stops to wait for a person, sends one ntfy message

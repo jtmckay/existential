@@ -12,7 +12,7 @@ needs you, and also what is holding steady so you don't need to think about it.
 
 ## Outcome
 
-- A decree machine in the workspace project writes `workspace/notes/you-were-here.md` and
+- A decree machine in the workspace project writes `workspace/ai/you-were-here.md` and
   pushes the digest through ntfy. It runs every morning by default, and on demand through
   `POST /you-were-here` on automation-webhook.
 - The ntfy message carries the digest itself, not just a link: The picture, Waiting on you,
@@ -43,9 +43,9 @@ needs you, and also what is holding steady so you don't need to think about it.
   with no model involved. The model writes only those parts, works only from the gathered
   facts, and links each claim to its source. With the model unreachable, the digest is
   still written and sent without them.
-- Every digest is also archived as that day's note, `workspace/notes/you-were-here/<YYYY>/<YYYY-MM-DD>.md`,
+- Every digest is also archived as that day's note, `workspace/ai/you-were-here/<YYYY>/<YYYY-MM-DD>.md`,
   and archives are never rewritten or deleted afterwards. A day with several digests keeps the
-  last. `workspace/notes/you-were-here.md` is always the latest.
+  last. `workspace/ai/you-were-here.md` is always the latest.
 - Each archived day has a **Done** section built from data: checkboxes ticked, machines and
   migrations that landed, runs that finished, notes created, and captured threads with their
   project or context. That turns the archive into a record of what you did, not only of
@@ -76,7 +76,7 @@ needs you, and also what is holding steady so you don't need to think about it.
   **Then** that item isn't shown again
 - **Given** digests on two different days
   **When** both have run
-  **Then** both day notes exist under `notes/you-were-here/<YYYY>/` and the first is unchanged
+  **Then** both day notes exist under `ai/you-were-here/<YYYY>/` and the first is unchanged
 - **Given** no change since the last digest
   **When** it runs
   **Then** no ntfy message is sent

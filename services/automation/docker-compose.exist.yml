@@ -13,11 +13,12 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
     # The automation daemon (~45 MiB idle, but it runs tsx in-process) and the
-    # file-handlers watcher (~80 MiB).
+    # file-handlers watcher (~80 MiB), plus a Claude Code call while a machine
+    # runs one (a node process of a few hundred MiB).
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
     networks:
       - exist
     # Nothing here may start DECREE_: decree strips every inherited DECREE_*
@@ -58,6 +59,12 @@ services:
       # rclone_src download then depends on. /data is the decree_data volume:
       # the writable path this container already has that survives a restart.
       - HOME=/data
+      # Claude Code for machines (automation/lib/agent.sh) keeps its login there too.
+      # `auto`: Claude acts on its own. It still cannot change your notes, which
+      # are mounted read-only below.
+      - CLAUDE_PERMISSION_MODE=${AUTOMATION_CLAUDE_PERMISSION_MODE:-auto}
+      - ANTHROPIC_API_KEY=${AUTOMATION_ANTHROPIC_API_KEY:-}
+      - CLAUDE_CODE_OAUTH_TOKEN=${AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN:-}
       #- GMAIL_INITIAL_SYNC_DAYS=7
       #- GMAIL_LABEL_FILTER=INBOX
       # ── Service migrations and service crons ────────────────────────────
@@ -139,6 +146,9 @@ services:
       # workspace/ai/. file-handlers.ts watches all of it; only a handler in
       # .decree/handlers.yml turns a change into a run.
       - workspace_data:/workspace:z
+      # Your notes are what you tell the stack to do: an automation, or the Claude
+      # it calls, reads them and never changes them. What it makes goes in ai/.
+      - workspace_data/notes:/workspace/notes:ro,z
     tty: false
 
   automation-backup:

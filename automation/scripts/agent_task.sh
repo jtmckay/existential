@@ -9,10 +9,10 @@
 # tools, only to say what it wants.
 #
 # The gateway is called directly, through lib/hermes.sh — the same path
-# lib/hermes-cli.sh gives a human in code-server's terminal. There is no AI CLI
-# in this container: hermes already runs the tool loop, and wrapping it in a
-# second agent both added nothing and broke on hermes' custom
-# `event: hermes.tool.progress` SSE frames. Repo-editing work belongs to a
+# lib/hermes-cli.sh gives a human in code-server's terminal. hermes runs the tool
+# loop itself, so it is not wrapped in a second agent: that added nothing and
+# broke on hermes' custom `event: hermes.tool.progress` SSE frames. A machine
+# that wants Claude instead uses lib/agent.sh. Repo-editing work belongs to a
 # coding agent on the host, not to this stack.
 #
 # `profile` picks which hermes profile answers (default: the default profile).

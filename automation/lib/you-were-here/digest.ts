@@ -5,7 +5,7 @@
 //   digest.ts gather   reads the project (.decree/, the cwd's), the workspace and the
 //                      store; writes $DECREE_RUN_DIR/facts.json and prompt.txt
 //   digest.ts write    renders facts.json (+ model.json when the model answered) into
-//                      notes/you-were-here.md and today's archive, saves the store, and
+//                      ai/you-were-here.md and today's archive, saves the store, and
 //                      writes $DECREE_RUN_DIR/ntfy.md only when something changed
 //
 // Every section but The picture, One next thing, the feed reasons and Worth learning's
@@ -123,7 +123,6 @@ function notes() {
   return walk(root)
     .filter((f) => f.endsWith(".md"))
     .map((f) => path.relative(WS, f))
-    .filter((rel) => rel !== "notes/you-were-here.md" && !rel.startsWith("notes/you-were-here/"))
     .map((rel) => {
       const text = read(path.join(WS, rel));
       const boxes = (mark: string) => [...text.matchAll(new RegExp(`^\\s*[-*] \\[${mark}\\] (.+)$`, "gm"))].map((m) => oneLine(m[1]));
@@ -355,7 +354,7 @@ function sections(f: Facts, m: Model, l: Learn | null) {
   };
 }
 
-// Links are workspace-relative; a note in notes/ or notes/you-were-here/<YYYY>/ gets them rebased.
+// Links are workspace-relative; a page in ai/ or ai/you-were-here/<YYYY>/ gets them rebased.
 const rebase = (s: string, prefix: string) => s.replace(/\]\((?![a-z]+:)([^)]+)\)/g, (_, p) => `](${prefix}${p})`);
 const plain = (s: string) => s.replace(/\[([^\]]+)\]\((?![a-z]+:)[^)]+\)/g, "$1").replace(/\\([\[\]])/g, "$1");
 
@@ -369,10 +368,10 @@ function write() {
   const head = `# You were here, ${f.today}`;
   const body = [s.picture, s.waiting, s.next, s.steady, s.leftOff, s.feeds, s.learn, s.rest].filter(Boolean).join("\n\n");
 
-  writeAtomic(path.join(WS, "notes", "you-were-here.md"), rebase(`${head}\n\n${body}\n`, "../"));
-  const archive = path.join(WS, "notes", "you-were-here", f.today.slice(0, 4), `${f.today}.md`);
+  writeAtomic(path.join(WS, "ai", "you-were-here.md"), rebase(`${head}\n\n${body}\n`, "../"));
+  const archive = path.join(WS, "ai", "you-were-here", f.today.slice(0, 4), `${f.today}.md`);
   writeAtomic(archive, rebase(`${head}\n\n${body}\n\n${s.done}\n`, "../../../"));
-  console.log(`write: notes/you-were-here.md and ${path.relative(WS, archive)}`);
+  console.log(`write: ai/you-were-here.md and ${path.relative(WS, archive)}`);
 
   fs.mkdirSync(STORE, { recursive: true });
   if (f.feeds?.length) fs.appendFileSync(path.join(STORE, "feeds-shown.tsv"), f.feeds.map((i) => `${i.link}\t${f.today}\n`).join(""));
@@ -393,7 +392,7 @@ function write() {
   // note_link wins; else code-server on the tailnet name Core is served on.
   const tailnet = process.env.EXIST_TAILNET_NAME;
   const link = process.env.DECREE_DATA_NOTE_LINK ||
-    (tailnet ? `notes/you-were-here.md, in https://${tailnet}` : "workspace/notes/you-were-here.md");
+    (tailnet ? `ai/you-were-here.md, in https://${tailnet}` : "workspace/ai/you-were-here.md");
   const footer = `Full digest: ${link}`;
   let push = "";
   for (const part of [s.picture, s.waiting, s.next, s.steady].filter(Boolean).map(plain)) {

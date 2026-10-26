@@ -6,8 +6,8 @@
 # person's own words), the outcome (what triggers it, what it does, where the
 # results go), constraints and acceptance criteria, all declarative: what is
 # true when it exists, never how to build it. This writes it to
-# notes/automations/proposed/<name>.md and tells you. Nothing is built: moving the
-# file up to notes/automations/ is how you accept it, and then `develop` builds
+# ai/proposed/<name>.md and tells you. Nothing is built: moving the
+# file into notes/automations/ is how you accept it, and then `develop` builds
 # the machine and its trigger from it (reconcile hands it over).
 set -euo pipefail
 # shellcheck source=../lib/model.sh
@@ -20,7 +20,7 @@ name="$DECREE_DATA_NAME" when="$DECREE_DATA_WHEN" steps="$DECREE_DATA_STEPS" rel
 [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "automation_propose: '${name}' is not a machine name" >&2; exit 1; }
 # Never a name already taken: building it would replace that machine.
 base="$name"; n=2
-while [[ -e ".decree/machines/${name}.yml" || -e "${WS}/notes/automations/${name}.md" || -e "${WS}/notes/automations/proposed/${name}.md" ]]; do
+while [[ -e ".decree/machines/${name}.yml" || -e "${WS}/notes/automations/${name}.md" || -e "${WS}/ai/proposed/${name}.md" ]]; do
     name="${base}_${n}"; n=$((n + 1))
 done
 
@@ -60,7 +60,7 @@ for section in "## Overview" "## Outcome" "## Constraints" "## Acceptance Criter
     grep -qxF "$section" <<<"$body" || { echo "automation_propose: the migration has no '${section}' section" >&2; exit 1; }
 done
 
-out="${WS}/notes/automations/proposed/${name}.md"
+out="${WS}/ai/proposed/${name}.md"
 mkdir -p "$(dirname "$out")"
 {
     printf -- '---\nmachine: develop\nautomation: %s\nfrom: %s\n---\n\n' "$name" "$rel"
@@ -69,6 +69,6 @@ mkdir -p "$(dirname "$out")"
 mv "${out}.tmp" "$out"
 echo "automation_propose: wrote ${out#"${WS}/"}"
 
-printf 'When %s, I can %s\n\nTo build it, move notes/automations/proposed/%s.md up to notes/automations/. Read or edit what it will do first.\n' \
+printf 'When %s, I can %s\n\nTo build it, move ai/proposed/%s.md into notes/automations/. Read or edit what it will do first.\n' \
     "$when" "$(printf '%s\n' "$steps" | sed 's/^- //' | paste -sd ';' | sed 's/;/; /g')" "$name" |
     decree emit --machine notify --param ntfy_title="An automation you could have" --param ntfy_tags=bulb >/dev/null

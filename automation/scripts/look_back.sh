@@ -7,7 +7,7 @@
 # In short from those facts; with the model unreachable the look back is the data
 # sections alone. Reads the archive, never rewrites it.
 #
-# Writes notes/you-were-here/<YYYY>/look-back-<from>-<to>.md (-work.md for the
+# Writes ai/you-were-here/<YYYY>/look-back-<from>-<to>.md (-work.md for the
 # work scope) and pushes a short pointer to it through notify.
 # automation-webhook's POST /look-back runs it on demand.
 set -euo pipefail

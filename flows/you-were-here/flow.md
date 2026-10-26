@@ -9,4 +9,4 @@ default: true
 ---
 
 Runs at 07:00 with a chat model (EXIST_MODEL_URL); with none it still writes the
-parts built from files. The digest is notes/you-were-here.md in the workspace.
+parts built from files. The digest is ai/you-were-here.md in the workspace.

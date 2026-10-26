@@ -25,3 +25,20 @@ project's `develop` machine, filed into `.decree/migrations/` by `reconcile`. `d
 builds `.decree/machines/<name>.yml`, `.decree/scripts/<name>.sh` and the trigger, and lists
 it in `.decree/automations.yml`. All of that is rebuilt from the note on every edit: to change
 one, edit its file in `notes/automations/`, never the built copies.
+
+## This project: AI in a machine
+
+A script reaches AI two ways, both in `.decree/lib/` (read-only, the stack's):
+
+- `source "${DECREE_LIB}/model.sh"`, then `model_chat "<system>" "<user>"`: one answer from the
+  stack's own model. Cheap, and always there.
+- `source "${DECREE_LIB}/agent.sh"`, then `agent "<task>"`: Claude Code, run in the workspace in
+  `auto` mode. `agent_ready` says whether this install has signed it in (`docker exec -it
+  automation claude`, then `/login`). Use it for a step that has to look through files, act or
+  reason at length.
+
+In the `automation` container `notes/` is read-only: a machine reads notes and writes what it
+makes under `ai/`, and one that writes a note fails.
+
+`agent` is `ai` from `lib/ai.sh` with Claude chosen, which is what the rules above mean by
+calling AI only through `ai`.

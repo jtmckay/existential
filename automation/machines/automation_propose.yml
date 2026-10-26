@@ -1,5 +1,5 @@
 name: automation_propose
-description: Write a standing instruction from a note as an automation's migration (its intent and declarative requirements) in notes/automations/proposed/, and tell you.
+description: Write a standing instruction from a note as an automation's migration (its intent and declarative requirements) in ai/proposed/, and tell you.
 data:
   note_path: { type: string, default: "" }
   name: { type: string, default: "" }

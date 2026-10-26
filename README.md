@@ -84,7 +84,7 @@ You work in one folder, `workspace/`: `notes/` (plain markdown, starting with
 `.capture/` (your agent prompts and anything else you capture, secrets redacted). code-server
 opens it in a browser; start `claude` there and say what should happen, and it writes the
 automation into `.decree/`, already knowing how from the decree skill in `.claude/`. decree runs
-what is in `.decree/`, and every morning writes `notes/you-were-here.md`: what is waiting on
+what is in `.decree/`, and every morning writes `ai/you-were-here.md`: what is waiting on
 you, what is holding steady and where you left off, pushed to your phone through ntfy. A
 look back turns those days into what you did this week, month or year. Anything that needs a model reaches it through one OpenAI-compatible `/v1` URL,
 served by ollama, llama.cpp or anything else, on this box or another one.

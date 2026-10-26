@@ -136,9 +136,9 @@ run_digest() {
         bash "${REPO_DIR}/automation/scripts/you_were_here.sh" ) > "${run}.log" 2>&1
     echo $?
 }
-NOTE="$W/notes/you-were-here.md"
-DAY1="$W/notes/you-were-here/2026/2026-10-01.md"
-DAY2="$W/notes/you-were-here/2026/2026-10-02.md"
+NOTE="$W/ai/you-were-here.md"
+DAY1="$W/ai/you-were-here/2026/2026-10-01.md"
+DAY2="$W/ai/you-were-here/2026/2026-10-02.md"
 
 # ── day 1: the model is unreachable ───────────────────────────────────────────
 MODEL_URL_UNDER_TEST="http://127.0.0.1:9/v1"
@@ -146,7 +146,7 @@ assert_eq "day 1 runs with the model unreachable" "0" "$(run_digest 2026-10-01T0
 assert_has "the attention item is under Waiting on you" "$(section "$NOTE" "Waiting on you")" "**gmail** is failed in fetch"
 assert_has "the machine that succeeded is under Holding steady" "$(section "$NOTE" "Holding steady")" "**newsletter**: last run succeeded"
 assert_has "the schedule is under Holding steady" "$(section "$NOTE" "Holding steady")" "Schedules active: [newsletter]"
-assert_has "the attention link is rebased for notes/" "$(section "$NOTE" "Waiting on you")" "](../.decree/attention/20260930T110000.000000Z-bbbbbb.md)"
+assert_has "the attention link is rebased for ai/" "$(section "$NOTE" "Waiting on you")" "](../.decree/attention/20260930T110000.000000Z-bbbbbb.md)"
 assert_has "the captured thread is under Where you left off" "$(section "$NOTE" "Where you left off")" "**garden**: 1 prompt"
 LEFT="$(section "$NOTE" "Where you left off")"
 assert_has "a sessionless line is its context's last prompt" "$LEFT" 'last: "sketch the irrigation for the raised beds"'
@@ -163,7 +163,7 @@ assert_eq "one push" "1" "$(pushes)"
 PUSH="$(cat "${TMP}/pushes/1")"
 assert_has "the push carries the attention item" "$PUSH" "**gmail** is failed in fetch"
 assert_has "the push carries the steady machine" "$PUSH" "**newsletter**: last run succeeded"
-assert_has "the push ends with the note" "$PUSH" "Full digest: workspace/notes/you-were-here.md"
+assert_has "the push ends with the note" "$PUSH" "Full digest: workspace/ai/you-were-here.md"
 assert_lacks "the push leaves out Everything else" "$PUSH" "Everything else"
 assert_has "the push goes to notify" "$(cat "${TMP}/pushes/1.args")" "emit --machine notify --param ntfy_topic=exist"
 assert_eq "the day's archive is written" "yes" "$([[ -f "$DAY1" ]] && echo yes)"
@@ -174,7 +174,7 @@ assert_lacks "the first digest calls nothing that was already there done" "$(sec
 # ── day 1 again: nothing changed ──────────────────────────────────────────────
 assert_eq "a second run the same day succeeds" "0" "$(run_digest 2026-10-01T09:00:00Z)"
 assert_eq "nothing changed, so nothing is pushed" "1" "$(pushes)"
-assert_has "...and the note is still refreshed" "$(cat "${TMP}/rundirs/2026-10-01T09:00:00Z.log")" "write: notes/you-were-here.md"
+assert_has "...and the note is still refreshed" "$(cat "${TMP}/rundirs/2026-10-01T09:00:00Z.log")" "write: ai/you-were-here.md"
 cp "$DAY1" "${TMP}/day1.md"
 
 # ── day 2: the model answers, feeds.md exists, a checkbox was ticked, Tailscale is up ──
@@ -203,12 +203,12 @@ assert_eq "day 2 is pushed" "2" "$(pushes)"
 assert_has "the push starts with The picture" "$(head -n1 "${TMP}/pushes/2")" "## The picture"
 assert_lacks "the push leaves out Worth learning" "$(cat "${TMP}/pushes/2")" "Worth learning"
 assert_has "the push shows link text, not paths" "$(cat "${TMP}/pushes/2")" "The garden is moving;"
-assert_has "with a tailnet name, the push links to code-server there" "$(cat "${TMP}/pushes/2")" "Full digest: notes/you-were-here.md, in https://box.tail1234.ts.net"
+assert_has "with a tailnet name, the push links to code-server there" "$(cat "${TMP}/pushes/2")" "Full digest: ai/you-were-here.md, in https://box.tail1234.ts.net"
 assert_has "the ticked checkbox is under Done" "$(section "$DAY2" "Done")" "Ticked: compost delivery"
 assert_has "what you worked on today is under Done, with its source" "$(section "$DAY2" "Done")" "Worked on **shed**: 1 prompt via opencode"
 assert_has "feeds.md is a new note under Done" "$(section "$DAY2" "Done")" "New note: [notes/feeds.md]"
 assert_eq "day 1's archive is unchanged" "same" "$(cmp -s "$DAY1" "${TMP}/day1.md" && echo same)"
-assert_eq "both days are archived" "2026-10-01.md 2026-10-02.md" "$(ls "$W/notes/you-were-here/2026" | tr '\n' ' ' | sed 's/ $//')"
+assert_eq "both days are archived" "2026-10-01.md 2026-10-02.md" "$(ls "$W/ai/you-were-here/2026" | tr '\n' ' ' | sed 's/ $//')"
 
 # ── day 3: an item shown on day 2, or already linked from a note, is not shown ─
 feed raised-beds-irrigation knitting-patterns stock-market-news compost-tea worm-farm
@@ -223,7 +223,7 @@ LEARN="$(section "$NOTE" "Worth learning")"
 assert_lacks "an article already suggested is not suggested again" "$LEARN" "Drip_irrigation"
 assert_lacks "an article a note links to is skipped" "$LEARN" "wiki/Irrigation)"
 assert_has "...so the next one Wikipedia found is suggested" "$LEARN" "[Rain barrel](https://en.wikipedia.org/wiki/Rain_barrel)"
-assert_eq "the archive is per day" "3" "$(find "$W/notes/you-were-here" -name '*.md' | wc -l | tr -d ' ')"
+assert_eq "the archive is per day" "3" "$(find "$W/ai/you-were-here" -name '*.md' | wc -l | tr -d ' ')"
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 assert_eq "the cron template runs this machine" "you_were_here" \

@@ -240,8 +240,8 @@ It's more than a shared folder:
   [Writing a routine](./writing-a-routine).
 - **`workspace/.capture/`** is everything you put in, as one stream — see
   [Capture](#capture).
-- **`workspace/notes/you-were-here.md`** is the morning digest, and
-  `notes/you-were-here/<YYYY>/` keeps one per day, with the [look backs](#look-back) beside them
+- **`workspace/ai/you-were-here.md`** is the morning digest, and
+  `ai/you-were-here/<YYYY>/` keeps one per day, with the [look backs](#look-back) beside them
   — see [You were here](#you-were-here).
 - **Excluding your own files** is the desktop client's job: its *Ignored Files* list keeps
   anything you name off the server.
@@ -295,7 +295,7 @@ code-server's terminal: `cd /workspace && echo 'buy filters' | decree emit --mac
 ### You were here
 
 On a foggy day the hard part is remembering where you were. Every morning at 7 the
-`you_were_here` machine writes `workspace/notes/you-were-here.md` and pushes the top of it to
+`you_were_here` machine writes `workspace/ai/you-were-here.md` and pushes the top of it to
 ntfy:
 
 - **The picture**: two or three sentences.
@@ -325,7 +325,7 @@ fit ntfy's 4096 bytes, and is skipped when nothing changed since the last digest
 means since the last digest, or, when nothing new came in since, the window of the last one
 that showed something, so a few quiet days never empty it.
 
-Each day is also kept as `workspace/notes/you-were-here/<YYYY>/<YYYY-MM-DD>.md` (the last
+Each day is also kept as `workspace/ai/you-were-here/<YYYY>/<YYYY-MM-DD>.md` (the last
 digest of that day), with a **Done** section: checkboxes ticked, machines and migrations that
 landed, runs that finished, notes created and what you worked on. A past day's file is never
 touched again. No streaks and no "you missed N days". The **Worked on** lines name the capture
@@ -342,7 +342,7 @@ An install from before this keeps its own `workspace/.decree/decree-go-rest.yml`
 ### Look back
 
 "What did I even do this year?" The `look_back` machine reads a range of the day notes above
-and writes `workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md`, then sends a short
+and writes `workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md`, then sends a short
 ntfy pointing at it:
 
 - **Highlights**: checkboxes ticked, notes created and migrations landed, grouped by project
@@ -367,7 +367,7 @@ With the webhook add-on, `POST /look-back` on `automation-webhook` does the year
 `/look-back/month` a period, `/look-back/month/work` a period at work only. From code-server's
 terminal it is the same command as above, run in `/workspace` without `docker exec automation`.
 
-**Work only**: `scope=work` keeps what `workspace/notes/you-were-here/scope.md` names: projects,
+**Work only**: `scope=work` keeps what `workspace/ai/you-were-here/scope.md` names: projects,
 workspace folders (`notes/work/`) and capture sources (`claude-code`), one `- ` line each under
 its heading. The file is written, empty, the first time a look back runs. A work look back is
 `look-back-<from>-<to>-work.md`, so it never replaces the full one.

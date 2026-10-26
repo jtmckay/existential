@@ -11,6 +11,8 @@
 #   NOTE_PATH   the note or file, relative to the workspace; empty on a schedule
 #   NOTE        its text; empty on a schedule
 #   ask <instructions> <input>   one answer from the chat model
+#   agent <prompt>               Claude Code, reading the workspace (agent.sh); only
+#                                when it is signed in, which develop checks
 #   web_search <query> [n]       the top n web results with their pages' text,
 #   web_read <url>               and one page, both through Firecrawl (firecrawl.sh)
 # automation_run writes what steps printed to workspace/ai/automations/<name>/
@@ -20,6 +22,8 @@ set -euo pipefail
 source "${DECREE_LIB}/model.sh"
 # shellcheck source=../firecrawl.sh
 source "${DECREE_LIB}/firecrawl.sh"
+# shellcheck source=../agent.sh
+source "${DECREE_LIB}/agent.sh"
 
 WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
 # note_watch passes note_path; a file handler passes path; a cron run neither.

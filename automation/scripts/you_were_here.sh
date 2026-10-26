@@ -8,7 +8,7 @@
 # Worth learning, whose article Wikipedia's search finds. With the model
 # unreachable the digest is written and sent without them.
 #
-# Writes workspace/notes/you-were-here.md and notes/you-were-here/<YYYY>/<date>.md,
+# Writes workspace/ai/you-were-here.md and ai/you-were-here/<YYYY>/<date>.md,
 # and pushes through notify only when something changed since the last digest.
 # automation-webhook's POST /you-were-here runs it on demand.
 set -euo pipefail

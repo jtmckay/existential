@@ -22,6 +22,10 @@ ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
 # decree inside automation-webhook's image (../../automation-webhook/docker-compose.exist.yml). The
 # release's own install.sh fetches its static binary and checks its sha256.
 ARG DECREE_TAG=v0.5.0-beta.13
+# Claude Code, which `ai` in automation/lib/ai.sh calls: machines that need an agent
+# use it (automation/lib/agent.sh). Pinned, and its updater is off below, so a
+# run never changes the CLI under it; bump it here.
+ARG CLAUDE_CODE_VERSION=2.1.310
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
@@ -50,6 +54,7 @@ RUN apt-get update \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && npm install -g npm@11.16.0 \
+    && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
     && curl -fsSL "https://github.com/jtmckay/decree/releases/download/${DECREE_TAG}/install.sh" \
         -o /tmp/decree-install.sh \
     && XDG_BIN_HOME=/usr/local/bin sh /tmp/decree-install.sh "${DECREE_TAG}" \
@@ -77,6 +82,9 @@ ENV PATH=/opt/decree/node_modules/.bin:$PATH
 # npm cache, and the npm global prefix at a world-writable dir (0777, since the
 # uid:gid is not known at build time) and put its bin on PATH. Placed after the
 # build's root-run npm/pnpm steps so only the runtime install uses these paths.
+# Claude Code sends nothing it does not need to: no telemetry, error reports or
+# self-update. code-server passes its own copy the first two.
+ENV DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 DISABLE_AUTOUPDATER=1
 ENV HOME=/home/decree \
     NPM_CONFIG_CACHE=/home/decree/.npm \
     NPM_CONFIG_PREFIX=/home/decree/.npm-global

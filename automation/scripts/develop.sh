@@ -2,9 +2,10 @@
 # develop — build one automation from its migration.
 #
 # The migration (notes/automations/<name>.md, filed by reconcile) says what is
-# true once the automation exists. The chat model reads it and answers with the
-# trigger, as one JSON line, and the `steps` function; this writes the rest from
-# fixed templates:
+# true once the automation exists. Claude (lib/agent.sh) reads it when this
+# container is signed in, the chat model when not, and answers with the trigger,
+# as one JSON line, and the `steps` function; this writes the rest from fixed
+# templates:
 #   .decree/machines/<name>.yml   one state, invoking its script, emitting notify
 #   .decree/scripts/<name>.sh     lib/automations/run.sh + steps + automation_run
 #   the trigger                   note: an entry note_watch matches notes against
@@ -20,6 +21,8 @@ source "${DECREE_LIB}/model.sh"
 source "${DECREE_LIB}/automations/registry.sh"
 # shellcheck source=../lib/firecrawl.sh
 source "${DECREE_LIB}/firecrawl.sh"
+# shellcheck source=../lib/agent.sh
+source "${DECREE_LIB}/agent.sh"
 
 name="${DECREE_DATA_AUTOMATION:?the migration names no automation}" from="${DECREE_DATA_FROM:-}"
 [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "develop: '${name}' is not a machine name" >&2; exit 1; }
@@ -39,7 +42,7 @@ steps runs under set -euo pipefail. It has $NOTE_PATH and $NOTE (the note or fil
 started it; empty on a schedule), ask "<instructions>" "<input>" (prints one answer from a
 language model), curl and jq. It prints its results as Markdown, one "## " heading per
 step. A step needing the person becomes a "## For you" item. It never writes or deletes
-files, never reads /secrets, never sends data anywhere but ask and public read-only APIs.
+files, never reads /secrets, never sends data anywhere but ask, agent and public read-only APIs.
 A file trigger never matches ai/, .decree/ or notes/automations/.'
 if firecrawl_on; then system+='
 It can read the web: web_search "<query>" [n] prints the top n results (default 5), each
@@ -54,6 +57,10 @@ as "## Verdict", so it is what reaches their phone.'
 else system+='
 There is no web search: a step that needs the web says, in "## For you", where to look.'
 fi
+if agent_ready; then system+='
+For a step that has to look through the person'"'"'s files or reason at length, agent "<task>" prints
+the answer of Claude Code, which can read and search the workspace but changes nothing.'
+fi
 user="The spec:
 ${spec}"
 [[ -s "$errors" ]] && user+="
@@ -61,9 +68,16 @@ ${spec}"
 Your last answer failed these checks; fix them:
 $(cat "$errors")"
 
-reply="$(MODEL_TIMEOUT=300 model_chat "$system" "$user" 2500 | sed '/^```/d')" || { echo "develop: no answer from the model" >&2; exit 1; }
+if agent_ready; then
+    reply="$(agent "${system}
+
+${user}" | sed '/^```/d')" || { echo "develop: no answer from Claude" >&2; exit 1; }
+else
+    reply="$(MODEL_TIMEOUT=300 model_chat "$system" "$user" 2500 | sed '/^```/d')" || { echo "develop: no answer from the model" >&2; exit 1; }
+fi
 trigger="$(sed -n 's/^TRIGGER: *//p' <<<"$reply" | head -1)"
-code="$(awk '/^steps\(\) *\{/{f=1} f' <<<"$reply")"
+# From "steps() {" to its closing "}", so a word after the function is no part of it.
+code="$(awk '/^steps\(\) *\{/{f=1} f{print} f && /^}$/{exit}' <<<"$reply")"
 
 # ── The gate, before anything is written ─────────────────────────────────────
 fails=()
@@ -82,6 +96,7 @@ esac
 if [[ "$code" != steps\(\)* ]]; then fails+=("no steps() function after the TRIGGER line")
 elif ! err="$(bash -n <<<"$code" 2>&1)"; then fails+=("the steps function does not parse: ${err}"); fi
 firecrawl_on || ! grep -qE '\bweb_(search|read)\b' <<<"$code" || fails+=("web_search and web_read need Firecrawl, which is off")
+agent_ready || ! grep -qE '\bagent\b' <<<"$code" || fails+=("agent needs Claude signed in here, and it is not")
 fail_gate() {
     printf -- '- %s\n' "${fails[@]}" > "$errors"
     echo "develop: ${name} failed the gate:" >&2; cat "$errors" >&2

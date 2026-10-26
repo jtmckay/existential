@@ -45,7 +45,7 @@ endpoints:
 
   # A look back over the "you were here" archive: year to date by default, or the
   # week, month, quarter or year so far, optionally work only (scope.md in
-  # notes/you-were-here/). Any other range: the machine from the work dir.
+  # ai/you-were-here/). Any other range: the machine from the work dir.
   - path: /look-back
     body: optional
     message:

@@ -81,4 +81,15 @@ for m in "${REPO}"/services/automation/backup/machines/*.yml; do
 done
 check automation-backup "$p" "${REPO}/services/automation/backup/graph"
 
+# automation/lib/ai.sh is decree's own `ai` helper, never edited: it must be what
+# this image's decree writes, apart from the shellcheck line on top.
+mkdir -p "${TMP}/init" && (cd "${TMP}/init" && decree init --ai claude >/dev/null 2>&1) || true
+if [[ ! -f "${TMP}/init/.decree/lib/ai.sh" ]]; then
+    echo "FAIL  decree init wrote no lib/ai.sh to compare automation/lib/ai.sh with" >&2; rc=1
+elif ! diff <(grep -vx '# shellcheck shell=bash' "${REPO}/automation/lib/ai.sh") "${TMP}/init/.decree/lib/ai.sh" >/dev/null; then
+    echo "FAIL  automation/lib/ai.sh differs from decree's own — copy .decree/lib/ai.sh from a fresh decree init" >&2; rc=1
+else
+    echo "PASS  automation/lib/ai.sh is decree's own ai helper"
+fi
+
 exit "$rc"

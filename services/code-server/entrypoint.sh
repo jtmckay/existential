@@ -91,9 +91,10 @@ for extension in "${DEFAULT_EXTENSIONS[@]}"; do
     fi
 done
 
-# The two AI CLIs this terminal ships, for a person to drive (decree scripts
-# never call one). Installed into the persisted npm prefix, so only the first
-# boot pays for it; `npm i -g <pkg>` in the terminal updates either in place.
+# The two AI CLIs this terminal ships, for a person to drive (machines get
+# their own claude in the automation image). Installed into the persisted npm
+# prefix, so only the first boot pays for it; `npm i -g <pkg>` in the terminal
+# updates either in place.
 for _pkg in claude:@anthropic-ai/claude-code opencode:opencode-ai; do
     if [[ ! -x "$NPM_BIN/${_pkg%%:*}" ]]; then
         echo "[code-server] Installing ${_pkg#*:}..."

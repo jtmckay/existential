@@ -7,7 +7,7 @@ params:
 ---
 
 On the last evening of every month, a look back over the month from the "you were here"
-archive, written next to the day notes as notes/you-were-here/<YYYY>/look-back-<first>-<last>.md,
+archive, written next to the day notes as ai/you-were-here/<YYYY>/look-back-<first>-<last>.md,
 with a short ntfy pointing at it. A year-scale look back reads these, not 365 day notes.
 
 Cron has no "last day of the month", so this fires on the 28th to the 31st and

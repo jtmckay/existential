@@ -48,10 +48,19 @@ reads to a model, so what it can read is what a prompt injection can read.
 - **A migration waits for its own service** in a first `wait_for_<service>` state.
   There is no gate: the entrypoint is `exec decree daemon`, which runs migrations
   in order, and a failed one blocks the rest until `decree process --retry`.
-- **One way to reach a model:** `automation/lib/model.sh` (`model_chat`, `model_gate`)
-  over the role's OpenAI-compatible `/v1` URL. hermes is optional, through
-  `automation/lib/hermes.sh` (`hermes_chat`, `hermes_profile_url`), built on it.
-  No container installs an AI CLI.
+- **Two ways for a machine to reach AI:** `automation/lib/model.sh` (`model_chat`,
+  `model_gate`), one answer from the role's OpenAI-compatible `/v1` URL; and
+  `automation/lib/agent.sh` (`agent`, `agent_ready`), Claude Code with tools through
+  `automation/lib/ai.sh`. That file is decree's `ai` helper exactly as `decree init`
+  writes it, and `test decree` fails when they differ, so update it by copying, never by
+  editing. `automation`'s image ships `claude` (pinned, updater and telemetry off). It is
+  signed in once with `docker exec -it automation claude` and `/login`, which lives in
+  `/data`, or with `AUTOMATION_ANTHROPIC_API_KEY` / `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN`.
+  Headless calls use `AUTOMATION_CLAUDE_PERMISSION_MODE`, default `auto`; notes, which
+  Claude may not change, are mounted read-only. The workspace's `develop` writes a
+  machine with Claude when `agent_ready`, else with the chat model, and tells it about
+  `agent` only then. hermes is optional, through `automation/lib/hermes.sh`, built on
+  `model.sh`.
 
 ## Around the daemons
 

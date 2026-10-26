@@ -1,5 +1,5 @@
 name: look_back
-description: A look back over a range of the "you were here" archive, written to workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
+description: A look back over a range of the "you were here" archive, written to workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
 data:
   workspace: { type: string, default: /workspace }
   ntfy_topic: { type: string, default: exist }
@@ -8,7 +8,7 @@ data:
   # Either end, YYYY-MM-DD, overrides the period's.
   from: { type: string, default: "" }
   to: { type: string, default: "" }
-  # work: only what notes/you-were-here/scope.md names.
+  # work: only what ai/you-were-here/scope.md names.
   scope: { type: string, enum: [all, work], default: all }
   # For cron: write nothing unless today is the period's last day.
   period_end_only: { type: bool, default: false }

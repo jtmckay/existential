@@ -269,19 +269,28 @@ model, so what that container can read is what a prompt injection can read. Both
 workspace copies. Nothing secret goes under `workspace/`: `.env` and `/secrets` stay in `automation/`. A service gets **no** `*-decree` sidecar; a new
 backup is one cron file.
 
+**Automations never change your notes.** In `automation`, `workspace/notes/` is mounted
+read-only: notes are what a person tells the stack to do, so no run, and no Claude a run calls,
+can change them. What a machine makes goes to `workspace/ai/`. Machines stay writable there,
+because `develop` builds the automations a person accepts.
+
 **A machine is the unit:** `machines/<name>.yml` (one state until a run shows the need for
 more) plus `scripts/<name>.sh`, snake_case. Params a message passes must be declared in the
 machine's `data:`. Chaining is `decree emit` with `emits:` on the state. There is no
 whitelist: a machine that no cron file, endpoint or emit points at simply never runs.
 
-**One way to reach a model:** `automation/lib/model.sh` (`model_chat`, `model_gate`) over
-the role's `/v1` URL. hermes is optional, for work that needs an agent with tools:
-`automation/lib/hermes.sh` (`hermes_chat`, `hermes_profile_url`), built on `model.sh`, or
-`lib/hermes-cli.sh` as the `hermes` command in code-server's terminal. **code-server ships
-`claude` and `opencode` for a person to drive; no other container installs an AI CLI, and decree
-scripts never call one.** Hermes runs its own tool loop, so work that needs a terminal is bash in
-the script, and hermes asks decree for follow-up work through automation-webhook's `/hermes/*`
-endpoints. Repo-editing belongs to a coding agent on the host, not to the stack.
+**AI is half of what decree is for, in two places.** *Conversation:* code-server ships
+`claude` and `opencode` for a person to drive, and the decree skill in the workspace is how a
+conversation makes new machines. *Automations:* a machine's script calls AI itself, in one of
+two ways. `automation/lib/model.sh` (`model_chat`, `model_gate`) is one answer from the role's
+`/v1` URL. `automation/lib/agent.sh` (`agent`) is Claude Code with tools, through
+`automation/lib/ai.sh`, which is decree's own `ai` helper, unedited (`test decree` diffs it).
+`automation`'s image ships `claude`, signed in once per install. `develop` builds machines with
+it, and the machines it builds call `agent`. A headless call runs in decree's `auto` mode
+(`AUTOMATION_CLAUDE_PERMISSION_MODE`), kept from notes by the mount above.
+hermes is optional (`hermes.sh`, `lib/hermes-cli.sh`), and asks decree for follow-up work
+through automation-webhook's `/hermes/*` endpoints. Repo-editing belongs to a coding agent on
+the host, not to the stack.
 
 **Cron activation:** each project has its own `cron/` (active, not in git). `automation`'s
 templates live in the flows (`flows/<name>/cron/`, `migrations/`, and `examples/` for inbox

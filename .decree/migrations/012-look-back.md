@@ -13,7 +13,7 @@ something you can read in minutes, and filter to work.
 ## Outcome
 
 - On demand (`POST /look-back` on automation-webhook, or the machine run from the work dir), a
-  look back for any date range writes `workspace/notes/you-were-here/<YYYY>/look-back-<from>-<to>.md`
+  look back for any date range writes `workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md`
   and sends a short ntfy pointing at it.
   - The default range is the current year to date.
   - Week, month, quarter and year are one parameter each.
@@ -26,7 +26,7 @@ something you can read in minutes, and filter to work.
   - **By the numbers**: counts only, no judgement.
   Every item links back to the day note it came from.
 - **Scope**: everything by default, or `work` only. What counts as work is one editable list
-  of projects, folders and capture sources in `workspace/notes/you-were-here/scope.md`.
+  of projects, folders and capture sources in `workspace/ai/you-were-here/scope.md`.
 - Facts come from the archive. The model writes only the grouping and the prose, and each
   claim links to its source. With the model unreachable, the look back is the data sections
   alone.
