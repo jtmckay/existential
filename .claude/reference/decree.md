@@ -20,7 +20,7 @@ existential adds on top. Both daemons run decree **0.5.0-beta.13**, pinned in
 Each project has its own `inbox/`, `runs/`, `store/`, `cron/` and `processed.md`.
 The seeded `.gitignore` keeps `workspace/.decree`'s run state (runs, store, inbox,
 attention, logs) from syncing; everything else there syncs, and `graph/` is redrawn
-by the entrypoint whenever a machine changes. A seeded file is never re-copied, so a
+by the entrypoint whenever a machine changes (`exist.initial.sh` seeds the committed graphs, so it is never empty before the daemon is up). A seeded file is never re-copied, so a
 change to a shipped machine reaches a fresh install, not an existing one. A machine both run (`notify`, `clean_runs`) is one file copied into
 both `machines/`; `./existential.sh test decree` fails if the copies differ.
 **`/repo` is mounted only into `automation-backup`**: `automation` hands what it

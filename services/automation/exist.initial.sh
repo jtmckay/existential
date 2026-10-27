@@ -79,6 +79,9 @@ _seed() {               # <src> <dst>: copy every file under src that dst lacks
 }
 _seed "${REPO}/automation/machines" "${PROJECT}/machines"
 _seed "${REPO}/automation/scripts" "${PROJECT}/scripts"
+# The committed graphs, so the workspace draws every machine from the first
+# render; the daemon redraws them from what is actually there once it is up.
+_seed "${REPO}/automation/graph" "${PROJECT}/graph"
 for _f in .gitignore decree-go-rest.yml handlers.yml; do
     [[ -e "${PROJECT}/${_f}" ]] || cp -p "${REPO}/automation/${_f}" "${PROJECT}/${_f}"
 done

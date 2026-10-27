@@ -74,6 +74,7 @@ out="$("$BASH" services/automation/exist.initial.sh 2>&1)"; rc=$?
 assert_eq "automation's exist.initial.sh runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
 assert_eq "...and turns the default flows on" "yes" "$([[ -f volumes/workspace_data/.decree/cron/you-were-here.md ]] && echo yes || echo no)"
+assert_eq "...and draws every machine's graph" "$(ls automation/graph | xargs)" "$(ls volumes/workspace_data/.decree/graph | xargs)"
 assert_eq "...and a second run changes nothing" "" "$("$BASH" services/automation/exist.initial.sh 2>&1)"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
