@@ -27,8 +27,8 @@ model.
 ## Running Decree
 
 Two daemons run it, not one per service — `automation` (routing, AI work, every service's
-one-time migrations) and `automation-backup` (backups, triage, and anything else that needs bulk
-volume access). Each is its own decree project with its own runs. Neither is called `decree`;
+one-time migrations) and, when you turn it on, [`automation-backup`](./automation-backup)
+(backups, triage, and anything else that needs bulk volume access). Each is its own decree project with its own runs. Neither is called `decree`;
 that is the binary inside them.
 
 ```bash
@@ -38,7 +38,7 @@ echo | docker exec -i automation decree emit --machine <name>   # run one by han
 ```
 
 Every machine and how they chain is drawn in `automation/graph/system.md` (and
-`services/automation/backup/graph/` for the other daemon), which GitHub renders.
+`services/automation-backup/graph/` for the other daemon), which GitHub renders.
 
 ## Claude for machines
 

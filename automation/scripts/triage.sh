@@ -6,11 +6,11 @@
 # Finding out why means knowing that `./existential.sh test services` exists.
 # Triage is that command, run for you, on a schedule that gets out of the way.
 #
-# ── Why it is on by default ──────────────────────────────────────────────────
+# ── Why it quiets itself ─────────────────────────────────────────────────────
 #
-# The person who most needs triage is the one who does not know it exists. A
-# mode you have to discover and enable helps nobody on their first hour. So it
-# runs from the start and QUIETS ITSELF instead of waiting to be turned off:
+# It runs in automation-backup, which is off by default (Core ships only the
+# essentials). Once on, it runs from the start and QUIETS ITSELF instead of
+# waiting to be turned off:
 # every consecutive all-green round pushes the next check further out
 # (TRIAGE_BACKOFF), up to TRIAGE_MAX_INTERVAL. A stack that comes up clean is
 # checked a few times and then left alone; a stack that does not stays under
@@ -35,7 +35,7 @@
 # ── Params ───────────────────────────────────────────────────────────────────
 # TRIAGE_BACKOFF, TRIAGE_MAX_INTERVAL, TRIAGE_NOTIFY, TRIAGE_ALWAYS,
 # TRIAGE_STRICT, TRIAGE_REPO and TRIAGE_STATE are the machine's data, with what
-# each does: services/automation/backup/machines/triage.yml.
+# each does: services/automation-backup/machines/triage.yml.
 set -euo pipefail
 
 TRIAGE_REPO="$DECREE_DATA_TRIAGE_REPO"

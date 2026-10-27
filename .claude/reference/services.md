@@ -225,9 +225,9 @@ migrations, the inbox and cron itself. Baked healthcheck: `grep -q decree /proc/
 Adhoc disables the healthcheck. What a machine is and how the two projects are laid out:
 `decree.md`.
 
-**There are exactly two daemons, and services do not get their own.** Both are defined in
-`services/automation/docker-compose.exist.yml`, container names `automation` and
-`automation-backup` (the `services/automation/` slug is the required prefix). Each is its own
+**There are at most two daemons, and services do not get their own.** `automation` is Core
+(`services/automation/`); `automation-backup` is its own service folder
+(`services/automation-backup/`), off by default, because backups are not Core. Each is its own
 decree project:
 
 - **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
@@ -245,7 +245,7 @@ decree project:
   and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
   `workspace/notes/` is mounted read-only over `/workspace`, so nothing it runs, Claude in
   `auto` mode included, changes a note; machines write under `workspace/ai/`.
-- **`automation-backup`** wholesale-mounts `services/automation/backup/`, with its own
+- **`automation-backup`** wholesale-mounts `services/automation-backup/`, with its own
   `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
   it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.
 
@@ -283,7 +283,7 @@ to its own volumes and creds, which was stricter — the trade was deliberate: t
 `decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
 volume and credential YAML **per service**, against a repo whose whole claim is that adding a
 service is adding a folder. Now a new service's backup is one cron file in
-`services/automation/backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
+`services/automation-backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
 **Migration ordering.** There is no gate. A migration for a service starts with a

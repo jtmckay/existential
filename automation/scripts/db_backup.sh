@@ -3,7 +3,7 @@
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
 # than the tier's retention window.
 #
-# Triggered by cron files in services/automation/backup/cron/, whose params
+# Triggered by cron files in services/automation-backup/cron/, whose params
 # (TIER, TARGETS) are this machine's data. Credential vars
 # come from automation-backup's environment, which is the master .env.
 #

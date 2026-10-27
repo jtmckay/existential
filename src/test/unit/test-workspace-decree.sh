@@ -24,10 +24,9 @@ trap 'rm -rf "$TMP"' EXIT
 R="${TMP}/repo"
 P="${R}/volumes/workspace_data/.decree"
 
-mkdir -p "${R}/services/automation/backup" "${R}/automation"
+mkdir -p "${R}/services/automation" "${R}/automation"
 cp "${REPO_DIR}/services/automation/exist.initial.sh" "${R}/services/automation/"
-cp -r "${REPO_DIR}/services/automation/backup/cron.example" "${R}/services/automation/backup/"
-cp -rp "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${R}/automation/"
+cp -rp "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${REPO_DIR}/automation/graph" "${R}/automation/"
 cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.yml" "${REPO_DIR}/automation/handlers.yml" "${R}/automation/"
 mkdir -p "${R}/src/utils"
 cp -r "${REPO_DIR}/flows" "${R}/"

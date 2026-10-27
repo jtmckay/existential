@@ -3,7 +3,7 @@
 # native .dump mechanism, rclone the compressed SQL to
 # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/sqlite/<name>/`, prune old backups.
 #
-# Triggered by cron files in services/automation/backup/cron/. TARGETS format
+# Triggered by cron files in services/automation-backup/cron/. TARGETS format
 # (one entry per line):
 #   <name> <path_relative_to_VOLUMES_ROOT>
 #   e.g.:  kuma  uptime_kuma_data/kuma.db

@@ -132,10 +132,10 @@ Not wired up yet. `homeassistant_data` (recorder SQLite DB + `configuration.yaml
 + everything else in `/config`) has no `automation-backup` cron — unlike most other
 services in this stack, nothing currently copies it off-box. To add one, copy a
 `volume_backup` cron file (e.g. `mealie-volume-backup-nightly.md`/`-weekly.md`)
-from `services/automation/backup/cron.example/` to a new
+from `services/automation-backup/cron.example/` to a new
 `homeassistant-volume-backup-*.md`, point its `VOLUMES:` block at
 `homeassistant_data homeassistant`, drop it into
-`services/automation/backup/cron/`, and restart `automation-backup`.
+`services/automation-backup/cron/`, and restart `automation-backup`.
 
 ## Debugging
 

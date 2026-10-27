@@ -31,12 +31,12 @@ are dumped (`pg_dump`, `mysqldump`, `mongodump`), volumes tarred and SQLite copi
 
 1. Say where they go: `./existential.sh run rclone`, then name the destination when it asks.
    That writes `EXIST_BACKUP_RCLONE_REMOTE`; nothing is backed up until it is set.
-2. Copy a cron per service you enabled, from `services/automation/backup/cron.example/` into
-   `services/automation/backup/cron/`: `workspace-volume-backup-nightly.md` first, then each
+2. Copy a cron per service you enabled, from `services/automation-backup/cron.example/` into
+   `services/automation-backup/cron/`: `workspace-volume-backup-nightly.md` first, then each
    `<service>-db-backup-nightly.md` or `<service>-volume-backup-nightly.md`. Each has a
    `-weekly.md` twin for longer retention.
 3. Prove it before you need it: copy the active crons into
-   `services/automation/backup/inbox/` to run them once now, check
+   `services/automation-backup/inbox/` to run them once now, check
    `docker exec automation-backup decree status`, and look for the files on the remote.
 4. Restore: `./existential.sh run backup-restore`.
 

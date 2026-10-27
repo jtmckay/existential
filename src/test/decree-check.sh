@@ -68,18 +68,18 @@ p=$(assemble automation "${REPO}/automation/machines" "${REPO}/automation/graph"
         "${TMP}/flows/migrations" "${TMP}/flows/inbox")
 check automation "$p" "${REPO}/automation/graph"
 
-p=$(assemble backup "${REPO}/services/automation/backup/machines" \
-        "${REPO}/services/automation/backup/graph" "${REPO}/services/automation/backup/cron.example")
+p=$(assemble backup "${REPO}/services/automation-backup/machines" \
+        "${REPO}/services/automation-backup/graph" "${REPO}/services/automation-backup/cron.example")
 # A machine both projects run (notify, clean_runs) is one definition, copied:
 # the copies must not drift.
-for m in "${REPO}"/services/automation/backup/machines/*.yml; do
+for m in "${REPO}"/services/automation-backup/machines/*.yml; do
     a="${REPO}/automation/machines/${m##*/}"
     if [[ -f "$a" ]] && ! cmp -s "$a" "$m"; then
         echo "FAIL  ${m#"${REPO}/"} differs from ${a#"${REPO}/"} — copy it over" >&2
         rc=1
     fi
 done
-check automation-backup "$p" "${REPO}/services/automation/backup/graph"
+check automation-backup "$p" "${REPO}/services/automation-backup/graph"
 
 # automation/lib/ai.sh is decree's own `ai` helper, never edited: it must be what
 # this image's decree writes, apart from the shellcheck line on top.

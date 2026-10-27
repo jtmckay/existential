@@ -10,10 +10,10 @@ existential adds on top. Both daemons run decree **0.5.0-beta.13**, pinned in
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| project (`/work/.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation/backup/` |
-| machines | seeded once per file from `automation/machines/` | `services/automation/backup/machines/` |
+| project (`/work/.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/` |
+| machines | seeded once per file from `automation/machines/` | `services/automation-backup/machines/` |
 | scripts, lib | scripts seeded from `automation/scripts/`; `automation/lib/` read-only | `automation/scripts/`, `automation/lib/`, read-only |
-| cron templates | `flows/<name>/cron/` (`./existential.sh flow on`) | `services/automation/backup/cron.example/` |
+| cron templates | `flows/<name>/cron/` (`./existential.sh flow on`) | `services/automation-backup/cron.example/` |
 | migrations | `flows/<name>/migrations/` | none |
 | runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI |
 
@@ -97,10 +97,10 @@ reads to a model, so what it can read is what a prompt injection can read.
   covers only `automation-backup`, so nothing is sent twice. Tested by
   `src/test/unit/test-attention-notify.sh`.
 - **Activating a cron** is copying its template into that project's `cron/`.
-  Cron files are re-read every tick, so no restart. Six are on by default, copied by
-  `exist.initial.sh` whenever the active copy is missing: `triage`, `clean-runs` and
-  `workspace-sync` in `automation-backup`, and `you-were-here` (the morning digest),
-  `look-back-weekly` and `look-back-monthly` in `automation`.
+  Cron files are re-read every tick, so no restart. The default flows are copied by
+  `services/automation/exist.initial.sh` whenever the active copy is missing. `automation-backup`
+  is off by default; when on, its `exist.initial.sh` does the same for `triage`, `clean-runs` and
+  `workspace-sync`.
 - **Gate:** `./existential.sh test decree` assembles each project with every
   shipped template queued and runs `decree check`, then diffs the committed
   `graph/`. After changing a machine, run `./existential.sh run decree-graph`.

@@ -260,8 +260,8 @@ covers how existential uses it. The rules worth keeping here:
 
 **Two daemons, each its own decree project, not one per service:** `automation` (`workspace/.decree`,
 seeded once per file from the repo's `automation/`) runs everything that reasons, routes or reaches a service API, including
-every migration. `automation-backup` (`services/automation/backup/`) mounts `volumes/`
-wholesale, **the repo read-only**, and takes the master `.env`. It runs the backups plus
+every migration. `automation-backup` (`services/automation-backup/`, off by default: backups are not
+Core) mounts `volumes/` wholesale, **the repo read-only**, and takes the master `.env`. It runs the backups plus
 anything else that needs that bulk access and makes no AI call (`triage`, `notes_pull`,
 `workspace_sync`).
 **`/repo` is mounted there and nowhere else**: `automation` puts what it reads in front of a
@@ -295,7 +295,7 @@ the host, not to the stack.
 
 **Cron activation:** each project has its own `cron/` (active, not in git). `automation`'s
 templates live in the flows (`flows/<name>/cron/`, `migrations/`, and `examples/` for inbox
-messages, never copied); `automation-backup`'s in `services/automation/backup/cron.example/`.
+messages, never copied); `automation-backup`'s in `services/automation-backup/cron.example/`.
 Neither matches `*.exist.*`, so nothing auto-renders them. `./existential.sh flow on` copies a
 flow's in; a backup cron is copied by hand. The daemon rescans `cron/` every tick.
 

@@ -92,7 +92,7 @@ $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -qx "$SIDECAR" \
 
 if [ "$KIND" = "db" ]; then
     TARGETS=$(collect_targets db-backup "$TIER")
-    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation/backup/cron.example/ into services/automation/backup/cron/"
+    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation-backup/cron.example/ into services/automation-backup/cron/"
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
@@ -240,7 +240,7 @@ fi
 [ "$KIND" = "sqlite" ] || exit 0
 
 TARGETS=$(collect_targets sqlite-backup "$TIER")
-[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation/backup/cron.example/ into services/automation/backup/cron/"
+[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — copy a template from services/automation-backup/cron.example/ into services/automation-backup/cron/"
 
 echo ""
 echo "SQLite databases with backups in ${REMOTE}/${TIER}/sqlite/:"

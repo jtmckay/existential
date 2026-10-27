@@ -75,7 +75,7 @@
 # Decree
 # automation/ is what the repo ships into workspace/.decree (the `automation`
 # daemon's project); its cron/, migrations/, runs/ and the rest below are only
-# what an install from before that left behind. services/automation/backup/ is
+# what an install from before that left behind. services/automation-backup/ is
 # the second project and keeps its own runtime state.
 automation/lib/file-processors/*
 automation/cron/*
@@ -87,22 +87,21 @@ automation/data/*
 automation/emails/
 automation/inbox/*
 automation/processed.md
-services/automation/backup/cron/*
-services/automation/backup/data/*
-services/automation/backup/inbox/*
-services/automation/backup/runs/*
-services/automation/backup/store/
-services/automation/backup/processed.md
+services/automation-backup/cron/*
+services/automation-backup/data/*
+services/automation-backup/inbox/*
+services/automation-backup/runs/*
+services/automation-backup/store/
+services/automation-backup/processed.md
+services/automation-backup/process.log
 # automation-backup mounts automation/lib and automation/scripts into its own
 # project, so these two are only mount points.
-services/automation/backup/lib/*
-services/automation/backup/scripts/
+services/automation-backup/lib/*
+services/automation-backup/scripts/
 # decree 0.4 leftovers exist.initial.sh cannot always remove: the Go webhook's
 # root-owned binary, and the old shared_routines/ and outbox/ mount points.
 services/automation/webhook/
-services/automation/backup/shared_routines/
 automation/outbox/
-services/automation/backup/outbox/
 
 
 # LightRAG

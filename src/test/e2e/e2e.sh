@@ -171,7 +171,7 @@ E2E_DAEMONS="automation automation-backup"
 _daemon_dir() {
     case "$1" in
         automation)        echo "$2/volumes/workspace_data/.decree" ;;
-        automation-backup) echo "$2/services/automation/backup" ;;
+        automation-backup) echo "$2/services/automation-backup" ;;
     esac
 }
 
@@ -469,7 +469,7 @@ run_unit() {
     #     does on a schedule is triage's job on the real stack, continuously —
     #     which is exactly why e2e stopped running a per-service tier at all.
     rm -f "$(_daemon_dir automation "$WORK")/cron/"*.md \
-          "$WORK/services/automation/backup/cron/"*.md
+          "$WORK/services/automation-backup/cron/"*.md
 
     # 7. $WORK is passed as the host-side repo root so the generated bind-mount
     #    paths resolve on the host, not inside adhoc.

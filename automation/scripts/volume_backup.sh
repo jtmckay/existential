@@ -3,7 +3,7 @@
 # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
 # older than the tier's retention window.
 #
-# Triggered by cron files in services/automation/backup/cron/, whose params
+# Triggered by cron files in services/automation-backup/cron/, whose params
 # (TIER, VOLUMES) are this machine's data. To add or remove
 # a volume, edit the cron file's `VOLUMES:` block — nothing else: automation-backup
 # mounts the whole volumes/ dir, so every volume is already reachable.

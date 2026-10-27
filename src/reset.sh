@@ -102,7 +102,7 @@ _activated_files() {
     while IFS= read -r f; do
         printf '%s\n' "${f#"$REPO_DIR/"}"
     done < <(find "$REPO_DIR" \( -path '*/workspace_data/.decree/cron/*' -o -path '*/workspace_data/.decree/migrations/*' \
-                                -o -path '*/backup/cron/*' \) \
+                                -o -path '*/automation-backup/cron/*' \) \
                  -name '*.md' -type f \
                  -not -path '*/graveyard/*' -not -path '*/node_modules/*' 2>/dev/null | sort)
 }

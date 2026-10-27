@@ -3,7 +3,7 @@
 #
 #   ./existential.sh run decree-graph
 #
-# automation/graph/ and services/automation/backup/graph/ are what `decree graph`
+# automation/graph/ and services/automation-backup/graph/ are what `decree graph`
 # writes for each project (Mermaid, rendered by GitHub). Run this after changing
 # a machine; `./existential.sh test decree` fails while they are stale.
 # existential.sh runs it inside adhoc, where decree is on PATH.

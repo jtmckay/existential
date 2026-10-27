@@ -1,0 +1,77 @@
+services:
+  automation-backup:
+    container_name: automation-backup
+    image: existential/decree:local  # shared image, built by existential-adhoc
+    pull_policy: never
+    user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
+    # The decree image is debian-based and ships setuid binaries (su, mount,
+    # passwd). Its /etc/passwd is world-writable so entrypoint.sh can add an
+    # entry for the runtime uid — see decree/Dockerfile. Without this, those
+    # two facts combine into container root, which is uid 0 against every
+    # bind mount. This neuters every setuid binary regardless of /etc/passwd.
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    # Backup daemon: tar, pg_dump/mysqldump/mongodump, rclone. Idle between crons.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - exist
+    # The master env, deliberately. db_backup reads a different credential pair
+    # per service, so enumerating them here would reintroduce exactly the
+    # per-service wiring this container exists to delete. The trade is real and
+    # bounded: this daemon runs a fixed set of machines, no agent and no router,
+    # and the master env stays out of `automation`, which does run agents.
+    env_file:
+      - ../../.env
+    environment:
+      # This daemon's own machines just need "is the service up" — they cannot
+      # reach the routing stack the way a full check does. Triage also runs here
+      # and explicitly clears this per test, because it DOES want the full check.
+      - EXIST_TEST_LIVENESS_ONLY=true
+      - IN_CONTAINER=1
+      # Same six as the daemon above: triage reports through notify. env_file
+      # brings in the master .env, but notify.sh reads these unprefixed.
+      - NTFY_URL=${EXIST_NTFY_URL}
+      - NTFY_USER=${EXIST_NTFY_USER:-}
+      - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
+    volumes:
+      # Its own decree project — own machines/, cron/, runs/ and inbox/ — with
+      # the scripts and lib/ shared, read-only, from automation/.
+      - .:/work/.decree:z
+      - ./machines:/work/.decree/machines:ro,z
+      - ../../automation/scripts:/work/.decree/scripts:ro,z
+      - ../../automation/lib:/work/.decree/lib:ro,z
+      - ../../automation/secrets:/secrets:ro,z
+      # Every volume at once. This is what makes a new service need no backup
+      # wiring at all: its volumes/<name> dir is visible here the moment
+      # generate-compose creates it, so activating a cron file is the whole job.
+      # Read-WRITE, and only because restore needs it: the backup scripts
+      # themselves only ever read (tar, dump), but `./existential.sh run
+      # backup-restore` extracts into these paths from this container.
+      - ../../volumes:/volumes:z
+      # notes_pull rsyncs an external vault into workspace/notes/.
+      - workspace_data:/workspace:z
+      # Triage's backoff state and status report live at /data/triage — the same
+      # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
+      # subtrees, one volume.
+      - decree_data:/data:z
+      # The repo, read-only, so triage can run each enabled service's own
+      # exist.test.sh — they live with their services, not in this directory —
+      # and read .env.shared to know which services are enabled. Read-only on
+      # purpose: triage observes, it never repairs.
+      #
+      # This is the credential-heaviest mount in the stack, which is why it is
+      # here rather than in `automation`: this daemon runs a fixed set of
+      # machines, no agent and no router, so nothing here interprets untrusted
+      # input.
+      - ../../:/repo:ro
+    tty: false
+
+x-exist-volumes:
+  decree_data: {}
+  # The user's workspace, shared with nextcloud (which serves it to the desktop
+  # client), code-server and decree. Declared identically everywhere it is mounted.
+  workspace_data: {}

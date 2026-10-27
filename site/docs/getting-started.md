@@ -45,7 +45,8 @@ no model downloads:
 Core comes with four [flows](./flows/) already on: the [morning digest](#you-were-here), the
 [look backs](#look-back), and two that keep decree tidy and tell you when ntfy stops answering.
 
-Core ships no backups. The simplest way to keep the workspace safe is to put
+Core ships no backups. [automation-backup](./decree/automation-backup) is the add-on that
+takes them; the simplest way to keep the workspace safe is to put
 `volumes/workspace_data` under git, with a remote you choose.
 
 ### Turning on more
@@ -178,8 +179,9 @@ point:
 ./existential.sh run footprint      # memory limits vs what is actually in use
 ```
 
-Decree's **triage** routine runs the same checks on a schedule and notifies you when something
-breaks or recovers, backing off as the stack stays green.
+With [automation-backup](./decree/automation-backup) on, decree's **triage** routine runs the same
+checks on a schedule and notifies you when something breaks or recovers, backing off as the
+stack stays green.
 
 ### Logging in
 
@@ -385,7 +387,7 @@ copies the `/look-back` entries from `automation/decree-go-rest.yml` into its
 ### Syncing with a Nextcloud (optional)
 
 Sync is optional: leave its keys blank and nothing syncs, and nothing else in the stack
-notices. Set them, and `automation-backup` keeps `workspace/` in sync with a folder in a
+notices. Turn on [automation-backup](./decree/automation-backup) and set them, and it keeps `workspace/` in sync with a folder in a
 Nextcloud, usually one on another server: its `workspace-sync` cron runs an `rclone bisync`
 every five minutes, both ways. The keys are `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and
 `EXIST_NEXTCLOUD_APP_PASSWORD` (an app password from Nextcloud's *Settings → Security*) in
@@ -413,8 +415,8 @@ Two different mechanisms, for two different jobs:
   reading and editing it on your other devices. That's about *your* access to the vault.
 - The simplest way to make it part of the agent's knowledgebase is to keep the vault *inside*
   the synced `workspace` folder. If it has to live somewhere else, pull it into
-  `workspace/notes/` instead: copy `services/automation/backup/cron.example/notes-pull.md` to
-  `services/automation/backup/cron/`, set `NOTES_PULL_SOURCE` to an `rsync`-over-SSH path (e.g.
+  `workspace/notes/` instead: copy `services/automation-backup/cron.example/notes-pull.md` to
+  `services/automation-backup/cron/`, set `NOTES_PULL_SOURCE` to an `rsync`-over-SSH path (e.g.
   `user@nas:/path/to/vault/`), and drop a matching SSH key at
   `automation/secrets/notes-pull/id_ed25519`. It's opt-in and off by default (it needs your real
   source), pulls are additive by default (nothing is deleted locally unless you set

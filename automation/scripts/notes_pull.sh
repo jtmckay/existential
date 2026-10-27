@@ -27,7 +27,7 @@
 # A source without a "host:" prefix (a local path, or a share already mounted
 # into this container) skips SSH entirely — rsync copies it directly.
 #
-# Copy services/automation/backup/cron.example/notes-pull.md to cron/ and set
+# Copy services/automation-backup/cron.example/notes-pull.md to cron/ and set
 # NOTES_PULL_SOURCE (and NOTES_PULL_SSH_KEY, if the key isn't at the default
 # path) to activate. The NOTES_PULL_* knobs are the machine's data.
 set -euo pipefail

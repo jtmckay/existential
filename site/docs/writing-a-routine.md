@@ -100,7 +100,7 @@ A step that needs an agent with tools uses `hermes.sh` instead, and only when he
 
 :::warning[Which daemon?]
 There are two, and each is its own decree project: **`automation`** (`workspace/.decree`) and
-**`automation-backup`** (`services/automation/backup/`, with its own `machines/`, running the
+**`automation-backup`** (`services/automation-backup/`, with its own `machines/`, running the
 repo's `automation/scripts/`). Both use the repo's `automation/lib/`.
 
 `automation` is where anything that **reasons, routes, calls a service API, or runs a service's

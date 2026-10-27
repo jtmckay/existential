@@ -23,7 +23,7 @@ services:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       # TSDB index (schema v13) + chunks — must be local; NFS locking is unreliable.
       # TODO: no backup yet — add an opt-in volume-backup cron in
-      # services/automation/backup/cron.example/ (nothing else is needed).
+      # services/automation-backup/cron.example/ (nothing else is needed).
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 
@@ -52,7 +52,7 @@ services:
       - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
       # Both decree projects' runs (each has its own runs/ in decree 0.5).
       - workspace_data/.decree/runs:/decree/automation:ro
-      - ../../services/automation/backup/runs:/decree/automation-backup:ro
+      - ../../services/automation-backup/runs:/decree/automation-backup:ro
       # hermes logs to files, not stdout (s6 routes each service's output into
       # its own file), so the docker_containers job below never sees it —
       # `docker logs hermes-agent` is empty. This is the only way its cron

@@ -60,7 +60,7 @@ stop decrypting once you do.
 **Backup.** `lowcoder_mongo_data` (`db: true` — WiredTiger, never NFS) is covered by
 `lowcoder-db-backup-{nightly,weekly}.md`, and `lowcoder_data` + `lowcoder_assets_data` by
 `lowcoder-volume-backup-{nightly,weekly}.md` — both already exist in
-`services/automation/backup/cron.example/`. Copy them into `cron/` and restart
+`services/automation-backup/cron.example/`. Copy them into `cron/` and restart
 `automation-backup` to activate; nothing else is needed.
 
 **Memory.** `lowcoder-api-service` and `lowcoder-node-service` are both JVM/V8 processes

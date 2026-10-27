@@ -1,7 +1,7 @@
 ---
 machine: triage
 e2e_check: 00-services
-requires: EXIST_IS_SERVICES_AUTOMATION
+requires: EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_AUTOMATION_BACKUP
 params:
   TRIAGE_ALWAYS: true
   TRIAGE_STRICT: true

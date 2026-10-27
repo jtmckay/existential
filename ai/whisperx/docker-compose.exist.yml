@@ -83,7 +83,7 @@ services:
       - whisperx_cache:/root/.cache                             # HF + torch model cache — a _cache, re-downloadable
       # SQLite tasks + speaker-embedding DB — db: true (NFS breaks WAL locking).
       # TODO: no backup yet — add a volume-backup cron in
-      # services/automation/backup/cron.example/ (nothing else is needed).
+      # services/automation-backup/cron.example/ (nothing else is needed).
       - whisperx_db_data:/data/db
 
 x-exist-volumes:

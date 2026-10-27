@@ -75,7 +75,7 @@ old placeholder path did not exist on any real host, so Docker created it as roo
 repo.
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
-`immich-volume-backup-{nightly,weekly}.md` from `services/automation/backup/cron.example/`
+`immich-volume-backup-{nightly,weekly}.md` from `services/automation-backup/cron.example/`
 into `cron/` and restart `automation-backup`. Both now reach the real data: `automation-backup`
 mounts `volumes/` wholesale, and that is where both volumes live — including when the library
 is on the NFS host mount. Under the old raw-path layout the volume backup could not see the

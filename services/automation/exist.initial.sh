@@ -16,8 +16,7 @@ REPO="${SCRIPT_DIR}/../.."
 WORKSPACE_DIR="${REPO}/volumes/workspace_data"
 PROJECT="${WORKSPACE_DIR}/.decree"
 mkdir -p "${REPO}"/automation/secrets \
-         "${PROJECT}"/{inbox,runs,store,cron,migrations,lib,graph} \
-         "${SCRIPT_DIR}"/backup/{inbox,runs,store,cron,lib,scripts}
+         "${PROJECT}"/{inbox,runs,store,cron,migrations,lib,graph}
 # decree reads .decree/.env; it is bind-mounted from automation/.env so config
 # never lands in the synced workspace. A file mount needs its source to exist.
 touch "${REPO}/automation/.env" "${PROJECT}/.env"
@@ -52,15 +51,12 @@ _upgrade_dir() {         # <active dir> <template glob, NAME for the file> [proc
 }
 _upgrade_dir "${REPO}/automation/cron" "${REPO}/flows/*/cron/NAME"
 _upgrade_dir "${REPO}/automation/migrations" "${REPO}/flows/*/migrations/NAME" "${REPO}/automation/processed.md"
-_upgrade_dir "${SCRIPT_DIR}/backup/cron" "${SCRIPT_DIR}/backup/cron.example/NAME"
 [[ -d "$_archive" ]] && echo "[automation] the 0.4 copies are in ${_archive#"${REPO}/"}/ — re-apply any schedule you had customised."
 # The 0.4 daemon configs and their hash files: nothing reads them any more.
-rm -f "${SCRIPT_DIR}/decree/config.yml" "${SCRIPT_DIR}/backup/config.yml" \
-      "${SCRIPT_DIR}/backup/config.hash" "${REPO}/automation/config.hash" \
+rm -f "${SCRIPT_DIR}/decree/config.yml" "${REPO}/automation/config.hash" \
       "${SCRIPT_DIR}/webhook/config.yml" "${REPO}/automation/config.yml" \
-      "${REPO}/automation/precheck.log" "${SCRIPT_DIR}/backup/precheck.log"
-rmdir "${SCRIPT_DIR}/backup/shared_routines" \
-      "${REPO}/automation/outbox" "${SCRIPT_DIR}/backup/outbox" 2>/dev/null || true
+      "${REPO}/automation/precheck.log"
+rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
@@ -93,27 +89,6 @@ for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/proces
     if [[ -f "$_f" && ! -e "$_dst" ]]; then
         mv "$_f" "$_dst"
         echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
-    fi
-done
-
-# triage is deliberately not opt-in — a stack nobody is watching is exactly the
-# one that needs it — and clean-runs comes with it, because triage fires every
-# few minutes and this daemon's runs/ is its own. But cron/ is gitignored (it is
-# the user's active set), so the tracked templates are the only copies in git
-# and nothing ticks until something puts them in place. Every install with
-# automation needs it, whichever flows are on. Guarded
-# on absence: edit or delete an active copy and it stays that way.
-#
-# triage runs in automation-backup, not automation — it needs the read-only
-# /repo mount, and that mount is deliberately kept out of the container that
-# hands prompts to hermes. See .claude/reference/services.md.
-#
-# workspace-sync rides along: it does nothing until its Nextcloud keys are set,
-# so turning it on is filling in .env, not finding a cron file.
-for _cron in triage.md clean-runs.md workspace-sync.md; do
-    if [[ ! -e "${SCRIPT_DIR}/backup/cron/${_cron}" ]]; then
-        cp "${SCRIPT_DIR}/backup/cron.example/${_cron}" "${SCRIPT_DIR}/backup/cron/${_cron}"
-        echo "[automation] ${_cron%.md} cron activated (automation-backup)."
     fi
 done
 
