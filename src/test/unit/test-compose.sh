@@ -176,6 +176,7 @@ services:
     volumes:
       - ./dotdir/.venv:/opt/.venv
       - ./bar-config.yml:/etc/bar.yml
+      - ./secrets/.env:/work/.env
       - ../../workspace:/workspace
       - ../../../escapes:/escapes
       - $HOME/envrooted:/env
@@ -190,6 +191,10 @@ assert_dir "dot-leading bind source is treated as a directory" "$repo/services/b
 # there would hand the container an empty dir instead of the config.
 assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
 assert_no_dir "file-extension bind source is not created as a directory" "$repo/services/bar/bar-config.yml"
+
+# .env is dot-leading like .venv but always a file: a directory fails `up`.
+if [[ -f "$repo/services/bar/secrets/.env" ]]; then _ok "a .env bind source is created as a file"
+else _fail "a .env bind source is created as a file" "not a file: $repo/services/bar/secrets/.env"; fi
 
 # ../../ back to the repo root is legitimate (hermes and code-server share
 # workspace/ that way) and resolves inside the repo, so it is created.

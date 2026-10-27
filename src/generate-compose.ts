@@ -189,6 +189,15 @@ function ensureBindSource(rel: string, ctx: VolumeContext): void {
   // repo's own record that this destination is a rendered file, so ask it.
   if (hasTemplateFor(abs)) return;
 
+  // `.env` is dot-leading like `.venv`, but it is always a file
+  // (automation/.env → .decree/.env). A directory there fails `up` outright, so
+  // get in first with the empty file the service's exist.initial.sh would make.
+  if (/^\.env(\.|$)/.test(path.basename(abs))) {
+    mkdirOwned(path.dirname(abs));
+    fs.writeFileSync(abs, '');
+    return;
+  }
+
   mkdirOwned(abs);
 }
 
