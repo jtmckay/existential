@@ -32,7 +32,7 @@ sidebar_position: 2
 docker compose up -d
 ```
 
-The first run asks two hardware questions (below) and builds **Core**: a work dir you open in a
+The first run asks for a username and password and builds **Core**: a work dir you open in a
 browser, a terminal there to talk to an AI, decree to automate it, and ntfy to tell you. No GPU,
 no model downloads:
 
@@ -113,6 +113,9 @@ To reach Caddy's names from outside the house, put your devices on a VPN back to
 server. The options sit side by side in [VPN](./hosting/vpn.md).
 
 ### The hardware questions
+
+Core needs no GPU, so these wait until you turn on something that does (Ollama, ComfyUI, …):
+the run that enables it asks them once.
 
 **GPU vendor** decides how models run: `nvidia` uses the container runtime, `amd` uses
 Vulkan/ROCm, `none` is CPU-only, and **`external`** means the models live on another machine —

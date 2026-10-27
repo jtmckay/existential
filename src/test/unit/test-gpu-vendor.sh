@@ -83,8 +83,8 @@ if [[ -f "$SHIPPED" ]]; then
         || _fail "EXIST_GPU_VENDOR is declared in .env.exist.shared" "key is missing entirely"
 
     [[ -z "$(grep -m1 '^EXIST_GPU_VENDOR=' "$SHIPPED" | cut -d= -f2-)" ]] \
-        && _ok "EXIST_GPU_VENDOR ships blank (so the first run asks)" \
-        || _fail "EXIST_GPU_VENDOR ships blank (so the first run asks)" \
+        && _ok "EXIST_GPU_VENDOR ships blank (so it gets asked)" \
+        || _fail "EXIST_GPU_VENDOR ships blank (so it gets asked)" \
                  "ships '$(grep -m1 '^EXIST_GPU_VENDOR=' "$SHIPPED" | cut -d= -f2-)'"
 else
     _fail "EXIST_GPU_VENDOR ships blank" "could not find .env.exist.shared"
@@ -95,10 +95,16 @@ fi
 # The whole point of this change: vendor gates the block, and "none" must not
 # fall through to a VRAM picker. Asserting on source text is blunt, but the
 # alternative is driving fzf, and the ordering is exactly what regressed before.
-grep -q "grep -m1 '^EXIST_GPU_VENDOR='" "$ENTRY" \
-    && _ok "the first run gates the hardware questions on EXIST_GPU_VENDOR" \
-    || _fail "the first run gates the hardware questions on EXIST_GPU_VENDOR" \
+grep -q '\-z "${EXIST_GPU_VENDOR:-}"' "$ENTRY" \
+    && _ok "the hardware questions are gated on EXIST_GPU_VENDOR" \
+    || _fail "the hardware questions are gated on EXIST_GPU_VENDOR" \
              "gating on EXIST_VRAM_GB again would ask for VRAM before knowing there is a card"
+
+# Core reserves no GPU, so a fresh install asks nothing about one.
+grep -q "driver: nvidia' \"\${svc_dir}/docker-compose.exist.yml\"" "$ENTRY" \
+    && _ok "the hardware questions wait for an enabled GPU service" \
+    || _fail "the hardware questions wait for an enabled GPU service" \
+             "the first run would ask about a GPU nothing in Core uses"
 
 if [[ -f "$MODELS" ]]; then
     grep -q 'gpu_vendor_pick' "$MODELS" \

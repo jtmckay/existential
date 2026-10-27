@@ -54,8 +54,9 @@ Every model the stack uses is named **once**, in the *Model Selection* block. No
 hardcodes a tag: the ollama migrations pull what is named here, honcho renders its
 `config.toml` from it, openviking's vector store reads it, and hermes takes it as config.
 
-You do not normally edit this block by hand. `./existential.sh` asks two questions on the
-first run — **GPU vendor**, then **VRAM** — and fills the block in from a tier table.
+You do not normally edit this block by hand. `./existential.sh` asks two questions the first
+time a service that wants a GPU is enabled — **GPU vendor**, then **VRAM** — and fills the
+block in from a tier table.
 Change your mind later with:
 
 ```bash
@@ -219,10 +220,10 @@ host.
 
 ## GPU vendor
 
-`EXIST_GPU_VENDOR` is `nvidia`, `amd`, `none`, or `external`. It is the **first** question the first run asks,
-and its presence is the record of having asked — nothing re-asks once it is set, and
-`./existential.sh run models` is the way back. It ships **blank** for that reason: a value
-in the template means the first run never gets to ask.
+`EXIST_GPU_VENDOR` is `nvidia`, `amd`, `none`, or `external`. It is asked the first time a run finds an enabled
+service that reserves a GPU — never for Core, which has none — and its presence is the record
+of having asked: nothing re-asks once it is set, and `./existential.sh run models` is the way
+back. It ships **blank** for that reason: a value in the template means it never gets asked.
 
 What it changes, all in `src/generate-compose.ts`:
 

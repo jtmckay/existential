@@ -585,6 +585,22 @@ _render() {
     _reload_env_shared
 }
 
+# The two hardware questions, asked once and only when they matter: Core needs
+# no GPU, so the first run never asks. They wait until an enabled service
+# reserves one. EXIST_GPU_VENDOR is the record of having asked, and
+# `run models` is the way back. Blank until then resolves to `none`.
+_ask_hardware_if_needed() {
+    [[ -z "${EXIST_GPU_VENDOR:-}" && -t 0 ]] || return 0
+    local svc_dir
+    while IFS= read -r svc_dir; do
+        service_is_enabled "$svc_dir" || continue
+        grep -qs 'driver: nvidia' "${svc_dir}/docker-compose.exist.yml" || continue
+        run_adhoc env REPO_DIR=/repo FIRST_RUN=1 bash /src/lib/models.sh
+        _render
+        return 0
+    done < <(_find_service_dirs)
+}
+
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
     _ensure_host_ids
@@ -608,7 +624,7 @@ Usage: $0 [action]
 Actions:
   (none)                 Render templates for enabled services, run their setup
                          scripts, generate docker-compose.yml. The first run
-                         asks about the GPU, then builds Core.
+                         asks for a username and password, then builds Core.
   flow [list|on|off] [name...]
                          What the stack does for you: each flow turns on the
                          services it needs and its machine, then the same.
@@ -655,13 +671,7 @@ case "$action" in
         ensure_git_hooks
         ensure_adhoc_built
         _render
-
-        # The two hardware questions, once: EXIST_GPU_VENDOR is the record of
-        # having asked, and `run models` is the way back.
-        if [[ -z "$(grep -m1 '^EXIST_GPU_VENDOR=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2-)" && -t 0 ]]; then
-            run_adhoc env REPO_DIR=/repo FIRST_RUN=1 bash /src/lib/models.sh
-            _render
-        fi
+        _ask_hardware_if_needed
         _build
         [[ "$_is_first_run" == "true" ]] && _report_login
         echo ""
@@ -681,6 +691,7 @@ case "$action" in
         [[ "$_rc" -eq 3 ]] && exit 0
         [[ "$_rc" -eq 0 ]] || exit "$_rc"
         _render
+        _ask_hardware_if_needed
         _build
         ;;
     run)

@@ -81,8 +81,8 @@ if [[ -f "$_shipped" ]]; then
 
     # ...and the blankness itself is load-bearing, so assert it directly.
     [[ -z "$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)" ]] \
-        && _ok "EXIST_VRAM_GB ships blank (so the first run asks)" \
-        || _fail "EXIST_VRAM_GB ships blank (so the first run asks)" \
+        && _ok "EXIST_VRAM_GB ships blank (so it gets asked)" \
+        || _fail "EXIST_VRAM_GB ships blank (so it gets asked)" \
                  "ships '$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)'"
 
     [[ -z "$_drift" ]] \

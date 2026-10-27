@@ -47,9 +47,13 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-A bare `./existential.sh` with `EXIST_GPU_VENDOR` blank (and a terminal) runs
-`src/lib/models.sh` with `FIRST_RUN=1` before building. There is no picker: Core is what
-`.env.exist.shared` ships on, so the first run builds it.
+The first run asks for `EXIST_USERNAME` and `EXIST_PASSWORD` and nothing else. There is no
+picker: Core is what `.env.exist.shared` ships on, so the first run builds it.
+
+Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `flow`
+(with `EXIST_GPU_VENDOR` blank and a terminal) runs `src/lib/models.sh` with `FIRST_RUN=1`
+only when an enabled service's template declares `driver: nvidia`
+(`_ask_hardware_if_needed`). Until then blank resolves to `none`.
 
 The hardware questions are **GPU vendor first** (`src/utils/gpu-vendor.sh` →
 `EXIST_GPU_VENDOR`), then VRAM (`src/utils/model-tiers.sh` → `EXIST_VRAM_GB`). Answering

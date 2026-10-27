@@ -15,7 +15,7 @@ talks to it.
 ## Models
 
 You do not pick models here. Model choice is global and lives in the *Model Selection* block of
-`.env.shared`, filled in from a VRAM tier table by the question the first run asks — see
+`.env.shared`, filled in from a VRAM tier table by the question asked the first time ollama is enabled — see
 [Configuration → Models](../configuration#models).
 
 The models are pulled for you: the `10-ollama-*` … `14-ollama-*` decree migrations run as soon as

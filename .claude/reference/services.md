@@ -161,7 +161,7 @@ An AI provider the user configures is their choice and stays untouched.
 
 Templates declare the **nvidia** device reservation and nothing else. That is correct for the
 majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else from
-`EXIST_GPU_VENDOR` (asked by `src/lib/models.sh` as the first hardware question — `src/utils/gpu-vendor.sh`):
+`EXIST_GPU_VENDOR` (asked by `src/lib/models.sh` when the first GPU service is enabled — `src/utils/gpu-vendor.sh`):
 
 | vendor   | what the generator does                                                        |
 |----------|--------------------------------------------------------------------------------|

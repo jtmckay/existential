@@ -158,7 +158,8 @@ values, blanks included, are never touched. `reset` archives every rendered file
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e [pattern...]`, and `flow [list|on|off]` (the picker). The
-first bare run asks the two hardware questions (`src/lib/models.sh`), then builds Core. e2e answers one question — **does a fresh
+first bare run asks only for a username and password, then builds Core; the hardware questions
+(`src/lib/models.sh`) wait for the first enabled service that reserves a GPU. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,
 so adding a check is adding a file. → `setup.md`
 

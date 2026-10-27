@@ -52,7 +52,7 @@ add-on serves `https://<slug>.<domain>` on your network or
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # asks about your GPU, builds Core
+./existential.sh            # asks for a username and password, builds Core
 docker compose up -d
 ```
 

@@ -3,7 +3,7 @@
 #
 #   ./existential.sh run models
 #
-# existential.sh runs it once on the first run (FIRST_RUN=1, which skips the
+# existential.sh runs it once, when a GPU service is first enabled (FIRST_RUN=1, which skips the
 # "apply it" steps: the build that follows applies it). After that, this is how
 # to change your answers. Asks about the GPU and its VRAM and rewrites the EXIST_MODEL_*
 # globals in .env.shared. Everything downstream reads those, so this is the only
