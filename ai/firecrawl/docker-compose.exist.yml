@@ -170,7 +170,7 @@ services:
   # Hermes connects here (streamable HTTP at /mcp), not to the REST API directly.
   firecrawl-mcp:
     container_name: firecrawl-mcp
-    image: node:22-bullseye
+    image: node:24.22.1-bookworm-slim
     restart: unless-stopped
     # Node MCP bridge; ~173 MiB idle.
     deploy:

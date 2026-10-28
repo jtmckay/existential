@@ -4,9 +4,9 @@
 # reproducibly; the source is bind-mounted at runtime (see docker-compose.yml)
 # for live reload.
 
-# Docusaurus 3 requires Node >= 20. @docusaurus/faster ships native (glibc)
+# Pinned to the current Node LTS patch. @docusaurus/faster ships native (glibc)
 # binaries — use the Debian-based image, not Alpine/musl.
-FROM node:22-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 
 WORKDIR /app
 # The node image ships a `node` user at uid 1000 (matches a typical host user),

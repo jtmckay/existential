@@ -2,7 +2,7 @@
 # Upstream: https://github.com/tobi/qmd (MIT), installed from npm at a pinned version.
 # pdftotext (poppler) and mammoth turn PDF and Word files into Markdown for it:
 # text layers only, no OCR.
-FROM node:22.21.1-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g @tobilu/qmd@2.8.3 mammoth@1.12.3 && npm cache clean --force

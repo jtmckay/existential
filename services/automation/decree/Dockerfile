@@ -12,8 +12,8 @@ FROM debian:bookworm-slim
 # lands on its boolean --version flag and every rclone call in the container
 # dies with "invalid argument for --version". ARG is build-scope only, so
 # nothing leaks into the running container. None of these is needed at runtime.
-ARG NODE_VERSION=24.16.0
-ARG NODE_SHA256=d804845d34eddc21dc1092b519d643ef40b1f58ec5dec5c22b1f4bd8fabde6c9
+ARG NODE_VERSION=24.22.1
+ARG NODE_SHA256=6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6
 ARG RCLONE_VERSION=1.75.1
 ARG RCLONE_SHA256=09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb15
 ARG YQ_VERSION=4.44.3
