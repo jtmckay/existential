@@ -10,7 +10,7 @@ Wire a custom wake word (trained with [HAwake](./hawake)) to Tasker actions on A
 
 ## How it works
 
-HAwake's "Speech Recognition Mode" setting is supposed to invoke HA's Assist pipeline for speech-to-text — but this is not fully implemented in Home Assistant and will fail. **That failure doesn't matter.** HAwake reliably fires a `hawake_wakeword` event to HA when the wake word is detected, and that event is all we need.
+HAwake's "Speech Recognition Mode" fails in Home Assistant, but that doesn't matter: HAwake still fires a `hawake_wakeword` event to HA, and that event is all this uses.
 
 ```
 Wake word detected (HAwake on phone)

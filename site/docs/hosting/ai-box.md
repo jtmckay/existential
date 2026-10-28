@@ -18,7 +18,7 @@ only ever sees the addresses below. Which keys exist and how they fall back is i
 One 24 GB card fits **one** GPU-heavy service at a time. No service on the box knows another is
 there. llama.cpp does not unload for ComfyUI, ComfyUI does not free memory for TTS, and a
 service that cannot get its VRAM fails, usually on its first request rather than at startup.
-So every switch is made on purpose:
+So every switch is explicit:
 
 - llama.cpp holds at most `--models-max` models. Set it to `1`, so loading a model unloads
   the last one. It counts models and never checks free VRAM.

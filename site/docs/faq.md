@@ -4,71 +4,58 @@ sidebar_position: 2
 
 # FAQ
 
-Answers to the objections people actually raise before trying this.
+### Why not cloud AI and a few SaaS apps?
 
-### Why not just use cloud AI and a bunch of SaaS apps?
+- Each app sees only its own data. A chat assistant doesn't know your notes unless you paste them in.
+- Each one is a separate account and subscription, and can change under you.
+- Here everything works on one folder, `workspace/`: code-server with `claude` and `opencode`,
+  automated by decree, using [one model URL](./how-it-works#the-ai-slot-by-slot).
+- With **Local AI**, [OpenViking](./ai/openviking) indexes `workspace/` and
+  [Honcho](./ai/honcho) remembers you across sessions.
+- It runs on your hardware. No subscription.
 
-Because none of them see the whole picture. A cloud chat assistant doesn't know what's in your
-notes vault or your bank alerts unless you paste it in by hand, every time. A budgeting app
-doesn't know about the note you wrote last week. Each one is a separate subscription, a separate
-account, and a separate place your data lives — and a provider can change or degrade the product
-under you at any point.
+### Is it hard to set up?
 
-Existential works where your files already are: `workspace/`, open in code-server with `claude` and
-`opencode` in its terminal, and automated by decree, which reaches a model at
-[one OpenAI-compatible URL](./how-it-works#the-ai-slot-by-slot). Add **Local AI** and [OpenViking](./ai/openviking) indexes `workspace/`, so
-anything you write down is something the agent can already read and cite, no upload step required — and
-[Honcho](./ai/honcho) gives it memory of *you* across sessions, not just within one. It runs on
-your hardware, with your data, and no subscription.
-
-### Isn't this too complex to set up?
-
-The plumbing — hostnames, TLS, storage tiers, secrets, backups, logging, the automation engine —
-is [solved once, for everything](./how-it-works), not once per app. Setting it up is mostly
-running `./existential.sh`, then `./existential.sh flow on` for each thing you want it to do. Turning on an
-automation is usually a line of prompt in a cron file's frontmatter, not writing code — see
+Hostnames, TLS, secrets, logging and the automation engine are [set up once for every
+service](./how-it-works). Setup is `./existential.sh`, then `./existential.sh flow on` for each
+thing you want. Most automations are configured in a cron file's frontmatter, not code: see
 [the four knobs](./flows/#the-four-knobs).
 
-### Does this only help homelab nerds?
+### Is it only for homelab people?
 
-The flows are chores, not infrastructure: a bank alert email
-[becomes a budget entry](./flows/transaction-gmail-actual-budget) without you opening an app; a
-stray idea in your notes gets [triaged and researched](./flows/note-to-action), coming back with
-only the questions you actually have to answer; a photograph of something
-[becomes searchable text](./flows/image-ocr). None of that requires knowing what a Docker
-container is to benefit from — that part is what Existential handles for you.
+The flows are chores:
+
+- a bank alert [becomes a budget entry](./flows/transaction-gmail-actual-budget)
+- an idea in your notes [gets researched](./flows/note-to-action), coming back with only the
+  questions you need to answer
+- a photo [becomes searchable text](./flows/image-ocr)
 
 ### What if I don't have a GPU?
 
-Core doesn't need one. For the AI flows, set the GPU vendor to `external` when asked and point `EXIST_MODEL_URL` (an OpenAI-compatible `/v1` URL)
-at another machine that has one, or use the CPU-only model tier. See
+Core doesn't need one. For AI flows, answer `external` when asked and point `EXIST_MODEL_URL` at
+a machine that has one, or use the CPU tier. See
 [the hardware questions](./getting-started#the-hardware-questions).
 
 ### Do I have to turn everything on?
 
-No — every service is a flag, and disabled services render nothing and cost nothing. The
-first run builds **Core** (work dir, terminal, automation, notifications); everything past it is a
-flow or a flag you turn on. See [Enable/Disable Services](./getting-started#enabledisable-services).
+No. Every service is a flag, and a disabled one writes nothing. The first run builds **Core**
+(work dir, terminal, automation, notifications). See
+[Enable/Disable Services](./getting-started#enabledisable-services).
 
-### What happens to my data if I stop using Existential?
+### What happens to my data if I stop using it?
 
-It was never anywhere else. Everything lives as plain files on disks you own — readable,
-copyable, and greppable with Existential not running at all.
+It's plain files on your disks, readable without Existential running.
 
-### Is this finished, or actively changing?
+### Is it finished?
 
-Actively changing — it's a curated stack, not a frozen product, and services get added,
-replaced, or moved to the [graveyard](./graveyard/) when something better comes along. The
-[flows](./flows/) documented here are the ones that ship and run today; nothing on this site is
-aspirational.
+No. Services are added, replaced, or moved to the [graveyard](./graveyard/). The
+[flows](./flows/) documented here all run today.
 
-### Can I use the stack's own agent to change the stack?
+### Can the stack's own agent change the stack?
 
-Not recommended at 64k context or less — use a dedicated coding agent against a frontier model, on the machine that holds the repo.
-Hermes is an agent running its own tool loop behind an OpenAI-compatible endpoint, which is the
-wrong shape for a coding agent to drive (the concrete failure:
-[Why not OpenCode](./decree/routing#why-not-opencode)), and a local model at 64k context is the
-wrong size for editing a repo this large.
+Not recommended. Use a coding agent against a frontier model, on the machine with the repo.
 
-Hermes earns its keep on the other side of that line: inside a container, on `workspace/` — the
-[agent automations](./flows/note-to-action) that write into `workspace/ai/`, not the repo.
+- opencode can't drive Hermes ([why](./decree/routing#why-not-opencode)).
+- A local model at 64k context is too small for this repo.
+- Hermes works on `workspace/`: the [agent automations](./flows/note-to-action) that write into
+  `workspace/ai/`.

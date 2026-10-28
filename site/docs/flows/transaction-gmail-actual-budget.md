@@ -4,7 +4,7 @@ sidebar_position: 8
 
 # Bank Alert → Gmail → Budget
 
-Automatically imports transaction alert emails into Actual Budget. A cron job polls a Gmail label every 5 minutes, routes matching emails through a bank-specific parser, and posts any transactions it finds to your Actual Budget account.
+Bank alert emails become Actual Budget transactions. Every 5 minutes a Gmail label is polled, each email goes through a bank-specific parser, and transactions are posted to Actual Budget.
 
 ```mermaid
 flowchart LR

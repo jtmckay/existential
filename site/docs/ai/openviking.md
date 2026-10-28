@@ -9,9 +9,8 @@ sidebar_position: 11
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: LightRAG, Chroma, Qdrant, Weaviate
 
-Context database for AI agents. It exposes a `viking://` filesystem holding memory,
-resources, and skills, so an agent has somewhere durable to keep what it knows — the
-successor to the LightRAG approach of indexing a notes vault.
+Context database for AI agents: a `viking://` filesystem of memory, resources and skills that
+persists between sessions.
 
 ## Containers
 

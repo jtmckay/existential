@@ -5,23 +5,14 @@ sidebar_label: Configuration
 
 # Configuration
 
-Everything host-specific lives in one file at the repo root: `.env.exist.shared` (the
-template) renders once into `.env.shared` (yours, gitignored). Every service reads from
-it, and `./existential.sh` merges it into the single `.env` the stack runs on.
-
-The file itself carries one line per key. This page is the long version — why each value
-exists, what breaks when you change it, and which ones you should never set by hand.
+Host settings live in `.env.shared` (rendered once from `.env.exist.shared`, gitignored).
+`./existential.sh` merges it into the root `.env`. The file has one comment line per key; this
+page has the detail.
 
 ## What happens when you `git pull`
 
-Rendered files are written once and never overwritten — that is what keeps your edits and your
-generated secrets. On its own that would mean a key added upstream never reached you: your
-`.env.shared` already exists, so it gets skipped, and the new setting is silently empty
-everywhere that reads it.
-
-So `./existential.sh` reconciles `.env` files by **key** on every run. Any key the template has
-and your file does not is appended in a stamped block at the end, with its comment, and named in
-the output:
+Rendered files are never overwritten. Instead, each run appends any key your `.env` file is
+missing, with its comment, and lists it:
 
 ```
   updated: .env.shared — 2 new key(s) from the template
@@ -29,35 +20,26 @@ the output:
     + EXIST_PUBLIC_DOMAIN  (needs a value)
 ```
 
-`git pull && ./existential.sh` is the upgrade. Four things it will never do:
+`git pull && ./existential.sh` is the upgrade. It never:
 
-- **Change a value you set.** It only ever appends keys that are absent.
-- **Fill in a blank.** Blank is meaningful here — `EXIST_VRAM_GB` blank means "not asked yet",
-  and a blank `EXIST_MODEL_URL_<ROLE>` means "fall back to the global URL".
-- **Remove anything.** A key you added that the template lacks stays.
-  `./existential.sh validate drift` lists those.
-- **Ask you a question.** A key that needs your input arrives blank and is flagged
-  `(needs a value)` — fill it in and re-run.
+- changes a value you set
+- fills a blank (blank means something: "not asked yet", or "use the global URL")
+- removes a key (`./existential.sh validate drift` lists extras)
+- asks a question: a key that needs input arrives blank, marked `(needs a value)`
 
-New services arrive switched off, since their `EXIST_IS_<CATEGORY>_<SLUG>` flag is appended as
-`false`. Set it `true`, or turn on a [flow](./flows/#turning-one-on) that needs it.
+New services arrive with their flag `false`.
 
 ## Service enablement
 
-`EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder. That flag is the whole
-plugin system: see [The Pieces](./how-it-works.md#1-choose--a-flag-per-service). Set them
-by hand, or let `./existential.sh flow on <name>` set the ones a flow needs.
+`EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder
+([The Pieces](./how-it-works.md#1-choose--a-flag-per-service)). Set by hand or by
+`./existential.sh flow on <name>`.
 
 ## Models
 
-Every model the stack uses is named **once**, in the *Model Selection* block. Nothing
-hardcodes a tag: the ollama migrations pull what is named here, honcho renders its
-`config.toml` from it, openviking's vector store reads it, and hermes takes it as config.
-
-You do not normally edit this block by hand. `./existential.sh` asks two questions the first
-time a service that wants a GPU is enabled — **GPU vendor**, then **VRAM** — and fills the
-block in from a tier table.
-Change your mind later with:
+Every model is named once, in the *Model Selection* block; everything else reads it. The block
+is filled from a tier table when the first GPU service is enabled (**GPU vendor**, then
+**VRAM**). To change it:
 
 ```bash
 ./existential.sh run models
@@ -78,7 +60,7 @@ On one card, at all times:
 chat model  +  bge-m3 (1.2 GB)  +  KV cache  <  your VRAM
 ```
 
-Measured download sizes, so you can sanity-check a swap:
+Download sizes:
 
 | Tag | Size | Capabilities | Tier |
 |---|---|---|---|
@@ -91,75 +73,52 @@ Measured download sizes, so you can sanity-check a swap:
 | `gemma4:31b-it-bf16` | 63 GB | tools, vision | 96 GB (bf16) |
 | `bge-m3` | 1.2 GB | embeddings | every tier |
 
-Everything up to 24 GB is quantised; the 96 GB tier is the only one that runs the weights
-at full precision, which is what that much memory actually buys.
+- Up to 24 GB is quantised; 96 GB runs full precision.
+- Every tier runs 64k context (hermes needs it). Below about 12 GB the KV cache spills to RAM
+  and runs slower.
+- The table is `src/utils/model-tiers.sh`. Edit it there; a unit test checks it matches.
 
-The KV cache is the third term, and it is not small: every tier runs 64k context because
-hermes requires it. Below roughly 12 GB that cache does not fit alongside the weights, so
-it spills into system RAM and ollama offloads layers to the CPU. Those tiers are still
-supported — the cost is tokens per second, not capability.
+### Traps
 
-The tier table itself lives in `src/utils/model-tiers.sh`, with the reasoning for every
-size. Edit the table, not the individual values — a unit test asserts the two agree.
-
-### Two traps worth knowing
-
-**gemma4's "E" tags.** The E in `e2b`/`e4b` means *effective* parameters — a claim about
-compute, not file size. `gemma4:e4b` is an 8B model that downloads at 9.6 GB, and
-`gemma4:e2b` at 7.2 GB. The `-qat` (quantization-aware trained) variants above are the
-ones that actually fit; the plain q4 tags do not.
-
-**Mixture-of-experts sizes.** `nemotron-3.5-lightning` is 30B with only 3B active per
-token, which sounds small and is not: every expert stays resident, so it is a 25 GB model
-that merely runs at 3B speed.
+- **gemma4 "E" tags** count *effective* parameters, not size: `gemma4:e4b` downloads at 9.6 GB.
+  Use the `-qat` tags above.
+- **Mixture-of-experts** models keep every expert resident: a 30B model with 3B active is still
+  25 GB.
 
 ### Rules for any model you pick
 
-- It **must** have ollama's `tools` capability, or hermes can talk but not act.
-- Prefer a multimodal tag, so images go to the model already loaded instead of evicting it
-  for a separate vision model.
-- `EXIST_MODEL_CHAT_NUM_CTX` is a **floor of 65536**, not a tuning knob. Hermes' system
-  prompt carries skills, memory and MCP tool definitions. Below 64,000 tokens ollama does
-  not error — it silently truncates, which reads as the agent ignoring its instructions.
-  Raising it costs VRAM (the KV cache grows with it); lowering it breaks hermes.
-- `EXIST_MODEL_EXTRACT` and `EXIST_MODEL_VISION` ship as the *same tag* as chat, so only
-  one model stays resident. Split them only if you have VRAM for two at once. Blanking
-  `EXIST_MODEL_VISION` disables image handling entirely.
-- `EXIST_MODEL_EMBED` does **not** vary by tier, and changing it after first ingestion
-  corrupts the vector index — the dimensions no longer match what is already stored. Wipe
-  `volumes/openviking_data` if you do. `EXIST_MODEL_EMBED_DIM` must match it: `bge-m3` →
-  1024, `nomic-embed-text` → 768, `mxbai-embed-large` → 1024.
-- Speech-to-text and text-to-speech deliberately run on **CPU** (wyoming-whisper,
-  wyoming-piper) so they never compete with the LLM for VRAM. `EXIST_MODEL_STT` takes
-  `tiny | base | small | medium | large-v3`; `EXIST_MODEL_TTS_VOICE` takes a piper voice
-  (`<lang>_<REGION>-<name>-<quality>` — browse and listen at
-  [piper-samples](https://rhasspy.github.io/piper-samples/)). `EXIST_MODEL_STT_LANGUAGE` is a
-  language hint (`en` by default) that beats auto-detect on short commands — set it to the
-  language you actually speak, since a one-word wake command gives the detector almost nothing
-  to work with. This is not whisperx: that one runs on the GPU and transcribes long recordings
-  with speaker labels.
+- It **must** have ollama's `tools` capability, or hermes can't act.
+- Prefer multimodal, so images don't evict it for a separate vision model.
+- `EXIST_MODEL_CHAT_NUM_CTX` is a **floor of 65536**. Below it ollama silently truncates hermes'
+  prompt. Raising it costs VRAM.
+- `EXIST_MODEL_EXTRACT` and `EXIST_MODEL_VISION` ship as the chat tag, so one model stays loaded.
+  Blank `EXIST_MODEL_VISION` disables image handling.
+- `EXIST_MODEL_EMBED` is the same on every tier. Changing it after ingestion corrupts the vector
+  index: wipe `volumes/openviking_data`. `EXIST_MODEL_EMBED_DIM` must match: `bge-m3` → 1024,
+  `nomic-embed-text` → 768, `mxbai-embed-large` → 1024.
+- Speech runs on CPU (wyoming-whisper, wyoming-piper):
+  - `EXIST_MODEL_STT`: `tiny | base | small | medium | large-v3`
+  - `EXIST_MODEL_TTS_VOICE`: a piper voice, `<lang>_<REGION>-<name>-<quality>`
+    ([samples](https://rhasspy.github.io/piper-samples/))
+  - `EXIST_MODEL_STT_LANGUAGE`: the language you speak (`en` by default); short commands need it
+  - WhisperX is separate: GPU, long recordings, speaker labels.
 
 <a id="endpoints"></a>
 
 ## Endpoints — putting roles on different machines
 
-`EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is the address every model role uses
-unless it has one of its own. It is an **OpenAI-compatible base URL**, ending `/v1`: the local
-ollama, ollama on another box, a llama.cpp server (`http://192.168.1.20:8080/v1`), or anything
-else that answers `/v1/chat/completions`. Point it at another machine to run the models on a
-GPU box while the rest of the stack stays here, and disable `EXIST_IS_AI_OLLAMA` if nothing
-local serves them.
+`EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is the **OpenAI-compatible `/v1` URL**
+every role uses unless it has its own: local ollama, ollama elsewhere, llama.cpp
+(`http://192.168.1.20:8080/v1`), anything that answers `/v1/chat/completions`.
 
-Every caller that sends a prompt — OCR, the newsletter, decree scripts (`automation/lib/model.sh`),
-honcho, hermes — speaks only `/v1`, so the backend does not matter. The ollama-only steps
-(pulling models, `run ollama unload`, `/api/show` and ollama's health probe) run only while
-`EXIST_IS_AI_OLLAMA=true`; a llama.cpp server loads its own models. The embed role's server
-must serve `/v1/embeddings` (llama.cpp: `--embeddings`), and the vision role's must accept
-images (llama.cpp: a `--mmproj` projector).
+- Every caller speaks only `/v1`, so the backend doesn't matter.
+- Ollama-only steps (pull, `run ollama unload`, `/api/show`) run only with `EXIST_IS_AI_OLLAMA=true`.
+- The embed server must serve `/v1/embeddings` (llama.cpp: `--embeddings`); the vision server
+  must accept images (llama.cpp: `--mmproj`).
+- Models elsewhere: set `EXIST_IS_AI_OLLAMA=false`.
 
-The **Model Endpoints** block in `.env.shared` then lets each role go somewhere different, so
-VRAM is spread rather than shared. Every key ships **blank**, and blank means "wherever
-`EXIST_MODEL_URL` points" — leave them alone and nothing changes.
+The **Model Endpoints** block sends each role somewhere different. Every key ships **blank**,
+meaning "use `EXIST_MODEL_URL`".
 
 | Key | Role | Who reads it |
 |---|---|---|
@@ -176,56 +135,40 @@ EXIST_MODEL_URL_EMBED=http://littlebox:11434/v1
 EXIST_MODEL_URL_VISION=http://littlebox:11434/v1
 ```
 
-Chat keeps the big card to itself; embeddings and OCR — small models under bursty load — stop
-evicting it. Re-run `./existential.sh` to propagate, then
+Chat keeps the big card; embeddings and OCR stop evicting it. Then `./existential.sh` and
 `docker compose restart honcho hermes-agent openviking`.
 
-These keys were `EXIST_OLLAMA_URL*`, holding ollama's root. `git pull && ./existential.sh`
-carries a value you set under an old name across to the new one, `/v1` added.
+- `./existential.sh run models` prints where each role resolves. Migrations pull each model to
+  the machine that serves it.
+- The old `EXIST_OLLAMA_URL*` keys are carried over on upgrade, `/v1` added.
+- [A Separate AI Box](./hosting/ai-box): llama.cpp presets, ComfyUI, on-demand TTS.
 
-[A Separate AI Box](./hosting/ai-box) works through one such box: llama.cpp presets, ComfyUI,
-TTS started on demand, and which of these keys each one needs.
-
-`./existential.sh run models` prints where each role currently resolves, and the roles are the
-same vocabulary `ollama_pull` uses, so a migration pulls each model **to the machine that will
-serve it** with no per-migration edits.
-
-Image and video generation moves the same way. `EXIST_COMFYUI_URL` (default
-`http://comfyui:8188`) is where the `comfy` routine POSTs its workflows and where
-`comfyui.EXIST_DOMAIN` proxies to, so pointing it at a ComfyUI you already run elsewhere is the
-whole change:
+ComfyUI moves the same way, with `EXIST_COMFYUI_URL` (default `http://comfyui:8188`):
 
 ```bash
 EXIST_COMFYUI_URL=http://bigbox:8188
 EXIST_IS_AI_COMFYUI=false                  # nothing local to start
 ```
 
-`./existential.sh test services` then checks that address instead of the container.
+Two things don't follow the block:
 
-Two things do not follow the block:
-
-- Hermes stores the endpoint in its own `config.yaml`, so `exist.initial.sh` reconciles that
-  `base_url` on every run — but only while it still points at an ollama (`:11434`). A
-  `base_url` you aimed at some other provider by hand is a preference and is left alone.
-- OpenViking writes `ov.conf` once. Delete it and re-run to repoint an existing install.
+- Hermes' `config.yaml` `base_url` is updated each run only while it points at an ollama
+  (`:11434`). One you set by hand is left alone.
+- OpenViking writes `ov.conf` once. Delete it and re-run to repoint.
 
 ### Speech has no endpoint keys
 
-`wyoming-whisper` and `wyoming-piper` run on **CPU** by design, so moving them frees no VRAM and
-there is nothing for this block to spread. They are also reached over raw TCP, addressed by a
-host and port typed into Home Assistant's Wyoming integration — which no file in this repo
-controls. To run one on another machine, publish its port there (the commented `ports:` block in
-that service's compose file), disable the service here, and point Home Assistant at the other
-host.
+They run on CPU, and Home Assistant addresses them by host and port in its own settings. To
+move one: publish its port on the other machine (the commented `ports:` block), disable it here,
+and point Home Assistant at it.
 
 ## GPU vendor
 
-`EXIST_GPU_VENDOR` is `nvidia`, `amd`, `none`, or `external`. It is asked the first time a run finds an enabled
-service that reserves a GPU — never for Core, which has none — and its presence is the record
-of having asked: nothing re-asks once it is set, and `./existential.sh run models` is the way
-back. It ships **blank** for that reason: a value in the template means it never gets asked.
+`EXIST_GPU_VENDOR`: `nvidia`, `amd`, `none` or `external`. Asked once, when the first GPU service
+is enabled (never for Core). Ships blank, meaning not yet asked. Change it with
+`./existential.sh run models`.
 
-What it changes, all in `src/generate-compose.ts`:
+What it changes, in `src/generate-compose.ts`:
 
 | Value | Effect |
 |---|---|
@@ -234,108 +177,63 @@ What it changes, all in `src/generate-compose.ts`:
 | `none` | The nvidia reservation is stripped, and `x-exist-gpu.none` merged. |
 | `external` | Same treatment as `none` — this machine has no card to reserve. Ollama is not run locally at all; the models come from `EXIST_MODEL_URL` on another machine. |
 
-The strip is not cosmetic: docker refuses to create a container whose device driver it
-cannot satisfy, so one nvidia-reserving service takes down `docker compose up` for the
-*whole* stack on a host without that runtime. Blank falls back to `EXIST_VRAM_GB`: a `0`
-there means `none`, any other number means `nvidia` — which is what every install predating
-this setting already assumed. Both blank means nobody was ever asked (a fresh clone, CI, the
-e2e harness) and resolves to `none`, because guessing `nvidia` there loses the whole `up` on
-any host that hasn't got one.
+- One nvidia reservation on a host without the runtime fails `docker compose up` for the whole
+  stack, which is why it's stripped.
+- Blank falls back to `EXIST_VRAM_GB` (`0` → `none`, a number → `nvidia`); both blank → `none`.
+- `external` turns off local Ollama and asks for a model URL. That's how a GPU-less machine runs
+  the agent path.
+- e2e runs a tiny model set on CPU (`src/test/fixtures/env.shared`), so it needs no card.
 
-**`external` is how a machine with no GPU still runs the whole agent path.** The answer turns off the
-local Ollama and asks for the URL of one that already has the VRAM, and every role follows it
-unless you override that role's endpoint above.
+`EXIST_VRAM_GB` is the tier picked; it also ships blank.
 
-The end-to-end suite does not need it. It runs Ollama in-clone on the CPU against a
-deliberately tiny model set — a 1B chat model and a 46 MB embedder, pinned in
-`src/test/fixtures/env.shared` — so the flagship path is exercised on every run, on a runner
-with no card.
-
-`EXIST_VRAM_GB` records the tier that was picked, and likewise ships blank. The picker's last
-entry is **Custom**, where you type a model name instead of picking a VRAM number — it sets the
-`EXIST_MODEL_*` keys to what you typed, leaves `EXIST_VRAM_GB` alone, and checks nothing: the
-model needs tool calling, vision and 64k of context, or hermes will not use it properly. `0` is
-the CPU-only tier — you normally reach it by answering *No GPU* to the vendor question, which
-sets it for you and skips the VRAM question, since a VRAM number means nothing without a
-card. Expect seconds per token, not tokens per second; the wyoming voice services are
-unaffected, they are CPU already.
+- **Custom** (last entry) takes a model name, sets the `EXIST_MODEL_*` keys, and checks nothing.
+  The model needs tool calling, vision and 64k context.
+- `0` is CPU-only, set by answering *No GPU*. Expect seconds per token.
 
 ## Identity and permissions
 
-`EXIST_USERNAME` and `EXIST_PASSWORD` are your login: ntfy's (the phone app logs in with them)
-and every admin account a service creates on first boot. They are the only two things the first
-run asks about you. Enter accepts the defaults: `admin`, and a generated 24-character password.
-The run ends by naming the username and pointing at the key that holds the password; it never
-prints the password. A password you type has to be 8 or more characters of `A-Za-z0-9._-`:
-that value is written unquoted into env files, YAML and JSON all over the stack, so anything
-else would break a service rather than the prompt.
-
-`EXIST_EMAIL` ships blank, because nothing in Core needs one. The first run that enables an
-add-on whose template uses it (Open WebUI, NocoDB, Appsmith) asks for it once, before that
-service renders, and fills it in; a blank answer asks again next run.
-
-`EXIST_PUID` / `EXIST_PGID` are the host user and group every container runs as
-(referenced in compose files as `${EXIST_PUID:-1000}:${EXIST_PGID:-1000}`), so files
-written into bind-mounted volumes stay owned by — and deletable by — the user running the
-stack. `existential.sh` auto-detects and writes them from `id -u` / `id -g` on the first
-run. Override only if your containers must run as a different user than the one invoking
-docker compose.
+- **`EXIST_USERNAME` / `EXIST_PASSWORD`**: your login for ntfy and every admin account a service
+  creates. The first run's only questions. Enter gives `admin` and a generated 24-character
+  password, which is never printed. A typed password must be 8+ characters of `A-Za-z0-9._-`
+  (it's written unquoted into many files).
+- **`EXIST_EMAIL`**: blank until an add-on that needs one (Open WebUI, NocoDB, Appsmith) is first
+  enabled, then asked once.
+- **`EXIST_PUID` / `EXIST_PGID`**: the user and group every container runs as, so files in volumes
+  stay yours. Detected from `id -u` / `id -g` on the first run.
 
 ## Hostnames, DNS and TLS
 
-`EXIST_TAILNET_NAME` is Core's address: this host's Tailscale name (`box.tail1234.ts.net`),
-filled in by `./existential.sh` once `tailscale serve` works there and never overwritten. ntfy
-builds its base URL from it (`https://<name>:8443`), and the morning digest links to
-code-server at `https://<name>`. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
+- **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
+  works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
 
-The rest are the Caddy add-on's. `EXIST_LOCAL_HOST_IP`, `EXIST_DOMAIN` and
-`EXIST_PUBLIC_DOMAIN` are covered end to end in [The Pieces → Hostnames that just
-work](./how-it-works.md#hostnames-that-just-work). The short version:
+The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 
-- `EXIST_LOCAL_HOST_IP` is filled in automatically — the LAN address the kernel would use
-  to reach the internet, or the tailnet address instead if you use Tailscale and it is up
-  (`tailscale ip -4`). It must stay **above** `EXIST_DOMAIN` in the file: the `EXIST_NIP_DOMAIN`
-  placeholder is derived from it, and placeholders resolve top-down.
-- `EXIST_DOMAIN` defaults to `<your-ip-with-dashes>.nip.io`, public wildcard DNS that maps
-  the name straight back to that IP — so `https://dashy.<domain>` works from any phone or
-  laptop on your network with no pihole and no `/etc/hosts`. The name resolves publicly but
-  only *routes* from inside your network (or your tailnet, with Tailscale).
-- If you use Tailscale, **never** set `EXIST_DOMAIN` to a MagicDNS name like
-  `<node>.ts.net`. MagicDNS resolves exact node names only — there is no wildcard beneath
-  one — so every `<slug>.` under it is NXDOMAIN.
-- `EXIST_PUBLIC_DOMAIN` adds real Let's Encrypt certs alongside the local hostnames. It
-  requires that you own the domain, that `<domain>` and `*.<domain>` resolve to your
-  public IP, and that ports 80 and 443 are forwarded to this machine. Run
-  `./existential.sh run caddy public-domain` after changing it.
+- **`EXIST_LOCAL_HOST_IP`**: detected (LAN address, or the tailnet address with Tailscale up).
+  Keep it **above** `EXIST_DOMAIN` in the file; placeholders resolve top-down.
+- **`EXIST_DOMAIN`**: defaults to `<ip-with-dashes>.nip.io`. Never a MagicDNS name: there's no
+  wildcard under one.
+- **`EXIST_PUBLIC_DOMAIN`**: adds Let's Encrypt certs. Needs a domain you own, `<domain>` and
+  `*.<domain>` pointing at your public IP, and ports 80 and 443 forwarded. Then
+  `./existential.sh run caddy public-domain`.
 
-The `exist` network is created by `docker compose up`, never by hand: Compose owns it.
+`docker compose up` creates the `exist` network.
 
 ## Storage
 
-Persistent data is host bind mounts, never Docker-managed volumes. Without an NFS host
-mount, every volume lives under `<repo>/volumes/<name>`.
-
-`EXIST_NFS_HOST_MOUNT` ships blank and is **not** a first-run question — a NAS is a thing
-you either have or you don't. Mount the NFS export on the **host** (fstab/autofs), then
-point `EXIST_NFS_HOST_MOUNT` at that mountpoint; Docker never mounts NFS itself.
-[Storage](./storage/#a-nas-for-the-bulk-files) walks through it, at any time.
-
-`EXIST_BACKUP_RCLONE_REMOTE` is any rclone remote (`<remote>:<path>`), set
-at the end of `./existential.sh run rclone`. Blank disables scheduled DB backups; volume backups
-are invoked manually.
+- Data is host bind mounts under `<repo>/volumes/<name>`, never Docker volumes.
+- **`EXIST_NFS_HOST_MOUNT`**: blank by default. Mount the NFS export on the host (fstab/autofs)
+  and set this to the mountpoint. See [Storage](./storage/#a-nas-for-the-bulk-files).
+- **`EXIST_BACKUP_RCLONE_REMOTE`**: an rclone remote (`<remote>:<path>`), set by
+  `./existential.sh run rclone`. Blank disables scheduled DB backups.
 
 ## Shared service credentials
 
-The remaining keys are secrets shared *between* services, generated on render:
+Generated on render, shared between services:
 
-- `EXIST_HERMES_API_KEY` — the hermes gateway key, shared by hermes-agent and open-webui.
-- `EXIST_NTFY_URL` — push notifications, container-to-container (Docker DNS).
-  `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are the publishing identity, created by ntfy's own
-  entrypoint on first boot and allowed to publish to every topic — nothing to run by hand.
-- `EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN` — the bearer token Nextcloud's file-event webhooks
-  send to decree's `/files` endpoint. Nextcloud stores it once, when the
-  `nextcloud-file-events` migration registers them — see
-  [File Processor](./decree/file-change-processing#setup).
-- `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`, `EXIST_NEXTCLOUD_APP_PASSWORD`,
-  `EXIST_NEXTCLOUD_WORKSPACE_DIR` — the Nextcloud `workspace/` two-way syncs with; see
-  [Syncing with a Nextcloud](./getting-started#syncing-with-a-nextcloud-optional).
+- **`EXIST_HERMES_API_KEY`**: the hermes gateway key (hermes-agent, open-webui).
+- **`EXIST_NTFY_URL`**: ntfy, by container name. `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are
+  the publisher, created by ntfy on first boot.
+- **`EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN`**: what Nextcloud's file-event webhooks send to
+  `/files`. See [File Processor](./decree/file-change-processing#setup).
+- **`EXIST_NEXTCLOUD_DOMAIN`, `_USER`, `_APP_PASSWORD`, `_WORKSPACE_DIR`**: the Nextcloud
+  `workspace/` syncs with. See [Syncing with a Nextcloud](./getting-started#syncing-with-a-nextcloud-optional).

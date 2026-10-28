@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # AI
 
-The AI stack provides local model hosting, chat interfaces, transcription, and text-to-speech — all self-hosted.
+Model hosting, agents, chat, transcription and text-to-speech.
 
 | Service | Purpose |
 |---|---|

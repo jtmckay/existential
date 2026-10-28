@@ -8,7 +8,7 @@ sidebar_position: 4
 - Source: https://github.com/microsoft/playwright-mcp
 - License: Apache 2.0
 
-Model Context Protocol server that exposes a headless Chromium browser to any MCP-compatible AI agent. Allows agents to navigate pages, click, fill forms, screenshot, and scrape — without writing custom browser automation code.
+An MCP server that gives agents a headless Chromium browser: navigate, click, fill forms, screenshot, scrape.
 
 ## Port
 

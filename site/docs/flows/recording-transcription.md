@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Recording → Transcription
 
-Automatically transcribe any audio or video recording dropped into Nextcloud. The moment a file lands in Nextcloud, Decree generates a share link, hands it to WhisperX, and saves a **speaker-labelled** transcript next to the original file — no manual steps, no intermediate storage.
+An audio or video file that lands in Nextcloud gets a **speaker-labelled** transcript saved beside it. Decree passes WhisperX a share link, so nothing is copied.
 
 ```mermaid
 flowchart LR

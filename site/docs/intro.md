@@ -18,22 +18,14 @@ Everything else on your phone surfaces what someone else decided needs your atte
 surfaces what you decided. What you're building is your Diagram: the plan from your best day,
 followed on the rest.
 
-Underneath it is a curated set of open-source apps (notes, photos, money, files, dashboards,
-monitoring, home automation) run as one system: each with a name you can type, a certificate
-your phone trusts, somewhere safe to put its data, a backup, and a way to reach the others.
-You choose what you want; it comes up wired together.
+Underneath is a curated set of open-source apps (notes, photos, money, files, monitoring, home
+automation) run as one system. Turn on what you want and it comes up wired together.
 
-## Three things it gets you
+## What you get
 
-### Written down, not remembered
-A decision is a file. It runs whether or not you remember making it.
-
-### Plain files
-Everything you build is a file you can read. Nothing is locked inside an app you'll move on from.
-
-### Yours, physically
-It runs on hardware you own. No account to lose, no subscription required, nobody who can lock
-you out.
+- **Decisions run themselves.** A decision is a file, and it runs whether or not you remember it.
+- **Plain files.** Everything you build is readable without Existential.
+- **Your hardware.** No account, no subscription.
 
 ## What it looks like from outside
 
@@ -58,18 +50,13 @@ flowchart TB
     style house fill:#fcfcfc,stroke:#027bcb,stroke-width:2px,color:#014d80
 ```
 
-Three things worth noticing about that picture:
+- **One system**, not twenty app addresses.
+- **Nothing leaves** unless a routine you wrote sends it.
+- **Everything inside is plain files** on your disks.
 
-- **You talk to one system**, not to twenty apps you have to remember the addresses of.
-- **The boundary is real.** Data comes in from outside; nothing goes back out unless you
-  wrote a routine that sends it.
-- **Everything inside the box is yours** — plain files, on disks you own, readable without
-  Existential running at all.
+## The AI
 
-## The AI is part of the plumbing, not a feature
-
-Most stacks bolt an assistant on the side. Here it sits underneath, and everything reaches it
-the same way:
+Everything reaches the same model:
 
 | You want to… | You get… |
 |---|---|
@@ -77,17 +64,13 @@ the same way:
 | **Hand off a piece of work** | An agent that reads your notes and the web and files the answer back in your workspace |
 | **Not do a chore again** | A routine that runs on a trigger and only speaks up when it matters |
 
-All three reach the same model, at one OpenAI-compatible URL. Swap what serves it — a bigger
-model, a box with more VRAM — and all three change at once.
-
-*Which projects actually provide this is [Level 2](./how-it-works). It's deliberately not on
-this page: the pieces are replaceable, the shape isn't.*
+All three use one OpenAI-compatible URL. Point it at a bigger model and all three change.
+Which projects provide each piece: [Level 2](./how-it-works).
 
 ## What Core installs
 
-The first `./existential.sh` builds **Core**: open the work dir, talk to an AI about it,
-have decree automate it. It runs on one ordinary box, with no GPU and no model downloads, and
-Tailscale on the host gives it real HTTPS on every device you log in.
+The first `./existential.sh` builds **Core**. No GPU, no model downloads. Tailscale gives it
+HTTPS on every device you log in.
 
 | | |
 |---|---|
@@ -95,9 +78,7 @@ Tailscale on the host gives it real HTTPS on every device you log in.
 | [Decree](./decree/) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
 | [ntfy](./services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
 
-Everything else (Caddy hostnames, monitoring, the webhook and Nextcloud for capture, apps,
-local models and agents, voice and Home Assistant) is an optional add-on, one flow or one flag
-away. What each piece does is [Level 2](./how-it-works).
+Everything else is an add-on, one flow or one flag away: [Level 2](./how-it-works).
 
 ## Try it
 

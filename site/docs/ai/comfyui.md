@@ -9,29 +9,26 @@ sidebar_position: 6
 - License: GPL-3.0
 - Alternatives: Automatic1111, InvokeAI, Fooocus
 
-Node-based Stable Diffusion UI for local, GPU-accelerated image generation. Workflows are visual graphs that can be exported as JSON and driven programmatically via a REST API — which makes ComfyUI a natural fit for Decree automations.
+Node-based Stable Diffusion UI for local GPU image generation. Workflows export as JSON and run over a REST API, so Decree can drive them.
 
 ## Overview
 
-ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (LAN, via Caddy) and `http://comfyui:8188` (Docker internal DNS, for container-to-container calls). It queues and executes image generation jobs via its web UI or HTTP API. No cloud involved — everything runs on the local GPU.
+ComfyUI runs at `https://comfyui.EXIST_DOMAIN` (via Caddy) and `http://comfyui:8188` (container to container), on the local GPU.
 
 The ComfyUI web frontend reports browser errors to Comfy's Sentry, and upstream offers no setting to turn that off.
 
 ## Using a ComfyUI you already run
 
-The GPU does not have to be in this machine. `EXIST_COMFYUI_URL` in `.env.shared` is the one
-address the stack uses — the `comfy` machine POSTs there, `comfyui.EXIST_DOMAIN` proxies there,
-and `exist.test.sh` checks it — so pointing it elsewhere and turning the local container off is
-the whole job:
+`EXIST_COMFYUI_URL` is the one address the stack uses (the `comfy` machine, the
+`comfyui.EXIST_DOMAIN` proxy and `exist.test.sh`). Point it elsewhere and turn the local one off:
 
 ```bash
 EXIST_COMFYUI_URL=http://bigbox:8188
 EXIST_IS_AI_COMFYUI=false
 ```
 
-Then `./existential.sh && docker compose up -d`. Everything below about models, volumes and
-workflows is then that machine's business, not this one's — the workflows still live here, in
-`automation/lib/comfy/workflows/`, but the checkpoints they name must exist over there.
+Then `./existential.sh && docker compose up -d`. Workflows stay in
+`automation/lib/comfy/workflows/`; the checkpoints they name must exist on the other machine.
 
 ## First Run
 
@@ -199,7 +196,7 @@ Two things to know before you point this at a large folder. The script POSTs and
 twenty messages become twenty ComfyUI queue entries in about a second — the depth is ComfyUI's
 problem, not decree's, and a few hundred is an unattended GPU night. And nothing here dedupes:
 re-running the loop queues the whole cross product again, which is usually what you want (seeds
-are randomized) but is worth knowing.
+are randomized).
 
 ## Triggering over HTTP
 

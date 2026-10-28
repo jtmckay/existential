@@ -16,38 +16,23 @@ nothing to enable separately. See [Cache](#cache) below.
 
 ## Setup
 
-Most of Nextcloud's environment variables are read by the installer on the **first** run only,
-and ignored afterwards — so set what you care about before you bring it up the first time.
-
-The exception is `trusted_domains`, because that one has to be able to change. `EXIST_DOMAIN` is
-the one knob you move to relocate the whole stack, and the installer would otherwise freeze
-Nextcloud's allowed hostname at whatever it saw first — leaving it answering *"Access through
-untrusted domain"* while every other service followed the new name. A `before-starting` hook
-re-applies `trusted_domains` from the environment on every start, so changing `EXIST_DOMAIN` and
-re-running is enough.
-
-`overwritehost`, `overwriteprotocol`, `overwrite.cli.url` and `trusted_proxies` do **not** need
-that treatment, even though the installer also writes them once: Nextcloud's own
-`config/reverse-proxy.config.php` reads them straight from the environment on every request and
-overrides whatever is baked into `config.php`, so they already track `EXIST_DOMAIN` without a
-restart doing anything special.
+- Most environment variables are read only on the **first** start. Set them before then.
+- `trusted_domains` is re-applied from `EXIST_DOMAIN` on every start (a `before-starting` hook),
+  so changing the domain doesn't leave Nextcloud on "Access through untrusted domain".
+- `overwritehost`, `overwriteprotocol`, `overwrite.cli.url` and `trusted_proxies` are read from the
+  environment on every request, so they follow `EXIST_DOMAIN` too.
 
 ## Cache
 
-`nextcloud-redis` (`redis:8.10.1-alpine3.23`, tri-licensed
-[RSALv2 / SSPLv1 / AGPLv3](https://redis.io/legal/licenses/) — for commercial hosting, select
-AGPLv3 or RSALv2) is Nextcloud's `memcache.distributed` and `memcache.locking` backend
-(transactional file locking, so two clients can't corrupt the same file at once) and its PHP
-session store. Both are wired by the official `nextcloud` image whenever `REDIS_HOST` is set
-(`redis.config.php`, `entrypoint.sh`'s `configure_redis_session`), so this is a hard dependency,
-not an optional add-on — which is why it lives in Nextcloud's own compose file rather than being
-a service you toggle. Nothing else in the stack talks to it: `firecrawl-redis`,
-`lowcoder-redis` and `immich-redis` are separate, per-service instances.
+`nextcloud-redis` (`redis:8.10.1-alpine3.23`, licensed
+[RSALv2 / SSPLv1 / AGPLv3](https://redis.io/legal/licenses/); for commercial hosting pick AGPLv3
+or RSALv2):
 
-It holds **no volume** and runs with `--save ""`. Locks and sessions are transient by
-definition; losing them costs a re-login and clears any stale file lock. Nothing to back up.
-No `maxmemory` or eviction policy is set, so redis grows until it hits the container's 128M
-limit rather than evicting old keys, at which point Docker's OOM killer restarts it.
+- Nextcloud's file locking, distributed cache and PHP sessions. Required, so it lives in
+  Nextcloud's compose file.
+- Only Nextcloud uses it; other services have their own redis.
+- No volume (`--save ""`). Losing it costs a re-login. Nothing to back up.
+- No `maxmemory`: at its 128M limit Docker restarts it.
 
 `--requirepass` is always on, from `NEXTCLOUD_REDIS_PASSWORD` in `nas/nextcloud/.env` — one key
 read by both containers, so the two sides cannot drift. A bare `redis-cli ping` therefore
@@ -77,9 +62,8 @@ docker exec nextcloud php /var/www/html/occ db:add-missing-indices
 
 ### Background jobs
 
-Handled: the `nextcloud-cron` container runs `cron.php` every minute and delivers webhooks as
-they are queued, and its first run switches **Administration → Basic settings** from `AJAX` to
-`Cron`. Nothing to add to the host's crontab.
+`nextcloud-cron` runs `cron.php` every minute and delivers webhooks; its first run switches
+**Basic settings** from `AJAX` to `Cron`. Nothing to add to the host's crontab.
 
 ### Set maintenance window (UTC)
 
@@ -93,22 +77,16 @@ docker exec nextcloud php /var/www/html/occ config:system:set maintenance_window
 external storage at `/workspace`, applicable to every user. Sync that folder with the desktop client and you are editing the
 same tree hermes and code-server see. See [Getting Started → Workspace](../getting-started#workspace).
 
-Nextcloud runs as `EXIST_PUID`, not `www-data`, for exactly this reason: every writer of that
-volume has to be the same uid.
-
-Nextcloud is optional sync for the workspace, not what triggers automations there: the stack
-sees a workspace change itself, whoever made it ([File Handlers](../decree/file-handlers)).
-Every upload through Nextcloud — anywhere, not just the workspace — can also fire a file event
-to Decree. See [File Processor](../decree/file-change-processing).
+- Nextcloud runs as `EXIST_PUID`, not `www-data`, because every writer of the volume must be the
+  same uid.
+- Workspace automations don't need Nextcloud: [File Handlers](../decree/file-handlers) see every
+  change. Uploads anywhere in Nextcloud can also fire a file event:
+  [File Processor](../decree/file-change-processing).
 
 ## Collabora (office document editing)
 
-Nextcloud does not talk to `nas/collabora` out of the box — the `richdocuments` app has to be
-installed and pointed at it. The `office-documents` flow's migration does this the same way
-every other post-startup setup is done, once: `./existential.sh flow on office-documents`. It also sets
-`richdocuments`'s `wopi_allowlist` to the `exist` bridge subnet — left blank (upstream's default),
-Nextcloud's own admin settings warn that *any* IP that can reach it may make WOPI requests, not
-just the actual Collabora container.
+`./existential.sh flow on office-documents` installs the `richdocuments` app, points it at
+Collabora, and limits `wopi_allowlist` to the `exist` subnet (blank would allow any IP).
 
 To do it by hand instead:
 
@@ -125,10 +103,8 @@ Collabora's own admin console lives at `https://collabora.<domain>`, gated by
 
 ## Calendar
 
-Nextcloud ships CalDAV enabled regardless (the `dav` app), but the Calendar app itself —
-the UI at `/apps/calendar`, and the "Personal"/"Contact birthdays" calendars it auto-creates
-per user — has to be turned on. The `calendar` flow's migration does that the same way
-`richdocuments` above gets installed: `./existential.sh flow on calendar`.
+CalDAV is always on; the Calendar app (`/apps/calendar`) isn't. `./existential.sh flow on
+calendar` installs it.
 
 To do it by hand instead:
 
@@ -138,17 +114,13 @@ docker exec nextcloud php /var/www/html/occ app:install calendar
 
 ### Indexed by OpenViking, answerable by hermes
 
-A calendar app on its own is just a UI — nothing about it is searchable by the stack. The same
-flow's `calendar-extract` cron mirrors every event, recent-past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, gets mirrored into
-`workspace/ai/calendar/<calendar>/` as one markdown note per event. That's the same tree
-`openviking-index-knowledgebase` already indexes, so a hermes department with OpenViking access
-can answer "what's on my calendar" or "when's Leon's birthday" the way it answers anything else
-in `workspace/` — no new tool, no new integration, just more notes in the same knowledgebase.
+The flow's `calendar-extract` cron writes each event, from the recent past to
+`CALENDAR_EXTRACT_FUTURE_DAYS` ahead, as a note in `workspace/ai/calendar/<calendar>/`. OpenViking
+indexes it, so hermes can answer "what's on my calendar".
 
-The mirror is full-refresh, not append-only: a cancelled or deleted event's note disappears on
-the next run, and the directory only ever reflects what's really scheduled. See
-`automation/scripts/calendar_extract.sh` for the CalDAV details (verified live against
-nextcloud:34.0.3, including its `expand` support for recurring events).
+- Full refresh: a cancelled event's note disappears on the next run.
+- CalDAV details: `automation/scripts/calendar_extract.sh` (tested on nextcloud:34.0.3, recurring
+  events included).
 
 ## Maintenance
 
@@ -160,16 +132,13 @@ docker exec nextcloud php /var/www/html/occ maintenance:mode --on
 docker exec nextcloud php /var/www/html/occ maintenance:mode --off
 ```
 
-Nextcloud's own update check is off, and so is the `survey_client` app: the check sends the
-install time, PHP version and a user-count bucket, not just a version request. Updating is
-bumping the image tag in `docker-compose.exist.yml`. `hooks/before-starting/03-no-phone-home.sh`
-re-applies both on every start.
+Nextcloud's update check and `survey_client` app are off (the check sends install time, PHP
+version and user count). `hooks/before-starting/03-no-phone-home.sh` re-applies this on every
+start. To update, bump the image tag in `docker-compose.exist.yml`.
 
 ### Restart order
 
-Only matters if `nextcloud_data`'s volume is `nfs: true` **and** `EXIST_NFS_HOST_MOUNT` points at
-external storage (e.g. TrueNAS) — otherwise every bind mount is local and ordinary
-`docker compose up -d` handles it:
+Only when `nextcloud_data` is on NFS (`EXIST_NFS_HOST_MOUNT` set):
 
 1. The NAS export
 2. Nextcloud

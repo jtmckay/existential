@@ -9,8 +9,7 @@ sidebar_position: 10
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternatives: Mem0, Zep, Letta (MemGPT)
 
-Cross-session memory for [Hermes](./hermes). Without it, every agent conversation starts
-cold; with it, what the agent learned about you last week is still there this week.
+Memory about you for [Hermes](./hermes), kept across conversations.
 
 ## Containers
 

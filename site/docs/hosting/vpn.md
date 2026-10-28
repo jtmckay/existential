@@ -4,12 +4,9 @@ sidebar_position: 7
 
 # VPN
 
-Core is reached over Tailscale, on the host's tailnet name (see
-[Getting Started](../getting-started.md#setup)). This page is for the Caddy add-on, on a host
-without it: on your own network the first run's `<lan-ip-with-dashes>.nip.io` domain resolves
-on every device, and the LAN routes to it. A VPN is how a phone or laptop gets back onto that
-network from anywhere else, without exposing a single service to the open internet. Caddy does
-not care which you pick.
+For the Caddy add-on (Core uses Tailscale: [Getting Started](../getting-started.md#setup)). On
+your network the `<lan-ip-with-dashes>.nip.io` names already work. A VPN gets a phone or laptop
+back onto that network from elsewhere, without exposing any service. Any VPN works.
 
 ## Options
 

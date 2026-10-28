@@ -9,8 +9,7 @@ sidebar_position: 5
 - License: [GPL-3](https://www.gnu.org/licenses/gpl-3.0.html)
 - Alternatives: CyberChef, DevUtils, Boop
 
-A collection of handy developer utilities — a static single-page app with no backend, no
-account, and no data of its own: everything runs client-side in the browser, so there's
+Developer utilities in a static web app. It runs in the browser and stores nothing, so there's
 nothing to configure or back up.
 
 ## Getting Started

@@ -10,7 +10,7 @@ sidebar_position: 11
 - UI: `https://grafana.<domain>`
 - Credentials: `EXIST_USERNAME` / `EXIST_PASSWORD` (set via `.env.shared`)
 
-Visualization layer for [Prometheus](./prometheus) metrics and [Loki](./loki) logs. Everything is provisioned from code — no manual setup needed.
+Dashboards for [Prometheus](./prometheus) metrics and [Loki](./loki) logs, provisioned from code.
 
 ![Grafana](../img/grafana.png)
 

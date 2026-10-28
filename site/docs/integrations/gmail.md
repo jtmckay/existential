@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Gmail
 
-Grants Decree read-only access to your Gmail inbox via OAuth 2.0. Once configured, the `gmail_sync` machine can use it and credentials are loaded by the container at runtime.
+Gives the `gmail_sync` machine read-only access to your Gmail through OAuth 2.0.
 
 ## Setup
 

@@ -4,16 +4,10 @@ sidebar_position: 2
 
 # Note → Action
 
-You write things down and then never come back to them. This flow is the one that comes back
-to them for you.
+Each new note is checked for something worth acting on. If there is, the work that needs no
+input from you gets done, and you get back the questions only you can answer.
 
-Notes land in your vault the way they always do. Something reads each new one, decides whether
-it is *worth acting on*, and if it is, does the work it can do unattended — then hands you back
-the part only you can answer.
-
-The worked example here is **a business idea**, because it is the case where the gap between
-"I had a thought" and "I know whether it's any good" is widest. The shape is the same for any
-kind of note you want chased down.
+The example here is **a business idea**. Any kind of note works the same way.
 
 ```mermaid
 flowchart TB
@@ -28,7 +22,7 @@ flowchart TB
         research --> plan
     end
 
-    ask["<b>The questions back</b><br/><i>only what it genuinely can't answer</i>"]
+    ask["<b>The questions back</b><br/><i>only what it can't answer</i>"]
     back["Written beside the original note"]
 
     write --> vault --> triage
@@ -49,65 +43,42 @@ flowchart TB
 
 ### 1. Notes arrive
 
-Nothing changes about how you capture. You write in your editor, on your phone, or by talking
-at it — it syncs to Nextcloud like it already does. The `notes` machine pulls the vault down
-and compiles it into per-directory markdown with an index, which is the form a model can
-actually read without being handed forty thousand files.
+You write as usual; it syncs to Nextcloud. The `notes` machine pulls the vault and compiles it
+into per-directory markdown with an index.
 
 ### 2. Triage — is there anything here?
 
-This is the step that makes the flow worth having, and the step that has to be *stingy*. Most
-notes are a grocery list or a meeting time. `note_triage` asks the gateway one cheap question
-per new note: **is there a real idea in this, or not?**
+`note_triage` asks one cheap question per note: **is there a real idea in this?**
 
-Only new and changed notes are considered — the script hashes the vault each run and diffs
-against the last one, so a note is judged when you write it and again when you meaningfully
-edit it, never on a loop.
-
-Being conservative here is the whole game. A triage step that fires on everything produces a
-folder of unread reports, which is the problem you started with.
+- Only new and changed notes: the vault is hashed each run and diffed against the last.
+- Keep it strict. A triage that passes everything produces a folder of unread reports.
 
 ### 3. Do what can be done unattended
 
-Only for the notes that passed. The machine chains follow-up work — each step is another
-message in the same queue, so a long job is just a sequence of small ones and you can watch it
-progress:
+For notes that pass, follow-up work is chained, each step its own message:
 
-- **Market research** — who is already doing this, what they charge, where the gap is.
-  [Firecrawl](../ai/firecrawl) turns the pages it finds into something the model can read.
-- **A draft plan** — the shape of the thing, rough costs, what would have to be true for it to
-  work, and the first three steps.
-- **What's already yours** — whether anything else in your vault bears on it. Your own past
-  notes are the context no external tool has.
+- **Market research**: who does this, what they charge, where the gap is.
+  [Firecrawl](../ai/firecrawl) reads the pages.
+- **A draft plan**: shape, rough costs, what must be true, first three steps.
+- **Your own notes**: anything else in your vault that bears on it.
 
 ### 4. Come back with the right questions
 
-The output is not a report you have to read. It is **the two or three things the work could not
-resolve** — the questions where your answer changes the conclusion:
+The output ends with **the two or three questions whose answers change the conclusion**:
 
-> *You'd need to know whether the licensing applies to resale — do you? And is this a weekend
-> project or the thing you leave your job for? The plan branches hard on that one.*
+> *Does the licensing apply to resale? Is this a weekend project or the thing you leave your job
+> for? The plan branches on that.*
 
-Those get written beside the original note, so the answer lands where the thought started.
-Answer them and the next run picks up from there.
-
-:::tip[Why the questions matter more than the plan]
-An AI can produce a plausible business plan for anything. What it cannot do is know which
-assumption you are actually uncertain about. Ending on the open questions is what keeps this
-from being a machine for generating documents nobody reads.
-:::
+They're written beside the original note. Answer them and the next run picks up from there.
 
 ## The four machines
 
-The flow is four machines and one cron file. Nothing else — and each one is replaceable on its
-own, which is the part worth understanding.
-
 | Machine | Does | Swap it when |
 |---|---|---|
-| `notes` | Pulls the vault down from Nextcloud into `/data/notes` | Your notes live somewhere else |
-| `note_triage` | Diffs the vault, judges each new note, checks it against the ledger, chains the next step | Never — this is the spine |
-| `note_develop` | *(default)* Researches and drafts one document | You want the fan-out instead |
-| `idea_workup` | *(alternative)* Hands the idea to three hermes departments | You want one document instead |
+| `notes` | Pulls the vault from Nextcloud into `/data/notes` | Your notes live elsewhere |
+| `note_triage` | Diffs the vault, judges each new note, checks the ledger, chains the next step | Never |
+| `note_develop` | *(default)* Researches and drafts one document | You want the fan-out |
+| `idea_workup` | *(alternative)* Sends the idea to three hermes departments | You want one document |
 
 ## Setting it up, step by step
 
@@ -117,10 +88,8 @@ own, which is the part worth understanding.
 ./existential.sh flow on note-triage
 ```
 
-That copies `note-triage.md` from `flows/note-triage/cron/` into `volumes/workspace_data/.decree/cron/`, and that
-is the whole switch: the daemon rescans `cron/` every tick. The cron file's `TRIAGE_ROUTINE`
-param picks `note_develop` (the default) or `idea_workup` for the department fan-out described
-below.
+This copies `note-triage.md` into `volumes/workspace_data/.decree/cron/`. Its `TRIAGE_ROUTINE`
+param picks `note_develop` (default) or `idea_workup`.
 
 ### 2. Confirm the hermes profiles exist — fan-out path only
 
@@ -128,16 +97,15 @@ below.
 docker exec hermes-agent ls /opt/data/profiles
 ```
 
-`ai/hermes/entrypoint.sh` provisions every profile in `ai/hermes/profiles/` on boot, so
-`research` and `sales` should already be there; if not, `docker compose up -d hermes-agent`.
-Each department is served at `/p/<name>/v1` with its own tools and its own API key — a profile
-does not borrow the default profile's credential, so an unprovisioned one returns 401.
+`research` and `sales` are provisioned on boot from `ai/hermes/profiles/`. If missing,
+`docker compose up -d hermes-agent`. Each is served at `/p/<name>/v1` with its own API key; an
+unprovisioned one returns 401.
 
 ### 3. Watch it do nothing
 
 :::warning[The first run does nothing, on purpose]
-It records your vault as seen *without* triaging. Turning this on with a 5,000-note vault
-should not fire 5,000 model calls. To scan the backlog once:
+It records your vault as seen without triaging, so a 5,000-note vault doesn't fire 5,000 model
+calls. To scan the backlog once:
 
 ```bash
 echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_BOOTSTRAP=true
@@ -150,65 +118,53 @@ echo | docker exec -i automation decree emit --machine note_triage --param TRIAG
 echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_DRY_RUN=true
 ```
 
-A dry run prints a verdict per note and chains nothing. Read a few days of that output before
-you let it queue real work — and note that a dry run never writes to the ledger, so tuning the
-criteria cannot poison the "is this new?" check.
+A dry run prints a verdict per note, chains nothing and writes no ledger entries.
 
 ### Prerequisites
 
-- Notes landing in `/data/notes` — turn on the `notes-to-dropbox` flow, or point `NOTES_DIR` at a
-  vault you already sync
-- A model at the chat endpoint (`EXIST_MODEL_URL_CHAT`, or `EXIST_MODEL_URL`) — triage, dedupe and
-  `note_develop` call it directly through `automation/lib/model.sh`. [Hermes](../ai/hermes) is
-  needed only for the departments, which *are* hermes profiles
+- Notes in `/data/notes`: turn on `notes-to-dropbox`, or point `NOTES_DIR` at a vault you sync.
+- A chat model (`EXIST_MODEL_URL_CHAT` or `EXIST_MODEL_URL`). [Hermes](../ai/hermes) is needed only
+  for the departments.
 
 ## Swap the judgment
 
-`TRIAGE_CRITERIA` is one line of the cron file's params and it is the entire feature:
+`TRIAGE_CRITERIA` in the cron file decides what the flow is for:
 
 ```yaml
 TRIAGE_CRITERIA: "a business idea — something the author could plausibly build, sell, or start"
 ```
 
-Point it at research questions, writing prompts, house projects, anything. This is the setting
-that decides what the flow is *for*.
-
-If it fires too often — the expected first failure — the fix is always to make it narrower and
-more concrete. "A business idea" is vague; "a product someone would pay for that I could build
-a first version of in a month" is not.
+If it fires too often, make it narrower: "a product someone would pay for that I could build a
+first version of in a month".
 
 ## Is it new? The idea ledger
 
-A good idea gets written down more than once. Triage keeps an append-only ledger at
-`/data/note-triage/ideas.tsv` — one line per idea it has already put through, in the words it
-used to summarize it. When a note passes the criteria, one more cheap call asks whether it is
-materially the same as something on that list. Duplicates stop there.
+`/data/note-triage/ideas.tsv` lists every idea already processed. A passing note gets one more
+call: is it the same as one on the list? Duplicates stop there.
 
 ```
 2026-08-14T09:11:04Z	A tool-rental service for the neighborhood, booked from a phone
 2026-08-22T17:40:55Z	A newsletter that summarizes local council minutes
 ```
 
-The ledger is plain TSV — read it, prune it, or delete a line to let an idea through again.
+Edit it freely; delete a line to let an idea through again.
 
 | Param | Default | Does |
 |---|---|---|
-| `TRIAGE_LEDGER` | `true` | Set `false` to chain every pass, duplicates included |
-| `TRIAGE_LEDGER_MAX` | `100` | How many past ideas the check sees, most recent first |
+| `TRIAGE_LEDGER` | `true` | `false` chains every pass, duplicates included |
+| `TRIAGE_LEDGER_MAX` | `100` | Past ideas checked, most recent first |
 
-It **fails open**: a gateway blip or an unparseable answer means "new". A duplicate workup
-wastes a run; a dropped one loses the idea for good.
+On an error or unclear answer the idea counts as new.
 
 ## Swap the work
 
-`TRIAGE_ROUTINE` names what gets chained when a note passes. Two ship.
+`TRIAGE_ROUTINE` names what runs on a pass.
 
 ### `note_develop` — one document
 
-The default. One call, one file: what the idea is, what can be worked out, and the two-to-four
-questions only you can answer. Works with nothing but a chat model — no profiles, no
-departments. Output lands in `/data/note-triage/output`, and is copied beside the original note
-when `NOTE_OUTPUT_RCLONE_DEST` is set.
+The default. One file: what the idea is, what can be worked out, and two to four questions for
+you. Needs only a chat model. Output goes to `/data/note-triage/output`, and beside the note when
+`NOTE_OUTPUT_RCLONE_DEST` is set.
 
 ### `idea_workup` — three departments, three answers
 
@@ -216,16 +172,15 @@ when `NOTE_OUTPUT_RCLONE_DEST` is set.
 TRIAGE_ROUTINE: idea_workup
 ```
 
-This one does no model work itself. It emits **three messages**, each addressed to the
-department whose hermes profile owns the right tools:
+It emits three messages, each to the hermes profile with the right tools:
 
-| Question | Department | Why that profile |
+| Question | Department | Why |
 |---|---|---|
-| Who else is already doing this? | `research` | The only department with web access — `search`, `web`, plus Firecrawl and OpenViking |
-| How big is the market? | `research` | Same tools; a separate message so it lands as its own document |
-| What is my value proposition? | `sales` | Owns pricing, positioning and customer-facing writing |
+| Who else is doing this? | `research` | Web access, Firecrawl, OpenViking |
+| How big is the market? | `research` | Same tools, separate document |
+| What is my value proposition? | `sales` | Pricing and positioning |
 
-Each answer arrives as its own file in `workspace/ai/`:
+Each answer is its own file in `workspace/ai/`, with its own notification:
 
 ```
 workspace/ai/tool-rental-competition.md
@@ -233,27 +188,21 @@ workspace/ai/tool-rental-tam.md
 workspace/ai/tool-rental-value-prop.md
 ```
 
-with its own ntfy notification, so you can read the competition answer while the market sizing
-is still running.
-
-:::info[Why three messages and not one prompt]
-A profile's cost is its tool schemas — the default hermes profile carries every tool at roughly
-40,000 prompt tokens per call, while a narrow one costs a fraction of that. Sending each
-question to the department that already has the right tools is cheaper *and* better answered
-than one agent holding everything. It also means each question retries, logs and appears in
-Grafana on its own. See [Routing to Departments](../decree/routing).
+:::info[Why three messages]
+The default hermes profile carries every tool, about 40,000 prompt tokens a call. A narrow
+profile costs a fraction, and each question retries and logs on its own. See
+[Routing to Departments](../decree/routing).
 :::
 
 ### Writing a third one
 
-`TRIAGE_ROUTINE` is just a machine name. Write your own, add it to `TRIAGE_ROUTINE`'s `enum`
-and the `emits:` list in `automation/machines/note_triage.yml`, and point the cron file at it —
-the triage half never changes. It receives `note_path` and `note_reason` as params. [Writing an Automation](../writing-a-routine) is the full contract.
+Write a machine, add it to `TRIAGE_ROUTINE`'s `enum` and the `emits:` list in
+`automation/machines/note_triage.yml`, and name it in the cron file. It receives `note_path` and
+`note_reason`. See [Writing an Automation](../writing-a-routine).
 
 ## Swap the input
 
-Nothing above cares that the trigger was a cron scan of a notes vault. Triage takes text and a
-name; every input below reduces to the same message. **Only the first step changes.**
+Triage takes text and a name, so any input works. Only the first step changes.
 
 ```
 <anything> ──▶ message ──▶ note_triage ──▶ ledger ──▶ idea_workup ──▶ departments
@@ -261,91 +210,73 @@ name; every input below reduces to the same message. **Only the first step chang
 
 ### Email
 
-`gmail_sync` polls Gmail on a cron and archives messages into `automation/emails/` (the
-`EMAILS_DIR` default, `/work/.decree/emails` inside the container — `automation/` at the repo
-root is the main daemon's whole project dir). Point `NOTES_DIR` at that directory and the same
-triage runs over your inbox — the criteria becomes "a customer complaint worth escalating" or
-whatever you actually want caught. See [Gmail](../integrations/gmail).
+`gmail_sync` archives mail into `automation/emails/` (`/work/.decree/emails` in the container).
+Point `NOTES_DIR` there and set the criteria to what you want caught. See
+[Gmail](../integrations/gmail).
 
 ### A file you dropped somewhere
 
-In the workspace, a [file handler](../decree/file-handlers) is the trigger: one line in
-`.decree/handlers.yml` runs a machine with the file's `path` once it has been quiet.
-Anything uploaded through Nextcloud, anywhere in it, can also fire a file event → the webhook → `file_router`, which
-matches your **file processor** on a path regex and an optional content gate:
+- In the workspace: a [file handler](../decree/file-handlers) line in `.decree/handlers.yml`.
+- Through Nextcloud: a file event reaches `file_router`, which matches a **file processor** by
+  path and optional content gate:
 
 ```bash
 PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="a business idea"
 ```
 
-The processor emits a message and triage takes it from there. No restart — the router
-reads the processor directory per event. See
-[File Change Processing](../decree/file-change-processing).
+See [File Change Processing](../decree/file-change-processing).
 
 ### A sensor, or something you said out loud
 
-Home Assistant does not get read by this stack — it reaches out. An automation POSTs the decree
-webhook, which turns the request body into a decree message. A doorbell, a temperature
-threshold, or a voice command all arrive the same way. The
-[HAwake](./hawake-homeassistant) flow is the worked example.
+A Home Assistant automation POSTs the decree webhook. See [HAwake](./hawake-homeassistant).
 
 ## Cost and pacing
 
-Decree runs one message at a time, and the department timeout (`agent_task`'s `agent_timeout` param) defaults to 900
-seconds. A three-question fan-out can therefore take the better part of an hour. It is not
-stuck — check `volumes/workspace_data/.decree/runs/` or the Grafana **Decree Overview** dashboard, where each
-question appears as its own run.
-
-The per-note cost of triage itself is deliberately small: one short call to judge, one more to
-check the ledger, and only for notes that are new or changed since the last run and longer than
-`TRIAGE_MIN_CHARS`. `TRIAGE_MAX_NOTES` caps how many are examined per run so an import cannot
-run away with your GPU.
+- Decree runs one message at a time, and a department call can take up to 900 seconds
+  (`agent_task`'s `agent_timeout`). A three-question fan-out can take most of an hour. Watch it in
+  `volumes/workspace_data/.decree/runs/` or Grafana's **Decree Overview**.
+- Triage is two short calls per note, only for new or changed notes over `TRIAGE_MIN_CHARS`.
+  `TRIAGE_MAX_NOTES` caps a run.
 
 ## Settings reference
 
+Cron file `params:`:
+
 | Setting | Default | Does |
 |---|---|---|
-| `TRIAGE_CRITERIA` | *a business idea* | **The judgment.** The whole point of the flow |
-| `TRIAGE_ROUTINE` | `note_develop` | What to chain on a pass — `idea_workup`, or your own |
-| `TRIAGE_DRY_RUN` | `false` | Log every verdict, chain nothing, write no ledger entries |
+| `TRIAGE_CRITERIA` | *a business idea* | What counts as worth acting on |
+| `TRIAGE_ROUTINE` | `note_develop` | What runs on a pass: `idea_workup`, or your own |
+| `TRIAGE_DRY_RUN` | `false` | Log verdicts, chain nothing, write no ledger |
 | `TRIAGE_LEDGER` | `true` | The "is this idea new?" check |
 | `TRIAGE_MAX_NOTES` | `20` | Ceiling per run |
-| `TRIAGE_BOOTSTRAP` | `false` | One run that scans the existing vault instead of recording it as seen |
+| `TRIAGE_BOOTSTRAP` | `false` | One run that scans the existing vault |
 
-Those are the cron file's `params:`. These are environment, set in `automation/.env`, and apply
-to every run:
+Environment, in `automation/.env`:
 
 | Variable | Default | Does |
 |---|---|---|
-| `TRIAGE_LEDGER_MAX` | `100` | How many past ideas the ledger check sees |
-| `TRIAGE_MIN_CHARS` | `120` | Below this a note is skipped without a model call |
-| `TRIAGE_MAX_CHARS` | `6000` | Note text is truncated to this many characters before judging |
-| `MODEL_TIMEOUT` | `120` (`300` in `note_develop`) | Seconds per model call before it's treated as no verdict |
+| `TRIAGE_LEDGER_MAX` | `100` | Past ideas the ledger check sees |
+| `TRIAGE_MIN_CHARS` | `120` | Shorter notes are skipped without a model call |
+| `TRIAGE_MAX_CHARS` | `6000` | Note text is cut to this before judging |
+| `MODEL_TIMEOUT` | `120` (`300` in `note_develop`) | Seconds per model call |
 | `NOTE_OUTPUT_RCLONE_DEST` | *(unset)* | Where `note_develop`'s draft is copied, e.g. `nextcloud:Notes` |
 
-No code changes either way.
-
 :::warning[Don't point the output at your vault cache]
-`/data/notes` is an rclone **sync** cache — it is made to match Nextcloud on every `notes` run,
-so anything written there is deleted. That is why drafts land in `/data/note-triage/output` and
-are copied back to the vault over rclone instead.
+`/data/notes` is an rclone sync cache, so anything written there is deleted. Drafts go to
+`/data/note-triage/output` and are copied back over rclone.
 :::
 
 ## What ships and what you write
 
 | Part | Status |
 |---|---|
-| Vault sync and compilation | **Ships.** The `notes` machine |
-| Detecting new and changed notes | **Ships.** `note_triage` hashes the vault and diffs against the last run |
-| The triage call and the chain | **Ships.** `note_triage` → `decree emit` → next machine |
-| Knowing an idea is already evaluated | **Ships.** The ledger at `/data/note-triage/ideas.tsv` |
-| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) research when it is enabled |
-| Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` (research and sales) |
-| Indexing notes for retrieval | **Ships.** A decree cron uploads `workspace/` into [OpenViking](../ai/openviking) every 15 minutes and keeps it queryable |
+| Vault sync and compilation | **Ships.** `notes` |
+| Detecting new and changed notes | **Ships.** `note_triage` |
+| The triage call and the chain | **Ships.** `note_triage` → `decree emit` |
+| Knowing an idea was already evaluated | **Ships.** `/data/note-triage/ideas.tsv` |
+| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) when enabled |
+| Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` |
+| Indexing notes | **Ships.** `workspace/` into [OpenViking](../ai/openviking) every 15 minutes |
 | Notifying you | **Ships.** `notify` → ntfy |
-| **What counts as worth acting on** | **Yours.** One line of prompt, and the whole point of the flow |
-
-The judgment is deliberately a setting rather than a decision made for you — what counts as an
-idea worth chasing is specific to you, and a stock answer would get it wrong in a way that is
-worse than not running at all.
+| **What counts as worth acting on** | **Yours.** `TRIAGE_CRITERIA` |

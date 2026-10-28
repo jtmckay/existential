@@ -14,27 +14,25 @@ can look up competitors; do a market analysis with TAM; say whether it's worth b
 build it, move ai/proposed/business_idea_research.md into
 notes/automations/.* Move it, and a moment later: *Automation built.*
 
-From then on, every business idea you write down is researched in the background. A few
-minutes after the note settles, your phone shows the verdict first, *favorable*,
-*unfavorable*, or *already done, by these people*, so a solved problem never costs you a
-weekend. The whole analysis, every claim linked to the page it came from, is in
-`ai/automations/business_idea_research/`, where you can open it in code-server and ask Claude
-to go deeper on any of it.
+After that, each business idea you write is researched. Your phone gets the verdict first:
+*favorable*, *unfavorable*, or *already done, by these people*. The full analysis, with sources,
+is in `ai/automations/business_idea_research/`.
 
-It runs on Core plus a chat model, local or on another machine (see
-[Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)), and reads
-the web through [Firecrawl](../ai/firecrawl) when that is enabled. With no model it reads
-nothing and does nothing. Without Firecrawl it still builds, but a step that needs the web
-comes back as "where to look", never as an invented market.
+- Needs Core plus a chat model ([Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)).
+  With no model it does nothing.
+- Reads the web through [Firecrawl](../ai/firecrawl) when enabled. Without it, web steps come back
+  as "where to look".
 
 ## The proposal is a migration
 
-What lands in `ai/proposed/` is a decree migration for the `develop` machine:
-the automation's intent and its requirements, never its code. **Overview** quotes what you
-asked for, **Outcome** says what starts it, what it produces and where the results go,
-**Constraints** says what it must not do, and **Acceptance Criteria** says how you'd know it
-works. Edit any of it before you accept, in plain words: that file is the automation's
-desired state from then on.
+`ai/proposed/` gets a decree migration for the `develop` machine: what you want, not code.
+
+- **Overview**: what you asked for
+- **Outcome**: what starts it, what it produces, where results go
+- **Constraints**: what it must not do
+- **Acceptance Criteria**: how you'd know it works
+
+Edit it in plain words before accepting. It stays the automation's desired state.
 
 ## How it works
 
@@ -48,10 +46,8 @@ desired state from then on.
 
 ## Research on the web, with Firecrawl
 
-Turn on Firecrawl (`EXIST_IS_AI_FIRECRAWL=true`) and every automation can read the web. It
-needs no search account or API key: Firecrawl searches the web itself and returns each
-result's page as text, so one search is a set of sources, not a list of links. The steps
-`develop` writes for the business-idea example look like this:
+With Firecrawl on (`EXIST_IS_AI_FIRECRAWL=true`), automations can search and read the web, with
+no API key. Each search returns the pages' text. The steps `develop` writes for the example:
 
 ```bash
 steps() {
@@ -72,36 +68,27 @@ $sources"
 }
 ```
 
-`web_search` and `web_read` come from `automation/lib/firecrawl.sh`, which any decree script
-can source, not just a built automation. When Firecrawl is off, `develop` doesn't offer the
-model those two, and refuses steps that use them.
-
-The verdict comes first because the first lines of the result are what reach your phone. For
-a decision you'll act on, that line is often all you need, and the rest is there when it isn't.
+- `web_search` and `web_read` come from `automation/lib/firecrawl.sh`; any decree script can use
+  them. With Firecrawl off, `develop` refuses steps that use them.
+- The verdict comes first because the first lines are what reach your phone.
 
 ## Changing or removing one
 
-The file in `notes/automations/` is the automation's desired state, the way a migration is in
-this repo's own `.decree/`. Edit it and `reconcile` runs its migration again, so `develop`
-rebuilds the automation to match. Delete it and the machine, its script, its trigger and its
-migration are removed. Edit that file, never `.decree/`: everything there is rebuilt from it.
+- Edit the file in `notes/automations/` and `develop` rebuilds the automation to match.
+- Delete it and the machine, script, trigger and migration are removed.
+- Don't edit `.decree/` directly; it's rebuilt from that file.
 
 ## What it can do, and what to read first
 
-A built automation is a real decree machine. The model writes only its `steps` function; the
-frame around it (`automation/lib/automations/run.sh`) is the same for every one, and gives it
-the note or file that started it, `ask` (one answer from the chat model), `web_search` and
-`web_read` (with Firecrawl), `curl` and `jq`.
-Steps that need you (pay, sign up, send, decide) come back as a "For you" section.
-
-It runs unattended in the `automation` container, which can read and write your workspace and
-reach the stack's services, so its code is worth a look: `.decree/scripts/<name>.sh`, in
-code-server. A name decree already uses (`notify`, a machine you wrote) is refused, so an
-automation can never replace one.
-
-`develop` builds with Claude when the automation container is [signed in to
-it](../decree/#claude-for-machines), and with the stack's chat model when not. With Claude
-signed in, a built automation can also hand a step to it, and Claude acts on its own. It can
-never change your notes, which the automation container sees read-only, so an instruction
-hidden in what it reads cannot rewrite what you asked for. For anything bigger than a few steps, ask Claude in
-code-server, which writes the same kind of machine with you watching.
+- A built automation is a decree machine. The model writes only its `steps` function; the frame
+  (`automation/lib/automations/run.sh`) gives it the triggering note or file, `ask` (one chat
+  model answer), `web_search` and `web_read`, `curl` and `jq`.
+- Steps that need you (pay, sign up, send, decide) come back under "For you".
+- It runs unattended with access to your workspace and the stack's services. Read
+  `.decree/scripts/<name>.sh` in code-server.
+- A name decree already uses is refused, so it can't replace an existing machine.
+- `develop` uses Claude when the automation container is
+  [signed in](../decree/#claude-for-machines), otherwise the chat model. Built automations can
+  then hand a step to Claude too.
+- Your notes are read-only to the automation container, so nothing it reads can rewrite them.
+- For bigger automations, ask Claude in code-server instead.

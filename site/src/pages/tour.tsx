@@ -52,8 +52,7 @@ export default function Tour(): ReactNode {
             What you can do with it
           </Heading>
           <p className={styles.heroLede}>
-            Things you set up once and stop thinking about. None of them is a feed: each one
-            hands you something short, chosen by what you were doing, and then it ends.
+            Set each one up once. It runs on its own after that.
           </p>
         </div>
       </header>
@@ -61,12 +60,12 @@ export default function Tour(): ReactNode {
         <FlowSection
           tier="core"
           title="With Core"
-          lede="An editor with Claude in it, the automation engine, and notifications on your phone. That's the whole install."
+          lede="An editor with Claude in it, the automation engine, and notifications on your phone."
         />
         <FlowSection
           tier="addon"
           title="With one add-on each"
-          lede="Turn one on when you want what it does. Nothing else changes."
+          lede="Each needs one more service turned on."
         />
         <section className={styles.closing}>
           <div className="container">
@@ -74,8 +73,8 @@ export default function Tour(): ReactNode {
               Each one is a routine you can read.
             </Heading>
             <p className={styles.closingLede}>
-              A few lines of YAML and a script, in a folder you own. Change one, or tell Claude
-              what you want next and it writes the routine.
+              A few lines of YAML and a script in your workspace. Edit one, or tell Claude what
+              you want and it writes a new one.
             </p>
             <div className={styles.buttons}>
               <Link className="button button--primary button--lg" to="/docs/getting-started">

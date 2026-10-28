@@ -11,7 +11,7 @@ sidebar_position: 10
 
 Open-source home automation platform. Integrates with thousands of devices and services, supports local processing, and serves as the event bus for voice-triggered automations.
 
-Home Assistant is a [complementary service](../how-it-works#core-vs-complementary-services) — nothing else in the stack talks to it, so it can run on its own machine or its own schedule without affecting anything. That matters more here than for most: if you're using a Zigbee or Z-Wave stick, HA needs to live on the machine that stick is plugged into, which may not be the machine running the rest of the stack. It still comes up from the repo root with everything else (`./existential.sh && docker compose up -d`) — being complementary means you *can* move it, not that it needs separate commands.
+Home Assistant is a [complementary service](../how-it-works#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine, such as the one your Zigbee or Z-Wave stick is plugged into. On this one it starts with everything else.
 
 See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing-my-life-home-assistant) for a real-world setup walkthrough.
 

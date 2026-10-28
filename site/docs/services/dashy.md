@@ -42,8 +42,7 @@ Want it your way? Open `services/dashy/dashy-conf.yml` and change one line in th
 # EXIST_KEEP: false     →     # EXIST_KEEP: true
 ```
 
-That's it. The file is now yours: `./existential.sh` will never overwrite it again. Edit it
-freely. (`./existential.sh reset` would archive it along with everything else rendered, but
+The file is now yours; `./existential.sh` won't overwrite it. (`./existential.sh reset` would archive it along with everything else rendered, but
 it moves the file rather than destroying it.)
 
 The trade-off is the one you'd expect — a claimed file stops tracking `EXIST_DOMAIN`, and
@@ -67,7 +66,7 @@ for temporary tweaks.
 
 Dashy is part of the **Monitoring** add-on, not Core. The shipped template is a starting set:
 Core's two web apps (code-server, ntfy), the monitoring services, and Actual Budget.
-A few services are deliberately absent:
+Left out:
 
 - **No HTTP endpoint of their own**: loki (Grafana is the window onto it), decree (the
   background daemon has no UI), and caddy itself.

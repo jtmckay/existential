@@ -4,12 +4,10 @@ sidebar_position: 1.5
 
 # Your Own Newsletter
 
-A weekly issue built only from the feeds you picked, judged by a paragraph you wrote. No
-ranking you didn't ask for, no "more like this", and it ends: at most seven items, or one
-line saying nothing was worth your time.
+A weekly issue from feeds you picked, chosen by a paragraph you wrote. At most seven items, or
+one line saying there was nothing.
 
-It runs on Core plus a chat model, local or on another machine (see
-[Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)).
+Needs Core plus a chat model ([Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)).
 
 ## What it does
 
@@ -26,10 +24,9 @@ A link is never in two issues: the machine remembers every one it has sent, in i
 ## Set it up
 
 1. List your feeds in `automation/lib/newsletter/feeds.txt`, one RSS or Atom URL per line.
-   Blogs, news sites, podcasts and forums mostly publish one. A feed that fails is skipped
-   that week and tried again the next.
-2. Write what you want in `automation/lib/newsletter/taste.md`, in plain words. It is the
-   whole judgment: what you care about, what to skip, how long the issue should be.
+   A feed that fails is skipped that week.
+2. Write what you want in `automation/lib/newsletter/taste.md`: what you care about, what to
+   skip, how long the issue should be.
 3. Turn the schedule on:
 
    ```bash

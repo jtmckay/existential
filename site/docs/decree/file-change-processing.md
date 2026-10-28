@@ -5,18 +5,19 @@ sidebar_position: 4
 # File Processor
 
 :::info[Mechanism, not a flow]
-This is the plumbing a [flow](../flows/) sits on: how a file landing in storage becomes a
-running job. If you are here to see what the system *does*, start at
-[Level 3 · Flows](../flows/). If you are wiring up your own, this and
-[Build On It](../build-on-it) are the pages you want.
+How a file landing in Nextcloud starts a job. For what the system does, see [Flows](../flows/).
 :::
 
-React to files being created, updated, renamed or deleted in Nextcloud, anywhere in it. For
-files in the workspace you don't need this: a [file handler](./file-handlers) sees every
-change there, whoever made it, with no Nextcloud at all. This page is the optional Nextcloud
-path. When a file event arrives at the Decree webhook, `file_router` matches the file path against registered processors and fans out one `file_processor` job per match. Each job downloads the file (or generates a share link if `IS_PRE_SIGNED=true`), runs the processor, and deletes the local copy.
+Reacts to files created, updated, renamed or deleted anywhere in Nextcloud. For the workspace,
+use a [file handler](./file-handlers) instead; it needs no Nextcloud.
 
-A processor declares up to two tests. `PATTERN` is a regex over the path — cheap, mechanical, evaluated by the router. `CRITERIA` is optional: a plain-English test of the file's *content*, put to the model by `file_processor` after the download. Splitting them that way means the expensive half only runs for files that already passed the free one. A processor with no `CRITERIA` behaves exactly as processors did before it existed.
+- A file event reaches the Decree webhook; `file_router` matches the path against your processors
+  and emits one `file_processor` job per match.
+- Each job downloads the file (or makes a share link if `IS_PRE_SIGNED=true`), runs the
+  processor, and deletes the local copy.
+- `PATTERN`: a regex over the path, checked by the router.
+- `CRITERIA` (optional): a plain-English test of the content, asked of the model after download,
+  so only files that pass `PATTERN` cost a model call.
 
 ```mermaid
 flowchart LR

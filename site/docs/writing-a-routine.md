@@ -4,19 +4,18 @@ sidebar_position: 6
 
 # Writing an Automation
 
-Every automation in this stack is the same three things: **a script** (bash that does one job),
-**a machine** (a few lines of YAML naming the script and its settings), and **a trigger**
-(something that decides when to run it). Once you can write one of each, the rest of this
-section is detail.
+An automation is three things:
 
-The engine is [decree](https://github.com/jtmckay/decree) 0.5. Its own README covers everything
-it can do. This page is how this stack uses it. To watch it used end to end on a real problem,
-read [Note → Action](./flows/note-to-action) alongside it.
+- **a script**: bash that does one job
+- **a machine**: a few lines of YAML naming the script and its settings
+- **a trigger**: what decides when it runs
+
+The engine is [decree](https://github.com/jtmckay/decree) 0.5. This page is how this stack uses
+it. Worked example: [Note → Action](./flows/note-to-action).
 
 ## The shape of every message
 
-Before the script, the thing it receives. Decree has exactly one message format, and every
-trigger produces it:
+Every trigger produces the same message format:
 
 ```markdown
 ---
@@ -28,18 +27,15 @@ params:
 Anything down here is the body.
 ```
 
-`machine:` is the only required key. Each key under `params:` reaches the script as
-`DECREE_DATA_<NAME>`, and the message itself is at `$DECREE_MESSAGE`. A cron file, a webhook
-POST, a message another machine emitted, `decree emit` by hand — they all end up as this.
+`machine:` is the only required key. Each `params:` key reaches the script as
+`DECREE_DATA_<NAME>`; the message is at `$DECREE_MESSAGE`.
 
 ## The machine
 
-A machine lives in `workspace/.decree/machines/<name>.yml` (on the host,
-`volumes/workspace_data/.decree/`), next to your notes, and its graph is redrawn in
-`workspace/.decree/graph/` as soon as you save it. To ship one with the repo, put it
-in `automation/machines/` instead: each shipped file is copied into a workspace that lacks it,
-and never again, so your edits win. Names are snake_case. Start with the
-simplest one, a single state, and add states only when a real run shows the need:
+- Lives in `workspace/.decree/machines/<name>.yml` (host: `volumes/workspace_data/.decree/`). Its
+  graph in `workspace/.decree/graph/` is redrawn on save.
+- To ship one with the repo, put it in `automation/machines/`; it's copied into a workspace once.
+- Names are snake_case. Start with one state; add more only when a run shows the need.
 
 ```yaml
 name: my_job
@@ -56,9 +52,8 @@ states:
   failed: { final: true }
 ```
 
-`data:` is the settings block. **Every param a message may pass must be declared here**, with a
-default. Decree fails a run that passes anything else, so a typo in a cron file is a failed run
-that names the key, not a setting silently ignored.
+`data:` holds the settings. **Every param a message may pass must be declared here**, with a
+default. An undeclared param fails the run and names the key.
 
 ## The script
 
@@ -79,51 +74,36 @@ MY_LIMIT="$DECREE_DATA_MY_LIMIT"
 echo "Doing the thing with ${MY_PARAM}"
 ```
 
-Three things in there are load-bearing:
-
-- **`set -euo pipefail`, always.** Exit 0 is `done`; anything else is `failed`. A script that
-  swallows its own errors and exits 0 reports success for work it never did.
+- **`set -euo pipefail`, always.** Exit 0 is `done`; anything else is `failed`.
 - **It must be executable** (`chmod 755`). Decree runs scripts by path, and `decree check`
   refuses one without the bit.
-- **A failed run pages you.** A run that fails, or waits for a person, sends one ntfy message
-  naming the machine and the command that continues it
-  ([When a run needs you](./decree/decree.md#when-a-run-needs-you)). Nothing to wire up.
+- **A failed run notifies you**, with the command that continues it
+  ([When a run needs you](./decree/decree.md#when-a-run-needs-you)).
 
 To retry a flaky step, give that state attempts: `invoke: { script: { name: my_job, attempts: 3 } }`.
 Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a
 machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
-To ask a model, source `$DECREE_LIB/model.sh` and call `model_chat <system> <user>` (or
-`model_gate <criteria> <text>` for a yes/no). It talks to the role's OpenAI-compatible `/v1` URL
-(`EXIST_MODEL_URL`), so ollama, llama.cpp or a box elsewhere all answer it, and it needs no hermes.
-A step that needs an agent with tools uses `hermes.sh` instead, and only when hermes is enabled.
+To ask a model, source `$DECREE_LIB/model.sh` and call `model_chat <system> <user>`, or
+`model_gate <criteria> <text>` for yes/no. It uses the role's `/v1` URL. For an agent with tools,
+use `hermes.sh` (hermes must be enabled).
 
 :::warning[Which daemon?]
-There are two, and each is its own decree project: **`automation`** (`workspace/.decree`) and
-**`automation-backup`** (`services/automation-backup/`, with its own `machines/`, running the
-repo's `automation/scripts/`). Both use the repo's `automation/lib/`.
-
-`automation` is where anything that **reasons, routes, calls a service API, or runs a service's
-one-time migrations** belongs. It alone has the model endpoints and, when hermes is enabled, its
-gateway credential.
-
-`automation-backup` is where anything that needs **bulk volume data or every credential at
-once** belongs: it alone mounts `volumes/` wholesale and takes the master `.env`. It is not
-backups-only (`notes_pull` and `triage` live there for that access). What it must never do is
-reason, route, or make an AI call.
-
-A job that wants an AI *and* bulk volume access is a job that should be two machines.
+- **`automation`** (`workspace/.decree`): anything that reasons, routes, calls a service API or
+  runs a migration. It has the model endpoints and hermes credential.
+- **`automation-backup`** (`services/automation-backup/`, off by default): anything that needs
+  all of `volumes/` or the master `.env` (backups, `triage`, `notes_pull`). Never an AI call.
+- A job that needs both is two machines.
 :::
 
 ## Choosing a trigger
 
-A machine that nothing points at never runs. There is no list to register it in.
+A machine nothing points at never runs.
 
 ### Cron — on a schedule
 
-Put a file in `volumes/workspace_data/.decree/cron/<name>.md` (in code-server,
-`/workspace/.decree/cron/`). The daemon rescans the directory every tick, so there is nothing to
-restart:
+Put a file in `volumes/workspace_data/.decree/cron/<name>.md` (code-server:
+`/workspace/.decree/cron/`). No restart needed:
 
 ```markdown
 ---
@@ -136,31 +116,27 @@ params:
 What this schedule is for. The body is free text.
 ```
 
-To ship one for everyone, make it a flow: `flows/<name>/flow.md` (what it needs, what is
-left to do) and the cron file beside it in `flows/<name>/cron/`. `./existential.sh flow on
-<name>` then copies it in; nothing runs on a machine until someone turns it on.
+To ship one, make it a flow: `flows/<name>/flow.md` plus the cron file in `flows/<name>/cron/`.
+`./existential.sh flow on <name>` copies it in.
 
 ### Webhook — when something out there happens
 
-`automation-webhook` (an add-on, `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK`) turns an authenticated HTTP POST into a message. Endpoints are configuration
-only: add one to `automation/decree-go-rest.yml` and it is live, no restart. This is how Home
-Assistant, a phone shortcut, or any external service reaches the stack. See
-[Build On It](./build-on-it) for the request contract.
+`automation-webhook` (add-on, `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK`) turns an authenticated POST
+into a message. Add an endpoint to `automation/decree-go-rest.yml`; no restart. See
+[Build On It](./build-on-it).
 
 ### A file landing in Nextcloud — when a file shows up
 
-Nextcloud fires an event on every upload → the webhook → `file_router` → your **file
-processor**. A processor is a small script in `automation/lib/file-processors/` that declares what
-it matches:
+Upload event → webhook → `file_router` → your **file processor**, a script in
+`automation/lib/file-processors/` that declares what it matches:
 
 ```bash
 PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="an open question the author has not resolved"
 ```
 
-`PATTERN` is a path regex; the optional `CRITERIA` adds a one-call model gate so you match on
-*content* rather than filename. No restart needed — the router reads the directory per event.
-Full detail in [File Change Processing](./decree/file-change-processing).
+`PATTERN` is a path regex; optional `CRITERIA` adds a one-call model check on the content. No
+restart needed. See [File Change Processing](./decree/file-change-processing).
 
 ### By hand — for testing, and for one-offs
 
@@ -172,9 +148,8 @@ For `automation-backup`'s machines, `docker exec -i automation-backup` instead.
 
 ## Chaining: one machine handing work to the next
 
-This is what turns jobs into flows. A script does not call another script. It **emits a
-message** and returns, and decree runs that as its own job, with its own log and its own line in
-the dashboard:
+A script doesn't call another script. It **emits a message**, and decree runs that as its own
+job with its own log:
 
 ```bash
 echo 'Who else is already doing this?' \
@@ -191,7 +166,7 @@ List what a state emits in its machine, so `decree check` validates the params a
     emits: [agent_task]
 ```
 
-Fan-out is just emitting more than once.
+To fan out, emit more than once.
 
 ## Verifying it
 
@@ -208,11 +183,10 @@ docker exec automation decree status <id>     # one run's events
 ls volumes/workspace_data/.decree/runs/<id>/                      # message.md, events.jsonl, one log per script
 ```
 
-Every run's events and logs also ship to Loki, and Grafana's **Decree Overview** dashboard shows
-a new machine with no wiring on your part. After adding or changing a machine, run
-`./existential.sh run decree-graph` to regenerate the committed diagrams.
+With Monitoring on, runs also go to Loki and Grafana's **Decree Overview**. After changing a
+shipped machine, run `./existential.sh run decree-graph`.
 
-Common reasons a job appears to do nothing:
+Why a job seems to do nothing:
 
 | Symptom | Cause |
 |---|---|
@@ -223,7 +197,7 @@ Common reasons a job appears to do nothing:
 
 ## Where to go next
 
-- [Note → Action](./flows/note-to-action) — four machines wired into one flow, step by step
-- [File Change Processing](./decree/file-change-processing) — the file-trigger path in full
-- [Routing to Departments](./decree/routing) — handing work to a specific hermes profile
-- [Build On It](./build-on-it) — the HTTP contract, if you are integrating from outside
+- [Note → Action](./flows/note-to-action): four machines in one flow
+- [File Change Processing](./decree/file-change-processing): the file trigger
+- [Routing to Departments](./decree/routing): sending work to a hermes profile
+- [Build On It](./build-on-it): the HTTP contract

@@ -36,7 +36,7 @@ script's output as `{job="decree_script"}`:
 The same pipeline turns every `run_finished` line into Prometheus metrics; see
 [Prometheus](./prometheus).
 
-It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines carry no container-name label, only the 64-hex container id in `filename` — resolving that to a name would mean either the Docker socket (deliberately not mounted — that's full API access, i.e. host root) or parsing the undocumented internal `config.v2.json` next to each log file, which was rejected as a worse trade than an id you can `docker inspect` by hand. So it's a catch-all grep, not a per-service view.
+It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines have no container name, only the container id in `filename` (`docker inspect` it): naming them would need the Docker socket, which is host root.
 
 It tails [Hermes](../ai/hermes)' own log files too, as `{job="hermes"}`, off a read-only mount of
 the `logs` subpath of its volume. That mount is the only way hermes reaches Loki at all: it logs
@@ -60,7 +60,7 @@ Two deliberate omissions. `errors.log` is not tailed — every line in it also a
 A cron job created by hermes — `hermes cron create`, `/cron` in its chat, or the agent deciding to
 schedule one mid-task — lives in *its* volume, not in `volumes/workspace_data/.decree/cron/`. `decree status --cron` cannot see
 it and the Decree dashboards do not count it. This log job is what makes those firings visible at
-all, so `{job="hermes"} |= "cron"` is the query worth knowing.
+all: query `{job="hermes"} |= "cron"`.
 :::
 
 ## Storage

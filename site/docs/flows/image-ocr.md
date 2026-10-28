@@ -4,11 +4,7 @@ sidebar_position: 3
 
 # Camera → OCR
 
-Photograph a receipt, a document, a whiteboard, a page of handwriting — and get its text
-back, filed next to the image, without opening anything.
-
-The flow is **image lands in storage → text comes out beside it.** How the photo gets into
-storage is a detail you choose; the OCR half is the same either way.
+A photo that lands in Nextcloud gets its text saved beside it.
 
 ```mermaid
 flowchart LR
@@ -37,8 +33,7 @@ flowchart LR
     style decree fill:#fcfcfc,stroke:#027bcb,stroke-width:1px,color:#014d80
 ```
 
-The text lands as a sibling file, so the image and its contents stay together and both get
-picked up by whatever indexes that folder next:
+The text is a sibling file, indexed with the image:
 
 ```
 receipts/2026-08-14_grocery.jpg
@@ -47,8 +42,7 @@ receipts/2026-08-14_grocery.jpg.ocr.txt   ← created automatically
 
 ## Getting the photo in
 
-Anything that uploads to Nextcloud triggers the flow. Pick whichever you'll actually
-use — the OCR pipeline does not care which one you chose, and you can run several at once.
+Any upload to Nextcloud triggers it. Use one route or several.
 
 | Route | Good for | Setup |
 |---|---|---|
@@ -56,17 +50,11 @@ use — the OCR pipeline does not care which one you chose, and you can run seve
 | **rclone / a script** | Scanners, batch imports, anything already on disk | `rclone copyto file.jpg nextcloud:scans/file.jpg` |
 | **Any WebDAV client** | Other apps writing to Nextcloud directly | Nothing — the upload is the trigger |
 
-:::tip[Start with auto-upload]
-If you already run Nextcloud, camera auto-upload is the shortest path to this flow working:
-photograph something, and the text exists a few seconds later.
-:::
-
 ## How It Works
 
 ### 1. The image lands in Nextcloud
 
-However it got there — camera sync, rclone, another app — the flow starts the moment
-the upload finishes. Nothing polls the image itself.
+The flow starts when the upload finishes.
 
 ### 2. Nextcloud fires the webhook
 
@@ -108,8 +96,6 @@ scans/2026-03-02-receipt.jpg.ocr.txt   ← created automatically
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
-Nothing on that list is specific to how you take the picture.
-
 ## Setup
 
 ### Step 1 — Pull a vision model in Ollama
@@ -129,12 +115,9 @@ processor into `automation/lib/file-processors/`.
 
 ### Step 3 — Point a camera at it
 
-That is the whole OCR pipeline. Now pick how images arrive.
-
 #### Option A — Nextcloud camera auto-upload
 
-In the Nextcloud mobile app, turn on **Auto upload**. Every photo you take syncs up and gets
-OCR'd. There is nothing else to configure — the upload is the trigger.
+In the Nextcloud mobile app, turn on **Auto upload**.
 
 #### Option B — rclone
 

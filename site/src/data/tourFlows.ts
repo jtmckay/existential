@@ -17,7 +17,7 @@
 
 export type TourFlow = {
   title: string;
-  /** The scene, to one person, as "you". Two to four sentences. */
+  /** What it does, to one person, as "you". One to three plain sentences. */
   story: string;
   /** What it runs on, as names the reader will see in the docs. */
   runsOn: string[];
@@ -33,10 +33,9 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'Where you were, every morning',
     story:
-      "At seven your phone shows yesterday, not a feed: what's waiting on you, the one next " +
-      'thing, and where each conversation with Claude left off, in your own words. Then one ' +
-      "encyclopedia article on the subject you've been circling, so you can learn it properly " +
-      "instead of in fragments, never one it suggested before or one you saved to a note. Then it ends.",
+      "At seven your phone shows what's waiting on you, the next thing to do, and where each " +
+      'conversation with Claude left off. Plus one encyclopedia article on a subject you keep ' +
+      'coming back to, never one it already sent.',
     runsOn: ['Decree', 'ntfy', 'code-server'],
     needsModel: true,
     docs: '/docs/getting-started#you-were-here',
@@ -45,10 +44,9 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'Write "next time…", and it offers to do it',
     story:
-      'You jot down "next time I write up a meeting, pull out who owes what and draft the ' +
-      'follow-up." A minute later your phone offers to automate exactly that, with the steps ' +
-      'spelled out. Move the file to accept it, and every meeting note after that comes back ' +
-      'with its follow-up drafted, waiting in a note you can dig into with Claude.',
+      'You write "next time I write up a meeting, pull out who owes what and draft the ' +
+      'follow-up." A minute later your phone offers to automate it, with the steps listed. ' +
+      'Move the file to accept, and every meeting note after that gets its follow-up drafted.',
     runsOn: ['Decree', 'ntfy', 'code-server'],
     needsModel: true,
     docs: '/docs/flows/note-to-automation',
@@ -57,10 +55,9 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'A newsletter from only the feeds you picked',
     story:
-      'Every Monday you get one issue: at most seven items from the blogs, channels and forums ' +
-      'you listed, each in one line saying why it matters to you. It picks by a paragraph you ' +
-      'wrote in plain words, not by what keeps you scrolling. A week with nothing worth your ' +
-      'time says so in one line.',
+      'Every Monday: at most seven items from the blogs, channels and forums you listed, each ' +
+      'with one line on why it matters to you. It picks using a paragraph you wrote about what ' +
+      'you care about.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
     docs: '/docs/flows/newsletter',
@@ -69,10 +66,9 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'What did I even do this year?',
     story:
-      'Every Sunday a look back at the week lands next to your notes, and every month-end one ' +
-      'for the month. When a review comes round, ask for the year: what shipped, what you kept ' +
-      'coming back to, what you decided, each linked to the day it happened. Filter it to work ' +
-      'with one word.',
+      'A summary of the week every Sunday and of the month at month-end, saved next to your ' +
+      'notes. Ask for the year and get what shipped, what you kept coming back to and what you ' +
+      'decided, each linked to the day it happened.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
     docs: '/docs/getting-started#look-back',
@@ -81,9 +77,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'The note you meant to come back to',
     story:
-      'You write a note and move on. Something reads each new one and asks a single question: ' +
-      'is there something here worth doing? If there is, you get a draft of what can be done ' +
-      'without you, ending with the questions only you can answer.',
+      'Each new note is checked for something worth doing. If there is, you get a draft of the ' +
+      'parts that can be done without you, and the questions only you can answer.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
     docs: '/docs/flows/note-to-action',
@@ -92,9 +87,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'Drop a file in a folder, and the next step happens',
     story:
-      'Save a note into to-process/, or drop a PDF anywhere, and the routine you set for it ' +
-      'runs once you stop saving. You don\'t write the routine: tell Claude in code-server ' +
-      '"when an invoice lands in invoices/, file it and tell me", and it writes one.',
+      'Save a file where a routine is watching and it runs. Tell Claude in code-server ' +
+      '"when an invoice lands in invoices/, file it and tell me", and it writes the routine.',
     runsOn: ['Decree', 'code-server'],
     docs: '/docs/decree/file-handlers',
   },
@@ -102,9 +96,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'core',
     title: 'When something breaks, your phone says so',
     story:
-      'A routine that fails, or stops to ask you something, sends one notification with what ' +
-      "happened and the exact command that continues it. Nothing fails quietly, and nothing " +
-      'nags twice.',
+      'A routine that fails or needs an answer sends one notification: what happened, and the ' +
+      'command that continues it.',
     runsOn: ['Decree', 'ntfy'],
     docs: '/docs/decree#when-a-run-needs-you',
   },
@@ -113,9 +106,9 @@ export const FLOWS: TourFlow[] = [
     title: 'Every business idea, researched before you fall for it',
     story:
       'Write once: "next time I have a business idea, look up competitors and do a market ' +
-      'analysis, TAM included." From then on, each idea you jot down is researched on the web ' +
-      'in the background, and your phone leads with the verdict: favorable, unfavorable, or ' +
-      'already done, by whom. Every figure in the full write-up links to the page it came from.',
+      'analysis." After that, each idea you write down is researched on the web, and your phone ' +
+      'gets the verdict: favorable, unfavorable, or already done and by whom. Every figure links ' +
+      'to its source.',
     runsOn: ['Firecrawl', 'Decree', 'ntfy'],
     needsModel: true,
     docs: '/docs/flows/note-to-automation#research-on-the-web-with-firecrawl',
@@ -124,9 +117,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Ask Claude what you decided',
     story:
-      '"What did I decide about syncing my notes?" Claude searches everything you\'ve written, ' +
-      'and the PDFs and Word files you keep, by meaning and by exact words, and answers with ' +
-      'the file and line. A note you saved a minute ago is already in it.',
+      '"What did I decide about syncing my notes?" Claude searches your notes, PDFs and Word ' +
+      'files, by meaning and by exact words, and answers with the file and line.',
     runsOn: ['Search (qmd)', 'code-server'],
     docs: '/docs/ai/qmd',
   },
@@ -134,8 +126,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Bank alerts become budget entries',
     story:
-      'The alert email your bank sends for every charge becomes a transaction in your budget, ' +
-      'with the payee and amount filled in, a few minutes after you tap your card.',
+      'Each charge alert your bank emails becomes a budget transaction, payee and amount ' +
+      'filled in, a few minutes after you pay.',
     runsOn: ['Gmail', 'Actual Budget', 'Decree'],
     docs: '/docs/flows/transaction-gmail-actual-budget',
   },
@@ -143,8 +135,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Photograph it, and the text is yours',
     story:
-      'A receipt, a whiteboard, a page of a book: the photo syncs from your phone, and the text ' +
-      'in it lands next to the image a few seconds later, where search and your notes can find it.',
+      'Photograph a receipt, a whiteboard or a page. It syncs from your phone, and its text is ' +
+      'saved next to the image a few seconds later, where search can find it.',
     runsOn: ['Nextcloud', 'a vision model', 'Decree'],
     needsModel: true,
     docs: '/docs/flows/image-ocr',
@@ -153,8 +145,7 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Voice memos you actually read',
     story:
-      'Record a thought on a walk. By the time you are home there is a transcript beside it, ' +
-      'each speaker labelled, instead of another recording you will never play back.',
+      'Record a voice memo. A transcript, with each speaker labelled, is saved beside it.',
     runsOn: ['Nextcloud', 'WhisperX', 'Decree'],
     docs: '/docs/flows/recording-transcription',
   },
@@ -162,9 +153,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Notes that find their own connections',
     story:
-      'Each new note is checked against everything you already wrote. When there is a real ' +
-      'connection, not just a shared topic, it comes back to you before you would have found ' +
-      'it yourself.',
+      'Each new note is checked against everything you already wrote, and you are told when ' +
+      'it connects to an earlier one.',
     runsOn: ['Hermes', 'OpenViking', 'Decree'],
     needsModel: true,
     docs: '/docs/flows/note-connect',
@@ -173,8 +163,8 @@ export const FLOWS: TourFlow[] = [
     tier: 'addon',
     title: 'Say it out loud at home',
     story:
-      'A wake word on your phone starts a recording or runs a home automation, through your ' +
-      'own Home Assistant, with no cloud assistant listening.',
+      'A wake word on your phone starts a recording or runs a home automation through your ' +
+      'own Home Assistant. No cloud assistant.',
     runsOn: ['Home Assistant', 'HAwake'],
     docs: '/docs/flows/hawake-homeassistant',
   },

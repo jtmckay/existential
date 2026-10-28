@@ -9,17 +9,12 @@ One job traced through the services it touches. Back out to [Level 2 · The Piec
 or go on to [Level 4 · Build On It](../build-on-it) to write your own.
 :::
 
-A flow is one complete path from *something happened* to *it was handled*.
-
-That's the level Existential is meant to be understood at. Underneath, a flow might touch
-half a dozen services — but you set it up once and then think about it as a single thing:
-**a recording becomes a transcript**, **a receipt becomes a budget entry**, **a file becomes
-a filed file**.
+A flow is one job, from *something happened* to *it was handled*: a recording becomes a
+transcript, a receipt becomes a budget entry.
 
 ## Turning one on
 
-The stack ships its flows ready to switch on, each a folder in `flows/`: the services it needs,
-the machine's trigger, and what is left that only you can do.
+Each flow is a folder in `flows/`: the services it needs, its trigger, and any step only you can do.
 
 ```bash
 ./existential.sh flow                 # pick from the list; ✓ marks the ones on
@@ -27,8 +22,9 @@ the machine's trigger, and what is left that only you can do.
 ./existential.sh flow off newsletter  # its machine off; services stay as they are
 ```
 
-`docker compose up -d` afterwards starts anything new. A flow that needs another turns that one on
-too. A file you changed is never deleted by `off`.
+- `docker compose up -d` afterwards starts anything new.
+- A flow that needs another turns that one on too.
+- `off` never deletes a file you changed.
 
 | Flow | What it does | Needs, beyond Core |
 |---|---|---|
@@ -56,50 +52,41 @@ too. A file you changed is never deleted by `off`.
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, Hermes answering | Home Assistant, Wyoming, Hermes |
 | `comfy` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 
-[Note → Automation](./note-to-automation) needs no flow: it is part of Core, on whenever a chat
-model answers.
+[Note → Automation](./note-to-automation) is part of Core, on whenever a chat model answers.
 
 ### Housekeeping
 
-`clean-runs` keeps `workspace/.decree/runs/` from growing forever (run logs go to Loki too, when
-it is on). `health-checks` probes ntfy; to probe another service, copy its cron in
-`workspace/.decree/cron/` to `health-check-<slug>.md` and set `SERVICE_NAME` and `SERVICE_URL`
-(`http://<container>:<port>/<health path>`). `check-versions` tells you when an image is
-behind; `./existential.sh run check-versions --update` patches the templates, then
-`./existential.sh && docker compose pull && docker compose up -d`. `hermes-knows-decree`
-writes `workspace/ai/decree/` every hour, so Hermes, which cannot see `.decree/`, knows what it
-may ask decree to run.
+- **`clean-runs`** prunes `workspace/.decree/runs/` (logs also go to Loki when it's on).
+- **`health-checks`** probes ntfy. For another service, copy its cron in
+  `workspace/.decree/cron/` to `health-check-<slug>.md` and set `SERVICE_NAME` and `SERVICE_URL`
+  (`http://<container>:<port>/<health path>`).
+- **`check-versions`** reports images that are behind. `./existential.sh run check-versions
+  --update` patches the templates; then `./existential.sh && docker compose pull && docker
+  compose up -d`.
+- **`hermes-knows-decree`** writes `workspace/ai/decree/` hourly, so Hermes (which can't see
+  `.decree/`) knows what it may ask decree to run.
 
 ## How every flow works
 
-All of them have the same four parts. Once you've seen one, you've seen all of them.
+Every flow has four parts:
 
 ```
   input  →  judgment  →  work  →  output
 ```
 
-1. **Input.** A file appears, an email arrives, you talk to your phone, a service fires a
-   webhook, a schedule comes around. Everything ends up as a message in one queue.
-2. **Judgment.** One cheap question: *is this worth doing anything about?* Most things are
-   not — most notes are a grocery list, most files are not receipts. This step is what keeps
-   the next one from running on everything.
-3. **Work.** The expensive part, and only for what got past judgment. Transcribe, research,
-   extract, draft, file. Often several steps, each its own message.
-4. **Output.** A note, a task, a budget line, a notification — or another message, which
-   starts the next flow.
+1. **Input.** A file, an email, your voice, a webhook, a schedule. Each becomes a message in one
+   queue.
+2. **Judgment.** One cheap question: is this worth acting on? Most things aren't.
+3. **Work.** The expensive part, only for what passed: transcribe, research, extract, draft, file.
+4. **Output.** A note, a task, a budget line, a notification, or another message.
 
-There is only one queue and one kind of message, so there is only one thing to learn.
-
-:::tip[The judgment step is the one people skip]
-It is tempting to wire input straight to work. Don't. A flow with no judgment step runs the
-expensive half on everything that arrives, and what you get is a folder of unread reports —
-which is the problem you started with. Being stingy here is what makes a flow worth having.
+:::tip[Don't skip judgment]
+Without it, the expensive step runs on everything and you get a folder of unread reports.
 :::
 
 ## The four knobs
 
-Those four parts are also the four things you change, and **three of them are settings, not
-code.** This is the whole customization model:
+The four parts are what you change, and three are settings, not code:
 
 | Knob | What it is | How you change it |
 |---|---|---|
@@ -108,53 +95,35 @@ code.** This is the whole customization model:
 | **Work** | What actually gets done | The name of the routine to chain — e.g. `TRIAGE_ROUTINE` |
 | **Output** | Where the result lands | A destination setting, or the routine you chained |
 
-Turning one knob does not disturb the others. Swap a notes vault for an email inbox and the
-judgment and work are untouched; swap "a business idea" for "a house project" and nothing else
-moves. [Note → Action](./note-to-action) turns all four on one flow, one section each.
+Each knob changes independently. [Note → Action](./note-to-action) walks through all four. A
+new flow is one more routine: [Writing an Automation](../writing-a-routine).
 
-Adding a genuinely new flow means writing one more routine, not learning a new system —
-see [Writing an Automation](../writing-a-routine).
+## By kind
 
-## The three that matter most
+### Capture
 
-### Capture → one place
+- [Camera → OCR](./image-ocr): a photo's text
+- [Note → Automation](./note-to-automation): write "next time I…, do…" and it offers to automate it
+- [Your Own Newsletter](./newsletter): a weekly issue from feeds you picked
+- [Note → Action](./note-to-action): an idea worth chasing is researched, with questions for you
+- [Note → Connection](./note-connect): a new note is linked to related earlier ones
 
-Anything you throw at it gets picked up, understood, and filed — without you choosing a
-destination each time.
+### Voice
 
-- [Camera → OCR](./image-ocr) — photograph something, get back its text
-- [Note → Automation](./note-to-automation) — write "next time I…, do…" and it offers to automate exactly that
-- [Your Own Newsletter](./newsletter) — a weekly issue from only the feeds you picked, judged by a paragraph you wrote
-- [Note → Action](./note-to-action) — a thought worth chasing gets chased, and comes back with the right questions
-- [Note → Connection](./note-connect) — a new note gets checked against everything you already know, and the interesting links come back to you unasked
+- [Recording → Transcription](./recording-transcription): speaker-labelled transcripts
+- [AutoVoice](./autovoice): a spoken phrase triggers a routine
+- [HAwake](./hawake): train your own wake word
+- [HAwake → Home Assistant → Tasker](./hawake-homeassistant): wake word to phone action
 
-### Voice → action
+### Money
 
-Say it out loud and have it turn into something real, without opening an app.
-
-- [Recording → Transcription](./recording-transcription) — recordings become searchable, speaker-labelled text
-- [AutoVoice — Voice Triggers](./autovoice) — speak a phrase, trigger a routine
-- [HAwake — Custom Wake Word](./hawake) — train your own wake word
-- [HAwake → Home Assistant → Tasker](./hawake-homeassistant) — wake word to phone action, end to end
-
-### Money → budget
-
-The most tedious recurring paperwork in most people's lives, handled without attention.
-
-- [Bank Alert → Gmail → Budget](./transaction-gmail-actual-budget) — transaction emails become budget entries
+- [Bank Alert → Gmail → Budget](./transaction-gmail-actual-budget): transaction emails become budget entries
 
 ## Building your own
 
-Every flow above is a routine plus a trigger — and both are yours to write.
+Every flow is a routine plus a trigger.
 
-- **[Writing an Automation](../writing-a-routine)** is the place to start: the anatomy of a
-  routine script, how to register it, the four ways to trigger it, and how one routine hands
-  work to the next.
-- **[Note → Action](./note-to-action)** is the same material as a worked example — four
-  routines wired into one flow, with sections on swapping the judgment, the work, and the input.
-- **[Build On It](../build-on-it)** is the contract for reaching the stack from *outside* it:
-  how to send something in over HTTP and how to read the result.
-
-The mechanism underneath most of them — a file landing in storage becoming a running routine —
-is the [File Processor](../decree/file-change-processing). That is a level-4 page: it explains
-the plumbing rather than what the system does with it.
+- **[Writing an Automation](../writing-a-routine)**: a routine's parts, its triggers, and chaining.
+- **[Note → Action](./note-to-action)**: a worked example, four routines in one flow.
+- **[Build On It](../build-on-it)**: reaching the stack over HTTP from outside.
+- **[File Processor](../decree/file-change-processing)**: how a file landing in storage starts a routine.

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Storage Overview
 
-Pick and choose components to use. For example: use Google Drive for files and skip TrueNAS and Nextcloud.
+Use what you need. For example, Google Drive for files instead of TrueNAS and Nextcloud.
 
 ## What's Important
 
@@ -22,12 +22,9 @@ Pick and choose components to use. For example: use Google Drive for files and s
 
 ## A NAS for the bulk files
 
-Every service's data is a host bind mount under `<repo>/volumes/<name>`, never a Docker-managed
-volume. Point the stack at a NAS and the volumes that are safe there move to it, and only those:
-each service declares its volumes in an `x-exist-volumes` block, and just the ones marked
-`nfs: true` (bulk user files: Nextcloud, media) relocate. Anything holding a database stays on
-local disk whatever you set, because NFS corrupts an embedded database's locking. Any NFS-capable
-NAS works; TrueNAS is a common self-hosted choice.
+Data lives under `<repo>/volumes/<name>`. With a NAS, only volumes marked `nfs: true` (bulk
+files: Nextcloud, media) move to it. Databases stay on local disk: NFS breaks their locking. Any
+NFS NAS works.
 
 1. On the NAS, create an NFS export and note its address and path. The per-volume
    subdirectories are made for you once it is mounted.

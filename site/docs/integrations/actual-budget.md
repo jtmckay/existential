@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Actual Budget
 
-Connects Decree to your Actual Budget server, enabling automated transaction imports from bank alert emails. Once configured, the `actual_budget` and `actual_budget_parse` machines can reach it and credentials are loaded by the container at runtime.
+Lets the `actual_budget` and `actual_budget_parse` machines post transactions to your Actual Budget server.
 
 New to Actual Budget? Start with the [service setup](../services/actual-budget) first.
 
