@@ -117,8 +117,13 @@ Re-ask both with `./existential.sh run models`.
 
 ### Upgrading
 
-`git pull && ./existential.sh`. Rendered files are never overwritten; new template keys are
-appended to your `.env` files and listed in the output. See
+`git pull && ./existential.sh`. Rendered files are never overwritten, except:
+
+- New template keys are appended to your `.env` files and listed.
+- Newer service images are listed, and updated in your compose files if you say yes.
+
+Every run also pulls and builds the images, without touching what's running. The next
+`docker compose up -d` switches to them. See
 [what happens when you `git pull`](./configuration.md#what-happens-when-you-git-pull).
 
 ## Enable/Disable Services

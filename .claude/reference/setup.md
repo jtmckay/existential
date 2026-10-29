@@ -17,6 +17,19 @@ silently leaving it a version behind. It is **append-only** — existing values,
 are never touched. That is what makes the blank-means-not-yet-asked convention
 (`EXIST_VRAM_GB`, the per-role endpoint keys) survive an upgrade.
 
+Images are the other exception:
+
+- **A service `image:`** (`_offer_image_updates` in `existential.sh`, the start of `_build`): each
+  enabled service's rendered `image:` is compared with its template's, per service, and the
+  differences are listed and rewritten on yes. No terminal: listed only. This is how
+  `run check-versions --update` reaches an install.
+- **The decree image** (`ensure_adhoc_built` in `src/utils/adhoc.sh`): built with the
+  `exist.context` label, a checksum of the files `.dockerignore` lets in. A mismatch rebuilds it.
+  e2e stamps its build the same way, since it shares the tag.
+- **Staging** (`_stage_images`, the end of `_build`): `docker compose pull --ignore-buildable`,
+  then `build` when a service has `build:`. Neither touches a running container; compose swaps
+  them only on `up`. A failed pull (offline) is reported, not fatal.
+
 ## `archive/`
 
 Two different things live here, in two clearly separated shapes:

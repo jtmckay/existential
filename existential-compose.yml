@@ -3,6 +3,9 @@ services:
     container_name: existential-adhoc
     build:
       context: ./services/automation/decree
+      # What ensure_adhoc_built (src/utils/adhoc.sh) compares to offer a rebuild.
+      labels:
+        exist.context: ${EXIST_DECREE_CONTEXT:-}
     # Canonical build of the decree image. Tagged so both daemons — automation
     # and automation-backup — can reference it via `image:` instead of each
     # re-building decree/Dockerfile into its own per-project image.

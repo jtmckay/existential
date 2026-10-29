@@ -539,7 +539,12 @@ fi
 e2e_down
 
 log "Building existential-adhoc image..."
-docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build existential-adhoc
+# The same tag the host install runs, so stamp it the same way: an unlabeled
+# build would make the next ./existential.sh offer a rebuild it doesn't need.
+# shellcheck source=../../utils/adhoc.sh
+. "${REPO_DIR}/src/utils/adhoc.sh"
+EXIST_DECREE_CONTEXT="$(adhoc_context_hash)" \
+    docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build existential-adhoc
 
 declare -a SELECTED=()
 if [ "$#" -gt 0 ]; then

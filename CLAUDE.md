@@ -148,11 +148,14 @@ core-vs-complementary coupling: `.claude/reference/services.md`.
 `./existential.sh` renders `*.exist.*` templates, runs each enabled service's
 `exist.initial.sh`, and merges enabled services into a unified `docker-compose.yml`. Disabled
 services are skipped entirely (no secrets/templates land on disk). A rendered destination is
-written **once** and skipped thereafter — there is no re-render flag. The one exception is
-key-level: a rendered `.env*` is never overwritten, but every run **appends** keys the template
-has gained since, so `git pull && ./existential.sh` reaches an existing install. Existing
-values, blanks included, are never touched. `reset` archives every rendered file to
-`archive/<timestamp>/` so the next run renders fresh. → `setup.md`
+written **once** and skipped thereafter — there is no re-render flag. Two exceptions reach an
+existing install on `git pull && ./existential.sh`: a rendered `.env*` gets every key the
+template has gained **appended** (existing values, blanks included, never touched), and a
+rendered compose file whose service `image:` differs from its template's is listed and updated
+**if the user says yes**. Every run then pulls and builds every enabled image (the decree image
+when its build context changed) without touching running containers, so the next `up -d` gets
+them. `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
+fresh. → `setup.md`
 
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
@@ -175,7 +178,8 @@ The only correct flow for any compose change is:
 1. Edit the service's `docker-compose.exist.yml` (tracked template).
 2. If `<service>/docker-compose.yml` already exists (rendered, gitignored), apply the same change
    there too — a rendered file is never re-rendered, so `generate-compose.ts` would otherwise
-   read the stale copy. (`./existential.sh reset` is the bulk alternative.)
+   read the stale copy. An `image:` change alone is offered by `./existential.sh`.
+   (`./existential.sh reset` is the bulk alternative.)
 3. Run `./existential.sh` from the repo root.
 4. Run `docker compose up -d` from the repo root.
 

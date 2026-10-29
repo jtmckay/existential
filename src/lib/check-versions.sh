@@ -497,7 +497,7 @@ echo ""
 if [[ "$UPDATES_AVAILABLE" -gt 0 && "$UPDATE" == "false" ]]; then
     echo "  ${UPDATES_AVAILABLE} update(s) available. Run with --update to apply."
 elif [[ "$UPDATE" == "true" ]]; then
-    echo "  Applied updates. Re-run \`./existential.sh compose\` to regenerate docker-compose.yml."
+    echo "  Applied updates. Run ./existential.sh: it offers them to your rendered compose files."
 else
     echo "  All images up to date."
 fi

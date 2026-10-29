@@ -29,6 +29,10 @@ missing, with its comment, and lists it:
 
 New services arrive with their flag `false`.
 
+Images work differently: when a template names a different image than your rendered compose
+file, the run lists it and asks before updating the file. Each run then pulls and builds every
+enabled image without touching running containers; `docker compose up -d` switches to them.
+
 ## Service enablement
 
 `EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder

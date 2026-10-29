@@ -56,13 +56,33 @@ adhoc_detect_runtime() {
 # directory gets the right compose file without computing it.
 _ADHOC_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Build the adhoc image if not present; all interactive setup runs inside it.
+# adhoc_context_hash — a checksum of what the decree image is built from: the
+# files its .dockerignore lets in. Stamped on the image as the exist.context
+# label at build, so a changed Dockerfile is noticed on an existing install.
+adhoc_context_hash() {
+    local f
+    (cd "${_ADHOC_REPO}/services/automation/decree" \
+        && sed -n 's/^!//p' .dockerignore | LC_ALL=C sort | while IFS= read -r f; do
+               printf '%s\n' "$f"; cat "$f"
+           done | cksum | cut -d' ' -f1)
+}
+
+# Build the adhoc image if it is missing, or rebuild it when its build context
+# has changed since. Running containers keep the old image until the next
+# `docker compose up -d`. All interactive setup runs inside it.
 ensure_adhoc_built() {
     adhoc_detect_runtime
+    local want have
+    want="$(adhoc_context_hash)"
     if ! $DOCKER_CMD image inspect existential/decree:local &>/dev/null 2>&1; then
         echo "Building existential-adhoc (first run)..."
-        $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" build existential-adhoc
+    else
+        have="$($DOCKER_CMD image inspect -f '{{index .Config.Labels "exist.context"}}' existential/decree:local 2>/dev/null)"
+        [[ "$have" == "$want" ]] && return 0
+        echo "Rebuilding the automation image (services/automation/decree changed)..."
     fi
+    EXIST_DECREE_CONTEXT="$want" \
+        $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" build existential-adhoc
 }
 
 # Run a command inside the adhoc container (TTY-aware, ownership-correct).

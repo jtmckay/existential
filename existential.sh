@@ -601,8 +601,90 @@ _ask_hardware_if_needed() {
     done < <(_find_service_dirs)
 }
 
+# _image_lines <compose file> — "<service> <image>" for each service's image:,
+# trailing comment dropped. Plain awk: this runs on the host, Mac included.
+_image_lines() {
+    awk '/^services:/ { s = 1; next }
+         /^[^ #]/     { s = 0 }
+         s && /^  [A-Za-z0-9_.-]+:[[:space:]]*$/ { svc = $1; sub(/:$/, "", svc); next }
+         s && svc != "" && /^    image:/ {
+             img = $0; sub(/^    image:[[:space:]]*/, "", img); sub(/[[:space:]]+#.*$/, "", img)
+             print svc, img
+         }' "$1"
+}
+
+# _set_image <compose file> <service> <image> — rewrite that service's image:,
+# keeping any trailing comment.
+_set_image() {
+    local tmp
+    tmp="$(mktemp)"
+    awk -v want="$2" -v img="$3" '
+        /^services:/ { s = 1 }
+        /^[^ #]/ && !/^services:/ { s = 0 }
+        s && /^  [A-Za-z0-9_.-]+:[[:space:]]*$/ { svc = $1; sub(/:$/, "", svc) }
+        s && svc == want && /^    image:/ {
+            c = ""; if (match($0, /[[:space:]]+#.*$/)) c = substr($0, RSTART)
+            print "    image: " img c; next
+        }
+        { print }' "$1" > "$tmp" && cat "$tmp" > "$1"
+    rm -f "$tmp"
+}
+
+# A rendered compose file is written once, so an image a template moves to
+# (`git pull`, `run check-versions --update`) never reaches it on its own.
+# List each enabled service whose rendered image differs from its template's,
+# and ask before updating the rendered file; `docker compose up -d` pulls it.
+_offer_image_updates() {
+    local svc_dir out svc old new reply changes=""
+    while IFS= read -r svc_dir; do
+        service_is_enabled "$svc_dir" || continue
+        out="${svc_dir}/docker-compose.yml"
+        [[ -f "$out" && -f "${svc_dir}/docker-compose.exist.yml" ]] || continue
+        while read -r svc new; do
+            old="$(_image_lines "$out" | awk -v s="$svc" '$1 == s { print $2; exit }')"
+            [[ -n "$old" && "$old" != "$new" ]] && changes="${changes}${out}|${svc}|${old}|${new}"$'\n'
+        done < <(_image_lines "${svc_dir}/docker-compose.exist.yml")
+    done < <(_find_service_dirs)
+    [[ -n "$changes" ]] || return 0
+
+    echo ""
+    echo "Image updates in the templates, not yet in your rendered compose files:"
+    while IFS='|' read -r out svc old new; do
+        [[ -n "$out" ]] && echo "  ${svc}: ${old} → ${new}"
+    done <<< "$changes"
+    if [[ ! -t 0 ]]; then
+        echo "  Run ./existential.sh in a terminal to apply them."
+        return 0
+    fi
+    read -rp "  Update them? [Y/n] " reply
+    [[ "$reply" =~ ^[Nn] ]] && return 0
+    while IFS='|' read -r out svc old new; do
+        [[ -n "$out" ]] && _set_image "$out" "$svc" "$new"
+    done <<< "$changes"
+    echo "  Updated."
+}
+
+# Pull every enabled service's image and rebuild the ones built here, so the
+# next `docker compose up -d` starts on them. Running containers are untouched:
+# compose swaps a container only on `up`. Offline, a pull is skipped, not fatal.
+_stage_images() {
+    adhoc_detect_runtime
+    local compose=(compose -f "${SCRIPT_DIR}/docker-compose.yml") out
+    echo ""
+    echo "Fetching images (running containers are left alone)..."
+    if ! out="$($DOCKER_CMD "${compose[@]}" pull --quiet --ignore-buildable 2>&1)"; then
+        printf '%s\n' "$out" | tail -5
+        echo "  ⚠ Some images could not be pulled; docker compose up -d tries again."
+    fi
+    grep -q '^    build:' "${SCRIPT_DIR}/docker-compose.yml" || return 0
+    echo "Building images..."
+    $DOCKER_CMD "${compose[@]}" build --quiet \
+        || echo "  ⚠ A build failed; docker compose up -d --build shows why."
+}
+
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
+    _offer_image_updates
     _ensure_host_ids
     _tailscale_serve_core
     _start_on_boot
@@ -611,6 +693,7 @@ _build() {
     run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
     _warn_if_no_gateway
     run_initials
+    _stage_images
     echo "Done! Next step:  docker compose up -d"
     _report_dashboard
 }

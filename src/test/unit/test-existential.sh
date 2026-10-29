@@ -484,6 +484,65 @@ _beyond_core="$(REPO_DIR="$REPO"; . "${REPO}/src/utils/flows.sh"
     done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)' || true; } | sort -u | xargs)"
 assert_eq "a default flow needs nothing beyond Core" "" "$_beyond_core"
 
+# ── Image updates reach a rendered compose file ───────────────────────────────
+#
+# A rendered compose file is written once, so _offer_image_updates is how a
+# template's newer image reaches it. Pins: per-service comparison (a nested
+# x-exist-gpu image is not the service's), comment kept on rewrite, and a run
+# with no terminal only reports.
+
+FAKE_IMG="${TMPDIR_ROOT}/fake-img"
+mkdir -p "${FAKE_IMG}/services/foo"
+printf 'EXIST_IS_SERVICES_FOO=true\n' > "${FAKE_IMG}/.env.shared"
+cat > "${FAKE_IMG}/services/foo/docker-compose.exist.yml" <<'YAML'
+services:
+  foo:
+    image: foo/app:2.0  # pinned
+    x-exist-gpu:
+      amd:
+        image: foo/app:2.0-rocm
+  foo-db:
+    image: postgres:17
+x-exist-volumes:
+  foo_data: {}
+YAML
+cat > "${FAKE_IMG}/services/foo/docker-compose.yml" <<'YAML'
+services:
+  foo:
+    image: foo/app:1.0  # pinned
+    x-exist-gpu:
+      amd:
+        image: foo/app:1.0-rocm
+  foo-db:
+    image: postgres:17
+x-exist-volumes:
+  foo_data: {}
+YAML
+
+assert_eq "_image_lines lists each service's own image" \
+    "foo foo/app:2.0 foo-db postgres:17" \
+    "$(_source_existential "$FAKE_IMG" "_image_lines '${FAKE_IMG}/services/foo/docker-compose.exist.yml'" | xargs)"
+
+_out="$(_source_existential "$FAKE_IMG" "_offer_image_updates" </dev/null 2>&1)"
+assert_eq "a changed image is listed" "1" "$(grep -cF 'foo: foo/app:1.0 → foo/app:2.0' <<< "$_out")"
+assert_eq "...an unchanged one is not" "" "$(grep -F 'foo-db' <<< "$_out" || true)"
+assert_eq "...and without a terminal nothing is rewritten" "1" \
+    "$(grep -c 'foo/app:1.0  # pinned' "${FAKE_IMG}/services/foo/docker-compose.yml")"
+
+_source_existential "$FAKE_IMG" "_set_image '${FAKE_IMG}/services/foo/docker-compose.yml' foo foo/app:2.0"
+assert_eq "_set_image rewrites the service's image, comment kept" "1" \
+    "$(grep -c '^    image: foo/app:2.0  # pinned$' "${FAKE_IMG}/services/foo/docker-compose.yml")"
+assert_eq "...and leaves the nested gpu image alone" "1" \
+    "$(grep -c 'image: foo/app:1.0-rocm' "${FAKE_IMG}/services/foo/docker-compose.yml")"
+assert_eq "...and the other services" "1" \
+    "$(grep -c '^    image: postgres:17$' "${FAKE_IMG}/services/foo/docker-compose.yml")"
+assert_eq "...after which nothing is offered" "" \
+    "$(_source_existential "$FAKE_IMG" "_offer_image_updates" </dev/null 2>&1)"
+
+assert_eq "the decree image's context hash is stable" \
+    "$(_source_existential "$REPO" "adhoc_context_hash")" "$(_source_existential "$REPO" "adhoc_context_hash")"
+assert_eq "...and a number" "1" "$(_source_existential "$REPO" "adhoc_context_hash" | grep -cE '^[0-9]+$')"
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
