@@ -75,8 +75,9 @@ services:
       - NUMBA_CACHE_DIR=/app/hf_cache/numba
     volumes:
       - ./config.yaml:/app/config.yaml:Z
-      - ./voices:/app/voices:Z
-      - ./reference_audio:/app/reference_audio:Z
+      # The 28 predefined voices ship in the image (/app/voices). Uploaded
+      # reference audio is the user's, so it is a volume.
+      - chatterbox_reference_audio_data:/app/reference_audio:Z
       - chatterbox_outputs_data:/app/outputs:Z
       - chatterbox_logs_cache:/app/logs:Z
       - chatterbox_cache:/app/hf_cache   # HuggingFace model cache — a _cache, re-downloadable
@@ -85,3 +86,4 @@ x-exist-volumes:
   chatterbox_cache: {}
   chatterbox_logs_cache: {}
   chatterbox_outputs_data: {}
+  chatterbox_reference_audio_data: {}

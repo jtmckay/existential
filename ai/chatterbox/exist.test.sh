@@ -57,7 +57,7 @@ ok "TTS model loaded: ${MTYPE} on ${DEVICE}"
 # ── 3. A voice to synthesize with ────────────────────────────────────────────
 #
 # /v1/audio/speech resolves `voice` as a filename under voices/ then
-# reference_audio/ and 404s if neither has it — an unmounted voices/ is a
+# reference_audio/ and 404s if neither has it — an empty voices/ is a
 # silently broken install that everything else still reports as healthy.
 VOICE=$(curl -sS --max-time 10 "${URL}/v1/audio/voices" 2>/dev/null | python3 -c "
 import sys, json
@@ -68,8 +68,8 @@ except Exception:
 " 2>/dev/null || echo "")
 if [ -z "$VOICE" ]; then
     fail "predefined voices present" \
-         "/v1/audio/voices returned none — ai/chatterbox/voices is empty or not mounted" \
-         "ls ai/chatterbox/voices; docker inspect chatterbox --format '{{json .Mounts}}'"
+         "/v1/audio/voices returned none — the image ships none in /app/voices" \
+         "docker exec chatterbox ls /app/voices"
     finish
 fi
 ok "predefined voices available (using ${VOICE})"
