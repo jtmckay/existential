@@ -70,13 +70,17 @@ jobs:
     name: Unit suite and conventions
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # The runner ships podman too, and adhoc.sh prefers it, but its socket is not
+    # running and the image below is built by docker.
+    env:
+      DOCKER_CMD: docker
     steps:
       - uses: actions/checkout@v4
       # Nothing below renders templates, so this runs against the tracked tree
       # exactly as a fresh clone has it. `validate conventions` is a soft gate
       # that tolerates an unrendered docker-compose.yml.
       - name: Build adhoc image
-        run: docker compose -f existential-compose.yml build existential-adhoc
+        run: bash -c '. src/utils/adhoc.sh && ensure_adhoc_built'
       - name: TypeScript typecheck
         run: ./existential.sh test typecheck
       - name: decree check
