@@ -20,8 +20,6 @@ publishing identity.
   as Compose's own bridge, never `external`. No service template declares it, and no doc or
   doc says to `docker network create` it. `EXIST_NETWORK_EXTERNAL` and
   `EXIST_DOCKER_NETWORK_SUBNET` do not exist.
-- **NAS storage is one setting.** `EXIST_NFS_HOST_MOUNT` is the only NFS key;
-  `EXIST_NFS_SERVER_ADDRESS` and `EXIST_NFS_BASE_PATH` do not exist.
 - **ntfy has one login.** Every publisher uses `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD`, and
   that user may publish to every topic. `EXIST_NTFY_TOKEN`, `EXIST_NTFY_TOPICS` and
   `./existential.sh run ntfy setup` do not exist.
