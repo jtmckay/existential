@@ -60,8 +60,11 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-The first run asks for `EXIST_USERNAME` and `EXIST_PASSWORD` and nothing else. There is no
-picker: Core is what `.env.exist.shared` ships on, so the first run builds it.
+The first run asks one thing: Core or none (`_ask_core_or_none` in `src/templates.sh`). Core is
+what `.env.exist.shared` ships on, and Enter, Esc or no terminal keeps it; none sets every
+`EXIST_IS_*` false and `_build` stops at "nothing is on yet". `EXIST_USERNAME`, `EXIST_PASSWORD`
+and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
+renders, so Core asks for a login and none asks nothing.
 
 Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `flow`
 (with `EXIST_GPU_VENDOR` blank and a terminal) runs `src/lib/models.sh` with `FIRST_RUN=1`
@@ -92,7 +95,8 @@ ollama under `external`), copies each file not already in place (a migration alr
 `existential.sh` renders and builds. `flow off` deletes only copies identical to the flow's
 file, never touches services, and names a `default: true` flow in `.decree/flows-off`, which
 `exist.initial.sh` reads before re-activating the defaults. `src/flows.sh` exits 3 for "nothing
-changed" (a list, an empty pick), which skips the rebuild.
+changed" (a list, an empty pick), which skips the rebuild. `service [list|on|off]` (`src/services.sh`) is
+the same shape for one service's `EXIST_IS_*` flag, with the same GPU check and exit 3.
 
 Every flow is in the table on `site/docs/flows/index.md`, and its names resolve (`validate
 conventions`). The setup steps for a service no flow needs live on the service's docs page.

@@ -197,7 +197,8 @@ What it changes, in `src/generate-compose.ts`:
 ## Identity and permissions
 
 - **`EXIST_USERNAME` / `EXIST_PASSWORD`**: your login for ntfy and every admin account a service
-  creates. The first run's only questions. Enter gives `admin` and a generated 24-character
+  creates. Blank until a service that needs them is first turned on (Core does), then asked
+  once. Enter gives `admin` and a generated 24-character
   password, which is never printed. A typed password must be 8+ characters of `A-Za-z0-9._-`
   (it's written unquoted into many files).
 - **`EXIST_EMAIL`**: blank until an add-on that needs one (Open WebUI, NocoDB, Appsmith) is first

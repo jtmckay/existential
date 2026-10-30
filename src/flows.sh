@@ -87,7 +87,7 @@ flows_off() {
         grep -qxF "$n" "${REPO_DIR}/${FLOWS_OFF}" 2>/dev/null || echo "$n" >> "${REPO_DIR}/${FLOWS_OFF}"
     fi
     echo ""
-    echo "  $(flow_get "$n" name) is off. The services it turned on stay on; turn one off in .env.shared."
+    echo "  $(flow_get "$n" name) is off. The services it turned on stay on; ./existential.sh service off <slug> turns one off."
     echo ""
 }
 

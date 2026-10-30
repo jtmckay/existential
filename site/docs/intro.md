@@ -90,7 +90,7 @@ machine and on every device that should reach it.
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # asks for a username and password, builds Core
+./existential.sh            # builds Core (or nothing), asks for a login
 docker compose up -d
 ```
 

@@ -11,12 +11,6 @@ recoverable. A rendered `.env` is never overwritten in place at all.
 
 - `EXIST_CLI` — prompts the user.
 - `EXIST_24_CHAR_PASSWORD` / `EXIST_32_CHAR_HEX_KEY` — generate secrets.
-- `EXIST_ASK_PASSWORD` — offers the prompt *and* generates: a blank answer (and any
-  non-interactive render) falls through to `EXIST_24_CHAR_PASSWORD`. One key uses it,
-  `EXIST_PASSWORD`, because it is the one credential a human types into a login form. A typed
-  answer is held to `A-Za-z0-9._-`, 8+ characters, and re-asked otherwise — the value is
-  substituted unquoted into `.env`, YAML, JSON and a sed replacement, so a metacharacter would
-  not fail at the prompt but inside whichever rendered file could not carry it.
 - `EXIST_HOST_IP` — the host's LAN IP, detected rather than asked.
 - `EXIST_NIP_DOMAIN` — a wildcard-DNS domain derived from it.
 - bare `EXIST_*` — pulls the matching var from root `.env.shared`.
@@ -28,18 +22,19 @@ actually needs it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`,
 
 **Keep the first run's prompt count near zero.** Anything the machine can determine, it should:
 a prompt whose right answer is "press Enter" is not setup, and a blank answer to a prompt that
-*matters* is worse than no prompt at all. `.env.exist.shared` asks exactly two things: `EXIST_USERNAME`
-(`EXIST_CLI`, default `admin`) and `EXIST_PASSWORD` (`EXIST_ASK_PASSWORD`), which a unit test
-holds it to. `EXIST_EMAIL` ships blank and `_ask_email_if_needed` asks it once, the first run an
-enabled service's template uses it; the NFS trio ships blank and
+*matters* is worse than no prompt at all. `.env.exist.shared` asks nothing, which a unit test holds it
+to; the first run's one question is Core or none (`_ask_core_or_none`). `EXIST_USERNAME`,
+`EXIST_PASSWORD` and `EXIST_EMAIL` ship blank and `_ask_if_needed` asks each once, the first run an
+enabled service uses it (without a terminal: `admin`, a generated password, blank). A typed login
+is held to `A-Za-z0-9._-` (a password to 8+), because it is substituted unquoted into `.env`, YAML,
+JSON and a sed replacement; the NFS trio ships blank and
 belongs to the storage docs. Before adding an `EXIST_CLI`, check whether detection or a flow
 can carry it instead — or whether, like `EXIST_PASSWORD`, the machine can answer it and the prompt
 is only there to let a human override.
 
 ### The three ordered placeholders
 
-These resolve in a fixed order, each feeding the next, all **after** the `EXIST_CLI` and
-`EXIST_ASK_PASSWORD` passes:
+These resolve in a fixed order, each feeding the next, all **after** the `EXIST_CLI` pass:
 
 1. `EXIST_HOST_IP` → `$EXIST_DETECTED_HOST_IP`, passed in by `existential.sh`. `_detect_host_ip`
    uses `ip route get 1.1.1.1`, except that a tailnet address wins when `tailscale ip -4`
@@ -68,7 +63,7 @@ dependency); `.internal` domains still require it, which `_warn_if_no_gateway` c
 destinations regenerated on **every** run.
 
 **A file only qualifies when its render is a pure function of (template + `.env.shared`)** — no
-secrets, no prompts (`EXIST_CLI`, `EXIST_ASK_PASSWORD`). Otherwise re-running loses
+secrets, no prompts (`EXIST_CLI`). Otherwise re-running loses
 information: a prompt would re-ask every run, and a regenerated secret would rotate out from
 under whatever already consumed it.
 `_assert_always_render_safe` enforces this and hard-fails the render, so the list can't silently

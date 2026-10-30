@@ -6,6 +6,7 @@
 #
 #   src/templates.sh        — render *.exist.* templates (fzf prompts, placeholders)
 #   src/flows.sh            — turn curated flows (machines + the services they need) on and off
+#   src/services.sh         — turn single services on and off
 #   src/generate-compose.ts — merge enabled services → docker-compose.yml
 #   src/lib/                — general utilities (backup, rclone, etc.)
 #   <service>/exist.*.sh    — service-specific setup scripts
@@ -419,8 +420,9 @@ _report_dashboard() {
 _report_login() {
     local f="${SCRIPT_DIR}/.env.shared" user tailnet
     user=$(grep -m1 '^EXIST_USERNAME=' "$f" 2>/dev/null | cut -d= -f2-)
+    [[ -n "$user" ]] || return 0   # nothing that logs in is on yet
     echo ""
-    echo "  Your login:  ${user:-<blank>}   (EXIST_USERNAME in .env.shared)"
+    echo "  Your login:  ${user}   (EXIST_USERNAME in .env.shared)"
     echo "  Password:    EXIST_PASSWORD in .env.shared"
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null || return 0
     tailnet=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
@@ -686,6 +688,12 @@ _stage_images() {
 _build() {
     _offer_image_updates
     _ensure_host_ids
+    if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
+        echo ""
+        echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
+        [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] && echo "Anything still running stops with:  docker compose down"
+        return 0
+    fi
     _tailscale_serve_core
     _start_on_boot
     echo ""
@@ -707,10 +715,13 @@ Usage: $0 [action]
 Actions:
   (none)                 Render templates for enabled services, run their setup
                          scripts, generate docker-compose.yml. The first run
-                         asks for a username and password, then builds Core.
+                         asks Core or none; a login is asked when a service needs it.
   flow [list|on|off] [name...]
                          What the stack does for you: each flow turns on the
                          services it needs and its machine, then the same.
+  service [list|on|off] [slug...]
+                         Turn single services on or off without opening
+                         .env.shared, then the same.
   reset                  Archive every rendered file to archive/<timestamp>/ so the
                          next run renders fresh. Asks first; never touches volumes.
   run                    List every action.
@@ -766,11 +777,11 @@ case "$action" in
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/reset.sh
         ;;
-    flow)
+    flow|service)
         ensure_git_hooks
         ensure_adhoc_built
         # 3 is "nothing changed": a list, or a picker left without a choice.
-        _rc=0; run_adhoc env REPO_DIR=/repo bash /src/flows.sh "$@" || _rc=$?
+        _rc=0; run_adhoc env REPO_DIR=/repo bash "/src/${action}s.sh" "$@" || _rc=$?
         [[ "$_rc" -eq 3 ]] && exit 0
         [[ "$_rc" -eq 0 ]] || exit "$_rc"
         _render

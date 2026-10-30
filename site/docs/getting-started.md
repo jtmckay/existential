@@ -31,7 +31,9 @@ sidebar_position: 2
 docker compose up -d
 ```
 
-The first run asks for a username and password and builds **Core**. No GPU, no model downloads.
+The first run asks one thing: start with **Core** (Enter) or nothing. Core then asks for a username
+and password. No GPU, no model downloads. Start with nothing and `./existential.sh service` turns
+on what you want; the login is asked when the first service that needs it comes on.
 
 | | |
 |---|---|
@@ -128,15 +130,17 @@ Every run also pulls and builds the images, without touching what's running. The
 
 ## Enable/Disable Services
 
-A flow turns on what it needs. For anything else, set flags in `.env.shared`:
+A flow turns on what it needs. For anything else:
 
 ```bash
-EXIST_IS_AI_OLLAMA=true
-EXIST_IS_SERVICES_NOCODB=false
+./existential.sh service                 # pick: Space switches one, Enter applies
+./existential.sh service on ollama       # or by name
+./existential.sh service off nocodb
 ```
 
-Then run `./existential.sh`. It renders templates for newly enabled services and leaves existing
-files alone.
+Each sets that service's `EXIST_IS_*` flag in `.env.shared`, then rebuilds: templates render for
+newly enabled services and existing files are left alone. A service turned off keeps running until
+`docker compose up -d --remove-orphans`.
 
 ## Deploy
 
@@ -160,8 +164,8 @@ and notifies you when something breaks or recovers.
 
 ### Logging in
 
-- Most services use `EXIST_USERNAME` / `EXIST_PASSWORD`, asked on the first run (Enter generates
-  a password) and stored in `.env.shared`. See
+- Most services use `EXIST_USERNAME` / `EXIST_PASSWORD`, asked when the first service that
+  needs them is turned on (Enter gives `admin` and generates a password) and stored in `.env.shared`. See
   [Identity and permissions](./configuration.md#identity-and-permissions).
 - Edit `.env.shared` or a service's own `.env`, never the root `.env`: it is regenerated every run.
 - After a change: `./existential.sh`, then `docker compose up -d`.

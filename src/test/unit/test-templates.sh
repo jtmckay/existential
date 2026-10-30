@@ -129,24 +129,6 @@ assert_not_contains "no password token remains" "EXIST_24_CHAR_PASSWORD" "$out"
 if [[ -n "$a" && "$a" != "$b" ]]; then _ok "two password placeholders get distinct values"
 else _fail "two password placeholders get distinct values" "a=$a b=$b"; fi
 
-# ── EXIST_ASK_PASSWORD: generates when it cannot ask ──────────────────────────
-# The prompt is the point of the token, but the fallback is what every
-# non-interactive path depends on — _reconcile_env_keys renders with stdin from
-# /dev/null, and a blank EXIST_PASSWORD there would hand every service in the
-# stack an empty credential rather than a fresh one.
-
-printf 'A=EXIST_ASK_PASSWORD\nB=EXIST_ASK_PASSWORD\n' > "$TMP/t_ask_pw"
-if out="$(try_render "$TMP/t_ask_pw")"; then
-    a="$(grep '^A=' <<<"$out" | cut -d= -f2)"
-    b="$(grep '^B=' <<<"$out" | cut -d= -f2)"
-    assert_not_contains "no ask-password token remains" "EXIST_ASK_PASSWORD" "$out"
-    if [[ -n "$a" && "$a" != "$b" ]]; then _ok "unprompted ask-password generates, distinct per occurrence"
-    else _fail "unprompted ask-password generates, distinct per occurrence" "a=$a b=$b"; fi
-else
-    _fail "unprompted ask-password generates, distinct per occurrence" \
-          "render_template exited non-zero (likely blocked on a prompt)"
-fi
-
 # ── EXIST_CLI: non-interactive default is empty ───────────────────────────────
 
 printf '# Default email\nEMAIL=EXIST_CLI\n' > "$TMP/t_cli"
@@ -426,16 +408,17 @@ else
         "ai/newsvc/.env absent — the new flag was not reloaded"
 fi
 
-# ── A Core first run asks two things ──────────────────────────────────────────
+# ── A first run asks one thing: Core or none ──────────────────────────────────
 #
-# Username and password, each with a default Enter accepts; no email. Checked on
-# the real templates, since that is where a third question would creep back in.
+# .env.exist.shared itself asks nothing: the login and email ship blank and are
+# asked when an enabled service first uses them. Checked on the real templates,
+# since that is where a question would creep back in.
 _REAL=/repo; [[ -f "$_REAL/.env.exist.shared" ]] || _REAL="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-_asks="$(grep -E '=(EXIST_CLI|EXIST_ASK_PASSWORD)$' "$_REAL/.env.exist.shared" | cut -d= -f1 | sort | tr '\n' ' ')"
-assert_eq ".env.exist.shared asks exactly a username and a password" "EXIST_PASSWORD EXIST_USERNAME " "$_asks"
+assert_eq ".env.exist.shared asks nothing" "" "$(grep -E '=EXIST_CLI$' "$_REAL/.env.exist.shared")"
 out="$(render "$_REAL/.env.exist.shared" "$TMP/.env.shared")"
-assert_eq "the username defaults to admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' <<<"$out")"
-assert_eq "EXIST_EMAIL ships blank (not yet asked)" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' <<<"$out")"
+for _k in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do
+    assert_eq "${_k} ships blank (not yet asked)" "${_k}=" "$(grep "^${_k}=" <<<"$out")"
+done
 for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist.shared"); do
     _svc="${_svc,,}"; _svc="services/${_svc//_/-}"
     if grep -rqsE --include='*.exist*' 'EXIST_EMAIL|EXIST_CLI' "$_REAL/$_svc"; then
@@ -445,28 +428,45 @@ for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist
     fi
 done
 
+printf 'EXIST_IS_AI_X=true\nEXIST_IS_SERVICES_Y=true\nEXIST_IS_SERVICES_Z=false\n' > "$TMP/.env.shared"
+( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf none; }
+  _ask_core_or_none ) >/dev/null 2>&1 </dev/null
+assert_eq "none turns every flag off" "" "$(grep '=true$' "$TMP/.env.shared")"
+printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
+( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf ''; }
+  _ask_core_or_none ) >/dev/null 2>&1 </dev/null
+assert_eq "Enter keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
+_ask_core_or_none >/dev/null 2>&1 </dev/null
+assert_eq "no terminal keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
+
 printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
 assert_contains "# DEFAULT: is the literal default when nobody answers" "WHO=admin" "$(render "$TMP/t_default")"
 
-# EXIST_EMAIL is asked once, the first time an enabled service uses it.
+# The login and email are asked once, the first time an enabled service uses them.
 mkdir -p "$TMP/ai/mailsvc"
-printf 'MAILSVC_ADMIN_EMAIL=EXIST_EMAIL\n' > "$TMP/ai/mailsvc/.env.exist"
-printf 'EXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=false\n' > "$TMP/.env.shared"
+printf 'MAILSVC_ADMIN_EMAIL=EXIST_EMAIL\nMAILSVC_USER=EXIST_USERNAME\nMAILSVC_PW=${EXIST_PASSWORD}\n' > "$TMP/ai/mailsvc/.env.exist"
+_blank() { printf 'EXIST_USERNAME=\nEXIST_PASSWORD=\nEXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=%s\n' "$1" > "$TMP/.env.shared"; }
 _ask() { ( _prompt_available() { true; }
            _prompt_tty() { echo asked >> "$TMP/.asked"; printf 'me@example.test'; }
-           _reload_env_shared; _ask_email_if_needed ) >/dev/null 2>&1 </dev/null; }
+           _reload_env_shared; _ask_if_needed EXIST_EMAIL ) >/dev/null 2>&1 </dev/null; }
+_blank false
 _ask
 assert_eq "no enabled service needs an email → not asked" "" "$(cat "$TMP/.asked" 2>/dev/null)"
 assert_contains "and EXIST_EMAIL stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+( _reload_env_shared; for _k in EXIST_USERNAME EXIST_PASSWORD; do _ask_if_needed "$_k"; done ) >/dev/null 2>&1 </dev/null
+assert_eq "...nor a login" "EXIST_USERNAME= EXIST_PASSWORD=" "$(grep -E '^EXIST_(USERNAME|PASSWORD)=' "$TMP/.env.shared" | xargs)"
 sed -i 's/^EXIST_IS_AI_MAILSVC=false$/EXIST_IS_AI_MAILSVC=true/' "$TMP/.env.shared"
 _ask
 assert_eq "an enabled service that uses it → asked once" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
 assert_eq "the answer is filled in" "EXIST_EMAIL=me@example.test" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
 _ask
 assert_eq "and never asked again" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
-printf 'EXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=true\n' > "$TMP/.env.shared"
-( _reload_env_shared; _ask_email_if_needed ) >/dev/null 2>&1 </dev/null
-assert_eq "no terminal → no question, still blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+_blank true
+( _reload_env_shared; for _k in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do _ask_if_needed "$_k"; done ) >/dev/null 2>&1 </dev/null
+assert_eq "no terminal → the username is admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' "$TMP/.env.shared")"
+if grep -qE '^EXIST_PASSWORD=.{8,}$' "$TMP/.env.shared"; then _ok "no terminal → a password is generated"
+else _fail "no terminal → a password is generated" "$(grep '^EXIST_PASSWORD=' "$TMP/.env.shared")"; fi
+assert_eq "...and the email stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
 rm -rf "$TMP/ai/mailsvc"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own

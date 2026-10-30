@@ -160,8 +160,9 @@ fresh. → `setup.md`
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
-`validate [conventions|drift]`, `e2e [pattern...]`, and `flow [list|on|off]` (the picker). The
-first bare run asks only for a username and password, then builds Core; the hardware questions
+`validate [conventions|drift]`, `e2e [pattern...]`, and `flow`/`service [list|on|off]` (pickers). The
+first bare run asks one thing, Core (the default) or none; a login is asked when an enabled
+service first uses one; the hardware questions
 (`src/lib/models.sh`) wait for the first enabled service that reserves a GPU. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,
 so adding a check is adding a file. → `setup.md`

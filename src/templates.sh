@@ -253,39 +253,6 @@ render_template() {
         content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
     done
 
-    # EXIST_ASK_PASSWORD — a generated password the user may override.
-    #
-    # Same one-value-per-occurrence shape as EXIST_24_CHAR_PASSWORD, and an empty
-    # answer falls through to exactly that generator, so pressing Enter is the old
-    # behaviour unchanged. What it buys is a password you chose and can remember,
-    # for the one credential that gets typed into a login form on half the stack.
-    #
-    # A typed answer is held to the generator's own alphabet plus '.'. This value
-    # is substituted unquoted into .env files, YAML, JSON and a sed replacement
-    # (see generate_password.sh), so a shell metacharacter here does not fail at
-    # the prompt — it fails much later, in whichever rendered file could not carry
-    # it. Re-ask rather than silently mangle or reject.
-    while grep -q "EXIST_ASK_PASSWORD" <<<"$content"; do
-        local _pw_key _pw_context
-        line_num=$(grep -n "EXIST_ASK_PASSWORD" <<<"$content" | head -1 | cut -d: -f1)
-        _pw_key="$(sed -n "${line_num}p" <<<"$content")"
-        _pw_key="${_pw_key%%=*}"
-        if _prompt_available; then
-            _pw_context="$(_context_above "$line_num" "$content")"
-            printf '\n' >&2
-            if [[ -n "$_pw_context" ]]; then printf '%s\n' "$_pw_context" >&2; fi
-        fi
-        while :; do
-            val="$(_prompt_tty "$_pw_key" 'press Enter to generate')"
-            [[ -n "$val" ]] || break
-            [[ "$val" =~ ^[A-Za-z0-9._-]{8,}$ ]] && break
-            printf '  8+ characters, and only A-Z a-z 0-9 . _ - — anything else\n' >&2
-            printf '  breaks the config files this value is written into.\n' >&2
-        done
-        [[ -n "$val" ]] || val="$(gen_password)"
-        content="$(sed "${line_num}s|EXIST_ASK_PASSWORD|${val}|" <<<"$content")"
-    done
-
     # EXIST_HOST_IP — the LAN address of the machine running the stack.
     #
     # This used to be an EXIST_CLI prompt, which is a question the code can
@@ -391,7 +358,7 @@ _assert_always_render_safe() {
 
     # EXIST_DOMAIN and other plain .env.shared lookups stay allowed; only prompts
     # and generated secrets are rejected.
-    for tok in EXIST_CLI EXIST_ASK_PASSWORD EXIST_24_CHAR_PASSWORD EXIST_32_CHAR_HEX_KEY; do
+    for tok in EXIST_CLI EXIST_24_CHAR_PASSWORD EXIST_32_CHAR_HEX_KEY; do
         if grep -q "$tok" "$src" 2>/dev/null; then
             echo "ERROR: ${dst#"$REPO_DIR/"} is in _ALWAYS_RENDER but its template" >&2
             echo "       ($(basename "$src")) contains ${tok}." >&2
@@ -565,9 +532,8 @@ _reconcile_env_keys() {
         # is appended blank — this repo's established "not yet answered" sentinel
         # — rather than guessed from its DEFAULT, which could contradict
         # something the user set.
-        # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY,
-        # EXIST_ASK_PASSWORD — which generates when it cannot ask) and static
-        # defaults both take the rendered value: a service arriving for the first
+        # Generated secrets (EXIST_24_CHAR_PASSWORD, EXIST_32_CHAR_HEX_KEY)
+        # and static defaults both take the rendered value: a service arriving for the first
         # time should get a fresh credential.
         if [[ "$_tpl_line" == *EXIST_CLI* ]]; then
             _line="${k}="
@@ -752,32 +718,75 @@ _process_templates_in() {
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 }
 
-# EXIST_EMAIL ships blank, meaning "not yet asked": nothing in Core needs one,
-# and every question before the stack is up is a chance to stall. It is asked the
-# first time an enabled service's template uses it, before that service renders,
-# and then filled in — only ever filled in, like EXIST_DOMAIN — so never again.
-# A blank answer leaves it blank and asks next run.
-_ask_email_if_needed() {
-    local f="${REPO_DIR}/.env.shared" svc_dir needs="" val
-    local re='^[^[:space:]|&\\]+@[^[:space:]|&\\]+$'
-    grep -q '^EXIST_EMAIL=$' "$f" 2>/dev/null || return 0
+# EXIST_USERNAME, EXIST_PASSWORD and EXIST_EMAIL ship blank, meaning "not yet
+# asked": nothing has to be answered before something needs it. Each is asked the
+# first time an enabled service uses it, before that service renders, and then
+# filled in — only ever filled in, like EXIST_DOMAIN — so never again. Without a
+# terminal the username is admin and the password generated, because a blank one
+# would be rendered into that service; a blank email stays blank and asks next run.
+#
+# A typed answer is held to the generator's own alphabet: these values are
+# substituted unquoted into .env files, YAML, JSON and a sed replacement, so a
+# shell metacharacter does not fail here, it fails later in whichever file could
+# not carry it. Re-ask rather than silently mangle.
+_ask_if_needed() {
+    local key="$1" f="${REPO_DIR}/.env.shared" svc_dir needs="" val="" hint re why
+    grep -q "^${key}=\$" "$f" 2>/dev/null || return 0
     while IFS= read -r svc_dir; do
         service_is_enabled "$svc_dir" || continue
-        if grep -rqs --include='*.exist*' 'EXIST_EMAIL' "$svc_dir"; then
+        if grep -rqsw --include='*.exist*' --include='exist.*.sh' "$key" "$svc_dir"; then
             needs="${svc_dir#"$REPO_DIR/"}"; break
         fi
     done < <(_find_service_dirs)
-    [[ -n "$needs" ]] && _prompt_available || return 0
+    [[ -n "$needs" ]] || return 0
 
-    printf '\n# %s creates an admin account, and that needs an email.\n' "$needs" >&2
-    while :; do
-        val="$(_prompt_tty EXIST_EMAIL 'you@example.com')"
-        [[ -z "$val" || "$val" =~ $re ]] && break
-        printf '  That does not look like an email address.\n' >&2
-    done
+    case "$key" in
+        EXIST_USERNAME) hint='admin'; re='^[A-Za-z0-9._-]+$'
+            why='Your login name, for it and every admin account the stack creates.' ;;
+        EXIST_PASSWORD) hint='press Enter to generate'; re='^[A-Za-z0-9._-]{8,}$'
+            why='Your password for the same logins. It is never printed.' ;;
+        EXIST_EMAIL)    hint='you@example.com'; re='^[^[:space:]|&\\]+@[^[:space:]|&\\]+$'
+            why='It creates an admin account, and that needs an email.' ;;
+    esac
+    if _prompt_available; then
+        printf '\n# %s: %s\n' "$needs" "$why" >&2
+        while :; do
+            val="$(_prompt_tty "$key" "$hint")"
+            [[ -z "$val" || "$val" =~ $re ]] && break
+            if [[ "$key" == EXIST_EMAIL ]]; then
+                printf '  That does not look like an email address.\n' >&2
+            else
+                printf '  Only A-Z a-z 0-9 . _ -%s: anything else breaks the files it is written into.\n' \
+                    "$([[ "$key" == EXIST_PASSWORD ]] && echo ', 8 or more')" >&2
+            fi
+        done
+    fi
+    case "$key" in
+        EXIST_USERNAME) val="${val:-admin}" ;;
+        EXIST_PASSWORD) val="${val:-$(gen_password)}" ;;
+    esac
     [[ -n "$val" ]] || return 0
-    sed -i "s|^EXIST_EMAIL=$|EXIST_EMAIL=${val}|" "$f"
+    sed -i "s|^${key}=\$|${key}=${val}|" "$f"
     _reload_env_shared
+}
+
+# The first run's one choice: Core, which is what .env.exist.shared ships on, or
+# nothing, for an install that turns on its own with `./existential.sh service`.
+# Enter, Esc and no terminal all mean Core.
+_ask_core_or_none() {
+    local pick=""
+    _prompt_available || return 0
+    if command -v fzf >/dev/null 2>&1; then
+        pick="$(printf 'core\tCore: workspace, automation and notifications (recommended)\nnone\tNothing yet: turn services on with ./existential.sh service\n' \
+            | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info --height=6 \
+                --header='  What should this install start with?   Enter confirms' | cut -f1)" || true
+    else
+        pick="$(_prompt_tty 'Start with' 'core/none')"
+    fi
+    [[ "$pick" == [Nn]one ]] || return 0
+    sed -i 's/^\(EXIST_IS_[A-Z0-9_]*\)=true$/\1=false/' "${REPO_DIR}/.env.shared"
+    _reload_env_shared
+    echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -796,9 +805,11 @@ _main() {
         # service_is_enabled below, and the service it enables would be skipped
         # for one whole run.
         if [[ "$_rc" == 0 || "$_STATS_KEYS_ADDED" -gt 0 ]]; then _reload_env_shared; fi
+        if [[ "$_rc" == 0 ]]; then _ask_core_or_none; fi
     fi
     _load_env_shared
-    _ask_email_if_needed
+    local key
+    for key in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do _ask_if_needed "$key"; done
 
     while IFS= read -r svc_dir; do
         if service_is_enabled "$svc_dir"; then
