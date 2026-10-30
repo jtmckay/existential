@@ -45,7 +45,7 @@ adhoc_detect_runtime() {
         podman info 2>/dev/null | grep -q 'rootless: true' && ROOTLESS_PODMAN=true
     elif docker --version &>/dev/null 2>&1; then
         DOCKER_CMD=docker
-        if docker info 2>&1 | grep -q 'permission denied'; then
+        if [[ "$(docker info 2>&1)" == *"permission denied"* ]]; then
             echo "Error: $(id -un) cannot reach the Docker daemon. Run:" >&2
             echo "  sudo usermod -aG docker \"\$USER\" && newgrp docker" >&2
             exit 1
