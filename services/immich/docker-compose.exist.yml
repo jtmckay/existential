@@ -50,7 +50,7 @@ services:
       # The photo library. Upstream mounts a raw host path from ${UPLOAD_LOCATION};
       # here it is a declared volume like every other service's storage, so
       # generate-compose.ts creates the directory, `x-exist-volumes` decides
-      # whether it lands on the NFS host mount, and automation-backup — which
+      # whether it lands on the NAS, and automation-backup — which
       # mounts volumes/ wholesale — can actually see it. Under the old raw-path
       # form it could not, which meant the most valuable data in the stack was
       # the only data no backup routine could reach.
@@ -206,9 +206,9 @@ services:
 
 x-exist-volumes:
   immich_model_cache: {}
-  # The photo library: bulk user data, so it may live on the NFS host mount when
-  # EXIST_NFS_HOST_MOUNT is set. That is the sanctioned way to put it on the NAS
-  # — it replaces the old "point UPLOAD_LOCATION at /mnt/nfs/..." instruction.
+  # The photo library: bulk user data, so it may live on the NAS
+  # (EXIST_NFS_PATH_IMMICH_DATA) — it replaces the old "point UPLOAD_LOCATION at
+  # /mnt/nfs/..." instruction.
   immich_data: { nfs: true }
   # Postgres. NEVER nfs — immich upstream does not support a network share for
   # the database, and `db: true` together with `nfs: true` is a hard error in

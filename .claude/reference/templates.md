@@ -27,8 +27,10 @@ to; the first run's one question is Core or none (`_ask_core_or_none`). `EXIST_U
 `EXIST_PASSWORD` and `EXIST_EMAIL` ship blank and `_ask_if_needed` asks each once, the first run an
 enabled service uses it (without a terminal: `admin`, a generated password, blank). A typed login
 is held to `A-Za-z0-9._-` (a password to 8+), because it is substituted unquoted into `.env`, YAML,
-JSON and a sed replacement; the NFS trio ships blank and
-belongs to the storage docs. Before adding an `EXIST_CLI`, check whether detection or a flow
+JSON and a sed replacement. `EXIST_NFS_ADDRESS` ships blank and `_ask_nas_if_needed` asks it
+the first run an enabled service has an `nfs: true` volume (Enter is `none`), then appends an
+`EXIST_NFS_PATH_<VOLUME>` per such volume, so a key appears only once it is answered
+(→ `volumes.md`). Before adding an `EXIST_CLI`, check whether detection or a flow
 can carry it instead — or whether, like `EXIST_PASSWORD`, the machine can answer it and the prompt
 is only there to let a human override.
 

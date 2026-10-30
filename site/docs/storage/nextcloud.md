@@ -22,6 +22,25 @@ nothing to enable separately. See [Cache](#cache) below.
 - `overwritehost`, `overwriteprotocol`, `overwrite.cli.url` and `trusted_proxies` are read from the
   environment on every request, so they follow `EXIST_DOMAIN` too.
 
+## On a NAS
+
+`nextcloud_data`, `nextcloud_config_data`, `nextcloud_custom_apps_data` and
+`nextcloud_themes_data` can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); the
+database never does. `nextcloud_data` holds Nextcloud's own layout (`<user>/files/`,
+`appdata_*`, `nextcloud.log`), so give `EXIST_NFS_PATH_NEXTCLOUD_DATA` an empty folder, never a
+share of files you already have: Nextcloud would not index them, and its own files would land
+among them.
+
+To see a share of existing files in Nextcloud, add it as External storage (the app is already
+on). Nextcloud has no NFS backend, so use the share's SMB side: **Administration settings →
+External storage**, backend **SMB/CIFS**, host the NAS, the share's name and a login. From the
+host:
+
+```bash
+docker exec nextcloud php /var/www/html/occ files_external:create /Photos smb password::password \
+    -c host=<nas-address> -c share=<share> -c user=<user> -c password=<password>
+```
+
 ## Cache
 
 `nextcloud-redis` (`redis:8.10.1-alpine3.23`, licensed
@@ -138,11 +157,9 @@ start. To update, bump the image tag in `docker-compose.exist.yml`.
 
 ### Restart order
 
-Only when `nextcloud_data` is on NFS (`EXIST_NFS_HOST_MOUNT` set):
-
-1. The NAS export
-2. Nextcloud
-3. Everything else
+Only when `nextcloud_data` is on the NAS: the NAS first, then Nextcloud. Compose mounts the
+export when the container starts, so a NAS that is down stops Nextcloud from starting; start it
+again once the NAS is up.
 
 ## Debugging
 

@@ -5,10 +5,10 @@
 # generate-compose.ts via tsx against them, and asserts the merged
 # docker-compose.yml / master .env. Covers service discovery, relative-path
 # adjustment, materialisation of every declared volume into a host bind mount,
-# placement from the service's `x-exist-volumes` block (`nfs: true` binding to
-# the host mount when one is set, everything else staying local), the hard error
-# when a mounted volume is undeclared, the hard error when an NFS server is set
-# without a host mount, the network mode, the empty case, and archiving.
+# placement from the service's `x-exist-volumes` block (`nfs: true` mounted from
+# the NAS by Compose when it has a path, everything else staying local), the hard
+# error when a mounted volume is undeclared or a NAS path is missing, the network
+# mode, the empty case, and archiving.
 #
 # Needs tsx + js-yaml — only present inside existential-adhoc. Skips cleanly
 # elsewhere. Read-only re: the real repo. Invoked by ./existential.sh test.
@@ -69,9 +69,9 @@ compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
 assert_contains "merged service present" "foo:" "$compose"
 assert_contains "relative bind rewritten under service dir" "./services/foo/data:/data" "$compose"
 assert_contains "absolute path left unchanged" "/abs/host:/abs" "$compose"
-# Named & NFS volumes both materialise as local host bind mounts (no host mount set).
+# Named & NFS volumes both materialise as local host bind mounts (no NAS address set).
 assert_contains "named volume materialised as local bind" "/host/realrepo/volumes/named_vol:/cache" "$compose"
-assert_contains "nfs volume materialised as local bind (no host mount)" "/host/realrepo/volumes/foo_nfs:/srv" "$compose"
+assert_contains "nfs volume materialised as local bind (no NAS)" "/host/realrepo/volumes/foo_nfs:/srv" "$compose"
 assert_not_contains "no x-exist-volumes block survives" "x-exist-volumes" "$compose"
 assert_not_contains "no volume spec keys survive" "nfs: true" "$compose"
 # Top-level volumes section is dropped entirely (no Docker-managed volumes).
@@ -85,15 +85,66 @@ assert_dir "local bind dir created for nfs volume" "$repo/volumes/foo_nfs"
 envout="$(cat "$repo/.env" 2>/dev/null || true)"
 assert_contains "master .env carries the do-not-edit header" "DO NOT EDIT" "$envout"
 
-# ── NFS volume binds to the host mount when one is configured ──────────────────
+# ── NFS volumes: Compose mounts the export ────────────────────────────────────
+# A path → a top-level local volume with NFS driver_opts, mounted nocopy; `local`
+# → a bind like any other; a missing path → a hard error naming the key.
 
-repo="$(new_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_HOST_MOUNT=/mnt/nas\n' > "$repo/.env.shared"
-tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+nas_repo() {
+    local d; d="$(mktemp -d "$TMP/repo.XXXXXX")"
+    mkdir -p "$d/services/foo"
+    cat > "$d/services/foo/docker-compose.yml" <<'YAML'
+services:
+  foo:
+    image: foo:1
+    volumes:
+      - foo_files_data:/files:Z
+      - foo_themes_data:/themes
+      - foo_sql_data:/sql
+x-exist-volumes:
+  foo_files_data: { nfs: true }
+  foo_themes_data: { nfs: true }
+  foo_sql_data: { db: true }
+YAML
+    echo "$d"
+}
+
+repo="$(nas_repo)"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_FILES_DATA=/tank/cloud\nEXIST_NFS_PATH_FOO_THEMES_DATA=local\n' > "$repo/.env.shared"
+err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || true
 compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
-assert_contains "nfs volume binds to host mount" "/mnt/nas/foo_nfs:/srv" "$compose"
-assert_contains "non-nfs volume still binds locally" "/host/realrepo/volumes/named_vol:/cache" "$compose"
-assert_not_contains "no Docker-managed volumes remain" "type: nfs" "$compose"
+nas="$(sed -n '/^volumes:/,$p' <<<"$compose")"
+assert_contains "nas volume is a top-level volume" "foo_files_data:" "$nas"
+assert_contains "nas volume is type nfs" "type: nfs" "$nas"
+assert_contains "nas volume names the address" "addr=10.0.0.5,rw,nfsvers=4" "$nas"
+assert_contains "nas volume names its folder" "device: ':/tank/cloud'" "$nas"
+assert_contains "nas volume is mounted nocopy, bind options dropped" "foo_files_data:/files:nocopy" "$compose"
+assert_contains "local answer stays a bind" "/host/realrepo/volumes/foo_themes_data:/themes" "$compose"
+assert_not_contains "local answer is not a top-level volume" "foo_themes_data:" "$nas"
+assert_contains "db volume stays a bind" "/host/realrepo/volumes/foo_sql_data:/sql" "$compose"
+assert_contains "prints what the NAS mounts" "foo_files_data → /tank/cloud" "$err"
+assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
+assert_no_dir "no local dir for a nas volume" "$repo/volumes/foo_files_data"
+
+# An old install's host-mount key is ignored, never an error (built so the
+# retired name never appears in the repo).
+old_key="EXIST_NFS_HOST""_MOUNT"
+for addr in none ''; do
+    repo="$(nas_repo)"
+    printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=%s\n%s=/mnt/nas\n' "$addr" "$old_key" > "$repo/.env.shared"
+    tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+    compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
+    if grep -q '^volumes:' <<<"$compose"; then _fail "address '${addr}': no top-level volumes block"
+    else _ok "address '${addr}': no top-level volumes block"; fi
+    assert_contains "address '${addr}': nfs volume binds locally" "/host/realrepo/volumes/foo_files_data:/files" "$compose"
+done
+
+repo="$(nas_repo)"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_THEMES_DATA=local\n' > "$repo/.env.shared"
+rc=0
+err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || rc=$?
+[[ "$rc" -ne 0 ]] && _ok "missing nas path exits non-zero" || _fail "missing nas path exits non-zero" "exit was 0"
+assert_contains "missing nas path names the key" "EXIST_NFS_PATH_FOO_FILES_DATA" "$err"
+assert_no_file "no compose written for a missing nas path" "$repo/docker-compose.yml"
 
 # ── The exist network is always Compose's own ─────────────────────────────────
 
@@ -189,7 +240,6 @@ assert_dir "dot-leading bind source is treated as a directory" "$repo/services/b
 
 # A source with a real file extension is a FILE mount. Creating a directory
 # there would hand the container an empty dir instead of the config.
-assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
 assert_no_dir "file-extension bind source is not created as a directory" "$repo/services/bar/bar-config.yml"
 
 # .env is dot-leading like .venv but always a file: a directory fails `up`.

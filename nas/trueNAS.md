@@ -52,10 +52,8 @@ Select all the drives you want. I did mirror, for full redundancy.
   - Add SHORT `(0 0 * * *)`
   - Add LONG `(0 1 1 * *)`
 
-### Mount on docker host
+### Folders for the stack
 
-In order for the docker host/containers to write to the TrueNAS share, you MUST update the access. Ensure Maproot User, and Maproot group are set to root.
-
-#### Helpful manual mount to explore TrueNAS data
-
-`sudo mount -t nfs -o rw,nolock localhost:/path/in/nas /mnt/test`
+Make a folder in the dataset for each volume the stack will put there, owned by the docker
+host user's uid:gid (`id -u`, `id -g` there). The stack mounts them itself and asks for each
+path: see the Storage docs (https://existential.company/storage/#a-nas-for-the-bulk-files).

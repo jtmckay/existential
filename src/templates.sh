@@ -675,10 +675,9 @@ _process_one_template() {
         # compose file here.
         printf '%s\n' "$rendered" > "$dst"
         _secure_rendered "$dst"
-        # Every volume becomes a host bind mount in generate-compose.ts
-        # from each service's x-exist-volumes block: ${EXIST_NFS_HOST_MOUNT}/<name> for nfs-marked
-        # volumes when a host mount is set, else volumes/<name>/. The top-level
-        # volumes: block here is just the declaration source it reads.
+        # generate-compose.ts places every volume from each service's
+        # x-exist-volumes block: an NFS volume Compose mounts from the NAS when
+        # it has an EXIST_NFS_PATH_<VOLUME>, else a bind under volumes/<name>/.
     fi
 
     if [[ "$_always" == "true" ]]; then
@@ -789,6 +788,60 @@ _ask_core_or_none() {
     echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2
 }
 
+# _nas_volumes — "<service>\t<volume>" for each `nfs: true` volume an enabled
+# service declares in its x-exist-volumes block. A db: true one never qualifies.
+_nas_volumes() {
+    local svc_dir
+    while IFS= read -r svc_dir; do
+        service_is_enabled "$svc_dir" || continue
+        awk -v svc="${svc_dir#"$REPO_DIR/"}" '
+            /^x-exist-volumes:/ { s = 1; next }
+            /^[^ #]/            { s = 0 }
+            s && /nfs: *true/ && !/db: *true/ { n = $1; sub(/:$/, "", n); print svc "\t" n }
+        ' "${svc_dir}/docker-compose.exist.yml" 2>/dev/null
+    done < <(_find_service_dirs)
+}
+
+# The NAS questions, asked only when an enabled service has a NAS volume.
+# EXIST_NFS_ADDRESS once (Enter is none), then EXIST_NFS_PATH_<VOLUME> for each
+# volume that has none, appended to .env.shared. Nothing is created on the NAS;
+# without a terminal nothing is asked and generate-compose.ts names what is missing.
+_ask_nas_if_needed() {
+    local f="${REPO_DIR}/.env.shared" vols svc vol key val hint last
+    vols="$(_nas_volumes)"
+    [[ -n "$vols" ]] || return 0
+    if [[ -z "${EXIST_NFS_ADDRESS:-}" ]]; then
+        _prompt_available || return 0
+        printf '\n# %s: bulk files can live on a NAS over NFS. Its address, or Enter for none.\n' "${vols%%$'\t'*}" >&2
+        val="$(_prompt_tty EXIST_NFS_ADDRESS none)"
+        val="${val//[[:space:]]/}"
+        if grep -q '^EXIST_NFS_ADDRESS=' "$f"; then
+            sed -i "s|^EXIST_NFS_ADDRESS=.*|EXIST_NFS_ADDRESS=${val:-none}|" "$f"
+        else
+            printf 'EXIST_NFS_ADDRESS=%s\n' "${val:-none}" >> "$f"
+        fi
+        _reload_env_shared
+    fi
+    [[ "$EXIST_NFS_ADDRESS" != none ]] || return 0
+    while IFS=$'\t' read -r svc vol <&3; do
+        key="EXIST_NFS_PATH_$(printf '%s' "$vol" | tr 'a-z-' 'A-Z_')"
+        grep -q "^${key}=." "$f" && continue
+        _prompt_available || return 0
+        last="$(sed -n 's/^EXIST_NFS_PATH_[A-Z0-9_]*=\(\/.*\)/\1/p' "$f" | tail -1)"
+        hint="${last%/*}/${vol}"
+        printf '\n# %s: %s — its folder on %s, made by you and owned by %s:%s, or local.\n' \
+            "$svc" "$vol" "$EXIST_NFS_ADDRESS" "${EXIST_PUID:-1000}" "${EXIST_PGID:-1000}" >&2
+        while :; do
+            val="$(_prompt_tty "$key" "$hint")"; val="${val:-$hint}"
+            [[ "$val" == local || "$val" =~ ^/[^[:space:]\|]*$ ]] && break
+            printf '  A path on the export starting with /, or local.\n' >&2
+        done
+        [[ -z "$(tail -c1 "$f")" ]] || echo >> "$f"
+        printf '# %s: %s on the NAS export, or local for <repo>/volumes/.\n%s=%s\n' "$svc" "$vol" "$key" "$val" >> "$f"
+    done 3<<<"$vols"
+    _reload_env_shared
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 # Guarded so the file can be sourced (e.g. by src/test/unit/test-templates.sh) to load
 # the functions without rendering anything. Runs only when executed directly.
@@ -810,6 +863,7 @@ _main() {
     _load_env_shared
     local key
     for key in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do _ask_if_needed "$key"; done
+    _ask_nas_if_needed
 
     while IFS= read -r svc_dir; do
         if service_is_enabled "$svc_dir"; then

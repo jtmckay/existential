@@ -1,14 +1,26 @@
 # Volumes
 
 **We never use Docker-managed volumes** — they're opaque and re-init from the image (wrong UID
-on NFS). Every volume is a **host bind mount**: visible, inspectable, correctly-owned.
+on NFS). Every volume is a **host bind mount**: visible, inspectable, correctly-owned. The one
+exception is a NAS folder (below), which Compose mounts over NFS from a top-level volume.
 
 A template refers to a volume by **bare name** and declares it in `x-exist-volumes` (below);
 `generate-compose.ts` materialises that into an absolute host path. A bare name may carry a
 **subpath** into the volume (`hermes_install_cache/.venv`) — for images that need several
 sibling directories mounted into a tree they also populate themselves. The **generated**
-`docker-compose.yml` therefore contains no bare names and no top-level `volumes:` block, so
-`docker volume ls` stays empty; `validate conventions` enforces that on the generated file.
+`docker-compose.yml` therefore has bare names and a top-level `volumes:` block only for the
+NAS ones; `validate conventions` enforces that on the generated file.
+
+## On the NAS
+
+`EXIST_NFS_ADDRESS` (blank = not yet asked, `none` = no NAS) and one `EXIST_NFS_PATH_<VOLUME>` per
+`nfs: true` volume of an enabled service, both in `.env.shared` and asked by `_ask_nas_if_needed`
+in `src/templates.sh`. A path becomes a top-level `local` volume with NFS `driver_opts`
+(`addr=<address>,rw,nfsvers=4`, `device: ":<path>"`), mounted `nocopy`; a subpath into it is an
+error. `local` keeps it in `volumes/`. A missing path with an address is a hard error naming the
+key. **Nothing in the stack creates, chowns or writes a folder on the NAS** — the person makes
+each, and a missing one stops the container instead of quietly becoming a local directory.
+Nothing on the host mounts the export, and `automation-backup` does not see a NAS volume.
 
 A relative bind source is for **tracked config only** — a mounted config file, or a directory of
 them (`./hooks/`, `./provisioning/`). It is normalised (`../../<dir>` → `./<dir>`, prepending the
@@ -47,7 +59,7 @@ x-exist-volumes:
 
 | Property | Default | Meaning |
 |---|---|---|
-| `nfs`    | `false` | May live on the NAS export. When `EXIST_NFS_HOST_MOUNT` is set, `generate-compose.ts` resolves the source to `<mount>/<name>`; otherwise it stays in `volumes/`. |
+| `nfs`    | `false` | May live on the NAS. With `EXIST_NFS_ADDRESS` set and a path in `EXIST_NFS_PATH_<VOLUME>`, `generate-compose.ts` makes it a top-level `local` volume with NFS `driver_opts`, mounted `nocopy`; with `local`, no address or `none`, it stays in `volumes/`. |
 | `db`     | `false` | Holds an embedded or managed database (SQLite WAL, bbolt, a TSDB, a postgres/mysql/mongo data dir). NFS corrupts these — `validate conventions` rejects `db: true` together with `nfs: true`. |
 | `backup` | `false` | `decree-backup` archives it into `<name>_backup`. |
 

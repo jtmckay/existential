@@ -11,8 +11,8 @@
  *   5. Every dashy item points at a slug that has a piHole record.
  *   6. Every key in a service's .env.exist starts with <SLUG>_.
  *   7. Every key in .env.exist.shared starts with EXIST_, no legacy prefixes.
- *   8. The master docker-compose.yml uses only host bind mounts — no top-level `volumes:`
- *      section and no bare named-volume references (`docker volume ls` stays empty).
+ *   8. The master docker-compose.yml uses only host bind mounts, except NAS folders: a
+ *      top-level volume must be NFS, and a bare name must be one of those.
  *  9. No service hardcodes a numeric uid/gid (`user:` or a *UID/*GID env) — all run as
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  * 12. Every Caddy slug must equal the backendContainer name, or start with
@@ -263,12 +263,9 @@ function checkTopLevelEnvKeys(): string[] {
   return errors;
 }
 
-// The generated master compose must use only host bind mounts. Service templates
-// declare volumes directly as bind paths in one of three tiers — nfs-declared user data
-// (a bare name declared in x-exist-volumes, materialised under volumes/) — so there's no
-// top-level `volumes:` section and `docker volume ls` stays empty. This is the opposite
-// of that guarantee — it trips if a Docker-managed (named) volume survives into the
-// generated compose.
+// The generated master compose uses only host bind mounts, except the NAS folders
+// generate-compose.ts makes top-level NFS volumes (EXIST_NFS_PATH_<VOLUME>). This trips
+// if any other Docker-managed (named) volume survives into the generated compose.
 function checkBindMounts(): string[] {
   const errors: string[] = [];
   if (!fs.existsSync(MASTER_COMPOSE)) return errors;
@@ -280,11 +277,13 @@ function checkBindMounts(): string[] {
     return [`docker-compose.yml: failed to parse — ${e}`];
   }
 
-  const topVolumes = Object.keys((data['volumes'] ?? {}) as Record<string, unknown>);
-  if (topVolumes.length) {
+  const topVolumes = (data['volumes'] ?? {}) as Record<string, { driver_opts?: { type?: string } } | null>;
+  const nfs = Object.keys(topVolumes).filter(name => topVolumes[name]?.driver_opts?.type === 'nfs');
+  const other = Object.keys(topVolumes).filter(name => !nfs.includes(name));
+  if (other.length) {
     errors.push(
-      `docker-compose.yml: top-level \`volumes:\` must be empty — every volume is a host ` +
-      `bind mount (found: ${topVolumes.join(', ')})`,
+      `docker-compose.yml: top-level \`volumes:\` holds only NAS (NFS) volumes — every other ` +
+      `volume is a host bind mount (found: ${other.join(', ')})`,
     );
   }
 
@@ -299,7 +298,7 @@ function checkBindMounts(): string[] {
       // separator is a Docker-managed named volume — forbidden.
       const isBareNamed = src.length > 0 && !src.startsWith('/') &&
         !src.startsWith('.') && !src.startsWith('$') && !src.includes('/');
-      if (isBareNamed) {
+      if (isBareNamed && !nfs.includes(src)) {
         errors.push(
           `docker-compose.yml: service '${svcName}' mounts named volume '${src}' — must be a ` +
           `host bind mount (/…, ./… or \${…})`,

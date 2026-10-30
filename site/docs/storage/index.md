@@ -22,22 +22,38 @@ Use what you need. For example, Google Drive for files instead of TrueNAS and Ne
 
 ## A NAS for the bulk files
 
-Data lives under `<repo>/volumes/<name>`. With a NAS, only volumes marked `nfs: true` (bulk
-files: Nextcloud, media) move to it. Databases stay on local disk: NFS breaks their locking. Any
-NFS NAS works.
+Data lives under `<repo>/volumes/<name>`. With a NAS, the volumes marked `nfs: true` (bulk
+files: Nextcloud, photos, media) can live on it instead. Databases never do: NFS breaks their
+locking. Any NFS NAS works, and Docker Compose mounts the export itself, so there is nothing to
+set up on this host.
 
-1. On the NAS, create an NFS export and note its address and path. The per-volume
-   subdirectories are made for you once it is mounted.
-2. Mount it on **this host**; Docker never mounts NFS itself:
-   ```bash
-   sudo mkdir -p /mnt/nas
-   sudo mount -t nfs <nas-ip>:<base-path> /mnt/nas
-   ```
-   and keep it across reboots with an `/etc/fstab` line (or autofs):
-   `<nas-ip>:<base-path>  /mnt/nas  nfs  rw,soft,nfsvers=4  0  0`
-3. In `.env.shared`, set `EXIST_NFS_HOST_MOUNT=/mnt/nas`.
-4. Re-render so the compose file binds those volumes to the mount:
-   `./existential.sh reset && ./existential.sh`. Reset archives every rendered file to
-   `archive/<timestamp>/` first, `.env` files included, and never touches your volumes.
+1. On the NAS, export a share over NFS to this host, and make a folder on it for each volume,
+   owned by `EXIST_PUID:EXIST_PGID` (your user's uid:gid; `id -u`, `id -g`). Nothing in the
+   stack creates or changes anything on the NAS.
+2. Run `./existential.sh`. The first run with a NAS volume enabled asks for the NAS address
+   (`EXIST_NFS_ADDRESS`; Enter is `none`, which keeps everything local and is not asked again),
+   then for each volume's folder on the export (`EXIST_NFS_PATH_<VOLUME>`, e.g.
+   `EXIST_NFS_PATH_NEXTCLOUD_DATA`). `local` keeps that one volume under `<repo>/volumes/`.
+   Each answer is written to `.env.shared` and never asked again; turning on another service
+   asks for its volumes, and setting the address later asks for every enabled one.
+3. `./existential.sh` prints the address and the folders the stack will mount. Then
+   `docker compose up -d`.
 
-Leave `EXIST_NFS_HOST_MOUNT` blank and everything stays under `<repo>/volumes/`.
+Without a terminal nothing is asked, and a run with an address but a missing path stops and
+names the key to set. A folder that is missing or unreachable stops the container that mounts
+it; it is never replaced by a local directory.
+
+### Changing a path
+
+Edit its `EXIST_NFS_PATH_<VOLUME>` in `.env.shared` and run `./existential.sh`. Compose refuses
+to reuse an NFS volume whose definition changed, so remove the old definition and recreate:
+
+```bash
+docker compose down <service>
+docker volume rm <repo-folder>_<volume>   # the definition only; the data on the NAS is untouched
+docker compose up -d
+```
+
+`docker volume ls` shows the volume's full name.
+
+Moving data between folders, or from `<repo>/volumes/` to the NAS, is yours to do.

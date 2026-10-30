@@ -79,7 +79,11 @@ interface VolumeContext {
   servicePrefix: string;
   volumeSpec: Record<string, VolumeSpec>;
   hostRepoRoot: string;
-  nfsHostMount: string;
+  /** EXIST_NFS_ADDRESS, '' when there is no NAS. */
+  nfsAddress: string;
+  env: Record<string, string>;
+  /** Filled in as volumes are placed: NAS volume name → its folder on the export. */
+  nfsPaths: Record<string, string>;
   repoRoot: string;
   /** EXIST_GPU_VENDOR — nvidia leaves templates alone; amd/none rewrite them. */
   gpuVendor: string;
@@ -96,7 +100,8 @@ interface VolumeContext {
  *       ollama_cache:       {}                  # regenerable, local
  *
  * `nfs: true` is the only thing that moves a volume off local disk, and only
- * when EXIST_NFS_HOST_MOUNT is set. `db: true` records that the volume holds an
+ * when EXIST_NFS_ADDRESS is an address and EXIST_NFS_PATH_<NAME> is a path on
+ * its export (not `local`). `db: true` records that the volume holds an
  * embedded database (SQLite/bbolt/TSDB/postgres data dir), which NFS corrupts —
  * validate conventions rejects `nfs: true` alongside it.
  */
@@ -261,24 +266,36 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
       process.exit(1);
     }
 
-    let hostPath: string;
-    if (spec.nfs && ctx.nfsHostMount) {
-      // Lives on the NAS export, which the host mounts (fstab/autofs). Create the
-      // per-volume directory inside it so Docker never root-creates one — but
-      // only when the mountpoint itself is present. Creating it while the export
-      // is unmounted would quietly write to the empty local mountpoint, and the
-      // data would vanish the moment it mounted.
-      hostPath = sub ? `${ctx.nfsHostMount}/${name}/${sub}` : `${ctx.nfsHostMount}/${name}`;
-      if (fs.existsSync(ctx.nfsHostMount)) {
-        mkdirOwned(hostPath);
+    // On the NAS: a named volume Compose mounts over NFS itself (see merge). The
+    // folder is the person's, made by them; nothing here creates or checks it, so
+    // a missing one stops the container instead of becoming a local directory.
+    if (spec.nfs && !spec.db && ctx.nfsAddress) {
+      const key = `EXIST_NFS_PATH_${name.toUpperCase().replace(/-/g, '_')}`;
+      const nasPath = (ctx.env[key] ?? '').trim();
+      if (!nasPath) {
+        process.stderr.write(
+          `ERROR: ${ctx.servicePrefix} mounts '${name}' from the NAS (EXIST_NFS_ADDRESS=${ctx.nfsAddress}),\n` +
+          `  but ${key} is not set. In .env.shared, set it to the folder on the export,\n` +
+          `  or to 'local' to keep it under volumes/. Run ./existential.sh in a terminal to be asked.\n`,
+        );
+        process.exit(1);
       }
-    } else {
-      hostPath = sub
-        ? `${ctx.hostRepoRoot}/volumes/${name}/${sub}`
-        : `${ctx.hostRepoRoot}/volumes/${name}`;
-      mkdirOwned(path.join(ctx.repoRoot, 'volumes', name, sub));
+      if (nasPath !== 'local') {
+        if (sub) {
+          process.stderr.write(`ERROR: ${ctx.servicePrefix} mounts a subpath of NAS volume '${name}'; mount the whole volume.\n`);
+          process.exit(1);
+        }
+        ctx.nfsPaths[name] = nasPath;
+        // SELinux relabels are bind options; nocopy keeps the image's files off the NAS.
+        const opts = parts.slice(2).join(',').split(',').filter(o => o === 'ro');
+        return [name, parts[1], [...opts, 'nocopy'].join(',')].join(':');
+      }
     }
-    parts[0] = hostPath;
+
+    parts[0] = sub
+      ? `${ctx.hostRepoRoot}/volumes/${name}/${sub}`
+      : `${ctx.hostRepoRoot}/volumes/${name}`;
+    mkdirOwned(path.join(ctx.repoRoot, 'volumes', name, sub));
     return parts.join(':');
   }
 
@@ -514,9 +531,12 @@ function merge(
   repoRoot: string,
   hostRepoRoot: string,
   enabled: string[],
-  nfsHostMount: string,
+  env: Record<string, string>,
   gpuVendor = 'nvidia',
 ): Record<string, unknown> {
+  const address = (env['EXIST_NFS_ADDRESS'] ?? '').trim();
+  const nfsAddress = address === 'none' ? '' : address;
+  const nfsPaths: Record<string, string> = {};
   // First pass: collect every enabled service's x-exist-volumes declarations.
   // Volumes are shared across services by name (decree-backup mounts the same
   // dir as the app it archives), so the spec is merged repo-wide, first wins.
@@ -542,7 +562,7 @@ function merge(
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
-    const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsHostMount, repoRoot, gpuVendor };
+    const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsAddress, env, nfsPaths, repoRoot, gpuVendor };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
       services[name] = adjustServicePaths(svc ?? {}, ctx);
@@ -558,8 +578,19 @@ function merge(
 
   const result: Record<string, unknown> = {};
   if (Object.keys(services).length) result['services'] = services;
-  // Never emit a top-level volumes: block — all volumes are host bind mounts.
   result['networks'] = networks;
+  // The only top-level volumes are NAS folders; every other volume is a bind.
+  const names = Object.keys(nfsPaths);
+  if (names.length) {
+    result['volumes'] = Object.fromEntries(names.map(name => [name, {
+      driver: 'local',
+      driver_opts: { type: 'nfs', o: `addr=${nfsAddress},rw,nfsvers=4`, device: `:${nfsPaths[name]}` },
+    }]));
+    process.stderr.write(
+      `NAS ${nfsAddress} — each folder must exist, owned by ${env['EXIST_PUID'] || 1000}:${env['EXIST_PGID'] || 1000}:\n` +
+      names.map(name => `  ${name} → ${nfsPaths[name]}\n`).join(''),
+    );
+  }
   return result;
 }
 
@@ -591,13 +622,11 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
 
 // ── Volumes ──────────────────────────────────────────────────────────────────
 //
-// We never use Docker-managed (opaque) volumes. Every volume becomes a host bind
-// mount. Named volumes and NFS volumes declared in a top-level `volumes:` block are
-// materialised by adjustVolume:
-//   • non-NFS named volume:  → <hostRepoRoot>/volumes/<name>  (dir created locally)
-//   • NFS named volume + no host mount: same local fallback
-//   • NFS named volume + EXIST_NFS_HOST_MOUNT set: → <hostMount>/<name>
-// The top-level `volumes:` block is never emitted in the output.
+// We never use Docker-managed (opaque) volumes. adjustVolume places each named
+// volume by its x-exist-volumes declaration:
+//   • nfs: true + EXIST_NFS_ADDRESS + a path in EXIST_NFS_PATH_<NAME>:
+//       a top-level `local` volume with NFS driver_opts — Compose mounts the export
+//   • everything else: → <hostRepoRoot>/volumes/<name>  (dir created locally)
 
 // ── Archive rotation ───────────────────────────────────────────────────────────
 
@@ -671,8 +700,6 @@ function main(): void {
 
   process.stderr.write(`Enabled (${enabled.length}): ${enabled.join(', ')}\n`);
 
-  const nfsHostMount = (env['EXIST_NFS_HOST_MOUNT'] ?? '').trim();
-
   const gpuVendor = resolveGpuVendor(env);
   if (gpuVendor !== 'nvidia') {
     process.stderr.write(
@@ -681,7 +708,7 @@ function main(): void {
     );
   }
 
-  const merged = merge(repoRoot, hostRepoRoot, enabled, nfsHostMount, gpuVendor);
+  const merged = merge(repoRoot, hostRepoRoot, enabled, env, gpuVendor);
 
   mergeEnv(repoRoot, enabled);
 

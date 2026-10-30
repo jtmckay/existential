@@ -55,8 +55,9 @@ version on an existing install (a fresh install has no such constraint).
 
 **Storage is declared like every other service.** The photo library is the `immich_data`
 volume and the Postgres data directory is `immich_pg_data`, both in the compose file's
-`x-exist-volumes` block, both under `volumes/`. To put the library on your NAS, set
-`EXIST_NFS_HOST_MOUNT` — `immich_data` is marked `nfs: true`, so that is all it takes.
+`x-exist-volumes` block, both under `volumes/`. `immich_data` is marked `nfs: true`, so with a NAS
+([Storage](../storage/#a-nas-for-the-bulk-files)) turning Immich on asks for its folder there
+(`EXIST_NFS_PATH_IMMICH_DATA`), and Compose mounts it.
 `immich_pg_data` is marked `db: true`, which keeps it off NFS; Immich upstream does not support
 a network share for the database, and marking a volume both `db` and `nfs` is a hard error in
 `./existential.sh validate conventions` rather than a comment nobody reads.
@@ -74,11 +75,10 @@ repo.
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
 `immich-volume-backup-{nightly,weekly}.md` from `services/automation-backup/cron.example/`
-into `cron/` and restart `automation-backup`. Both now reach the real data: `automation-backup`
-mounts `volumes/` wholesale, and that is where both volumes live — including when the library
-is on the NFS host mount. Under the old raw-path layout the volume backup could not see the
-library at all, which meant the most valuable data in the stack was the only data no backup
-routine could reach.
+into `cron/` and restart `automation-backup`. Both reach the data because `automation-backup`
+mounts `volumes/` wholesale, and that is where both volumes live. A library on the NAS is not
+under `volumes/`: the volume backup skips it, and the NAS's own snapshots or replication are
+its backup.
 
 **Containers run as the host user** (`EXIST_PUID`/`EXIST_PGID`), including `immich-server` and
 `immich-machine-learning` — both images run root by default but need no capability it grants;

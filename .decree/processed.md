@@ -22,3 +22,4 @@
 022-note-to-automation.md
 023-flows-replace-quests.md
 024-machines-call-claude.md
+025-nas-storage.md
