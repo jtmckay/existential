@@ -7,7 +7,7 @@ sidebar_position: 2
 ## Prerequisites
 
 - [Docker](https://www.docker.com/get-started/), usable without sudo
-  (`sudo usermod -aG docker "$USER"`, then log out and back in). `existential.sh` refuses to run
+  (`sudo usermod -aG docker "$USER"`, then reboot). `existential.sh` refuses to run
   under sudo.
   - The stack starts with the machine. For rootless Podman, `existential.sh` turns on its restart
     service and linger, and warns if Docker itself isn't set to start at boot.

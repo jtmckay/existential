@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "$(id -u)" == 0 && -n "${SUDO_USER:-}" ]]; then
     cat >&2 <<EOF
 Don't run existential.sh with sudo — files would be root-owned and containers would run as root.
-  sudo usermod -aG docker "${SUDO_USER}"   # once, then log out and back in
+  sudo usermod -aG docker "${SUDO_USER}"   # once, then reboot
   ./existential.sh run fix-permissions     # reclaims anything a sudo run left root-owned
 EOF
     exit 1

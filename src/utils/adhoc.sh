@@ -48,7 +48,7 @@ adhoc_detect_runtime() {
         if [[ "$(docker info 2>&1)" == *"permission denied"* ]]; then
             echo "Error: $(id -un) cannot reach the Docker daemon. Run:" >&2
             echo "  sudo usermod -aG docker \"\$USER\"" >&2
-            echo "then log out and back in." >&2
+            echo "then reboot." >&2
             exit 1
         fi
     else
