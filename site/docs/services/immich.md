@@ -70,10 +70,15 @@ relocates a photo library unattended is a script that can lose one.
 
 **Photos you already have** are the `immich_share` volume, mounted read-only at
 `/mnt/media/external_photos`. With a NAS, turning Immich on asks for that folder
-(`EXIST_NFS_SHARE_IMMICH`); without one it is `volumes/immich_share`. Either way, add
-`/mnt/media/external_photos` as an External Library in Immich's admin UI (once, after you make
-the admin account). The mount is read-only, so the NAS folder only has to be readable by
-`EXIST_PUID:EXIST_PGID`.
+(`EXIST_NFS_SHARE_IMMICH`); without one it is `volumes/immich_share`. The mount is read-only,
+so the NAS folder only has to be readable by `EXIST_PUID:EXIST_PGID`.
+
+**Setup is automatic with the `photos` flow** (`./existential.sh flow on photos`). Its
+`immich_setup` migration creates the admin from `EXIST_EMAIL` and `EXIST_PASSWORD`, skips
+Immich's onboarding wizard, and adds `/mnt/media/external_photos` as an External Library, which
+Immich rescans nightly. An Immich that already has an admin is left alone. Turned on with
+`service on` instead, Immich opens on its sign-up page and the library is added by hand under
+**Administration → External Libraries**.
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
 `immich-volume-backup-{nightly,weekly}.md` from `services/automation-backup/cron.example/`

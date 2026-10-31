@@ -1,0 +1,14 @@
+name: immich_setup
+description: Create Immich's admin from EXIST_EMAIL and add the NAS photos as a read-only External Library.
+initial: wait_for_immich
+states:
+  # First boot runs this before immich-server has finished its migrations.
+  wait_for_immich:
+    invoke:
+      script: { name: wait_for_immich, timeout: 10m }
+    transitions: { done: immich_setup }
+  immich_setup:
+    invoke: immich_setup
+    transitions: { done: done }
+  done: { final: true }
+  failed: { final: true }

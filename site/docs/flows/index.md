@@ -50,6 +50,7 @@ Each flow is a folder in `flows/`: the services it needs, its trigger, and any s
 | `office-documents` | Word, Excel and PowerPoint in the browser | Nextcloud, Collabora |
 | `local-models` | Ollama on this machine pulls your tier's models, once | Ollama |
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, Hermes answering | Home Assistant, Wyoming, Hermes |
+| `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
 | `comfy` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 
 [Note → Automation](./note-to-automation) is part of Core, on whenever a chat model answers.

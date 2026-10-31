@@ -89,6 +89,10 @@ services:
       # .storage stays there — this is a separate, network-reachable step).
       - HOMEASSISTANT_ADMIN_USER=${HOMEASSISTANT_ADMIN_USER:-}
       - HOMEASSISTANT_ADMIN_PASSWORD=${HOMEASSISTANT_ADMIN_PASSWORD:-}
+      # immich_setup creates Immich's admin through its own API.
+      - IMMICH_ADMIN_EMAIL=${IMMICH_ADMIN_EMAIL:-}
+      - IMMICH_ADMIN_NAME=${IMMICH_ADMIN_NAME:-}
+      - IMMICH_ADMIN_PASSWORD=${IMMICH_ADMIN_PASSWORD:-}
       # openviking-index-dir authenticates to the OpenViking REST API.
       - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
       # Model globals from .env.shared. lib/model.sh resolves a role against

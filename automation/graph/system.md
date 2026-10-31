@@ -20,6 +20,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [homeassistant_onboarding](homeassistant_onboarding.md): Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.
 - [homeassistant_wyoming_hermes](homeassistant_wyoming_hermes.md): Wire Wyoming speech-to-text and text-to-speech, and Hermes as the conversation agent, into Home Assistant's Assist pipeline.
 - [idea_workup](idea_workup.md): Fan one flagged idea out to the research and sales departments as three agent_task questions.
+- [immich_setup](immich_setup.md): Create Immich's admin from EXIST_EMAIL and add the NAS photos as a read-only External Library.
 - [look_back](look_back.md): A look back over a range of the "you were here" archive, written to workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
 - [newsletter](newsletter.md): Gather new items from my feeds, pick and summarise the ones that fit my taste, and write the issue to workspace/newsletter/.
 - [nextcloud_calendar](nextcloud_calendar.md): Install and enable Nextcloud's Calendar app.
@@ -59,6 +60,7 @@ flowchart LR
     homeassistant_onboarding["homeassistant_onboarding"]
     homeassistant_wyoming_hermes["homeassistant_wyoming_hermes"]
     idea_workup["idea_workup"]
+    immich_setup["immich_setup"]
     look_back["look_back"]
     newsletter["newsletter"]
     nextcloud_calendar["nextcloud_calendar"]
