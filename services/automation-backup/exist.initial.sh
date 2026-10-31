@@ -22,7 +22,7 @@ done
 mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,cron,lib,scripts} "${REPO}/automation/secrets"
 
 # triage watches the stack, and clean-runs keeps this daemon's runs/ from
-# growing; workspace-sync does nothing until its Nextcloud keys are set. cron/
+# growing; workspace-sync does nothing until it has a NAS folder or Nextcloud keys. cron/
 # is the user's active set, so each is copied once: edit or delete a copy and it
 # stays that way.
 for _cron in triage.md clean-runs.md workspace-sync.md; do

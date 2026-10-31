@@ -295,14 +295,18 @@ Every item links to its day note.
 docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null
 ```
 
-### Syncing with a Nextcloud (optional)
+### Syncing with a NAS or a Nextcloud (optional)
 
-With [automation-backup](./decree/automation-backup) on and the keys set, `workspace-sync` runs
-`rclone bisync` with a Nextcloud folder every five minutes, both ways.
+With [automation-backup](./decree/automation-backup) on, `workspace-sync` runs `rclone bisync`
+every minute, both ways, with one other copy. A file changed on both sides keeps the newer edit.
 
-- Keys, in `.env`: `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`,
+- **A NAS folder**: `EXIST_NFS_PATH_WORKSPACE_SYNC_DATA` in `.env.shared`, asked with the other
+  [NAS paths](./storage/). Compose mounts it; when set, it is the only other copy. A change made
+  on the NAS arrives within a minute: NFS tells nobody, so it is found by the next run.
+- **A Nextcloud folder**: in `.env`, `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`,
   `EXIST_NEXTCLOUD_APP_PASSWORD` (from Nextcloud's *Settings → Security*). Folder:
-  `EXIST_NEXTCLOUD_WORKSPACE_DIR`, default `workspace`. Blank keys: nothing syncs.
+  `EXIST_NEXTCLOUD_WORKSPACE_DIR`, default `workspace`.
+- Neither set: nothing syncs.
 - Never synced: anything a `.gitignore` under `workspace/` ignores, and every `.git/`.
 - WebDAV drops file modes, so each sync marks `workspace/.decree/scripts/` executable again.
 - A sync that would delete over half the files on one side deletes nothing and waits for

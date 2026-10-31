@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# workspace_sync — two-way sync workspace/ with a folder in Nextcloud, over
-# WebDAV with rclone bisync. Runs in automation-backup, which has the master
-# .env (the Nextcloud credentials stay out of workspace/) and /workspace.
+# workspace_sync — two-way sync workspace/ with a folder on the NAS or in
+# Nextcloud, with rclone bisync; on a conflict the newer edit wins. Runs in
+# automation-backup, which has the master .env (the Nextcloud credentials stay
+# out of workspace/), /workspace and, given EXIST_NFS_PATH_WORKSPACE_SYNC_DATA,
+# the NAS folder at /workspace-nas. The NAS wins over Nextcloud: one copy.
 #
 # Skipped: everything a .gitignore under workspace/ ignores (git itself decides,
 # so its rules hold exactly), and every .git/. So decree's run state never
@@ -20,9 +22,15 @@ mode="${WORKSPACE_SYNC_MODE:-}"
 url="${EXIST_NEXTCLOUD_DOMAIN:-}"
 user="${EXIST_NEXTCLOUD_USER:-}"
 pass="${EXIST_NEXTCLOUD_APP_PASSWORD:-}"
+nas_path="${EXIST_NFS_PATH_WORKSPACE_SYNC_DATA:-}"
+nas_address="${EXIST_NFS_ADDRESS:-none}"
 
-if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
-    echo "EXIST_NEXTCLOUD_DOMAIN, EXIST_NEXTCLOUD_USER or EXIST_NEXTCLOUD_APP_PASSWORD is blank: nothing to sync."
+# generate-compose.ts mounts the NAS folder only given both keys; otherwise
+# /workspace-nas is an unused local folder, never a sync target.
+if [[ "$nas_path" == /* && -n "$nas_address" && "$nas_address" != none ]]; then
+    remote="${WORKSPACE_SYNC_NAS:-/workspace-nas}"
+elif [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
+    echo "No NAS folder (EXIST_NFS_PATH_WORKSPACE_SYNC_DATA) and no Nextcloud keys: nothing to sync."
     exit 0
 fi
 if [[ -z "$mode" && -e "$DECREE_STORE/held" ]]; then
@@ -30,20 +38,22 @@ if [[ -z "$mode" && -e "$DECREE_STORE/held" ]]; then
     exit 0
 fi
 
-# A local Nextcloud is reached over the bridge, like every other container,
-# which also skips trusting Caddy's internal CA.
-if [[ "${EXIST_IS_NAS_NEXTCLOUD:-}" == true ]]; then
-    url="http://nextcloud"
-elif [[ "$url" != *://* ]]; then
-    url="https://${url}"
+if [[ -z "${remote:-}" ]]; then
+    # A local Nextcloud is reached over the bridge, like every other container,
+    # which also skips trusting Caddy's internal CA.
+    if [[ "${EXIST_IS_NAS_NEXTCLOUD:-}" == true ]]; then
+        url="http://nextcloud"
+    elif [[ "$url" != *://* ]]; then
+        url="https://${url}"
+    fi
+    # rclone reads its remote from the environment, so no secret is on a command line or on disk.
+    export RCLONE_WEBDAV_URL="${url%/}/remote.php/dav/files/${user}"
+    export RCLONE_WEBDAV_VENDOR="${RCLONE_WEBDAV_VENDOR:-nextcloud}"
+    export RCLONE_WEBDAV_USER="$user"
+    RCLONE_WEBDAV_PASS="$(printf '%s' "$pass" | rclone obscure -)"
+    export RCLONE_WEBDAV_PASS
+    remote=":webdav:${EXIST_NEXTCLOUD_WORKSPACE_DIR:-workspace}"
 fi
-# rclone reads its remote from the environment, so no secret is on a command line or on disk.
-export RCLONE_WEBDAV_URL="${url%/}/remote.php/dav/files/${user}"
-export RCLONE_WEBDAV_VENDOR="${RCLONE_WEBDAV_VENDOR:-nextcloud}"
-export RCLONE_WEBDAV_USER="$user"
-RCLONE_WEBDAV_PASS="$(printf '%s' "$pass" | rclone obscure -)"
-export RCLONE_WEBDAV_PASS
-remote=":webdav:${EXIST_NEXTCLOUD_WORKSPACE_DIR:-workspace}"
 
 # WebDAV drops file modes, and decree runs only executable scripts.
 trap '[[ ! -d "$WORKSPACE/.decree/scripts" ]] || find "$WORKSPACE/.decree/scripts" -type f ! -perm -u+x -exec chmod +x {} +' EXIT
@@ -64,7 +74,7 @@ git init -q "$DECREE_RUN_DIR/git"
 } > "$filters"
 
 args=(bisync "$WORKSPACE" "$remote" --workdir "$DECREE_STORE/bisync" --filter-from "$filters"
-      --resilient --recover --max-lock 10m --verbose)
+      --resilient --recover --max-lock 10m --conflict-resolve newer --verbose)
 # No listings for this remote yet (first run, or a new folder): merge, which deletes nothing.
 if [[ "$mode" == resync || "$(cat "$DECREE_STORE/synced" 2>/dev/null)" != "$remote" ]]; then
     args+=(--resync)

@@ -24,21 +24,18 @@ nothing to enable separately. See [Cache](#cache) below.
 
 ## On a NAS
 
-`nextcloud_data` can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); config, apps,
-themes and the database stay local. `nextcloud_data` holds Nextcloud's own layout (`<user>/files/`,
-`appdata_*`, `nextcloud.log`), so give `EXIST_NFS_PATH_NEXTCLOUD_DATA` an empty folder, never a
-share of files you already have: Nextcloud would not index them, and its own files would land
-among them.
+Two volumes can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); config, apps, themes
+and the database stay local.
 
-To see a share of existing files in Nextcloud, add it as External storage (the app is already
-on). Nextcloud has no NFS backend, so use the share's SMB side: **Administration settings →
-External storage**, backend **SMB/CIFS**, host the NAS, the share's name and a login. From the
-host:
+- **`nextcloud_nas_data`** is the share of files you already have. Nextcloud shows it in Files
+  as `/nas`, a Local external storage for every user, read and written in place over NFS.
+- **`nextcloud_data`** is Nextcloud's own layout (`<user>/files/`, `appdata_*`,
+  `nextcloud.log`). Give `EXIST_NFS_PATH_NEXTCLOUD_DATA` an empty folder, never your share: its
+  own files would land among yours.
 
-```bash
-docker exec nextcloud php /var/www/html/occ files_external:create /Photos smb password::password \
-    -c host=<nas-address> -c share=<share> -c user=<user> -c password=<password>
-```
+Both folders are made by you, owned by `EXIST_PUID:EXIST_PGID`. Changes made on the NAS show up
+when someone opens the folder (`filesystem_check_changes`); nothing rescans `/nas` on a timer.
+Without a NAS, `/nas` is an empty folder under `volumes/`.
 
 ## Cache
 

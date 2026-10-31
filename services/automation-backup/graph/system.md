@@ -9,7 +9,7 @@ Every machine, the `emits` and `invokes` edges between them, and cron entry poin
 - [sqlite_backup](sqlite_backup.md): Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
 - [triage](triage.md): Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
 - [volume_backup](volume_backup.md): Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.
-- [workspace_sync](workspace_sync.md): Two-way sync workspace/ with a folder in Nextcloud, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
+- [workspace_sync](workspace_sync.md): Two-way sync workspace/ with a folder on the NAS or in Nextcloud, newest edit winning, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
 
 ```mermaid
 flowchart LR

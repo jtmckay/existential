@@ -788,8 +788,9 @@ _ask_core_or_none() {
     echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2
 }
 
-# _nas_volumes — "<service>\t<volume>" for each `nfs: true` volume an enabled
-# service declares in its x-exist-volumes block. A db: true one never qualifies.
+# _nas_volumes — "<service>\t<volume>\t<note>" for each `nfs: true` volume an
+# enabled service declares in its x-exist-volumes block; the note is the line's
+# trailing `# comment`, shown when the path is asked. A db: true one never qualifies.
 _nas_volumes() {
     local svc_dir
     while IFS= read -r svc_dir; do
@@ -797,7 +798,11 @@ _nas_volumes() {
         awk -v svc="${svc_dir#"$REPO_DIR/"}" '
             /^x-exist-volumes:/ { s = 1; next }
             /^[^ #]/            { s = 0 }
-            s && /nfs: *true/ && !/db: *true/ { n = $1; sub(/:$/, "", n); print svc "\t" n }
+            s && /nfs: *true/ && !/db: *true/ {
+                n = $1; sub(/:$/, "", n)
+                note = $0; if (!sub(/^[^#]*# */, "", note)) note = ""
+                print svc "\t" n "\t" note
+            }
         ' "${svc_dir}/docker-compose.exist.yml" 2>/dev/null
     done < <(_find_service_dirs)
 }
@@ -807,7 +812,7 @@ _nas_volumes() {
 # volume that has none, appended to .env.shared. Nothing is created on the NAS;
 # without a terminal nothing is asked and generate-compose.ts names what is missing.
 _ask_nas_if_needed() {
-    local f="${REPO_DIR}/.env.shared" vols svc vol key val hint last
+    local f="${REPO_DIR}/.env.shared" vols svc vol note key val hint last
     vols="$(_nas_volumes)"
     [[ -n "$vols" ]] || return 0
     if [[ -z "${EXIST_NFS_ADDRESS:-}" ]]; then
@@ -823,7 +828,7 @@ _ask_nas_if_needed() {
         _reload_env_shared
     fi
     [[ "$EXIST_NFS_ADDRESS" != none ]] || return 0
-    while IFS=$'\t' read -r svc vol <&3; do
+    while IFS=$'\t' read -r svc vol note <&3; do
         key="EXIST_NFS_PATH_$(printf '%s' "$vol" | tr 'a-z-' 'A-Z_')"
         grep -q "^${key}=." "$f" && continue
         _prompt_available || return 0
@@ -831,6 +836,7 @@ _ask_nas_if_needed() {
         hint="${last%/*}/${vol}"
         printf '\n# %s: %s — its folder on %s, made by you and owned by %s:%s, or local.\n' \
             "$svc" "$vol" "$EXIST_NFS_ADDRESS" "${EXIST_PUID:-1000}" "${EXIST_PGID:-1000}" >&2
+        [[ -z "$note" ]] || printf '#   %s\n' "$note" >&2
         while :; do
             val="$(_prompt_tty "$key" "$hint")"; val="${val:-$hint}"
             [[ "$val" == local || "$val" =~ ^/[^[:space:]\|]*$ ]] && break

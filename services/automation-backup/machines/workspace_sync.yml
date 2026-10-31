@@ -1,5 +1,5 @@
 name: workspace_sync
-description: Two-way sync workspace/ with a folder in Nextcloud, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
+description: Two-way sync workspace/ with a folder on the NAS or in Nextcloud, newest edit winning, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
 store:
   bisync: rclone bisync's listings and lock. Every state reads and writes it.
   synced: The remote the listings in bisync/ are for; a different one makes workspace_sync merge (--resync) instead of sync.

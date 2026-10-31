@@ -1,23 +1,23 @@
 ---
-cron: "*/5 * * * *"
+cron: "* * * * *"
 machine: workspace_sync
 ---
 
-Two-way syncs `workspace/` with a folder in Nextcloud, so it is the same tree you
-edit from your desktop, phone and Obsidian. Nextcloud can run on another server
-or in this stack.
+Two-way syncs `workspace/` with one other copy, every minute, so it is the same tree
+wherever you edit it. A file changed on both sides since the last run keeps the newer edit.
 
-Set `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and
-`EXIST_NEXTCLOUD_APP_PASSWORD` in `.env` (an app password, from Nextcloud's
-Settings > Security), then `docker compose up -d automation-backup`. Until all
-three are set, each run does nothing. The folder is
-`EXIST_NEXTCLOUD_WORKSPACE_DIR` (default `workspace`); the first run merges both
-sides and deletes nothing.
+- **On the NAS**: give `EXIST_NFS_PATH_WORKSPACE_SYNC_DATA` a folder on the export (asked
+  when `./existential.sh` first sees `automation-backup` on with a NAS). It wins over Nextcloud.
+- **In Nextcloud**: set `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and
+  `EXIST_NEXTCLOUD_APP_PASSWORD` in `.env` (an app password, from Nextcloud's Settings >
+  Security). The folder is `EXIST_NEXTCLOUD_WORKSPACE_DIR` (default `workspace`).
 
-Never synced: anything a `.gitignore` under `workspace/` ignores, and every
-`.git/`. That keeps decree's run state local; add a line to keep anything else
-local.
+Then `docker compose up -d automation-backup`. With neither, each run does nothing. The first
+run with a new other end merges both sides and deletes nothing.
 
-A run that would delete over half the files on one side deletes nothing and
-asks you instead (ntfy, and `decree status` in automation-backup). Until you
-answer `delete` or `keep`, later runs skip.
+Never synced: anything a `.gitignore` under `workspace/` ignores, and every `.git/`. That
+keeps decree's run state local; add a line to keep anything else local.
+
+A run that would delete over half the files on one side deletes nothing and asks you instead
+(ntfy, and `decree status` in automation-backup). Until you answer `delete` or `keep`, later
+runs skip.
