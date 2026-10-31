@@ -690,10 +690,11 @@ _stage_images() {
 # and stays unhealthy). So each folder is mounted here first, the way Compose
 # will mount it and as the uid every container runs as, and docker-compose.yml
 # is not written until all of them pass. A _data folder must also take a chmod,
-# which NFS allows only its owner; a _share (your own files) needs a write.
+# which NFS allows only its owner; a _share (your own files) needs a write; a
+# volume every template mounts `:ro` needs only a read.
 _check_nas() {
     local f="${SCRIPT_DIR}/.env.shared" vol=existential-nas-check
-    local addr uid gid key dir out owner mode w c fix bad=0
+    local addr uid gid key dir out owner mode w c r ro fix bad=0
     addr="$(grep -m1 '^EXIST_NFS_ADDRESS=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')"
     [[ -n "$addr" && "$addr" != none ]] || return 0
     uid="$(grep -m1 '^EXIST_PUID=' "$f" | cut -d= -f2- || true)"; uid="${uid:-1000}"
@@ -704,7 +705,8 @@ _check_nas() {
     local probe='t=/d/.existential-check; w=0; c=0
         touch "$t" 2>/dev/null && rm -f "$t" && w=1
         chmod "$(stat -c %a /d)" /d 2>/dev/null && c=1
-        echo "$(stat -c "%u:%g %a" /d) $w $c"'
+        ls /d >/dev/null 2>&1 && r=1 || r=0
+        echo "$(stat -c "%u:%g %a" /d) $w $c $r"'
     echo ""
     echo "Checking the NAS folders on ${addr} as ${uid}:${gid}..."
     while IFS='=' read -r key dir; do
@@ -722,17 +724,25 @@ _check_nas() {
             continue
         fi
         $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
-        read -r owner mode w c <<< "$(printf '%s\n' "$out" | tail -1)"
-        if [[ "$w" == 1 && ( "$c" == 1 || "$key" == EXIST_NFS_SHARE_* ) ]]; then
+        read -r owner mode w c r <<< "$(printf '%s\n' "$out" | tail -1)"
+        _nas_read_only "$key" && ro=1 || ro=0
+        if [[ "$ro" == 1 && "$r" == 1 ]] ||
+           [[ "$ro" == 0 && "$w" == 1 && ( "$c" == 1 || "$key" == EXIST_NFS_SHARE_* ) ]]; then
             echo "  ✓ ${key}  ${dir}"
             continue
         fi
         bad=1
-        [[ "$w" == 1 ]] && fix="cannot change its mode (over NFS only the owner can)" || fix="cannot write it"
+        if [[ "$ro" == 1 ]]; then fix="cannot read it"
+        elif [[ "$w" == 1 ]]; then fix="cannot change its mode (over NFS only the owner can)"
+        else fix="cannot write it"; fi
         echo "  ✗ ${key}  ${addr}:${dir}"
         echo "      owned by ${owner}, mode ${mode}: ${uid}:${gid} ${fix}."
         echo "      Fix it on the NAS, either way:"
-        echo "        • as root there:  chown ${uid}:${gid} ${dir} && chmod $([[ "$key" == EXIST_NFS_SHARE_* ]] && echo 775 || echo 770) ${dir}"
+        if [[ "$ro" == 1 ]]; then
+            echo "        • as root there:  chmod -R a+rX ${dir}"
+        else
+            echo "        • as root there:  chown ${uid}:${gid} ${dir} && chmod $([[ "$key" == EXIST_NFS_SHARE_* ]] && echo 775 || echo 770) ${dir}"
+        fi
         [[ "$owner" == 0:* ]] ||
             echo "        • or on that folder's NFS share, map every client to its owner: Mapall user:group ${owner}
           (TrueNAS: Shares → NFS → Edit → Advanced Options; Synology: Squash → Map all users)"
@@ -742,6 +752,21 @@ _check_nas() {
     echo ""
     echo "docker-compose.yml was not written. Fix the folders above, then run ./existential.sh again."
     return 1
+}
+
+# _nas_read_only <EXIST_NFS_…key> — true when the key's volume is mounted, and
+# only ever `:ro`, by the service templates (the inverse of generate-compose.ts's nfsKey).
+_nas_read_only() {
+    local v mounts
+    case "$1" in
+        EXIST_NFS_SHARE_*) v="${1#EXIST_NFS_SHARE_}_SHARE" ;;
+        *)                 v="${1#EXIST_NFS_PATH_}" ;;
+    esac
+    v="$(printf '%s' "$v" | tr 'A-Z' 'a-z')"
+    mounts="$(_find_service_dirs | while IFS= read -r d; do
+        grep -hE "^[[:space:]]*- ${v}:" "${d}/docker-compose.exist.yml" 2>/dev/null
+    done)"
+    [[ -n "$mounts" ]] && ! grep -qvE ':ro([,[:space:]]|$)' <<< "$mounts"
 }
 
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.

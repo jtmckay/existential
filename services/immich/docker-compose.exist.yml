@@ -59,14 +59,9 @@ services:
       # where storage lives.
       - immich_data:/data:Z
       - /etc/localtime:/etc/localtime:ro
-      # An existing photo collection to index read-only, e.g. a Nextcloud sync
-      # dir. Commented out because there is no sensible default: the placeholder
-      # that used to be here (/home/my_user/Nextcloud/Photos) does not exist on
-      # any real host, so docker created it as root OUTSIDE the repo, where
-      # `./existential.sh run fix-permissions` can never reach it.
-      # Uncomment both this and EXTERNAL_READ_ONLY_FILES in .env, and point it
-      # at a directory you already have.
-      #- ${EXTERNAL_READ_ONLY_FILES}:/mnt/media/external_photos:ro
+      # Photos you already have, indexed read-only: add /mnt/media/external_photos
+      # as an External Library in Immich's admin UI.
+      - immich_share:/mnt/media/external_photos:ro
     env_file:
       - .env
     depends_on:
@@ -210,6 +205,7 @@ x-exist-volumes:
   # (EXIST_NFS_PATH_IMMICH_DATA) — it replaces the old "point UPLOAD_LOCATION at
   # /mnt/nfs/..." instruction.
   immich_data: { nfs: true }
+  immich_share: { nfs: true }  # Photos you already have on the NAS, indexed read-only as an External Library. Never the same folder as immich_data.
   # Postgres. NEVER nfs — immich upstream does not support a network share for
   # the database, and `db: true` together with `nfs: true` is a hard error in
   # validate-conventions, so this is enforced rather than merely documented.

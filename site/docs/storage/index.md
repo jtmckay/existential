@@ -40,7 +40,7 @@ set up on this host.
    asks for its volumes, and setting the address later asks for every enabled one.
 3. `./existential.sh` mounts each folder the way Compose will, as `EXIST_PUID:EXIST_PGID`, and
    checks it can write there (and, for a container's data, change the folder's mode, which NFS
-   allows only the owner). A folder that fails stops the run before `docker-compose.yml` is
+   allows only the owner). A folder every service mounts read-only only has to be readable. A folder that fails stops the run before `docker-compose.yml` is
    written, naming the folder, its owner and mode, and the fix: `chown` it on the NAS, or set
    the NFS share's *Mapall* user to the folder's owner. Then `docker compose up -d`.
 

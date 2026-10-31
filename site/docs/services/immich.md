@@ -68,10 +68,12 @@ anything. If you are upgrading, `exist.initial.sh` detects data at the old paths
 run with the two `mv` commands to run — nothing is moved for you, because a script that
 relocates a photo library unattended is a script that can lose one.
 
-To index an existing photo collection read-only, set `EXTERNAL_READ_ONLY_FILES` in `.env` and
-uncomment the matching mount in `docker-compose.exist.yml`. It ships commented out because the
-old placeholder path did not exist on any real host, so Docker created it as root outside the
-repo.
+**Photos you already have** are the `immich_share` volume, mounted read-only at
+`/mnt/media/external_photos`. With a NAS, turning Immich on asks for that folder
+(`EXIST_NFS_SHARE_IMMICH`); without one it is `volumes/immich_share`. Either way, add
+`/mnt/media/external_photos` as an External Library in Immich's admin UI (once, after you make
+the admin account). The mount is read-only, so the NAS folder only has to be readable by
+`EXIST_PUID:EXIST_PGID`.
 
 **Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
 `immich-volume-backup-{nightly,weekly}.md` from `services/automation-backup/cron.example/`

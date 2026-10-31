@@ -23,7 +23,8 @@ key. **Nothing in the stack creates or chowns a folder on the NAS** — the pers
 `_check_nas` in `existential.sh` proves each one before `docker-compose.yml` is written: a
 throwaway volume with the same `driver_opts`, mounted as `EXIST_PUID:EXIST_PGID`, must take a
 write (removed) and, for a `_data` folder, a no-op `chmod` (NFS allows only the owner, and
-nextcloud's installer chmods its data dir). A failure stops the run with the chown and the
+nextcloud's installer chmods its data dir). A volume every template mounts `:ro`
+(`_nas_read_only`) must only list. A failure stops the run with the chown and the
 *Mapall* fix, because otherwise it surfaces minutes later inside one service's first start.
 Nothing on the host mounts the export, and `automation-backup` does not see a NAS volume.
 
