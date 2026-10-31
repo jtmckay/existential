@@ -127,6 +127,11 @@ assert_contains "db volume stays a bind" "/host/realrepo/volumes/foo_sql_data:/s
 assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
 assert_no_dir "no local dir for a nas volume" "$repo/volumes/foo_files_data"
 
+repo="$(nas_repo)"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_FILES_DATA=/tank/cloud\nEXIST_NFS_PATH_FOO_THEMES_DATA=none\nEXIST_NFS_SHARE_FOO_PHOTOS=none\n' > "$repo/.env.shared"
+tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+assert_contains "a _share set to none stays a bind" "/host/realrepo/volumes/foo_photos_share:/photos" "$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
+
 # An old install's host-mount key is ignored, never an error (built so the
 # retired name never appears in the repo).
 old_key="EXIST_NFS_HOST""_MOUNT"

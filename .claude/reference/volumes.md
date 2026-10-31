@@ -64,7 +64,7 @@ x-exist-volumes:
 
 | Property | Default | Meaning |
 |---|---|---|
-| `nfs`    | `false` | May live on the NAS. With `EXIST_NFS_ADDRESS` set and a path in `EXIST_NFS_PATH_<VOLUME>`, `generate-compose.ts` makes it a top-level `local` volume with NFS `driver_opts`, mounted `nocopy`; with `local`, no address or `none`, it stays in `volumes/`. |
+| `nfs`    | `false` | May live on the NAS. With `EXIST_NFS_ADDRESS` set and a path in `EXIST_NFS_PATH_<VOLUME>`, `generate-compose.ts` makes it a top-level `local` volume with NFS `driver_opts`, mounted `nocopy`; with no address or `none`, it stays in `volumes/`. |
 | `db`     | `false` | Holds an embedded or managed database (SQLite WAL, bbolt, a TSDB, a postgres/mysql/mongo data dir). NFS corrupts these — `validate conventions` rejects `db: true` together with `nfs: true`. |
 | `backup` | `false` | `decree-backup` archives it into `<name>_backup`. |
 

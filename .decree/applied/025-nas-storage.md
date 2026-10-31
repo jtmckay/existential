@@ -22,8 +22,8 @@ boot) is part of the setup.
   enabled service, `EXIST_NFS_PATH_<VOLUME>` in `.env.shared` (`EXIST_NFS_PATH_NEXTCLOUD_DATA`)
   is that volume's folder on the export. A run asks for each one that is missing while
   `EXIST_NFS_ADDRESS` is an address, so turning on a service asks for its volumes, and setting
-  the address later asks for every enabled service's volumes at once. The suggested answer is
-  the folder of the last path given plus the volume's name (`/<name>` for the first). `local`
+  the address later asks for every enabled service's volumes at once. The question shows the
+  trailing comment on the volume's `x-exist-volumes` line, saying what it holds. Nothing is suggested: Enter answers `none`, which
   keeps that one volume under `<repo>/volumes/`. Each answer is appended to `.env.shared`
   with a one-line comment, and never asked again.
 - **Compose mounts the NAS.** A volume with a path is a top-level `local` volume in the
@@ -63,9 +63,9 @@ boot) is part of the setup.
   **When** `docker-compose.yml` is generated
   **Then** `nextcloud_data` is a top-level volume with `type: nfs`, `addr=10.0.0.5` and
   `device: ":/tank/cloud"`, and `nextcloud_sql_data` is a bind under `volumes/`
-- **Given** `EXIST_NFS_PATH_NEXTCLOUD_THEMES_DATA=local`
+- **Given** `EXIST_NFS_SHARE_NEXTCLOUD=none`
   **When** `docker-compose.yml` is generated
-  **Then** `nextcloud_themes_data` is a bind under `volumes/`
+  **Then** `nextcloud_share` is a bind under `volumes/`
 - **Given** `EXIST_NFS_ADDRESS=none` or blank
   **When** `docker-compose.yml` is generated
   **Then** it has no top-level `volumes:` block
