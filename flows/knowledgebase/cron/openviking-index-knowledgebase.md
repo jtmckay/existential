@@ -12,11 +12,11 @@ params:
 ---
 
 Index the `workspace/` directory at the repo root into OpenViking every 15
-minutes, so anything you or the agents put there becomes searchable by hermes
+minutes, so anything you or the agents put there becomes searchable by pi
 through the openviking MCP server.
 
-This is the same tree hermes mounts at `/opt/data/workspace` and code-server
-mounts at `/workspace` — there is no separate knowledgebase directory to keep in
+This is the same tree code-server and automation
+mount at `/workspace` — there is no separate knowledgebase directory to keep in
 step.
 
 Incremental: files whose contents have not changed since the last run are

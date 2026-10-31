@@ -50,7 +50,7 @@ Conventions ARE the documentation — every service should look like every other
 existing patterns first; invent only when you must.** When in doubt, copy the closest example.
 
 1. **Before building anything, ask: does this already exist?** This stack is deliberately
-   curated; every tool added must be maintained. Check for a stack service (hermes skills,
+   curated; every tool added must be maintained. Check for a stack service (pi departments,
    decree machines), a Unix one-liner, an existing `automation/` helper, an npm package/CLI/API.
    **If something exists and works, use it — don't convert, reimplement, or "standardize"
    working code without a concrete problem to solve.**
@@ -58,7 +58,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    own.** Scripts run in the adhoc or decree container, which has bash and `tsx` but no Go
    toolchain — so Go is for compiled services, not scripts. Go services carry their own `go
    test` suite and are **not** part of `./existential.sh test` (see
-   `.claude/reference/testing.md`). External tooling (hermes skills, upstream configs) stays in
+   `.claude/reference/testing.md`). External tooling (pi packages, upstream configs) stays in
    whatever language it shipped in. **Bash that runs on the host** (`existential.sh`, what it
    sources, `exist.initial.sh`) **runs on a Mac too**: bash 3.2 and BSD tools, checked by
    `./existential.sh test host`.
@@ -90,7 +90,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 ## Layout
 
 The user's own content is the `workspace_data` volume — one tree mounted by nextcloud (as a
-Local external storage the desktop client syncs), hermes, code-server and decree, indexed
+Local external storage the desktop client syncs), code-server and decree, indexed
 into openviking, and searched by qmd (read-only; `.gitignore`d and hidden paths never indexed). **Every change in the workspace is seen** (`automation/lib/file-handlers.ts`, in
 `automation`), but only a handler in `workspace/.decree/handlers.yml` turns one into a run, and a
 `.gitignore`'d path or anything in `.git/` never does. The loop break is the handlers' patterns:
@@ -121,7 +121,7 @@ Nextcloud's file events are an optional second path. User-facing detail:
 - **`.sh` exec bit:** default `644` — `existential.sh` `bash <script>`s everything it
   dispatches. Keep `+x` (`755`) only on scripts executed **by path**: `existential.sh` itself,
   `.githooks/*` (git runs hooks directly), decree scripts (`automation/scripts/*` — `decree
-  check` refuses one without it), `lib/hermes-cli.sh`, `lib/notes/*` (run by path from
+  check` refuses one without it), `lib/notes/*` (run by path from
   `notes.sh`), image entrypoint hooks (`nas/nextcloud/hooks/*` — the nextcloud entrypoint
   *skips* hook scripts without it), and container `entrypoint:` targets (Docker execs them by
   path). Everything else stays `644`; `./existential.sh test lint` does not check modes, so this is convention,
@@ -220,7 +220,7 @@ from the repo root against the generated `docker-compose.yml`.
   against live usage. Model servers are the exception — there the limit *is* the model.
 - **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
   `volumes/<name>`, referenced by bare name (optionally with a subpath into it,
-  `hermes_install_cache/.venv`) and declared in the service's top-level `x-exist-volumes:` block
+  `workspace_data/notes`) and declared in the service's top-level `x-exist-volumes:` block
   (`nfs` / `db` / `backup`); an undeclared name is a hard error. The name's suffix is enforced and
   says whether it is safe to delete: `_data`, `_share`, `_backup`, `_cache`. An embedded DB (SQLite, bbolt,
   TSDB) is `db: true` and must **never** be `nfs: true`. An `nfs: true` volume is the one
@@ -288,17 +288,19 @@ machine's `data:`. Chaining is `decree emit` with `emits:` on the state. There i
 whitelist: a machine that no cron file, endpoint or emit points at simply never runs.
 
 **AI is half of what decree is for, in two places.** *Conversation:* code-server ships
-`claude` and `opencode` for a person to drive, and the decree skill in the workspace is how a
+`claude`, `opencode` and `pi` for a person to drive, and the decree skill in the workspace is how a
 conversation makes new machines. *Automations:* a machine's script calls AI itself, in one of
-two ways. `automation/lib/model.sh` (`model_chat`, `model_gate`) is one answer from the role's
-`/v1` URL. `automation/lib/agent.sh` (`agent`) is Claude Code with tools, through
+three ways. `automation/lib/model.sh` (`model_chat`, `model_gate`) is one answer from the role's
+`/v1` URL. `automation/lib/pi.sh` (`pi_run`) is [pi](https://pi.dev) with tools on that same
+chat model, nothing leaving the box; a department (`automation/lib/departments/<name>.yml`, *a
+department is a file*) picks its tools and MCP servers, and `pi_configure` writes pi's provider
+and servers in both the decree image's entrypoint and code-server's. `automation/lib/agent.sh`
+(`agent`) is Claude Code with tools, through
 `automation/lib/ai.sh`, which is decree's own `ai` helper, unedited (`test decree` diffs it).
 `automation`'s image ships `claude`, signed in once per install. `develop` builds machines with
 it, and the machines it builds call `agent`. A headless call runs in decree's `auto` mode
 (`AUTOMATION_CLAUDE_PERMISSION_MODE`), kept from notes by the mount above.
-hermes is optional (`hermes.sh`, `lib/hermes-cli.sh`), and asks decree for follow-up work
-through automation-webhook's `/hermes/*` endpoints. Repo-editing belongs to a coding agent on
-the host, not to the stack.
+Repo-editing belongs to a coding agent on the host, not to the stack.
 
 **Cron activation:** each project has its own `cron/` (active, not in git). `automation`'s
 templates live in the flows (`flows/<name>/cron/`, `migrations/`, and `examples/` for inbox

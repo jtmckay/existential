@@ -72,10 +72,8 @@ under whatever already consumed it.
 go wrong. The `.env` never-overwrite guard is checked *first* and still wins.
 
 Use it when an app reads a static config file it can't env-substitute, so a value like
-`EXIST_DOMAIN` would otherwise be baked once and go stale. Two entries today:
-`services/dashy/dashy-conf.yml` and `ai/honcho/config.toml` — honcho reads a TOML file with no
-env substitution, so the `EXIST_MODEL_*` globals have to be rendered into it, and a model change
-must land on the next ordinary run.
+`EXIST_DOMAIN` would otherwise be baked once and go stale. One entry today:
+`services/dashy/dashy-conf.yml`.
 
 Three things come with it:
 
@@ -126,7 +124,7 @@ thing a user actually reads before their first run. When a key needs more than i
 comment carries a URL to the relevant section rather than the explanation:
 
 ```sh
-# Context window for the chat model. 65536 is a FLOOR — hermes breaks below 64,000 tokens.
+# Context window for the chat model. 65536 is a FLOOR — an agent's tools and instructions are silently truncated below it.
 EXIST_MODEL_CHAT_NUM_CTX=65536
 ```
 

@@ -79,7 +79,6 @@ names:
 EXIST_IS_AI_OLLAMA=false                  # nothing local to pull or serve
 EXIST_MODEL_URL=http://<ai-box>:8080/v1
 EXIST_MODEL_CHAT=<chat-model>             # a [section] in presets.ini
-EXIST_MODEL_EXTRACT=<chat-model>
 EXIST_MODEL_VISION=<chat-model>           # its section needs an mmproj = projector
 EXIST_MODEL_EMBED=<embed-model>           # its section needs embeddings = true
 ```

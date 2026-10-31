@@ -59,7 +59,7 @@ if [ "${EXIST_IS_HOSTING_CADDY:-false}" = "true" ] && [ -n "${FIRECRAWL_API_KEY:
 fi
 
 # MCP server — streamable HTTP initialize handshake must succeed (this is the
-# endpoint hermes connects to).
+# endpoint pi connects to).
 http_probe_any "firecrawl-mcp /mcp (initialize)" \
                "http://firecrawl-mcp:3003/mcp" "^200$" 10 \
                -X POST \

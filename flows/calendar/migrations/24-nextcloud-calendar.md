@@ -17,7 +17,7 @@ Safe to re-run — install/enable is a no-op once the app is already there.
 Requires nas/nextcloud (`EXIST_IS_NAS_NEXTCLOUD`) enabled.
 
 Its flow's `calendar-extract.md` cron pulls events into `workspace/ai/calendar/`, where
-OpenViking indexes them and hermes can answer questions about your calendar the same way it
+OpenViking indexes them and pi can answer questions about your calendar the same way it
 answers anything else in `workspace/`.
 
 `./existential.sh flow on calendar` activates it.

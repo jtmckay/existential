@@ -3,8 +3,8 @@
 #
 # An alternative to note_develop as TRIAGE_ROUTINE. Where note_develop makes one
 # call and writes one document, this makes none of its own: it emits three
-# agent_task messages, each on the department whose hermes profile owns the
-# tools that question needs.
+# agent_task messages, each in the department (automation/lib/departments/)
+# that owns the tools that question needs.
 #
 #   who else is doing this   → research  (the only department with web access)
 #   how big is the market    → research
@@ -16,12 +16,6 @@
 #
 # Emitted by note_triage (note_path: <relative path>), or run by hand against
 # any note.
-#
-# The profiles must exist. hermes' entrypoint provisions them from
-#     ai/hermes/profiles/ on boot, so this is only a question after adding a
-#     new department: restart hermes. Without a profile every department call
-#     401s, because each carries its own API_SERVER_KEY rather than borrowing
-#     the default one's.
 #
 # Decree runs messages one at a time and AGENT_TIMEOUT defaults to 900s, so a
 # fan-out of three can take the better part of an hour. It is not stuck.
@@ -63,23 +57,23 @@ fi
 
 # --- The three questions ---------------------------------------------------
 #
-# Each is one agent_task message on its department's profile, the question and
-# the note as its body. The note is embedded rather than referenced because a
-# department profile has no filesystem access.
+# Each is one agent_task message in its department, the question and the note
+# as its body. The note is embedded rather than referenced: it lives in
+# /data/notes, outside the workspace pi runs in.
 
 hand_off() {
-    # hand_off <profile> <suffix> <question>
-    local profile="$1" suffix="$2" question="$3"
+    # hand_off <department> <suffix> <question>
+    local department="$1" suffix="$2" question="$3"
     {
         printf '%s\n\n' "$question"
         if [ -n "$note_reason" ]; then
             printf 'Flagged during triage as: %s\n\n' "$note_reason"
         fi
         printf -- '--- the note ---\n%s\n--- end note ---\n' "$note_body"
-    } | decree emit --machine agent_task --param profile="$profile" \
+    } | decree emit --machine agent_task --param department="$department" \
             --param output_name="${slug}-${suffix}" >/dev/null
 
-    echo "  ${profile} → workspace/ai/${slug}-${suffix}.md"
+    echo "  ${department} → workspace/ai/${slug}-${suffix}.md"
 }
 
 hand_off research competition \

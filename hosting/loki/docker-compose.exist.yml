@@ -33,7 +33,7 @@ services:
     # EOL'd in March 2026 (frozen at 3.6.11, no 3.7.x).
     image: grafana/alloy:v1.19.2
     restart: unless-stopped
-    # Tails decree's run logs, hermes' own log files, *and* every container's
+    # Tails decree's run logs *and* every container's
     # json-file log. ~42 MiB idle, ~65 MiB while backfilling a cold positions
     # file.
     deploy:
@@ -53,13 +53,6 @@ services:
       # Both decree projects' runs (each has its own runs/ in decree 0.5).
       - workspace_data/.decree/runs:/decree/automation:ro
       - ../../services/automation-backup/runs:/decree/automation-backup:ro
-      # hermes logs to files, not stdout (s6 routes each service's output into
-      # its own file), so the docker_containers job below never sees it —
-      # `docker logs hermes-agent` is empty. This is the only way its cron
-      # firings, tool calls and errors reach loki. Read-only, and only the logs
-      # subpath: the rest of that volume is hermes' live state, including
-      # sessions and memories.
-      - hermes_agent_data/logs:/hermes-logs:ro
       # Alloy keeps its file offsets under --storage.path; without persisting it
       # every restart re-tails every log from byte 0 and re-ships it.
       - loki_alloy_data:/var/lib/alloy/data
@@ -82,12 +75,6 @@ services:
 
 x-exist-volumes:
   loki_data: { db: true }
-  # Declared here too, not just in ai/hermes: the generator only collects
-  # x-exist-volumes from ENABLED services, so with hermes disabled and loki on,
-  # the bare name above would be an undeclared-volume hard error. Specs merge
-  # repo-wide first-wins, so the duplicate costs nothing — keep the properties
-  # identical to ai/hermes/docker-compose.exist.yml's.
-  hermes_agent_data: { db: true }
   # alloy's storage path — file offsets, not a db. Host-local by nature: it
   # tracks byte offsets into this host's docker log files.
   loki_alloy_data: {}

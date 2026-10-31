@@ -26,6 +26,10 @@ ARG DECREE_TAG=v0.5.0-beta.13
 # use it (automation/lib/agent.sh). Pinned, and its updater is off below, so a
 # run never changes the CLI under it; bump it here.
 ARG CLAUDE_CODE_VERSION=2.1.310
+# pi (pi.dev), the agent on the stack's own chat model: machines reach it through
+# automation/lib/pi.sh, and code-server's terminal shares this image. Pinned,
+# --ignore-scripts like its own install docs, and nothing updates it at runtime.
+ARG PI_VERSION=1.4.0
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
@@ -55,6 +59,7 @@ RUN apt-get update \
     && rm /tmp/node.tar.xz \
     && npm install -g npm@11.16.0 \
     && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+    && npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" \
     && curl -fsSL "https://github.com/jtmckay/decree/releases/download/${DECREE_TAG}/install.sh" \
         -o /tmp/decree-install.sh \
     && XDG_BIN_HOME=/usr/local/bin sh /tmp/decree-install.sh "${DECREE_TAG}" \

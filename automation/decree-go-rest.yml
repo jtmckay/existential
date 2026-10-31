@@ -103,19 +103,3 @@ endpoints:
     message:
       machine: file_router
       params: { rclone_src: nextcloud }
-
-  # Hermes' way in: it has no mount into automation/, so follow-up work comes
-  # here, on its own secret (AUTOMATION_WEBHOOK_AUTH in its container). Each
-  # path fixes its machine, so this is all hermes can ask decree for.
-  - path: /hermes/task/{profile}
-    secret_env: HERMES_WEBHOOK_SECRET
-    patterns: { profile: "[a-z0-9_-]{1,40}" }
-    message:
-      machine: agent_task
-      params: { profile: "{{profile}}" }
-  - path: /hermes/notify/{title}
-    secret_env: HERMES_WEBHOOK_SECRET
-    patterns: { title: "[A-Za-z0-9 _.,:;!?'()-]{1,80}" }
-    message:
-      machine: notify
-      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: default, ntfy_tags: robot }

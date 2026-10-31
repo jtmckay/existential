@@ -1,9 +1,7 @@
 # Playwright MCP — browser automation exposed over MCP (Streamable HTTP, /mcp).
 #
-# Consumer: hermes-agent, registered manually once with
-#   ./existential.sh run mcp mcp
-# It is NOT one of the profile-wired MCP servers (ai/hermes/entrypoint.sh knows
-# only openviking and firecrawl), so a department profile cannot name it.
+# Consumer: pi, which automation/lib/pi.sh registers it with while this is on
+# (a department names it as `mcp: playwright`).
 #
 # Access: http://mcp-playwright:8931/mcp on the exist network.
 # There is NO authentication — upstream says so explicitly ("Playwright MCP is

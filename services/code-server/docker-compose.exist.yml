@@ -7,7 +7,7 @@
 #   code-server   — VS Code web IDE (port 8080)
 #
 # Volumes:
-#   workspace_data — primary working directory, the same tree hermes, decree and
+#   workspace_data — primary working directory, the same tree decree and
 #   Nextcloud mount. Edits here reach desktop clients via nextcloud-cron's scan,
 #   and start whatever file handler in workspace/.decree/handlers.yml matches.
 
@@ -69,9 +69,6 @@ services:
     environment:
       - IN_CONTAINER=1
       - PASSWORD=${CODE_SERVER_PASSWORD}
-      # What the `hermes` command in the terminal authenticates with. Empty when
-      # hermes is disabled — the CLI then says so instead of failing obscurely.
-      - HERMES_API_KEY=${HERMES_API_KEY:-}
       # Claude Code's login and settings, on the volume (entrypoint.sh says why
       # this and not the $HOME symlinks).
       - CLAUDE_CONFIG_DIR=/code-server-data/home/.claude
@@ -81,7 +78,10 @@ services:
       - DISABLE_ERROR_REPORTING=1
       # The provider block entrypoint.sh writes from the chat role below.
       - OPENCODE_CONFIG=/code-server-data/opencode.json
+      # pi's settings, provider and login, on the volume like Claude's.
+      - PI_CODING_AGENT_DIR=/code-server-data/home/.pi/agent
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
+      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
       # What you type into claude and opencode lands in workspace/.capture/
@@ -90,17 +90,19 @@ services:
       - CAPTURE_DIR=/workspace/.capture
       - CAPTURE_HOST=code-server
       # The Search add-on (ai/qmd): when on, entrypoint.sh hands its MCP
-      # endpoint to both CLIs and puts `search` on PATH; when off, none of it.
+      # endpoint to the CLIs and puts `search` on PATH; when off, none of it.
       - EXIST_IS_AI_QMD=${EXIST_IS_AI_QMD:-false}
+      # pi's other MCP servers, the same ones automation's pi gets (lib/pi.sh).
+      - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
+      - EXIST_IS_AI_MCP=${EXIST_IS_AI_MCP:-false}
+      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
-      # The `hermes` command entrypoint.sh puts on PATH, and the request shape it
-      # sources. Tracked config, read-only, and the same files the decree
-      # daemons run — so the editor's terminal and a routine reach the gateway
+      # The chat role's resolver and pi's configuration, the same files the
+      # decree daemons run — so opencode, pi and a routine reach the model
       # through one implementation instead of two.
-      - ../../automation/lib/hermes-cli.sh:/opt/hermes/hermes-cli.sh:ro
-      - ../../automation/lib/hermes.sh:/opt/hermes/hermes.sh:ro
-      - ../../automation/lib/model.sh:/opt/hermes/model.sh:ro
+      - ../../automation/lib/model.sh:/opt/pi/model.sh:ro
+      - ../../automation/lib/pi.sh:/opt/pi/pi.sh:ro
       # capture.sh (Claude Code's prompt hook) and opencode.ts (opencode's plugin).
       - ../../automation/lib/capture:/opt/capture:ro
       # The recall skill entrypoint.sh copies into the workspace when search is on.

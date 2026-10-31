@@ -1,8 +1,8 @@
-# hermes_router
+# router
 
-Ask the hermes router profile which department fits a task, then hand it to agent_task on that profile.
+Ask the chat model which department fits a task, then hand it to agent_task in that department.
 
-Machine: [machines/hermes_router.yml](../machines/hermes_router.yml)
+Machine: [machines/router.yml](../machines/router.yml)
 
 ```mermaid
 stateDiagram-v2

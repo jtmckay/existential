@@ -53,7 +53,6 @@ written request and we will provide it: **[insert contact email]**.
 | Redis (`redis:8.10.1-alpine3.23`) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |
 | OpenViking | AGPL-3.0 (main project) | https://github.com/volcengine/OpenViking |
-| Honcho | AGPL-3.0 | https://github.com/plastic-labs/honcho |
 | Firecrawl | AGPL-3.0 | https://github.com/firecrawl/firecrawl |
 | Proxmox VE (host hypervisor) | AGPL-3.0 | https://git.proxmox.com |
 
@@ -72,7 +71,7 @@ offer is required; attribution is given here.
 | Ntfy | Apache-2.0 / GPL-2.0 | https://github.com/binwiederhier/ntfy |
 | Chatterbox TTS | MIT | https://github.com/devnen/Chatterbox-TTS-Server |
 | ComfyUI | GPL-3.0 | https://github.com/comfyanonymous/ComfyUI |
-| Hermes (agent + workspace) | MIT | https://github.com/NousResearch/hermes-agent |
+| pi (coding agent) | MIT | https://github.com/earendil-works/pi |
 | Ollama | MIT | https://github.com/ollama/ollama |
 | WhisperX (whisperX-FastAPI) | MIT | https://github.com/pavelzbornik/whisperX-FastAPI |
 | wyoming-piper | MIT | https://github.com/rhasspy/wyoming-piper |

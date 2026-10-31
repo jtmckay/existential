@@ -5,13 +5,13 @@ Three separate things, one rule each in `CLAUDE.md`. This is the why.
 ## Model selection is global
 
 Every model the stack uses is named once, in `.env.exist.shared`'s *Model Selection* block:
-`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EXTRACT`, `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`,
+`EXIST_MODEL_CHAT`, `_CHAT_NUM_CTX`, `_EMBED`, `_EMBED_DIM`, `_VISION`, `_STT`,
 `_STT_LANGUAGE`, `_TTS_VOICE`.
 
 Consumers read those keys rather than naming a tag themselves:
 
 - ollama migrations name an `OLLAMA_ROLE`, never a tag
-- honcho renders its `config.toml` from them
+- pi's provider is written from them (`automation/lib/pi.sh`), open-webui's backend rendered from them
 - the wyoming services take them as compose env
 
 A hardcoded model tag in a service is a second place to edit when the user changes machines or
@@ -20,7 +20,7 @@ tiers, and the tier table below can no longer keep the stack consistent.
 ## Model addresses are per-role, and OpenAI-compatible
 
 `.env.exist.shared`'s *Model Endpoints* block gives each role its own key —
-`EXIST_MODEL_URL_CHAT`, `_EXTRACT`, `_EMBED`, `_VISION` — each shipped **blank** and falling
+`EXIST_MODEL_URL_CHAT`, `_EMBED`, `_VISION` — each shipped **blank** and falling
 back to `EXIST_MODEL_URL`. That blankness is the mechanism: leaving them empty means "one
 server for everything", and filling one in moves that role to another machine. It is how VRAM
 gets spread across hosts without touching a service.
@@ -50,9 +50,9 @@ actually serves it. Adding a role means touching all three resolvers —
 `src/test/unit/test-model-endpoints.sh` asserts they agree, so a half-done role fails the suite.
 
 **A decree script reaches a model through `automation/lib/model.sh`** (`model_chat`,
-`model_gate`), straight at the role's URL. hermes is optional: `hermes.sh`'s `hermes_chat` is
-`model_chat` aimed at the gateway, for work that needs an agent with tools, and hermes itself is
-configured with the chat URL. `src/test/unit/test-model-client.sh` runs every prompt path
+`model_gate`), straight at the role's URL. Work that needs an agent with tools runs pi through
+`pi.sh` (`pi_run`), whose provider `pi_configure` writes from `model_url chat` — the same
+resolver, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path
 against a stub that serves only `/v1`.
 
 **STT/TTS get no endpoint keys.** The wyoming services are CPU-only, so there is no VRAM to
@@ -81,9 +81,9 @@ the table, not the individual defaults**.
 Every tier tag must satisfy three constraints (a hand-typed **Custom** model is the user's
 problem, not the table's — the same three still apply to it, and nothing checks them):
 
-- **ollama's `tools` capability** — hermes cannot act without it.
+- **ollama's `tools` capability** — pi cannot act without it.
 - **multimodal** — so images reuse the already-resident model rather than loading a second one.
-- **at least 64k context** — hermes requires 64,000 tokens and ollama truncates *silently*
+- **at least 64k context** — an agent's tool loop needs 64,000 tokens and ollama truncates *silently*
   below it, which reads as the model ignoring instructions rather than as an error.
 
 On the small tiers that KV cache spills into system RAM. That is a speed cost, not a correctness

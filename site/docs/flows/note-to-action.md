@@ -78,7 +78,7 @@ They're written beside the original note. Answer them and the next run picks up 
 | `notes` | Pulls the vault from Nextcloud into `/data/notes` | Your notes live elsewhere |
 | `note_triage` | Diffs the vault, judges each new note, checks the ledger, chains the next step | Never |
 | `note_develop` | *(default)* Researches and drafts one document | You want the fan-out |
-| `idea_workup` | *(alternative)* Sends the idea to three hermes departments | You want one document |
+| `idea_workup` | *(alternative)* Sends the idea to three departments | You want one document |
 
 ## Setting it up, step by step
 
@@ -91,17 +91,10 @@ They're written beside the original note. Answer them and the next run picks up 
 This copies `note-triage.md` into `volumes/workspace_data/.decree/cron/`. Its `TRIAGE_ROUTINE`
 param picks `note_develop` (default) or `idea_workup`.
 
-### 2. Confirm the hermes profiles exist — fan-out path only
+The fan-out path uses the `research` and `sales` departments, files in
+`automation/lib/departments/`. Nothing to provision.
 
-```bash
-docker exec hermes-agent ls /opt/data/profiles
-```
-
-`research` and `sales` are provisioned on boot from `ai/hermes/profiles/`. If missing,
-`docker compose up -d hermes-agent`. Each is served at `/p/<name>/v1` with its own API key; an
-unprovisioned one returns 401.
-
-### 3. Watch it do nothing
+### 2. Watch it do nothing
 
 :::warning[The first run does nothing, on purpose]
 It records your vault as seen without triaging, so a 5,000-note vault doesn't fire 5,000 model
@@ -112,7 +105,7 @@ echo | docker exec -i automation decree emit --machine note_triage --param TRIAG
 ```
 :::
 
-### 4. Check it before trusting it
+### 3. Check it before trusting it
 
 ```bash
 echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_DRY_RUN=true
@@ -123,8 +116,8 @@ A dry run prints a verdict per note, chains nothing and writes no ledger entries
 ### Prerequisites
 
 - Notes in `/data/notes`: turn on `notes-to-dropbox`, or point `NOTES_DIR` at a vault you sync.
-- A chat model (`EXIST_MODEL_URL_CHAT` or `EXIST_MODEL_URL`). [Hermes](../ai/hermes) is needed only
-  for the departments.
+- A chat model (`EXIST_MODEL_URL_CHAT` or `EXIST_MODEL_URL`). The departments run it through
+  [pi](../ai/pi), which ships in the image.
 
 ## Swap the judgment
 
@@ -172,7 +165,7 @@ you. Needs only a chat model. Output goes to `/data/note-triage/output`, and bes
 TRIAGE_ROUTINE: idea_workup
 ```
 
-It emits three messages, each to the hermes profile with the right tools:
+It emits three messages, each to the department with the right tools:
 
 | Question | Department | Why |
 |---|---|---|
@@ -189,8 +182,8 @@ workspace/ai/tool-rental-value-prop.md
 ```
 
 :::info[Why three messages]
-The default hermes profile carries every tool, about 40,000 prompt tokens a call. A narrow
-profile costs a fraction, and each question retries and logs on its own. See
+A department carries only the tools its question needs, so a narrow one costs a fraction of
+every tool in the prompt, and each question retries and logs on its own. See
 [Routing to Departments](../decree/routing).
 :::
 

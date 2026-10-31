@@ -39,7 +39,7 @@ Anything down here is the body.
 
 ```yaml
 name: my_job
-description: One line on what it does; hermes and the graph both show it.
+description: One line on what it does; the graph shows it.
 data:
   MY_PARAM: { type: string, default: a default }
   MY_LIMIT: { type: int, default: 20 }
@@ -85,12 +85,13 @@ Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and
 machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
 To ask a model, source `$DECREE_LIB/model.sh` and call `model_chat <system> <user>`, or
-`model_gate <criteria> <text>` for yes/no. It uses the role's `/v1` URL. For an agent with tools,
-use `hermes.sh` (hermes must be enabled).
+`model_gate <criteria> <text>` for yes/no. It uses the role's `/v1` URL. For an agent with tools
+on that same model, source `pi.sh` and call `pi_run <department> <system> <prompt>`
+([pi](./ai/pi)); for Claude, `agent.sh`.
 
 :::warning[Which daemon?]
 - **`automation`** (`workspace/.decree`): anything that reasons, routes, calls a service API or
-  runs a migration. It has the model endpoints and hermes credential.
+  runs a migration. It has the model endpoints, pi and Claude.
 - **`automation-backup`** (`services/automation-backup/`, off by default): anything that needs
   all of `volumes/` or the master `.env` (backups, `triage`, `notes_pull`). Never an AI call.
 - A job that needs both is two machines.
@@ -199,5 +200,5 @@ Why a job seems to do nothing:
 
 - [Note → Action](./flows/note-to-action): four machines in one flow
 - [File Change Processing](./decree/file-change-processing): the file trigger
-- [Routing to Departments](./decree/routing): sending work to a hermes profile
+- [Routing to Departments](./decree/routing): sending work to a department
 - [Build On It](./build-on-it): the HTTP contract

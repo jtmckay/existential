@@ -2,8 +2,8 @@
 # code-server entrypoint — installs code-server into the persistent cache
 # volume on first start, then launches it bound on :8080 behind password auth
 # ($PASSWORD, set by Caddy-fronted https://code-server.<domain>). A bare
-# shell in this container can read/write the whole workspace, reach the hermes
-# gateway and run whatever you installed in it, so it's not just an editor —
+# shell in this container can read/write the whole workspace, reach the
+# stack's models and run whatever you installed in it, so it's not just an editor —
 # auth is load-bearing.
 set -euo pipefail
 
@@ -141,7 +141,7 @@ fi
 # both CLIs. Claude Code gets it at user scope with its read-only tools allowed
 # without a prompt, plus the recall skill at the workspace root, which says when
 # and how to search; opencode gets it in the config below; the terminal gets a
-# `search` command (lib/recall/search.sh, linked like `hermes`). Turning the add-on off
+# `search` command (lib/recall/search.sh). Turning the add-on off
 # removes all of it on the next boot. Never fatal: search is optional.
 _search=""; [[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _search=http://qmd:8181/mcp
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
@@ -160,7 +160,7 @@ _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
     fi
 } || echo "[code-server] WARN: search (ai/qmd) not wired into Claude Code"
 # shellcheck source=/dev/null
-. /opt/hermes/model.sh
+. /opt/pi/model.sh
 _opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"
 
 # `python` for the tools that assume it; the image ships python3 only. PATH
@@ -170,15 +170,10 @@ if _python3="$(command -v python3)"; then
     ln -sfn "$_python3" "$NPM_BIN/python"
 fi
 
-# `hermes "..."` in the integrated terminal, same gateway (and same
-# lib/hermes.sh) every decree script uses — see the two read-only mounts in
-# docker-compose.exist.yml. A symlink rather than a copy so an edit to
-# automation/lib/ is live here on the next invocation. PATH here is the
-# npm-global bin dir from /etc/profile.d/npm-global.sh, which is the one
-# writable dir already on PATH for a login shell.
-if [[ -x /opt/hermes/hermes-cli.sh ]]; then
-    ln -sfn /opt/hermes/hermes-cli.sh "$NPM_BIN/hermes"
-fi
+# pi is baked into the image; its provider and MCP servers are the ones
+# automation's pi gets, from the same lib/pi.sh. Never fatal.
+# shellcheck source=/dev/null
+( . /opt/pi/pi.sh && pi_configure ) || echo "[code-server] WARN: pi not configured"
 
 exec "$CODE_SERVER_BIN" \
     --bind-addr 0.0.0.0:8080 \

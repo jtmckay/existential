@@ -17,7 +17,7 @@
  *      the host user via the `${EXIST_PUID:-1000}` convention.
  * 12. Every Caddy slug must equal the backendContainer name, or start with
  *      `{backendContainer}-`. A slug shorter/different than the container it proxies
- *      (e.g. `hermes.internal` → `hermes-agent`) is a convention violation — it implies
+ *      (e.g. `crawl.internal` → `firecrawl-mcp`) is a convention violation — it implies
  *      a container that doesn't exist. When a container needs two URLs (two ports), the
  *      primary slug is the container name and any alias starts with `{container}-`.
  * 13. Every service folder has exactly one docs page (`service:` frontmatter), every such
@@ -312,7 +312,7 @@ function checkBindMounts(): string[] {
 // A container must run as the host user via the ${EXIST_PUID:-1000} convention, never a
 // hardcoded numeric uid/gid — that only works on a 1000:1000 host. Flag literal `user:`
 // values and literal uid/gid *env* values (PUID/PGID/UID/GID and prefixed forms like
-// HERMES_UID, LOWCODER_PUID). The resolved ${EXIST_…} form starts with `$`, so it never
+// LOWCODER_PUID). The resolved ${EXIST_…} form starts with `$`, so it never
 // matches the numeric patterns below.
 const USER_LITERAL_RE   = /^\s*user:\s*["']?\d+:\d+["']?\s*(?:#.*)?$/;
 const UID_ENV_KEY_RE     = /^\s*([A-Za-z_][A-Za-z0-9_]*):\s*["']?(\d+)["']?\s*(?:#.*)?$/;
@@ -541,8 +541,8 @@ function main(): number {
 
   // (11) When a container already has an exact-match slug (slug === containerName),
   // any OTHER Caddy slug routing to that same container must start with
-  // `{containerName}-`. This prevents a short alias like `hermes.internal`
-  // → `hermes-agent` from implying a "hermes" container that doesn't exist,
+  // `{containerName}-`. This prevents a short alias like `firecrawl.internal`
+  // → `firecrawl-mcp` from implying a container that doesn't exist,
   // while still allowing `immich.internal` → `immich-server` (no exact-match
   // `immich-server.internal` exists, so the rule doesn't apply).
   const exactMatchContainers = new Set<string>();

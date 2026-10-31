@@ -3,8 +3,8 @@
 #
 # Sourced, never run. Every model role's address is an OpenAI-compatible base
 # URL ending /v1, so ollama, a llama.cpp server or anything else that serves
-# /v1/chat/completions answers the same request. hermes is not involved: a
-# script that wants an agent with tools uses hermes.sh, which is built on this.
+# /v1/chat/completions answers the same request. A script that wants an agent
+# with tools uses pi.sh (this model) or agent.sh (Claude).
 #
 #   source "${DECREE_LIB}/model.sh"
 #
@@ -21,7 +21,7 @@
 #   EXIST_MODEL_URL, EXIST_MODEL_URL_<ROLE>  the endpoints (compose passes them)
 #   EXIST_MODEL_<ROLE>   the tag a role sends as "model"
 #   MODEL_ROLE       role model_chat talks to, default chat
-#   MODEL_URL        overrides the role's URL (hermes_chat aims it at the gateway)
+#   MODEL_URL        overrides the role's URL
 #   MODEL_NAME       overrides the role's tag; set but EMPTY sends no "model" at
 #                    all, so the server's own default answers
 #   MODEL_API_KEY    bearer token; omitted from the request when empty
@@ -35,11 +35,10 @@ model_url() {
     local role="${1:-}" specific=""
     case "$role" in
         chat|chat-ctx) specific="${EXIST_MODEL_URL_CHAT:-}" ;;
-        extract)       specific="${EXIST_MODEL_URL_EXTRACT:-}" ;;
         embed)         specific="${EXIST_MODEL_URL_EMBED:-}" ;;
         vision)        specific="${EXIST_MODEL_URL_VISION:-}" ;;
         *)
-            echo "model_url: unknown role '${role}' (chat|chat-ctx|extract|embed|vision)" >&2
+            echo "model_url: unknown role '${role}' (chat|chat-ctx|embed|vision)" >&2
             return 1
             ;;
     esac
@@ -50,7 +49,6 @@ model_url() {
 model_tag() {
     case "${1:-}" in
         chat|chat-ctx) printf '%s\n' "${EXIST_MODEL_CHAT:-}" ;;
-        extract)       printf '%s\n' "${EXIST_MODEL_EXTRACT:-}" ;;
         embed)         printf '%s\n' "${EXIST_MODEL_EMBED:-}" ;;
         vision)        printf '%s\n' "${EXIST_MODEL_VISION:-}" ;;
         *)             return 1 ;;

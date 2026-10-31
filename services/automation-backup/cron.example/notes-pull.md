@@ -13,7 +13,7 @@ workspace/ knowledgebase.
 that lands in `workspace/notes/` is a normal file under `workspace/`, so it
 automatically:
   - gets indexed by OpenViking and becomes searchable/citable context for
-    every hermes agent (see openviking-index-knowledgebase.md)
+    every agent (see openviking-index-knowledgebase.md)
   - shows up in Nextcloud's `workspace` folder, and so on every desktop client
     syncing it
 

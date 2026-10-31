@@ -22,7 +22,7 @@ A failed migration blocks every migration after it, so as migrations the first
 failing check would hide every later one. The one that actually bit us is
 timing: **migrations run as the daemon boots**, so a check written as a
 migration judges a stack that is still starting. Run that way, `00-services`
-failed hermes, appsmith, lowcoder, nocodb and nextcloud across four runs whose
+failed open-webui, appsmith, lowcoder, nocodb and nextcloud across four runs whose
 containers the health gate then found perfectly healthy.
 
 And each decree pass drains the inbox *before* it runs migrations, so a check

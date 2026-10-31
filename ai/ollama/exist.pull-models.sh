@@ -7,7 +7,7 @@
 # run once.
 #
 # Which models get pulled is NOT decided here: it comes from the "Model
-# Selection" block in .env.shared (EXIST_MODEL_CHAT, EXIST_MODEL_EXTRACT,
+# Selection" block in .env.shared (EXIST_MODEL_CHAT,
 # EXIST_MODEL_EMBED, EXIST_MODEL_VISION). Change it there and re-run this.
 #
 # Run manually:
@@ -52,7 +52,6 @@ _url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else
 
 MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
 MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
-MODEL_EXTRACT="${EXIST_MODEL_EXTRACT:-}"
 MODEL_EMBED="${EXIST_MODEL_EMBED:-}"
 MODEL_VISION="${EXIST_MODEL_VISION:-}"
 
@@ -78,7 +77,6 @@ _add_job() {
     JOBS+=("$entry")
 }
 _add_job chat    "$MODEL_CHAT"
-_add_job extract "$MODEL_EXTRACT"
 _add_job embed   "$MODEL_EMBED"
 _add_job vision  "$MODEL_VISION"
 

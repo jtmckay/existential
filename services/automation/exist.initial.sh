@@ -95,7 +95,7 @@ for _flow in $(flow_defaults); do
 done
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/
-# (hermes) has no other way to discover that ai/ is special: a bare directory
+# (pi, in a department without bash) has no other way to discover that ai/ is special: a bare directory
 # listing shows folders with nothing to tell it to go read the README. This is
 # what a first listing should surface.
 WORKSPACE_README="${WORKSPACE_DIR}/README.md"
@@ -104,8 +104,8 @@ if [[ ! -e "${WORKSPACE_README}" ]]; then
     cat > "${WORKSPACE_README}" << 'WORKSPACEEOF'
 # workspace/
 
-Your folder, shared with every agent the stack runs (code-server at
-`/workspace`, Hermes at `/opt/data/workspace`). Everything here is ordinary
+Your folder, shared with every agent the stack runs (pi and Claude, in
+code-server and in automation, all at `/workspace`). Everything here is ordinary
 content — notes, plans, reference material — except:
 
 - **`notes/`** — your notes, plain markdown. Start with `my-first-note.md`.

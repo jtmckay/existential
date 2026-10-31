@@ -59,7 +59,7 @@
 
 # Code-server
 # Nothing renders opencode.json any more (the stack ships no opencode config),
-# but installs from before that carry a leftover copy holding the hermes API
+# but installs from before that carry a leftover copy holding a gateway API
 # key. Keep it ignored so a stale one can never be committed.
 **/opencode.json
 
@@ -127,13 +127,6 @@ automation/outbox/
 **/ntfy-config/server.yml
 **/ntfy-config/user.db
 **/mqtfy-config.yml
-
-# Honcho
-**/honcho/config.toml
-# Nothing renders this any more — the honcho plugin config is written straight
-# into hermes' volume by ai/hermes/exist.initial.sh, which is the only consumer.
-# Kept ignored so a leftover copy from an older install can never be committed.
-**/honcho/honcho.json
 
 # Playwright MCP scratch output (screenshots, traces)
 **/.playwright-mcp/

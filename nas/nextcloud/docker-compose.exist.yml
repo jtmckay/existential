@@ -4,7 +4,7 @@ services:
   nextcloud:
     container_name: nextcloud
     image: nextcloud:34.0.3
-    # Same uid as hermes, code-server and decree, because all four write the
+    # Same uid as code-server and decree, because all three write the
     # same workspace_data volume. The image supports a non-root start (its
     # entrypoint skips the chown/su dance when `id -u` is not 0); the sysctl is
     # what lets that uid bind apache's port 80 inside the container's own
@@ -68,7 +68,7 @@ services:
       # and the image's conf.d is root-owned, so a non-root container needs a
       # file of its own there. Rendered from redis-session.exist.ini.
       - ./redis-session.ini:/usr/local/etc/php/conf.d/redis-session.ini:z
-      # The user's workspace — the same tree hermes, code-server and decree
+      # The user's workspace — the same tree code-server and decree
       # mount. hooks/before-starting/02-workspace.sh mounts it into Files as
       # Local external storage, so the desktop client syncs it and every
       # upload fires the file events decree routes.
@@ -126,7 +126,7 @@ services:
   #                    own loop, because a first cron.php can run for minutes.
   #   cron.php         every due job — the standard cron, which also switches
   #                    Nextcloud from AJAX to cron mode on its first run.
-  #   files:scan       picks up what hermes/code-server/decree wrote straight to
+  #   files:scan       picks up what code-server/decree wrote straight to
   #                    disk, so desktop clients see it. It fires NO Nextcloud
   #                    file events (verified); only a file handler can see those writes.
   nextcloud-cron:
@@ -255,6 +255,6 @@ x-exist-volumes:
   nextcloud_custom_apps_data: {}
   nextcloud_themes_data: {}
   nextcloud_sql_data: { db: true }
-  # The user's own files, shared with hermes, code-server and decree. Local, not
+  # The user's own files, shared with code-server and decree. Local, not
   # nfs: exist.initial.sh scripts seed READMEs into volumes/workspace_data.
   workspace_data: {}

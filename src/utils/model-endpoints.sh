@@ -22,7 +22,6 @@
 # cannot see src/; test-model-endpoints.sh asserts the two agree.
 #
 #   chat | chat-ctx  → EXIST_MODEL_URL_CHAT
-#   extract          → EXIST_MODEL_URL_EXTRACT
 #   embed            → EXIST_MODEL_URL_EMBED
 #   vision           → EXIST_MODEL_URL_VISION
 #
@@ -38,11 +37,10 @@ endpoint_for() {
 
     case "$role" in
         chat|chat-ctx) specific="${EXIST_MODEL_URL_CHAT:-}" ;;
-        extract)       specific="${EXIST_MODEL_URL_EXTRACT:-}" ;;
         embed)         specific="${EXIST_MODEL_URL_EMBED:-}" ;;
         vision)        specific="${EXIST_MODEL_URL_VISION:-}" ;;
         *)
-            echo "endpoint_for: unknown role '${role}' (chat|chat-ctx|extract|embed|vision)" >&2
+            echo "endpoint_for: unknown role '${role}' (chat|chat-ctx|embed|vision)" >&2
             return 1
             ;;
     esac
@@ -56,7 +54,7 @@ endpoint_for() {
 endpoints_are_uniform() {
     local first role
     first="$(endpoint_for chat)" || return 1
-    for role in extract embed vision; do
+    for role in embed vision; do
         [ "$(endpoint_for "$role")" = "$first" ] || return 1
     done
     return 0

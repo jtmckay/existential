@@ -27,7 +27,7 @@ ollama answers `/api/tags`, once the `local-models` flow is on (`./existential.s
 
 Migration `11` rebuilds the chat tag with `num_ctx=EXIST_MODEL_CHAT_NUM_CTX` (65536), because
 ollama otherwise serves a much smaller default context and **truncates silently** — which reads
-as the model forgetting its instructions rather than as an error. Hermes refuses to start below
+as the model forgetting its instructions rather than as an error. An agent's tool loop needs
 64,000 tokens.
 
 A running instance keeps the context it was loaded with, so after a rebuild evict it:
@@ -38,7 +38,7 @@ A running instance keeps the context it was loaded with, so after a rebuild evic
 
 ## Where it runs
 
-`EXIST_MODEL_URL` (and the per-role `EXIST_MODEL_URL_CHAT|_EXTRACT|_EMBED|_VISION`) decide which
+`EXIST_MODEL_URL` (and the per-role `EXIST_MODEL_URL_CHAT|_EMBED|_VISION`) decide which
 machine serves each role, as OpenAI-compatible `/v1` URLs, so the models can live on a different
 box — or a different server, such as llama.cpp — than the rest of the stack. Pulling, unloading
 and the ollama probes run only while `EXIST_IS_AI_OLLAMA=true`. The `ollama.<domain>` Caddy

@@ -2,13 +2,13 @@
 # note_connect — watch your knowledge base for connections to what you already know.
 #
 # Scans NOTES_DIR for notes that are new or changed since the last run, hands each one to a
-# hermes department with OpenViking access, and asks for the single most interesting,
+# pi department with OpenViking access, and asks for the single most interesting,
 # non-obvious connection to something already there. Only a self-scored connection at or
 # above CONNECT_MIN_SCORE is written down and sent to you — most notes do not have one
 # waiting.
 #
-# NOTES_DIR defaults to /workspace — the same tree OpenViking already indexes and Hermes
-# already reads — precisely so this needs nothing beyond Hermes and OpenViking to work.
+# NOTES_DIR defaults to /workspace — the same tree OpenViking already indexes — precisely
+# so this needs nothing beyond OpenViking and the chat model to work.
 # Point it at /data/notes instead to scan a note-triage-style vault mirror there.
 #
 # Different job from note-triage: triage asks "is this worth acting on" and is stingy on
@@ -18,9 +18,9 @@
 # topical match ("both mention coffee") does not clear the bar; a real connection does.
 #
 # The search itself needs OpenViking, which is a tool, not a plain completion — so this
-# routine hands the note to a hermes department profile that carries `mcp: openviking`
-# (CONNECT_PROFILE, default "research", see ai/hermes/profiles/research/profile.yml) rather
-# than calling the gateway's default profile the way note-triage does. The department
+# routine hands the note to pi in a department that carries `mcp: openviking`
+# (CONNECT_DEPARTMENT, default "research", see automation/lib/departments/research.yml)
+# rather than the plain completion note-triage makes. The department
 # searches the OpenViking index, proposes at most one connection with a self-scored
 # interestingness, and this routine only acts when that score clears CONNECT_MIN_SCORE.
 #
@@ -42,14 +42,13 @@
 
 set -euo pipefail
 
-# shellcheck source=../lib/hermes.sh
-source "${DECREE_LIB}/hermes.sh"
+# shellcheck source=../lib/pi.sh
+source "${DECREE_LIB}/pi.sh"
 
 NOTES_DIR="${NOTES_DIR:-/workspace}"
 STATE_DIR="${STATE_DIR:-/data/note-connect}"
 OUTPUT_DIR="${OUTPUT_DIR:-/data/note-connect/output}"
-CONNECT_PROFILE="$DECREE_DATA_CONNECT_PROFILE"
-CONNECT_MODEL="${CONNECT_MODEL:-}"
+CONNECT_DEPARTMENT="$DECREE_DATA_CONNECT_DEPARTMENT"
 CONNECT_MAX_NOTES="$DECREE_DATA_CONNECT_MAX_NOTES"
 CONNECT_MAX_CHARS="${CONNECT_MAX_CHARS:-6000}"
 CONNECT_MIN_CHARS="${CONNECT_MIN_CHARS:-120}"
@@ -57,7 +56,6 @@ CONNECT_MIN_SCORE="$DECREE_DATA_CONNECT_MIN_SCORE"
 CONNECT_BOOTSTRAP="$DECREE_DATA_CONNECT_BOOTSTRAP"
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-300}"
 CONNECT_DRY_RUN="$DECREE_DATA_CONNECT_DRY_RUN"
-CONNECT_API_KEY="${CONNECT_API_KEY:-}"
 CONNECT_LEDGER="${CONNECT_LEDGER:-true}"
 CONNECT_NOTIFY="${CONNECT_NOTIFY:-true}"
 CONNECT_OUTPUT_RCLONE_DEST="$DECREE_DATA_CONNECT_OUTPUT_RCLONE_DEST"
@@ -68,12 +66,7 @@ CONNECT_OUTPUT_RCLONE_DEST="$DECREE_DATA_CONNECT_OUTPUT_RCLONE_DEST"
 # rejects its input if the sort order does not match the ambient locale.
 export LC_ALL=C
 
-if [ -z "$CONNECT_API_KEY" ]; then
-    CONNECT_API_KEY="${HERMES_API_KEY:-}"
-fi
-
 [ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — is /workspace mounted? Or point NOTES_DIR at a vault of your own" >&2; exit 1; }
-: "${CONNECT_API_KEY:?HERMES_API_KEY is empty — enable hermes so the gateway credential is passed through}"
 
 RCLONE_CONF="${RCLONE_CONF:-/secrets/rclone/rclone.conf}"
 MANIFEST="${STATE_DIR}/seen.tsv"
@@ -82,15 +75,9 @@ LEDGER="${STATE_DIR}/connections.tsv"
 mkdir -p "$STATE_DIR"
 touch "$MANIFEST" "$LEDGER"
 
-# The department call. Every other routine that talks to hermes owns its own
-# curl; this one is the same shape as agent_task's, aimed at a profile instead
-# of the default gateway, because finding a connection means searching the
-# vault — a tool call, not a plain completion.
-HERMES_API_URL="$(hermes_profile_url "$CONNECT_PROFILE")"
-HERMES_TIMEOUT="$CONNECT_TIMEOUT"
-HERMES_API_KEY="$CONNECT_API_KEY"
-HERMES_MODEL="$CONNECT_MODEL"
-export HERMES_API_URL HERMES_TIMEOUT HERMES_API_KEY HERMES_MODEL
+# Finding a connection means searching the vault — a tool call, not a plain
+# completion — so each note is one pi run in CONNECT_DEPARTMENT.
+export PI_TIMEOUT="$CONNECT_TIMEOUT"
 
 # Build the current view of the vault: "<sha256>\t<relative path>"
 current="$(mktemp)"
@@ -167,10 +154,10 @@ while IFS=$'\t' read -r hash rel; do
 
     examined=$((examined + 1))
 
-    answer="$(hermes_chat "$SYSTEM" "Note path: ${rel}
+    answer="$(pi_run "$CONNECT_DEPARTMENT" "$SYSTEM" "Note path: ${rel}
 
 ---
-${body}" 300 || true)"
+${body}" || true)"
 
     if [ -z "$answer" ]; then
         echo "WARN: no answer for ${rel} — leaving it unseen so the next run retries" >&2

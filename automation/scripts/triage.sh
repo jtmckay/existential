@@ -170,8 +170,8 @@ if [ "$TRIAGE_NOTIFY" = "true" ] && [ "$NOW_FAILED" != "$PREV_FAILED" ]; then
 
     if [ -n "$_broke" ] || [ -n "$_fixed" ]; then
         # ${v:+a}${v:-b} is not an if/else: when v is set, ${v:-b} expands to
-        # v, not to nothing, so the set branch once emitted "high" + "hermes "
-        # = "highhermes". Plain variables first.
+        # v, not to nothing, so the set branch once emitted "high" + "ollama "
+        # = "highollama". Plain variables first.
         _title=""
         [ -n "$_broke" ] && _title="Stack: ${_broke% } stopped working"
         [ -n "$_fixed" ] && _title="${_title:+${_title} · }${_fixed% } recovered"

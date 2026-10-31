@@ -10,8 +10,8 @@
 # that is what makes M1-M3 validate the templates' machine and params against
 # the machines' data, which is the mistake a rename or a new param makes.
 #
-# The committed graph/ must be what `decree graph` writes: routines_snapshot
-# hands graph/system.md to hermes as the list of what decree can run.
+# The committed graph/ must be what `decree graph` writes: it is the drawn
+# record of what decree can run, and a stale one misleads whoever reads it.
 #
 # Runs in adhoc (decree on PATH): ./existential.sh test decree. Read-only,
 # except with WRITE_GRAPH=1 (./existential.sh run decree-graph), which copies the

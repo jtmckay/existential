@@ -31,11 +31,9 @@ The endpoints are `workspace/.decree/decree-go-rest.yml`, seeded once from
 | `/look-back`, `/look-back/{period}`, `/look-back/{period}/{scope}` | `look_back`: [a look back](../getting-started#look-back) |
 | `/notify`, `/notify/{title}` | `notify`: an ntfy push |
 | `/files` | `file_router`: Nextcloud's file events ([File Change Processing](./file-change-processing)) |
-| `/hermes/*` | Follow-up work [Hermes](../ai/hermes) asks decree for |
 
 Every request carries `Authorization: Bearer <secret>`. The default secret is
-`AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`; `/files` and `/hermes/*`
-each have their own.
+`AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`; `/files` has its own.
 
 ```bash
 curl -X POST https://automation-webhook.<domain>/notify/backup \

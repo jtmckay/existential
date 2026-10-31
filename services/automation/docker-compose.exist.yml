@@ -24,8 +24,7 @@ services:
     # Nothing here may start DECREE_: decree strips every inherited DECREE_*
     # variable before it runs a script.
     environment:
-      # triage runs every service test in here; hermes reads this to know
-      # whether a real inference is affordable on this host.
+      # whisperx-transcribe.ts reads it: 0 means no GPU, so it asks for CPU.
       - EXIST_VRAM_GB=${EXIST_VRAM_GB:-}
       # whisperx-transcribe.ts must send device/compute_type on every request —
       # whisperx's async endpoints default to cuda/float16 regardless of the
@@ -40,12 +39,13 @@ services:
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
       - NOTES_REMOTE_DIR=${AUTOMATION_NOTES_DIR}
       - DROPBOX_DEST_DIR=${AUTOMATION_DROPBOX_DEST_DIR}
-      # Gateway credential for routines that go through hermes. Empty when
-      # hermes is disabled — those routines are opt-in.
-      - HERMES_API_KEY=${HERMES_API_KEY:-}
       # lib/firecrawl.sh reaches http://firecrawl:3002 when this is true: over
       # the bridge firecrawl takes no key (caddy gates only the LAN side).
       - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
+      # The MCP servers pi_configure hands pi (automation/lib/pi.sh), each only
+      # while its add-on is on; openviking's is keyed off OPENVIKING_API_KEY below.
+      - EXIST_IS_AI_MCP=${EXIST_IS_AI_MCP:-false}
+      - EXIST_IS_AI_QMD=${EXIST_IS_AI_QMD:-false}
       # Redraw workspace/.decree/graph/ whenever a machine changes (entrypoint.sh).
       - GRAPH_WATCH=1
       # Start handlers.yml's machines when workspace files change (entrypoint.sh).
@@ -100,14 +100,12 @@ services:
       # See the "Model Selection" block in .env.exist.shared.
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
       - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
-      - EXIST_MODEL_EXTRACT=${EXIST_MODEL_EXTRACT}
       - EXIST_MODEL_EMBED=${EXIST_MODEL_EMBED}
       - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
       # ...and the per-role endpoints. Blank means "wherever EXIST_MODEL_URL
       # points" — see the "Model Endpoints" block in .env.exist.shared.
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
-      - EXIST_MODEL_URL_EXTRACT=${EXIST_MODEL_URL_EXTRACT:-}
       - EXIST_MODEL_URL_EMBED=${EXIST_MODEL_URL_EMBED:-}
       - EXIST_MODEL_URL_VISION=${EXIST_MODEL_URL_VISION:-}
       # ollama_pull and the health checks touch ollama's own API only when it runs.
@@ -133,7 +131,7 @@ services:
       - decree_data:/data:z
       # Outside .decree, so the generated compose never lands in workspace/.
       - ../../docker-compose.yml:/work/docker-compose.yml:ro,z
-      # NOT the whole repo. This container hands prompts to hermes, so what it
+      # NOT the whole repo. This container hands prompts to agents, so what it
       # can read is what a prompt injection can read. The whole-repo
       # mount that used to be here existed for triage, and carried the master
       # .env (every DB password and admin credential), .env.shared, and
@@ -141,11 +139,8 @@ services:
       # *.<domain> cert, i.e. a ready-made interception primitive.
       #
       # Triage moved to automation-backup, which does no reasoning and runs no
-      # agent, and the mount went with it. All that is left here is what
-      # hermes_router actually reads: the profile definitions, which hold no
-      # secrets. Keep it that way — if something here starts wanting /repo,
-      # mount the subtree it needs, not the root.
-      - ../../ai/hermes/profiles:/repo/ai/hermes/profiles:ro
+      # agent, and the mount went with it. Keep it that way — if something here
+      # starts wanting /repo, mount the subtree it needs, not the root.
       # The shared workspace, read-write: agent_task files its output in
       # workspace/ai/. file-handlers.ts watches all of it; only a handler in
       # .decree/handlers.yml turns a change into a run.

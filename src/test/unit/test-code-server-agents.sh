@@ -11,7 +11,7 @@
 #             preview, so .decree/graph/<machine>.md shows as a diagram.
 #
 # entrypoint.sh cannot be sourced (its top level installs and execs code-server),
-# so the helper is extracted by name, as test-hermes-model.sh does. The tmx half
+# so the helper is extracted by name. The tmx half
 # needs tmux, which the decree image ships; it skips where tmux is absent. Its
 # tmux server runs on a private socket, removed in the trap.
 set -uo pipefail

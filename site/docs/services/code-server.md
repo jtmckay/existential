@@ -33,8 +33,8 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 
 ## Shared workspace
 
-It mounts `workspace/`, the same tree [Hermes](../ai/hermes) sees at `/opt/data/workspace`, so
-you and an agent can edit the same files at once.
+It mounts `workspace/`, the same tree the `automation` daemon's agents see, so you and an agent
+can edit the same files at once.
 
 ## Seeing your flows
 
@@ -44,7 +44,7 @@ boot).
 
 ## AI in the terminal
 
-The terminal has `claude`, `opencode` and `hermes`. Talking to one is how you make new
+The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
 automations. Machines have their own Claude login: [Decree](../decree/#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
@@ -68,31 +68,19 @@ redacted, never responses). `CODE_SERVER_CAPTURE=false` turns it off. See
 `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, opencode with sharing off. Your conversation
 goes to the AI provider you use, under its terms.
 
-**`hermes "..."`** sends one prompt to the stack's agent. It's `automation/lib/hermes-cli.sh`,
-the same wrapper decree scripts use. Hermes reaches OpenViking, Firecrawl and Playwright itself:
+**`pi`** is [pi](../ai/pi), baked into the image and pointed at the same chat model on every
+boot, with the MCP servers of every add-on that is on (OpenViking, Firecrawl, Playwright, qmd):
 
 ```bash
-hermes "what is still open in workspace/notes/plan.md?"
-cat notes.md | hermes                     # prompt on stdin
-hermes --profile research "..."           # one department's toolset
+pi                                            # the TUI
+pi -p "what is still open in notes/plan.md?"  # one answer
 ```
 
-It uses `HERMES_API_KEY`. With hermes disabled it says so.
-
-It isn't the upstream hermes CLI: one prompt, one answer, no session. The interactive TUI
-(`hermes chat`) runs only inside `hermes-agent`. From a shell on the host:
-
-```bash
-docker exec -it hermes-agent /opt/hermes/.venv/bin/hermes chat
-docker exec -it -e HERMES_HOME=/opt/data/profiles/research hermes-agent \
-    /opt/hermes/.venv/bin/hermes chat     # one department
-```
-
-In the browser, the equivalents are the [Hermes dashboard](../ai/hermes) (sessions, skills,
-agent config) and [Open WebUI](../ai/open-web-ui) (conversation).
+It is the same CLI and the same configuration (`automation/lib/pi.sh`) decree's `agent_task`
+runs. `/login` to a hosted provider if you want one too; it is kept beside the stack's own.
 
 **Installs and logins persist** on the `code_server_data` volume: npm's global prefix,
-`~/.config`, `~/.local`, `~/.cache` and Claude Code's config all live there.
+`~/.config`, `~/.local`, `~/.cache`, Claude Code's config and pi's all live there.
 
 A tool that keeps state elsewhere (`~/.mytool/`, `~/mytool.json`) needs one step before you log
 in:
@@ -113,4 +101,4 @@ This container mounts `workspace/`, not the repo. Edit the stack on the host.
 - `code_server_data` (installs, extensions, logins) isn't backed up; losing it means reinstalling
   and logging in again.
 - One shared password, `CODE_SERVER_PASSWORD`. Its shell can read and write all of `workspace/`
-  and reach hermes, so treat it as root-equivalent.
+  and reach every model and MCP server, so treat it as root-equivalent.

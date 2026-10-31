@@ -153,7 +153,7 @@ make_fake_repo() {
     local root="${TMPDIR_ROOT}/${name}"
     mkdir -p "${root}/hosting/caddy"
     mkdir -p "${root}/hosting/pihole"
-    mkdir -p "${root}/ai/hermes"
+    mkdir -p "${root}/ai/mcp"
     mkdir -p "${root}/ai/ollama"
     mkdir -p "${root}/services/automation"
     mkdir -p "${root}/services/mealie"
@@ -176,9 +176,9 @@ _run_enable_var_for() {
     _source_existential "$FAKE_REPO" "_enable_var_for '${path}'"
 }
 
-assert_eq "_enable_var_for ai/hermes → EXIST_IS_AI_HERMES" \
-    "EXIST_IS_AI_HERMES" \
-    "$(_run_enable_var_for "${FAKE_REPO}/ai/hermes")"
+assert_eq "_enable_var_for ai/mcp → EXIST_IS_AI_MCP" \
+    "EXIST_IS_AI_MCP" \
+    "$(_run_enable_var_for "${FAKE_REPO}/ai/mcp")"
 
 assert_eq "_enable_var_for services/automation → EXIST_IS_SERVICES_AUTOMATION" \
     "EXIST_IS_SERVICES_AUTOMATION" \
@@ -211,9 +211,9 @@ _run_find_slug() {
     _source_existential "$FAKE_FIND" "_find_service_dir_for_slug '${slug}'"
 }
 
-assert_eq "_find_service_dir_for_slug hermes → ai/hermes path" \
-    "${FAKE_FIND}/ai/hermes" \
-    "$(_run_find_slug "hermes")"
+assert_eq "_find_service_dir_for_slug mcp → ai/mcp path" \
+    "${FAKE_FIND}/ai/mcp" \
+    "$(_run_find_slug "mcp")"
 
 assert_eq "_find_service_dir_for_slug caddy → hosting/caddy path" \
     "${FAKE_FIND}/hosting/caddy" \
@@ -250,22 +250,22 @@ _svc_enabled_with_env() {
     return $rc
 }
 
-# hermes enabled
-if _svc_enabled_with_env "EXIST_IS_AI_HERMES=true" "${FAKE_SVC}/ai/hermes"; then
-    _ok "service_is_enabled: hermes=true → exits 0"
+# mcp enabled
+if _svc_enabled_with_env "EXIST_IS_AI_MCP=true" "${FAKE_SVC}/ai/mcp"; then
+    _ok "service_is_enabled: mcp=true → exits 0"
 else
-    _fail "service_is_enabled: hermes=true → exits 0" "returned non-zero"
+    _fail "service_is_enabled: mcp=true → exits 0" "returned non-zero"
 fi
 
-# hermes disabled
-if ! _svc_enabled_with_env "EXIST_IS_AI_HERMES=false" "${FAKE_SVC}/ai/hermes"; then
-    _ok "service_is_enabled: hermes=false → exits non-zero"
+# mcp disabled
+if ! _svc_enabled_with_env "EXIST_IS_AI_MCP=false" "${FAKE_SVC}/ai/mcp"; then
+    _ok "service_is_enabled: mcp=false → exits non-zero"
 else
-    _fail "service_is_enabled: hermes=false → exits non-zero" "unexpectedly returned 0"
+    _fail "service_is_enabled: mcp=false → exits non-zero" "unexpectedly returned 0"
 fi
 
 # var missing entirely (should default to false)
-if ! _svc_enabled_with_env "SOME_OTHER_VAR=true" "${FAKE_SVC}/ai/hermes"; then
+if ! _svc_enabled_with_env "SOME_OTHER_VAR=true" "${FAKE_SVC}/ai/mcp"; then
     _ok "service_is_enabled: var absent → exits non-zero (defaults false)"
 else
     _fail "service_is_enabled: var absent → exits non-zero (defaults false)" "unexpectedly returned 0"
@@ -273,7 +273,7 @@ fi
 
 # No .env.shared → defaults to false
 rm -f "${FAKE_SVC}/.env.shared"
-if ! _source_existential "$FAKE_SVC" "service_is_enabled '${FAKE_SVC}/ai/hermes'" >/dev/null 2>&1; then
+if ! _source_existential "$FAKE_SVC" "service_is_enabled '${FAKE_SVC}/ai/mcp'" >/dev/null 2>&1; then
     _ok "service_is_enabled: no .env.shared → exits non-zero"
 else
     _fail "service_is_enabled: no .env.shared → exits non-zero" "unexpectedly returned 0"
@@ -435,18 +435,18 @@ assert_exit "run nonexistent-utility → exit 1"       1 bash "$EXISTENTIAL" run
 # exist.initial.sh so _run_service_action errors cleanly.
 # Verify "No script at" is emitted rather than a Docker error.
 (
-    # 'hermes' has no exist.initial.sh in the repo.
+    # 'mcp' has no exist.initial.sh in the repo.
     # Check dynamically so the test stays accurate even if that changes.
-    if [[ ! -f "${REPO}/ai/hermes/exist.initial.sh" ]]; then
-        out=$(bash "$EXISTENTIAL" run hermes 2>&1) || true
+    if [[ ! -f "${REPO}/ai/mcp/exist.initial.sh" ]]; then
+        out=$(bash "$EXISTENTIAL" run mcp 2>&1) || true
         if echo "$out" | grep -qF "No script at"; then
-            _ok "run hermes (no initial.sh) → 'No script at' error"
+            _ok "run mcp (no initial.sh) → 'No script at' error"
         else
-            _fail "run hermes (no initial.sh) → 'No script at' error" \
+            _fail "run mcp (no initial.sh) → 'No script at' error" \
                   "output: $(echo "$out" | head -5)"
         fi
     else
-        printf '  SKIP  run hermes (no initial.sh) → ai/hermes/exist.initial.sh now exists, skipping\n'
+        printf '  SKIP  run mcp (no initial.sh) → ai/mcp/exist.initial.sh now exists, skipping\n'
     fi
 )
 

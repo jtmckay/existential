@@ -30,7 +30,7 @@ source "${REPO_ROOT}/src/utils/model-endpoints.sh"
 EMBED_URL="$(endpoint_for embed)"
 
 # ── Automation output directory ───────────────────────────────────────────────
-# The workspace_data volume is the knowledgebase: the same tree hermes,
+# The workspace_data volume is the knowledgebase: the same tree
 # code-server and Nextcloud share, so everything you work on is indexed without
 # a second directory to keep in step.
 #

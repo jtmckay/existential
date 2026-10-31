@@ -56,7 +56,7 @@ printf 'services:\n  foo:\n    container_name: foo\n    user: "1000:1000"\n' > "
 expect_fail "conventions: rejects hardcoded user: 1000:1000" tsx "$CONV" "$baduser"
 
 baduidenv="$(mkfix)"; mkdir -p "$baduidenv/ai/foo"
-printf 'services:\n  foo:\n    container_name: foo\n    environment:\n      HERMES_UID: "1000"\n' > "$baduidenv/ai/foo/docker-compose.exist.yml"
+printf 'services:\n  foo:\n    container_name: foo\n    environment:\n      LOWCODER_PUID: "1000"\n' > "$baduidenv/ai/foo/docker-compose.exist.yml"
 expect_fail "conventions: rejects hardcoded uid/gid env" tsx "$CONV" "$baduidenv"
 
 cleanuid="$(mkfix)"; mkdir -p "$cleanuid/ai/foo"

@@ -233,12 +233,9 @@ declare -a CHECKS=(
     "decree-wh-base	services/automation/webhook/Dockerfile	gcr.io/distroless/static-debian13	digest		"
     # digest, not github: upstream stopped tagging images at v2.0.3 while the
     # server in :latest reports 3.0.9, so :latest@sha256 is the only real pin.
-    "honcho	ai/honcho/docker-compose.exist.yml	ghcr.io/plastic-labs/honcho	digest		"
     # skip: the tag is <pgvector>-pg<major>. A newer pgvector is a safe bump,
     # a newer pg major is pg_upgrade/dump-restore on a live data dir — no
     # check type can tell those apart, so this one is picked by hand.
-    "honcho-pgvector	ai/honcho/docker-compose.exist.yml	pgvector/pgvector	skip		"
-    "hermes-agent	ai/hermes/docker-compose.exist.yml	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
     "home-assistant	services/homeassistant/docker-compose.exist.yml	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	services/it-tools/docker-compose.exist.yml	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lowcoder	services/lowcoder/docker-compose.exist.yml	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"

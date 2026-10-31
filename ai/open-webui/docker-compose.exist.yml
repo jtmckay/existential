@@ -31,9 +31,11 @@ services:
       WEBUI_ADMIN_EMAIL: ${OPEN_WEBUI_ADMIN_EMAIL}
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
       WEBUI_SECRET_KEY: ${OPEN_WEBUI_SECRET_KEY}
-      OPENAI_API_BASE_URLS: "http://hermes-agent:8642/v1"
-      OPENAI_API_KEYS: "${OPEN_WEBUI_HERMES_API_KEY:-}"
-      # Disable direct Ollama integration — hermes-agent is the primary backend
+      # The chat role's /v1 endpoint, resolved at render (src/templates.sh), so
+      # ollama and llama.cpp alike answer. It takes no key; the field wants one.
+      OPENAI_API_BASE_URLS: "EXIST_MODEL_URL_CHAT"
+      OPENAI_API_KEYS: "none"
+      # Ollama's own API too would list every model twice.
       ENABLE_OLLAMA_API: "false"
       # Seeded on first boot only (persisted config wins afterwards): the admin is
       # created from WEBUI_ADMIN_* above, so open signup would just hand a public

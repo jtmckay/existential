@@ -15,6 +15,6 @@ states:
       script: { name: file_processor, attempts: 3 }
     transitions: { done: done }
     # A processor may hand its file to an agent (file-processors.example/agent-handoff.sh).
-    emits: [agent_task, hermes_router]
+    emits: [agent_task, router]
   done: { final: true }
   failed: { final: true }

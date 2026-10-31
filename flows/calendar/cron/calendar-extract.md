@@ -11,7 +11,7 @@ Every 30 minutes, mirrors every Nextcloud calendar you have (Personal, Contact b
 shared calendar) into `workspace/ai/calendar/<calendar>/` as one markdown note per event — recent
 past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead. Those notes are indexed by
 `openviking-index-knowledgebase` the same as anything else in `workspace/`, which is what lets
-hermes actually answer "what's on my calendar" instead of you having to open Nextcloud.
+pi actually answer "what's on my calendar" instead of you having to open Nextcloud.
 
 Full-mirror, not append-only: an event that's cancelled, deleted, or ages out the back of the
 window has its note removed on the next run — the directory always reflects what's really

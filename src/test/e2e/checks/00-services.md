@@ -13,7 +13,7 @@ Run every enabled service's own `exist.test.sh` and fail if any of them is broke
 
 **This is why checks are messages and not migrations.** As a migration it ran
 during decree's boot, which is before anything slow has finished starting — it
-failed hermes, appsmith, lowcoder, nocodb and nextcloud on four runs whose
+failed open-webui, appsmith, lowcoder, nocodb and nextcloud on four runs whose
 containers the health gate then found perfectly healthy. Migrations are setup;
 this is verification, and verification runs once the stack is up. e2e drops it
 after the container-health gate for exactly that reason.

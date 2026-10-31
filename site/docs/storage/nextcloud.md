@@ -90,7 +90,7 @@ docker exec nextcloud php /var/www/html/occ config:system:set maintenance_window
 
 `hooks/before-starting/02-workspace.sh` mounts the `workspace_data` volume as a **Local**
 external storage at `/workspace`, applicable to every user. Sync that folder with the desktop client and you are editing the
-same tree hermes and code-server see. See [Getting Started → Workspace](../getting-started#workspace).
+same tree code-server and decree see. See [Getting Started → Workspace](../getting-started#workspace).
 
 - Nextcloud runs as `EXIST_PUID`, not `www-data`, because every writer of the volume must be the
   same uid.
@@ -127,11 +127,11 @@ To do it by hand instead:
 docker exec nextcloud php /var/www/html/occ app:install calendar
 ```
 
-### Indexed by OpenViking, answerable by hermes
+### Indexed by OpenViking, answerable by pi
 
 The flow's `calendar-extract` cron writes each event, from the recent past to
 `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, as a note in `workspace/ai/calendar/<calendar>/`. OpenViking
-indexes it, so hermes can answer "what's on my calendar".
+indexes it, so pi can answer "what's on my calendar".
 
 - Full refresh: a cancelled event's note disappears on the next run.
 - CalDAV details: `automation/scripts/calendar_extract.sh` (tested on nextcloud:34.0.3, recurring

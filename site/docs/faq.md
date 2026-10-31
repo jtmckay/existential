@@ -10,8 +10,8 @@ sidebar_position: 2
 - Each one is a separate account and subscription, and can change under you.
 - Here everything works on one folder, `workspace/`: code-server with `claude` and `opencode`,
   automated by decree, using [one model URL](./how-it-works#the-ai-slot-by-slot).
-- With **Local AI**, [OpenViking](./ai/openviking) indexes `workspace/` and
-  [Honcho](./ai/honcho) remembers you across sessions.
+- With **Local AI**, [OpenViking](./ai/openviking) indexes `workspace/` and [pi](./ai/pi)
+  searches it with tools, on your own model.
 - It runs on your hardware. No subscription.
 
 ### Is it hard to set up?
@@ -55,7 +55,6 @@ No. Services are added, replaced, or moved to the [graveyard](./graveyard/). The
 
 Not recommended. Use a coding agent against a frontier model, on the machine with the repo.
 
-- opencode can't drive Hermes ([why](./decree/routing#why-not-opencode)).
 - A local model at 64k context is too small for this repo.
-- Hermes works on `workspace/`: the [agent automations](./flows/note-to-action) that write into
+- pi works on `workspace/`: the [agent automations](./flows/note-to-action) that write into
   `workspace/ai/`.

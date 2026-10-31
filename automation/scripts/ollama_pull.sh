@@ -7,7 +7,7 @@
 # true: a llama.cpp (or any other /v1) server loads its models itself.
 #
 # Naming a model by ROLE (preferred):
-#   OLLAMA_ROLE      chat | chat-ctx | extract | embed | vision
+#   OLLAMA_ROLE      chat | chat-ctx | embed | vision
 #
 # A role resolves BOTH halves of "which model, on which machine": the tag from
 # the EXIST_MODEL_* globals, and the endpoint through lib/model.sh's model_url.
@@ -19,7 +19,6 @@
 #   chat      → EXIST_MODEL_CHAT
 #   chat-ctx  → rebuilds EXIST_MODEL_CHAT with num_ctx=EXIST_MODEL_CHAT_NUM_CTX,
 #               keeping the same tag so every consumer still names one model
-#   extract   → EXIST_MODEL_EXTRACT
 #   embed     → EXIST_MODEL_EMBED
 #   vision    → EXIST_MODEL_VISION
 #
@@ -56,7 +55,7 @@ OLLAMA_NUM_CTX="$DECREE_DATA_OLLAMA_NUM_CTX"
 
 if [ -n "$OLLAMA_ROLE" ]; then
     OLLAMA_MODEL="$(model_tag "$OLLAMA_ROLE")" || {
-        echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|extract|embed|vision)" >&2
+        echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|embed|vision)" >&2
         exit 1
     }
     if [ "$OLLAMA_ROLE" = chat-ctx ]; then
@@ -87,7 +86,7 @@ ollama_api() {
 # /api/pull and /api/create stream for as long as the transfer takes — minutes
 # for a multi-GB tag. ollama_api's 30s cap is right for /api/tags and /api/show
 # and fatal here: curl exits 28 mid-stream, pipefail turns that into a routine
-# failure, and a failed migration halts the queue, so the extract/embed/vision
+# failure, and a failed migration halts the queue, so the embed/vision
 # models behind it are never pulled either. That is the "ollama came up with no
 # models" failure the e2e harness found. Mirrors exist.pull-models.sh.
 ollama_api_stream() {
@@ -178,7 +177,7 @@ if [ -n "$OLLAMA_FROM" ]; then
     # fields (`from` plus `parameters`/`system`/…). Sending the old form to a
     # current ollama (0.32.x here) is a hard 400, which stopped this migration —
     # and, because a failed migration halts the chain, silently prevented the
-    # embed/extract/vision models behind it from ever being pulled.
+    # embed/vision models behind it from ever being pulled.
     echo "Creating ${OLLAMA_MODEL} from ${OLLAMA_FROM} (num_ctx=${OLLAMA_NUM_CTX:-default})..."
     if [ -n "$OLLAMA_NUM_CTX" ]; then
         jq -nc --arg m "$OLLAMA_MODEL" --arg f "$OLLAMA_FROM" --argjson c "$OLLAMA_NUM_CTX" \

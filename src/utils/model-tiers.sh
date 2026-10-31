@@ -19,15 +19,14 @@
 #
 # Three hard rules the table obeys:
 #
-#   1. The chat model MUST support tool calling, or hermes can talk but not act.
+#   1. The chat model MUST support tool calling, or pi can talk but not act.
 #      Every tag here has ollama's "tools" capability.
 #   2. The chat model is also the vision model. Every tag here is multimodal, so
 #      OCR and image chat reuse the already-resident model instead of evicting
 #      it — which is what a separate llava would do on any card this size.
-#   3. Every tier is at least 64k context, because hermes refuses to start an
-#      agent below 64,000 tokens ("context window ... below the minimum 64,000
-#      required by Hermes Agent") — it reads the number from its own config.yaml,
-#      so the check fires before ollama is ever asked. No tier was cut to
+#   3. Every tier is at least 64k context, because an agent's tool loop (its
+#      instructions, tool definitions and every result so far) outgrows less,
+#      and ollama truncates the overflow silently. No tier was cut to
 #      meet this. On the small tiers the KV cache spills out of VRAM into system
 #      RAM and ollama offloads layers to the CPU — that is a speed cost, not a
 #      correctness one, so a 6 GB card still runs the whole stack, just slowly.
@@ -42,7 +41,7 @@
 # Fields, tab-separated:
 #   gb        the VRAM number the user picks
 #   label     shown in the picker
-#   chat      EXIST_MODEL_CHAT / _EXTRACT / _VISION (one multimodal model)
+#   chat      EXIST_MODEL_CHAT / _VISION (one multimodal model)
 #   num_ctx   EXIST_MODEL_CHAT_NUM_CTX
 #   size      chat model download size, for the picker line
 #   note      the trade-off, in the picker line
@@ -79,7 +78,7 @@ MODEL_TIER_EMBED_DIM="1024"
 MODEL_TIER_DEFAULT_GB="8"
 
 MODEL_TIERS=(
-    "0	None (CPU)	qwen3-vl:2b	65536	1.9 GB	no GPU — hermes fits, but expect seconds per token, not tokens per second"
+    "0	None (CPU)	qwen3-vl:2b	65536	1.9 GB	no GPU — an agent fits, but expect seconds per token, not tokens per second"
     "6	6 GB	qwen3-vl:4b	65536	3.3 GB	e.g. RTX 3060 6GB — the 64k KV cache spills to system RAM; it works, slowly"
     "8	8 GB	gemma4:e2b-it-qat	65536	4.3 GB	e.g. RTX 3070 / 4060 — the recommended baseline; KV cache is a tight fit"
     "12	12 GB	gemma4:e4b-it-qat	65536	6.1 GB	e.g. RTX 3060 12GB / 4070 — first tier where 64k fits comfortably"
@@ -102,7 +101,7 @@ MODEL_TIER_CUSTOM_CTX="65536"
 # model_tier_row <gb|custom:tag> — echo the raw tab-separated row, or return 1.
 model_tier_row() {
     local want="$1" row
-    # A hand-typed model gets a synthesised row: the context is the hermes floor
+    # A hand-typed model gets a synthesised row: the context is the 64k floor
     # (rule 3 above) because nothing here knows what the model can hold, and the
     # size is unknown because nothing here has downloaded it.
     if [[ "$want" == custom:* ]]; then
@@ -132,9 +131,8 @@ model_tier_env() {
     [[ "$1" == custom:* ]] || printf 'EXIST_VRAM_GB=%s\n' "$1"
     printf 'EXIST_MODEL_CHAT=%s\n'           "$chat"
     printf 'EXIST_MODEL_CHAT_NUM_CTX=%s\n'   "$ctx"
-    # One resident model does chat, background extraction and vision. Splitting
+    # One resident model does chat and vision. Splitting
     # them only helps once you have VRAM for two models at once.
-    printf 'EXIST_MODEL_EXTRACT=%s\n'        "$chat"
     printf 'EXIST_MODEL_VISION=%s\n'         "$chat"
     printf 'EXIST_MODEL_EMBED=%s\n'          "$MODEL_TIER_EMBED"
     printf 'EXIST_MODEL_EMBED_DIM=%s\n'      "$MODEL_TIER_EMBED_DIM"
@@ -163,7 +161,7 @@ model_tier_lines() {
 _model_tier_ask_custom() {
     local tag
     printf '\n  Model name, exactly as ollama would pull it (e.g. qwen3-vl:8b).\n' >&2
-    printf '  It needs tool calling and 64k of context for hermes to use it.\n' >&2
+    printf '  It needs tool calling and 64k of context for pi to use it.\n' >&2
     printf '  Enter on its own leaves the selection unchanged.\n\n' >&2
     printf '  model ❯ ' >&2
     if { true >/dev/tty; } 2>/dev/null; then

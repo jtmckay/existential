@@ -39,7 +39,7 @@ flowchart TB
 
 ### 1. Search
 
-The note goes to a [Hermes](../ai/hermes) profile (`research` by default) that searches the
+The note goes to [pi](../ai/pi) in a department (`research` by default) that searches the
 [OpenViking](../ai/openviking) index as an MCP tool.
 
 ### 2. Score
@@ -50,7 +50,7 @@ surface a different one.
 
 ## Turning it on
 
-- `./existential.sh flow on note-connect` turns on Hermes and the `knowledgebase` flow (which
+- `./existential.sh flow on note-connect` turns on the `knowledgebase` flow (which
   indexes `workspace/` into OpenViking) and copies `note-connect.md` into
   `volumes/workspace_data/.decree/cron/`.
 - `NOTES_DIR` defaults to `/workspace`.
@@ -81,23 +81,20 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 ### Prerequisites
 
 - `workspace/` indexed by [OpenViking](../ai/openviking) (the `knowledgebase` flow).
-- [Hermes](../ai/hermes) with the `research` profile, provisioned on boot. Restart `hermes-agent`
-  if you enabled Hermes before OpenViking.
+- A chat model with ollama's `tools` capability; pi ships in the image.
 
 ## Settings reference
 
 | Setting | Default | Does |
 |---|---|---|
 | `CONNECT_MIN_SCORE` | `7` | How interesting a connection has to be, 1-10 |
-| `CONNECT_PROFILE` | `research` | Which hermes profile searches — needs `mcp: openviking` |
+| `CONNECT_DEPARTMENT` | `research` | Which department searches — needs `mcp: openviking` |
 | `CONNECT_DRY_RUN` | `false` | Log every candidate and score, write nothing, notify no one |
 | `CONNECT_LEDGER` | `true` | The same source-to-target pairing is never surfaced twice |
 | `CONNECT_MAX_NOTES` | `20` | Ceiling per run |
 | `CONNECT_MIN_CHARS` | `120` | Below this a note is skipped without a model call |
 | `CONNECT_MAX_CHARS` | `6000` | Note text is truncated to this many characters before searching |
-| `CONNECT_MODEL` | *(profile default)* | Pin a specific model |
 | `CONNECT_TIMEOUT` | `300` | Seconds for the department call before it's treated as no answer |
-| `CONNECT_API_KEY` | *(falls back to `HERMES_API_KEY`)* | Override the gateway credential |
 | `CONNECT_NOTIFY` | `true` | Send an ntfy notification when a connection is surfaced |
 | `CONNECT_OUTPUT_RCLONE_DEST` | *(unset)* | Where the writeup is copied, e.g. `nextcloud:Notes` |
 
@@ -114,7 +111,7 @@ as a new note. Point `CONNECT_OUTPUT_RCLONE_DEST` at a vault folder, not `worksp
 | Part | Status |
 |---|---|
 | Vault diff — detecting new and changed notes | **Ships.** Hashes the vault and diffs against the last run, same mechanism as Note → Action |
-| Searching the knowledge base | **Ships.** The `research` hermes profile, with OpenViking as an MCP tool |
+| Searching the knowledge base | **Ships.** pi in the `research` department, with OpenViking as an MCP tool |
 | Scoring and the relevance gate | **Ships.** One self-scored call; only scores at or above `CONNECT_MIN_SCORE` surface |
 | Not repeating the same pairing | **Ships.** A plain ledger at `/data/note-connect/connections.tsv` |
 | Writing the result beside the note | **Ships.** `<note>.connection.md`, copied over rclone when configured |

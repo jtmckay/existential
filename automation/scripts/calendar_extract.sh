@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # calendar_extract — mirror upcoming (and recently past) Nextcloud Calendar
 # events into workspace/ai/calendar/ as plain notes, so OpenViking indexes
-# them and hermes can answer "what's on my calendar" the same way it answers
+# them and pi can answer "what's on my calendar" the same way it answers
 # anything else that lives in workspace/.
 #
 # Why notes instead of a live CalDAV lookup at query time: OpenViking's MCP
 # tool searches an index, not a live API — see note_connect.sh's header for
-# why hermes departments can't just "ask" an external service ad hoc. Turning
+# why a department can't just "ask" an external service ad hoc. Turning
 # each event into a note is what makes calendar content reachable the same
 # way everything else in workspace/ is: through search, not a bespoke tool.
 #

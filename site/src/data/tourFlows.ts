@@ -155,7 +155,7 @@ export const FLOWS: TourFlow[] = [
     story:
       'Each new note is checked against everything you already wrote, and you are told when ' +
       'it connects to an earlier one.',
-    runsOn: ['Hermes', 'OpenViking', 'Decree'],
+    runsOn: ['pi', 'OpenViking', 'Decree'],
     needsModel: true,
     docs: '/docs/flows/note-connect',
   },

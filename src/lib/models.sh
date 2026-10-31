@@ -7,9 +7,8 @@
 # "apply it" steps: the build that follows applies it). After that, this is how
 # to change your answers. Asks about the GPU and its VRAM and rewrites the EXIST_MODEL_*
 # globals in .env.shared. Everything downstream reads those, so this is the only
-# place a model needs changing: honcho's config is re-rendered from them,
-# openviking's embedding settings come from them, the ollama migrations pull
-# whatever they name, and hermes is pointed at them.
+# place a model needs changing: openviking's embedding settings come from them,
+# the ollama migrations pull whatever they name, and pi is pointed at them.
 
 set -euo pipefail
 
@@ -128,17 +127,13 @@ echo "  ${_C_GREEN}✓${_C_RESET}  ${TLABEL} — ${TCHAT} (${TSIZE}), ${TCTX} co
 echo ""
 [[ -n "${FIRST_RUN:-}" ]] && exit 0
 echo "  Apply it:"
-echo "    ./existential.sh                      # re-renders honcho's config,"
-echo "                                          # and the compose file for ${VENDOR}"
+echo "    ./existential.sh                      # re-renders the compose file for ${VENDOR}"
 if [[ "$(env_get EXIST_IS_AI_OLLAMA)" == true ]]; then
     echo "    ./existential.sh run ollama pull-models"
 else
     echo "    # load the new models on the server at EXIST_MODEL_URL"
 fi
-echo "    docker compose restart honcho hermes-agent openviking"
-echo ""
-echo "  Note: hermes keeps the model already in its config.yaml — it is yours"
-echo "  once written. To repoint it:  ./existential.sh run hermes setup"
+echo "    docker compose up -d                  # recreates what reads the models"
 echo ""
 
 # The tier sizes models for ONE card. Anyone who has a second one can stop
@@ -151,11 +146,11 @@ if endpoints_are_uniform; then
     echo "  With a second machine you can split them instead of sizing down —"
     echo "  chat on the big card, embeddings and vision elsewhere. Set the"
     echo "  per-role keys in the \"Model Endpoints\" block of .env.shared:"
-    echo "    EXIST_MODEL_URL_CHAT / _EXTRACT / _EMBED / _VISION"
+    echo "    EXIST_MODEL_URL_CHAT / _EMBED / _VISION"
     echo "  Blank means \"wherever EXIST_MODEL_URL points\", which is today."
 else
     echo "  Model roles are split across machines:"
-    for _r in chat extract embed vision; do
+    for _r in chat embed vision; do
         printf '    %-8s %s\n' "$_r" "$(endpoint_for "$_r")"
     done
     echo "  This tier sizes each role's model; it does not move them."

@@ -1,12 +1,11 @@
 ---
 name: Talk to the house
-tagline: Home Assistant with speech in and out on CPU, and Hermes answering what you ask
+tagline: Home Assistant with speech in and out on CPU, and your own chat model answering what you ask
 docs: /docs/services/homeassistant
 services:
   - EXIST_IS_SERVICES_HOMEASSISTANT
   - EXIST_IS_AI_WYOMING_WHISPER
   - EXIST_IS_AI_WYOMING_PIPER
-  - EXIST_IS_AI_HERMES
   - EXIST_IS_SERVICES_AUTOMATION
 ---
 

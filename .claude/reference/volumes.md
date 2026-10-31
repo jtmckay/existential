@@ -6,8 +6,8 @@ exception is a NAS folder (below), which Compose mounts over NFS from a top-leve
 
 A template refers to a volume by **bare name** and declares it in `x-exist-volumes` (below);
 `generate-compose.ts` materialises that into an absolute host path. A bare name may carry a
-**subpath** into the volume (`hermes_install_cache/.venv`) — for images that need several
-sibling directories mounted into a tree they also populate themselves. The **generated**
+**subpath** into the volume (`workspace_data/notes`) — to mount part of a volume elsewhere or
+with other options (automation mounts `notes/` read-only over a read-write workspace). The **generated**
 `docker-compose.yml` therefore has bare names and a top-level `volumes:` block only for the
 NAS ones; `validate conventions` enforces that on the generated file.
 
@@ -34,9 +34,8 @@ service dir) and nothing more.
 
 **Anything gitignored is a volume.** If a directory is not tracked, it is state — regenerable or
 not — and it belongs in `volumes/<name>` with a declaration, never in the service folder. There
-is no "service-dir scratch" tier: that exemption is what let hermes' four build trees live in
-`ai/hermes/hermes_install/` for a year, outside `automation-backup`'s reach and invisible to
-`reset`, which only knows how to offer deleting a `_cache` **volume**. The one root outside
+is no "service-dir scratch" tier: that exemption is what once let a service's build trees live
+in its folder for a year, outside `automation-backup`'s reach and invisible to `reset`, which only knows how to offer deleting a `_cache` **volume**. The one root outside
 `volumes/` is `automation/`: the machines and scripts the repo ships (seeded into
 `workspace_data/.decree`, the live project), plus `lib/`, `secrets/` and `.env`.
 The user's own content is a volume too — `workspace_data`, declared identically by every
@@ -137,10 +136,8 @@ the stack down. Nothing moves live data automatically.
 This is not cosmetic. When a bind-mount source does not exist, the daemon creates it as an empty
 `root:root` directory, and three things follow:
 
-- The container sees an **empty directory** where the image had files. `ai/hermes` mounts
-  `hermes_install_cache/{.venv,ui-tui,gateway,node_modules}` by subpath, which its own `exist.initial.sh` extracts
-  from the image — a `docker compose up` that beats the renderer shadows hermes' binaries and it
-  restarts forever with exit 127.
+- The container sees an **empty directory** where the image had files — a mount over a tree the
+  image ships shadows its binaries, and the service restarts forever with exit 127.
 - The next render can't clean up: `rm -rf` on a root-owned dir fails for the host user, and under
   `set -e` that aborts the whole run.
 - `reset` dies too, on the first `mkdir -p` under a root-owned `archive/`.

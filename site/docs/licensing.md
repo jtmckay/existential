@@ -48,12 +48,11 @@ across the network.
 | Chatterbox | [chatterbox-tts](https://github.com/devnen/Chatterbox-TTS-Server) (Resemble AI) | MIT | 🟢 | Model and server both MIT. |
 | ComfyUI | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | GPL-3.0 | 🟢 | GPL has no SaaS clause — safe to host. |
 | Firecrawl | [firecrawl](https://github.com/firecrawl/firecrawl) | AGPL-3.0 | 🟡 | Run unmodified; link to source. |
-| Hermes | [hermes-agent](https://github.com/NousResearch/hermes-agent) | MIT | 🟢 | Custom existential service. |
-| Honcho | [honcho](https://github.com/plastic-labs/honcho) | AGPL-3.0 | 🟡 | Run unmodified; link to source. |
 | MCP | custom (Node base) | Your code | 🟢 | First-party. |
 | Ollama | [ollama](https://github.com/ollama/ollama) | MIT | 🟢 | |
 | Open WebUI | [open-webui](https://github.com/open-webui/open-webui) | BSD-3 + **branding clause** | 🔴 | For **>50 users** (rolling 30 days) you must **keep "Open WebUI" branding** or buy an enterprise license. White-label = enterprise license required. Hosting *with* branding intact is allowed. |
 | OpenViking | [OpenViking](https://github.com/volcengine/OpenViking) | AGPL-3.0 (main project) | 🟡 | `crates/ov_cli` and `examples/` are Apache-2.0; the server component the stack runs is AGPL — run unmodified, link to source. |
+| pi | [pi](https://github.com/earendil-works/pi) | MIT | 🟢 | CLI baked into the decree image. |
 | WhisperX | [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) | MIT | 🟢 | |
 | wyoming-piper | [wyoming-piper](https://github.com/rhasspy/wyoming-piper) | MIT | 🟢 | |
 | wyoming-whisper | [wyoming-faster-whisper](https://github.com/rhasspy/wyoming-faster-whisper) | MIT | 🟢 | |
@@ -124,7 +123,7 @@ Bundled *inside* app stacks, not offered as standalone database services.
 ## Bottom line
 
 Most of the catalog is 🟢 and hostable without ceremony. The 🟡 AGPL apps (Nextcloud,
-Immich, Mealie, NocoDB, Lowcoder, Grafana/Loki, Firecrawl, Honcho, OpenViking) are
+Immich, Mealie, NocoDB, Lowcoder, Grafana/Loki, Firecrawl, OpenViking) are
 compliant as long as you run them unmodified and offer your tenants the source — the
 [Open Source Notices](./open-source-notices) page covers it. The only genuine 🔴 is
 **Open WebUI's branding clause**: keep their branding or buy an enterprise license. Resolve

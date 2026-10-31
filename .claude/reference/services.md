@@ -60,7 +60,7 @@ the one moment the file exists and nothing is holding it.
 
 Without it the setting silently freezes at whatever the first boot saw, while the rest of the
 stack follows `.env.shared` immediately (caddy reads `{$CADDY_DOMAIN}` at runtime; `dashy-conf.yml`
-and honcho's `config.toml` are `_ALWAYS_RENDER`). That asymmetry is the bug: `EXIST_DOMAIN`
+is `_ALWAYS_RENDER`). That asymmetry is the bug: `EXIST_DOMAIN`
 becomes a one-way door and nothing says so.
 
 In the stack today:
@@ -75,9 +75,8 @@ Rules. Keep the true-up **idempotent and quiet** — converge, then say nothing,
 is silent (nextcloud's hook logs only what changed). **`exec` the real entrypoint** so the image's
 init keeps PID 1. If a restart is genuinely needed, **bound it**: gate it on a condition the
 restart itself resolves, or it becomes a crash loop. And leave a deliberate choice alone — reconcile
-only while the value still looks like something existential set (hermes checks `provider: custom`
-plus a `:11434` endpoint before touching `model:`; openviking applies the same test to `ov.conf`'s
-`api_base`), so pointing a service at Anthropic or an external host is respected.
+only while the value still looks like something existential set (openviking checks `ov.conf`'s
+`api_base` before touching it; `pi_configure` rewrites only its own provider and servers), so pointing a service at Anthropic or an external host is respected.
 
 **Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
 startup — nextcloud's `/docker-entrypoint-hooks.d/{pre-installation,post-installation,
@@ -107,7 +106,7 @@ Scripts self-elevate into `existential-adhoc` when they need its tooling (`if [[
 Least privilege is the default. An app container runs as the **host** user
 (`user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"`), so bind-mount files stay deletable without
 root **unless it structurally needs root** — in which case say why in a comment next to the
-omission (see hermes-agent's s6 note). **Never hardcode the literal `1000:1000`** — always the
+omission (see open-webui's note). **Never hardcode the literal `1000:1000`** — always the
 `${EXIST_PUID:-1000}:${EXIST_PGID:-1000}` form (enforced by `validate conventions`).
 `EXIST_PUID`/`EXIST_PGID` are auto-detected from the host (`id -u`/`id -g`) by `existential.sh`'s
 `_ensure_host_ids`, written into `.env.shared`, and default to `1000` when absent — so the stack
@@ -115,25 +114,22 @@ works for a user who isn't `1000:1000` (LDAP, a second account, a server) withou
 
 **Pick the right mechanism, not always `user:`:** images with an s6/`PUID`-style init (it starts
 as root then drops) break under `user:` — set their `PUID`/`PGID` (or `UID`/`GID`,
-`HERMES_UID`/`GID`, …) **env** to `${EXIST_PUID:-1000}`/`${EXIST_PGID:-1000}` instead (lowcoder,
-hermes-agent do this). Use plain `user:` only for images that tolerate an arbitrary uid — and
+…) **env** to `${EXIST_PUID:-1000}`/`${EXIST_PGID:-1000}` instead (lowcoder does this). Use plain `user:` only for images that tolerate an arbitrary uid — and
 check the image really does drop: open-webui *looks* like this case and is not one (it is built
 `USER 0:0` with a root-owned `/app` and never drops), so it stays root with a comment saying so.
 
 **An image with its own baked non-root `USER` cannot read the service's rendered config.**
 `src/templates.sh` writes every rendered file `0600`, owned by `EXIST_PUID`, on the assumption
-that a container is either that uid or root. honcho ships `USER app` (uid 100), so its
-`config.toml` was unreadable — and the failure is silent in the worst way: honcho logged one
-`Permission denied` line at boot, fell back to upstream model defaults (`openai/gpt-5.4-mini`,
-no key), and kept answering `/health` while every model call failed and hermes' cross-session
-memory quietly did nothing. The fix is that service's own `exist.initial.sh` widening that one
-file (`ai/honcho/exist.initial.sh` — templates.sh names this escape hatch), plus a mode
+that a container is either that uid or root. An image with its own `USER` cannot read that file,
+and the failure is silent in the worst way: one `Permission denied` line at boot, upstream
+defaults, and a green `/health` while every real call fails. The fix is that service's own
+`exist.initial.sh` widening that one file (templates.sh names this escape hatch), plus a mode
 assertion in its `exist.test.sh` so a re-render cannot undo it unnoticed. If you add a service
 whose image has its own `USER`, check what it can read before trusting a green healthcheck.
 
 A port-80 image whose entrypoint supports a non-root start should get one rather than root:
 nextcloud runs as `EXIST_PUID` with `sysctls: [net.ipv4.ip_unprivileged_port_start=0]` (scoped
-to its own network namespace), because it shares `workspace_data` with hermes, code-server and
+to its own network namespace), because it shares `workspace_data` with code-server and
 decree and every writer has to be the same uid.
 
 Root is expected for: privileged-port binders that can't take a cap (use `cap_add` over
@@ -251,10 +247,10 @@ decree project:
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| Runs | routing, notes, file_router, agent_task, the hermes endpoints, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
-| Sees | `ai/hermes/profiles` read-only, `/workspace` read-write but `notes/` read-only, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
+| Runs | routing, notes, file_router, agent_task, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
+| Sees | `automation/lib` read-only, `/workspace` read-write but `notes/` read-only, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its scripts use | the **master `.env`** via `env_file` |
-| Model access | the role's OpenAI-compatible `/v1` URL (`lib/model.sh`); hermes, when enabled, through `lib/hermes.sh` | none — nothing here reasons |
+| Model access | the role's OpenAI-compatible `/v1` URL (`lib/model.sh`), and pi on it with tools (`lib/pi.sh`) | none — nothing here reasons |
 
 **Why `triage` is on the backup side.** It reads the whole repo — every service's
 `exist.test.sh` plus `.env.shared` — and the credentials those tests authenticate with. That is
@@ -262,8 +258,8 @@ the same bulk read access backups need, and it is the *only* thing that ever wan
 mounted, so the mount followed it. Putting it in `automation` meant the container that runs
 agent_task held the master `.env`, `.env.shared` and
 `hosting/caddy/certs/internal-ca-key.pem` — the key that signs every `*.<domain>` cert. What a
-prompt injection can read is what that container can read, so it now reads four profile
-directories.
+prompt injection can read is what that container can read, so it now reads the workspace and
+`automation/lib`, which holds no secrets.
 
 Triage still qualifies for this daemon on its own terms: it observes and reports. No reasoning,
 no routing, no AI call. It emits one `notify` message, and `notify` runs here too.

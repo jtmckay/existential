@@ -25,7 +25,7 @@ The knowledgebase indexer cron runs in the main `automation` daemon, and the bac
 
 - Containers: `http://openviking:1933` on the `exist` network
 - Browser (Web Studio): `https://openviking.EXIST_DOMAIN`
-- Agents: [Hermes](./hermes) connects to it as an MCP server
+- Agents: [pi](./pi) connects to it as an MCP server
 
 ## Enable
 
@@ -37,8 +37,8 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 
 ## What it indexes
 
-The workspace (`volumes/workspace_data`) — the same tree Nextcloud serves, [Hermes](./hermes) mounts at
-`/opt/data/workspace` and code-server mounts at `/workspace`. Everything you actually
+The workspace (`volumes/workspace_data`) — the same tree Nextcloud serves and code-server mounts
+at `/workspace`. Everything you actually
 work on is searchable without a second knowledgebase directory to keep in step.
 
 The `openviking_index_dir` machine uploads it into `viking://resources/workspace` every

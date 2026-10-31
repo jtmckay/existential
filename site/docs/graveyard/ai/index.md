@@ -25,6 +25,8 @@ The idea is to converse with all notes and digital context.
 
 ## Agents
 
+- [Hermes](./hermes) — RIP replaced by [pi](../../ai/pi)
+- [Honcho](./honcho) — RIP, Hermes' memory
 - [Flowise](./flowise) — TBD
 - [Huginn](https://github.com/huginn/huginn)
 - [Browser Use](https://github.com/browser-use/browser-use)

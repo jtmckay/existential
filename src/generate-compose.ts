@@ -170,7 +170,7 @@ function mkdirOwned(abs: string): void {
 // A relative bind-mount source that does not exist yet is a trap: `docker compose
 // up` asks the daemon for a path that is not there, and the daemon creates it as
 // an empty root:root directory. That shadows whatever the image had at the mount
-// point (hermes' .venv, gateway, node_modules and ui-tui are exactly this) and
+// point and
 // leaves behind a directory the host user cannot delete on the next render.
 //
 // Creating it here gets in first: this runs inside the adhoc container, which
@@ -235,15 +235,12 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
   if (src.startsWith('/')) return vol;
 
   // Named volume — a bare name, optionally followed by a subpath into it
-  // (`hermes_install_cache/.venv`). Materialise as a host bind mount, placed by
+  // (`workspace_data/.decree`). Materialise as a host bind mount, placed by
   // its x-exist-volumes declaration.
   //
-  // The subpath exists for images that need several SIBLING directories mounted
-  // into a tree they also populate themselves: hermes mounts .venv, ui-tui,
-  // gateway and node_modules into /opt/hermes, whose other contents are the
-  // image's own. Without it those four would have to be four declared volumes,
-  // which is why they used to be a gitignored directory in the service folder
-  // instead — the one thing volumes.md no longer allows.
+  // The subpath mounts part of one volume somewhere else, or with other
+  // options: automation mounts workspace_data read-write and its notes/
+  // read-only over it. Without it each part would have to be its own volume.
   if (!src.startsWith('.')) {
     const slash = src.indexOf('/');
     const name = slash === -1 ? src : src.slice(0, slash);

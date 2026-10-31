@@ -192,8 +192,7 @@ else _fail "archives do not land in the repo root" "found ${stray##*/}"; fi
 #
 # The one that actually bites. A missing bind source is created by the DAEMON,
 # as root:root — which shadows whatever the image had at that mount point and
-# leaves a directory the host user cannot delete on the next render. hermes'
-# hermes_install/{.venv,ui-tui,gateway,node_modules} is exactly this shape.
+# leaves a directory the host user cannot delete on the next render.
 # Creating it here, in adhoc under the host uid:gid, gets in first.
 assert_dir "relative bind source created under the service dir" "$repo/services/foo/data"
 
@@ -248,7 +247,7 @@ assert_no_dir "file-extension bind source is not created as a directory" "$repo/
 if [[ -f "$repo/services/bar/secrets/.env" ]]; then _ok "a .env bind source is created as a file"
 else _fail "a .env bind source is created as a file" "not a file: $repo/services/bar/secrets/.env"; fi
 
-# ../../ back to the repo root is legitimate (hermes and code-server share
+# ../../ back to the repo root is legitimate (automation and code-server share
 # workspace/ that way) and resolves inside the repo, so it is created.
 assert_dir "repo-root bind source created for a ../.. path" "$repo/workspace"
 

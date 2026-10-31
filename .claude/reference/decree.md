@@ -59,8 +59,10 @@ reads to a model, so what it can read is what a prompt injection can read.
   Headless calls use `AUTOMATION_CLAUDE_PERMISSION_MODE`, default `auto`; notes, which
   Claude may not change, are mounted read-only. The workspace's `develop` writes a
   machine with Claude when `agent_ready`, else with the chat model, and tells it about
-  `agent` only then. hermes is optional, through `automation/lib/hermes.sh`, built on
-  `model.sh`.
+  `agent` only then. `automation/lib/pi.sh` is the third way: `pi_run` runs pi (baked
+  into the decree image, pinned) on the chat role with a department's tools
+  (`automation/lib/departments/`); `pi_configure` writes its provider and MCP servers
+  on every boot of the `automation` daemon and of code-server.
 
 ## Around the daemons
 
@@ -68,13 +70,11 @@ reads to a model, so what it can read is what a prompt injection can read.
   everything it triggers also runs from code-server's terminal) runs decree-go-rest with its daemon off, over
   the `automation` project (read-only, `inbox/` writable). Endpoints are
   `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`); edits load
-  without a restart. Hermes gets the `/hermes/*` endpoints on its own secret.
+  without a restart.
 - **Whoever can write `workspace/` can write automations.** That is the point
   (the user directs agents to), and it means every agent with the workspace
-  mounted, hermes included, can add a script the `automation` daemon runs with
+  mounted can add a script the `automation` daemon runs with
   its credentials. Keep secrets out of `workspace/` for the same reason.
-- **What hermes knows:** `routines_snapshot` copies `graph/system.md`, the
-  machines and the endpoints into `workspace/ai/decree/`.
 - **File handlers:** `automation/lib/file-handlers.ts`, kept running by the `automation`
   entrypoint, watches all of `/workspace` and emits `--param path= --param change=` for every
   entry in `workspace/.decree/handlers.yml` whose glob matches, after the file is `quiet`

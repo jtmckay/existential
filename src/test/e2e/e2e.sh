@@ -126,7 +126,7 @@ e2e_down() {
 
 # Settled = no created/restarting transients and nothing still "health: starting".
 # Best-effort: container-health.sh is the verdict, and it resamples and applies
-# its own flap threshold. hermes and open-webui are legitimately "starting" for
+# its own flap threshold. open-webui and nextcloud are legitimately "starting" for
 # minutes, so a short budget here reports the harness's impatience as a product
 # failure.
 wait_settled() {
@@ -493,7 +493,7 @@ run_unit() {
 
     # 10. The checks, dropped now and not earlier: a check asks whether the
     #     stack WORKS, and that question is only meaningful once it has finished
-    #     starting. Run as migrations (during decree's boot) they failed hermes,
+    #     starting. Run as migrations (during decree's boot) they failed open-webui,
     #     appsmith, lowcoder, nocodb and nextcloud on stacks the health gate
     #     then found healthy. An unhealthy container does not skip them — the
     #     rest still have results worth collecting.

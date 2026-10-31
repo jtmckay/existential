@@ -19,32 +19,36 @@ probe_service "code-server /healthz" code-server 8080 /healthz 200
 
 # CODE_SERVER_PASSWORD is what entrypoint.sh's `--auth password` actually
 # checks against ($PASSWORD env). A bare shell in this container can read/write
-# the whole workspace, reach the gateway and run whatever is installed in it, so an empty password is a
+# the whole workspace, reach the models and run whatever is installed in it, so an empty password is a
 # real exposure, not just a broken login. Verify root really is gated behind
 # it (302 to /login, not a 200 straight into the IDE) rather than trusting the
 # flag was honored.
 env_var_set "code-server password" CODE_SERVER_PASSWORD
 probe_service "code-server auth gate" code-server 8080 / 302
 
-# entrypoint.sh symlinks the `hermes` command in the integrated terminal to
-# /opt/hermes/hermes-cli.sh, which is a read-only bind of automation/lib/ (as are
-# the capture hook and plugin under /opt/capture). A
-# missing source is the one failure mode that stays silent: docker materialises
-# an empty directory for it, the `-x` guard in entrypoint.sh then fails quietly,
-# and the terminal just has no `hermes`. Read-only: check the mount sources on
-# disk rather than reaching into the container.
-for _src in automation/lib/hermes-cli.sh automation/lib/hermes.sh automation/lib/model.sh \
+# model.sh and pi.sh (sourced to configure opencode and pi) and the capture hook
+# and plugin under /opt/capture are read-only binds of automation/lib/. A missing
+# source is the one failure mode that stays silent: docker materialises an empty
+# directory for it and the entrypoint's step just warns. Read-only: check the
+# mount sources on disk rather than reaching into the container.
+for _src in automation/lib/model.sh automation/lib/pi.sh \
             automation/lib/capture/capture.sh automation/lib/capture/opencode.ts; do
-    if [ ! -f "/repo/${_src}" ]; then
+    if [ -f "/repo/${_src}" ]; then
+        ok "code-server ${_src} mounted"
+    else
         fail "code-server ${_src} mounted" "/repo/${_src} is missing" \
              "The compose file binds it read-only into the container — restore it and recreate it"
-    elif [ "${_src}" = "automation/lib/hermes-cli.sh" ] && [ ! -x "/repo/${_src}" ]; then
-        fail "code-server ${_src} mounted" "/repo/${_src} is not executable" \
-             "entrypoint.sh only links it onto PATH when it is: chmod 755 ${_src}"
-    else
-        ok "code-server ${_src} mounted"
     fi
 done
+
+# pi in the terminal answers from the chat role: pi_configure wrote that provider.
+_pi_models=/repo/volumes/code_server_data/home/.pi/agent/models.json
+if [ -n "$(jq -r '.providers.existential.baseUrl // empty' "$_pi_models" 2>/dev/null)" ]; then
+    ok "code-server pi has the chat model"
+else
+    fail "code-server pi has the chat model" "${_pi_models} has no existential provider" \
+         "docker logs code-server | grep pi; then docker compose up -d --force-recreate code-server"
+fi
 
 # Search (ai/qmd): with the add-on on, entrypoint.sh registers qmd with Claude
 # Code, allows its tools and copies the recall skill. Read the files it wrote

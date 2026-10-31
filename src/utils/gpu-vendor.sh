@@ -68,7 +68,7 @@ GPU_VENDORS=(
 #
 # A vendor answer is not only about device reservations: `external` also means
 # "the models live on another box", and a local ollama under that answer is
-# strictly harmful. It serves nothing (hermes and friends read EXIST_MODEL_URL),
+# strictly harmful. It serves nothing (every consumer reads EXIST_MODEL_URL),
 # and decree still runs the pull migrations, so it drags multi-GB
 # models onto a machine that will never query them.
 #

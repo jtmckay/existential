@@ -30,7 +30,7 @@ file event"] -->|POST /files| B
         G{"CRITERIA\nmatch?"}
         D1["processor A"]
         D2["processor B"]
-        E["agent_task\n→ hermes gateway"]
+        E["agent_task\n→ pi"]
         B -->|"one emitted message\nper matching processor"| C
         C --> G
         G -->|"no criteria,\nor YES"| D1
@@ -73,7 +73,7 @@ delivery that fails is logged by Nextcloud and not retried.
 The request includes `Authorization: Bearer <EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN>`.
 
 :::warning[Only uploads through Nextcloud fire here]
-Hermes, code-server and decree write the workspace straight to disk. Nextcloud notices those
+code-server and decree write the workspace straight to disk. Nextcloud notices those
 files (so your desktop client gets them) but raises **no event** for them. A
 [file handler](./file-handlers) does see them.
 :::
@@ -240,8 +240,8 @@ Three things to know:
 ## Handing off to an agent
 
 A processor's real job is usually to decide *that* something should happen, not
-to do it. `agent_task` is the machine that does it: it calls the hermes gateway
-and files the answer in `workspace/ai/`.
+to do it. `agent_task` is the machine that does it: it runs [pi](../ai/pi) on the chat
+model and files the answer in `workspace/ai/`.
 
 ```bash
 echo 'Read this note and work out what can be settled without the author.' \
@@ -249,17 +249,14 @@ echo 'Read this note and work out what can be settled without the author.' \
       --param file_path=notes/plan.md --param output_name=plan-followup
 ```
 
-`file_processor` already lists `agent_task` and `hermes_router` in its `emits:`, so a
+`file_processor` already lists `agent_task` and `router` in its `emits:`, so a
 processor may emit either. `file-processors.example/agent-handoff.sh` is a complete one.
 
-Because hermes is an agent gateway that runs its own tool loop, the task inherits
-every MCP server hermes has registered: OpenViking search, Firecrawl web search,
-Playwright. The prompt does not name tools; it says what it wants, and hermes
-decides what to reach for. The gateway is called directly rather than through
-OpenCode — [why](./routing#why-not-opencode).
-
-`agent_task` needs `HERMES_API_KEY` (passed through once hermes is enabled), `curl`
-and `jq`, and `/workspace/ai` mounted into the decree container.
+pi runs its own tool loop, so with no `department` the task gets every MCP server
+of an add-on that is on: OpenViking search, Firecrawl web search, Playwright. The
+prompt does not name tools; it says what it wants, and pi decides what to reach
+for. `--param department=research` narrows it to that department's tools
+([Routing](./routing)).
 
 ## Triggering on workspace edits
 
@@ -270,12 +267,3 @@ too.
 
 `workspace/ai/` is where `agent_task` writes. It is written straight to disk, so it never
 fires a Nextcloud event; a handler whose pattern reaches `ai/` does see it.
-
-## Hermes asking decree for work
-
-Hermes (and anything else confined to `workspace/`) has no mount into `automation/` and
-shouldn't get one. Its way in is HTTP: automation-webhook serves `/hermes/task/{profile}` (an
-`agent_task` run on that profile, the body as the prompt) and `/hermes/notify/{title}`, on a
-secret of hermes' own. Each path fixes its machine, so those two are all hermes can ask decree
-for. `workspace/ai/decree/` (kept current by `routines_snapshot`) lists every machine, its
-params and these endpoints.

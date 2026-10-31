@@ -52,8 +52,8 @@ is filled from a tier table when the first GPU service is enabled (**GPU vendor*
 After editing anything in the block by hand:
 
 ```bash
-./existential.sh                        # re-renders honcho's config
 ./existential.sh run ollama pull-models
+docker compose up -d                    # recreates what reads the models
 ```
 
 ### The VRAM budget
@@ -78,7 +78,7 @@ Download sizes:
 | `bge-m3` | 1.2 GB | embeddings | every tier |
 
 - Up to 24 GB is quantised; 96 GB runs full precision.
-- Every tier runs 64k context (hermes needs it). Below about 12 GB the KV cache spills to RAM
+- Every tier runs 64k context (an agent's tool loop needs it). Below about 12 GB the KV cache spills to RAM
   and runs slower.
 - The table is `src/utils/model-tiers.sh`. Edit it there; a unit test checks it matches.
 
@@ -91,11 +91,11 @@ Download sizes:
 
 ### Rules for any model you pick
 
-- It **must** have ollama's `tools` capability, or hermes can't act.
+- It **must** have ollama's `tools` capability, or pi can't act.
 - Prefer multimodal, so images don't evict it for a separate vision model.
-- `EXIST_MODEL_CHAT_NUM_CTX` is a **floor of 65536**. Below it ollama silently truncates hermes'
-  prompt. Raising it costs VRAM.
-- `EXIST_MODEL_EXTRACT` and `EXIST_MODEL_VISION` ship as the chat tag, so one model stays loaded.
+- `EXIST_MODEL_CHAT_NUM_CTX` is a **floor of 65536**. Below it ollama silently truncates an
+  agent's prompt. Raising it costs VRAM.
+- `EXIST_MODEL_VISION` ships as the chat tag, so one model stays loaded.
   Blank `EXIST_MODEL_VISION` disables image handling.
 - `EXIST_MODEL_EMBED` is the same on every tier. Changing it after ingestion corrupts the vector
   index: wipe `volumes/openviking_data`. `EXIST_MODEL_EMBED_DIM` must match: `bge-m3` → 1024,
@@ -126,21 +126,20 @@ meaning "use `EXIST_MODEL_URL`".
 
 | Key | Role | Who reads it |
 |---|---|---|
-| `EXIST_MODEL_URL_CHAT` | Chat / reasoning | hermes, open-webui, decree scripts, the newsletter |
-| `EXIST_MODEL_URL_EXTRACT` | Background extraction | honcho's deriver and dialectic |
-| `EXIST_MODEL_URL_EMBED` | Embeddings | openviking's vector store, honcho |
+| `EXIST_MODEL_URL_CHAT` | Chat / reasoning | pi, open-webui, Home Assistant, decree scripts, the newsletter |
+| `EXIST_MODEL_URL_EMBED` | Embeddings | openviking's vector store |
 | `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr |
 
 A worked split, with a 24 GB card and an 8 GB one:
 
 ```bash
-EXIST_MODEL_URL=http://bigbox:8080/v1             # chat and extraction land here
+EXIST_MODEL_URL=http://bigbox:8080/v1             # chat lands here
 EXIST_MODEL_URL_EMBED=http://littlebox:11434/v1
 EXIST_MODEL_URL_VISION=http://littlebox:11434/v1
 ```
 
 Chat keeps the big card; embeddings and OCR stop evicting it. Then `./existential.sh` and
-`docker compose restart honcho hermes-agent openviking`.
+`docker compose up -d`.
 
 - `./existential.sh run models` prints where each role resolves. Migrations pull each model to
   the machine that serves it.
@@ -156,8 +155,8 @@ EXIST_IS_AI_COMFYUI=false                  # nothing local to start
 
 Two things don't follow the block:
 
-- Hermes' `config.yaml` `base_url` is updated each run only while it points at an ollama
-  (`:11434`). One you set by hand is left alone.
+- Open WebUI's compose file is rendered once. Edit `ai/open-webui/docker-compose.yml` too, or
+  `./existential.sh reset`.
 - OpenViking writes `ov.conf` once. Delete it and re-run to repoint.
 
 ### Speech has no endpoint keys
@@ -242,7 +241,6 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
 
 Generated on render, shared between services:
 
-- **`EXIST_HERMES_API_KEY`**: the hermes gateway key (hermes-agent, open-webui).
 - **`EXIST_NTFY_URL`**: ntfy, by container name. `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are
   the publisher, created by ntfy on first boot.
 - **`EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN`**: what Nextcloud's file-event webhooks send to

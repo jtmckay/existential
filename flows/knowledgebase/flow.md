@@ -1,6 +1,6 @@
 ---
 name: Knowledge base
-tagline: The workspace indexed into OpenViking every 15 minutes, so Hermes answers from your material
+tagline: The workspace indexed into OpenViking every 15 minutes, so pi answers from your material
 docs: /docs/ai/openviking
 services:
   - EXIST_IS_AI_OPENVIKING

@@ -141,11 +141,10 @@ none of it is needed for Core to work.
 | | |
 |---|---|
 | [Ollama](https://existential.company/docs/ai/ollama) | Local models, served at the same OpenAI-compatible URL |
-| [Hermes](https://existential.company/docs/ai/hermes) | An agent with tools and skills, over that same URL |
+| [pi](https://existential.company/docs/ai/pi) | An agent with tools on that same URL, in code-server's terminal and your automations |
 | [Open WebUI](https://existential.company/docs/ai/open-web-ui) | Day-to-day chat |
 | [qmd](https://existential.company/docs/ai/qmd) | Search your notes, PDFs and Word files by meaning and exact words, from a terminal or Claude Code and opencode |
 | [OpenViking](https://existential.company/docs/ai/openviking) | Context database — memory, resources, skills |
-| [Honcho](https://existential.company/docs/ai/honcho) | Cross-session memory |
 | [Firecrawl](https://existential.company/docs/ai/firecrawl) | Web scraping API for agents |
 | [WhisperX](https://existential.company/docs/ai/whisperx) | Speech → text, with speaker diarization |
 | [Chatterbox](https://existential.company/docs/ai/chatterbox) | Text → speech |

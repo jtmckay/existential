@@ -97,7 +97,7 @@ fi
 # Every tier must emit every key a consumer reads, or a swap leaves a stale
 # value behind from the previous tier.
 _required=(EXIST_VRAM_GB EXIST_MODEL_CHAT EXIST_MODEL_CHAT_NUM_CTX
-           EXIST_MODEL_EXTRACT EXIST_MODEL_VISION EXIST_MODEL_EMBED EXIST_MODEL_EMBED_DIM)
+           EXIST_MODEL_VISION EXIST_MODEL_EMBED EXIST_MODEL_EMBED_DIM)
 _missing=""
 for _gb in "${_gbs[@]}"; do
     _out="$(model_tier_env "$_gb")"
@@ -137,12 +137,12 @@ _CUSTOM_TAG="qwen3-vl:8b"
 _custom="$(model_tier_env "custom:${_CUSTOM_TAG}")"
 
 _cmiss=""
-for _key in EXIST_MODEL_CHAT EXIST_MODEL_EXTRACT EXIST_MODEL_VISION; do
+for _key in EXIST_MODEL_CHAT EXIST_MODEL_VISION; do
     [[ "$(grep -m1 "^${_key}=" <<< "$_custom" | cut -d= -f2-)" == "$_CUSTOM_TAG" ]] || _cmiss+="${_key} "
 done
 [[ -z "$_cmiss" ]] \
-    && _ok "custom:<tag> names the typed model for chat, extract and vision" \
-    || _fail "custom:<tag> names the typed model for chat, extract and vision" "wrong or missing: $_cmiss"
+    && _ok "custom:<tag> names the typed model for chat and vision" \
+    || _fail "custom:<tag> names the typed model for chat and vision" "wrong or missing: $_cmiss"
 
 # EXIST_VRAM_GB describes the machine, not the model. The custom answer says
 # nothing about the card, so it must leave the key alone — emitting the literal
@@ -218,29 +218,29 @@ _cpu_chat="$(model_tier_env 0 | grep "^EXIST_MODEL_CHAT=" | cut -d= -f2-)"
     && _ok "the CPU tier names a chat model" \
     || _fail "the CPU tier names a chat model" "model_tier_env 0 emitted no EXIST_MODEL_CHAT"
 
-# ── The hermes context floor ──────────────────────────────────────────────────
+# ── The agent context floor ───────────────────────────────────────────────────
 
-# Hermes requires 64,000 tokens of context, and ollama truncates a prompt that
+# An agent's tool loop needs 64,000 tokens of context, and ollama truncates a prompt that
 # does not fit rather than erroring — which reads as the agent ignoring its
 # instructions, not as a failure. So the floor applies to EVERY row, gb=0
 # included: on the small tiers the KV cache spills out of VRAM into system RAM
 # and ollama offloads layers to the CPU, which costs speed, not correctness.
-# Lowering any tier below this silently breaks hermes on that tier.
-HERMES_CTX_FLOOR=65536
+# Lowering any tier below this silently breaks pi on that tier.
+AGENT_CTX_FLOOR=65536
 _low=""
 for _gb in "${_gbs[@]}"; do
     _c="$(model_tier_env "$_gb" | grep '^EXIST_MODEL_CHAT_NUM_CTX=' | cut -d= -f2-)"
-    [[ "$_c" -ge "$HERMES_CTX_FLOOR" ]] || _low+="${_gb}(${_c}) "
+    [[ "$_c" -ge "$AGENT_CTX_FLOOR" ]] || _low+="${_gb}(${_c}) "
 done
 [[ -z "$_low" ]] \
-    && _ok "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" \
-    || _fail "every tier meets the ${HERMES_CTX_FLOOR} hermes context floor" "below the floor: $_low"
+    && _ok "every tier meets the ${AGENT_CTX_FLOOR} agent context floor" \
+    || _fail "every tier meets the ${AGENT_CTX_FLOOR} agent context floor" "below the floor: $_low"
 
 # A hand-typed model has no row to take a context from, so MODEL_TIER_CUSTOM_CTX
 # stands in for it — and it is subject to the same floor.
-[[ "$MODEL_TIER_CUSTOM_CTX" -ge "$HERMES_CTX_FLOOR" ]] \
-    && _ok "the custom answer meets the hermes context floor" \
-    || _fail "the custom answer meets the hermes context floor" "MODEL_TIER_CUSTOM_CTX=${MODEL_TIER_CUSTOM_CTX}"
+[[ "$MODEL_TIER_CUSTOM_CTX" -ge "$AGENT_CTX_FLOOR" ]] \
+    && _ok "the custom answer meets the agent context floor" \
+    || _fail "the custom answer meets the agent context floor" "MODEL_TIER_CUSTOM_CTX=${MODEL_TIER_CUSTOM_CTX}"
 
 # ── Self-check canary ─────────────────────────────────────────────────────────
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

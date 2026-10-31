@@ -9,8 +9,7 @@
 # That makes EXIST_DOMAIN a one-way door for this one setting: change it and
 # Nextcloud answers "Access through untrusted domain" on the new hostname,
 # while everything else in the stack follows the new name immediately (caddy
-# reads {$CADDY_DOMAIN} at runtime, dashy-conf.yml and honcho's config.toml are
-# always-rendered). trusted_domains was the one thing that did not, so the
+# reads {$CADDY_DOMAIN} at runtime, dashy-conf.yml is always-rendered). trusted_domains was the one thing that did not, so the
 # stack ended up half-moved.
 #
 # TRUSTED_PROXIES/OVERWRITEHOST/OVERWRITEPROTOCOL/OVERWRITECLIURL do NOT need

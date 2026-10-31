@@ -5,7 +5,7 @@
 # The model URL can name ollama or a llama.cpp server, and llama.cpp has no
 # /api/* routes at all. So the stub below answers /v1/chat/completions and 404s
 # everything else, and each path that sends a prompt is pointed at it:
-# lib/model.sh (every decree script), hermes_chat, the newsletter's write step
+# lib/model.sh (every decree script), the newsletter's write step
 # and ocr.ts. The last assertion is that nothing ever asked for /api/*, and that
 # ollama_pull leaves the server alone when ollama is not enabled.
 set -uo pipefail
@@ -70,7 +70,7 @@ STUB="http://127.0.0.1:$(cat "${TMP}/port")/v1"
 _body() { cat "${TMP}/last-body.json"; }
 _reply() { printf '%s' "$1" > "${TMP}/reply"; }
 
-export EXIST_MODEL_URL="$STUB" EXIST_MODEL_URL_CHAT="" EXIST_MODEL_URL_EXTRACT="" \
+export EXIST_MODEL_URL="$STUB" EXIST_MODEL_URL_CHAT="" \
        EXIST_MODEL_URL_EMBED="" EXIST_MODEL_URL_VISION=""
 export EXIST_MODEL_CHAT="chat-model" EXIST_MODEL_VISION="vision-model"
 
@@ -99,14 +99,6 @@ model_gate "boats" "a grocery list" >/dev/null; assert_eq "model_gate NO returns
 EXIST_MODEL_URL="http://127.0.0.1:9/v1" model_gate "boats" "x" >/dev/null 2>&1
 assert_eq "model_gate with no server returns 2 (no verdict)" "2" "$?"
 _reply "stub reply"
-
-# hermes_chat is model_chat aimed at the gateway, so the same request shape.
-# shellcheck source=../../../automation/lib/hermes.sh
-. "${LIB}/hermes.sh"
-assert_eq "hermes_chat reaches the same /v1 shape" \
-    "stub reply" "$(HERMES_API_URL="$STUB" HERMES_API_KEY=k hermes_chat s u 10)"
-assert_eq "hermes_chat with no HERMES_MODEL lets the gateway choose" \
-    "absent" "$(_body | jq -r '.model // "absent"')"
 
 # ── The newsletter's write step ───────────────────────────────────────────────
 

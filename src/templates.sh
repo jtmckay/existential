@@ -133,7 +133,7 @@ render_template() {
         # The resolver in src/utils/model-endpoints.sh is the same rule for
         # scripts; keep the two in step when adding a role.
         local _role _role_key
-        for _role in CHAT EXTRACT EMBED VISION; do
+        for _role in CHAT EMBED VISION; do
             _role_key="EXIST_MODEL_URL_${_role}"
             if [[ -z "${_vals[$_role_key]:-}" ]]; then
                 _vals["$_role_key"]="${_vals[EXIST_MODEL_URL]:-http://ollama:11434/v1}"
@@ -327,7 +327,6 @@ _STATS_KEYS_ADDED=0
 # See _render_opted_out.
 _ALWAYS_RENDER=(
     "services/dashy/dashy-conf.yml"
-    "ai/honcho/config.toml"
 )
 
 # True when $1 (an absolute destination path) is in _ALWAYS_RENDER.
@@ -387,12 +386,10 @@ _assert_always_render_safe() {
 # this function existed.
 #
 # The exception is an image with a baked non-root USER, which this rule cannot
-# see: ghcr.io/plastic-labs/honcho ships `USER app` (uid 100), so its rendered
-# config.toml was unreadable and honcho silently ran on upstream model defaults
-# for as long as that lasted — /health stayed green while every LLM call failed.
-# ai/honcho/exist.initial.sh widens that one file and explains why; its
-# exist.test.sh asserts the mode so it cannot regress silently. If you add a
-# service whose image has its own USER, do the same.
+# see: its rendered config is unreadable to it, so it silently runs on upstream
+# defaults while /health stays green. If you add a service whose
+# image has its own USER, widen that one file in its exist.initial.sh and assert
+# the mode in its exist.test.sh.
 #
 # If a rendered destination ever genuinely needs to be group- or world-readable,
 # widen it in that service's own exist.initial.sh, where the reason can live

@@ -46,7 +46,7 @@ CONFIG_DIR="${REPO_DIR}/volumes/homeassistant_data"
 CONFIG="${CONFIG_DIR}/configuration.yaml"
 
 # extended_openai_conversation lets HA's conversation agent point at an
-# OpenAI-compatible endpoint (Hermes) instead of real OpenAI — HA's own
+# OpenAI-compatible endpoint (the stack's chat model) instead of real OpenAI — HA's own
 # built-in "OpenAI Conversation" integration has no such option (verified
 # against its 2026.8.2 source: no base_url field anywhere in its config flow).
 # Installed by direct download rather than HACS: HACS exists to manage many
@@ -84,7 +84,7 @@ _install_extended_openai_conversation() {
     if ! curl -fsSL "https://github.com/jekalmin/extended_openai_conversation/archive/refs/tags/${eoc_version}.tar.gz" -o "$tmp_tar"; then
         rm -f "$tmp_tar"
         echo "  homeassistant: NOTE — could not download extended_openai_conversation ${eoc_version};" >&2
-        echo "                 the Hermes conversation-agent migration will not find it." >&2
+        echo "                 the conversation-agent migration will not find it." >&2
         return 0
     fi
     local actual_sha256
@@ -101,7 +101,7 @@ _install_extended_openai_conversation() {
     tar xzf "$tmp_tar" -C "$tmp_extract"
     cp -r "${tmp_extract}/extended_openai_conversation-${eoc_version}/custom_components/extended_openai_conversation" "$custom_components/"
     rm -rf "$tmp_tar" "$tmp_extract"
-    echo "  homeassistant: installed extended_openai_conversation ${eoc_version} (conversation agent -> Hermes)"
+    echo "  homeassistant: installed extended_openai_conversation ${eoc_version} (conversation agent -> chat model)"
 }
 _install_extended_openai_conversation
 

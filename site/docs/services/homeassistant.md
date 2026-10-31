@@ -88,8 +88,8 @@ spoken reply needs to land immediately anyway.
 
 ### Wiring it up
 
-The `homeassistant-wyoming-hermes` decree migration does this for you: both Wyoming
-integrations, a conversation-agent entry pointed at [Hermes](../ai/hermes) (not raw
+The `homeassistant-voice` decree migration does this for you: both Wyoming
+integrations, a conversation-agent entry pointed at the stack's chat model (not raw
 OpenAI — HA's own built-in OpenAI Conversation integration has no custom-endpoint
 option, so this uses the `extended_openai_conversation` custom component that
 `exist.initial.sh` installs instead), and an Assist pipeline tying all three together
@@ -103,8 +103,8 @@ with that exact instruction if it isn't loaded yet.
 The STT/TTS models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
 `EXIST_MODEL_STT_LANGUAGE` and `EXIST_MODEL_TTS_VOICE`. See
 [How it works](../how-it-works) for the full model-selection block. The
-conversation brain is whatever Hermes itself is configured to answer with —
-see Hermes's own [Model configuration](../ai/hermes#model-configuration).
+conversation brain is `EXIST_MODEL_CHAT` at the chat endpoint, the same model every
+other part of the stack talks to.
 
 ## Long-Lived Access Token
 

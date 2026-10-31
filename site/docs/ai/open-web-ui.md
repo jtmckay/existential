@@ -10,13 +10,14 @@ sidebar_position: 5
 - Alternatives: LibreChat
 - UI: `https://open-webui.<domain>`
 
-Chat interface for LLMs, backed by [Hermes](./hermes) as the OpenAI-compatible endpoint and [WhisperX](./whisperx) for speech-to-text.
+Chat interface for LLMs, talking straight to the stack's chat model and to [WhisperX](./whisperx)
+for speech-to-text.
 
 ## Enable
 
-Not part of Core. Hermes answers by voice (Home Assistant), from code-server's terminal
-(`hermes "..."`), and from decree routines. Turn this on when you want a chat window in a browser
-tab — it needs [Hermes](./hermes) — set it yourself:
+Not part of Core. The chat model already answers by voice (Home Assistant), from code-server's
+terminal (`pi`, `opencode`), and from decree routines. Turn this on when you want a chat window in
+a browser tab:
 
 ```bash
 EXIST_IS_AI_OPEN_WEBUI=true
@@ -27,26 +28,22 @@ generated into `ai/open-webui/.env` (`OPEN_WEBUI_ADMIN_EMAIL` / `OPEN_WEBUI_ADMI
 
 ## Recommended Workflow
 
-Each tool in the stack has a distinct role:
-
 | Tool | Use for |
 |---|---|
-| [Hermes dashboard](./hermes) | Managing sessions, skills, and agent configuration |
 | Open WebUI | Day-to-day conversations |
+| `pi` in [code-server](../services/code-server)'s terminal | The same model with tools: the workspace, search and the web |
 | [decree](../decree/) routines | Work with nobody present — `agent_task` files the answer into `workspace/ai/` |
-
-Every surface points at the Hermes gateway (`https://hermes-agent.<domain>/v1`, `HERMES_API_KEY`
-as the API key), so they share the same models, skills and memory. Coding on the stack itself is
-not one of those surfaces — see
-[Hermes is not a coding backend](./hermes#recommended-workflow).
 
 ## Backend Wiring
 
 | Container env var | Value |
 |---|---|
-| `OPENAI_API_BASE_URLS` | `http://hermes-agent:8642/v1` |
-| `OPENAI_API_KEYS` | `OPEN_WEBUI_HERMES_API_KEY`, itself `EXIST_HERMES_API_KEY` from `.env.shared` |
+| `OPENAI_API_BASE_URLS` | the chat role's endpoint, `EXIST_MODEL_URL_CHAT` (else `EXIST_MODEL_URL`), resolved at render |
+| `OPENAI_API_KEYS` | `none` — the model server takes no key |
 | `AUDIO_STT_OPENAI_API_BASE_URL` | `http://whisperx:8000/v1` |
+
+A rendered file is never re-rendered, so moving the chat role later means editing
+`ai/open-webui/docker-compose.yml` too (or `./existential.sh reset`).
 
 ## Admin Account
 

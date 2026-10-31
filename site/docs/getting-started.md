@@ -183,17 +183,16 @@ and notifies you when something breaks or recovers.
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under
   `ai/you-were-here/<YYYY>/`. See [You were here](#you-were-here).
 
-In Core, [code-server](./services/code-server) opens it at `/workspace` with `claude` and
-`opencode` in the terminal. The workspace carries the decree skill in `.claude/skills/decree/`,
+In Core, [code-server](./services/code-server) opens it at `/workspace` with `claude`,
+`opencode` and `pi` in the terminal. The workspace carries the decree skill in `.claude/skills/decree/`,
 so `claude` there already knows how to write an automation. Add-ons mount the same tree:
-[Nextcloud](./storage/nextcloud) as its `workspace` folder, [Hermes](./ai/hermes) at
-`/opt/data/workspace`.
+[Nextcloud](./storage/nextcloud) as its `workspace` folder.
 
 - **A file change can start an automation.** A handler in `.decree/handlers.yml` runs once the
   file has been quiet for 30 seconds. A `.gitignore`'d path or anything in `.git/` never does.
   See [File Handlers](./decree/file-handlers).
 - **With Local AI on**, [OpenViking](./ai/openviking) indexes the workspace every 15 minutes and
-  Hermes can search it.
+  pi can search it.
 - **To edit on other machines**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
   or [a Nextcloud elsewhere](#syncing-with-a-nextcloud-optional). Its *Ignored Files* list keeps
   files off the server.

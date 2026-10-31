@@ -4,7 +4,7 @@ params:
   OLLAMA_ROLE: chat
 ---
 Pull the primary chat/reasoning model — whatever EXIST_MODEL_CHAT names in
-.env.shared. Used by Hermes and Open WebUI.
+.env.shared. Used by pi, decree scripts and Open WebUI.
 
 The tag is NOT hardcoded here: the decree container receives the
 EXIST_MODEL_* globals and the ollama-pull routine resolves

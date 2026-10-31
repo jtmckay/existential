@@ -58,7 +58,7 @@ else
     #
     # This is the check that matters. The server answers MCP perfectly well with
     # no browser installed; every tool call then returns "Chromium distribution
-    # 'chrome' is not found". Nothing else in the stack notices — hermes just
+    # 'chrome' is not found". Nothing else in the stack notices — the agent just
     # reports that browsing failed.
     curl -sS -o "${BODY}" --max-time 60 -X POST "${MCP_URL}" \
         -H "${MCP_CT}" -H "${MCP_ACCEPT}" -H "mcp-session-id: ${SESSION}" \

@@ -29,7 +29,7 @@ flowchart TB
     model["A model at an OpenAI-compatible /v1 URL<br/><i>ollama · llama.cpp · another box</i>"]
 
     subgraph addons["Optional add-ons"]
-        ai["Local AI<br/><i>Ollama · Hermes · OpenViking · Honcho · Firecrawl</i>"]
+        ai["Local AI<br/><i>Ollama · OpenViking · Firecrawl</i>"]
         voice["Voice &amp; Home<br/><i>Home Assistant · wyoming-whisper · wyoming-piper</i>"]
         files["Capture<br/><i>automation-webhook · Nextcloud syncs workspace/</i>"]
         more["Network · Monitoring · Apps<br/><i>Caddy · Dashy · Grafana · Actual Budget · …</i>"]
@@ -77,9 +77,8 @@ None of this is in Core. Each row is a flag; flows that need one turn it on.
 | Slot | Ships as | What it does |
 |---|---|---|
 | **Models** | [Ollama](./ai/ollama), or any OpenAI-compatible server | Serves the models at `EXIST_MODEL_URL`. Each role can point elsewhere: [Configuration](./configuration#endpoints--putting-roles-on-different-machines). |
-| **Agent** | [Hermes](./ai/hermes) | An agent with tools, skills and sessions, on the same model URL. Optional. |
+| **Agent** | [pi](./ai/pi) | An agent with tools on the same model URL, in code-server's terminal and your automations. Baked in. |
 | **Knowledge** | [OpenViking](./ai/openviking) | A context database (memory, resources, skills) the agent keeps between sessions. |
-| **Memory** | [Honcho](./ai/honcho) | Memory about you, across conversations. |
 | **The web** | [Firecrawl](./ai/firecrawl) | Turns a URL into markdown a model can read. |
 | **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper) | What Home Assistant listens with. CPU only, so it never evicts a model from the GPU. |
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper) | The voice Home Assistant answers in. CPU only. |
@@ -89,9 +88,9 @@ None of this is in Core. Each row is a flag; flows that need one turn it on.
 | **Chat front end** | [Open WebUI](./ai/open-web-ui) | Chat in a browser. |
 | **Search** | [qmd](./ai/qmd) | Searches your notes, PDFs and Word files by words and by meaning, for you or for Claude in code-server. CPU only, no model needed. |
 
-:::caution[Hermes doesn't edit the stack]
-opencode can't use Hermes as a backend ([why](./decree/routing#why-not-opencode)). Change the
-stack with a coding agent on the host. Hermes works on `workspace/`.
+:::caution[pi doesn't edit the stack]
+Change the stack with a coding agent on the host, against a frontier model. pi works on
+`workspace/`.
 :::
 
 ## How it's assembled
@@ -133,7 +132,7 @@ Templates are tracked in git; rendered files never are.
   Existing values, blanks included, are never changed. That makes `git pull && ./existential.sh`
   an upgrade.
 - **Files with nothing you could lose** (no secrets, no answers) are regenerated every run and
-  say `DO NOT EDIT`: Dashy's `dashy-conf.yml`, Honcho's `config.toml`. Set `# EXIST_KEEP: true`
+  say `DO NOT EDIT`: Dashy's `dashy-conf.yml`. Set `# EXIST_KEEP: true`
   in the header to keep yours.
 - **Config inside a service's own datastore** (Home Assistant's proxy settings, Nextcloud's
   trusted domains, ntfy's user) is set by that service's `entrypoint.sh` on every start.

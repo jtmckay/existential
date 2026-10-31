@@ -26,10 +26,6 @@ flowchart LR
     cron__appsmith_volume_backup_nightly[/"cron: appsmith-volume-backup-nightly"/]
     cron__appsmith_volume_backup_weekly[/"cron: appsmith-volume-backup-weekly"/]
     cron__clean_runs[/"cron: clean-runs"/]
-    cron__hermes_volume_backup_nightly[/"cron: hermes-volume-backup-nightly"/]
-    cron__hermes_volume_backup_weekly[/"cron: hermes-volume-backup-weekly"/]
-    cron__honcho_db_backup_nightly[/"cron: honcho-db-backup-nightly"/]
-    cron__honcho_db_backup_weekly[/"cron: honcho-db-backup-weekly"/]
     cron__immich_db_backup_nightly[/"cron: immich-db-backup-nightly"/]
     cron__immich_db_backup_weekly[/"cron: immich-db-backup-weekly"/]
     cron__immich_volume_backup_nightly[/"cron: immich-volume-backup-nightly"/]
@@ -62,10 +58,6 @@ flowchart LR
     cron__appsmith_volume_backup_nightly -->|cron| volume_backup
     cron__appsmith_volume_backup_weekly -->|cron| volume_backup
     cron__clean_runs -->|cron| clean_runs
-    cron__hermes_volume_backup_nightly -->|cron| volume_backup
-    cron__hermes_volume_backup_weekly -->|cron| volume_backup
-    cron__honcho_db_backup_nightly -->|cron| db_backup
-    cron__honcho_db_backup_weekly -->|cron| db_backup
     cron__immich_db_backup_nightly -->|cron| db_backup
     cron__immich_db_backup_weekly -->|cron| db_backup
     cron__immich_volume_backup_nightly -->|cron| volume_backup

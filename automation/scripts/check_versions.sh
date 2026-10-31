@@ -58,7 +58,6 @@ declare -a CHECKS=(
     "chatterbox	ghcr.io/devnen/chatterbox-tts-server	github	devnen/chatterbox-tts-server	v"
     "collabora	collabora/code	hub_clean	collabora/code	bare"
     "dashy	lissy93/dashy	github	Lissy93/Dashy	bare"
-    "hermes-agent	nousresearch/hermes-agent	hub	nousresearch/hermes-agent	v"
     "home-assistant	ghcr.io/home-assistant/home-assistant	github	home-assistant/core	bare"
     "it-tools	corentinth/it-tools	github	CorentinTh/it-tools	bare"
     "lowcoder	lowcoderorg/lowcoder-ce-api-service	hub_clean	lowcoderorg/lowcoder-ce-api-service	bare"

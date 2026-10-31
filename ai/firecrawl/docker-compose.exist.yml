@@ -167,7 +167,7 @@ services:
       start_period: 10s
 
   # MCP server that wraps the firecrawl REST API in MCP protocol.
-  # Hermes connects here (streamable HTTP at /mcp), not to the REST API directly.
+  # pi connects here (streamable HTTP at /mcp), not to the REST API directly.
   firecrawl-mcp:
     container_name: firecrawl-mcp
     image: node:24.22.1-bookworm-slim

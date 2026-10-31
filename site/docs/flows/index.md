@@ -38,18 +38,17 @@ Each flow is a folder in `flows/`: the services it needs, its trigger, and any s
 | `gmail` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail)) | a Google grant |
 | `budget` | [Bank alerts become budget entries](./transaction-gmail-actual-budget) | Actual Budget, `gmail` |
 | `note-triage` | [The note you meant to come back to](./note-to-action) | Nextcloud, a chat model |
-| `knowledgebase` | The workspace indexed into OpenViking for Hermes | OpenViking |
-| `note-connect` | [Notes that find their own connections](./note-connect) | Hermes, `knowledgebase` |
-| `hermes-knows-decree` | Hourly, what decree can run, written where Hermes reads | Hermes |
+| `knowledgebase` | The workspace indexed into OpenViking, so pi answers from it | OpenViking |
+| `note-connect` | [Notes that find their own connections](./note-connect) | `knowledgebase` |
 | `nextcloud-capture` | A file uploaded through Nextcloud runs the [file processors](../decree/file-change-processing) | Nextcloud, automation-webhook |
 | `image-ocr` | [A photo's text, written beside it](./image-ocr) | `nextcloud-capture`, a vision model |
 | `transcription` | [Recordings become speaker-labelled transcripts](./recording-transcription) | WhisperX, `nextcloud-capture` |
-| `workspace-agent` | A file matching your criteria is handed to an agent | Hermes, OpenViking, Firecrawl, `nextcloud-capture` |
+| `workspace-agent` | A file matching your criteria is handed to an agent | OpenViking, Firecrawl, `nextcloud-capture` |
 | `notes-to-dropbox` | Nextcloud notes compiled and pushed to Dropbox | `nextcloud-capture`, a Dropbox remote |
 | `calendar` | Nextcloud's calendar, every event mirrored into the workspace | Nextcloud |
 | `office-documents` | Word, Excel and PowerPoint in the browser | Nextcloud, Collabora |
 | `local-models` | Ollama on this machine pulls your tier's models, once | Ollama |
-| `home-voice` | Talk to the house: Home Assistant, speech in and out, Hermes answering | Home Assistant, Wyoming, Hermes |
+| `home-voice` | Talk to the house: Home Assistant, speech in and out, your chat model answering | Home Assistant, Wyoming |
 | `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
 | `comfy` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 
@@ -64,8 +63,6 @@ Each flow is a folder in `flows/`: the services it needs, its trigger, and any s
 - **`check-versions`** reports images that are behind. `./existential.sh run check-versions
   --update` patches the templates; then `./existential.sh && docker compose pull && docker
   compose up -d`.
-- **`hermes-knows-decree`** writes `workspace/ai/decree/` hourly, so Hermes (which can't see
-  `.decree/`) knows what it may ask decree to run.
 
 ## How every flow works
 

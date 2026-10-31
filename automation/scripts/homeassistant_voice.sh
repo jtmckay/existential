@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# homeassistant-wyoming-hermes — wire up HA's voice pipeline headlessly:
-# Wyoming STT/TTS plus Hermes as the conversation agent.
+# homeassistant-voice — wire up HA's voice pipeline headlessly: Wyoming
+# STT/TTS plus the stack's own chat model as the conversation agent.
 #
 # Runs as a decree migration (once). Every step here is exactly what a human
 # clicking through Settings -> Devices & Services would do, replayed over
 # HA's own APIs — verified end-to-end against a disposable copy of this
-# stack's real HA image, the real wyoming-whisper/wyoming-piper containers,
-# and the real hermes-agent, including an actual conversation.process round
-# trip that got a real reply back through Hermes.
+# stack's real HA image and the real wyoming-whisper/wyoming-piper containers.
+# The conversation agent's model step (_use_chat_model) is written against
+# extended_openai_conversation 3.0.0-beta11's subentry flow, not yet run live.
 #
 # extended_openai_conversation (installed by services/homeassistant/
-# exist.initial.sh, pinned) is what makes "conversation agent = Hermes"
+# exist.initial.sh, pinned) is what makes "conversation agent = the chat model"
 # possible — HA's own built-in OpenAI Conversation integration has no
 # custom-endpoint option (verified against its 2026.8.2 source). If
 # exist.initial.sh hasn't run yet, or HA hasn't been restarted since it did,
@@ -31,7 +31,7 @@
 #   HOMEASSISTANT_URL                           default http://homeassistant:8123
 #   HOMEASSISTANT_READY_TIMEOUT                 default 180 (seconds to wait for HA)
 #   HOMEASSISTANT_ADMIN_USER / HOMEASSISTANT_ADMIN_PASSWORD
-#   HERMES_API_KEY
+#   EXIST_MODEL_CHAT, EXIST_MODEL_URL[_CHAT]   the chat role, via lib/model.sh
 set -euo pipefail
 
 HOMEASSISTANT_URL="${HOMEASSISTANT_URL:-http://homeassistant:8123}"
@@ -42,7 +42,9 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 
 : "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
 : "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
-: "${HERMES_API_KEY:?HERMES_API_KEY not set}"
+: "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
+# shellcheck source=../lib/model.sh
+source "${LIB_DIR}/model.sh"
 
 # _api METHOD PATH [JSON_BODY] — authenticated REST call. Checks the HTTP
 # status itself: HA answers a bad flow step with a 2xx-shaped JSON error in
@@ -173,13 +175,32 @@ _create_wyoming() {
     echo "Created Wyoming entry for ${host}:${port}."
 }
 
-_create_hermes_conversation() {
+# The chat role answers on /v1 and ignores the key, which the form requires.
+_create_conversation() {
     [[ "$(_entries extended_openai_conversation | jq 'length')" -gt 0 ]] && return 0
     local flow_id
     flow_id=$(_api POST /api/config/config_entries/flow '{"handler":"extended_openai_conversation"}' | jq -r .flow_id)
-    _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg key "$HERMES_API_KEY" \
-        '{name:"Hermes", api_key:$key, base_url:"http://hermes-agent:8642/v1", api_provider:"openai"}')" >/dev/null
-    echo "Created the Hermes conversation-agent entry."
+    _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg url "$(model_url chat)" \
+        '{name:"Local model", api_key:"none", base_url:$url, api_provider:"openai"}')" >/dev/null
+    echo "Created the conversation-agent entry."
+}
+
+# The entry is created with the integration's default chat_model (an OpenAI
+# tag the chat role does not serve), so set EXIST_MODEL_CHAT on its
+# conversation subentry. Reconfigured only while it differs.
+_use_chat_model() {
+    local sub have flow_id
+    sub=$(_ws "$(jq -n --arg id "$CONV_ENTRY_ID" '{type:"config_entries/subentries/list", entry_id:$id}')" \
+        | jq -c '[.[]? | select(.subentry_type=="conversation")][0] // empty')
+    [[ -n "$sub" ]] || { echo "No conversation subentry on ${CONV_ENTRY_ID}." >&2; return 1; }
+    have=$(jq -r '.data.chat_model // empty' <<<"$sub")
+    [[ "$have" == "$EXIST_MODEL_CHAT" ]] && return 0
+    flow_id=$(_api POST /api/config/config_entries/subentries/flow "$(jq -n --arg e "$CONV_ENTRY_ID" \
+        --arg s "$(jq -r .subentry_id <<<"$sub")" \
+        '{handler:[$e,"conversation"], source:"reconfigure", subentry_id:$s}')" | jq -r .flow_id)
+    _api POST "/api/config/config_entries/subentries/flow/${flow_id}" \
+        "$(jq -n --arg m "$EXIST_MODEL_CHAT" '{chat_model:$m}')" >/dev/null
+    echo "Conversation agent now answers with ${EXIST_MODEL_CHAT}."
 }
 
 # entity_id for the entity registered against a config entry, filtered to one
@@ -213,7 +234,7 @@ _entity_for_entry() {
 # by its own existence check, so a repeat is a no-op once the entry has really
 # materialised and cannot produce a duplicate.
 #
-# Without this the migration exits 1 with the Wyoming and Hermes entries created
+# Without this the migration exits 1 with the Wyoming and conversation entries created
 # and no pipeline — a half-configured Home Assistant. It also dead-letters, and
 # `decree process` stops at the first dead letter, so it takes every migration
 # numbered after it down as well.
@@ -222,7 +243,7 @@ _ensure_voice_wiring() {
     while :; do
         _create_wyoming wyoming-whisper 10300 whisper
         _create_wyoming wyoming-piper 10200 piper
-        _create_hermes_conversation
+        _create_conversation
 
         STT_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("whisper";"i")) | .entry_id' | head -1)
         TTS_ENTRY_ID=$(_entries wyoming | jq -r '.[] | select(.title | test("piper";"i")) | .entry_id' | head -1)
@@ -253,18 +274,19 @@ _ensure_voice_wiring() {
 }
 
 _ensure_voice_wiring || exit 1
+_use_chat_model || exit 1
 
 # Idempotent by name: the pipeline store has no unique constraint on name, so
 # check first rather than accumulate a duplicate on every re-run.
-EXISTING_PIPELINE=$(_ws '{"type":"assist_pipeline/pipeline/list"}' | jq -r '.pipelines[]? | select(.name=="Hermes") | .id' | head -1)
+EXISTING_PIPELINE=$(_ws '{"type":"assist_pipeline/pipeline/list"}' | jq -r '.pipelines[]? | select(.name=="Local") | .id' | head -1)
 if [[ -n "$EXISTING_PIPELINE" ]]; then
-    echo "Pipeline 'Hermes' already exists — nothing to do."
+    echo "Pipeline 'Local' already exists — nothing to do."
     exit 0
 fi
 
 PIPELINE=$(_ws "$(jq -n --arg conv "$CONV_ENTITY" --arg stt "$STT_ENTITY" --arg tts "$TTS_ENTITY" '{
     type: "assist_pipeline/pipeline/create",
-    name: "Hermes",
+    name: "Local",
     conversation_engine: $conv,
     conversation_language: "en",
     language: "en",
@@ -280,4 +302,4 @@ PIPELINE_ID=$(echo "$PIPELINE" | jq -r .id)
 
 _ws "$(jq -n --arg id "$PIPELINE_ID" '{type:"assist_pipeline/pipeline/set_preferred", pipeline_id:$id}')" >/dev/null
 
-echo "Created and activated the 'Hermes' Assist pipeline (stt=${STT_ENTITY}, tts=${TTS_ENTITY}, conversation=${CONV_ENTITY})."
+echo "Created and activated the 'Local' Assist pipeline (stt=${STT_ENTITY}, tts=${TTS_ENTITY}, conversation=${CONV_ENTITY})."

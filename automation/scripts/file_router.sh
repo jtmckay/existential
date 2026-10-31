@@ -18,7 +18,7 @@
 # runs for files that already passed the cheap half.
 #
 # Only uploads THROUGH Nextcloud raise events — the desktop client, the web UI,
-# WebDAV, rclone. Hermes, code-server and decree write workspace_data straight
+# WebDAV, rclone. code-server and decree write workspace_data straight
 # to disk; nextcloud-cron's scan makes those visible to clients but fires
 # nothing here. (A file handler in workspace/.decree/handlers.yml does see them.)
 #

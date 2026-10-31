@@ -53,7 +53,7 @@ GID_NOW="$(id -g)"
 
 # ── What is not ours ──────────────────────────────────────────────────────────
 
-# Roll a sorted path list up to its shallowest entries: if ai/hermes/hermes_install
+# Roll a sorted path list up to its shallowest entries: if volumes/ollama_data/models
 # is foreign then so is everything beneath it, and one line says more than four
 # hundred. Sorted input guarantees a parent precedes its children, so a running
 # prefix check is enough.

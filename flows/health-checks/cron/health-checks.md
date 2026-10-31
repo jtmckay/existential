@@ -33,5 +33,4 @@ Example service URLs (container:port/health-path):
   http://loki:3100/ready                  - loki
   http://automation-webhook:8801/healthz  - automation-webhook
   http://uptime-kuma:3001               - uptime-kuma (any 200)
-  http://hermes-agent:8642/health         - hermes
   http://open-webui:8080/health           - open-webui

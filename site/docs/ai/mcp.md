@@ -18,7 +18,7 @@ An MCP server that gives agents a headless Chromium browser: navigate, click, fi
 
 ## Usage
 
-Point any MCP-compatible client (Claude, Hermes, etc.) at `http://mcp-playwright:8931/mcp` over the `exist` network. The server exposes browser control as MCP tools the model can call directly.
+Point any MCP-compatible client (Claude, pi, etc.) at `http://mcp-playwright:8931/mcp` over the `exist` network. The server exposes browser control as MCP tools the model can call directly.
 
 ## Debugging
 

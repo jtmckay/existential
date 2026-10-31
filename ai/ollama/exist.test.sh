@@ -40,13 +40,12 @@ fi
 # missing key degrades to a floor rather than to 0 (which would read as "unset").
 EXPECT_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-8192}"
 
-# Hermes requires 64,000 tokens of context, and it enforces that itself: below
-# the floor it raises "context window ... below the minimum 64,000 required by
-# Hermes Agent" and refuses to start the agent. Every tier in the table ships
-# 65536, so no stock configuration falls short — this branch fires only on a
+# An agent's tool loop needs 64,000 tokens of context, and ollama truncates
+# below it silently: the agent just stops following its instructions. Every
+# tier in the table ships 65536, so no stock configuration falls short — this branch fires only on a
 # hand-edited EXIST_MODEL_CHAT_NUM_CTX, or on a model built before the floor
 # existed and never rebuilt.
-HERMES_CTX_WANT=65536
+AGENT_CTX_WANT=65536
 
 # ── 1. Reachability ───────────────────────────────────────────────────────────
 
@@ -101,7 +100,7 @@ MODEL_INFO=$(curl -sS "${OLLAMA_URL}/api/show" -d "{\"name\":\"${MODEL}\"}" 2>/d
 # which since 0.32 is *sized from VRAM* (`ollama serve --help`: "4k/32k/256k
 # based on VRAM") rather than a fixed 4096 — so it is not merely small, it is
 # unpredictable across machines. Invisible in /api/show either way, and the
-# exact state that truncates hermes without reporting anything. /api/ps is the
+# exact state that truncates an agent without reporting anything. /api/ps is the
 # only place that shows it, so it wins when the model is loaded; /api/show is
 # the cold fallback.
 PS_JSON=$(curl -sS --max-time 5 "${OLLAMA_URL}/api/ps" 2>/dev/null || true)
@@ -159,12 +158,12 @@ elif [ "$NUM_CTX" -lt "$EXPECT_CTX" ]; then
     fail "num_ctx >= ${EXPECT_CTX} (tier)" \
          "num_ctx=${NUM_CTX} but the configured tier asks for ${EXPECT_CTX}" \
          "The Modelfile did not apply. Re-run ./existential.sh run ollama"
-elif [ "$NUM_CTX" -lt "$HERMES_CTX_WANT" ]; then
-    fail "num_ctx >= ${HERMES_CTX_WANT} (hermes)" \
-         "num_ctx=${NUM_CTX} matches the tier, but hermes refuses to start an agent below ${HERMES_CTX_WANT}" \
-         "EXIST_MODEL_CHAT_NUM_CTX was hand-lowered, or this model predates the 64k floor. Set it back to ${HERMES_CTX_WANT} and re-run ./existential.sh run ollama pull-models"
+elif [ "$NUM_CTX" -lt "$AGENT_CTX_WANT" ]; then
+    fail "num_ctx >= ${AGENT_CTX_WANT} (agent floor)" \
+         "num_ctx=${NUM_CTX} matches the tier, but an agent's tool loop is truncated below ${AGENT_CTX_WANT}" \
+         "EXIST_MODEL_CHAT_NUM_CTX was hand-lowered, or this model predates the 64k floor. Set it back to ${AGENT_CTX_WANT} and re-run ./existential.sh run ollama pull-models"
 else
-    ok "num_ctx=${NUM_CTX} from ${CTX_SRC} (tier ${EXPECT_CTX}, hermes floor ${HERMES_CTX_WANT})"
+    ok "num_ctx=${NUM_CTX} from ${CTX_SRC} (tier ${EXPECT_CTX}, agent floor ${AGENT_CTX_WANT})"
 fi
 
 # ── 4. Memory headroom ────────────────────────────────────────────────────────

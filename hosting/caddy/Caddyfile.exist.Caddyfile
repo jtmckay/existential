@@ -64,18 +64,6 @@ comfyui.{$CADDY_DOMAIN} {
   reverse_proxy {$CADDY_COMFYUI_UPSTREAM:http://comfyui:8188}
 }
 
-hermes-agent.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy hermes-agent:8642
-}
-
-hermes-agent-dashboard.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy hermes-agent:9119
-}
-
 firecrawl.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling

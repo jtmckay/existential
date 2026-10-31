@@ -9,7 +9,7 @@
 #   CRITERIA decides whether this particular note is worth a full agent run.
 #            One model call, and it answers NO unless it genuinely matches.
 #
-# What survives both gets handed to agent-task, which calls the hermes gateway
+# What survives both gets handed to agent-task, which runs pi on the chat model
 # — so it can search OpenViking and the web without anything here saying
 # how. The answer lands in workspace/ai/, which is indexed but never synced, so
 # it is searchable next time and cannot trigger another run.
@@ -44,8 +44,8 @@ _slug="$(basename "$_rel" .md)"
 echo "Handing off: ${_rel}"
 echo "Because:     ${FILE_MATCH_REASON:-(no reason recorded)}"
 
-# agent_task answers on the default hermes profile. Add `--param profile=research`
-# to use a department's toolset instead, or emit hermes_router to let the router
+# agent_task answers with pi's default tools. Add `--param department=research`
+# to use a department's toolset instead, or emit router to let the router
 # pick the department. See site/docs/decree/routing.md. Either has to be in
 # file_processor's `emits:` (automation/machines/file_processor.yml).
 decree emit --machine agent_task \

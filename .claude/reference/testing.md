@@ -72,7 +72,7 @@ Adding a check is adding a file. Full contract in that directory's `README.md`; 
 - **Messages, not migrations, and dropped after them.** A failed migration blocks every one after
   it, so migrations would let one failure hide the rest. The reason that actually bit us is
   timing: migrations run as the daemon **boots**, so a check written as one judges a stack
-  that is still starting — it failed hermes, appsmith, lowcoder, nocodb and nextcloud on four
+  that is still starting — it failed open-webui, appsmith, lowcoder, nocodb and nextcloud on four
   runs the health gate then found healthy. Migrations are setup; checks are verification. And
   each decree pass drains the inbox *before* migrations, so `e2e.sh` waits until `decree status`
   shows none left (or one blocked behind a failure) before dropping a check.
@@ -120,7 +120,7 @@ Each of these was tried, shipped, and reverted. They all look like simplificatio
   silently turned `probe_caddy` into a no-op inside `decree` — which is where triage runs every
   service's test. Grep for what actually *sets* a variable before deciding two of them are one.
 - **The value is in running the units, not in the harness.** Every real bug this effort found —
-  ollama installed with no models, hermes crying wolf on a GPU-less host, the disabled Caddy probe
+  ollama installed with no models, a model test crying wolf on a GPU-less host, the disabled Caddy probe
   — came from bringing one up and looking, not from adding test infrastructure. When e2e work
   starts growing faster than the findings it produces, stop and go run something.
 

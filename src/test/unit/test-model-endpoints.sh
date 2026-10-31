@@ -10,8 +10,8 @@
 #
 # So the assertions are about the contract between the three places that resolve
 # a role, which must never disagree:
-#   src/utils/model-endpoints.sh  — host scripts (hermes, openviking, models.sh)
-#   src/templates.sh              — rendered configs (honcho's config.toml)
+#   src/utils/model-endpoints.sh  — host scripts (openviking, models.sh)
+#   src/templates.sh              — rendered configs (open-webui's compose)
 #   automation/lib/model.sh       — inside the decree container, which cannot see src/
 set -euo pipefail
 
@@ -26,7 +26,7 @@ ENDPOINTS="${SRC_DIR}/utils/model-endpoints.sh"
 TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
 MODEL_LIB="${REPO_DIR}/automation/lib/model.sh"
-HONCHO="${REPO_DIR}/ai/honcho/config.exist.toml"
+OPEN_WEBUI="${REPO_DIR}/ai/open-webui/docker-compose.exist.yml"
 DEFAULT_URL="http://ollama:11434/v1"
 
 # Speech has no endpoint keys on purpose — wyoming-whisper and wyoming-piper are
@@ -36,9 +36,9 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); }
 
-ROLES="chat extract embed vision"
+ROLES="chat embed vision"
 _blank_roles() {
-    export EXIST_MODEL_URL_CHAT="" EXIST_MODEL_URL_EXTRACT="" \
+    export EXIST_MODEL_URL_CHAT="" \
            EXIST_MODEL_URL_EMBED="" EXIST_MODEL_URL_VISION=""
 }
 
@@ -68,7 +68,6 @@ _blank_roles() {
     export EXIST_MODEL_URL_EMBED="http://embedbox:11434/v1"
     [[ "$(endpoint_for embed)"   == "http://embedbox:11434/v1" ]] || exit 1
     [[ "$(endpoint_for chat)"    == "http://global:8080/v1"    ]] || exit 1
-    [[ "$(endpoint_for extract)" == "http://global:8080/v1"    ]] || exit 1
     [[ "$(endpoint_for vision)"  == "http://global:8080/v1"    ]] || exit 1
 ) >/dev/null 2>&1 \
     && _ok "a set role key wins and does not leak to other roles" \
@@ -134,7 +133,7 @@ for _case in "global" "split" "unset"; do
             case "$_case" in
                 global) export EXIST_MODEL_URL="http://g:1/v1" ;;
                 split)  export EXIST_MODEL_URL="http://g:1/v1" EXIST_MODEL_URL_CHAT="http://c:2/v1" \
-                               EXIST_MODEL_URL_EXTRACT="http://x:3/v1" EXIST_MODEL_URL_EMBED="http://e:4/v1" \
+                               EXIST_MODEL_URL_EMBED="http://e:4/v1" \
                                EXIST_MODEL_URL_VISION="http://v:5/v1" ;;
                 unset)  unset EXIST_MODEL_URL ;;
             esac
@@ -151,7 +150,7 @@ done
 # templates.sh resolves the blanks for rendered configs. Its loop is a literal
 # list of role names, so it is the one place that silently omits a new role.
 _tmpl_missing=""
-for _r in CHAT EXTRACT EMBED VISION; do
+for _r in CHAT EMBED VISION; do
     grep -qE "for _role in .*${_r}" "$TEMPLATES" || _tmpl_missing+="${_r} "
 done
 [[ -z "$_tmpl_missing" ]] \
@@ -169,7 +168,7 @@ grep -qF "\${_vals[EXIST_MODEL_URL]:-${DEFAULT_URL}}" "$TEMPLATES" || _default_o
 # ── The shipped env ───────────────────────────────────────────────────────────
 
 _missing=""
-for _r in CHAT EXTRACT EMBED VISION; do
+for _r in CHAT EMBED VISION; do
     grep -qE "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" || _missing+="EXIST_MODEL_URL_${_r} "
 done
 [[ -z "$_missing" ]] \
@@ -196,7 +195,7 @@ grep -qE '^EXIST_OLLAMA_URL' "$SHIPPED" \
 # empty tag, so nothing errors — the model simply never gets loaded and every
 # call 404s at runtime. Assert the pair, not each half.
 _unpaired=""
-for _r in CHAT EXTRACT EMBED VISION; do
+for _r in CHAT EMBED VISION; do
     grep -qE "^EXIST_MODEL_${_r}="     "$SHIPPED" || _unpaired+="${_r}(no model) "
     grep -qE "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" || _unpaired+="${_r}(no endpoint) "
 done
@@ -206,7 +205,7 @@ done
 
 # The two role-scoped extras. Neither is a tag or an address, but both belong to
 # exactly one role and break that role alone when wrong: a stale num_ctx makes
-# hermes overflow silently, a mismatched dim corrupts the vector index.
+# an agent overflow silently, a mismatched dim corrupts the vector index.
 grep -qE "^EXIST_MODEL_CHAT_NUM_CTX=" "$SHIPPED" \
     && _ok "the chat role carries its context window" \
     || _fail "the chat role carries its context window"
@@ -218,7 +217,7 @@ grep -qE "^EXIST_MODEL_EMBED_DIM=" "$SHIPPED" \
 # A shipped role value would quietly pin every new install to one machine and
 # make EXIST_MODEL_URL a setting that does nothing.
 _nonblank=""
-for _r in CHAT EXTRACT EMBED VISION; do
+for _r in CHAT EMBED VISION; do
     _v=$(grep -E "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" | head -1 | cut -d= -f2-)
     [[ -z "$_v" ]] || _nonblank+="${_r}=${_v} "
 done
@@ -226,22 +225,17 @@ done
     && _ok ".env.exist.shared ships every role endpoint blank" \
     || _fail ".env.exist.shared ships every role endpoint blank" "set: $_nonblank"
 
-# ── honcho actually uses the roles ────────────────────────────────────────────
+# ── A rendered template uses the role token ───────────────────────────────────
 #
-# honcho is the only consumer that talks to TWO roles, so a regression there is
-# the one that reintroduces a single hardcoded address for the whole stack. The
-# value already ends /v1, so nothing may append another.
-grep -q '"EXIST_MODEL_URL_EMBED"' "$HONCHO" \
-    && _ok "honcho's embedding block uses the embed endpoint" \
-    || _fail "honcho's embedding block uses the embed endpoint"
+# open-webui's backend is the chat role, written as the bare token templates.sh
+# resolves. The value already ends /v1, so nothing may append another.
+grep -q '"EXIST_MODEL_URL_CHAT"' "$OPEN_WEBUI" \
+    && _ok "open-webui's backend uses the chat endpoint" \
+    || _fail "open-webui's backend uses the chat endpoint"
 
-grep -q '"EXIST_MODEL_URL_EXTRACT"' "$HONCHO" \
-    && _ok "honcho's deriver/dialectic blocks use the extract endpoint" \
-    || _fail "honcho's deriver/dialectic blocks use the extract endpoint"
-
-grep -qE '"EXIST_MODEL_URL"|EXIST_MODEL_URL[A-Z_]*/v1' "$HONCHO" \
-    && _fail "honcho names no bare global endpoint and appends no /v1" \
-    || _ok "honcho names no bare global endpoint and appends no /v1"
+grep -qE '"EXIST_MODEL_URL"|EXIST_MODEL_URL[A-Z_]*/v1' "$OPEN_WEBUI" \
+    && _fail "open-webui names no bare global endpoint and appends no /v1" \
+    || _ok "open-webui names no bare global endpoint and appends no /v1"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
