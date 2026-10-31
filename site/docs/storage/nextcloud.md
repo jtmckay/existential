@@ -24,9 +24,8 @@ nothing to enable separately. See [Cache](#cache) below.
 
 ## On a NAS
 
-`nextcloud_data`, `nextcloud_config_data`, `nextcloud_custom_apps_data` and
-`nextcloud_themes_data` can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); the
-database never does. `nextcloud_data` holds Nextcloud's own layout (`<user>/files/`,
+`nextcloud_data` can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); config, apps,
+themes and the database stay local. `nextcloud_data` holds Nextcloud's own layout (`<user>/files/`,
 `appdata_*`, `nextcloud.log`), so give `EXIST_NFS_PATH_NEXTCLOUD_DATA` an empty folder, never a
 share of files you already have: Nextcloud would not index them, and its own files would land
 among them.

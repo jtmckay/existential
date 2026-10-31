@@ -245,9 +245,10 @@ x-exist-volumes:
   # The webroot itself: PHP code, always local (never nfs — see the mount comment).
   nextcloud_html_data: {}
   nextcloud_data: { nfs: true }
-  nextcloud_config_data: { nfs: true }
-  nextcloud_custom_apps_data: { nfs: true }
-  nextcloud_themes_data: { nfs: true }
+  # A few MB of app state: local, so a NAS asks for one folder, not four.
+  nextcloud_config_data: {}
+  nextcloud_custom_apps_data: {}
+  nextcloud_themes_data: {}
   nextcloud_sql_data: { db: true }
   # The user's own files, shared with hermes, code-server and decree. Local, not
   # nfs: exist.initial.sh scripts seed READMEs into volumes/workspace_data.
