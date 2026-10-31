@@ -124,7 +124,6 @@ assert_contains "a _share reads EXIST_NFS_SHARE_<NAME>" "device: ':/tank/photos'
 assert_contains "none stays a bind" "/host/realrepo/volumes/foo_themes_data:/themes" "$compose"
 assert_not_contains "none is not a top-level volume" "foo_themes_data:" "$nas"
 assert_contains "db volume stays a bind" "/host/realrepo/volumes/foo_sql_data:/sql" "$compose"
-assert_contains "prints what the NAS mounts" "foo_files_data → /tank/cloud" "$err"
 assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
 assert_no_dir "no local dir for a nas volume" "$repo/volumes/foo_files_data"
 

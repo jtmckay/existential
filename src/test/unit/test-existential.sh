@@ -543,6 +543,49 @@ assert_eq "the decree image's context hash is stable" \
     "$(_source_existential "$REPO" "adhoc_context_hash")" "$(_source_existential "$REPO" "adhoc_context_hash")"
 assert_eq "...and a number" "1" "$(_source_existential "$REPO" "adhoc_context_hash" | grep -cE '^[0-9]+$')"
 
+# ── NAS folders are checked before docker-compose.yml is written ──────────────
+#
+# _check_nas mounts each NAS folder as EXIST_PUID and stops the build on one it
+# cannot use. The stub plays the NAS: the folder's path picks what the probe sees
+# ("<owner> <mode> <wrote> <chmodded>"), or a failed mount.
+
+FAKE_NAS="${TMPDIR_ROOT}/fake-nas"
+mkdir -p "$FAKE_NAS"
+_nas_stub='docker() {
+    local a
+    case "$1 $2" in
+        "volume create") for a in "$@"; do [[ "$a" == device=:* ]] && echo "${a#device=:}" > "'"$FAKE_NAS"'/dev"; done; return 0 ;;
+        "run --rm") case "$(cat "'"$FAKE_NAS"'/dev")" in
+            /good)    echo "1000:1000 770 1 1" ;;
+            /share)   echo "3000:3000 777 1 0" ;;
+            /bad)     echo "3000:3000 755 0 0" ;;
+            /rootish) echo "0:0 777 1 0" ;;
+            /missing) echo "mounting :/missing: no such file or directory" >&2; return 125 ;;
+        esac ;;
+    esac
+}
+DOCKER_CMD=docker'
+
+printf 'EXIST_NFS_ADDRESS=none\nEXIST_NFS_PATH_FOO_DATA=/bad\n' > "${FAKE_NAS}/.env.shared"
+assert_eq "no NAS: nothing is checked" "" "$(_source_existential "$FAKE_NAS" "${_nas_stub}; _check_nas" 2>&1)"
+
+printf 'EXIST_NFS_ADDRESS=10.0.0.5\nEXIST_PUID=1000\nEXIST_PGID=1000\nEXIST_NFS_PATH_FOO_DATA=/good\nEXIST_NFS_SHARE_FOO=/share\nEXIST_NFS_PATH_BAR_DATA=none\n' \
+    > "${FAKE_NAS}/.env.shared"
+_rc=0; _out="$(_source_existential "$FAKE_NAS" "${_nas_stub}; _check_nas" 2>&1)" || _rc=$?
+assert_eq "an owned _data and a writable _share pass" "0" "$_rc"
+assert_eq "...each named" "2" "$(grep -c '✓' <<< "$_out")"
+
+printf 'EXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_DATA=/bad\nEXIST_NFS_PATH_BAZ_DATA=/rootish\nEXIST_NFS_PATH_QUX_DATA=/missing\n' \
+    > "${FAKE_NAS}/.env.shared"
+_rc=0; _out="$(_source_existential "$FAKE_NAS" "${_nas_stub}; _check_nas" 2>&1)" || _rc=$?
+assert_eq "a folder it cannot use stops the build" "1" "$_rc"
+assert_eq "...saying the compose file was not written" "1" "$(grep -c 'docker-compose.yml was not written' <<< "$_out")"
+assert_eq "...with the chown for the wrong owner" "1" "$(grep -c 'chown 1000:1000 /bad && chmod 770 /bad' <<< "$_out")"
+assert_eq "...and the Mapall to that owner" "1" "$(grep -c 'Mapall user:group 3000:3000' <<< "$_out")"
+assert_eq "...a writable _data that will not chmod is still a failure" "1" "$(grep -c 'cannot change its mode' <<< "$_out")"
+assert_eq "...never a Mapall to root" "1" "$(grep -c 'Mapall' <<< "$_out")"
+assert_eq "...and a mount that fails says why" "1" "$(grep -c 'could not mount it: mounting :/missing' <<< "$_out")"
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

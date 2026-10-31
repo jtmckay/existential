@@ -19,8 +19,12 @@ NAS ones; `validate conventions` enforces that on the generated file.
 in `src/templates.sh`. A path becomes a top-level `local` volume with NFS `driver_opts`
 (`addr=<address>,rw,nfsvers=4`, `device: ":<path>"`), mounted `nocopy`; a subpath into it is an
 error. `none` keeps it in `volumes/`. A missing path with an address is a hard error naming the
-key. **Nothing in the stack creates, chowns or writes a folder on the NAS** — the person makes
-each, and a missing one stops the container instead of quietly becoming a local directory.
+key. **Nothing in the stack creates or chowns a folder on the NAS** — the person makes each.
+`_check_nas` in `existential.sh` proves each one before `docker-compose.yml` is written: a
+throwaway volume with the same `driver_opts`, mounted as `EXIST_PUID:EXIST_PGID`, must take a
+write (removed) and, for a `_data` folder, a no-op `chmod` (NFS allows only the owner, and
+nextcloud's installer chmods its data dir). A failure stops the run with the chown and the
+*Mapall* fix, because otherwise it surfaces minutes later inside one service's first start.
 Nothing on the host mounts the export, and `automation-backup` does not see a NAS volume.
 
 A relative bind source is for **tracked config only** — a mounted config file, or a directory of

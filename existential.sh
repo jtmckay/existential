@@ -684,6 +684,66 @@ _stage_images() {
         || echo "  ⚠ A build failed; docker compose up -d --build shows why."
 }
 
+# A NAS folder is made by a person, and a wrong owner otherwise shows up minutes
+# after `up -d`, deep in one service's first start (nextcloud's installer loops
+# "Cannot create or write into the data directory", then serves its setup page
+# and stays unhealthy). So each folder is mounted here first, the way Compose
+# will mount it and as the uid every container runs as, and docker-compose.yml
+# is not written until all of them pass. A _data folder must also take a chmod,
+# which NFS allows only its owner; a _share (your own files) needs a write.
+_check_nas() {
+    local f="${SCRIPT_DIR}/.env.shared" vol=existential-nas-check
+    local addr uid gid key dir out owner mode w c fix bad=0
+    addr="$(grep -m1 '^EXIST_NFS_ADDRESS=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')"
+    [[ -n "$addr" && "$addr" != none ]] || return 0
+    uid="$(grep -m1 '^EXIST_PUID=' "$f" | cut -d= -f2- || true)"; uid="${uid:-1000}"
+    gid="$(grep -m1 '^EXIST_PGID=' "$f" | cut -d= -f2- || true)"; gid="${gid:-1000}"
+    adhoc_detect_runtime
+    # The chmod sets the mode the folder already has: it changes nothing, it only
+    # asks whether this uid may.
+    local probe='t=/d/.existential-check; w=0; c=0
+        touch "$t" 2>/dev/null && rm -f "$t" && w=1
+        chmod "$(stat -c %a /d)" /d 2>/dev/null && c=1
+        echo "$(stat -c "%u:%g %a" /d) $w $c"'
+    echo ""
+    echo "Checking the NAS folders on ${addr} as ${uid}:${gid}..."
+    while IFS='=' read -r key dir; do
+        [[ "$dir" == /* ]] || continue
+        $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
+        if ! out="$({ $DOCKER_CMD volume create --driver local --opt type=nfs \
+                        --opt "o=addr=${addr},rw,nfsvers=4" --opt "device=:${dir}" "$vol" >/dev/null &&
+                      $DOCKER_CMD run --rm --user "${uid}:${gid}" --entrypoint "" -v "${vol}:/d" \
+                        existential/decree:local sh -c "$probe"; } 2>&1)"; then
+            $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
+            bad=1
+            echo "  ✗ ${key}  ${addr}:${dir}"
+            echo "      could not mount it: $(printf '%s\n' "$out" | tail -1)"
+            echo "      The folder must exist on the NAS and be exported over NFS to this machine."
+            continue
+        fi
+        $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
+        read -r owner mode w c <<< "$(printf '%s\n' "$out" | tail -1)"
+        if [[ "$w" == 1 && ( "$c" == 1 || "$key" == EXIST_NFS_SHARE_* ) ]]; then
+            echo "  ✓ ${key}  ${dir}"
+            continue
+        fi
+        bad=1
+        [[ "$w" == 1 ]] && fix="cannot change its mode (over NFS only the owner can)" || fix="cannot write it"
+        echo "  ✗ ${key}  ${addr}:${dir}"
+        echo "      owned by ${owner}, mode ${mode}: ${uid}:${gid} ${fix}."
+        echo "      Fix it on the NAS, either way:"
+        echo "        • as root there:  chown ${uid}:${gid} ${dir} && chmod $([[ "$key" == EXIST_NFS_SHARE_* ]] && echo 775 || echo 770) ${dir}"
+        [[ "$owner" == 0:* ]] ||
+            echo "        • or on that folder's NFS share, map every client to its owner: Mapall user:group ${owner}
+          (TrueNAS: Shares → NFS → Edit → Advanced Options; Synology: Squash → Map all users)"
+        echo "      Or set ${key}=none in .env.shared to keep it off the NAS."
+    done < <(grep -E '^EXIST_NFS_(PATH|SHARE)_[A-Z0-9_]+=' "$f")
+    [[ "$bad" == 0 ]] && return 0
+    echo ""
+    echo "docker-compose.yml was not written. Fix the folders above, then run ./existential.sh again."
+    return 1
+}
+
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
     _offer_image_updates
@@ -696,6 +756,7 @@ _build() {
     fi
     _tailscale_serve_core
     _start_on_boot
+    _check_nas || exit 1
     echo ""
     echo "Generating docker-compose.yml..."
     run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"

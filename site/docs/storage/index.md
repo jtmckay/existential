@@ -38,12 +38,14 @@ set up on this host.
    `none`, which keeps that one volume on this machine, under `<repo>/volumes/`.
    Each answer is written to `.env.shared` and never asked again; turning on another service
    asks for its volumes, and setting the address later asks for every enabled one.
-3. `./existential.sh` prints the address and the folders the stack will mount. Then
-   `docker compose up -d`.
+3. `./existential.sh` mounts each folder the way Compose will, as `EXIST_PUID:EXIST_PGID`, and
+   checks it can write there (and, for a container's data, change the folder's mode, which NFS
+   allows only the owner). A folder that fails stops the run before `docker-compose.yml` is
+   written, naming the folder, its owner and mode, and the fix: `chown` it on the NAS, or set
+   the NFS share's *Mapall* user to the folder's owner. Then `docker compose up -d`.
 
 Without a terminal nothing is asked, and a run with an address but a missing path stops and
-names the key to set. A folder that is missing or unreachable stops the container that mounts
-it; it is never replaced by a local directory.
+names the key to set. A folder is never replaced by a local directory.
 
 ### Changing a path
 

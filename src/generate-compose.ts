@@ -592,10 +592,6 @@ function merge(
       driver: 'local',
       driver_opts: { type: 'nfs', o: `addr=${nfsAddress},rw,nfsvers=4`, device: `:${nfsPaths[name]}` },
     }]));
-    process.stderr.write(
-      `NAS ${nfsAddress} — each folder must exist, owned by ${env['EXIST_PUID'] || 1000}:${env['EXIST_PGID'] || 1000}:\n` +
-      names.map(name => `  ${name} → ${nfsPaths[name]}\n`).join(''),
-    );
   }
   return result;
 }
