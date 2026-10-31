@@ -8,7 +8,7 @@ machine: develop
 The docs are how a new user decides whether to install this and how to use it. When they
 describe a stack that no longer exists, they cost more than having no docs. Several
 recent changes (Core's membership, the workspace's decree project, models reached through an
-OpenAI-compatible URL, hermes being optional, agents in code-server) changed what is true.
+OpenAI-compatible URL, pi as the agent, agents in code-server) changed what is true.
 
 ## Outcome
 
