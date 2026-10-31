@@ -222,7 +222,7 @@ from the repo root against the generated `docker-compose.yml`.
   `volumes/<name>`, referenced by bare name (optionally with a subpath into it,
   `hermes_install_cache/.venv`) and declared in the service's top-level `x-exist-volumes:` block
   (`nfs` / `db` / `backup`); an undeclared name is a hard error. The name's suffix is enforced and
-  says whether it is safe to delete: `_data`, `_backup`, `_cache`. An embedded DB (SQLite, bbolt,
+  says whether it is safe to delete: `_data`, `_share`, `_backup`, `_cache`. An embedded DB (SQLite, bbolt,
   TSDB) is `db: true` and must **never** be `nfs: true`. An `nfs: true` volume is the one
   exception to bind mounts: given `EXIST_NFS_ADDRESS` and its `EXIST_NFS_PATH_<VOLUME>`,
   Compose mounts it from the NAS, and nothing in the stack ever writes a folder there. **Anything gitignored is a volume** — a

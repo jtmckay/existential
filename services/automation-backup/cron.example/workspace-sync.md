@@ -6,7 +6,7 @@ machine: workspace_sync
 Two-way syncs `workspace/` with one other copy, every minute, so it is the same tree
 wherever you edit it. A file changed on both sides since the last run keeps the newer edit.
 
-- **On the NAS**: give `EXIST_NFS_PATH_WORKSPACE_SYNC_DATA` a folder on the export (asked
+- **On the NAS**: give `EXIST_NFS_SHARE_WORKSPACE` a folder on the NAS (asked
   when `./existential.sh` first sees `automation-backup` on with a NAS). It wins over Nextcloud.
 - **In Nextcloud**: set `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER` and
   `EXIST_NEXTCLOUD_APP_PASSWORD` in `.env` (an app password, from Nextcloud's Settings >

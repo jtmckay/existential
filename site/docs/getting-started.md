@@ -300,7 +300,7 @@ docker exec automation decree emit --machine look_back --param period=quarter --
 With [automation-backup](./decree/automation-backup) on, `workspace-sync` runs `rclone bisync`
 every minute, both ways, with one other copy. A file changed on both sides keeps the newer edit.
 
-- **A NAS folder**: `EXIST_NFS_PATH_WORKSPACE_SYNC_DATA` in `.env.shared`, asked with the other
+- **A NAS folder**: `EXIST_NFS_SHARE_WORKSPACE` in `.env.shared`, asked with the other
   [NAS paths](./storage/). Compose mounts it; when set, it is the only other copy. A change made
   on the NAS arrives within a minute: NFS tells nobody, so it is found by the next run.
 - **A Nextcloud folder**: in `.env`, `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`,

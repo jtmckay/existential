@@ -472,7 +472,7 @@ rm -rf "$TMP/ai/mailsvc"
 # The NAS address is asked once, then a path for each nfs: true volume of an
 # enabled service; a db: true volume and a disabled service are never asked.
 mkdir -p "$TMP/nas/cloud" "$TMP/nas/off"
-printf 'x-exist-volumes:\n  cloud_files_data: { nfs: true }\n  cloud_themes_data: { nfs: true }\n  cloud_sql_data: { db: true }\n' > "$TMP/nas/cloud/docker-compose.exist.yml"
+printf 'x-exist-volumes:\n  cloud_files_data: { nfs: true }\n  cloud_photos_share: { nfs: true }\n  cloud_sql_data: { db: true }\n' > "$TMP/nas/cloud/docker-compose.exist.yml"
 printf 'x-exist-volumes:\n  off_data: { nfs: true }\n' > "$TMP/nas/off/docker-compose.exist.yml"
 _nas() { ( unset EXIST_NFS_ADDRESS; _prompt_available() { true; }
            _prompt_tty() { echo "$1 [$2]" >> "$TMP/.nasked"; sed -n 1p "$TMP/.answers"; sed -i 1d "$TMP/.answers"; }
@@ -486,23 +486,22 @@ sed -i 's/^EXIST_IS_NAS_CLOUD=false$/EXIST_IS_NAS_CLOUD=true/' "$TMP/.env.shared
 assert_eq "no terminal → the address stays blank" "EXIST_NFS_ADDRESS=" "$(grep '^EXIST_NFS_ADDRESS=' "$TMP/.env.shared")"
 printf '\n' > "$TMP/.answers"; _nas
 assert_eq "Enter answers none" "EXIST_NFS_ADDRESS=none" "$(grep '^EXIST_NFS_ADDRESS=' "$TMP/.env.shared")"
-assert_eq "...and asks no path" "" "$(grep '^EXIST_NFS_PATH_' "$TMP/.env.shared")"
+assert_eq "...and asks no path" "" "$(grep '^EXIST_NFS_PATH_CLOUD' "$TMP/.env.shared")"
 : > "$TMP/.nasked"; _nas
 assert_eq "none is never asked again" "" "$(cat "$TMP/.nasked")"
 sed -i 's/^EXIST_NFS_ADDRESS=none$/EXIST_NFS_ADDRESS=/' "$TMP/.env.shared"
-printf '10.0.0.5\n/tank/cloud\nlocal\n' > "$TMP/.answers"; : > "$TMP/.nasked"; _nas
-assert_eq "an address asks each volume, suggesting /<name> then a sibling of the last path" \
-    "EXIST_NFS_ADDRESS [none] EXIST_NFS_PATH_CLOUD_FILES_DATA [/cloud_files_data] EXIST_NFS_PATH_CLOUD_THEMES_DATA [/tank/cloud_themes_data]" \
+printf '10.0.0.5\n/tank/cloud\n\n' > "$TMP/.answers"; : > "$TMP/.nasked"; _nas
+assert_eq "an address asks each volume, a _share as EXIST_NFS_SHARE_<NAME>, Enter meaning none" \
+    "EXIST_NFS_ADDRESS [none] EXIST_NFS_PATH_CLOUD_FILES_DATA [none] EXIST_NFS_SHARE_CLOUD_PHOTOS [none]" \
     "$(xargs < "$TMP/.nasked")"
-assert_eq "each answer is appended" "EXIST_NFS_PATH_CLOUD_FILES_DATA=/tank/cloud EXIST_NFS_PATH_CLOUD_THEMES_DATA=local" \
-    "$(grep '^EXIST_NFS_PATH_' "$TMP/.env.shared" | xargs)"
-assert_contains "with a one-line comment" "# nas/cloud: cloud_files_data on the NAS export" "$(cat "$TMP/.env.shared")"
+assert_eq "each answer is appended" "EXIST_NFS_PATH_CLOUD_FILES_DATA=/tank/cloud EXIST_NFS_SHARE_CLOUD_PHOTOS=none" \
+    "$(grep -E '^EXIST_NFS_(PATH|SHARE)_CLOUD' "$TMP/.env.shared" | xargs)"
+assert_contains "with a one-line comment" "# nas/cloud: cloud_files_data. A folder on the NAS, or none." "$(cat "$TMP/.env.shared")"
 assert_eq "a db volume is never asked" "" "$(grep '^EXIST_NFS_PATH_CLOUD_SQL' "$TMP/.env.shared")"
 sed -i 's/^EXIST_IS_NAS_OFF=false$/EXIST_IS_NAS_OFF=true/' "$TMP/.env.shared"
-printf '\n' > "$TMP/.answers"; : > "$TMP/.nasked"; _nas
-assert_eq "turning a service on asks only its volumes; Enter takes the suggestion" \
-    "EXIST_NFS_PATH_OFF_DATA [/tank/off_data]" "$(xargs < "$TMP/.nasked")"
-assert_eq "...which is written" "EXIST_NFS_PATH_OFF_DATA=/tank/off_data" "$(grep '^EXIST_NFS_PATH_OFF' "$TMP/.env.shared")"
+printf '/tank/off\n' > "$TMP/.answers"; : > "$TMP/.nasked"; _nas
+assert_eq "turning a service on asks only its volumes" "EXIST_NFS_PATH_OFF_DATA [none]" "$(xargs < "$TMP/.nasked")"
+assert_eq "...which is written" "EXIST_NFS_PATH_OFF_DATA=/tank/off" "$(grep '^EXIST_NFS_PATH_OFF_DATA' "$TMP/.env.shared")"
 rm -rf "$TMP/nas" "$TMP/.nasked" "$TMP/.answers"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own

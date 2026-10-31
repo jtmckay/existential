@@ -228,8 +228,12 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
 - Data is host bind mounts under `<repo>/volumes/<name>`, never Docker volumes.
 - **`EXIST_NFS_ADDRESS`**: the NAS's NFS address, asked the first run a service with an
   `nfs: true` volume is on. Blank is not yet asked; `none` keeps every volume local.
-- **`EXIST_NFS_PATH_<VOLUME>`**: one per `nfs: true` volume of an enabled service, appended when
-  asked: that volume's folder on the export, or `local`. Compose mounts it over NFS. See
+- **`EXIST_NFS_PATH_<VOLUME>`**: one per `nfs: true` volume of an enabled service (e.g.
+  `EXIST_NFS_PATH_NEXTCLOUD_DATA`), appended when asked: that volume's folder on the NAS, or
+  `none` (Enter) to keep it on this machine. Compose mounts it over NFS.
+- **`EXIST_NFS_SHARE_<NAME>`**: the same for a volume that holds your own files rather than a
+  container's data: `EXIST_NFS_SHARE_NEXTCLOUD` (shown in Nextcloud at `/nas`) and
+  `EXIST_NFS_SHARE_WORKSPACE` (where `workspace/` syncs to). See
   [Storage](./storage/#a-nas-for-the-bulk-files).
 - **`EXIST_BACKUP_RCLONE_REMOTE`**: an rclone remote (`<remote>:<path>`), set by
   `./existential.sh run rclone`. Blank disables scheduled DB backups.

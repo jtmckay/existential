@@ -56,7 +56,7 @@ services:
       - workspace_data:/workspace:z
       # workspace_sync's other end when it is on the NAS: the one persisted copy
       # of workspace/, synced both ways every minute.
-      - workspace_sync_data:/workspace-nas
+      - workspace_share:/workspace-nas
       # Triage's backoff state and status report live at /data/triage — the same
       # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
       # subtrees, one volume.
@@ -78,4 +78,4 @@ x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
-  workspace_sync_data: { nfs: true }  # Where workspace/ lives on the NAS, synced both ways every minute (newest edit wins), e.g. a workspace/ folder in your share. local = sync with Nextcloud instead.
+  workspace_share: { nfs: true }  # A copy of your workspace/ on the NAS, synced both ways every minute; the newer edit wins.

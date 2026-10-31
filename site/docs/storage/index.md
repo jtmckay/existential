@@ -32,8 +32,10 @@ set up on this host.
    stack creates or changes anything on the NAS.
 2. Run `./existential.sh`. The first run with a NAS volume enabled asks for the NAS address
    (`EXIST_NFS_ADDRESS`; Enter is `none`, which keeps everything local and is not asked again),
-   then for each volume's folder on the export (`EXIST_NFS_PATH_<VOLUME>`, e.g.
-   `EXIST_NFS_PATH_NEXTCLOUD_DATA`). `local` keeps that one volume under `<repo>/volumes/`.
+   then for each volume's folder on the NAS, each with a line saying what it holds:
+   `EXIST_NFS_PATH_<VOLUME>` for a container's data (`EXIST_NFS_PATH_NEXTCLOUD_DATA`), and
+   `EXIST_NFS_SHARE_<NAME>` for your own files (`EXIST_NFS_SHARE_NEXTCLOUD`). Enter answers
+   `none`, which keeps that one volume on this machine, under `<repo>/volumes/`.
    Each answer is written to `.env.shared` and never asked again; turning on another service
    asks for its volumes, and setting the address later asks for every enabled one.
 3. `./existential.sh` prints the address and the folders the stack will mount. Then

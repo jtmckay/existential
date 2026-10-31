@@ -86,7 +86,7 @@ envout="$(cat "$repo/.env" 2>/dev/null || true)"
 assert_contains "master .env carries the do-not-edit header" "DO NOT EDIT" "$envout"
 
 # ── NFS volumes: Compose mounts the export ────────────────────────────────────
-# A path → a top-level local volume with NFS driver_opts, mounted nocopy; `local`
+# A path → a top-level local volume with NFS driver_opts, mounted nocopy; `none`
 # → a bind like any other; a missing path → a hard error naming the key.
 
 nas_repo() {
@@ -99,17 +99,19 @@ services:
     volumes:
       - foo_files_data:/files:Z
       - foo_themes_data:/themes
+      - foo_photos_share:/photos
       - foo_sql_data:/sql
 x-exist-volumes:
   foo_files_data: { nfs: true }
   foo_themes_data: { nfs: true }
+  foo_photos_share: { nfs: true }
   foo_sql_data: { db: true }
 YAML
     echo "$d"
 }
 
 repo="$(nas_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_FILES_DATA=/tank/cloud\nEXIST_NFS_PATH_FOO_THEMES_DATA=local\n' > "$repo/.env.shared"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_FILES_DATA=/tank/cloud\nEXIST_NFS_PATH_FOO_THEMES_DATA=none\nEXIST_NFS_SHARE_FOO_PHOTOS=/tank/photos\n' > "$repo/.env.shared"
 err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || true
 compose="$(cat "$repo/docker-compose.yml" 2>/dev/null || true)"
 nas="$(sed -n '/^volumes:/,$p' <<<"$compose")"
@@ -118,8 +120,9 @@ assert_contains "nas volume is type nfs" "type: nfs" "$nas"
 assert_contains "nas volume names the address" "addr=10.0.0.5,rw,nfsvers=4" "$nas"
 assert_contains "nas volume names its folder" "device: ':/tank/cloud'" "$nas"
 assert_contains "nas volume is mounted nocopy, bind options dropped" "foo_files_data:/files:nocopy" "$compose"
-assert_contains "local answer stays a bind" "/host/realrepo/volumes/foo_themes_data:/themes" "$compose"
-assert_not_contains "local answer is not a top-level volume" "foo_themes_data:" "$nas"
+assert_contains "a _share reads EXIST_NFS_SHARE_<NAME>" "device: ':/tank/photos'" "$nas"
+assert_contains "none stays a bind" "/host/realrepo/volumes/foo_themes_data:/themes" "$compose"
+assert_not_contains "none is not a top-level volume" "foo_themes_data:" "$nas"
 assert_contains "db volume stays a bind" "/host/realrepo/volumes/foo_sql_data:/sql" "$compose"
 assert_contains "prints what the NAS mounts" "foo_files_data → /tank/cloud" "$err"
 assert_no_dir() { if [[ -d "$2" ]]; then _fail "$1" "unexpected dir: $2"; else _ok "$1"; fi; }
@@ -139,7 +142,7 @@ for addr in none ''; do
 done
 
 repo="$(nas_repo)"
-printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_THEMES_DATA=local\n' > "$repo/.env.shared"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_PATH_FOO_THEMES_DATA=none\n' > "$repo/.env.shared"
 rc=0
 err="$(tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" 2>&1 >/dev/null)" || rc=$?
 [[ "$rc" -ne 0 ]] && _ok "missing nas path exits non-zero" || _fail "missing nas path exits non-zero" "exit was 0"

@@ -27,7 +27,7 @@ nothing to enable separately. See [Cache](#cache) below.
 Two volumes can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); config, apps, themes
 and the database stay local.
 
-- **`nextcloud_nas_data`** is the share of files you already have. Nextcloud shows it in Files
+- **`nextcloud_share`** is the share of files you already have. Nextcloud shows it in Files
   as `/nas`, a Local external storage for every user, read and written in place over NFS.
 - **`nextcloud_data`** is Nextcloud's own layout (`<user>/files/`, `appdata_*`,
   `nextcloud.log`). Give `EXIST_NFS_PATH_NEXTCLOUD_DATA` an empty folder, never your share: its

@@ -97,7 +97,7 @@ check "delete lets the deletes through" \
 # A NAS folder wins over Nextcloud, and both ways the newer edit wins.
 NAS="${TMP}/nas"
 mkdir -p "$NAS"
-nas() { sync EXIST_NFS_ADDRESS=10.0.0.5 EXIST_NFS_PATH_WORKSPACE_SYNC_DATA=/tank/workspace WORKSPACE_SYNC_NAS="$NAS" "$@"; }
+nas() { sync EXIST_NFS_ADDRESS=10.0.0.5 EXIST_NFS_SHARE_WORKSPACE=/tank/workspace WORKSPACE_SYNC_NAS="$NAS" "$@"; }
 echo mine > "${WS}/notes/n.md"
 check "a NAS folder is the other end" "[[ \"\$(nas)\" == '' && -f '${NAS}/notes/n.md' && ! -e '${REMOTE}/notes/n.md' ]]"
 check "a .gitignore'd file is not copied to the NAS" "[[ ! -e '${NAS}/secret.txt' ]]"
@@ -105,7 +105,7 @@ echo nas > "${NAS}/notes/n.md"; touch -d '-1 min' "${NAS}/notes/n.md"; echo loca
 check "an edit on both sides keeps the newer" "[[ \"\$(nas)\" == '' && \"\$(cat '${NAS}/notes/n.md')\" == local ]]"
 echo later > "${NAS}/notes/n.md"
 check "an edit on the NAS comes back" "[[ \"\$(nas)\" == '' && \"\$(cat '${WS}/notes/n.md')\" == later ]]"
-check "local keeps Nextcloud the other end" "[[ \"\$(sync EXIST_NFS_ADDRESS=10.0.0.5 EXIST_NFS_PATH_WORKSPACE_SYNC_DATA=local)\" == '' && -f '${REMOTE}/notes/n.md' ]]"
+check "none keeps Nextcloud the other end" "[[ \"\$(sync EXIST_NFS_ADDRESS=10.0.0.5 EXIST_NFS_SHARE_WORKSPACE=none)\" == '' && -f '${REMOTE}/notes/n.md' ]]"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 

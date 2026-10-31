@@ -101,10 +101,16 @@ interface VolumeContext {
  *
  * `nfs: true` is the only thing that moves a volume off local disk, and only
  * when EXIST_NFS_ADDRESS is an address and EXIST_NFS_PATH_<NAME> is a path on
- * its export (not `local`). `db: true` records that the volume holds an
+ * its export (not `none`). `db: true` records that the volume holds an
  * embedded database (SQLite/bbolt/TSDB/postgres data dir), which NFS corrupts —
  * validate conventions rejects `nfs: true` alongside it.
  */
+/** A NAS volume's key: a `_share` (your own files) is EXIST_NFS_SHARE_<NAME>, anything else EXIST_NFS_PATH_<VOLUME>. */
+function nfsKey(name: string): string {
+  const up = name.toUpperCase().replace(/-/g, '_');
+  return up.endsWith('_SHARE') ? `EXIST_NFS_SHARE_${up.slice(0, -'_SHARE'.length)}` : `EXIST_NFS_PATH_${up}`;
+}
+
 interface VolumeSpec {
   nfs?: boolean;
   db?: boolean;
@@ -270,17 +276,17 @@ function adjustVolume(vol: VolumeEntry, ctx: VolumeContext): VolumeEntry {
     // folder is the person's, made by them; nothing here creates or checks it, so
     // a missing one stops the container instead of becoming a local directory.
     if (spec.nfs && !spec.db && ctx.nfsAddress) {
-      const key = `EXIST_NFS_PATH_${name.toUpperCase().replace(/-/g, '_')}`;
+      const key = nfsKey(name);
       const nasPath = (ctx.env[key] ?? '').trim();
       if (!nasPath) {
         process.stderr.write(
           `ERROR: ${ctx.servicePrefix} mounts '${name}' from the NAS (EXIST_NFS_ADDRESS=${ctx.nfsAddress}),\n` +
           `  but ${key} is not set. In .env.shared, set it to the folder on the export,\n` +
-          `  or to 'local' to keep it under volumes/. Run ./existential.sh in a terminal to be asked.\n`,
+          `  or to 'none' to keep it under volumes/. Run ./existential.sh in a terminal to be asked.\n`,
         );
         process.exit(1);
       }
-      if (nasPath !== 'local') {
+      if (nasPath !== 'none') {
         if (sub) {
           process.stderr.write(`ERROR: ${ctx.servicePrefix} mounts a subpath of NAS volume '${name}'; mount the whole volume.\n`);
           process.exit(1);

@@ -809,10 +809,10 @@ _nas_volumes() {
 
 # The NAS questions, asked only when an enabled service has a NAS volume.
 # EXIST_NFS_ADDRESS once (Enter is none), then EXIST_NFS_PATH_<VOLUME> for each
-# volume that has none, appended to .env.shared. Nothing is created on the NAS;
+# volume that has none, appended to .env.shared; Enter is none, which keeps that volume off the NAS. Nothing is created on the NAS;
 # without a terminal nothing is asked and generate-compose.ts names what is missing.
 _ask_nas_if_needed() {
-    local f="${REPO_DIR}/.env.shared" vols svc vol note key val hint last
+    local f="${REPO_DIR}/.env.shared" vols svc vol note key val
     vols="$(_nas_volumes)"
     [[ -n "$vols" ]] || return 0
     if [[ -z "${EXIST_NFS_ADDRESS:-}" ]]; then
@@ -829,21 +829,20 @@ _ask_nas_if_needed() {
     fi
     [[ "$EXIST_NFS_ADDRESS" != none ]] || return 0
     while IFS=$'\t' read -r svc vol note <&3; do
-        key="EXIST_NFS_PATH_$(printf '%s' "$vol" | tr 'a-z-' 'A-Z_')"
+        key="$(printf '%s' "$vol" | tr 'a-z-' 'A-Z_')"
+        # A _share is your own files, a _data a container's: generate-compose.ts's nfsKey.
+        [[ "$key" == *_SHARE ]] && key="EXIST_NFS_SHARE_${key%_SHARE}" || key="EXIST_NFS_PATH_${key}"
         grep -q "^${key}=." "$f" && continue
         _prompt_available || return 0
-        last="$(sed -n 's/^EXIST_NFS_PATH_[A-Z0-9_]*=\(\/.*\)/\1/p' "$f" | tail -1)"
-        hint="${last%/*}/${vol}"
-        printf '\n# %s: %s — its folder on %s, made by you and owned by %s:%s, or local.\n' \
-            "$svc" "$vol" "$EXIST_NFS_ADDRESS" "${EXIST_PUID:-1000}" "${EXIST_PGID:-1000}" >&2
-        [[ -z "$note" ]] || printf '#   %s\n' "$note" >&2
+        printf '\n# %s: %s\n#   A folder on %s (made by you, owned by %s:%s), or Enter to keep it off the NAS.\n' \
+            "$svc" "${note:-$vol}" "$EXIST_NFS_ADDRESS" "${EXIST_PUID:-1000}" "${EXIST_PGID:-1000}" >&2
         while :; do
-            val="$(_prompt_tty "$key" "$hint")"; val="${val:-$hint}"
-            [[ "$val" == local || "$val" =~ ^/[^[:space:]\|]*$ ]] && break
-            printf '  A path on the export starting with /, or local.\n' >&2
+            val="$(_prompt_tty "$key" none)"; val="${val:-none}"
+            [[ "$val" == none || "$val" =~ ^/[^[:space:]\|]*$ ]] && break
+            printf '  A path on the NAS starting with /, or Enter.\n' >&2
         done
         [[ -z "$(tail -c1 "$f")" ]] || echo >> "$f"
-        printf '# %s: %s on the NAS export, or local for <repo>/volumes/.\n%s=%s\n' "$svc" "$vol" "$key" "$val" >> "$f"
+        printf '# %s: %s A folder on the NAS, or none.\n%s=%s\n' "$svc" "${note:-$vol.}" "$key" "$val" >> "$f"
     done 3<<<"$vols"
     _reload_env_shared
 }

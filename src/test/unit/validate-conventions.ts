@@ -327,6 +327,7 @@ const UID_ENV_NAME_RE    = /(?:PUID|PGID|UID|GID)$/;
  * to delete, so it is enforced rather than merely conventional:
  *
  *   _data    precious — user data or a live database; never auto-deleted
+ *   _share   precious — your own files and folders, as you keep them (a NAS share)
  *   _backup  decree-backup archives of a _data volume
  *   _cache   regenerable; refetched or rebuilt on next start (reset deletes these)
  *
@@ -336,7 +337,7 @@ const UID_ENV_NAME_RE    = /(?:PUID|PGID|UID|GID)$/;
  */
 function checkVolumeSpecs(): string[] {
   const errors: string[] = [];
-  const SUFFIXES = ['_data', '_backup', '_cache'];
+  const SUFFIXES = ['_data', '_share', '_backup', '_cache'];
 
   for (const cat of CATEGORY_DIRS) {
     const catDir = path.join(REPO_ROOT, cat);

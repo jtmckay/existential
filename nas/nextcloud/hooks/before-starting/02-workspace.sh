@@ -4,7 +4,7 @@
 #
 # Runs on every start (before-starting), so every step is idempotent.
 #
-#   /workspace (workspace_data) and /nas (nextcloud_nas_data) → a Local
+#   /workspace (workspace_data) and /nas (nextcloud_share) → a Local
 #   external storage each at the same path, applicable to all users. Local, not
 #   a copy: hermes, code-server and decree write /workspace, anything on the NAS
 #   writes /nas, and filesystem_check_changes lets Nextcloud notice when they

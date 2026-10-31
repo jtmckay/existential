@@ -2,7 +2,7 @@
 # workspace_sync — two-way sync workspace/ with a folder on the NAS or in
 # Nextcloud, with rclone bisync; on a conflict the newer edit wins. Runs in
 # automation-backup, which has the master .env (the Nextcloud credentials stay
-# out of workspace/), /workspace and, given EXIST_NFS_PATH_WORKSPACE_SYNC_DATA,
+# out of workspace/), /workspace and, given EXIST_NFS_SHARE_WORKSPACE,
 # the NAS folder at /workspace-nas. The NAS wins over Nextcloud: one copy.
 #
 # Skipped: everything a .gitignore under workspace/ ignores (git itself decides,
@@ -22,7 +22,7 @@ mode="${WORKSPACE_SYNC_MODE:-}"
 url="${EXIST_NEXTCLOUD_DOMAIN:-}"
 user="${EXIST_NEXTCLOUD_USER:-}"
 pass="${EXIST_NEXTCLOUD_APP_PASSWORD:-}"
-nas_path="${EXIST_NFS_PATH_WORKSPACE_SYNC_DATA:-}"
+nas_path="${EXIST_NFS_SHARE_WORKSPACE:-}"
 nas_address="${EXIST_NFS_ADDRESS:-none}"
 
 # generate-compose.ts mounts the NAS folder only given both keys; otherwise
@@ -30,7 +30,7 @@ nas_address="${EXIST_NFS_ADDRESS:-none}"
 if [[ "$nas_path" == /* && -n "$nas_address" && "$nas_address" != none ]]; then
     remote="${WORKSPACE_SYNC_NAS:-/workspace-nas}"
 elif [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
-    echo "No NAS folder (EXIST_NFS_PATH_WORKSPACE_SYNC_DATA) and no Nextcloud keys: nothing to sync."
+    echo "No NAS folder (EXIST_NFS_SHARE_WORKSPACE) and no Nextcloud keys: nothing to sync."
     exit 0
 fi
 if [[ -z "$mode" && -e "$DECREE_STORE/held" ]]; then

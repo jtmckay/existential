@@ -75,7 +75,7 @@ services:
       - workspace_data:/workspace
       # A share of files you already have, mounted into Files at /nas the same
       # way. Your files, not Nextcloud's: nextcloud_data is its own layout.
-      - nextcloud_nas_data:/nas
+      - nextcloud_share:/nas
       # Entrypoint hooks. Mounted at the before-starting folder specifically,
       # not over /docker-entrypoint-hooks.d, so the image's other hook folders
       # stay in place. Scripts here need the exec bit — run_path skips the rest.
@@ -152,7 +152,7 @@ services:
       - nextcloud_custom_apps_data:/var/www/html/custom_apps
       - nextcloud_themes_data:/var/www/html/themes
       - workspace_data:/workspace
-      - nextcloud_nas_data:/nas
+      - nextcloud_share:/nas
     environment:
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
       # config.php reads these per request, and occ is a request.
@@ -249,7 +249,7 @@ x-exist-volumes:
   # The webroot itself: PHP code, always local (never nfs — see the mount comment).
   nextcloud_html_data: {}
   nextcloud_data: { nfs: true }  # Nextcloud's own storage (users, uploads, previews). An EMPTY folder, never a share of your files.
-  nextcloud_nas_data: { nfs: true }  # Files you already have on the NAS, shown in Nextcloud as the /nas folder. Never the same folder as nextcloud_data.
+  nextcloud_share: { nfs: true }  # Files you already have on the NAS, shown in Nextcloud as the /nas folder. Never the same folder as nextcloud_data.
   # A few MB of app state: local, so a NAS asks for one folder, not four.
   nextcloud_config_data: {}
   nextcloud_custom_apps_data: {}

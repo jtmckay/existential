@@ -13,11 +13,12 @@ NAS ones; `validate conventions` enforces that on the generated file.
 
 ## On the NAS
 
-`EXIST_NFS_ADDRESS` (blank = not yet asked, `none` = no NAS) and one `EXIST_NFS_PATH_<VOLUME>` per
+`EXIST_NFS_ADDRESS` (blank = not yet asked, `none` = no NAS) and one `EXIST_NFS_PATH_<VOLUME>` (a
+`<name>_share` volume: `EXIST_NFS_SHARE_<NAME>`, `nfsKey` in `generate-compose.ts`) per
 `nfs: true` volume of an enabled service, both in `.env.shared` and asked by `_ask_nas_if_needed`
 in `src/templates.sh`. A path becomes a top-level `local` volume with NFS `driver_opts`
 (`addr=<address>,rw,nfsvers=4`, `device: ":<path>"`), mounted `nocopy`; a subpath into it is an
-error. `local` keeps it in `volumes/`. A missing path with an address is a hard error naming the
+error. `none` keeps it in `volumes/`. A missing path with an address is a hard error naming the
 key. **Nothing in the stack creates, chowns or writes a folder on the NAS** — the person makes
 each, and a missing one stops the container instead of quietly becoming a local directory.
 Nothing on the host mounts the export, and `automation-backup` does not see a NAS volume.
@@ -76,6 +77,7 @@ The name's suffix is the thing a human reads before running `rm -rf`, so it is *
 | Suffix | For | `reset` |
 |---|---|---|
 | `_data`   | user data or a live database | never touched |
+| `_share`  | your own files and folders, as you keep them; on a NAS, `EXIST_NFS_SHARE_<NAME>` | never touched |
 | `_backup` | archives of a `_data` volume, written by `decree-backup` | never touched |
 | `_cache`  | regenerable — models, HF caches, scratch; refetched or rebuilt on next start | offers to delete |
 
