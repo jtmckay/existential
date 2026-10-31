@@ -61,23 +61,15 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
 # The `automation` project is workspace/.decree, where the user (and the agents
-# they direct) write automations. The repo's machines and scripts are its
-# starting set: each file is copied once and never again, so an edit wins, the
-# same contract as a rendered file. lib/ is not copied: it is the repo's,
-# mounted read-only over lib/ so it stays current with the checkout.
-_seed() {               # <src> <dst>: copy every file under src that dst lacks
-    local f
-    while IFS= read -r f; do
-        [[ -e "$2/$f" ]] && continue
-        mkdir -p "$(dirname "$2/$f")"
-        cp -p "$1/$f" "$2/$f"
-    done < <(cd "$1" && find . -type f ! -name '.gitkeep' | sed 's|^\./||')
-}
-_seed "${REPO}/automation/machines" "${PROJECT}/machines"
-_seed "${REPO}/automation/scripts" "${PROJECT}/scripts"
-# The committed graphs, so the workspace draws every machine from the first
-# render; the daemon redraws them from what is actually there once it is up.
-_seed "${REPO}/automation/graph" "${PROJECT}/graph"
+# they direct) write automations. The repo's machines, scripts and graphs are
+# its starting set (decree_seed, src/utils/flows.sh); the daemon redraws the
+# graphs once it is up. lib/ is not copied: it is the repo's, mounted read-only
+# over lib/ so it stays current with the checkout.
+REPO_DIR="$REPO"   # read by src/utils/flows.sh
+export REPO_DIR
+# shellcheck source=../../src/utils/flows.sh
+. "${REPO}/src/utils/flows.sh"
+decree_seed
 for _f in .gitignore decree-go-rest.yml handlers.yml; do
     [[ -e "${PROJECT}/${_f}" ]] || cp -p "${REPO}/automation/${_f}" "${PROJECT}/${_f}"
 done
@@ -96,10 +88,6 @@ done
 # look backs, clean-runs, health-checks) are on until `./existential.sh flow off`
 # names one in .decree/flows-off. Each missing file is copied in; an edited copy
 # stays as you left it.
-REPO_DIR="$REPO"   # read by src/utils/flows.sh
-export REPO_DIR
-# shellcheck source=../../src/utils/flows.sh
-. "${REPO}/src/utils/flows.sh"
 for _flow in $(flow_defaults); do
     while IFS= read -r _f; do
         [[ -n "$_f" ]] && echo "[automation] ${_flow}: ${_f#"${FLOWS_DECREE}/"} activated."

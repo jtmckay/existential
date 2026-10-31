@@ -63,6 +63,21 @@ flow_files() {
 }
 
 # flow_file_on <dst>: the file is in place, or, for a migration, has already run.
+# decree_seed: the repo's machines, scripts and graphs are the workspace project's
+# starting set; each file it lacks is copied once and never again, so an edit wins.
+# flow_activate runs it first: a daemon that sees a migration before its machine
+# fails it with "unknown machine".
+decree_seed() {
+    local d f
+    for d in machines scripts graph; do
+        while IFS= read -r f; do
+            [[ -e "${REPO_DIR}/${FLOWS_DECREE}/${d}/${f}" ]] && continue
+            mkdir -p "$(dirname "${REPO_DIR}/${FLOWS_DECREE}/${d}/${f}")"
+            cp -p "${REPO_DIR}/automation/${d}/${f}" "${REPO_DIR}/${FLOWS_DECREE}/${d}/${f}"
+        done < <(cd "${REPO_DIR}/automation/${d}" && find . -type f ! -name '.gitkeep' | sed 's|^\./||')
+    done
+}
+
 flow_file_on() {
     [[ -e "${REPO_DIR}/$1" ]] && return 0
     [[ "$1" == */migrations/* ]] && grep -qxF "${1##*/}" "${REPO_DIR}/${FLOWS_DECREE}/processed.md" 2>/dev/null
@@ -79,6 +94,7 @@ flow_on() {
 # flow_activate <name>: copy in each file it lacks; prints each one copied.
 flow_activate() {
     local src dst
+    decree_seed
     while IFS=$'\t' read -r src dst; do
         flow_file_on "$dst" && continue
         mkdir -p "$(dirname "${REPO_DIR}/${dst}")"
