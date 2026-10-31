@@ -6,20 +6,20 @@ machine: develop
 ## Overview
 
 The model settings assume ollama. A llama.cpp server (or anything else speaking OpenAI's `/v1`)
-on another box can serve chat but breaks every caller that uses ollama's native API. hermes is
-also no longer in Core, so decree needs its own way to reach a model.
+on another box can serve chat but breaks every caller that uses ollama's native API, and decree
+needs its own way to reach a model.
 
 ## Outcome
 
 - Each model role's address in `.env.exist.shared` is an OpenAI-compatible base URL that
   ollama and llama.cpp can both serve. Its keys and comments don't name ollama, and the
   three resolvers still agree.
-- Every caller that sends a prompt (OCR, the newsletter writer, honcho, hermes, opencode)
+- Every caller that sends a prompt (OCR, the newsletter writer, pi, opencode)
   works against either backend.
 - Steps that only make sense for ollama (pulling models, unloading, `/api/show`, the ollama
   health probe) run only when ollama is enabled.
 - A decree script reaches a model through one shared `automation/lib` helper over that URL.
-  hermes, when enabled, is optional and uses the same URL.
+  pi, the agent with tools, is configured from the same URL.
 - Existing installs keep working after `git pull && ./existential.sh`: a value set under an old
   key name still takes effect.
 
