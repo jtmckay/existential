@@ -2,7 +2,7 @@ services:
   # UI interface at http://localhost:9980/
   collabora:
     container_name: collabora
-    image: collabora/code:26.04.3.1.1
+    image: collabora/code:26.04.6.1.1
     restart: unless-stopped
     # ~540MiB idle with the default 4 pre-spawned children (num_prespawn_children
     # in coolwsd.xml) before a single document is open; each open document forks
@@ -23,7 +23,7 @@ services:
     #
     # The image also ships its own HEALTHCHECK (`coolwsd --probe --use-env-vars`,
     # 30s interval / 10s timeout / 120s start_period — `docker image inspect
-    # collabora/code:26.04.3.1.1 --format '{{json .Config.Healthcheck}}'`), which
+    # collabora/code:26.04.6.1.1 --format '{{json .Config.Healthcheck}}'`), which
     # compose picks up automatically since this service declares none of its own.
     networks:
       - exist
@@ -41,12 +41,19 @@ services:
       # and locks to that host until restart, which on a Caddy-fronted, publicly
       # reachable coolwsd means the first visitor to open any doc URL wins that
       # slot, not necessarily Nextcloud. This pins it to Nextcloud explicitly.
-      - aliasgroup1=https://${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
+      # http://nextcloud is the alias it is actually reached by: richdocuments'
+      # wopi_callback_url points Collabora at Nextcloud over the exist network,
+      # where wopi_allowlist lets it in, not back out through Caddy/Cloudflare.
+      - aliasgroup1=https://${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN},http://nextcloud
       - dictionaries=en
       # - extra_params=--o:ssl.enable=true
       # home_mode: no welcome screen or feedback popups fetched from Collabora's
       # servers, at the cost of 20 connections / 10 open documents.
-      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:home_mode.enable=true
+      # net.frame_ancestors: the page that embeds the editor is Nextcloud's public
+      # URL, but Collabora only allows framing by the WOPI host it fetched from,
+      # which is http://nextcloud (wopi_callback_url). Without this the browser
+      # refuses the frame and Nextcloud says "Failed to load Nextcloud Office".
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true --o:home_mode.enable=true --o:net.frame_ancestors=${COLLABORA_NEXTCLOUD_DOMAIN:-nextcloud.$EXIST_DOMAIN}
     # ports disabled — access via https://collabora.<domain> (Caddy + pihole required)
     # Uncomment to expose directly:
     #   ports:

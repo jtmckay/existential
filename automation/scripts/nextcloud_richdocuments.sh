@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# nextcloud-richdocuments — install richdocuments and point it at Collabora.
+# nextcloud-richdocuments — install richdocuments and point it at Collabora,
+# and Collabora back at Nextcloud over the exist network.
 #
 # Runs as a decree migration (once). Idempotent: re-running just re-applies the
-# same three values, which is a no-op once they already match.
+# same values, which is a no-op once they already match.
 #
 # Everything here goes over Nextcloud's own HTTP API with admin Basic Auth —
 # decree has no docker socket, so `occ` is not reachable from here the way
@@ -35,6 +36,12 @@
 #   NEXTCLOUD_URL                              default http://nextcloud
 #   NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_PASSWORD
 #   COLLABORA_URL                               e.g. https://collabora.example.com
+#
+# wopi_callback_url is the address Collabora fetches files from. Left blank,
+# richdocuments hands out Nextcloud's public URL, so Collabora goes out through
+# Caddy (and Cloudflare, if fronted) and arrives from a LAN IP that
+# wopi_allowlist denies. http://nextcloud keeps it on the exist network;
+# collabora's aliasgroup1 lists that host.
 set -euo pipefail
 
 WOPI_ALLOWLIST="$DECREE_DATA_WOPI_ALLOWLIST"
@@ -72,9 +79,14 @@ _ocs POST "/ocs/v2.php/apps/provisioning_api/api/v1/config/apps/richdocuments/wo
     "value=${COLLABORA_URL}&format=json" \
     || { echo "Could not set wopi_url." >&2; exit 1; }
 
+echo "Setting wopi_callback_url -> http://nextcloud..."
+_ocs POST "/ocs/v2.php/apps/provisioning_api/api/v1/config/apps/richdocuments/wopi_callback_url" \
+    "value=http://nextcloud&format=json" \
+    || { echo "Could not set wopi_callback_url." >&2; exit 1; }
+
 echo "Setting wopi_allowlist -> ${WOPI_ALLOWLIST}..."
 _ocs POST "/ocs/v2.php/apps/provisioning_api/api/v1/config/apps/richdocuments/wopi_allowlist" \
     "value=${WOPI_ALLOWLIST}&format=json" \
     || { echo "Could not set wopi_allowlist." >&2; exit 1; }
 
-echo "richdocuments configured: wopi_url=${COLLABORA_URL} wopi_allowlist=${WOPI_ALLOWLIST}"
+echo "richdocuments configured: wopi_url=${COLLABORA_URL} wopi_callback_url=http://nextcloud wopi_allowlist=${WOPI_ALLOWLIST}"

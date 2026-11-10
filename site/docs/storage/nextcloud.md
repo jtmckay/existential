@@ -101,7 +101,8 @@ same tree code-server and decree see. See [Getting Started → Workspace](../get
 ## Collabora (office document editing)
 
 `./existential.sh flow on office-documents` installs the `richdocuments` app, points it at
-Collabora, and limits `wopi_allowlist` to the `exist` subnet (blank would allow any IP).
+Collabora, sets `wopi_callback_url` to `http://nextcloud` so Collabora fetches files over the
+`exist` network, and limits `wopi_allowlist` to the `exist` subnet (blank would allow any IP).
 
 To do it by hand instead:
 
@@ -109,6 +110,8 @@ To do it by hand instead:
 docker exec nextcloud php /var/www/html/occ app:install richdocuments
 docker exec nextcloud php /var/www/html/occ config:app:set richdocuments wopi_url \
     --value="https://collabora.<domain>"
+docker exec nextcloud php /var/www/html/occ config:app:set richdocuments wopi_callback_url \
+    --value="http://nextcloud"
 docker exec nextcloud php /var/www/html/occ config:app:set richdocuments wopi_allowlist \
     --value="172.16.0.0/12"
 ```

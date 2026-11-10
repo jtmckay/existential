@@ -41,21 +41,8 @@
 # Caddy
 **/Caddyfile
 
-# Caddy TLS certs (hosting/caddy/certs/) — nothing in there is tracked.
-# Cloudflare origin pair (user-supplied):
-**/cloudflare-key.pem
-**/cloudflare.pem
-# Your own public-domain wildcard pair, if you hand-manage the Caddyfile:
-**/public-key.pem
-**/public.pem
-# Stable *.internal cert + CA, minted by caddy/exist.initial.sh (keys are secret;
-# certs are host-local generated artifacts — none are committed):
-**/internal-ca-key.pem
-**/internal-ca.pem
-**/internal-key.pem
-**/internal.pem
-**/internal.csr
-**/internal-ca.srl
+# Caddy TLS certs: every key and cert in here is host-local, none is tracked.
+/hosting/caddy/certs/
 
 # Code-server
 # Nothing renders opencode.json any more (the stack ships no opencode config),

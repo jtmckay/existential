@@ -9,7 +9,9 @@ Also sets `wopi_allowlist` to the `exist` bridge subnet (default
 `172.16.0.0/12` — add a `WOPI_ALLOWLIST:` key above to override). Nextcloud's
 own admin settings for this app warn when it is left blank — an empty
 allowlist lets any IP that reaches Nextcloud make WOPI requests, not just the
-actual Collabora container. See
+actual Collabora container. And sets `wopi_callback_url` to `http://nextcloud`, so
+Collabora fetches files over the `exist` network, where that allowlist lets
+it in, rather than through the public URL. See
 automation/scripts/nextcloud_richdocuments.sh for the exact upstream
 behaviour this was verified against.
 
