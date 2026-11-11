@@ -10,7 +10,7 @@ projects and, where their licenses require it (notably the GNU **AGPL**, **MPL-2
 from a hosted product's footer, Terms of Service, or "About" screen.
 
 For the commercial-risk view of these same licenses, see the
-[Licensing & Host-for-Profit Audit](./licensing).
+[Licensing & Host-for-Profit Audit](./licensing.md).
 
 ## How this software is run
 
@@ -93,7 +93,7 @@ offer is required; attribution is given here.
 - **Open WebUI** branding is retained intact, as required by its license for deployments
   exceeding fifty users.
 - **Obsidian** is proprietary software and the one deliberate exception in this stack (see
-  [Obsidian](./services/obsidian)). It is free to use without limits, for personal and
+  [Obsidian](./services/obsidian.md)). It is free to use without limits, for personal and
   commercial use alike — free, but not open source, so no source offer applies to it. The
   Obsidian name, logo and app icon are trademarks of Dynalist Inc.; they are used here for
   identification only, and the Obsidian logo and app icon are not used as brand assets of
@@ -105,5 +105,5 @@ offer is required; attribution is given here.
 ## Per-component detail
 
 Each service's own documentation page carries its individual `Source` and `License` line —
-see the [AI](./ai/), [Services](./services/), [Storage](./storage/), and
-[Hosting](./hosting/) sections.
+see the [AI](./ai/index.md), [Services](./services/index.md), [Storage](./storage/index.md), and
+[Hosting](./hosting/index.md) sections.

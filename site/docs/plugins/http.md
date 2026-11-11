@@ -1,12 +1,12 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 ---
 
-# Build On It
+# Over HTTP
 
-:::info[Level 4 of 4 · Code]
-The contract you write against. Back out to [Level 3 · Flows](./flows/) for worked examples of
-everything below.
+:::info[The contract]
+What you write against from outside the stack. To run code inside it, write a
+[plugin](./writing-a-plugin.md).
 :::
 
 To build your own front end (a phone app, a dashboard), use the four things on this page. They
@@ -16,7 +16,7 @@ won't change. Everything else (container names, services, machine internals, vol
 
 `automation-webhook` ([decree-go-rest](https://github.com/jtmckay/decree-go-rest)) turns an
 HTTP POST into work. Add-on: `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`. See
-[Automation Webhook](./decree/automation-webhook).
+[Automation Webhook](../decree/automation-webhook.md).
 
 ```bash
 curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \
@@ -32,10 +32,10 @@ curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \
 Shipped endpoints:
 
 - `POST /capture` with `{"source": "...", "text": "..."}`: a line in your
-  [capture stream](./getting-started#capture).
-- `POST /you-were-here`: the [digest](./getting-started#you-were-here), now.
+  [capture stream](../getting-started.md#capture).
+- `POST /you-were-here`: the [digest](../getting-started.md#you-were-here), now.
 - `POST /look-back`, `/look-back/{period}` (`week`, `month`, `quarter`, `year`),
-  `/look-back/{period}/work`: a [look back](./getting-started#look-back).
+  `/look-back/{period}/work`: a [look back](../getting-started.md#look-back).
 
 | Status | Meaning |
 |---|---|
@@ -54,7 +54,8 @@ The `id` becomes the run's id; use it to find the result (section 4).
 
 ### Adding your own endpoint
 
-Add an entry to `workspace/.decree/decree-go-rest.yml`; no restart:
+A plugin carries its own (`endpoints:`, added while it is installed; see [Plugins](./index.md)).
+For one of yours, add an entry to `workspace/.decree/decree-go-rest.yml`; no restart:
 
 ```yaml
 endpoints:
@@ -88,7 +89,7 @@ disk 3 is full
 - **The body is the message content**, passed to the machine as-is.
 
 Messages come from a webhook, a cron schedule, another machine, or a file landing in Nextcloud
-([File Processor](./decree/file-change-processing)).
+([File Processor](../decree/file-change-processing.md)).
 
 ## 3. Where the data lives
 
@@ -126,5 +127,5 @@ backup daemon's), with the `id` the webhook returned.
 - **No auth model.** One static bearer token per endpoint.
 - **No stability promise** beyond the four sections above.
 
-Need more? Build it as a service in the stack. To run code inside the stack, write a machine:
-[Writing an Automation](./writing-a-routine).
+Need more? Build it as a service in the stack. To run code inside the stack, write a
+[plugin](./writing-a-plugin.md).

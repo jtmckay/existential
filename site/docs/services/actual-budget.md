@@ -55,4 +55,4 @@ With accounts created, assign your available money to budget categories. Actual 
 
 ## Integrations
 
-Connect Actual Budget to Decree to import transactions automatically from bank alert emails: [Actual Budget integration](../integrations/actual-budget)
+Connect Actual Budget to Decree to import transactions automatically from bank alert emails: [Actual Budget integration](../integrations/actual-budget.md)

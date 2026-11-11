@@ -1,0 +1,9 @@
+# Cloudflare Pages: pages that moved. Old links keep working.
+/docs/build-on-it/writing-a-routine  /docs/plugins/writing-a-plugin/  301
+/docs/build-on-it/writing-a-routine/ /docs/plugins/writing-a-plugin/  301
+/docs/build-on-it                    /docs/plugins/http/              301
+/docs/build-on-it/                   /docs/plugins/http/              301
+/docs/writing-a-routine              /docs/plugins/writing-a-plugin/  301
+/docs/writing-a-routine/             /docs/plugins/writing-a-plugin/  301
+/docs/decree/plugins                 /docs/plugins/                   301
+/docs/decree/plugins/                /docs/plugins/                   301

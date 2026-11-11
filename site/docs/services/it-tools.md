@@ -22,7 +22,7 @@ EXIST_IS_SERVICES_IT_TOOLS=true    # in .env.shared
 ```
 
 Reach it at `https://it-tools.<domain>` (Caddy + piHole required — see
-[Hostnames that just work](../how-it-works#hostnames-that-just-work)); container-to-container,
+[Hostnames that just work](../how-it-works.md#hostnames-that-just-work)); container-to-container,
 it's `http://it-tools:80`.
 
 ## Examples

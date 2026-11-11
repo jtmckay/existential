@@ -76,7 +76,7 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** running, with file events on (see [File Processor](../decree/file-change-processing#setup))
+- **Nextcloud** running, with file events on (see [File Processor](../decree/file-change-processing.md#setup))
 - **WhisperX** container running and reachable at `http://whisperx:8000`
 - **rclone** configured with a `nextcloud` remote (or whichever remote matches your `rclone_src` webhook setting)
 - **Nextcloud mobile app** with auto-upload enabled for your recordings folder
@@ -87,7 +87,7 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 `./existential.sh flow on transcription` asks to turn on WhisperX, and turns on Nextcloud's file events (two
 migrations: the `nextcloud` rclone remote and the webhooks, see
-[File Processor → Setup](../decree/file-change-processing#setup)), and copies the
+[File Processor → Setup](../decree/file-change-processing.md#setup)), and copies the
 `whisperx-transcribe` processor into `workspace/.decree/lib/file-processors/`.
 
 ### Step 2 — Enable WhisperX

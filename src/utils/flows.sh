@@ -14,6 +14,7 @@
 #   services    EXIST_IS_* flags turning it on turns on
 #   needs       the plugins and flows it turns on with it
 #   e2e         true: ./existential.sh e2e brings a fresh install up with it
+#   project     host: the host's own decree project (host/.decree), not the workspace's
 #
 # then its cron and migrations (lib/automations/plugin.sh installs those), and
 # its body: what is left for a person. What the workspace has on is
@@ -24,6 +25,7 @@ FLOWS_DIR="${REPO_DIR}/automation/plugins/flows"
 FLOWS_DECREE="volumes/workspace_data/.decree"      # relative to REPO_DIR
 PLUGINS_YML="${FLOWS_DECREE}/plugins.yml"
 PLUGINS_SEED="automation/plugins.exist.yml"
+PLUGINS_HOST_SEED="automation/plugins.host.exist.yml"
 
 flow_fm()    { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "${FLOWS_DIR}/$1.md" 2>/dev/null; }
 flow_body()  { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{f=0;b=1;next} b' "${FLOWS_DIR}/$1.md"; }
@@ -61,22 +63,31 @@ flow_closure() {
     _flow_visit "$1"
 }
 
-# What the workspace has on: its plugins.yml, or, before there is one, the example.
-plugins_on() {
-    local f="${REPO_DIR}/${PLUGINS_YML}"
-    [[ -f "$f" ]] || f="${REPO_DIR}/${PLUGINS_SEED}"
+# What a project has on: its plugins.yml, or, before there is one, its example.
+# A flow is the workspace's (automation) unless it says `project: host`: the
+# host's own decree project, host/.decree, for what runs on the host itself.
+_plugins_files() {  # <name>: "<plugins.yml> <its example>", relative to REPO_DIR
+    if [[ "$(flow_get "$1" project)" == host ]]; then echo "host/.decree/plugins.yml ${PLUGINS_HOST_SEED}"
+    else echo "${PLUGINS_YML} ${PLUGINS_SEED}"; fi
+}
+plugins_on() {  # [name]: what the project that name belongs to has on
+    local yml seed f
+    read -r yml seed <<<"$(_plugins_files "${1:-}")"
+    f="${REPO_DIR}/${yml}"; [[ -f "$f" ]] || f="${REPO_DIR}/${seed}"
     _yaml_list on < "$f"
 }
-flow_on() { plugins_on | grep -qxF "$1"; }
+flow_on() { plugins_on "$1" | grep -qxF "$1"; }
 # The flows every install starts with.
 flow_defaults() { _yaml_list on < "${REPO_DIR}/${PLUGINS_SEED}"; }
 
-# plugins_turn on|off <name>: add it to the workspace's plugins.yml, or take it out.
+# plugins_turn on|off <name>: add it to its project's plugins.yml, or take it out.
 # Written from the example first if there is none. awk, not yq: e2e runs this on the host.
 plugins_turn() {
-    local f="${REPO_DIR}/${PLUGINS_YML}" tmp
+    local yml seed f tmp
+    read -r yml seed <<<"$(_plugins_files "$2")"
+    f="${REPO_DIR}/${yml}"
     mkdir -p "$(dirname "$f")"
-    [[ -f "$f" ]] || cp "${REPO_DIR}/${PLUGINS_SEED}" "$f"
+    [[ -f "$f" ]] || cp "${REPO_DIR}/${seed}" "$f"
     flow_on "$2" && [[ "$1" == on ]] && return 0
     tmp="${f}.tmp"
     awk -v op="$1" -v n="$2" '

@@ -4,7 +4,7 @@ sidebar_position: 7
 
 # HAwake → Home Assistant → Tasker
 
-Wire a custom wake word (trained with [HAwake](./hawake)) to Tasker actions on Android, routed through Home Assistant as the event bus.
+Wire a custom wake word (trained with [HAwake](./hawake.md)) to Tasker actions on Android, routed through Home Assistant as the event bus.
 
 ---
 
@@ -26,8 +26,8 @@ Wake word detected (HAwake on phone)
 
 In the HAwake Android app:
 
-1. Connect it to your Home Assistant instance (URL + [long-lived access token](../services/homeassistant#long-lived-access-token))
-2. Import the trained ONNX model (Opset 11 — see [HAwake training](./hawake#5-export-for-hawake-android))
+1. Connect it to your Home Assistant instance (URL + [long-lived access token](../services/homeassistant.md#long-lived-access-token))
+2. Import the trained ONNX model (Opset 11 — see [HAwake training](./hawake.md#5-export-for-hawake-android))
 3. Enable **"Send wake word event to HA"**
 
 Speech Recognition Mode can remain configured — it just won't succeed. The wake word event fires regardless.

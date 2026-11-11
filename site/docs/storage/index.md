@@ -16,8 +16,8 @@ Use what you need. For example, Google Drive for files instead of TrueNAS and Ne
 
 | Service                     | Purpose                | Alternatives                    |
 | --------------------------- | ---------------------- | ------------------------------- |
-| [Nextcloud](./nextcloud)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
-| [Collabora](./collabora)    | Nextcloud document editor | OnlyOffice                   |
+| [Nextcloud](./nextcloud.md)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
+| [Collabora](./collabora.md)    | Nextcloud document editor | OnlyOffice                   |
 | TrueNAS                     | File redundancy & NFS  | —                               |
 
 ## A NAS for the bulk files

@@ -25,7 +25,7 @@ The knowledgebase indexer cron runs in the main `automation` daemon, and the bac
 
 - Containers: `http://openviking:1933` on the `exist` network
 - Browser (Web Studio): `https://openviking.EXIST_DOMAIN`
-- Agents: [pi](./pi) connects to it as an MCP server
+- Agents: [pi](./pi.md) connects to it as an MCP server
 
 ## Enable
 
@@ -52,7 +52,7 @@ upload — which is also why there is no watched-directory setup.
 
 `workspace/ai/` — where the agent automations write — is indexed like everything else, so
 an agent can find and build on what an earlier run produced. Writing there
-starts nothing unless a [file handler](../decree/file-handlers) matches it, so keep handler
+starts nothing unless a [file handler](../decree/file-handlers.md) matches it, so keep handler
 patterns off `ai/` and that output never triggers more runs.
 
 ## What it stores

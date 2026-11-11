@@ -27,7 +27,7 @@ Prometheus scrapes itself, Pushgateway, node-exporter and `loki-alloy` every 15s
 
 ## How metrics get in
 
-Decree has no exporter: each run's `events.jsonl` is its record. [Loki](./loki)'s Alloy turns
+Decree has no exporter: each run's `events.jsonl` is its record. [Loki](./loki.md)'s Alloy turns
 the last line of every run into two metrics on its own `/metrics`, which Prometheus scrapes:
 
 | Metric | Labels |
@@ -63,10 +63,10 @@ see above), and a backup alert (`BackupNotRun`: no `volume_backup`, `db_backup` 
 
 **There is no Alertmanager in this stack.** These rules are visible at
 `https://prometheus.<domain>/alerts` and nowhere else. The one alert that reaches you is
-[Grafana](./grafana)'s: an `automation-backup` run that ends in `failed` sends an ntfy notification.
+[Grafana](./grafana.md)'s: an `automation-backup` run that ends in `failed` sends an ntfy notification.
 The `automation` daemon reports its own failed and waiting runs without either
 ([When a run needs you](../decree/decree.md#when-a-run-needs-you)).
 
 ## Viewing metrics
 
-Raw metric explorer at `https://prometheus.<domain>`. For dashboards, use [Grafana](./grafana).
+Raw metric explorer at `https://prometheus.<domain>`. For dashboards, use [Grafana](./grafana.md).

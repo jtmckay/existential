@@ -28,7 +28,7 @@ EXIST_IS_AI_COMFYUI=false
 ```
 
 Then `./existential.sh && docker compose up -d`. Workflows stay in
-`workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../decree/plugins)'s); the checkpoints they name must exist on the other machine.
+`workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../plugins/index.md)'s); the checkpoints they name must exist on the other machine.
 
 ## First Run
 
@@ -74,12 +74,12 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 ## Using ComfyUI from Decree
 
-Decree scripts live in `automation/scripts/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
+The scripts are the comfy plugin's (`automation/plugins/comfy.md`). They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
 ### The machine that ships
 
 One machine, `comfy`, is already written. Its `type` parameter names a
-workflow in `comfy/workflows/`, which the comfy [plugin](../decree/plugins) installs into
+workflow in `comfy/workflows/`, which the comfy [plugin](../plugins/index.md) installs into
 `workspace/.decree/lib/`:
 
 | `type` | Model | Needs |

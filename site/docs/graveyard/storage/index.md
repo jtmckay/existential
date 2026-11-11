@@ -12,8 +12,8 @@ sidebar_position: 1
 
 ## Evaluated
 
-- [SeaweedFS](./seaweedfs) — RIP; Nextcloud's own webhooks made the object store unnecessary
-- [MinIO](./minio) — RIP the open-source project was archived in February 2026
+- [SeaweedFS](./seaweedfs.md) — RIP; Nextcloud's own webhooks made the object store unnecessary
+- [MinIO](./minio.md) — RIP the open-source project was archived in February 2026
 - Ceph — a distributed filesystem first; far more machine than one homelab node needs
 - Garage — good and genuinely simple, but no event notifications, which is the whole
   point of the object store here

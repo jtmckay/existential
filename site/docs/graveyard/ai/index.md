@@ -8,26 +8,26 @@ sidebar_position: 1
 
 The idea is to converse with all notes and digital context.
 
-- [LibreChat](./librechat) — RIP
-- [OpenWebUI](../../ai/open-web-ui) — replaced by LibreChat
+- [LibreChat](./librechat.md) — RIP
+- [OpenWebUI](../../ai/open-web-ui.md) — replaced by LibreChat
 - Perplexity — paid enterprise
 - ChatGPT
 
 ## Speech to Text (Transcription)
 
-- [Parakeet](./parakeet) — TBD
-- [WhisperX](../../ai/whisperx) — active stack
-- [Speaches](./speaches) — TBD
+- [Parakeet](./parakeet.md) — TBD
+- [WhisperX](../../ai/whisperx.md) — active stack
+- [Speaches](./speaches.md) — TBD
 
 ## Text to Speech
 
-- [Chatterbox](../../ai/chatterbox) — active stack
+- [Chatterbox](../../ai/chatterbox.md) — active stack
 
 ## Agents
 
-- [Hermes](./hermes) — RIP replaced by [pi](../../ai/pi)
-- [Honcho](./honcho) — RIP, Hermes' memory
-- [Flowise](./flowise) — TBD
+- [Hermes](./hermes.md) — RIP replaced by [pi](../../ai/pi.md)
+- [Honcho](./honcho.md) — RIP, Hermes' memory
+- [Flowise](./flowise.md) — TBD
 - [Huginn](https://github.com/huginn/huginn)
 - [Browser Use](https://github.com/browser-use/browser-use)
 
@@ -37,5 +37,5 @@ The idea is to converse with all notes and digital context.
 
 ## Research / Notebooks
 
-- [LightRAG](./lightrag) — RIP replaced by [OpenViking](../../ai/openviking)
-- [OpenNotebook](./open-notebook) — TBD
+- [LightRAG](./lightrag.md) — RIP replaced by [OpenViking](../../ai/openviking.md)
+- [OpenNotebook](./open-notebook.md) — TBD

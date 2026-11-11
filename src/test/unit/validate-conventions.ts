@@ -21,7 +21,8 @@
  *      a container that doesn't exist. When a container needs two URLs (two ports), the
  *      primary slug is the container name and any alias starts with `{container}-`.
  * 13. Every service folder has exactly one docs page (`service:` frontmatter), every such
- *      page names a real folder, and every README.md link into the docs site resolves.
+ *      page names a real folder, every README.md link into the docs site resolves, and
+ *      every relative link inside site/docs/ names its .md file.
  * 14. README.md and site/docs/intro.md list exactly Core's services under "## What Core installs".
  * 15. Every service in every template is `restart: unless-stopped`.
  */
@@ -604,6 +605,22 @@ function main(): number {
   const readme = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, 'utf8') : '';
   for (const m of readme.matchAll(/https:\/\/existential\.company\/docs\/([^)\s]*)/g)) {
     if (!docExists(m[1])) errors.push(`README.md: links docs/${m[1]}, which is no page in site/docs/`);
+  }
+  // A relative link inside site/docs/ names the file (`./ai/pi.md`), which the build
+  // resolves and checks. One without `.md` is resolved by the browser against the page's
+  // URL, and the host serves every page with a trailing slash: `./writing-a-routine` on
+  // /docs/build-on-it/ went to /docs/build-on-it/writing-a-routine, a 404.
+  if (fs.existsSync(docsDir)) {
+    const walkAll = (dir: string): string[] => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e =>
+      e.isDirectory() ? walkAll(path.join(dir, e.name)) : /\.mdx?$/.test(e.name) ? [path.join(dir, e.name)] : []);
+    for (const f of walkAll(docsDir)) {
+      const text = fs.readFileSync(f, 'utf8').replace(/^```[\s\S]*?^```/gm, '');
+      for (const m of text.matchAll(/\]\((\.\.?\/[^)\s#]*)(#[^)\s]*)?\)/g)) {
+        if (!/\.(mdx?|png|jpe?g|gif|svg|webp|pdf)$/i.test(m[1])) {
+          errors.push(`site/docs/${path.relative(docsDir, f)}: links ${m[1]} — name the file (${m[1].replace(/\/$/, '')}.md), or it breaks behind a trailing slash`);
+        }
+      }
+    }
   }
 
   // (15) Plugins: automation/plugins/<name>.md is a machine (it has a chart), and

@@ -14,7 +14,7 @@ Text-to-speech (TTS) service for generating audio from text, over an
 OpenAI-compatible HTTP API.
 
 :::note Not the Home Assistant one
-Home Assistant's voice pipeline uses [wyoming-piper](./wyoming-piper) instead:
+Home Assistant's voice pipeline uses [wyoming-piper](./wyoming-piper.md) instead:
 HA speaks the Wyoming TCP protocol, not HTTP, so it cannot drive Chatterbox
 without a bridge.
 

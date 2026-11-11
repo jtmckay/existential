@@ -19,6 +19,10 @@ services:
     # the readiness signal instead.
     networks:
       - exist
+    # Loopback only: tailscale serve puts it on the tailnet on 3100, where every
+    # machine's reporting plugin pushes (existential.sh, _tailscale_serve_core).
+    ports:
+      - "127.0.0.1:43100:3100"
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       # TSDB index (schema v13) + chunks — must be local; NFS locking is unreliable.

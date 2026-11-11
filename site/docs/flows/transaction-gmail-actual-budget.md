@@ -84,7 +84,7 @@ If you haven't already authorized Gmail access:
 
 This grants Decree read-only Gmail access and, as its last step, automatically saves your label
 list to `/secrets/gmail/labels.json` (`automation/secrets/gmail/labels.json` on the host). See
-[Gmail](../integrations/gmail) for full instructions.
+[Gmail](../integrations/gmail.md) for full instructions.
 
 If you've already authorized Gmail but need to refresh just the label cache (e.g. you added a
 new label):
@@ -101,7 +101,7 @@ new label):
 
 Connect to your Actual Budget server, select a budget, and save credentials. At the end, the script prints all your accounts with their IDs and saves them to `/secrets/actual-budget/accounts.json` for use in the next step.
 
-See [Actual Budget](../integrations/actual-budget) for full instructions.
+See [Actual Budget](../integrations/actual-budget.md) for full instructions.
 
 ### Step 3 — Create the cron
 

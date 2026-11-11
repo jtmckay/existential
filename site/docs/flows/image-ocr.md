@@ -92,7 +92,7 @@ scans/2026-03-02-receipt.jpg.ocr.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** with file events on (see [File Processor](../decree/file-change-processing#setup))
+- **Nextcloud** with file events on (see [File Processor](../decree/file-change-processing.md#setup))
 - **Ollama** running with a vision-capable model pulled (e.g. `llava`, `llava-phi3`, `moondream`)
 - **rclone** configured with a `nextcloud` remote
 
@@ -110,7 +110,7 @@ Any Ollama-compatible vision model works. `llava` is a solid general-purpose cho
 
 `./existential.sh flow on image-ocr` turns on Nextcloud's file events (two migrations: the
 `nextcloud` rclone remote and the webhooks, see
-[File Processor → Setup](../decree/file-change-processing#setup)) and copies the `ollama-ocr`
+[File Processor → Setup](../decree/file-change-processing.md#setup)) and copies the `ollama-ocr`
 processor into `workspace/.decree/lib/file-processors/`.
 
 ### Step 3 — Point a camera at it

@@ -45,7 +45,7 @@ boot).
 ## AI in the terminal
 
 The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
-automations. Machines have their own Claude login: [Decree](../decree/#claude-for-machines).
+automations. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:
@@ -62,13 +62,13 @@ tmx claude                            # attach to it
 
 **What you type into `claude` and `opencode` is captured** to `workspace/.capture/` (secrets
 redacted, never responses). `CODE_SERVER_CAPTURE=false` turns it off. See
-[Capture](../getting-started#capture).
+[Capture](../getting-started.md#capture).
 
 **No telemetry.** code-server runs with `--disable-telemetry`, Claude Code with
 `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, opencode with sharing off. Your conversation
 goes to the AI provider you use, under its terms.
 
-**`pi`** is [pi](../ai/pi), baked into the image and pointed at the same chat model on every
+**`pi`** is [pi](../ai/pi.md), baked into the image and pointed at the same chat model on every
 boot, with the MCP servers of every add-on that is on (OpenViking, Firecrawl, Playwright, qmd):
 
 ```bash

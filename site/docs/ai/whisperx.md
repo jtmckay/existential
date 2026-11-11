@@ -17,7 +17,7 @@ served by whisperX-FastAPI on an OpenAI-compatible API.
 This is for **long recordings** — an interview, a meeting, a voice memo — where
 you want to know who said what. It runs on the GPU and is driven by decree.
 
-Home Assistant's voice pipeline uses [wyoming-whisper](./wyoming-whisper)
+Home Assistant's voice pipeline uses [wyoming-whisper](./wyoming-whisper.md)
 instead: HA speaks the Wyoming TCP protocol, not HTTP, and short voice commands
 want low latency far more than they want speaker labels.
 :::
@@ -37,4 +37,4 @@ so check the task's `error` field, not the service.
 
 - [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) — the server wrapper
 - [pyannote.audio](https://github.com/pyannote/pyannote-audio) — the diarization models
-- [Recording Transcription](../flows/recording-transcription) — the automated, diarized pipeline
+- [Recording Transcription](../flows/recording-transcription.md) — the automated, diarized pipeline

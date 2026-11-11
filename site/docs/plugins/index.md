@@ -1,8 +1,14 @@
 ---
-sidebar_position: 4
+sidebar_position: 1
 ---
 
 # Plugins
+
+:::info[Level 4 of 4 · Code]
+What runs your automations, and how to write one. Back out to [Level 3 · Flows](../flows/index.md)
+for worked examples. [Writing a Plugin](./writing-a-plugin.md) is the how-to;
+[Over HTTP](./http.md) is the contract for reaching the stack from outside.
+:::
 
 Every machine the stack ships is a plugin: one file in `automation/plugins/<name>.md` holding
 the machine, its scripts, the webhook endpoints that start it and, if it has one, its schedule.
@@ -47,15 +53,16 @@ Three decree projects install plugins, each from the same folder:
 |---|---|---|
 | `automation` | `workspace/.decree` | everything that reasons, routes or calls a service |
 | `backup` | `services/automation-backup/` | backups, triage, workspace sync |
-| `host` | `host/.decree` | what runs on the host itself: [updates](../hosting/updates) |
+| `host` | `host/.decree` | what runs on the host itself: [updates](../hosting/updates.md) |
 
 A project has exactly what its `.decree/plugins.yml` lists under `on:`, and whatever those need.
 That file is yours, never in git, and written the first time from the project's
 `plugins.exist.yml`: what every install starts with.
 
 A plugin with no machine is a **flow**, in `automation/plugins/flows/`: one thing the stack does
-for you, needing the plugins that do it and turning on the services they use. Those with a
-tagline are the ones [`./existential.sh flow`](../flows/) offers; the rest are libraries, code
+for you, needing the plugins that do it and naming the services they use (turning it on asks before it
+turns each on). Those with a
+tagline are the ones [`./existential.sh flow`](../flows/index.md) offers; the rest are libraries, code
 other plugins use (`model`, `pi`, `agent`, `firecrawl`, `rss`) or a file processor a flow turns
 on (`ocr`, `transcribe`, `agent_handoff`). Every helper a script uses is some plugin's, installed into
 `workspace/.decree/lib/` and reached as `${DECREE_LIB}/<path>`.
@@ -69,7 +76,7 @@ name once. Your copy is never overwritten, removed or sent to another stack.
 ./existential.sh run plugin list host
 ./existential.sh run plugin on gpu_lease        # install it, and keep it current
 ./existential.sh run plugin off gpu_lease       # remove it, endpoints and schedule included
-./existential.sh run plugin off host/update     # another project's
+./existential.sh run plugin on host/update      # another project's
 ```
 
 `plugins.yml` is `on: [...]` and `auto_update: true`. Turning a plugin off takes it out of `on:`;

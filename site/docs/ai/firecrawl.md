@@ -30,7 +30,7 @@ Turns a URL into markdown a model can read, and searches the web.
 - Agents: point an MCP client at `http://firecrawl-mcp:3003/mcp`
 - Decree scripts: source `workspace/.decree/lib/firecrawl.sh` for `web_search <query> [n]` (results
   with each page's text) and `web_read <url>`. Every [automation built from a
-  note](../flows/note-to-automation#research-on-the-web-with-firecrawl) has them.
+  note](../flows/note-to-automation.md#research-on-the-web-with-firecrawl) has them.
 
 Search needs no account: with no search backend configured, Firecrawl queries DuckDuckGo
 itself. A search engine can rate-limit any one address, so a search can come back empty; a

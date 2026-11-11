@@ -16,7 +16,7 @@ Two containers work together:
 
 | Service | Role |
 |---|---|
-| `loki` | Stores and indexes logs (port 3100 internal) |
+| `loki` | Stores and indexes logs. Port 3100 on the exist network, on `127.0.0.1:43100`, and on the tailnet at `http://<host>:3100`, where every machine's reporting plugin pushes ([Controller and Workers](./controller-and-workers.md)) |
 | `loki-alloy` | Tails log files and ships them to Loki |
 
 [Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.
@@ -34,7 +34,7 @@ script's output as `{job="decree_script"}`:
 
 `run_id` is structured metadata, not a label, so one run is `{job="decree"} | run_id="<id>"`.
 The same pipeline turns every `run_finished` line into Prometheus metrics; see
-[Prometheus](./prometheus).
+[Prometheus](./prometheus.md).
 
 It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines have no container name, only the container id in `filename` (`docker inspect` it): naming them would need the Docker socket, which is host root.
 
@@ -44,7 +44,7 @@ Single-node filesystem storage under `/loki` in the volume `loki_data`, TSDB ind
 
 ## Querying
 
-Loki is not meant to be queried directly. Use [Grafana](./grafana) with the pre-configured Loki datasource and LogQL:
+Loki is not meant to be queried directly. Use [Grafana](./grafana.md) with the pre-configured Loki datasource and LogQL:
 
 ```logql
 {job="decree", type="run_finished"} | json | state != "done"

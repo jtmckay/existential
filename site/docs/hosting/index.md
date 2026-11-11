@@ -12,45 +12,45 @@ Start with [Getting Started](https://existential.company/docs/getting-started)
 
 ### System OS
 
-- [Proxmox](./proxmox) (alt: Unraid)
+- [Proxmox](./proxmox.md) (alt: Unraid)
 
 ### Container Management
 
-- [Docker](./docker)
-- [Portainer](./portainer)
+- [Docker](./docker.md)
+- [Portainer](./portainer.md)
 
 ### External Network (Access Remotely)
 
-- [VPN](./vpn) — the most secure option (skip Caddy/Cloudflare)
-- [Caddy](./caddy) — Reverse proxy (Alt: Traefik/Nginx)
-- [Cloudflare](./cloudflare) — DNS/domain manager
+- [VPN](./vpn.md) — the most secure option (skip Caddy/Cloudflare)
+- [Caddy](./caddy.md) — Reverse proxy (Alt: Traefik/Nginx)
+- [Cloudflare](./cloudflare.md) — DNS/domain manager
 
 ### Networking
 
 All services connect to a single Docker **bridge** network named `exist`, created
 automatically by `docker compose up`. Containers reach each other by container name
-(`http://ollama:11434`); see [How It Works](../how-it-works) for the full model.
+(`http://ollama:11434`); see [How It Works](../how-it-works.md) for the full model.
 
 :::warning[Traffic on this network is not encrypted]
 A bridge network is single-host and carries plain traffic between containers. It is not an
 overlay, there is no IPsec, and it does not span machines. To run services on more than one
-box, treat them as [complementary services](../how-it-works) reached over a URL rather than
+box, treat them as [complementary services](../how-it-works.md) reached over a URL rather than
 trying to stretch this network across hosts.
 :::
 
 ### GPU on Another Machine
 
-- [A Separate AI Box](./ai-box): llama.cpp, ComfyUI and TTS on one GPU box, with the stack
+- [A Separate AI Box](./ai-box.md): llama.cpp, ComfyUI and TTS on one GPU box, with the stack
   pointed at it
 
 ### Observability
 
-- [Prometheus](./prometheus) — Metrics collection (+ Pushgateway for Decree)
-- [Loki](./loki) — Log aggregation (+ Alloy for Decree run logs)
-- [Grafana](./grafana) — Dashboards over Prometheus and Loki
-- [Uptime-Kuma](./uptime-kuma) — Simple availability monitoring, separate from the
+- [Prometheus](./prometheus.md) — Metrics collection (+ Pushgateway for Decree)
+- [Loki](./loki.md) — Log aggregation (+ Alloy for Decree run logs)
+- [Grafana](./grafana.md) — Dashboards over Prometheus and Loki
+- [Uptime-Kuma](./uptime-kuma.md) — Simple availability monitoring, separate from the
   Prometheus/Grafana stack above
 
 ### Network
 
-- [Pi-hole](./pihole) — DNS ad blocking and DHCP
+- [Pi-hole](./pihole.md) — DNS ad blocking and DHCP

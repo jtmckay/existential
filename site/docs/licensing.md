@@ -115,7 +115,7 @@ Bundled *inside* app stacks, not offered as standalone database services.
 
 - [ ] Every hosted app's license recorded (this page) and re-checked at its current version.
 - [ ] **AGPL apps run unmodified**, *or* your modifications are published and linked in-app.
-- [ ] The [Open Source Notices](./open-source-notices) page is exposed to tenants, linking each AGPL app's running source.
+- [ ] The [Open Source Notices](./open-source-notices.md) page is exposed to tenants, linking each AGPL app's running source.
 - [ ] **Open WebUI**: branding kept intact, *or* an enterprise license obtained for white-label.
 - [ ] **MongoDB/Redis** not exposed as standalone database services; Redis license option chosen (AGPLv3/RSALv2).
 - [ ] Audit re-run on every app version bump — licenses change without notice.
@@ -125,6 +125,6 @@ Bundled *inside* app stacks, not offered as standalone database services.
 Most of the catalog is 🟢 and hostable without ceremony. The 🟡 AGPL apps (Nextcloud,
 Immich, Mealie, NocoDB, Lowcoder, Grafana/Loki, Firecrawl, OpenViking) are
 compliant as long as you run them unmodified and offer your tenants the source — the
-[Open Source Notices](./open-source-notices) page covers it. The only genuine 🔴 is
+[Open Source Notices](./open-source-notices.md) page covers it. The only genuine 🔴 is
 **Open WebUI's branding clause**: keep their branding or buy an enterprise license. Resolve
 that one and the catalog is clear for commercial hosting.

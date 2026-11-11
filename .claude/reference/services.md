@@ -243,9 +243,9 @@ decree project:
   and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
   `workspace/notes/` is mounted read-only over `/workspace`, so nothing it runs, Claude in
   `auto` mode included, changes a note; machines write under `workspace/ai/`.
-- **`automation-backup`** wholesale-mounts `services/automation-backup/`, with its own
-  `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
-  it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.
+- **`automation-backup`** wholesale-mounts `services/automation-backup/`, with the
+  `machines/`, `scripts/` and `lib/` its plugins install there mounted read-only over its
+  `.decree/`, so nothing a run does changes the code it runs. Its `cron.example/` + `cron/` pair lives there.
 
 | | `automation` | `automation-backup` |
 |---|---|---|

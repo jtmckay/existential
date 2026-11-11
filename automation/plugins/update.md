@@ -54,5 +54,5 @@ Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, 
 fast-forward, which changes nothing.
 
 It runs in the host's own decree project, `host/.decree`, so a decree daemon has to be
-running there, started at boot: `./existential.sh` says so while it is not. Turn it off with
-`./existential.sh run plugin off host/update`.
+running there, started at boot: `./existential.sh` says so while it is not. The `auto-update` flow turns it on:
+`./existential.sh flow on auto-update`.

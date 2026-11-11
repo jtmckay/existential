@@ -25,7 +25,7 @@ Every web service you enable then answers at `https://<slug>.<domain>`. `EXIST_D
 to `<your-lan-ip-with-dashes>.nip.io`, public wildcard DNS that maps every subdomain back to that
 IP, so new services need no DNS change. With Tailscale up, the first run takes the tailnet
 address instead (never a MagicDNS name: there is no wildcard under a node). To reach it from
-outside the house, see [VPN](./vpn). `nslookup code-server.<domain>` checks a device resolves it.
+outside the house, see [VPN](./vpn.md). `nslookup code-server.<domain>` checks a device resolves it.
 
 ### Trust its CA once per device
 
@@ -45,7 +45,7 @@ Re-mint the leaf (the CA, and every device's trust in it, survives):
 `rm hosting/caddy/certs/internal.pem hosting/caddy/certs/internal-key.pem`, then
 `./existential.sh && docker compose up -d`.
 
-For names that resolve with the internet down, add [piHole](./pihole) and point your router's DNS
+For names that resolve with the internet down, add [piHole](./pihole.md) and point your router's DNS
 at this machine. For real Let's Encrypt names on a domain you own, with a wildcard record at your
 public IP: `./existential.sh run caddy public-domain`.
 

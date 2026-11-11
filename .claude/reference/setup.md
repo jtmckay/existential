@@ -60,9 +60,16 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-The first run asks one thing: Core or none (`_ask_core_or_none` in `src/templates.sh`). Core is
-what `.env.exist.shared` ships on, and Enter, Esc or no terminal keeps it; none sets every
-`EXIST_IS_*` false and `_build` stops at "nothing is on yet". `EXIST_USERNAME`, `EXIST_PASSWORD`
+The first run asks one thing: core, controller, worker or nothing (`_ask_role` in
+`src/templates.sh`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
+keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing is on yet".
+Controller is Core plus the host flow `worker`; worker is nothing plus `worker`, and asks
+`EXIST_CONTROLLER`. A worker is any machine whose `host/.decree/plugins.yml` has `worker` on
+(`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
+`_build` syncs the host plugins even with nothing on. The controller writes `host/exist.json`
+(`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
+and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. A flow with
+`project: host` (`worker`, `auto-update`) is turned on in the host's `plugins.yml`. `EXIST_USERNAME`, `EXIST_PASSWORD`
 and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
 renders, so Core asks for a login and none asks nothing.
 

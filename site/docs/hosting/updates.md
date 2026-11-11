@@ -4,8 +4,8 @@ sidebar_position: 14
 
 # Updates
 
-An install follows its branch. The `update` [plugin](../decree/plugins), on by default, runs on
-the host every 15 minutes:
+An install can follow its branch on its own. The `auto-update` [flow](../flows/index.md), off until you
+turn it on, runs on the host every 15 minutes:
 
 1. `git pull`, fast-forward only. A checkout with commits of its own, or an upstream that was
    rewritten, is left exactly as it is, and your phone says why.
@@ -15,9 +15,14 @@ the host every 15 minutes:
 Your phone hears each update, with the commit it landed on. The repo is the authority: what is
 on its branch is what your install runs.
 
+```bash
+./existential.sh flow on auto-update
+```
+
 ## A decree daemon on the host
 
-`update` is a host plugin, in `host/.decree`, so it runs only while a decree daemon runs there.
+`auto-update` is a host flow, in `host/.decree`, so it runs only while a decree daemon runs there,
+and so does [`worker`](./controller-and-workers.md).
 `./existential.sh` says so until one does. You need [decree](https://github.com/jtmckay/decree)
 on the host (the version `services/automation/decree/Dockerfile` pins), then:
 
@@ -55,7 +60,7 @@ On a Mac, a LaunchAgent that runs the same `tmux new` line at login does the sam
 ## Turning it off
 
 ```bash
-./existential.sh run plugin off host/update
+./existential.sh flow off auto-update
 ```
 
 Then you pull and run `./existential.sh` yourself, as before.

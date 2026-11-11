@@ -11,7 +11,7 @@ sidebar_position: 11
 - UI: `https://lowcoder.<domain>`
 
 Low-code platform for building internal and customer-facing apps — continues from the
-abandoned Openblocks project. Its pitch over [Appsmith](./appsmith) is native embedding
+abandoned Openblocks project. Its pitch over [Appsmith](./appsmith.md) is native embedding
 (no iframe) for apps you hand to people outside the stack, not just internal dashboards.
 
 ## Containers

@@ -5,11 +5,11 @@ sidebar_position: 4
 # File Processor
 
 :::info[Mechanism, not a flow]
-How a file landing in Nextcloud starts a job. For what the system does, see [Flows](../flows/).
+How a file landing in Nextcloud starts a job. For what the system does, see [Flows](../flows/index.md).
 :::
 
 Reacts to files created, updated, renamed or deleted anywhere in Nextcloud. For the workspace,
-use a [file handler](./file-handlers) instead; it needs no Nextcloud.
+use a [file handler](./file-handlers.md) instead; it needs no Nextcloud.
 
 - A file event reaches the Decree webhook; `file_router` matches the path against your processors
   and emits one `file_processor` job per match.
@@ -75,7 +75,7 @@ The request includes `Authorization: Bearer <EXIST_DECREE_FILES_WEBHOOK_AUTH_TOK
 :::warning[Only uploads through Nextcloud fire here]
 code-server and decree write the workspace straight to disk. Nextcloud notices those
 files (so your desktop client gets them) but raises **no event** for them. A
-[file handler](./file-handlers) does see them.
+[file handler](./file-handlers.md) does see them.
 :::
 
 ### 2. file_router — match and fan out
@@ -240,7 +240,7 @@ Three things to know:
 ## Handing off to an agent
 
 A processor's real job is usually to decide *that* something should happen, not
-to do it. `agent_task` is the machine that does it: it runs [pi](../ai/pi) on the chat
+to do it. `agent_task` is the machine that does it: it runs [pi](../ai/pi.md) on the chat
 model and files the answer in `workspace/ai/`.
 
 ```bash
@@ -256,11 +256,11 @@ pi runs its own tool loop, so with no `department` the task gets every MCP serve
 of an add-on that is on: OpenViking search, Firecrawl web search, Playwright. The
 prompt does not name tools; it says what it wants, and pi decides what to reach
 for. `--param department=research` narrows it to that department's tools
-([Routing](./routing)).
+([Routing](./routing.md)).
 
 ## Triggering on workspace edits
 
-Use a [file handler](./file-handlers): it sees every change in the workspace, from any
+Use a [file handler](./file-handlers.md): it sees every change in the workspace, from any
 writer, and `.gitignore` keeps a folder out of it. With Nextcloud in the stack the workspace
 is also its `workspace` folder, so an edit in the desktop client is an upload and fires here
 too.

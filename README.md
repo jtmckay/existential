@@ -129,7 +129,7 @@ Every service is a folder. Its flag — `EXIST_IS_<CATEGORY>_<SLUG>` — is deri
 so **adding a service is adding a folder**. Disabled services are skipped entirely: no
 templates render, no secrets are generated, nothing lands on disk.
 
-📖 **[The Pieces](https://existential.company/docs/how-it-works)** for the whole model.
+📖 **[Services](https://existential.company/docs/how-it-works)** for the whole model.
 
 ## Optional add-ons
 
@@ -202,9 +202,9 @@ step, and you can stop at any of them.
 | | | |
 |---|---|---|
 | **Level 1** | [What It Is](https://existential.company/docs/intro) | What this is and what it does for you |
-| **Level 2** | [The Pieces](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
+| **Level 2** | [Services](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
 | **Level 3** | [Flows](https://existential.company/docs/flows/) | How one job gets done, start to finish |
-| **Level 4** | [Build On It](https://existential.company/docs/build-on-it) | The contract to write against |
+| **Level 4** | [Plugins](https://existential.company/docs/plugins) | Write your own automation, or reach the stack over HTTP |
 
 ## Third-party software
 

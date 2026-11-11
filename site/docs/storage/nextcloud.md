@@ -24,7 +24,7 @@ nothing to enable separately. See [Cache](#cache) below.
 
 ## On a NAS
 
-Two volumes can live on the NAS ([Storage](./#a-nas-for-the-bulk-files)); config, apps, themes
+Two volumes can live on the NAS ([Storage](./index.md#a-nas-for-the-bulk-files)); config, apps, themes
 and the database stay local.
 
 - **`nextcloud_share`** is the share of files you already have. Nextcloud shows it in Files
@@ -90,13 +90,13 @@ docker exec nextcloud php /var/www/html/occ config:system:set maintenance_window
 
 `hooks/before-starting/02-workspace.sh` mounts the `workspace_data` volume as a **Local**
 external storage at `/workspace`, applicable to every user. Sync that folder with the desktop client and you are editing the
-same tree code-server and decree see. See [Getting Started → Workspace](../getting-started#workspace).
+same tree code-server and decree see. See [Getting Started → Workspace](../getting-started.md#workspace).
 
 - Nextcloud runs as `EXIST_PUID`, not `www-data`, because every writer of the volume must be the
   same uid.
-- Workspace automations don't need Nextcloud: [File Handlers](../decree/file-handlers) see every
+- Workspace automations don't need Nextcloud: [File Handlers](../decree/file-handlers.md) see every
   change. Uploads anywhere in Nextcloud can also fire a file event:
-  [File Processor](../decree/file-change-processing).
+  [File Processor](../decree/file-change-processing.md).
 
 ## Collabora (office document editing)
 
@@ -137,7 +137,7 @@ The flow's `calendar-extract` cron writes each event, from the recent past to
 indexes it, so pi can answer "what's on my calendar".
 
 - Full refresh: a cancelled event's note disappears on the next run.
-- CalDAV details: `automation/scripts/calendar_extract.sh` (tested on nextcloud:34.0.3, recurring
+- CalDAV details: `automation/plugins/calendar_extract.md` (tested on nextcloud:34.0.3, recurring
   events included).
 
 ## Maintenance

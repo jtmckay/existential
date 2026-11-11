@@ -12,7 +12,7 @@ of Core. It holds what needs bulk access and makes no AI call:
 - **triage**: runs every enabled service's own test on a schedule and notifies you when one
   breaks or recovers.
 - **workspace-sync**: two-way sync of `workspace/` with a NAS or Nextcloud folder, every minute
-  (see [Getting Started](../getting-started#syncing-with-a-nas-or-a-nextcloud-optional)).
+  (see [Getting Started](../getting-started.md#syncing-with-a-nas-or-a-nextcloud-optional)).
 - **notes-pull**: rsync an external notes folder into `workspace/notes/`.
 
 It mounts `volumes/` wholesale, the repo read-only and the master `.env`, which is why it is a

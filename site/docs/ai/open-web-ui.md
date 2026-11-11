@@ -10,7 +10,7 @@ sidebar_position: 5
 - Alternatives: LibreChat
 - UI: `https://open-webui.<domain>`
 
-Chat interface for LLMs, talking straight to the stack's chat model and to [WhisperX](./whisperx)
+Chat interface for LLMs, talking straight to the stack's chat model and to [WhisperX](./whisperx.md)
 for speech-to-text.
 
 ## Enable
@@ -31,8 +31,8 @@ generated into `ai/open-webui/.env` (`OPEN_WEBUI_ADMIN_EMAIL` / `OPEN_WEBUI_ADMI
 | Tool | Use for |
 |---|---|
 | Open WebUI | Day-to-day conversations |
-| `pi` in [code-server](../services/code-server)'s terminal | The same model with tools: the workspace, search and the web |
-| [decree](../decree/) routines | Work with nobody present — `agent_task` files the answer into `workspace/ai/` |
+| `pi` in [code-server](../services/code-server.md)'s terminal | The same model with tools: the workspace, search and the web |
+| [decree](../decree/decree.md) routines | Work with nobody present — `agent_task` files the answer into `workspace/ai/` |
 
 ## Backend Wiring
 

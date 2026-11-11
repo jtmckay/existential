@@ -7,7 +7,7 @@ sidebar_position: 8
 
 - Source: https://github.com/OHF-Voice/wyoming-piper
 - License: [MIT](https://opensource.org/licenses/MIT)
-- Alternatives: [Chatterbox](./chatterbox) (expressive TTS over HTTP), Coqui TTS
+- Alternatives: [Chatterbox](./chatterbox.md) (expressive TTS over HTTP), Coqui TTS
 
 Text-to-speech for Home Assistant's Assist pipeline. Runs on CPU.
 
@@ -52,7 +52,7 @@ there is nothing for Caddy to front. You add it inside Home Assistant:
 | Port | `10200` |
 
 Then build a pipeline under **Settings → Voice assistants**, pairing it with
-[wyoming-whisper](./wyoming-whisper) for the listening half.
+[wyoming-whisper](./wyoming-whisper.md) for the listening half.
 
 ## Verify
 

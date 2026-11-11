@@ -6,7 +6,7 @@ sidebar_position: 6
 
 Train a custom wake word model for the [HAwake](https://github.com/IT-BAER/hawake-wakeword) Android app using [openWakeWord](https://github.com/dscripka/openWakeWord). The trained ONNX model runs entirely on-device — no cloud, no always-on microphone upload.
 
-Once trained, see [HAwake → Home Assistant → Tasker](./hawake-homeassistant) to wire the wake word to actual automations.
+Once trained, see [HAwake → Home Assistant → Tasker](./hawake-homeassistant.md) to wire the wake word to actual automations.
 
 ---
 

@@ -97,7 +97,7 @@ What you type into `claude` or `opencode` (with capture on, the default) is appe
 with the session id, date and working directory in its frontmatter. Each prompt is a
 quote under its timestamp. Only your prompts are kept, never the AI's answers, and
 secrets are redacted first. The raw stream stays in `workspace/.capture/`
-(see [Capture](../getting-started#capture)).
+(see [Capture](../getting-started.md#capture)).
 
 ## How search behaves
 

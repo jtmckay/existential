@@ -35,7 +35,7 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 R="${TMP}/repo"
 mkdir -p "${R}/src/utils" "${R}/src/lib" "${R}/automation"
 cp -r "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${R}/automation/"
-cp "${REPO_DIR}/automation/plugins.exist.yml" "${R}/automation/"
+cp "${REPO_DIR}/automation/plugins.exist.yml" "${REPO_DIR}/automation/plugins.host.exist.yml" "${R}/automation/"
 cp "${SRC_DIR}/lib/plugin.sh" "${R}/src/lib/"
 cp "${SRC_DIR}/flows.sh" "${R}/src/"
 cp "${SRC_DIR}/utils/flows.sh" "${SRC_DIR}/utils/gpu-vendor.sh" "${R}/src/utils/"
@@ -79,6 +79,12 @@ assert_eq "the GPU answer outranks a flow's service" "false" "$(env_of EXIST_IS_
 assert_has "...and says so" "$out" "EXIST_IS_AI_OLLAMA stays off"
 assert_eq "an unknown flow fails" "1" "$(flow on nope >/dev/null; echo $?)"
 assert_eq "a library is not a flow you turn on" "1" "$(flow on model >/dev/null; echo $?)"
+flow on auto-update >/dev/null
+assert_eq "a host flow goes in the host's plugins.yml" "auto-update" "$(sed -n 's/^  - //p' "${R}/host/.decree/plugins.yml")"
+assert_lacks "...not the workspace's" "$(on_list)" "auto-update"
+assert_has "...and the list shows it on" "$(flow list | grep ' auto-update ')" "✓"
+flow off auto-update >/dev/null
+assert_eq "...and off takes it out" "" "$(sed -n 's/^  - //p' "${R}/host/.decree/plugins.yml")"
 
 echo ""; echo "=== list ==="
 out="$(flow list)"; rc=$?

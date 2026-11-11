@@ -7,9 +7,9 @@ sidebar_position: 6
 - Source: https://github.com/logseq/logseq
 - License: [AGPL-3](https://www.gnu.org/licenses/agpl-3.0.html)
 - Alternative: Obsidian
-- Status: RIP — replaced by [Obsidian](../../services/obsidian)
+- Status: RIP — replaced by [Obsidian](../../services/obsidian.md)
 
-Outliner-style note-taking over plain markdown files. It was the stack's primary notes app; [Obsidian](../../services/obsidian) now fills that role, reading the same kind of vault.
+Outliner-style note-taking over plain markdown files. It was the stack's primary notes app; [Obsidian](../../services/obsidian.md) now fills that role, reading the same kind of vault.
 
 Logseq was never a container here — only a `config.edn`, now kept at `graveyard/logseq/config.edn`. Your notes are plain markdown and are unaffected by this change.
 

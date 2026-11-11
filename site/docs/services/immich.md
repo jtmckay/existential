@@ -11,7 +11,7 @@ sidebar_position: 4
 
 ## Getting Started
 
-Immich is a [complementary service](../how-it-works#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine. On this one it starts with everything else.
+Immich is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine. On this one it starts with everything else.
 
 ## Containers
 
@@ -30,7 +30,7 @@ answering `/api/server/ping` and jobs that need the ML worker just fail one at a
 
 `immich-machine-learning` ships a **different image tag per backend** (unlike ollama/whisperx,
 there's no single binary that runtime-detects the card), wired the same way as every GPU
-service in this stack via [`EXIST_GPU_VENDOR`](../configuration#gpu-vendor). The nvidia
+service in this stack via [`EXIST_GPU_VENDOR`](../configuration.md#gpu-vendor). The nvidia
 `-cuda` tag is the default; a non-nvidia `EXIST_GPU_VENDOR` swaps in the `-rocm` tag (AMD, group
 + device passthrough — no `-cuda`-sized download you can't use) or the plain CPU tag (`none`).
 Image sizes, for context: CPU 1.85 GB, `-cuda` 7.71 GB, `-rocm` 31.7 GB.
@@ -56,7 +56,7 @@ version on an existing install (a fresh install has no such constraint).
 **Storage is declared like every other service.** The photo library is the `immich_data`
 volume and the Postgres data directory is `immich_pg_data`, both in the compose file's
 `x-exist-volumes` block, both under `volumes/`. `immich_data` is marked `nfs: true`, so with a NAS
-([Storage](../storage/#a-nas-for-the-bulk-files)) turning Immich on asks for its folder there
+([Storage](../storage/index.md#a-nas-for-the-bulk-files)) turning Immich on asks for its folder there
 (`EXIST_NFS_PATH_IMMICH_DATA`), and Compose mounts it.
 `immich_pg_data` is marked `db: true`, which keeps it off NFS; Immich upstream does not support
 a network share for the database, and marking a volume both `db` and `nfs` is a hard error in

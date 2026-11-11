@@ -7,7 +7,7 @@ sidebar_position: 1.5
 A weekly issue from feeds you picked, chosen by a paragraph you wrote. At most seven items, or
 one line saying there was nothing.
 
-Needs Core plus a chat model ([Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)).
+Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-machines)).
 
 ## What it does
 
@@ -40,5 +40,5 @@ Both files are re-read on every run, so an edit applies to the next issue.
 
 ## Related
 
-The morning [you were here](../getting-started#you-were-here) digest has its own short list
+The morning [you were here](../getting-started.md#you-were-here) digest has its own short list
 from `workspace/notes/feeds.md`: the few new items closest to what you were working on.

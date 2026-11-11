@@ -30,7 +30,7 @@ flowchart TB
 
 ## How it differs from triage
 
-- [Note → Action](./note-to-action) asks "is this worth acting on?"
+- [Note → Action](./note-to-action.md) asks "is this worth acting on?"
 - This asks, of every new note, "does something I already wrote connect to this?"
 - A shared topic isn't enough. It has to tell you something you wouldn't get from remembering the
   earlier note.
@@ -39,8 +39,8 @@ flowchart TB
 
 ### 1. Search
 
-The note goes to [pi](../ai/pi) in a department (`research` by default) that searches the
-[OpenViking](../ai/openviking) index as an MCP tool.
+The note goes to [pi](../ai/pi.md) in a department (`research` by default) that searches the
+[OpenViking](../ai/openviking.md) index as an MCP tool.
 
 ### 2. Score
 
@@ -58,7 +58,7 @@ surface a different one.
 
 ### Pointing it at a different vault
 
-To scan [Note → Action](./note-to-action)'s vault mirror instead, set `NOTES_DIR=/data/notes`
+To scan [Note → Action](./note-to-action.md)'s vault mirror instead, set `NOTES_DIR=/data/notes`
 in `automation/.env`. It's an environment variable, so it applies to the other notes machines too.
 
 ### Check it before trusting it
@@ -80,7 +80,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 
 ### Prerequisites
 
-- `workspace/` indexed by [OpenViking](../ai/openviking) (the `knowledgebase` flow).
+- `workspace/` indexed by [OpenViking](../ai/openviking.md) (the `knowledgebase` flow).
 - A chat model with ollama's `tools` capability; pi ships in the image.
 
 ## Settings reference

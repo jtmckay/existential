@@ -36,7 +36,7 @@ enabled image without touching running containers; `docker compose up -d` switch
 ## Service enablement
 
 `EXIST_IS_<CATEGORY>_<SLUG>=true|false`, one per service folder
-([The Pieces](./how-it-works.md#1-choose--a-flag-per-service)). Set by hand or by
+([Services](./how-it-works.md#1-choose--a-flag-per-service)). Set by hand or by
 `./existential.sh flow on <name>`.
 
 ## Models
@@ -144,7 +144,7 @@ Chat keeps the big card; embeddings and OCR stop evicting it. Then `./existentia
 - `./existential.sh run models` prints where each role resolves. Migrations pull each model to
   the machine that serves it.
 - The old `EXIST_OLLAMA_URL*` keys are carried over on upgrade, `/v1` added.
-- [A Separate AI Box](./hosting/ai-box): llama.cpp presets, ComfyUI, on-demand TTS.
+- [A Separate AI Box](./hosting/ai-box.md): llama.cpp presets, ComfyUI, on-demand TTS.
 
 ComfyUI moves the same way, with `EXIST_COMFYUI_URL` (default `http://comfyui:8188`):
 
@@ -209,6 +209,11 @@ What it changes, in `src/generate-compose.ts`:
 
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
   works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
+- **`EXIST_CONTROLLER`**: with the `worker` flow on, the controller this machine reports to, its
+  tailnet name or 100.x address. Blank, this machine is the controller. See
+  [Controller and Workers](./hosting/controller-and-workers.md).
+- **`EXIST_REPORTING_URL`**: on the controller, the Loki every machine reports to
+  (`http://<host>:3100`). Blank means this machine's own Loki, when it is on.
 
 The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 
@@ -233,7 +238,7 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
 - **`EXIST_NFS_SHARE_<NAME>`**: the same for a volume that holds your own files rather than a
   container's data: `EXIST_NFS_SHARE_NEXTCLOUD` (shown in Nextcloud at `/nas`) and
   `EXIST_NFS_SHARE_WORKSPACE` (where `workspace/` syncs to). See
-  [Storage](./storage/#a-nas-for-the-bulk-files).
+  [Storage](./storage/index.md#a-nas-for-the-bulk-files).
 - **`EXIST_BACKUP_RCLONE_REMOTE`**: an rclone remote (`<remote>:<path>`), set by
   `./existential.sh run rclone`. Blank disables scheduled DB backups.
 
@@ -244,6 +249,6 @@ Generated on render, shared between services:
 - **`EXIST_NTFY_URL`**: ntfy, by container name. `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are
   the publisher, created by ntfy on first boot.
 - **`EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN`**: what Nextcloud's file-event webhooks send to
-  `/files`. See [File Processor](./decree/file-change-processing#setup).
+  `/files`. See [File Processor](./decree/file-change-processing.md#setup).
 - **`EXIST_NEXTCLOUD_DOMAIN`, `_USER`, `_APP_PASSWORD`, `_WORKSPACE_DIR`**: the Nextcloud
-  `workspace/` syncs with. See [Syncing with a Nextcloud](./getting-started#syncing-with-a-nextcloud-optional).
+  `workspace/` syncs with. See [Syncing with a Nextcloud](./getting-started.md#syncing-with-a-nas-or-a-nextcloud-optional).

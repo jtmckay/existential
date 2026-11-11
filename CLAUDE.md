@@ -74,7 +74,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 3. **Configuration is YAML.** `.env` is for secrets/host-specific values only.
 4. **`src/` = host-run scripts. `automation/` = scheduled/webhook/decree-triggered work.**
    decree machines and every line of their code are plugins in `automation/plugins/`.
-5. **Repeatable work is a decree machine** (`automation/machines/`), not host cron or
+5. **Repeatable work is a decree machine** (a plugin in `automation/plugins/`), not host cron or
    one-off `docker exec`. One-shots stay as `exist.<action>.sh`.
 6. **Services set themselves up deterministically.** Host-side pre-startup work →
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
@@ -164,9 +164,10 @@ template has gained **appended** (existing values, blanks included, never touche
 rendered compose file whose service `image:` differs from its template's is listed and updated
 **if the user says yes**. Every run then pulls and builds every enabled image (the decree image
 when its build context changed) without touching running containers, so the next `up -d` gets
-them. Every run also installs each decree project's plugins at this checkout's version, and the
-`host/update` plugin (on by default) pulls and re-runs on its own once a decree daemon runs
-`host/.decree`, which the host starts at boot; `./existential.sh` says so until it does.
+them. Every run also installs each decree project's plugins at this checkout's version. The
+optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow
+reports the machine to its controller; both are host flows, run by a decree daemon in
+`host/.decree` that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`
 
@@ -174,7 +175,8 @@ fresh. → `setup.md`
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e [pattern...]`, and `flow`/`service [list|on|off]` (pickers). The
-first bare run asks one thing, Core (the default) or none; a login is asked when an enabled
+first bare run asks one thing: Core (the default), controller (Core, reporting the others), worker
+(no services; reports to a controller) or nothing; a login is asked when an enabled
 service first uses one; the hardware questions
 (`src/lib/models.sh`) wait for the first enabled service that reserves a GPU. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,

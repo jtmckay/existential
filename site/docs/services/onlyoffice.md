@@ -13,20 +13,20 @@ best `.docx` / `.xlsx` / `.pptx` fidelity of the free options — it opens Micro
 without the layout drift you get elsewhere.
 
 :::info[Not a container]
-Like [Obsidian](./obsidian), this is a desktop app rather than a service the stack runs.
+Like [Obsidian](./obsidian.md), this is a desktop app rather than a service the stack runs.
 There is no compose file and no `<slug>.EXIST_DOMAIN` hostname. It edits files in place, in
-the directory [Nextcloud](../storage/nextcloud) syncs.
+the directory [Nextcloud](../storage/nextcloud.md) syncs.
 :::
 
 ## Why the desktop app rather than a hosted one
 
-The stack already has an in-browser editor: [Collabora](../storage/collabora) is wired into
+The stack already has an in-browser editor: [Collabora](../storage/collabora.md) is wired into
 Nextcloud and handles quick edits from any device. ONLYOFFICE Desktop covers the other case
 — long editing sessions, heavy documents, and full Office format fidelity — running locally
 against the same synced folder.
 
 ONLYOFFICE's own document server was
-[tried and retired](../graveyard/file-editors/only-office) from this stack; Collabora fills
+[tried and retired](../graveyard/file-editors/only-office.md) from this stack; Collabora fills
 that role now. The desktop editors are a separate product and a separate decision.
 
 ## Setup

@@ -16,8 +16,8 @@ image, so it is in two places:
 
 | Where | Use for |
 |---|---|
-| [code-server](../services/code-server)'s terminal | `pi` for the TUI, `pi -p "…"` for one answer |
-| [decree](../decree/) machines | `agent_task`, `router`, `note_connect`: work with nobody present, the answer filed in `workspace/ai/` |
+| [code-server](../services/code-server.md)'s terminal | `pi` for the TUI, `pi -p "…"` for one answer |
+| [decree](../decree/decree.md) machines | `agent_task`, `router`, `note_connect`: work with nobody present, the answer filed in `workspace/ai/` |
 
 ## What it talks to
 
@@ -26,8 +26,8 @@ daemon and of code-server:
 
 - **`models.json`**: an `existential` provider at the chat role's `/v1` URL (`EXIST_MODEL_URL_CHAT`,
   else `EXIST_MODEL_URL`) with `EXIST_MODEL_CHAT` and its context window. A bare `pi` starts on it.
-- **`mcp.json`**: the MCP server of every add-on that is on: [OpenViking](./openviking),
-  [Firecrawl](./firecrawl), [MCP](./mcp) (Playwright) and [qmd](./qmd). Turn an add-on off and its
+- **`mcp.json`**: the MCP server of every add-on that is on: [OpenViking](./openviking.md),
+  [Firecrawl](./firecrawl.md), [MCP](./mcp.md) (Playwright) and [qmd](./qmd.md). Turn an add-on off and its
   server is gone on the next boot. OpenViking's key stays in the environment, not in the file.
 - **`settings.json`**: install telemetry off.
 
