@@ -46,7 +46,6 @@ const MASTER_COMPOSE = path.join(REPO_ROOT, 'docker-compose.yml');
 const CATEGORY_DIRS = ['ai', 'services', 'hosting', 'nas'];
 
 const CONTAINER_NAME_RE  = /^\s*container_name:\s*([\w-]+)\s*$/;
-const PORT_LINE_RE       = /^\s*-\s*"?(?:127\.0\.0\.1:)?(?:\$\{[^}]+\}|\d+):(\d+)(?:\/(?:tcp|udp))?"?\s*(?:#.*)?$/;
 // Caddy hostnames use Caddy's env form `<slug>.{$CADDY_DOMAIN}` (resolved at runtime
 // from the container env, NOT rendered). The validator reads the file, so it matches
 // the literal token. (Dashy uses the bare EXIST_DOMAIN form — see DASHY_URL_RE.)
@@ -70,7 +69,6 @@ interface ServiceDecl {
   file: string;
   line: number;
   folderSlug: string;
-  ports: number[];
 }
 
 interface CaddyBlock {
@@ -87,6 +85,14 @@ interface DashyItem {
 
 // ── Parsers ────────────────────────────────────────────────────────────────────
 
+// A service folder ships an exist file of its own (a template or an exist.<action>.sh).
+// A folder holding only rendered files is what a retired service left behind: its
+// .env and docker-compose.yml are gitignored, so git never removed them.
+function isServiceDir(dir: string): boolean {
+  return fs.existsSync(dir) && fs.statSync(dir).isDirectory() &&
+    fs.readdirSync(dir).some(n => n.startsWith('exist.') || n.includes('.exist.'));
+}
+
 function parseServiceComposes(): Map<string, ServiceDecl> {
   const services = new Map<string, ServiceDecl>();
 
@@ -99,28 +105,13 @@ function parseServiceComposes(): Map<string, ServiceDecl> {
       const composePath = path.join(catPath, entry.name, 'docker-compose.exist.yml');
       if (!fs.existsSync(composePath)) continue;
 
-      const folderSlug = entry.name;
-      let currentDecl: ServiceDecl | null = null;
       const lines = fs.readFileSync(composePath, 'utf8').split('\n');
-
-      for (let lineno = 0; lineno < lines.length; lineno++) {
-        const raw = lines[lineno];
+      lines.forEach((raw, lineno) => {
         const nm = CONTAINER_NAME_RE.exec(raw);
-        if (nm) {
-          currentDecl = {
-            slug: nm[1],
-            file: composePath,
-            line: lineno + 1,
-            folderSlug,
-            ports: [],
-          };
-          if (!services.has(nm[1])) services.set(nm[1], currentDecl);
-          continue;
+        if (nm && !services.has(nm[1])) {
+          services.set(nm[1], { slug: nm[1], file: composePath, line: lineno + 1, folderSlug: entry.name });
         }
-        if (!currentDecl) continue;
-        const pm = PORT_LINE_RE.exec(raw);
-        if (pm) currentDecl.ports.push(parseInt(pm[1], 10));
-      }
+      });
     }
   }
 
@@ -508,33 +499,14 @@ function main(): number {
 
   const caddySlugSet = new Set(caddy.keys());
 
-  // (5) Caddy backend matches an actual container
-  const containerPorts = new Map<string, Set<number>>();
-  for (const [slug, decl] of services) {
-    containerPorts.set(slug, new Set(decl.ports));
-  }
-
+  // (5) Caddy backend matches an actual container. Caddy reaches it over the
+  // exist network, so the ports compose publishes on the host say nothing here.
   for (const [slug, block] of caddy) {
-    const decl = services.get(block.backendContainer);
-    if (!decl) {
+    if (!services.has(block.backendContainer)) {
       errors.push(
         `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
         `'${slug}.<domain>' proxies to '${block.backendContainer}' — ` +
         `no service compose declares that container_name`,
-      );
-      continue;
-    }
-    if (block.backendPort.startsWith('{')) continue;
-    const portInt = parseInt(block.backendPort, 10);
-    if (isNaN(portInt)) continue;
-    const ports = containerPorts.get(block.backendContainer) ?? new Set();
-    if (ports.size > 0 && !ports.has(portInt)) {
-      warnings.push(
-        `hosting/caddy/Caddyfile.exist.Caddyfile:${block.line}: ` +
-        `'${slug}.<domain>' → ${block.backendContainer}:${portInt}, but ` +
-        `the compose file only publishes [${[...ports].sort().join(', ')}] ` +
-        `(${path.relative(REPO_ROOT, decl.file)}:${decl.line}). ` +
-        `OK if the container exposes more than it publishes.`,
       );
     }
   }
@@ -605,7 +577,7 @@ function main(): number {
       const fm = fs.readFileSync(f, 'utf8').match(/^---\n([\s\S]*?)\n---/);
       const svc = fm?.[1].match(/^service:\s*(\S+)\s*$/m)?.[1];
       if (!svc) continue;
-      if (!CATEGORY_DIRS.includes(svc.split("/")[0]) || !fs.existsSync(path.join(REPO_ROOT, svc))) {
+      if (!CATEGORY_DIRS.includes(svc.split("/")[0]) || !isServiceDir(path.join(REPO_ROOT, svc))) {
         errors.push(`site/docs/${rel}.md: documents service ${svc}, which has no folder — move the page to graveyard/ or fix the path`);
       } else if ([...pageService.values()].includes(svc)) {
         errors.push(`site/docs/${rel}.md: documents ${svc}, which another page already claims — one page per service`);
@@ -617,7 +589,7 @@ function main(): number {
       const catDir = path.join(REPO_ROOT, cat);
       if (!fs.existsSync(catDir)) continue;
       for (const e of fs.readdirSync(catDir, {withFileTypes: true})) {
-        if (e.isDirectory() && !documented.has(`${cat}/${e.name}`)) {
+        if (isServiceDir(path.join(catDir, e.name)) && !documented.has(`${cat}/${e.name}`)) {
           errors.push(`${cat}/${e.name}: no docs page — add one under site/docs/ with \`service: ${cat}/${e.name}\` in its frontmatter`);
         }
       }
@@ -634,11 +606,13 @@ function main(): number {
     if (!docExists(m[1])) errors.push(`README.md: links docs/${m[1]}, which is no page in site/docs/`);
   }
 
-  // (15) Flows: flows/<name>/flow.md, frontmatter then what is left for a person.
-  // Read the way src/utils/flows.sh reads it (flat scalars, block lists), so a
-  // manifest this accepts is one the picker, e2e and exist.initial.sh can read.
-  // The body is prose: an example in it is never config.
-  const flowsDir = path.join(REPO_ROOT, 'flows');
+  // (15) Plugins: automation/plugins/<name>.md is a machine (it has a chart), and
+  // automation/plugins/flows/<name>.md is a flow (it has none): what one curated
+  // thing needs, or lib others need. A flow with a tagline is one a person picks,
+  // and its first keys are read by src/utils/flows.sh with awk on the host, so they
+  // are flat scalars and block lists.
+  const pluginsDir = path.join(REPO_ROOT, 'automation/plugins');
+  const flowsDir = path.join(pluginsDir, 'flows');
   const fmList = (body: string, key: string): string[] => {
     const lines = body.split('\n');
     const start = lines.findIndex(l => new RegExp(`^${key}:\\s*$`).test(l));
@@ -658,34 +632,75 @@ function main(): number {
     if (!fs.existsSync(catDir)) continue;
     for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (e.isDirectory()) serviceVars.add(varFor(`${cat}/${e.name}`));
   }
-  if (fs.existsSync(flowsDir)) {
-    const names = fs.readdirSync(flowsDir, {withFileTypes: true}).filter(e => e.isDirectory()).map(e => e.name);
-    // The Flows page lists every flow by id, so the catalogue a reader sees is the one that ships.
-    const catalogue = path.join(docsDir, 'flows/index.md');
-    const listed = fs.existsSync(catalogue) ? fs.readFileSync(catalogue, 'utf8') : null;
-    for (const n of names) {
-      const where = `flows/${n}/flow.md`;
-      const file = path.join(flowsDir, n, 'flow.md');
-      if (!fs.existsSync(file)) { errors.push(`flows/${n}: no flow.md — a flow is its manifest plus the files that switch it on`); continue; }
-      if (listed !== null && !listed.includes(`| \`${n}\` |`)) errors.push(`flows/${n}: not in the table in site/docs/flows/index.md — add a row`);
-      const fm = fs.readFileSync(file, 'utf8').match(/^---\n([\s\S]*?)\n---/);
-      if (!fm) { errors.push(`${where}: no frontmatter fence`); continue; }
-      for (const key of ['name', 'tagline', 'docs']) {
-        if (!new RegExp(`^${key}:\\s*\\S`, 'm').test(fm[1])) errors.push(`${where}: no '${key}:' — the picker needs it`);
+  // The plugin system's machines, which every project has.
+  const kernelMachines = fs.existsSync(path.join(REPO_ROOT, 'automation/machines'))
+    ? fs.readdirSync(path.join(REPO_ROOT, 'automation/machines')).filter(f => f.endsWith('.yml')).map(f => f.replace(/\.yml$/, ''))
+    : [];
+  type Plugin = {file: string; where: string; flow: boolean; raw: string; fm: Record<string, unknown>};
+  const plugins = new Map<string, Plugin>();
+  for (const [dir, flow] of [[pluginsDir, false], [flowsDir, true]] as const) {
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.md'))) {
+      const n = f.replace(/\.md$/, '');
+      const where = path.relative(REPO_ROOT, path.join(dir, f));
+      const m = fs.readFileSync(path.join(dir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/);
+      if (!m) { errors.push(`${where}: no frontmatter fence`); continue; }
+      if (plugins.has(n)) { errors.push(`${where}: ${plugins.get(n)!.where} has the name ${n} too — a plugin name is one thing`); continue; }
+      const fm = (yaml.load(m[1]) as Record<string, unknown> | null) ?? {};
+      plugins.set(n, {file: path.join(dir, f), where, flow, raw: m[1], fm});
+      if (fm.automation !== n) errors.push(`${where}: automation: is ${String(fm.automation)}, not its file name ${n}`);
+      if (flow && 'chart' in fm) errors.push(`${where}: has a chart — a plugin with a machine belongs in automation/plugins/`);
+      if (!flow && !('chart' in fm)) errors.push(`${where}: has no chart — a plugin with no machine is a flow, in automation/plugins/flows/`);
+    }
+  }
+  const closure = (n: string): Set<string> => {
+    const reach = new Set(kernelMachines);
+    const queue = [n];
+    while (queue.length) {
+      const pl = queue.shift()!;
+      if (reach.has(pl)) continue;
+      reach.add(pl);
+      queue.push(...(((plugins.get(pl)?.fm.needs) as string[] | undefined) ?? []));
+    }
+    return reach;
+  };
+  // The Flows page lists every flow a person picks, so the catalogue a reader sees is the one that ships.
+  const catalogue = path.join(docsDir, 'flows/index.md');
+  const listed = fs.existsSync(catalogue) ? fs.readFileSync(catalogue, 'utf8') : null;
+  for (const [n, pl] of plugins) {
+    const needs = ((pl.fm.needs as string[] | undefined) ?? []);
+    for (const x of needs) if (!plugins.has(x)) errors.push(`${pl.where}: needs ${x}, which is no plugin`);
+    if (pl.flow) {
+      for (const key of ['services', 'needs']) {
+        const want = ((pl.fm[key] as string[] | undefined) ?? []).join(' ');
+        if (fmList(pl.raw, key).join(' ') !== want) errors.push(`${pl.where}: ${key}: must be a block list (  - x), which the host reads`);
       }
-      const docs = fm[1].match(/^docs:\s*\/docs\/(\S*)/m)?.[1];
-      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${where}: docs /docs/${docs} is no page in site/docs/`);
-      for (const v of fmList(fm[1], 'services')) {
-        if (!serviceVars.has(v)) errors.push(`${where}: services names ${v}, which is no service folder`);
+    }
+    if (pl.flow && pl.fm.tagline) {
+      if (listed !== null && !listed.includes(`| \`${n}\` |`)) errors.push(`${pl.where}: not in the table in site/docs/flows/index.md — add a row`);
+      for (const key of ['name', 'docs']) if (!pl.fm[key]) errors.push(`${pl.where}: no '${key}:' — the picker needs it`);
+      const docs = String(pl.fm.docs ?? '').match(/^\/docs\/(\S*)/)?.[1];
+      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${pl.where}: docs /docs/${docs} is no page in site/docs/`);
+      for (const v of ((pl.fm.services as string[] | undefined) ?? [])) {
+        if (!serviceVars.has(v)) errors.push(`${pl.where}: services names ${v}, which is no service folder`);
       }
-      for (const f of fmList(fm[1], 'flows')) {
-        if (!names.includes(f)) errors.push(`${where}: flows names ${f}, which is no flow`);
+    }
+    // A plugin turns on its own automations: every machine its crons and
+    // migrations name is itself, something it needs, or the plugin system's.
+    const reach = closure(n);
+    for (const kind of ['cron', 'migrations']) {
+      for (const [k, text] of Object.entries((pl.fm[kind] as Record<string, string> | undefined) ?? {})) {
+        const m = String(text).match(/^---\n[\s\S]*?^machine:\s*([a-z_][a-z0-9_]*)/m);
+        if (m && !reach.has(m[1])) errors.push(`${pl.where}: ${kind} ${k} runs ${m[1]}, which it does not need`);
       }
-      for (const pr of fmList(fm[1], 'processors')) {
-        if (!fs.existsSync(path.join(REPO_ROOT, 'automation/lib/file-processors.example', pr))) {
-          errors.push(`${where}: processors names ${pr}, which is not in automation/lib/file-processors.example/`);
-        }
-      }
+    }
+  }
+  // What each project starts with names only plugins there are.
+  for (const seed of ['automation/plugins.exist.yml', 'automation/plugins.host.exist.yml', 'services/automation-backup/plugins.exist.yml']) {
+    const f = path.join(REPO_ROOT, seed);
+    if (!fs.existsSync(f)) continue;
+    for (const n of (((yaml.load(fs.readFileSync(f, 'utf8')) as {on?: string[]} | null)?.on) ?? [])) {
+      if (!plugins.has(n)) errors.push(`${seed}: turns on ${n}, which is no plugin`);
     }
   }
 

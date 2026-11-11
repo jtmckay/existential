@@ -36,7 +36,7 @@ service dir) and nothing more.
 not — and it belongs in `volumes/<name>` with a declaration, never in the service folder. There
 is no "service-dir scratch" tier: that exemption is what once let a service's build trees live
 in its folder for a year, outside `automation-backup`'s reach and invisible to `reset`, which only knows how to offer deleting a `_cache` **volume**. The one root outside
-`volumes/` is `automation/`: the machines and scripts the repo ships (seeded into
+`volumes/` is `automation/`: the plugins and plugin system the repo ships (installed into
 `workspace_data/.decree`, the live project), plus `lib/`, `secrets/` and `.env`.
 The user's own content is a volume too — `workspace_data`, declared identically by every
 service that mounts it.

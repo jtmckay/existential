@@ -278,6 +278,26 @@ _start_on_boot() {
     return 0
 }
 
+# The host's own plugins (host/.decree: update, by default) at this checkout's
+# version, then whether a decree daemon is there to run them. Nothing starts one
+# for you: it has to start at boot, which is the host's to set up.
+_host_plugins() {
+    run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host \
+        || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh run plugin sync host tries again."
+    [[ -f "${SCRIPT_DIR}/host/.decree/machines/update.yml" ]] || return 0
+    if ! command -v decree >/dev/null 2>&1; then
+        echo "  ⚠  host/update keeps this install on its branch, and needs decree on the host:"
+        echo "     https://github.com/jtmckay/decree (the version services/automation/decree/Dockerfile pins)."
+        echo "     Or turn it off:  ./existential.sh run plugin off host/update"
+    elif ! tmux has-session -t "=existential-host" 2>/dev/null; then
+        echo "  ⚠  host/update keeps this install on its branch, and no decree daemon runs host/.decree. Start one:"
+        echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
+        echo "     and have it start at boot: https://existential.company/docs/hosting/updates"
+        echo "     Or turn it off:  ./existential.sh run plugin off host/update"
+    fi
+    return 0
+}
+
 # ── Service enablement ────────────────────────────────────────────────────────
 # SERVICE_CATEGORIES, _load_env_shared, _reload_env_shared, _enable_var_for,
 # service_is_enabled, and _find_service_dirs come from src/utils/service-common.sh
@@ -787,6 +807,7 @@ _build() {
     run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
     _warn_if_no_gateway
     run_initials
+    _host_plugins
     _stage_images
     echo "Done! Next step:  docker compose up -d"
     _report_dashboard

@@ -35,14 +35,15 @@ docker exec automation decree status --cron # each cron file and when it fires n
 echo | docker exec -i automation decree emit --machine <name>   # run one by hand
 ```
 
-Every machine and chain is drawn in `automation/graph/system.md` (and
-`services/automation-backup/graph/`).
+Every machine and chain an install has is drawn in `workspace/.decree/graph/system.md` (and
+`services/automation-backup/graph/`), redrawn whenever a machine changes. Which machines those
+are is up to you: see [Plugins](./plugins).
 
 ## Claude for machines
 
 You write machines by talking to Claude in code-server's terminal. Machines call AI in two ways:
-- `model_chat` (`automation/lib/model.sh`) is one answer from the stack's own model endpoint.
-- `agent` (`automation/lib/agent.sh`) is Claude Code, which can read and search your workspace.
+- `model_chat` (`workspace/.decree/lib/model.sh`) is one answer from the stack's own model endpoint.
+- `agent` (`workspace/.decree/lib/agent.sh`) is Claude Code, which can read and search your workspace.
 
 The automation container comes with Claude Code installed. Sign it in once:
 

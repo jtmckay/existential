@@ -68,9 +68,18 @@ $sources"
 }
 ```
 
-- `web_search` and `web_read` come from `automation/lib/firecrawl.sh`; any decree script can use
+- `web_search` and `web_read` come from `workspace/.decree/lib/firecrawl.sh`; any decree script can use
   them. With Firecrawl off, `develop` refuses steps that use them.
 - The verdict comes first because the first lines are what reach your phone.
+
+## Plugins: an automation that brings its own machine
+
+An automation can arrive already written: a [plugin](../decree/plugins), one markdown file whose
+frontmatter holds the whole machine. One offered by another stack waits in `ai/proposed/`;
+accept it the same way, by moving it into `notes/automations/<name>.md`, and the `plugin`
+machine installs it as written, asking no model. It is code that runs with the automation
+container's access, so read it before you accept it. Editing or deleting it reinstalls or
+removes all of it, endpoints included.
 
 ## Changing or removing one
 

@@ -11,7 +11,7 @@ Every model the stack uses is named once, in `.env.exist.shared`'s *Model Select
 Consumers read those keys rather than naming a tag themselves:
 
 - ollama migrations name an `OLLAMA_ROLE`, never a tag
-- pi's provider is written from them (`automation/lib/pi.sh`), open-webui's backend rendered from them
+- pi's provider is written from them (`lib/pi.sh`), open-webui's backend rendered from them
 - the wyoming services take them as compose env
 
 A hardcoded model tag in a service is a second place to edit when the user changes machines or
@@ -43,13 +43,13 @@ fallback**. There are exactly three resolvers, one per context:
 |---|---|
 | host scripts | source `src/utils/model-endpoints.sh`, call `endpoint_for <role>` |
 | rendered templates | write the bare token `EXIST_MODEL_URL_EMBED`; `src/templates.sh` resolves it before substitution |
-| containers (decree) | compose passes the raw keys; source `automation/lib/model.sh`, call `model_url <role>` |
+| containers (decree) | compose passes the raw keys; source `lib/model.sh`, call `model_url <role>` |
 
 Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary, so a model is pulled to the machine that
 actually serves it. Adding a role means touching all three resolvers —
 `src/test/unit/test-model-endpoints.sh` asserts they agree, so a half-done role fails the suite.
 
-**A decree script reaches a model through `automation/lib/model.sh`** (`model_chat`,
+**A decree script reaches a model through `lib/model.sh`** (`model_chat`,
 `model_gate`), straight at the role's URL. Work that needs an agent with tools runs pi through
 `pi.sh` (`pi_run`), whose provider `pi_configure` writes from `model_url chat` — the same
 resolver, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path

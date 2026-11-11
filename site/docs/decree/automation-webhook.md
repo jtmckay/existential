@@ -21,7 +21,7 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 ## Endpoints
 
 The endpoints are `workspace/.decree/decree-go-rest.yml`, seeded once from
-`automation/decree-go-rest.yml`; edits are picked up without a restart, and
+`workspace/.decree/decree-go-rest.yml`; edits are picked up without a restart, and
 `GET /openapi.json` lists them all. Among them:
 
 | Endpoint | Runs |

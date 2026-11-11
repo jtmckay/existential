@@ -12,7 +12,7 @@
 # a role, which must never disagree:
 #   src/utils/model-endpoints.sh  — host scripts (openviking, models.sh)
 #   src/templates.sh              — rendered configs (open-webui's compose)
-#   automation/lib/model.sh       — inside the decree container, which cannot see src/
+#   lib/model.sh (the model plugin)       — inside the decree container, which cannot see src/
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +25,10 @@ REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 ENDPOINTS="${SRC_DIR}/utils/model-endpoints.sh"
 TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
-MODEL_LIB="${REPO_DIR}/automation/lib/model.sh"
+# model.sh is the model plugin's lib, unpacked as the stack installs it.
+_U="$(mktemp -d)"; trap 'rm -rf "$_U"' EXIT
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack model "$_U" ) >/dev/null
+MODEL_LIB="${_U}/.decree/lib/model.sh"
 OPEN_WEBUI="${REPO_DIR}/ai/open-webui/docker-compose.exist.yml"
 DEFAULT_URL="http://ollama:11434/v1"
 
@@ -144,8 +147,8 @@ for _case in "global" "split" "unset"; do
 done
 ( model_url definitely-not-a-role ) >/dev/null 2>&1 && _disagree+="unknown-role-accepted "
 [[ -z "$_disagree" ]] \
-    && _ok "automation/lib/model.sh resolves every role exactly as model-endpoints.sh" \
-    || _fail "automation/lib/model.sh resolves every role exactly as model-endpoints.sh" "$_disagree"
+    && _ok "lib/model.sh (the model plugin) resolves every role exactly as model-endpoints.sh" \
+    || _fail "lib/model.sh (the model plugin) resolves every role exactly as model-endpoints.sh" "$_disagree"
 
 # templates.sh resolves the blanks for rendered configs. Its loop is a literal
 # list of role names, so it is the one place that silently omits a new role.

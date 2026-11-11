@@ -1,0 +1,6 @@
+# The host project's plugins (host/.decree): host/.decree/plugins.yml is yours,
+# copied from this once. ./existential.sh run plugin on|off host/<name> edits it.
+on:
+  - update
+# false: a plugin whose file changed is named on ./existential.sh, not installed.
+auto_update: true

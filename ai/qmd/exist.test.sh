@@ -97,10 +97,10 @@ fi
 
 # The terminal command (`search` in code-server, `run qmd search` on the host).
 if [[ "${DOCS:-0}" != 0 ]]; then
-    _cli="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/automation/lib/recall/search.sh"
+    _cli="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/recall/search.sh"
     if QMD_URL="${QMD_URL}" "$_cli" e >/dev/null 2>&1; then
         ok "the search command answers"
     else
-        fail "the search command answers" "automation/lib/recall/search.sh e failed" "./existential.sh run qmd search e"
+        fail "the search command answers" "ai/qmd/recall/search.sh e failed" "./existential.sh run qmd search e"
     fi
 fi

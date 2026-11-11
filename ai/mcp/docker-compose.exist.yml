@@ -1,6 +1,6 @@
 # Playwright MCP — browser automation exposed over MCP (Streamable HTTP, /mcp).
 #
-# Consumer: pi, which automation/lib/pi.sh registers it with while this is on
+# Consumer: pi, which lib/pi.sh registers it with while this is on
 # (a department names it as `mcp: playwright`).
 #
 # Access: http://mcp-playwright:8931/mcp on the exist network.

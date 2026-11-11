@@ -1,0 +1,47 @@
+---
+machine: plugin
+automation: note-connect
+name: Notes that find their own connections
+tagline: A new note is checked against everything you already wrote, and real links come back to you
+docs: /docs/flows/note-connect
+needs:
+  - note_connect
+  - knowledgebase
+cron:
+  note-connect: |
+    ---
+    cron: "0 * * * *"
+    machine: note_connect
+    params:
+      CONNECT_DEPARTMENT: research
+      CONNECT_MIN_SCORE: 7
+      CONNECT_MAX_NOTES: 20
+      # CONNECT_OUTPUT_RCLONE_DEST: "nextcloud:Notes"   # copy the writeup back beside the vault
+    ---
+
+    Hourly scan of workspace/ (NOTES_DIR's default) for new or changed notes with a genuinely
+    interesting, non-obvious connection to something already in your knowledge base.
+
+    Different question than note_triage: not "is this worth acting on" but "does anything you
+    already know connect to this". The search runs through pi in the `research`
+    department (workspace/.decree/lib/departments/research.yml) so it can reach OpenViking as a tool —
+    a plain completion cannot search the knowledge base.
+
+    The first run records the tree as seen WITHOUT scanning, so enabling this over an existing
+    workspace does not fire a call per note. To scan the backlog once, run it by hand with
+    CONNECT_BOOTSTRAP=true:
+
+      docker exec automation decree emit --machine note_connect --param CONNECT_BOOTSTRAP=true </dev/null
+
+    CONNECT_MIN_SCORE is the part worth tuning — raise it if too many topical-but-boring
+    connections get through, lower it if nothing ever clears the bar. Try CONNECT_DRY_RUN=true
+    for a few runs to see what it would have surfaced before it starts writing files and
+    notifying.
+
+    The same source-note-to-target pairing is never surfaced twice; editing the source note
+    again can surface a new pairing, just not the same one.
+
+    Requires openviking enabled, and workspace/ actually indexed
+    (openviking-index-knowledgebase — on by default with Core). Point NOTES_DIR at /data/notes
+    instead to scan a note-triage-style vault mirror there.
+---

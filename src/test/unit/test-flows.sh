@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
 # test-flows.sh — `./existential.sh flow`: what a flow turns on, and what off undoes.
+# A flow is a plugin with no machine (automation/plugins/flows/), and the
+# workspace's plugins.yml is the one record of what is on.
 #
-#   on        its services, the flows it needs and theirs, then its files; the GPU
-#             answer outranks a service it names
+#   on        its services and those of the flows it needs, then it is in
+#             plugins.yml; the sync after installs it and all it needs, its
+#             crons, and its migrations after its machines; the GPU answer
+#             outranks a service it names
 #   list      every flow, on ones marked
-#   off       its files go, unless you changed one; services stay; a default flow
-#             is remembered as off, so exist.initial.sh does not put it back
+#   off       out of plugins.yml, and the sync removes it; services stay
+#   seed      an install from before plugins.yml keeps the flows it had on
 #   shipped   every shipped flow reads, and names only what exists
 #
-# Runs src/flows.sh against a scratch repo: the shipped flows/ and the real
-# reader, a fake .env.shared. Everything is under a temp dir, removed in the trap.
+# Runs src/flows.sh and src/lib/plugin.sh against a scratch repo: the shipped
+# plugins and the real readers, a fake .env.shared. Everything is under a temp
+# dir, removed in the trap.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
 SRC_DIR="${REPO_DIR}/src"; [[ -f "${SRC_DIR}/flows.sh" ]] || SRC_DIR="/src"
+command -v yq >/dev/null 2>&1 || { echo "skipped — yq not available (run inside existential-adhoc)"; exit 0; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
@@ -27,74 +33,96 @@ is_file() { [[ -e "$1" ]] && echo yes || echo no; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 R="${TMP}/repo"
-mkdir -p "${R}/src/utils" "${R}/automation/lib"
-cp -r "${REPO_DIR}/flows" "${R}/"
-cp -r "${REPO_DIR}/automation/lib/file-processors.example" "${R}/automation/lib/"
-cp -r "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${REPO_DIR}/automation/graph" "${R}/automation/"
+mkdir -p "${R}/src/utils" "${R}/src/lib" "${R}/automation"
+cp -r "${REPO_DIR}/automation/machines" "${REPO_DIR}/automation/scripts" "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${R}/automation/"
+cp "${REPO_DIR}/automation/plugins.exist.yml" "${R}/automation/"
+cp "${SRC_DIR}/lib/plugin.sh" "${R}/src/lib/"
 cp "${SRC_DIR}/flows.sh" "${R}/src/"
 cp "${SRC_DIR}/utils/flows.sh" "${SRC_DIR}/utils/gpu-vendor.sh" "${R}/src/utils/"
 grep -E '^EXIST_IS_' "${REPO_DIR}/.env.exist.shared" > "${R}/.env.shared"
 echo "EXIST_GPU_VENDOR=nvidia" >> "${R}/.env.shared"
 D="${R}/volumes/workspace_data/.decree"
+mkdir -p "$D"; cp "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${D}/decree-go-rest.yml"
+# decree check is the gate's (test decree); here it always passes.
+mkdir -p "${TMP}/bin"; printf '#!/bin/sh\nexit 0\n' > "${TMP}/bin/decree"; chmod +x "${TMP}/bin/decree"
 
 flow() { REPO_DIR="$R" bash "${R}/src/flows.sh" "$@" 2>&1 </dev/null; }
+sync() { PATH="${TMP}/bin:${PATH}" REPO_DIR="$R" bash "${R}/src/lib/plugin.sh" sync automation >/dev/null 2>&1; }
 env_of() { grep "^$1=" "${R}/.env.shared" | cut -d= -f2; }
+on_list() { yq -r '.on[]' "${D}/plugins.yml" | xargs; }
 
 echo ""; echo "=== on ==="
-out="$(flow on newsletter)"; rc=$?
+out="$(flow on weekly-newsletter)"; rc=$?
 assert_eq "on succeeds" "0" "$rc"
-assert_eq "its cron file is in the workspace's decree project" "same" "$(cmp -s "${R}/flows/newsletter/cron/newsletter.md" "${D}/cron/newsletter.md" && echo same)"
+assert_has "it is in plugins.yml, with the flows every install starts with" "$(on_list)" "weekly-newsletter note-to-automation"
 assert_has "it says what is left for you" "$out" "feeds.txt"
 assert_has "...and where to read more" "$out" "existential.company/docs/flows/newsletter"
+sync
+assert_eq "the sync installs its machine" "yes" "$(is_file "${D}/machines/newsletter.yml")"
+assert_eq "...and its cron" "yes" "$(is_file "${D}/cron/newsletter.md")"
+assert_eq "...and what that needs (model, rss)" "yes" "$( [[ -f "${D}/lib/model.sh" && -f "${D}/lib/rss.ts" ]] && echo yes || echo no)"
+assert_eq "...and yours from its example, once" "yes" "$(is_file "${D}/lib/newsletter/feeds.txt")"
 out="$(flow on transcription)"
-assert_eq "a service it names is turned on" "true" "$(env_of EXIST_IS_AI_WHISPERX)"
-assert_eq "...and those of the flow it needs" "true" "$(env_of EXIST_IS_NAS_NEXTCLOUD)"
-assert_eq "the needed flow's migrations are in place" "yes" "$(is_file "${D}/migrations/27-nextcloud-file-events.md")"
-assert_eq "its file processor is in place" "yes" "$(is_file "${R}/automation/lib/file-processors/whisperx-transcribe.sh")"
+assert_eq "with no answer, no service is turned on" "false false" "$(env_of EXIST_IS_AI_WHISPERX) $(env_of EXIST_IS_NAS_NEXTCLOUD)"
+assert_has "...the flow is on, and it says what is still off" "$out" "service on nextcloud automation-webhook whisperx"
+out="$(printf "y\nn\n" | REPO_DIR="$R" bash "${R}/src/flows.sh" on transcription 2>&1)"; sync
+assert_eq "each service is asked for: yes turns that one on" "true" "$(env_of EXIST_IS_NAS_NEXTCLOUD)"
+assert_eq "...and no leaves the next one off" "false" "$(env_of EXIST_IS_AI_WHISPERX)"
+assert_has "it asks by name" "$out" "uses whisperx, which is off"
 assert_has "it says which flow came with it" "$out" "needs nextcloud-capture"
-flow on photos >/dev/null
-assert_eq "a migration's machine is in place before the migration (a running daemon sees both)" "yes" "$(is_file "${D}/machines/immich_setup.yml")"
-assert_eq "...and its scripts" "yes" "$(is_file "${D}/scripts/immich_setup.sh")"
+assert_eq "the needed flow's migrations are queued" "yes" "$(is_file "${D}/migrations/27-nextcloud-file-events.md")"
+assert_eq "...after the machine they run" "yes" "$(is_file "${D}/machines/nextcloud_file_events.yml")"
+assert_eq "its file processor, the transcribe plugin, is installed" "yes" "$(is_file "${D}/lib/file-processors/whisperx-transcribe.sh")"
 sed -i 's/^EXIST_GPU_VENDOR=.*/EXIST_GPU_VENDOR=external/' "${R}/.env.shared"
 out="$(flow on local-models)"
 assert_eq "the GPU answer outranks a flow's service" "false" "$(env_of EXIST_IS_AI_OLLAMA)"
 assert_has "...and says so" "$out" "EXIST_IS_AI_OLLAMA stays off"
 assert_eq "an unknown flow fails" "1" "$(flow on nope >/dev/null; echo $?)"
+assert_eq "a library is not a flow you turn on" "1" "$(flow on model >/dev/null; echo $?)"
 
 echo ""; echo "=== list ==="
 out="$(flow list)"; rc=$?
 assert_eq "list changes nothing (exit 3, so nothing is rebuilt)" "3" "$rc"
-assert_has "an on flow is marked" "$(grep ' newsletter ' <<<"$out")" "✓"
+assert_has "an on flow is marked" "$(grep ' weekly-newsletter ' <<<"$out")" "✓"
 assert_lacks "an off flow is not" "$(grep ' check-versions ' <<<"$out")" "✓"
+assert_lacks "a library is not listed" "$(awk '{ print ($1 == "✓" ? $2 : $1) }' <<<"$out" | xargs)" " model "
 assert_eq "without a terminal, the bare command lists" "3" "$(flow >/dev/null; echo $?)"
 
 echo ""; echo "=== off ==="
-out="$(flow off newsletter)"
-assert_eq "off removes its file" "no" "$(is_file "${D}/cron/newsletter.md")"
+out="$(flow off weekly-newsletter)"
+assert_lacks "off takes it out of plugins.yml" "$(on_list)" "weekly-newsletter"
 assert_has "...and says its services stay" "$out" "stay on"
-flow on newsletter >/dev/null
-echo "# my change" >> "${D}/cron/newsletter.md"
-out="$(flow off newsletter)"
-assert_eq "an edited copy is kept" "yes" "$(is_file "${D}/cron/newsletter.md")"
-assert_has "...and it says why" "$out" "you changed it"
-mkdir -p "${D}/cron"; cp "${R}/flows/you-were-here/cron/you-were-here.md" "${D}/cron/"
-flow off you-were-here >/dev/null
-assert_eq "a default flow turned off is remembered" "you-were-here" "$(cat "${D}/flows-off" 2>/dev/null)"
-assert_lacks "...so it is not a default any more" "$(REPO_DIR="$R"; . "${R}/src/utils/flows.sh"; flow_defaults)" "you-were-here"
-flow on you-were-here >/dev/null
-assert_eq "turning it on again forgets that" "" "$(cat "${D}/flows-off" 2>/dev/null)"
+sync
+assert_eq "the sync removes its machine and cron" "no" "$( [[ -e "${D}/machines/newsletter.yml" || -e "${D}/cron/newsletter.md" ]] && echo yes || echo no)"
+assert_eq "...but not what is yours" "yes" "$(is_file "${D}/lib/newsletter/feeds.txt")"
+flow off health-checks >/dev/null; sync
+assert_eq "a flow every install starts with goes off the same way" "no" "$(is_file "${D}/cron/health-checks.md")"
+assert_eq "...and stays off" "no" "$(sync; is_file "${D}/cron/health-checks.md")"
+flow off you-were-here >/dev/null; sync
+assert_eq "one another flow that is on needs stays (look-back needs you-were-here)" "yes" "$(is_file "${D}/cron/you-were-here.md")"
+
+echo ""; echo "=== seed ==="
+# An install from before plugins.yml: an old flow's cron in place, a default flow it turned off.
+O="${TMP}/old"; mkdir -p "$O"; cp -r "${R}/automation" "${R}/src" "$O/"
+mkdir -p "${O}/volumes/workspace_data/.decree/cron"
+printf -- '---\nmachine: check_versions\ncron: "0 9 * * 1"\n---\n' > "${O}/volumes/workspace_data/.decree/cron/check-versions.md"
+echo look-back > "${O}/volumes/workspace_data/.decree/flows-off"
+PATH="${TMP}/bin:${PATH}" REPO_DIR="$O" bash "${O}/src/lib/plugin.sh" seed automation >/dev/null 2>&1
+seeded="$(yq -r '.on[]' "${O}/volumes/workspace_data/.decree/plugins.yml" | xargs)"
+assert_has "a flow it had on stays on" "$seeded" "check-versions"
+assert_lacks "a default it had turned off stays off" "$seeded" "look-back"
+assert_has "...and the other defaults are on" "$seeded" "you-were-here"
+assert_eq "flows-off is gone: plugins.yml says it all" "no" "$(is_file "${O}/volumes/workspace_data/.decree/flows-off")"
 
 echo ""; echo "=== shipped ==="
 # shellcheck source=../../utils/flows.sh
 REPO_DIR="$REPO_DIR"; . "${SRC_DIR}/utils/flows.sh"
 for n in $(flow_names); do
-    [[ -n "$(flow_get "$n" name)" && -n "$(flow_get "$n" tagline)" ]] || _fail "${n} has a name and a tagline"
-    while IFS=$'\t' read -r src _; do
-        [[ -f "${REPO_DIR}/${src}" ]] || _fail "${n}: ${src} exists"
-    done < <(flow_files "$n")
+    [[ -n "$(flow_get "$n" name)" && -n "$(flow_get "$n" docs)" ]] || _fail "${n} has a name and docs"
 done
-_ok "every shipped flow has a name, a tagline, and files that exist"
-assert_eq "the default flows are the ones Core needs" "clean-runs health-checks look-back you-were-here" "$(flow_defaults | sort | xargs)"
+_ok "every shipped flow has a name, a tagline and docs"
+for n in $(flow_defaults); do flow_exists "$n" || _fail "plugins.exist.yml turns on ${n}, which is no flow"; done
+_ok "every flow plugins.exist.yml turns on is one"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven (run-all.sh selfcheck).

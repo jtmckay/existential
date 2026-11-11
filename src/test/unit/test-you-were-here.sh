@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-you-were-here.sh — the "you were here" digest, automation/scripts/you_were_here.sh.
+# test-you-were-here.sh — the "you were here" digest, the you_were_here plugin.
 #
 # Three digests on three days over one workspace, with `decree emit` stubbed so a push
 # is a file, and one local server that is both the feed and the model:
@@ -42,6 +42,8 @@ assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found:
 section() { awk -v h="## $2" '$0 == h {f=1; next} f && /^## /{exit} f' "$1"; }
 
 TMP="$(mktemp -d)"
+# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
+for _p in you_were_here; do ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
@@ -129,11 +131,11 @@ run_digest() {
     local run="${TMP}/rundirs/$1"
     mkdir -p "$run"
     ( cd "$W" && PATH="${TMP}/bin:$(dirname "$TSX"):${PATH}" TZ=UTC PUSHES="${TMP}/pushes" \
-        DECREE_LIB="${REPO_DIR}/automation/lib" DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="$run" \
+        DECREE_LIB="${TMP}/unpacked/.decree/lib" DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="$run" \
         DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_NOTE_LINK="" EXIST_TAILNET_NAME="${TAILNET_UNDER_TEST:-}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model DIGEST_NOW="$1" \
         WIKIPEDIA_URL="http://127.0.0.1:${PORT}" \
-        bash "${REPO_DIR}/automation/scripts/you_were_here.sh" ) > "${run}.log" 2>&1
+        bash "${TMP}/unpacked/.decree/scripts/you_were_here/you_were_here.sh" ) > "${run}.log" 2>&1
     echo $?
 }
 NOTE="$W/ai/you-were-here.md"
@@ -227,11 +229,11 @@ assert_eq "the archive is per day" "3" "$(find "$W/ai/you-were-here" -name '*.md
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 assert_eq "the cron template runs this machine" "you_were_here" \
-    "$(awk '/^machine:/{print $2; exit}' "${REPO_DIR}/flows/you-were-here/cron/you-were-here.md")"
-assert_has "it is a default flow, on in every install" "$(cat "${REPO_DIR}/flows/you-were-here/flow.md")" "default: true"
-assert_eq "POST /you-were-here queues this machine" "you_were_here" \
-    "$(awk '/- path: \/you-were-here$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
-assert_lacks "no second feed parser" "$(cat "${REPO_DIR}/automation/lib/you-were-here/digest.ts")" "<item"
+    "$(yq --front-matter=extract -r '.cron["you-were-here"]' "${REPO_DIR}/automation/plugins/flows/you-were-here.md" | awk '/^machine:/{print $2; exit}')"
+assert_has "it is a flow on in every install" "$(cat "${REPO_DIR}/automation/plugins.exist.yml")" "- you-were-here"
+assert_eq "POST /you-were-here, which the plugin brings, queues this machine" "you_were_here" \
+    "$(yq -r '.endpoints[] | select(.path == "/you-were-here") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
+assert_lacks "no second feed parser" "$(cat "${TMP}/unpacked/.decree/lib/you-were-here/digest.ts")" "<item"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).

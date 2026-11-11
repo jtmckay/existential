@@ -1,0 +1,13 @@
+# The plugin system (lib/automations/plugin.sh): never a plugin, so no plugin replaces it.
+name: plugin_offer
+description: Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you accept it by moving it into notes/automations/, or sends the list of its machines, which goes to your phone.
+data:
+  from: {type: string, default: ""}
+initial: offer
+states:
+  offer:
+    invoke: offer
+    transitions: {done: done}
+    emits: [notify]
+  done: {final: true}
+  failed: {final: true}

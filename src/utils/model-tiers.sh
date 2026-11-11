@@ -124,7 +124,7 @@ model_tier_env() {
     IFS=$'\t' read -r _ _ chat ctx _ _ <<< "$row"
     # EXIST_VRAM_GB is a fact about the machine, not about the model, so a
     # hand-typed model leaves whatever is already there alone — including blank.
-    # Both readers (src/generate-compose.ts, automation/lib/whisperx-transcribe.ts)
+    # Both readers (src/generate-compose.ts, lib/whisperx-transcribe.ts)
     # take EXIST_GPU_VENDOR as authoritative and only fall back to this key when
     # the vendor is blank, and the vendor question is always answered before this
     # one. Writing a made-up number here would be the only lie in the file.

@@ -111,7 +111,7 @@ flowchart TB
     dec <--> ws
     dec --> ntfy
     cs -. "opencode" .-> model
-    dec -. "automation/lib/model.sh" .-> model
+    dec -. "workspace/.decree/lib/model.sh" .-> model
     addons -. "a flow or a flag each" .-> core
 
     classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111

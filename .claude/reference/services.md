@@ -228,9 +228,11 @@ decree project:
 
 - **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
   the user's project, so machines, scripts, cron, migrations and inbox written there run on the
-  next tick. `services/automation/exist.initial.sh` seeds it from the repo's `automation/`
-  (`machines/`, `scripts/`, `.gitignore`, `decree-go-rest.yml`), copying each file only while
-  it is absent, so the user's edits win. `lib/` is the repo's, mounted read-only over it;
+  next tick. `services/automation/exist.initial.sh` copies in the plugin system
+  (`automation/machines/`, `scripts/`) every run, installs the plugins it has on at the
+  checkout's version (`.claude/reference/decree.md`), and copies `.gitignore`,
+  `decree-go-rest.yml` and `handlers.yml` only while they are absent, so the user's edits win. `lib/` is `automation/lib/` (the shared part) plus each installed
+  plugin's own lib files, copied in the same way;
   `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
   so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
   redraws `graph/` whenever a machine or cron file changes, and writes the decree skill to

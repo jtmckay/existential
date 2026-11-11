@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jtmckay/decree-go-rest/main/decree-go-rest.schema.json
+#
+# automation-webhook's endpoints. Each turns an authenticated POST into a
+# `decree emit` for one fixed machine; the request body is the message body,
+# path parameters become params. Every key: decree-go-rest's SPEC.md §3.
+#
+# Secrets are never here, only the environment variables that hold them
+# (services/automation-webhook/docker-compose.exist.yml), so this file is tracked. The
+# default one is AUTOMATION_WEBHOOK_SECRET in services/automation-webhook/.env:
+#
+#   curl -X POST https://automation-webhook.<domain>/notify/backup \
+#     -H "Authorization: Bearer <secret>" --data-binary 'The backup finished.'
+#
+# Edits are picked up without a restart; an invalid edit keeps the old table
+# serving and shows up in /healthz. GET /openapi.json lists every endpoint.
+secret_env: DECREE_GO_REST_SECRET
+
+endpoints:
+  - path: /notify
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: Untitled, ntfy_priority: high, ntfy_tags: lobster }
+  - path: /notify/{title}
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: high, ntfy_tags: anger }
+  - path: /notify/alert/{title}
+    message:
+      machine: notify
+      params: { ntfy_topic: exist, ntfy_title: "{{title}}", ntfy_priority: high, ntfy_tags: white_check_mark }
+
+  # Every other endpoint comes with the plugin whose machine it starts
+  # (automation/plugins/<name>.md), added here when that plugin is installed.
+
+  # The plugin system: another stack asks for, offers, or is asked for a plugin.
+  # site/docs/decree/plugins.md
+  - path: /plugins/share/{client}
+    patterns: {client: "[a-z0-9_-]{1,40}"}
+    body: optional
+    message:
+      machine: plugin_share
+      params: {client: "{{client}}"}
+  - path: /plugins/{machine}/share/{client}
+    patterns: {machine: "[a-z][a-z0-9_]{0,40}", client: "[a-z0-9_-]{1,40}"}
+    body: optional
+    message:
+      machine: plugin_share
+      params: {machine: "{{machine}}", client: "{{client}}"}
+  - path: /plugins/offer/{from}
+    patterns: {from: "[a-z0-9_-]{1,40}"}
+    body: required
+    message:
+      machine: plugin_offer
+      params: {from: "{{from}}"}
+  - path: /request/plugins/{from}
+    patterns: {from: "[a-z0-9_-]{1,40}"}
+    body: optional
+    message:
+      machine: plugin_request
+      params: {from: "{{from}}"}
+  - path: /request/plugins/{from}/{machine}
+    patterns: {from: "[a-z0-9_-]{1,40}", machine: "[a-z][a-z0-9_]{0,40}"}
+    body: optional
+    message:
+      machine: plugin_request
+      params: {from: "{{from}}", machine: "{{machine}}"}

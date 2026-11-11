@@ -176,7 +176,7 @@ authentication in front of it.
 here changes what they see.
 
 **Decree**: no step in the workspace's decree project calls Claude: scripts reach
-models through `automation/lib/model.sh`. A step that should always start from your notes
+models through `workspace/.decree/lib/model.sh`. A step that should always start from your notes
 fetches them itself before its model call, so retrieval doesn't depend on a model
 deciding to search:
 

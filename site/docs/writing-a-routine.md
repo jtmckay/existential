@@ -34,7 +34,9 @@ Anything down here is the body.
 
 - Lives in `workspace/.decree/machines/<name>.yml` (host: `volumes/workspace_data/.decree/`). Its
   graph in `workspace/.decree/graph/` is redrawn on save.
-- To ship one with the repo, put it in `automation/machines/`; it's copied into a workspace once.
+- To ship one with the repo, run `./existential.sh run plugin export <name>`: it becomes
+  `automation/plugins/<name>.md`, and every install that turns it on gets it, and each new
+  version on its next pull. See [Plugins](./decree/plugins).
 - Names are snake_case. Start with one state; add more only when a run shows the need.
 
 ```yaml
@@ -81,7 +83,7 @@ echo "Doing the thing with ${MY_PARAM}"
   ([When a run needs you](./decree/decree.md#when-a-run-needs-you)).
 
 To retry a flaky step, give that state attempts: `invoke: { script: { name: my_job, attempts: 3 } }`.
-Shared bash and TypeScript helpers are in `automation/lib/` (`$DECREE_LIB`), and a value a
+Shared bash and TypeScript helpers are installed by plugins into `workspace/.decree/lib/` (`$DECREE_LIB`), and a value a
 machine keeps between runs goes in `$DECREE_STORE`, declared under the machine's `store:`.
 
 To ask a model, source `$DECREE_LIB/model.sh` and call `model_chat <system> <user>`, or
@@ -117,19 +119,19 @@ params:
 What this schedule is for. The body is free text.
 ```
 
-To ship one, make it a flow: `flows/<name>/flow.md` plus the cron file in `flows/<name>/cron/`.
-`./existential.sh flow on <name>` copies it in.
+To ship one, put the cron in its plugin (`cron:`), or in a flow,
+`automation/plugins/flows/<name>.md`, that needs it. `./existential.sh flow on <name>` installs it.
 
 ### Webhook — when something out there happens
 
 `automation-webhook` (add-on, `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK`) turns an authenticated POST
-into a message. Add an endpoint to `automation/decree-go-rest.yml`; no restart. See
+into a message. Add an endpoint to `workspace/.decree/decree-go-rest.yml`; no restart. See
 [Build On It](./build-on-it).
 
 ### A file landing in Nextcloud — when a file shows up
 
 Upload event → webhook → `file_router` → your **file processor**, a script in
-`automation/lib/file-processors/` that declares what it matches:
+`workspace/.decree/lib/file-processors/` that declares what it matches:
 
 ```bash
 PATTERN="^nextcloud:workspace/.*\.md$"
@@ -184,14 +186,13 @@ docker exec automation decree status <id>     # one run's events
 ls volumes/workspace_data/.decree/runs/<id>/                      # message.md, events.jsonl, one log per script
 ```
 
-With Monitoring on, runs also go to Loki and Grafana's **Decree Overview**. After changing a
-shipped machine, run `./existential.sh run decree-graph`.
+With Monitoring on, runs also go to Loki and Grafana's **Decree Overview**.
 
 Why a job seems to do nothing:
 
 | Symptom | Cause |
 |---|---|
-| No run at all | Nothing triggers it: the cron file is in `flows/`, not `volumes/workspace_data/.decree/cron/` — `./existential.sh flow on <name>` |
+| No run at all | Nothing triggers it: the flow or plugin that carries its cron is not on — `./existential.sh flow on <name>` |
 | A `failed` run with `invalid_message` | The message names a machine that project does not have, or a param its `data:` does not declare |
 | A chained job never runs | The emitting script's `decree emit` failed; its log says why |
 | Runs, ends `done`, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |

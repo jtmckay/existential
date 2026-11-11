@@ -158,10 +158,12 @@ in CI):
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
   that canary.**
 - **`decree-check.sh`** (`test decree`, adhoc) — assembles both decree projects from tracked
-  content with every shipped cron, migration and inbox template queued, and runs `decree check`,
-  so a template naming a renamed machine or an undeclared param fails here rather than as a
-  failed run. It also fails while a committed `graph/` is stale (`run decree-graph` rewrites
-  them) and while the `notify`/`clean_runs` copies in the two projects differ.
+  content (the plugin system and every plugin; automation-backup's set) with every shipped cron,
+  migration and inbox template queued, and runs `decree check`, so a template naming a renamed
+  machine or an undeclared param fails here rather than as a failed run. Then each plugin alone,
+  with only what its `needs:` reach, so a missing `needs:` fails here too.
+- **`lint-shell.sh`** (`test lint`, host) also writes each plugin's scripts out with awk, where
+  the stack installs them, and shellchecks those.
 - **`unit/test-validators.sh`** — opposite-tests the TS validators: builds violating fixture
   trees, asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
 

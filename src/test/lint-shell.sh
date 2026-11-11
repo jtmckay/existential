@@ -67,10 +67,47 @@ fi
 
 echo "  linting ${#FILES[@]} shell scripts at -S ${SEVERITY}"
 
-if $DOCKER_CMD run --rm -v "$ROOT":/repo -w /repo \
-        --entrypoint shellcheck "$SHELLCHECK_IMAGE" \
-        -x -S "$SEVERITY" -f gcc "${FILES[@]}"; then
-    echo "  PASS  lint-shell (${#FILES[@]} scripts, -S ${SEVERITY})"
+_rc=0
+$DOCKER_CMD run --rm -v "$ROOT":/repo -w /repo \
+    --entrypoint shellcheck "$SHELLCHECK_IMAGE" \
+    -x -S "$SEVERITY" -f gcc "${FILES[@]}" || _rc=1
+
+# A plugin's scripts and lib live in its file (automation/plugins/<name>.md, as
+# lib/automations/plugin.sh writes it: `scripts:` and `lib:` at the margin, each
+# entry a block two spaces in, its text four). Each is written out where the
+# stack installs it, scripts/<plugin>/<script>.sh and lib/<path>, beside the
+# shared lib, so `# shellcheck source=` lines resolve. awk, not yq: this is the host.
+_pd="$(dirname "$_canary")/plugins"; mkdir -p "${_pd}/scripts" "${_pd}/lib"
+cp -R automation/lib/. "${_pd}/lib/"
+for _p in automation/plugins/*.md automation/plugins/flows/*.md; do
+    _n="$(basename "$_p" .md)"; mkdir -p "${_pd}/scripts/${_n}"
+    awk -v sdir="${_pd}/scripts/${_n}" -v ldir="${_pd}/lib" '
+        /^[A-Za-z_]+:/ { s = ($0 ~ /^scripts:/); l = ($0 ~ /^lib:/); f = ""; next }
+        /^---$/ { s = 0; l = 0; f = ""; next }
+        s && /^  [a-z][a-z0-9_]*: [|][-+]?$/ { k = $1; sub(/:$/, "", k); f = sdir "/" k ".sh"; printf "" > f; next }
+        l && /^  [A-Za-z0-9_][A-Za-z0-9_.\/-]*\.sh: [|][-+]?$/ {
+            k = $1; sub(/:$/, "", k); f = ldir "/" k
+            d = f; sub(/\/[^\/]*$/, "", d); system("mkdir -p \"" d "\""); printf "" > f; next }
+        (s || l) && /^  [^ ]/ { f = ""; next }
+        f != "" { print (length($0) >= 4 ? substr($0, 5) : "") > f }' "$_p"
+done
+mapfile -t PLUGIN_SCRIPTS < <(cd "$_pd" && find scripts -name '*.sh' | sort)
+mapfile -t PLUGIN_LIB < <(cd automation/plugins && awk '/^lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  [A-Za-z0-9_][A-Za-z0-9_.\/-]*\.sh: [|][-+]?$/ {k=$1; sub(/:$/, "", k); print "lib/" k}' *.md flows/*.md | sort)
+_expected="$(cat automation/plugins/*.md automation/plugins/flows/*.md | awk '/^scripts:/{s=1; next} /^[A-Za-z_-]/{s=0} s && /^  [a-z][a-z0-9_]*: [|][-+]?$/' | wc -l)"
+if [ "${#PLUGIN_SCRIPTS[@]}" -ne "$_expected" ]; then
+    echo "  FAIL  lint-shell: wrote ${#PLUGIN_SCRIPTS[@]} plugin scripts, the plugins have ${_expected}" >&2; _rc=1
+fi
+for _f in ${PLUGIN_LIB[@]+"${PLUGIN_LIB[@]}"}; do
+    [ -s "${_pd}/${_f}" ] || { echo "  FAIL  lint-shell: plugin ${_f} was not written out" >&2; _rc=1; }
+done
+echo "  linting ${#PLUGIN_SCRIPTS[@]} plugin scripts and ${#PLUGIN_LIB[@]} plugin lib files (automation/plugins/)"
+$DOCKER_CMD run --rm -v "$_pd":/plugins -w /plugins \
+    --entrypoint shellcheck "$SHELLCHECK_IMAGE" \
+    -x -S "$SEVERITY" -f gcc "${PLUGIN_SCRIPTS[@]}" ${PLUGIN_LIB[@]+"${PLUGIN_LIB[@]}"} \
+    | sed 's#^scripts/\([^/]*\)/#automation/plugins/\1.md: scripts.#' || _rc=1
+
+if [ "$_rc" -eq 0 ]; then
+    echo "  PASS  lint-shell (${#FILES[@]} scripts, ${#PLUGIN_SCRIPTS[@]} plugin scripts and ${#PLUGIN_LIB[@]} plugin lib files, -S ${SEVERITY})"
 else
     echo "  FAIL  lint-shell — fix the findings above, or add a targeted" >&2
     echo "        '# shellcheck disable=SCxxxx  # <why>' at the site." >&2

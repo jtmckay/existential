@@ -76,7 +76,7 @@ pi                                            # the TUI
 pi -p "what is still open in notes/plan.md?"  # one answer
 ```
 
-It is the same CLI and the same configuration (`automation/lib/pi.sh`) decree's `agent_task`
+It is the same CLI and the same configuration (`workspace/.decree/lib/pi.sh`) decree's `agent_task`
 runs. `/login` to a hosted provider if you want one too; it is kept beside the stack's own.
 
 **Installs and logins persist** on the `code_server_data` volume: npm's global prefix,

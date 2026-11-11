@@ -124,24 +124,29 @@ _opencode_config() {
         }}
     }'
 }
-# Capture (automation/lib/capture/): what a person types into claude or opencode
+# What the decree daemon installs: the model, pi and capture plugins' lib
+# (the code-server-agents flow). Without them, what needs them is skipped.
+_LIB=/workspace/.decree/lib
+# Capture (lib/capture/): what a person types into claude or opencode
 # is appended to workspace/.capture/. Claude Code's prompt hook goes into its
 # settings.json, opencode's plugin into the config above. Applied every boot, so
 # CODE_SERVER_CAPTURE=false plus a recreate is the whole off switch. Never fatal.
 _capture_plugin=""
-if [[ "${CODE_SERVER_CAPTURE:-true}" != false ]]; then
-    bash /opt/capture/capture.sh install /workspace >/dev/null \
+if [[ ! -f "${_LIB}/capture/capture.sh" ]]; then
+    echo "[code-server] WARN: no capture plugin in the workspace (./existential.sh flow on code-server-agents)"
+elif [[ "${CODE_SERVER_CAPTURE:-true}" != false ]]; then
+    bash "${_LIB}/capture/capture.sh" install /workspace >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not installed"
-    _capture_plugin="file:///opt/capture/opencode.ts"
+    _capture_plugin="file://${_LIB}/capture/opencode.ts"
 else
-    bash /opt/capture/capture.sh uninstall >/dev/null \
+    bash "${_LIB}/capture/capture.sh" uninstall >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not removed"
 fi
 # Search (ai/qmd, when EXIST_IS_AI_QMD is true): one index for
 # both CLIs. Claude Code gets it at user scope with its read-only tools allowed
 # without a prompt, plus the recall skill at the workspace root, which says when
 # and how to search; opencode gets it in the config below; the terminal gets a
-# `search` command (lib/recall/search.sh). Turning the add-on off
+# `search` command (ai/qmd/recall/search.sh). Turning the add-on off
 # removes all of it on the next boot. Never fatal: search is optional.
 _search=""; [[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _search=http://qmd:8181/mcp
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
@@ -159,9 +164,13 @@ _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
         rm -rf /workspace/.claude/skills/recall "$NPM_BIN/search"
     fi
 } || echo "[code-server] WARN: search (ai/qmd) not wired into Claude Code"
-# shellcheck source=/dev/null
-. /opt/pi/model.sh
-_opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"
+if [[ -f "${_LIB}/model.sh" ]]; then
+    # shellcheck source=/dev/null
+    . "${_LIB}/model.sh"
+    _opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"
+else
+    echo "[code-server] WARN: no model plugin in the workspace, so opencode is not configured (./existential.sh flow on code-server-agents)"
+fi
 
 # `python` for the tools that assume it; the image ships python3 only. PATH
 # here is not the login shell's, so ask about python3 rather than testing
@@ -173,7 +182,7 @@ fi
 # pi is baked into the image; its provider and MCP servers are the ones
 # automation's pi gets, from the same lib/pi.sh. Never fatal.
 # shellcheck source=/dev/null
-( . /opt/pi/pi.sh && pi_configure ) || echo "[code-server] WARN: pi not configured"
+( . "${_LIB}/pi.sh" && pi_configure ) || echo "[code-server] WARN: pi not configured (is the pi plugin installed?)"
 
 exec "$CODE_SERVER_BIN" \
     --bind-addr 0.0.0.0:8080 \

@@ -14,12 +14,13 @@ transcript, a receipt becomes a budget entry.
 
 ## Turning one on
 
-Each flow is a folder in `flows/`: the services it needs, its trigger, and any step only you can do.
+Each flow is a file in `automation/plugins/flows/`: the services it needs, the automations it
+turns on, and any step only you can do. What you have on is one list, `workspace/.decree/plugins.yml`.
 
 ```bash
 ./existential.sh flow                 # pick from the list; ✓ marks the ones on
-./existential.sh flow on newsletter   # its services on, its machine on, then a rebuild
-./existential.sh flow off newsletter  # its machine off; services stay as they are
+./existential.sh flow on weekly-newsletter   # asks for each service it needs, into plugins.yml, then a rebuild installs it
+./existential.sh flow off weekly-newsletter  # out of plugins.yml; services stay as they are
 ```
 
 - `docker compose up -d` afterwards starts anything new.
@@ -32,10 +33,13 @@ Each flow is a folder in `flows/`: the services it needs, its trigger, and any s
 | `look-back` | The week and the month in review, next to your notes. **On by default** | a chat model |
 | `clean-runs` | Prunes decree's finished run logs after a week. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
-| `newsletter` | [Your own newsletter](./newsletter) from only the feeds you picked | a chat model |
+| `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation), accept what is proposed, and it runs. **On by default** | a chat model |
+| `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/`. **On by default** | — |
+| `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model. **On by default** | — |
+| `weekly-newsletter` | [Your own newsletter](./newsletter) from only the feeds you picked | a chat model |
 | `check-versions` | Mondays, the services with a newer image | — |
 | `search` | Your notes, PDFs and Word files, by meaning and by words ([qmd](../ai/qmd)) | qmd |
-| `gmail` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail)) | a Google grant |
+| `gmail-inbox` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail)) | a Google grant |
 | `budget` | [Bank alerts become budget entries](./transaction-gmail-actual-budget) | Actual Budget, `gmail` |
 | `note-triage` | [The note you meant to come back to](./note-to-action) | Nextcloud, a chat model |
 | `knowledgebase` | The workspace indexed into OpenViking, so pi answers from it | OpenViking |
@@ -50,7 +54,7 @@ Each flow is a folder in `flows/`: the services it needs, its trigger, and any s
 | `local-models` | Ollama on this machine pulls your tier's models, once | Ollama |
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, your chat model answering | Home Assistant, Wyoming |
 | `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
-| `comfy` | ComfyUI workflows a decree message runs | ComfyUI and its models |
+| `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 
 [Note → Automation](./note-to-automation) is part of Core, on whenever a chat model answers.
 

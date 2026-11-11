@@ -51,14 +51,14 @@ Core ships no backups. Turn on [automation-backup](./decree/automation-backup), 
 
 ```bash
 ./existential.sh flow                 # pick from the list
-./existential.sh flow on newsletter   # or by name
+./existential.sh flow on weekly-newsletter   # or by name
 ```
 
 A **flow** is one thing the stack does for you: your own newsletter, transcribed voice memos,
 bank alerts as budget entries.
 
-- `flow on` turns on the services it needs and its machine, rebuilds, and prints any step only you
-  can do (an OAuth grant, a password).
+- `flow on` asks before it turns on each service it needs, turns on its machine, rebuilds, and prints
+  any step only you can do (an OAuth grant, a password).
 - `docker compose up -d` starts what is new.
 - `flow off <name>` turns the machine off and leaves the services alone.
 - The full list: [Flows](./flows/#turning-one-on).
@@ -130,7 +130,7 @@ Every run also pulls and builds the images, without touching what's running. The
 
 ## Enable/Disable Services
 
-A flow turns on what it needs. For anything else:
+A flow asks for each service it needs. For anything else:
 
 ```bash
 ./existential.sh service                 # pick: Space switches one, Enter applies
@@ -176,8 +176,8 @@ and notifies you when something breaks or recovers.
 
 - **`notes/`**: your notes, plain markdown. Starts with `my-first-note.md`.
 - **`.decree/`**: your automations, run by the `automation` daemon on the next tick. The repo's
-  machines are copied in once, so your edits win. `graph/` draws every machine. See
-  [Writing a routine](./writing-a-routine).
+  machines arrive as [plugins](./decree/plugins), only the ones you have on, at the version in
+  your checkout. `graph/` draws every machine. See [Writing a routine](./writing-a-routine).
 - **`ai/`**: what automations write, indexed like everything else.
 - **`.capture/`**: everything you typed to an agent. See [Capture](#capture).
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under
@@ -208,14 +208,14 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
 - It never blocks the prompt. Failures go to `workspace/.capture/errors.log`.
 - Prompts with a session id are also appended to
   `workspace/ai/conversations/<date>-<tool>-<session>.md`, so [search](./ai/qmd) finds them.
-- One script does it all: `automation/lib/capture/capture.sh` (bash and `jq`).
+- One script does it all: `workspace/.decree/lib/capture/capture.sh` (bash and `jq`).
 
 | Source | On | Off |
 |---|---|---|
 | Claude Code in [code-server](./services/code-server) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
-| opencode in code-server | By default: a plugin, `automation/lib/capture/opencode.ts` | The same key |
-| Claude Code on another machine | `bash automation/lib/capture/capture.sh install <workspace dir>` from a checkout, with the workspace synced there | `bash automation/lib/capture/capture.sh uninstall` |
-| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | Delete `/capture` from `workspace/.decree/decree-go-rest.yml` |
+| opencode in code-server | By default: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
+| Claude Code on another machine | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
+| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh flow off capture-stream` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s) beside your
 other hooks; `uninstall` removes only that one.
@@ -230,8 +230,6 @@ curl -X POST https://automation-webhook.<domain>/capture \
 - The secret is `AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`.
 - Without the webhook: `cd /workspace && echo 'buy filters' | decree emit --machine capture` in
   code-server's terminal.
-- An older install: copy the `/capture` entry from `automation/decree-go-rest.yml` into
-  `workspace/.decree/decree-go-rest.yml`.
 
 ### You were here
 
@@ -264,8 +262,6 @@ Details:
 - Schedule: `workspace/.decree/cron/you-were-here.md`. Off: `./existential.sh flow off you-were-here`.
 - Now: `POST /you-were-here` on `automation-webhook`, or `echo | decree emit --machine you_were_here`
   in code-server's terminal. `note_link` sets the push's last line.
-- An older install: copy `/you-were-here` from `automation/decree-go-rest.yml` into
-  `workspace/.decree/decree-go-rest.yml`.
 
 ### Look back
 
@@ -288,7 +284,6 @@ Every item links to its day note.
   (`cron/look-back-weekly.md`, `look-back-monthly.md`). Longer ranges read those instead of
   every day note.
 - With the webhook: `POST /look-back`, `/look-back/month`, `/look-back/month/work`.
-- An older install: copy the `/look-back` entries from `automation/decree-go-rest.yml`.
 
 ```bash
 docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null

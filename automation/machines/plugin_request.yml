@@ -1,0 +1,13 @@
+# The plugin system (lib/automations/plugin.sh): never a plugin, so no plugin replaces it.
+name: plugin_request
+description: Ask another stack for one of its machines, or with no machine for the list of them; what it sends comes back to plugin_offer.
+data:
+  from: {type: string, default: ""}
+  machine: {type: string, default: ""}
+initial: request
+states:
+  request:
+    invoke: request
+    transitions: {done: done}
+  done: {final: true}
+  failed: {final: true}

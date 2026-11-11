@@ -42,7 +42,7 @@ services:
       # lib/firecrawl.sh reaches http://firecrawl:3002 when this is true: over
       # the bridge firecrawl takes no key (caddy gates only the LAN side).
       - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
-      # The MCP servers pi_configure hands pi (automation/lib/pi.sh), each only
+      # The MCP servers pi_configure hands pi (lib/pi.sh), each only
       # while its add-on is on; openviking's is keyed off OPENVIKING_API_KEY below.
       - EXIST_IS_AI_MCP=${EXIST_IS_AI_MCP:-false}
       - EXIST_IS_AI_QMD=${EXIST_IS_AI_QMD:-false}
@@ -59,7 +59,7 @@ services:
       # rclone_src download then depends on. /data is the decree_data volume:
       # the writable path this container already has that survives a restart.
       - HOME=/data
-      # Claude Code for machines (automation/lib/agent.sh) keeps its login there too.
+      # Claude Code for machines (lib/agent.sh) keeps its login there too.
       # `auto`: Claude acts on its own. It still cannot change your notes, which
       # are mounted read-only below.
       - CLAUDE_PERMISSION_MODE=${AUTOMATION_CLAUDE_PERMISSION_MODE:-auto}
@@ -116,10 +116,9 @@ services:
     volumes:
       # workspace/.decree IS the project: machines, scripts, cron, migrations
       # and inbox the user (or an agent they direct) writes there run on the
-      # next tick. exist.initial.sh seeds it from automation/ once per file.
+      # next tick. exist.initial.sh installs the plugin system, the shared lib and
+      # the plugins it has on there, at the checkout's version, every run.
       - workspace_data/.decree:/work/.decree:z
-      # lib/ stays the repo's, read-only, so it follows the checkout.
-      - ../../automation/lib:/work/.decree/lib:ro,z
       # Config, never secrets, and outside the synced workspace (decree reads
       # .decree/.env). exist.initial.sh creates it.
       - ../../automation/.env:/work/.decree/.env:ro,z

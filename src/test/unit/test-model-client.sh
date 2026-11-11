@@ -13,7 +13,6 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
-LIB="${REPO_DIR}/automation/lib"
 TSX="$(command -v tsx || echo /opt/decree/node_modules/.bin/tsx)"
 
 for _t in node jq curl "$TSX"; do
@@ -30,6 +29,9 @@ assert_eq() { if [[ "$2" == "$3" ]]; then _ok "$1"; else _fail "$1" "expected=$2
 assert_contains() { if [[ "$3" == *"$2"* ]]; then _ok "$1"; else _fail "$1" "missing: $2"; fi; }
 
 TMP="$(mktemp -d)"
+# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
+for _p in newsletter ollama_pull ocr; do ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
+LIB="${TMP}/unpacked/.decree/lib"
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
@@ -76,7 +78,7 @@ export EXIST_MODEL_CHAT="chat-model" EXIST_MODEL_VISION="vision-model"
 
 # ── lib/model.sh ──────────────────────────────────────────────────────────────
 
-# shellcheck source=../../../automation/lib/model.sh
+# shellcheck source=/dev/null
 . "${LIB}/model.sh"
 
 assert_eq "model_chat gets a completion from a /v1-only server" \
@@ -105,7 +107,7 @@ _reply "stub reply"
 mkdir -p "${TMP}/run"
 printf '{"title":"t","link":"https://example.test/a"}\n' > "${TMP}/run/items.jsonl"
 _reply "- [t](https://example.test/a): worth it"
-if DECREE_RUN_DIR="${TMP}/run" DECREE_LIB="$LIB" bash "${REPO_DIR}/automation/scripts/newsletter/write.sh" >/dev/null 2>"${TMP}/write.err"; then
+if DECREE_RUN_DIR="${TMP}/run" DECREE_LIB="$LIB" bash "${TMP}/unpacked/.decree/scripts/newsletter/write.sh" >/dev/null 2>"${TMP}/write.err"; then
     assert_contains "newsletter write gets a completion" \
         "worth it" "$(cat "${TMP}/run/issue.md")"
 else
@@ -128,7 +130,7 @@ assert_eq "ocr.ts sends the vision tag" "vision-model" "$(_body | jq -r .model)"
 # ── ollama-only steps stay away when ollama is off ────────────────────────────
 
 _before="$(wc -l < "${TMP}/requests.log")"
-_out="$(EXIST_IS_AI_OLLAMA=false DECREE_LIB="$LIB" timeout 20 bash "${REPO_DIR}/automation/scripts/ollama_pull.sh" 2>&1)"; _rc=$?
+_out="$(EXIST_IS_AI_OLLAMA=false DECREE_LIB="$LIB" timeout 20 bash "${TMP}/unpacked/.decree/scripts/ollama_pull/ollama_pull.sh" 2>&1)"; _rc=$?
 assert_eq "ollama_pull is a clean no-op without ollama" "0" "$_rc"
 assert_eq "ollama_pull sent nothing to the server" "$_before" "$(wc -l < "${TMP}/requests.log")"
 

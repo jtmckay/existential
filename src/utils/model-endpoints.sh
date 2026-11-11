@@ -18,7 +18,7 @@
 # This is the single source of truth for that fallback. Consumers ask for a role
 # and never read the per-role keys themselves, so there is one place to change
 # when a role is added and no consumer can disagree about the default.
-# automation/lib/model.sh is the same rule inside the decree container, which
+# lib/model.sh is the same rule inside the decree container, which
 # cannot see src/; test-model-endpoints.sh asserts the two agree.
 #
 #   chat | chat-ctx  → EXIST_MODEL_URL_CHAT

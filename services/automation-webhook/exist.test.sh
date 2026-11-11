@@ -31,7 +31,7 @@ probe_caddy "automation-webhook /healthz" automation-webhook /healthz 200
 # ── 2. Rejection paths ───────────────────────────────────────────────────────
 #
 # These three requests each consume one slot of the failure rate limiter
-# (rate_fail_max in automation/decree-go-rest.yml, default 10 per 60s). That budget
+# (rate_fail_max in workspace/.decree/decree-go-rest.yml, default 10 per 60s). That budget
 # is in-memory and self-heals within the window, but it is why this section stays
 # at three requests rather than exhaustively enumerating rejection cases —
 # decree-go-rest's own test suite covers those, off the live stack.

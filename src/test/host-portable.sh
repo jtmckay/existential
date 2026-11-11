@@ -70,11 +70,14 @@ assert_eq "timeout stops a command" "yes" "$([[ $((SECONDS - t0)) -lt 4 ]] && ec
 echo ""; echo "=== flows and Core's setup ==="
 assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \
     "$(REPO_DIR="$R"; . src/utils/flows.sh; flow_closure transcription | xargs)"
+# The plugin sync runs in adhoc (yq, decree), which a Mac host has no part in:
+# a docker that writes down what it was asked stands in for it.
+mkdir -p "${R}/.stub"; printf '#!/bin/sh\n[ "$1" = compose ] && echo "$*" >> "%s/.stub/asked"\nexit 0\n' "$R" > "${R}/.stub/docker"
+chmod +x "${R}/.stub/docker"; PATH="${R}/.stub:${PATH}"; export PATH
 out="$("$BASH" services/automation/exist.initial.sh 2>&1)"; rc=$?
 assert_eq "automation's exist.initial.sh runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
-assert_eq "...and turns the default flows on" "yes" "$([[ -f volumes/workspace_data/.decree/cron/you-were-here.md ]] && echo yes || echo no)"
-assert_eq "...and draws every machine's graph" "$(ls automation/graph)" "$(ls volumes/workspace_data/.decree/graph)"
+assert_has "...and installs its plugins in adhoc" "$(cat "${R}/.stub/asked" 2>/dev/null)" "plugin.sh sync automation"
 assert_eq "...and a second run changes nothing" "" "$("$BASH" services/automation/exist.initial.sh 2>&1)"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own

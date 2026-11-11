@@ -26,31 +26,24 @@ touch "${REPO}/automation/.env" "${PROJECT}/.env"
 # cron/ and migrations/ are the user's active copies: gitignored, copied once
 # from a template and never re-rendered. A 0.4 copy names `routine:`, which 0.5
 # rejects — the daemon refuses to start on one invalid pending migration, and a
-# 0.4 cron file is a failed run every time it fires. So each one is replaced by
-# its current template, the old copy archived first. A file with no template any
-# more (its routine is gone) is only archived. Processed migrations are left
-# alone: decree never reads them again.
+# 0.4 cron file is a failed run every time it fires. So each one is archived and
+# removed: the plugin that runs it writes the current one. Processed migrations
+# are left alone: decree never reads them again.
 _archive="${REPO}/archive/decree-0.4-$(date +%Y%m%d-%H%M%S)"
-_upgrade_dir() {         # <active dir> <template glob, NAME for the file> [processed.md]
-    local active="$1" templates="$2" processed="${3:-}" f name t
+_upgrade_dir() {         # <active dir> [processed.md]
+    local active="$1" processed="${2:-}" f name
     for f in "$active"/*.md; do
         [[ -f "$f" ]] && grep -q '^routine:' "$f" || continue
         name="${f##*/}"
         [[ -n "$processed" && -f "$processed" ]] && grep -qxF "$name" "$processed" && continue
         mkdir -p "${_archive}/${active#"${REPO}/"}"
         cp -p "$f" "${_archive}/${active#"${REPO}/"}/"
-        t="$(compgen -G "${templates//NAME/${name}}" | head -1 || true)"
-        if [[ -n "$t" ]]; then
-            cat "$t" > "$f"   # preserve inode: a live bind mount
-            echo "[automation] ${active#"${REPO}/"}/${name}: replaced by its decree 0.5 template."
-        else
-            rm -f "$f"
-            echo "[automation] ${active#"${REPO}/"}/${name}: removed — nothing in decree 0.5 runs it."
-        fi
+        rm -f "$f"
+        echo "[automation] ${active#"${REPO}/"}/${name}: removed — the plugin that runs it writes the current one."
     done
 }
-_upgrade_dir "${REPO}/automation/cron" "${REPO}/flows/*/cron/NAME"
-_upgrade_dir "${REPO}/automation/migrations" "${REPO}/flows/*/migrations/NAME" "${REPO}/automation/processed.md"
+_upgrade_dir "${REPO}/automation/cron"
+_upgrade_dir "${REPO}/automation/migrations" "${REPO}/automation/processed.md"
 [[ -d "$_archive" ]] && echo "[automation] the 0.4 copies are in ${_archive#"${REPO}/"}/ — re-apply any schedule you had customised."
 # The 0.4 daemon configs and their hash files: nothing reads them any more.
 rm -f "${SCRIPT_DIR}/decree/config.yml" "${REPO}/automation/config.hash" \
@@ -61,18 +54,29 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
 # The `automation` project is workspace/.decree, where the user (and the agents
-# they direct) write automations. The repo's machines, scripts and graphs are
-# its starting set (decree_seed, src/utils/flows.sh); the daemon redraws the
-# graphs once it is up. lib/ is not copied: it is the repo's, mounted read-only
-# over lib/ so it stays current with the checkout.
-REPO_DIR="$REPO"   # read by src/utils/flows.sh
-export REPO_DIR
-# shellcheck source=../../src/utils/flows.sh
-. "${REPO}/src/utils/flows.sh"
-decree_seed
-for _f in .gitignore decree-go-rest.yml handlers.yml; do
-    [[ -e "${PROJECT}/${_f}" ]] || cp -p "${REPO}/automation/${_f}" "${PROJECT}/${_f}"
+# they direct) write automations. The plugin system and the plugins it has on
+# come from the repo, kept at this checkout's version every run, with lib/: the
+# shared automation/lib/ and each plugin's own lib files. The daemon draws the graphs.
+# Yours from their examples, once: what the webhook answers and which file
+# changes start a run. An edit stays.
+[[ -e "${PROJECT}/.gitignore" ]] || cp -p "${REPO}/automation/.gitignore" "${PROJECT}/.gitignore"
+for _f in decree-go-rest handlers; do
+    [[ -e "${PROJECT}/${_f}.yml" ]] || cp -p "${REPO}/automation/${_f}.exist.yml" "${PROJECT}/${_f}.yml"
 done
+# The plugin system, then the plugins this install has on (src/lib/plugin.sh),
+# each at the version in this checkout: what plugins.yml has on (the flows and
+# machines; written from automation/plugins.exist.yml the first time) and all
+# they need, their crons and migrations included.
+# In adhoc, where yq and decree are; a failure is said and the stack still comes up.
+if [[ -n "${IN_CONTAINER:-}" ]]; then
+    REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync automation ||
+        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync tries again."
+else
+    # A subshell: with no container runtime adhoc.sh exits, and this must not.
+    # shellcheck source=../../src/utils/adhoc.sh
+    ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync automation ) ||
+        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync tries again."
+fi
 # An install from before this keeps its active crons and migrations, and its
 # record of which migrations ran, in automation/. Each moves over once, unless
 # the workspace already has that file.
@@ -82,16 +86,6 @@ for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/proces
         mv "$_f" "$_dst"
         echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
     fi
-done
-
-# The default flows (`default: true` in flows/<name>/flow.md: the digest, the
-# look backs, clean-runs, health-checks) are on until `./existential.sh flow off`
-# names one in .decree/flows-off. Each missing file is copied in; an edited copy
-# stays as you left it.
-for _flow in $(flow_defaults); do
-    while IFS= read -r _f; do
-        [[ -n "$_f" ]] && echo "[automation] ${_flow}: ${_f#"${FLOWS_DECREE}/"} activated."
-    done < <(flow_activate "$_flow")
 done
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/

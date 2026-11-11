@@ -11,7 +11,7 @@ How a task reaches a particular agent. For what the system does, see [Flows](../
 - `router` reads a task, picks one department, and emits a message for it.
 - The department answers with its own tools and writes the result to `workspace/ai/`.
 - One machine, `agent_task`, serves every department. A department is a file,
-  `automation/lib/departments/<name>.yml`, read by both the router and [pi](../ai/pi).
+  `workspace/.decree/lib/departments/<name>.yml`, read by both the router and [pi](../ai/pi).
 
 ```mermaid
 flowchart LR
@@ -37,7 +37,7 @@ tools at all — cheap enough for every message.
 
 ## Adding a department
 
-Create `automation/lib/departments/legal.yml`:
+Create `workspace/.decree/lib/departments/legal.yml`:
 
 ```yaml
 description: Contracts, terms, licensing questions, and compliance review.

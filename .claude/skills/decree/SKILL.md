@@ -100,7 +100,7 @@ appear only where a machine invokes `model` or `person`.
   `decree graph` after changing a machine. Commit `.decree/graph/`.
 - **Read decree's output as JSON, never by parsing its text**: `decree check --format json`,
   `decree status [<id>] --format json`, and `--format json` on `emit`, `event`, `stop`,
-  `prune`, `graph`, `schema`, `skill` and `process --dry-run` print one JSON document, described by
+  `prune`, `graph`, `schema`, `skill`, `upgrade` and `process --dry-run` print one JSON document, described by
   `.decree/schema/v1/cli/<command>.schema.json`. Exit codes are the same as in text.
   `decree check --format json` gives each error's `rule`, `file`, `line` or `state` and
   `message`.
@@ -164,6 +164,8 @@ appear only where a machine invokes `model` or `person`.
 | `decree graph` | Write `.decree/graph/<machine>.md` (Mermaid) for every machine, plus `system.md`. |
 | `decree schema` | Write a local copy of the JSON Schemas of machines, messages, events and router files to `.decree/schema/v1/` (ignored by git). |
 | `decree skill [--ai claude\|copilot]` | Refresh this skill after upgrading decree; other files in the skill folder are kept. |
+| `decree` | Print a synopsis of the quick start and run nothing; run the queue with `decree process`. |
+| `decree upgrade [--format json]` | Print how to upgrade decree (the install line, pinned with `\| sh -s -- <tag>`, and `cargo install --git … --force` for a cargo copy) and what to run in each project after. It runs nothing: a person runs the line. |
 | `decree emit [--machine <m>] [--param k=v]...` | Queue a message from stdin: a body for machine `m`, or a whole message whose frontmatter the flags override (`decree emit < <file>` runs a message again). Prints the new id. |
 | `decree process [--dry-run] [--quiet] [--machine <m> \| --exclude-machine <m>]` | Run everything queued: replies, pending runs, the inbox (FIFO), then migrations in order, printing each run's output. `--quiet` for cron and CI. `--machine` runs only those machines, `--exclude-machine` all but those (repeatable, comma-separated; or `DECREE_MACHINES`, `DECREE_EXCLUDE_MACHINES`), so several processes can share one folder. |
 | `decree process --retry [<id>] [--state <s>]` | Continue a failed or interrupted run first: `<id>` (or a migration's file name or stem, meaning its newest run), or the migration blocking the queue. The failure message prints the exact command. |

@@ -39,7 +39,7 @@
 #                               workspace/ai/ (the knowledgebase flow activates the indexer cron)
 #   2. docker compose up -d   — starts openviking; decree indexes the workspace
 #
-# That is the whole setup. automation/lib/pi.sh registers openviking with pi as
+# That is the whole setup. lib/pi.sh registers openviking with pi as
 # an MCP server on every boot.
 
 services:

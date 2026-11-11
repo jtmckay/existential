@@ -19,7 +19,19 @@ for _f in cron inbox runs store processed.md; do
 done
 
 # A missing bind-mount source is created root-owned by Docker.
-mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,cron,lib,scripts} "${REPO}/automation/secrets"
+mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,cron,lib,machines,scripts} "${REPO}/automation/secrets"
+
+# Its machines are plugins (automation/plugins/, default: [backup]), installed
+# at this checkout's version every run, in adhoc where yq and decree are.
+if [[ -n "${IN_CONTAINER:-}" ]]; then
+    REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync backup ||
+        echo "[automation-backup] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync backup tries again."
+else
+    # A subshell: with no container runtime adhoc.sh exits, and this must not.
+    # shellcheck source=../../src/utils/adhoc.sh
+    ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync backup ) ||
+        echo "[automation-backup] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync backup tries again."
+fi
 
 # triage watches the stack, and clean-runs keeps this daemon's runs/ from
 # growing; workspace-sync does nothing until it has a NAS folder or Nextcloud keys. cron/

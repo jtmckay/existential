@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-pi.sh — automation/lib/pi.sh: what pi is configured with, and what one
+# test-pi.sh — the pi plugin's lib/pi.sh: what pi is configured with, and what one
 # run in a department is allowed to reach.
 #
 #   configure  the "existential" provider is the chat role's URL and tag; an MCP
@@ -25,8 +25,9 @@ trap 'rm -rf "$TMP"' EXIT
 export EXIST_MODEL_URL="http://ollama:11434/v1" EXIST_MODEL_URL_CHAT="http://chatbox:11434/v1"
 export EXIST_MODEL_CHAT="gemma4:e2b-it-qat" EXIST_MODEL_CHAT_NUM_CTX=65536
 export PI_CODING_AGENT_DIR="${TMP}/agent"
-# shellcheck source=../../../automation/lib/pi.sh
-. "${REPO_DIR}/automation/lib/pi.sh"
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack pi "${TMP}/unpacked" ) >/dev/null
+# shellcheck source=/dev/null
+. "${TMP}/unpacked/.decree/lib/pi.sh"
 
 # ── configure ─────────────────────────────────────────────────────────────────
 mkdir -p "$PI_CODING_AGENT_DIR"
@@ -78,7 +79,7 @@ case "$(_args "")" in
 esac
 [[ -z "$(_args nosuch 2>/dev/null)" ]] && _ok "an unknown department runs nothing" \
     || _fail "an unknown department runs nothing" "pi was called"
-for _d in "${REPO_DIR}"/automation/lib/departments/*.yml; do
+for _d in "${TMP}"/unpacked/.decree/lib/departments/*.yml; do
     grep -q '^description: .' "$_d" && _ok "$(basename "$_d") has a description" \
         || _fail "$(basename "$_d") has a description"
 done

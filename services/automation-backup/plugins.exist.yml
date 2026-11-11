@@ -1,0 +1,12 @@
+# automation-backup's plugins: plugins.yml beside this is yours, rendered from it
+# once. ./existential.sh run plugin on|off backup/<name> edits it.
+on:
+  - triage
+  - clean_runs
+  - workspace_sync
+  - db_backup
+  - volume_backup
+  - sqlite_backup
+  - notes_pull
+# false: a plugin whose file changed is named on ./existential.sh, not installed.
+auto_update: true

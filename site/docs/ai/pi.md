@@ -21,7 +21,7 @@ image, so it is in two places:
 
 ## What it talks to
 
-`pi_configure` (`automation/lib/pi.sh`) writes pi's config on every boot of the `automation`
+`pi_configure` (`workspace/.decree/lib/pi.sh`) writes pi's config on every boot of the `automation`
 daemon and of code-server:
 
 - **`models.json`**: an `existential` provider at the chat role's `/v1` URL (`EXIST_MODEL_URL_CHAT`,
@@ -37,12 +37,12 @@ provider in code-server survives. In code-server the files live on the volume
 
 ## Departments
 
-A machine runs pi in a **department**: a file in `automation/lib/departments/` naming the tools and
+A machine runs pi in a **department**: a file in `workspace/.decree/lib/departments/` naming the tools and
 MCP servers that run may reach. A department that needs no web gets no web, and pays for no tool
 it does not own.
 
 ```yaml
-# automation/lib/departments/research.yml
+# workspace/.decree/lib/departments/research.yml
 description: Investigation, fact-finding, competitive and market analysis, literature review.
 tools: read, grep, find, ls
 mcp: openviking, firecrawl

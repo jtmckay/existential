@@ -13,9 +13,9 @@ Needs Core plus a chat model ([Model endpoints](../configuration#endpoints--putt
 
 Every Monday at 07:00 the `newsletter` machine:
 
-1. **gathers** new items from every feed in `automation/lib/newsletter/feeds.txt`, skipping
+1. **gathers** new items from every feed in `workspace/.decree/lib/newsletter/feeds.txt`, skipping
    any link it has sent before;
-2. **writes** the issue: the chat model reads `automation/lib/newsletter/taste.md` and picks
+2. **writes** the issue: the chat model reads `workspace/.decree/lib/newsletter/taste.md` and picks
    from the new items by it, one line each, best first;
 3. **delivers** it to `workspace/newsletter/<date>.md` and sends its first lines to ntfy.
 
@@ -23,14 +23,14 @@ A link is never in two issues: the machine remembers every one it has sent, in i
 
 ## Set it up
 
-1. List your feeds in `automation/lib/newsletter/feeds.txt`, one RSS or Atom URL per line.
+1. List your feeds in `workspace/.decree/lib/newsletter/feeds.txt`, one RSS or Atom URL per line.
    A feed that fails is skipped that week.
-2. Write what you want in `automation/lib/newsletter/taste.md`: what you care about, what to
+2. Write what you want in `workspace/.decree/lib/newsletter/taste.md`: what you care about, what to
    skip, how long the issue should be.
 3. Turn the schedule on:
 
    ```bash
-   ./existential.sh flow on newsletter
+   ./existential.sh flow on weekly-newsletter
    ```
 
    Run one now from code-server's terminal with `cd /workspace && echo | decree emit

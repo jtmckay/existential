@@ -54,7 +54,7 @@ The `id` becomes the run's id; use it to find the result (section 4).
 
 ### Adding your own endpoint
 
-Add an entry to `automation/decree-go-rest.yml`; no restart:
+Add an entry to `workspace/.decree/decree-go-rest.yml`; no restart:
 
 ```yaml
 endpoints:

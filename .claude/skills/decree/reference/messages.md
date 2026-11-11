@@ -137,7 +137,8 @@ history in git.
 - People may drop a file in directly. Programs write `.<name>.tmp`, then rename it to `<name>.md`;
   files starting with `.` are ignored, so nobody reads a partial file.
 - From a script, use `decree emit`, which does the temp-file-and-rename for you, sets `parent`,
-  `depth` and `trigger: emit`, and refuses past `max_depth` (10):
+  `depth` and `trigger: emit`, and refuses past `max_depth` (10 unless `DECREE_MAX_DEPTH` in the shell or `.decree/.env`
+  sets it, a whole number of at least 1):
 
   ```bash
   "${DECREE}" emit --machine feature --param max_rounds=3 <<'EOF'

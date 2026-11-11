@@ -40,7 +40,14 @@ _tsc_in_container() {
         ln -sfn /opt/decree/node_modules /repo/node_modules
         cd /repo
         ${1:-true}
+        # Plugins' TypeScript, where the stack installs it, under an include root
+        # and out of a dot-folder (tsc's globs skip those).
+        rm -rf ${_PLUGINS_TS}; mkdir -p ${_PLUGINS_TS}
+        ( . automation/lib/automations/registry.sh; . automation/lib/automations/plugin.sh
+          plugin_unpack \$(cd automation/plugins && ls *.md flows/*.md | sed 's#^flows/##; s/\\.md\$//') ${_PLUGINS_TS} ) >/dev/null
+        mv ${_PLUGINS_TS}/.decree ${_PLUGINS_TS}/decree
         /opt/decree/node_modules/.bin/tsc --noEmit -p tsconfig.json 2>&1 || true
+        rm -rf ${_PLUGINS_TS}
     "
 }
 
@@ -52,12 +59,14 @@ _tsc_in_container() {
 # dot, so a canary named .typecheck-canary.ts is never compiled and the
 # self-check reports "tsc is not running" on a perfectly working checker.
 _canary_src='src/typecheck-canary.ts'
+_PLUGINS_TS=automation/typecheck-plugins
 # Refuse to clobber a real node_modules: if one exists and is a directory, this
 # is a developer machine that ran npm install and resolution already works.
 _made_link=false
 if [ ! -e "$_LINK" ]; then _made_link=true; fi
 _cleanup() {
     rm -f "${REPO}/${_canary_src}"
+    rm -rf "${REPO:?}/${_PLUGINS_TS}"
     if [ "$_made_link" = true ] && [ -L "$_LINK" ]; then rm -f "$_LINK"; fi
 }
 trap _cleanup EXIT
@@ -78,6 +87,7 @@ OUT="$(_tsc_in_container)"
 # allowlist of the three roots tsconfig actually includes cannot drift from it.
 OURS="$(printf '%s\n' "$OUT" \
     | grep -E '^(src|automation|services/automation/src)/[^ ]*\.tsx?\([0-9]+,[0-9]+\): error TS' \
+    | sed -E "s#^${_PLUGINS_TS}/decree/(scripts/[^/]+|lib)/#(an installed plugin) \\1/#" \
     || true)"
 
 # `git ls-files 'src/**/*.ts'` misses src/generate-compose.ts — a pathspec ** in
@@ -85,8 +95,9 @@ OURS="$(printf '%s\n' "$OUT" \
 _count="$(git -C "$REPO" ls-files '*.ts' 2>/dev/null \
     | grep -E '^(src|automation|services/automation/src)/' | wc -l)"
 
+_count=$(( _count + $(cat "${REPO}"/automation/plugins/*.md "${REPO}"/automation/plugins/flows/*.md | grep -cE '^  [A-Za-z0-9_./-]+\.ts: [|]') ))
 if [ -z "$OURS" ]; then
-    echo "  PASS  typecheck-ts (${_count} files, tsc --noEmit, strict)"
+    echo "  PASS  typecheck-ts (${_count} files with the plugins', tsc --noEmit, strict)"
 else
     echo "  FAIL  typecheck-ts" >&2
     printf '%s\n' "$OURS" >&2

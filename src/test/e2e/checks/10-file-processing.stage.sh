@@ -2,10 +2,9 @@
 # Host-side setup for 10-file-processing, run by e2e.sh's stage_checks before
 # the stack boots.
 #
-# lib/ is mounted read-only into the daemon, so the probe processor has to be
-# placed from out here. So do the webhook registration and rclone remote
-# migrations, the nextcloud-capture flow's, so any unit with Nextcloud on boots
-# with file events whether or not it turned that flow on.
+# The probe processor is placed in the workspace's decree lib from out here, before
+# the stack boots, and nextcloud-capture is turned on, so any unit with Nextcloud
+# on boots with file events whether or not it turned that flow on.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -20,14 +19,19 @@ grep -q '^EXIST_IS_NAS_NEXTCLOUD=true' "$WORK/.env.shared" || exit 0
 # since it asserts its own downloaded file is non-empty, a break anywhere in the
 # chain exits non-zero and e2e's every-run-is-graded rule turns that into a red
 # row.
-mkdir -p "$WORK/automation/lib/file-processors"
-cp "$WORK/automation/lib/file-processors.example/example.sh" \
-   "$WORK/automation/lib/file-processors/"
+# It ships in the file_processor plugin's lib, so it is read out of that file the
+# way test lint does (awk: this is the host).
+_dst="$WORK/volumes/workspace_data/.decree/lib/file-processors"
+mkdir -p "$_dst"
+awk '/^lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.example\/example\.sh: [|][-+]?$/{f=1; next}
+     f && /^  [^ ]/{exit} f {print (length($0) >= 4 ? substr($0, 5) : "")}' \
+    "$WORK/automation/plugins/file_processor.md" > "$_dst/example.sh"
+[ -s "$_dst/example.sh" ] || { echo "  no example processor in automation/plugins/file_processor.md" >&2; exit 1; }
 
 echo "  staged the example file-processor as the probe"
 
-mkdir -p "$WORK/volumes/workspace_data/.decree/migrations"
-for _m in 23-nextcloud-rclone-remote.md 27-nextcloud-file-events.md; do
-    cp -n "$WORK/flows/nextcloud-capture/migrations/$_m" "$WORK/volumes/workspace_data/.decree/migrations/"
-done
-echo "  staged the nextcloud migrations (rclone remote, file events)"
+# nextcloud-capture on in the workspace's plugins.yml: exist.initial.sh then
+# installs its plugins and queues their migrations (rclone remote, file events).
+# shellcheck source=../../../utils/flows.sh
+( REPO_DIR="$WORK"; . "$WORK/src/utils/flows.sh"; plugins_turn on nextcloud-capture )
+echo "  turned on nextcloud-capture (rclone remote, file events)"

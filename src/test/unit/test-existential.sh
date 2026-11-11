@@ -478,11 +478,10 @@ assert_eq "Core ships exactly its three services on" \
     "EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_NTFY" \
     "$(grep -oE '^EXIST_IS_[A-Z_]+=true' "${REPO}/.env.exist.shared" | cut -d= -f1 | sort | xargs)"
 _beyond_core="$(REPO_DIR="$REPO"; . "${REPO}/src/utils/flows.sh"
-    for n in $(flow_names); do
-        [[ "$(flow_get "$n" default)" == true ]] || continue
+    for n in $(flow_defaults); do
         for f in $(flow_closure "$n"); do flow_list "$f" services; done
     done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)' || true; } | sort -u | xargs)"
-assert_eq "a default flow needs nothing beyond Core" "" "$_beyond_core"
+assert_eq "a flow every install starts with (plugins.exist.yml) needs nothing beyond Core" "" "$_beyond_core"
 
 # ── Image updates reach a rendered compose file ───────────────────────────────
 #

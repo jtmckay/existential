@@ -82,7 +82,7 @@ files (so your desktop client gets them) but raises **no event** for them. A
 
 `file_router` strips the `/<user>/files/` prefix, constructs `FILE_SOURCE` as
 `nextcloud:<path>` (e.g. `nextcloud:workspace/notes/plan.md`), and scans every script in
-`automation/lib/file_processors/` for a `PATTERN=` regex match. It maps written → `created`,
+`workspace/.decree/lib/file-processors/` for a `PATTERN=` regex match. It maps written → `created`,
 deleted → `removed`, and splits a rename into a removal of the old path plus a creation of the
 new one. It also reads each processor's `IS_PRE_SIGNED=` setting to carry it into the job.
 
@@ -114,7 +114,7 @@ Multiple processors can match the same file — each runs independently as its o
 
 ## Adding a File Processor
 
-Create `automation/lib/file_processors/<name>.sh`:
+Create `workspace/.decree/lib/file-processors/<name>.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -170,7 +170,7 @@ Decree picks up the new file immediately — no restart needed.
 
 ## Setup
 
-`./existential.sh flow on nextcloud-capture` turns on Nextcloud and automation-webhook and copies
+`./existential.sh flow on nextcloud-capture` asks to turn on Nextcloud and automation-webhook, and copies
 the two decree migrations below into `volumes/workspace_data/.decree/migrations/`. Core does not
 include Nextcloud, so this is always a step you take. The flows built on it (`image-ocr`,
 `transcription`, `workspace-agent`) turn it on themselves and copy their processor in:

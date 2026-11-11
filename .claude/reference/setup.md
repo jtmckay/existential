@@ -81,20 +81,19 @@ takes a model name instead of a number (`custom:<tag>`) — see `.claude/referen
 
 ## Flows
 
-A flow is a folder in `flows/`: `flow.md` plus the files that switch on its machine
-(`cron/*.md` and `migrations/*.md`, copied into `volumes/workspace_data/.decree/`; `examples/`
-is for reading). `src/utils/flows.sh` reads it, sourced by `src/flows.sh` (the command),
-`e2e.sh` and automation's `exist.initial.sh`. It is awk over flat frontmatter, not yq, because
-e2e and `exist.initial.sh` run on the host. The keys are documented in its header; keep the
-frontmatter flat (scalars, block lists of plain values) or the reader will not see it.
+A flow is a plugin with no machine, `automation/plugins/flows/<name>.md`; the ones with a tagline
+are what `./existential.sh flow` offers. `src/utils/flows.sh` reads them, sourced by
+`src/flows.sh` (the command) and `e2e.sh`. It is awk over flat frontmatter, not yq, because e2e
+runs on the host. The keys are documented in its header; keep a flow's first keys flat (scalars,
+block lists of plain values) or the reader will not see them.
 
-`flow on <name>` turns on the flows it needs (`flows:`, depth first), sets every service flag
-they name (`services:`) unless the GPU answer forbids one (`vendor_forbids_service`: a local
-ollama under `external`), copies each file not already in place (a migration already in
-`processed.md` counts as in place), and prints the body: only what is left for a person. Then
-`existential.sh` renders and builds. `flow off` deletes only copies identical to the flow's
-file, never touches services, and names a `default: true` flow in `.decree/flows-off`, which
-`exist.initial.sh` reads before re-activating the defaults. `src/flows.sh` exits 3 for "nothing
+`flow on <name>` asks, one service at a time, before it sets any flag the flows it needs name
+(`services:`, through `needs:`, depth first; only a typed `y` sets it, and no terminal is no; a
+service left off is printed with its `service on` line), skips one the GPU answer forbids (`vendor_forbids_service`: a local ollama under
+`external`), adds it to `workspace/.decree/plugins.yml` (the one record of what is on), and
+prints the body: only what is left for a person. Then `existential.sh` renders and builds, and
+automation's `exist.initial.sh` installs it and all it needs. `flow off` takes it out of
+`plugins.yml` and never touches services. `src/flows.sh` exits 3 for "nothing
 changed" (a list, an empty pick), which skips the rebuild. `service [list|on|off]` (`src/services.sh`) is
 the same shape for one service's `EXIST_IS_*` flag, with the same GPU check and exit 3.
 

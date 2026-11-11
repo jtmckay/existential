@@ -13,8 +13,8 @@ daemons have finished their migrations. The daemon runs them and writes
 `runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log}` for each, and
 `e2e.sh` copies that out to `e2e-out/` and grades it.
 
-Checks are dropped in rather than shipped in `flows/` — that directory is what
-a user's install copies from, and test code has no business in the product tree.
+Checks are dropped in rather than shipped in `automation/plugins/` — that is what
+a user's install installs from, and test code has no business in the product tree.
 
 ## Why messages, and why after the migrations
 
