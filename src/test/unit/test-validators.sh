@@ -128,27 +128,30 @@ printf 'alpha\nbeta\n' > "$insync/x.exist.txt"
 printf 'alpha\nbeta\n' > "$insync/x.txt"
 expect_pass "drift: passes when rendered matches template" tsx "$DRIFT" "$insync"
 
-# ── Flows ─────────────────────────────────────────────────────────────────────
-# A flow is flows/<name>/flow.md: frontmatter, then what is left for a person.
-# Every name it gives must resolve, and the body is prose, never config.
+# ── Plugins and flows ─────────────────────────────────────────────────────────
+# A flow is automation/plugins/flows/<name>.md, a plugin with no machine:
+# frontmatter, then what is left for a person. Every name it gives must resolve.
 
-ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flow
+ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flow, foo
     local d; d="$(mkfix)"
-    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/flows/foo"
+    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/automation/plugins/flows"
     printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
-    printf -- '---\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/flows/foo/flow.md"
+    printf -- '---\nmachine: plugin\nautomation: foo\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
     echo "$d"
 }
 FLOW_OK=$'name: Foo\ntagline: does foo\ndocs: /docs/ai/foo\nservices:\n  - EXIST_IS_AI_FOO'
 expect_pass "conventions: accepts a flow whose names all resolve" tsx "$CONV" "$(ffix "$FLOW_OK")"
-expect_fail "conventions: rejects a flow with no tagline" tsx "$CONV" "$(ffix $'name: Foo\ndocs: /docs/ai/foo')"
+expect_fail "conventions: rejects a flow you pick with no docs" tsx "$CONV" "$(ffix $'name: Foo\ntagline: does foo')"
 expect_fail "conventions: rejects a flow whose docs page does not exist" tsx "$CONV" "$(ffix "${FLOW_OK/ai\/foo/ai\/bar}")"
 expect_fail "conventions: rejects a flow naming a service with no folder" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\n  - EXIST_IS_AI_BAR')"
-expect_fail "conventions: rejects a flow needing a flow that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nflows:\n  - bar')"
-expect_fail "conventions: rejects a flow copying a processor that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nprocessors:\n  - bar.sh')"
-noflowmd="$(mkfix)"; mkdir -p "$noflowmd/flows/foo/cron"
-expect_fail "conventions: rejects a flow folder with no flow.md" tsx "$CONV" "$noflowmd"
+expect_fail "conventions: rejects a flow needing a plugin that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nneeds:\n  - bar')"
+expect_fail "conventions: rejects a flow with a machine (it belongs in plugins/)" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nchart:\n  initial: go')"
+expect_fail "conventions: rejects a flow whose cron runs a machine it does not need" tsx "$CONV" \
+    "$(ffix "${FLOW_OK}"$'\ncron:\n  foo-daily: |\n    ---\n    machine: bar\n    ---')"
+clash="$(ffix "$FLOW_OK")"
+printf -- '---\nmachine: plugin\nautomation: foo\nchart:\n  initial: go\n---\n' > "$clash/automation/plugins/foo.md"
+expect_fail "conventions: rejects a machine and a flow sharing a name" tsx "$CONV" "$clash"
 
 # ── Docs: a page per service, links that land, Core's list ───────────────────
 # docfix <dir>: one service folder (ai/foo), its page, a one-service Core, and a
@@ -166,6 +169,7 @@ docok="$(docfix)"
 expect_pass "conventions: accepts documented services and a matching Core list" tsx "$CONV" "$docok"
 
 docnopage="$(docfix)"; mkdir -p "$docnopage/ai/bar"
+printf 'services:\n  bar:\n    container_name: bar\n    restart: unless-stopped\n' > "$docnopage/ai/bar/docker-compose.exist.yml"
 expect_fail "conventions: rejects a service folder with no docs page" tsx "$CONV" "$docnopage"
 
 docgone="$(docfix)"; printf -- '---\nservice: ai/gone\n---\n' > "$docgone/site/docs/ai/gone.md"

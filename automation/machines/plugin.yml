@@ -1,0 +1,14 @@
+# The plugin system (lib/automations/plugin.sh): never a plugin, so no plugin replaces it.
+name: plugin
+description: Install a plugin you accepted (notes/automations/<name>.md, filed by reconcile) as written - its machine, scripts, lib, crons and endpoints - checked by decree check, or undone.
+data:
+  # From the plugin's frontmatter; decree passes top-level keys to no run.
+  automation: { type: string, default: "" }
+initial: install
+states:
+  install:
+    invoke: plugin
+    transitions: { done: done }
+    emits: [notify]
+  done: { final: true }
+  failed: { final: true }

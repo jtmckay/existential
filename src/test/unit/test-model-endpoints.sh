@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # test-model-endpoints.sh — per-role model endpoints and their fallback.
 #
-# Splitting model roles across machines is a silent-failure feature: point the
-# embed role at a box with no embedding model and nothing errors at startup —
-# openviking just indexes into a vector store built on garbage, and you find out
-# when search returns nonsense weeks later. The fallback is the same shape: a
+# Splitting model roles across hosts is a silent-failure feature: point the
+# vision role at a box with no vision model and nothing errors at startup — the
+# OCR processor just fails on every image, and you find out weeks later. The fallback is the same shape: a
 # blank per-role key must mean "wherever EXIST_MODEL_URL points", because that is
 # how every single-box install runs.
 #
 # So the assertions are about the contract between the three places that resolve
 # a role, which must never disagree:
-#   src/utils/model-endpoints.sh  — host scripts (openviking, models.sh)
+#   src/utils/model-endpoints.sh  — host scripts (models.sh, ollama's pulls)
 #   src/templates.sh              — rendered configs (open-webui's compose)
-#   automation/lib/model.sh       — inside the decree container, which cannot see src/
+#   lib/model.sh (the model plugin)       — inside the decree container, which cannot see src/
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +24,10 @@ REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 ENDPOINTS="${SRC_DIR}/utils/model-endpoints.sh"
 TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
-MODEL_LIB="${REPO_DIR}/automation/lib/model.sh"
+# model.sh is the model plugin's lib, unpacked as the stack installs it.
+_U="$(mktemp -d)"; trap 'rm -rf "$_U"' EXIT
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack model "$_U" ) >/dev/null
+MODEL_LIB="${_U}/.decree/lib/model.sh"
 OPEN_WEBUI="${REPO_DIR}/ai/open-webui/docker-compose.exist.yml"
 DEFAULT_URL="http://ollama:11434/v1"
 
@@ -36,10 +38,9 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); }
 
-ROLES="chat embed vision"
+ROLES="chat vision"
 _blank_roles() {
-    export EXIST_MODEL_URL_CHAT="" \
-           EXIST_MODEL_URL_EMBED="" EXIST_MODEL_URL_VISION=""
+    export EXIST_MODEL_URL_CHAT="" EXIST_MODEL_URL_VISION=""
 }
 
 # ── The resolver ──────────────────────────────────────────────────────────────
@@ -65,15 +66,14 @@ _blank_roles() {
 # A set role key wins, and does NOT leak into its neighbours.
 (
     export EXIST_MODEL_URL="http://global:8080/v1"; _blank_roles
-    export EXIST_MODEL_URL_EMBED="http://embedbox:11434/v1"
-    [[ "$(endpoint_for embed)"   == "http://embedbox:11434/v1" ]] || exit 1
+    export EXIST_MODEL_URL_VISION="http://visionbox:11434/v1"
+    [[ "$(endpoint_for vision)"  == "http://visionbox:11434/v1" ]] || exit 1
     [[ "$(endpoint_for chat)"    == "http://global:8080/v1"    ]] || exit 1
-    [[ "$(endpoint_for vision)"  == "http://global:8080/v1"    ]] || exit 1
 ) >/dev/null 2>&1 \
     && _ok "a set role key wins and does not leak to other roles" \
     || _fail "a set role key wins and does not leak to other roles"
 
-# chat-ctx is ollama_pull's rebuild role; it must land on the chat machine or the
+# chat-ctx is ollama_pull's rebuild role; it must land on the chat host or the
 # rebuilt model appears on a box that never serves chat.
 (
     export EXIST_MODEL_URL="http://global:8080/v1"
@@ -115,7 +115,7 @@ _blank_roles() {
 
 (
     export EXIST_MODEL_URL="http://global:8080/v1"; _blank_roles
-    export EXIST_MODEL_URL_EMBED="http://embedbox:11434/v1"
+    export EXIST_MODEL_URL_VISION="http://visionbox:11434/v1"
     endpoints_are_uniform
 ) >/dev/null 2>&1 \
     && _fail "endpoints_are_uniform is false once a role is moved" \
@@ -133,7 +133,6 @@ for _case in "global" "split" "unset"; do
             case "$_case" in
                 global) export EXIST_MODEL_URL="http://g:1/v1" ;;
                 split)  export EXIST_MODEL_URL="http://g:1/v1" EXIST_MODEL_URL_CHAT="http://c:2/v1" \
-                               EXIST_MODEL_URL_EMBED="http://e:4/v1" \
                                EXIST_MODEL_URL_VISION="http://v:5/v1" ;;
                 unset)  unset EXIST_MODEL_URL ;;
             esac
@@ -144,13 +143,13 @@ for _case in "global" "split" "unset"; do
 done
 ( model_url definitely-not-a-role ) >/dev/null 2>&1 && _disagree+="unknown-role-accepted "
 [[ -z "$_disagree" ]] \
-    && _ok "automation/lib/model.sh resolves every role exactly as model-endpoints.sh" \
-    || _fail "automation/lib/model.sh resolves every role exactly as model-endpoints.sh" "$_disagree"
+    && _ok "lib/model.sh (the model plugin) resolves every role exactly as model-endpoints.sh" \
+    || _fail "lib/model.sh (the model plugin) resolves every role exactly as model-endpoints.sh" "$_disagree"
 
 # templates.sh resolves the blanks for rendered configs. Its loop is a literal
 # list of role names, so it is the one place that silently omits a new role.
 _tmpl_missing=""
-for _r in CHAT EMBED VISION; do
+for _r in CHAT VISION; do
     grep -qE "for _role in .*${_r}" "$TEMPLATES" || _tmpl_missing+="${_r} "
 done
 [[ -z "$_tmpl_missing" ]] \
@@ -168,7 +167,7 @@ grep -qF "\${_vals[EXIST_MODEL_URL]:-${DEFAULT_URL}}" "$TEMPLATES" || _default_o
 # ── The shipped env ───────────────────────────────────────────────────────────
 
 _missing=""
-for _r in CHAT EMBED VISION; do
+for _r in CHAT VISION; do
     grep -qE "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" || _missing+="EXIST_MODEL_URL_${_r} "
 done
 [[ -z "$_missing" ]] \
@@ -190,12 +189,12 @@ grep -qE '^EXIST_OLLAMA_URL' "$SHIPPED" \
 
 # ── Every role has BOTH halves ────────────────────────────────────────────────
 #
-# A role is "which model" AND "on which machine". Adding one without the other is
+# A role is "which model" AND "on which host". Adding one without the other is
 # the silent gap: a new role with an endpoint but no EXIST_MODEL_* resolves to an
 # empty tag, so nothing errors — the model simply never gets loaded and every
 # call 404s at runtime. Assert the pair, not each half.
 _unpaired=""
-for _r in CHAT EMBED VISION; do
+for _r in CHAT VISION; do
     grep -qE "^EXIST_MODEL_${_r}="     "$SHIPPED" || _unpaired+="${_r}(no model) "
     grep -qE "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" || _unpaired+="${_r}(no endpoint) "
 done
@@ -203,21 +202,17 @@ done
     && _ok "every role has both a model tag and an endpoint" \
     || _fail "every role has both a model tag and an endpoint" "unpaired: $_unpaired"
 
-# The two role-scoped extras. Neither is a tag or an address, but both belong to
-# exactly one role and break that role alone when wrong: a stale num_ctx makes
-# an agent overflow silently, a mismatched dim corrupts the vector index.
+# The role-scoped extra. It is not a tag or an address, but it belongs to
+# exactly one role and breaks that role alone when wrong: a stale num_ctx makes
+# an agent overflow silently.
 grep -qE "^EXIST_MODEL_CHAT_NUM_CTX=" "$SHIPPED" \
     && _ok "the chat role carries its context window" \
     || _fail "the chat role carries its context window"
 
-grep -qE "^EXIST_MODEL_EMBED_DIM=" "$SHIPPED" \
-    && _ok "the embed role carries its vector dimensions" \
-    || _fail "the embed role carries its vector dimensions"
-
-# A shipped role value would quietly pin every new install to one machine and
+# A shipped role value would quietly pin every new install to one host and
 # make EXIST_MODEL_URL a setting that does nothing.
 _nonblank=""
-for _r in CHAT EMBED VISION; do
+for _r in CHAT VISION; do
     _v=$(grep -E "^EXIST_MODEL_URL_${_r}=" "$SHIPPED" | head -1 | cut -d= -f2-)
     [[ -z "$_v" ]] || _nonblank+="${_r}=${_v} "
 done

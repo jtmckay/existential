@@ -9,14 +9,14 @@ come with you. None of this is deployed by Existential — they're clients you i
 
 | App | What it gives you |
 |---|---|
-| [Home Assistant](./homeassistant) | House controls and automations, plus presence detection from the phone itself |
-| [Obsidian](./obsidian) | The vault, editable offline; changes reconcile when the folder next syncs |
-| [Nextcloud](../storage/nextcloud) | Files on demand, and automatic camera-roll upload |
+| [Home Assistant](./homeassistant.md) | House controls and automations, plus presence detection from the phone itself |
+| [Obsidian](./obsidian.md) | The vault, editable offline; changes reconcile when the folder next syncs |
+| [Nextcloud](../storage/nextcloud.md) | Files on demand, and automatic camera-roll upload |
 
 ## Camera roll
 
 The Nextcloud app's auto-upload is the simplest way to get photos off the phone and onto your
-own disks. Point it at the directory [Immich](./immich) watches and new photos land in the
+own disks. Point it at the directory [Immich](./immich.md) watches and new photos land in the
 library without a manual import step.
 
 ## Keeping the vault in step
@@ -31,4 +31,4 @@ Obsidian points at the local copy instead.
 
 Obsidian also offers its own first-party sync service, which handles this case (and end-to-end
 encryption) without the extra moving part. Either approach works; see
-[Obsidian](./obsidian#sync-to-your-phone) for the setup steps.
+[Obsidian](./obsidian.md#sync-to-your-phone) for the setup steps.

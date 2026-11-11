@@ -47,7 +47,11 @@ fi
 # Custom nodes are the reason this matters: several workflows lean on packs
 # (ResolutionSelector, the LTXV and ComfyMath nodes) that live in the comfyui_data
 # volume via ComfyUI Manager, not in the image, and so are absent on a fresh host.
-WORKFLOWS="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../automation/lib/comfy/workflows" && pwd)"
+# They are the comfy plugin's lib (automation/plugins/comfy.md), unpacked here to read.
+_unpacked="$(mktemp -d)"; trap 'rm -rf "$_unpacked"' EXIT
+( . /repo/automation/lib/automations/registry.sh; . /repo/automation/lib/automations/plugin.sh
+  plugin_unpack comfy "$_unpacked" ) >/dev/null
+WORKFLOWS="${_unpacked}/.decree/lib/comfy/workflows"
 NEEDED=$(jq -s -r '[ .[] | (.prompt // .) | .[].class_type ] | unique' "$WORKFLOWS"/*.json)
 MISSING=$(curl -sS --max-time 20 "${COMFY_URL}/object_info" 2>/dev/null \
     | jq -r --argjson needed "$NEEDED" '$needed - (keys) | join(" ")' 2>/dev/null || echo "?")

@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # Ollama
 
-General AI model hosting. Everything else in the stack that reasons, embeds or reads an image
+General AI model hosting. Everything else in the stack that reasons or reads an image
 talks to it.
 
 - Source: https://github.com/ollama/ollama
@@ -16,7 +16,7 @@ talks to it.
 
 You do not pick models here. Model choice is global and lives in the *Model Selection* block of
 `.env.shared`, filled in from a VRAM tier table by the question asked the first time ollama is enabled — see
-[Configuration → Models](../configuration#models).
+[Configuration → Models](../configuration.md#models).
 
 The models are pulled for you: the `10-ollama-*` … `14-ollama-*` decree migrations run as soon as
 ollama answers `/api/tags`, once the `local-models` flow is on (`./existential.sh flow on local-models`). Without it, pull manually:
@@ -38,14 +38,14 @@ A running instance keeps the context it was loaded with, so after a rebuild evic
 
 ## Where it runs
 
-`EXIST_MODEL_URL` (and the per-role `EXIST_MODEL_URL_CHAT|_EMBED|_VISION`) decide which
-machine serves each role, as OpenAI-compatible `/v1` URLs, so the models can live on a different
+`EXIST_MODEL_URL` (and the per-role `EXIST_MODEL_URL_CHAT|_VISION`) decide which
+host serves each role, as OpenAI-compatible `/v1` URLs, so the models can live on a different
 box — or a different server, such as llama.cpp — than the rest of the stack. Pulling, unloading
 and the ollama probes run only while `EXIST_IS_AI_OLLAMA=true`. The `ollama.<domain>` Caddy
-hostname is this machine's ollama container. Details:
-[Configuration → Endpoints](../configuration#endpoints--putting-roles-on-different-machines).
+hostname is this host's ollama container. Details:
+[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
 
-For GPU setup, see [Proxmox GPU](../hosting/proxmox#gpu).
+For GPU setup, see [Proxmox GPU](../hosting/proxmox.md#gpu).
 
 ## Diagnostics
 

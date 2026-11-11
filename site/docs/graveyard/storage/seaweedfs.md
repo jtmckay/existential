@@ -6,7 +6,7 @@ sidebar_position: 3
 
 - Source: https://github.com/seaweedfs/seaweedfs
 - License: [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
-- Status: RIP — replaced by [Nextcloud](../../storage/nextcloud) on its own
+- Status: RIP — replaced by [Nextcloud](../../storage/nextcloud.md) on its own
 
 ## Why it left
 

@@ -6,7 +6,7 @@ sidebar_position: 1
 
 Lets the `actual_budget` and `actual_budget_parse` machines post transactions to your Actual Budget server.
 
-New to Actual Budget? Start with the [service setup](../services/actual-budget) first.
+New to Actual Budget? Start with the [service setup](../services/actual-budget.md) first.
 
 ## Prerequisites
 
@@ -37,4 +37,4 @@ If you add accounts later, re-run `./existential.sh run actual-budget setup` to 
 
 ## Next Steps
 
-Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../flows/transaction-gmail-actual-budget)
+Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../flows/transaction-gmail-actual-budget.md)

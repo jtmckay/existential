@@ -6,7 +6,7 @@ sidebar_position: 5
 
 [AutoVoice](https://joaoapps.com/autovoice/) is a Tasker plugin by João Dias that uses Android's speech recognition to trigger Tasker profiles from voice commands — no custom model training required.
 
-AutoVoice supports both on-demand (tap-to-activate) and always-on hotword modes. Use it as an alternative to [HAwake](./hawake) when you want to skip custom model training and rely on Android's built-in speech stack instead.
+AutoVoice supports both on-demand (tap-to-activate) and always-on hotword modes. Use it as an alternative to [HAwake](./hawake.md) when you want to skip custom model training and rely on Android's built-in speech stack instead.
 
 ---
 
@@ -51,7 +51,7 @@ AutoVoice can be triggered several ways:
 
 ## Example: voice → Home Assistant → recording
 
-This mirrors the [HAwake → HA → Tasker flow](./hawake-homeassistant) but uses AutoVoice as the trigger instead of a wake word.
+This mirrors the [HAwake → HA → Tasker flow](./hawake-homeassistant.md) but uses AutoVoice as the trigger instead of a wake word.
 
 ### Tasker profile
 

@@ -20,17 +20,18 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 
 ## Endpoints
 
-The endpoints are `workspace/.decree/decree-go-rest.yml`, seeded once from
-`automation/decree-go-rest.yml`; edits are picked up without a restart, and
+The endpoints are `workspace/.decree/decree-go-rest.yml`, copied once from
+`automation/decree-go-rest.exist.yml`. Each [plugin](../plugins/index.md) you have on adds its own
+(`endpoints:`) and takes them away when it goes off. Edits are picked up without a restart, and
 `GET /openapi.json` lists them all. Among them:
 
 | Endpoint | Runs |
 |---|---|
-| `/capture` | `capture`: a line in the [capture stream](../getting-started#capture) |
-| `/you-were-here` | `you_were_here`: [the digest](../getting-started#you-were-here), now |
-| `/look-back`, `/look-back/{period}`, `/look-back/{period}/{scope}` | `look_back`: [a look back](../getting-started#look-back) |
+| `/capture` | `capture`: a line in the [capture stream](../getting-started.md#capture) |
+| `/you-were-here` | `you_were_here`: [the digest](../getting-started.md#you-were-here), now |
+| `/look-back`, `/look-back/{period}`, `/look-back/{period}/{scope}` | `look_back`: [a look back](../getting-started.md#look-back) |
 | `/notify`, `/notify/{title}` | `notify`: an ntfy push |
-| `/files` | `file_router`: Nextcloud's file events ([File Change Processing](./file-change-processing)) |
+| `/files` | `file_router`: Nextcloud's file events ([File Change Processing](./file-change-processing.md)) |
 
 Every request carries `Authorization: Bearer <secret>`. The default secret is
 `AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`; `/files` has its own.
@@ -41,7 +42,7 @@ curl -X POST https://automation-webhook.<domain>/notify/backup \
 ```
 
 Containers reach it at `http://automation-webhook:8801`; a browser or phone needs the
-[Caddy](../hosting/caddy) add-on for `https://automation-webhook.<domain>`.
+[Caddy](../hosting/caddy.md) add-on for `https://automation-webhook.<domain>`.
 
 ## Without it
 

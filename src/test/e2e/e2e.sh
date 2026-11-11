@@ -206,8 +206,9 @@ applicable_checks() {
     return 0
 }
 
-# Stage checks BEFORE render and up, into the shipped set exist.initial.sh seeds
-# workspace/.decree from:
+# Stage checks BEFORE render and up, into automation/machines/ and scripts/,
+# which exist.initial.sh copies into workspace/.decree on every run (the plugin
+# system's own files, src/lib/plugin.sh):
 #   - a sibling .yml lands in automation/machines/ as <machine>.yml, and a
 #     sibling .sh in automation/scripts/ as <machine>.sh (automation-backup
 #     mounts that scripts/ too), executable because decree runs scripts by path
@@ -215,7 +216,7 @@ applicable_checks() {
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
 # it is a message, not a migration. It is COPIED from checks/ rather than
-# shipped in flows/, which is what a user's install copies from: test code has
+# shipped in automation/plugins/, which is what a user's install installs: test code has
 # no business in the product tree.
 stage_checks() {
     local work="$1" md m st
@@ -419,7 +420,7 @@ run_unit() {
         fi
         # Verified, not fired and forgotten. This sed is a silent no-op when the
         # key is absent from the fixture, and the fixture had drifted seven keys
-        # behind .env.exist.shared — so Core quietly came up WITHOUT openviking,
+        # behind .env.exist.shared — so Core quietly came up WITHOUT
         # firecrawl, wyoming-whisper and wyoming-piper, and stayed green because
         # nothing checked. Rendering then appends the missing key as `false`,
         # which is why the stack looked deliberate rather than broken. Adding a
@@ -429,15 +430,13 @@ run_unit() {
             || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
-    # 4. The flow's files: its migrations, cron files and file processors, and
-    #    those of every flow it needs. Core's default flows arrive with
-    #    exist.initial.sh, below, exactly as on a real install.
+    # 4. The flow on in the workspace's plugins.yml, as `flow on` does; it and
+    #    what it needs are installed by exist.initial.sh, below, exactly as on a
+    #    real install. Core's flows are the plugins.yml every install starts with.
     if [ "$unit" != core ]; then
-        for f in $(flow_closure "$unit"); do
-            n=$(( n + $(REPO_DIR="$WORK" flow_activate "$f" | wc -l) ))
-        done
+        ( REPO_DIR="$WORK"; plugins_turn on "$unit" )
+        log "Turned on ${unit} in the workspace's plugins.yml"
     fi
-    log "Activated ${n} flow files"
 
     # 5. Stage the checks — before the render, because what this touches
     #    (machines/ and scripts/, seeded by exist.initial.sh, and the webhook route table) is read at boot.
@@ -518,10 +517,9 @@ run_unit() {
 #
 # The lock lives in /tmp rather than the repo because the collision is global —
 # two different clones of this repo would fight over the same container names.
-# Same fd-9 idiom as openviking-index-dir.sh: held for the life of the process,
-# so a crash or a kill frees it and there is no stale lock to clean up. That
-# routine SKIPS when it loses the race because a cron will come round again;
-# this one is run by a person, so it says so and stops.
+# The fd-9 idiom: held for the life of the process, so a crash or a kill frees
+# it and there is no stale lock to clean up. This is run by a person, so losing
+# the race says so and stops.
 _LOCK="${TMPDIR:-/tmp}/exist-e2e.lock"
 exec 9>"$_LOCK"
 if ! flock -n 9; then

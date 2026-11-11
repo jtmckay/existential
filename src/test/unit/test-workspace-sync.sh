@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-workspace-sync.sh — automation/scripts/workspace_sync.sh two-way syncs a
+# test-workspace-sync.sh — the workspace_sync plugin two-way syncs a
 # workspace with a folder over WebDAV: a remote file comes down, nothing a
 # .gitignore ignores and no .git/ goes up, a script that comes down is
 # executable, and a sync that would delete most files deletes nothing and holds
@@ -13,7 +13,6 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
-SYNC="${REPO_DIR}/automation/scripts/workspace_sync.sh"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
@@ -25,6 +24,9 @@ for _bin in rclone git; do
 done
 
 TMP="$(mktemp -d)"
+# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack workspace_sync "${TMP}/unpacked" ) >/dev/null
+SYNC="${TMP}/unpacked/.decree/scripts/workspace_sync/workspace_sync.sh"
 trap 'kill "$DAV_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 WS="${TMP}/workspace"
 DAV="${TMP}/dav"

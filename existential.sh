@@ -95,11 +95,11 @@ _ensure_host_ids() {
 #
 # So detect the IP the same way EXIST_PUID/PGID are detected.
 
-# The address of this machine, preferring its tailnet address. Only the Caddy
+# The address of this host, preferring its tailnet address. Only the Caddy
 # add-on uses it (Core is served on the tailnet *name*, _tailscale_serve_core).
 #
 # The LAN address below works on its own, but when Tailscale is up its 100.64.0.0/10 address is the better answer: it reaches
-# every device enrolled rather than only this LAN, and it survives the machine moving
+# every device enrolled rather than only this LAN, and it survives the host moving
 # networks. `<ts-ip-with-dashes>.nip.io` then gives WILDCARD DNS for an address
 # that is only routable inside the tailnet — private by construction, with no
 # tailnet DNS config at all.
@@ -176,17 +176,28 @@ _ensure_host_access() {
 # Core's two web apps need a certificate every device already trusts: the editor
 # webviews in code-server won't run behind a warning, and the ntfy phone app won't
 # connect to one. `tailscale serve` terminates TLS with a Let's Encrypt cert for
-# this machine's tailnet name and proxies to the loopback ports the templates
+# this host's tailnet name and proxies to the loopback ports the templates
 # publish. tailscaled keeps a `--bg` config across reboots, and setting a port
 # again replaces its handler, so a re-run never stacks a second one.
+#
+# Reporting rides the same tailnet, as plain http (WireGuard already encrypts it,
+# and a worker may know its controller by 100.x address, which no cert names): a
+# controller serves host/exist.json on 4480, the answer to "where do I report?",
+# and any machine with Loki on serves its push port on 3100.
 #
 # Never sudo, never fail: whatever is missing is printed as the next step and the
 # run carries on. EXIST_TAILNET_NAME is only ever filled in, like EXIST_DOMAIN.
 _tailscale_serve_core() {
-    local f="${SCRIPT_DIR}/.env.shared" s port target status name serving out
+    local f="${SCRIPT_DIR}/.env.shared" s scheme port target kind status name serving out
     local -a serves=()
-    grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" 2>/dev/null && serves+=("443 http://127.0.0.1:42080")
-    grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("8443 http://127.0.0.1:44680")
+    grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" 2>/dev/null && serves+=("https 443 http://127.0.0.1:42080")
+    grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("https 8443 http://127.0.0.1:44680")
+    grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null && serves+=("http 3100 http://127.0.0.1:43100")
+    if _is_controller; then
+        mkdir -p "${SCRIPT_DIR}/host"
+        [[ -f "${SCRIPT_DIR}/host/exist.json" ]] || echo '{}' > "${SCRIPT_DIR}/host/exist.json"
+        serves+=("http 4480 ${SCRIPT_DIR}/host/exist.json")
+    fi
     [[ ${#serves[@]} -gt 0 ]] || return 0
 
     echo ""
@@ -217,9 +228,10 @@ _tailscale_serve_core() {
     serving=$(tr -d ' \t\n' <<<"$serving")
 
     for s in "${serves[@]}"; do
-        port="${s%% *}" target="${s#* }"
-        [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"Proxy\":\"${target}\""* ]] && continue
-        if ! out=$(timeout 30 tailscale serve --bg --https="$port" "$target" </dev/null 2>&1); then
+        read -r scheme port target <<<"$s"
+        kind=Proxy; [[ "$target" == /* ]] && kind=Path
+        [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"${kind}\":\"${target}\""* ]] && continue
+        if ! out=$(timeout 30 tailscale serve --bg --"${scheme}"="$port" "$target" </dev/null 2>&1); then
             _tailscale_serve_steps "$out"
             return 0
         fi
@@ -231,7 +243,35 @@ _tailscale_serve_core() {
     echo "Core is served over Tailscale (HTTPS, trusted on every device in your tailnet):"
     [[ " ${serves[*]} " == *" 443 "* ]] && echo "  code-server  https://${name}"
     [[ " ${serves[*]} " == *" 8443 "* ]] && echo "  ntfy         https://${name}:8443"
+    [[ " ${serves[*]} " == *" 3100 "* ]] && echo "  Loki         http://${name}:3100   (where machines report)"
+    [[ " ${serves[*]} " == *" 4480 "* ]] && echo "  controller   http://${name}:4480   (workers ask here where to report)"
     return 0
+}
+
+# A worker is a machine whose host runs decree with the worker flow on (reporting).
+# Its EXIST_CONTROLLER names the controller it reports to; blank, it is the
+# controller. Read from host/.decree/plugins.yml, what is wanted, so the first
+# run knows before the host sync has installed anything.
+_is_worker() {
+    grep -qE '^[[:space:]]+-[[:space:]]+worker[[:space:]]*$|^on:.*[[ ,]worker[], ]' "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
+}
+_is_controller() {
+    _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
+}
+
+# The controller's answer to "where do I report?", host/exist.json, served on 4480
+# (_tailscale_serve_core) and read by the reporting plugin on every worker:
+# EXIST_REPORTING_URL, else this host's Loki when it is on, else nowhere.
+_controller_answer() {
+    local f="${SCRIPT_DIR}/.env.shared" url name
+    _is_controller || return 0
+    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" 2>/dev/null | cut -d= -f2-)
+    if [[ -z "$url" ]] && grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null; then
+        name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
+        if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
+    fi
+    mkdir -p "${SCRIPT_DIR}/host"
+    if [[ -n "$url" ]]; then printf '{"loki":"%s"}\n' "$url"; else echo '{}'; fi > "${SCRIPT_DIR}/host/exist.json"
 }
 
 _tailscale_serve_steps() {
@@ -274,6 +314,28 @@ _start_on_boot() {
     else
         systemctl -q is-enabled docker.service 2>/dev/null \
             || echo "  ⚠  Docker doesn't start at boot, so the stack won't either. Once: sudo systemctl enable docker"
+    fi
+    return 0
+}
+
+# The host's own plugins (host/.decree: update, by default) at this checkout's
+# version, then whether a decree daemon is there to run them. Nothing starts one
+# for you: it has to start at boot, which is the host's to set up.
+_host_plugins() {
+    run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host \
+        || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh run plugin sync host tries again."
+    local on
+    on="$(cd "${SCRIPT_DIR}/host/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | xargs)"
+    [[ -n "$on" ]] || return 0
+    if ! command -v decree >/dev/null 2>&1; then
+        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and decree is not here:"
+        echo "     https://github.com/jtmckay/decree (the version services/automation/decree/Dockerfile pins)."
+        echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
+    elif ! tmux has-session -t "=existential-host" 2>/dev/null; then
+        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs host/.decree. Start one:"
+        echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
+        echo "     and have it start at boot: https://existential.company/docs/hosting/updates"
+        echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
     fi
     return 0
 }
@@ -426,7 +488,7 @@ _report_login() {
     echo "  Password:    EXIST_PASSWORD in .env.shared"
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null || return 0
     tailnet=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
-    echo "  ntfy's phone app: add the server https://${tailnet:-<machine>.<tailnet>.ts.net}:8443"
+    echo "  ntfy's phone app: add the server https://${tailnet:-<host>.<tailnet>.ts.net}:8443"
     echo "  and log in with both (also in services/ntfy/.env as NTFY_ADMIN_USER / NTFY_ADMIN_PASSWORD)."
 }
 
@@ -720,7 +782,7 @@ _check_nas() {
             bad=1
             echo "  ✗ ${key}  ${addr}:${dir}"
             echo "      could not mount it: $(printf '%s\n' "$out" | tail -1)"
-            echo "      The folder must exist on the NAS and be exported over NFS to this machine."
+            echo "      The folder must exist on the NAS and be exported over NFS to this host."
             continue
         fi
         $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
@@ -775,11 +837,19 @@ _build() {
     _ensure_host_ids
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
-        echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
+        _host_plugins
+        if _is_worker; then
+            _controller_answer
+            echo "A worker with no services, so nothing for docker compose. The host's decree daemon (host/.decree)"
+            echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'the Loki this host names, as the controller')."
+        else
+            echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
+        fi
         [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] && echo "Anything still running stops with:  docker compose down"
         return 0
     fi
     _tailscale_serve_core
+    _controller_answer
     _start_on_boot
     _check_nas || exit 1
     echo ""
@@ -787,6 +857,7 @@ _build() {
     run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
     _warn_if_no_gateway
     run_initials
+    _host_plugins
     _stage_images
     echo "Done! Next step:  docker compose up -d"
     _report_dashboard

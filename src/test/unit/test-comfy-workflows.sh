@@ -2,7 +2,7 @@
 # test-comfy-workflows.sh — the comfy routine's workflow bindings still address
 # real nodes.
 #
-# automation/lib/comfy/workflows/<type>.yml is the whole interface between a
+# comfy/workflows/<type>.yml (in the comfy plugin) is the whole interface between a
 # message and a ComfyUI graph: it names, per parameter, the node id and input to
 # write. The graphs are captured out of ComfyUI, and re-capturing one renumbers
 # every node — so a binding can go stale without anything failing loudly. The
@@ -21,7 +21,13 @@ SRC_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
 
-WORKFLOWS="${REPO_DIR}/automation/lib/comfy/workflows"
+# The bindings and graphs are the comfy plugin's lib, unpacked as the stack installs them.
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+if command -v yq >/dev/null 2>&1; then
+    ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+      plugin_unpack comfy "$TMP" ) >/dev/null
+fi
+WORKFLOWS="${TMP}/.decree/lib/comfy/workflows"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }

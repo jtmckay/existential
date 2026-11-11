@@ -11,7 +11,7 @@ router mode, ComfyUI, Qwen3-TTS, and a GLiNER classifier on CPU.
 
 Nothing on `<ai-box>` is part of the stack. It runs no existential compose file, and the stack
 only ever sees the addresses below. Which keys exist and how they fall back is in
-[Configuration → Endpoints](../configuration#endpoints--putting-roles-on-different-machines).
+[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
 
 ## The VRAM rule: nothing swaps automatically
 
@@ -60,9 +60,6 @@ ctx-size = 65536
 cache-type-k = q8_0
 cache-type-v = q8_0
 
-[<embed-model>]
-model = /models/<embed-model>.gguf
-embeddings = true
 ```
 
 **The V-cache type is set per model, never on the command line.** The router passes its own
@@ -80,10 +77,9 @@ EXIST_IS_AI_OLLAMA=false                  # nothing local to pull or serve
 EXIST_MODEL_URL=http://<ai-box>:8080/v1
 EXIST_MODEL_CHAT=<chat-model>             # a [section] in presets.ini
 EXIST_MODEL_VISION=<chat-model>           # its section needs an mmproj = projector
-EXIST_MODEL_EMBED=<embed-model>           # its section needs embeddings = true
 ```
 
-The rules in [Configuration → Models](../configuration#models) still apply, the 64k context
+The rules in [Configuration → Models](../configuration.md#models) still apply, the 64k context
 floor included. Only ollama enforces them for you, so here they are yours to keep.
 
 ## ComfyUI
@@ -97,14 +93,14 @@ EXIST_IS_AI_COMFYUI=false
 ```
 
 The workflows stay in this repo. The checkpoints they name must exist on the box. See
-[ComfyUI → Using a ComfyUI you already run](../ai/comfyui#using-a-comfyui-you-already-run).
+[ComfyUI → Using a ComfyUI you already run](../ai/comfyui.md#using-a-comfyui-you-already-run).
 Free the card before a big job: `--models-max 1` keeps one model loaded, not zero.
 
 ## TTS, started and stopped over HTTP
 
 Qwen3-TTS needs most of the card while it runs, so it is not left up. The box runs its own
 [decree](../decree/decree.md) project with
-[decree-go-rest](../build-on-it) in front of it. Two endpoints
+[decree-go-rest](../plugins/http.md) in front of it. Two endpoints
 start and stop TTS:
 
 ```yaml
@@ -139,7 +135,7 @@ curl -X POST http://<ai-box>:8801/endTTS -H "Authorization: Bearer <secret>"
 ```
 
 **There is no stack key for this.** The stack's own speech is wyoming-piper on CPU
-([Speech has no endpoint keys](../configuration#speech-has-no-endpoint-keys)), so whatever
+([Speech has no endpoint keys](../configuration.md#speech-has-no-endpoint-keys)), so whatever
 calls Qwen3-TTS uses the box's address directly.
 
 ## GLiNER on CPU

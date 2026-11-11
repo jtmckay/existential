@@ -66,7 +66,7 @@ if [[ "${GRAPH_WATCH:-}" == 1 && -d /workspace/.decree ]]; then
   fi
 fi
 
-# pi's provider and MCP servers (automation/lib/pi.sh), rewritten every boot so a
+# pi's provider and MCP servers (lib/pi.sh), rewritten every boot so a
 # changed chat endpoint or a disabled add-on follows. Only where a chat model is
 # named: automation-backup runs no agent.
 if [[ -n "${EXIST_MODEL_CHAT:-}" && -f .decree/lib/pi.sh ]]; then
@@ -74,5 +74,5 @@ if [[ -n "${EXIST_MODEL_CHAT:-}" && -f .decree/lib/pi.sh ]]; then
 fi
 
 # The daemon runs migrations itself, in order, each one waiting on the service
-# it targets in its own wait_for_* state (automation/machines/*.yml).
+# it targets in its own wait_for_* state (automation/plugins/*.md).
 exec decree daemon --no-color --interval 2s

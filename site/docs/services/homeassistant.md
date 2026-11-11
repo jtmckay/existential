@@ -11,7 +11,7 @@ sidebar_position: 10
 
 Open-source home automation platform. Integrates with thousands of devices and services, supports local processing, and serves as the event bus for voice-triggered automations.
 
-Home Assistant is a [complementary service](../how-it-works#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine, such as the one your Zigbee or Z-Wave stick is plugged into. On this one it starts with everything else.
+Home Assistant is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another host, such as the one your Zigbee or Z-Wave stick is plugged into. On this one it starts with everything else.
 
 See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing-my-life-home-assistant) for a real-world setup walkthrough.
 
@@ -79,11 +79,11 @@ which are HTTP services HA cannot drive:
 
 | | Service | Port |
 |---|---|---|
-| Speech → text | [wyoming-whisper](../ai/wyoming-whisper) | `10300` |
-| Text → speech | [wyoming-piper](../ai/wyoming-piper) | `10200` |
+| Speech → text | [wyoming-whisper](../ai/wyoming-whisper.md) | `10300` |
+| Text → speech | [wyoming-piper](../ai/wyoming-piper.md) | `10200` |
 
-Both run on **CPU** by design. The GPU is already holding the chat model and
-the embedding model; a GPU voice model would evict them mid-answer, and a
+Both run on **CPU** by design. The GPU is already holding the chat model; a GPU
+voice model would evict it mid-answer, and a
 spoken reply needs to land immediately anyway.
 
 ### Wiring it up
@@ -102,7 +102,7 @@ with that exact instruction if it isn't loaded yet.
 
 The STT/TTS models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
 `EXIST_MODEL_STT_LANGUAGE` and `EXIST_MODEL_TTS_VOICE`. See
-[How it works](../how-it-works) for the full model-selection block. The
+[How it works](../how-it-works.md) for the full model-selection block. The
 conversation brain is `EXIST_MODEL_CHAT` at the chat endpoint, the same model every
 other part of the stack talks to.
 
@@ -117,7 +117,7 @@ Many integrations (HAwake, Tasker via TaskerHA, external scripts) need a long-li
 
 HA automations are defined in YAML or via the UI under **Settings → Automations & Scenes**.
 
-See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant) for a complete example of using a custom wake word to trigger Tasker actions through HA.
+See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant.md) for a complete example of using a custom wake word to trigger Tasker actions through HA.
 
 ## Services
 

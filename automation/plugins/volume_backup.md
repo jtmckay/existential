@@ -1,0 +1,117 @@
+---
+machine: plugin
+automation: volume_backup
+chart:
+  description: Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.
+  data:
+    TIER: {type: string, enum: [nightly, weekly], default: nightly}
+    # One entry per line; the format is in the volume_backup script, below.
+    VOLUMES: {type: string, default: ""}
+  initial: backup
+  states:
+    backup:
+      invoke: volume_backup
+      transitions: {done: done}
+    done: {final: true}
+    failed: {final: true}
+scripts:
+  volume_backup: |
+    #!/usr/bin/env bash
+    # volume_backup — tar every Docker volume listed in $VOLUMES, rclone the tar
+    # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
+    # older than the tier's retention window.
+    #
+    # Triggered by cron files in services/automation-backup/cron/, whose params
+    # (TIER, VOLUMES) are this machine's data. To add or remove
+    # a volume, edit the cron file's `VOLUMES:` block — nothing else: automation-backup
+    # mounts the whole volumes/ dir, so every volume is already reachable.
+    #
+    # Manual invocation:
+    #   docker exec automation-backup decree emit --machine volume_backup \
+    #       --param TIER=nightly --param VOLUMES="..." </dev/null
+    #
+    # $VOLUMES format (one entry per line, whitespace-separated):
+    #   <volume_name> <comma,separated,consumer,containers>
+    # The consumer list is informational at backup time — used by the restore
+    # flow to know which containers must be stopped before wiping the volume.
+
+    set -euo pipefail
+
+    RCLONE_CONFIG="${RCLONE_CONFIG:-/secrets/rclone/rclone.conf}"
+    VOLUMES_ROOT="${VOLUMES_ROOT:-/volumes}"
+
+    [ -f "$RCLONE_CONFIG" ] || { echo "rclone not configured (run ./existential.sh run rclone)" >&2; exit 1; }
+
+    # ── Config from the cron file's params ───────────────────────────────────────
+
+    TIER="$DECREE_DATA_TIER"
+    VOLUMES="$DECREE_DATA_VOLUMES"
+    case "$TIER" in
+        nightly) RETENTION_DAYS=7 ;;
+        weekly)  RETENTION_DAYS=28 ;;
+        *) echo "Unknown tier: $TIER (expected nightly|weekly)" >&2; exit 2 ;;
+    esac
+
+    [ -n "$VOLUMES" ] || { echo "VOLUMES is empty — set it in the cron file's params" >&2; exit 2; }
+
+    REMOTE="${EXIST_BACKUP_RCLONE_REMOTE:-}"
+    [ -n "$REMOTE" ] || { echo "EXIST_BACKUP_RCLONE_REMOTE is not set — run ./existential.sh run rclone" >&2; exit 1; }
+
+    DATE=$(date -u +%Y%m%dT%H%M%SZ)
+    rclone_cmd() { rclone --config "$RCLONE_CONFIG" "$@"; }
+
+    # ── Run each volume from $VOLUMES ────────────────────────────────────────────
+    # Second column (consumers) is intentionally ignored here — it's used by the
+    # restore flow, not the backup.
+
+    dumped=0
+    skipped=0
+    failed=0
+
+    while read -r vol _consumers; do
+        [ -z "$vol" ] && continue
+        [[ "$vol" =~ ^# ]] && continue
+
+        src="${VOLUMES_ROOT}/${vol}"
+        if [ ! -d "$src" ]; then
+            echo "skip   $vol (no volumes/$vol on disk — is the service enabled?)"
+            skipped=$((skipped + 1))
+            continue
+        fi
+        if [ -z "$(ls -A "$src" 2>/dev/null)" ]; then
+            echo "warn   $vol is empty"
+        fi
+        target="${REMOTE}/${TIER}/volumes/${vol}/${vol}-${DATE}.tar.gz"
+        echo "tar    $vol → $target"
+        if tar czf - -C "$src" . 2>/dev/null | rclone_cmd rcat "$target"; then
+            # Verify the uploaded file is non-empty
+            uploaded_size=$(rclone_cmd size "$target" --json 2>/dev/null | grep -o '"bytes":[0-9]*' | cut -d: -f2 || echo 0)
+            if [ "${uploaded_size:-0}" -lt 100 ]; then
+                echo "  warn: uploaded file appears empty or too small (${uploaded_size} bytes) — backup may be corrupt" >&2
+                failed=$((failed + 1))
+            else
+                echo "  → ${target} (${uploaded_size} bytes)"
+                dumped=$((dumped + 1))
+            fi
+        else
+            echo "  failed" >&2
+            failed=$((failed + 1))
+        fi
+    done <<< "$VOLUMES"
+
+    # ── Retention ────────────────────────────────────────────────────────────────
+
+    echo "prune  ${REMOTE}/${TIER}/volumes/ (older than ${RETENTION_DAYS}d)"
+    if ! rclone_cmd delete --min-age "${RETENTION_DAYS}d" "${REMOTE}/${TIER}/volumes/"; then
+        echo "  warn: retention cleanup (delete) failed — old backups may accumulate" >&2
+    fi
+    if ! rclone_cmd rmdirs --leave-root "${REMOTE}/${TIER}/volumes/"; then
+        echo "  warn: retention cleanup (rmdirs) failed" >&2
+    fi
+
+    echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
+    [ "$failed" -eq 0 ]
+---
+# volume_backup
+
+Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.

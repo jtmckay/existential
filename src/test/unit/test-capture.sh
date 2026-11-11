@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-capture.sh — automation/lib/capture/, the capture stream's one writer.
+# test-capture.sh — the capture plugin's lib/capture/, the capture stream's one writer.
 #
 #   redaction  a prompt with an Anthropic key and password=hunter2 keeps neither
 #              value and keeps the rest; every other kind gets its own marker.
@@ -22,7 +22,6 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
-CAPTURE="${REPO_DIR}/automation/lib/capture/capture.sh"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
@@ -32,6 +31,9 @@ assert_has()  { if [[ "$2" == *"$3"* ]]; then _ok "$1"; else _fail "$1" "missing
 assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found: $3"; fi; }
 
 TMP="$(mktemp -d)"
+# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
+for _p in capture; do ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
+CAPTURE="${TMP}/unpacked/.decree/lib/capture/capture.sh"
 trap 'rm -rf "$TMP"' EXIT
 
 # cap <dir> <source> <stdin>: a synchronous capture, then the last line written.
@@ -135,13 +137,13 @@ assert_eq "nothing written outside .capture" "ws/.capture" \
 unset CLAUDE_CONFIG_DIR
 
 # ── webhook ───────────────────────────────────────────────────────────────────
-assert_eq "POST /capture queues the capture machine" "capture" \
-    "$(awk '/- path: \/capture$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
+assert_eq "POST /capture, which the plugin brings, queues the capture machine" "capture" \
+    "$(yq -r '.endpoints[] | select(.path == "/capture") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
 W="${TMP}/w"; mkdir -p "${W}/lib"
-cp -r "${REPO_DIR}/automation/lib/capture" "${W}/lib/"
+cp -r "${TMP}/unpacked/.decree/lib/capture" "${W}/lib/"
 printf -- '---\nmachine: capture\n---\n{"source":"phone","text":"buy filters"}\n' > "${W}/message.md"
 DECREE_MESSAGE="${W}/message.md" DECREE_LIB="${W}/lib" DECREE_DATA_SOURCE=webhook CAPTURE_DIR="${W}/cap" \
-    bash "${REPO_DIR}/automation/scripts/capture.sh"
+    bash "${TMP}/unpacked/.decree/scripts/capture/capture.sh"
 assert_eq "the posted source and text are appended" "phone buy filters" \
     "$(jq -r '"\(.source) \(.text)"' "${W}"/cap/*-automation.jsonl 2>/dev/null)"
 

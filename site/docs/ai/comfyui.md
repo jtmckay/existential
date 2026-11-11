@@ -28,7 +28,7 @@ EXIST_IS_AI_COMFYUI=false
 ```
 
 Then `./existential.sh && docker compose up -d`. Workflows stay in
-`automation/lib/comfy/workflows/`; the checkpoints they name must exist on the other machine.
+`workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../plugins/index.md)'s); the checkpoints they name must exist on the other host.
 
 ## First Run
 
@@ -74,12 +74,13 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 ## Using ComfyUI from Decree
 
-Decree scripts live in `automation/scripts/`. They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
+The scripts are the comfy plugin's (`automation/plugins/comfy.md`). They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
 ### The machine that ships
 
 One machine, `comfy`, is already written. Its `type` parameter names a
-workflow in `automation/lib/comfy/workflows/`:
+workflow in `comfy/workflows/`, which the comfy [plugin](../plugins/index.md) installs into
+`workspace/.decree/lib/`:
 
 | `type` | Model | Needs |
 |---|---|---|
@@ -93,10 +94,12 @@ workflow in `automation/lib/comfy/workflows/`:
 
 Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. The shipped graphs have their prompts blanked to `prompt text` — you always supply your own, so there is nothing to inherit.
 
-There is a ready-made message per workflow in `flows/comfy/examples/`. Copy one and edit it:
+There is a ready-made message per workflow under `examples:` in the comfyui flow,
+`automation/plugins/flows/comfyui.md`. Copy one into a file and edit it:
 
 ```bash
-cp flows/comfy/examples/comfy-image-text.md volumes/workspace_data/.decree/inbox/
+# the comfy-image-text example, saved as comfy-image-text.md
+cp comfy-image-text.md volumes/workspace_data/.decree/inbox/
 ```
 
 The message body is the prompt, and `output_prefix` is the filename prefix ComfyUI writes under.
@@ -114,7 +117,7 @@ to override the workflow's own value, leave it out to keep it:
 
 `image-qwen-angles` is the batch flow: one input image, up to eight edits of it in a single
 queue. Its body is a YAML list instead of prompt text, so a prompt sits next to the name its
-output gets (`flows/comfy/examples/comfy-image-qwen-angles.md`):
+output gets (the comfyui flow's `comfy-image-qwen-angles` example):
 
 ```yaml
 ---
@@ -200,7 +203,7 @@ are randomized).
 
 ## Triggering over HTTP
 
-Three endpoints ship in `automation/decree-go-rest.yml`, so anything that can POST
+The comfy plugin adds three endpoints to `workspace/.decree/decree-go-rest.yml`, so anything that can POST
 can queue a generation. The request body is the prompt:
 
 ```bash
@@ -244,7 +247,8 @@ restart; an invalid edit keeps the old endpoints serving and shows up in `/healt
 ## Designing Workflows
 
 Adding a flow to the `comfy` machine is adding two files to
-`automation/lib/comfy/workflows/` — a graph and a binding. No shell is written:
+`workspace/.decree/lib/comfy/workflows/` — a graph and a binding — then `./existential.sh run
+plugin export comfy` to keep them in the plugin. No shell is written:
 
 1. Open `https://comfyui.EXIST_DOMAIN`, build the workflow visually, and run it once so you know
    it works.
@@ -256,7 +260,7 @@ Adding a flow to the `comfy` machine is adding two files to
 3. Write `workflows/<type>.yml` beside it, naming each parameter you want to control and the node
    and input it writes to. Copy the closest existing binding — `video-ltx-text.yml` for a plain
    flow, `image-qwen-angles.yml` for a batch one. A parameter no existing binding uses also
-   needs a line in `automation/machines/comfy.yml`'s `data:`, or decree rejects messages that
+   needs a line in the comfy plugin's `chart.data:` (`automation/plugins/comfy.md`), or decree rejects messages that
    set it.
 4. `./existential.sh test unit` — `test-comfy-workflows.sh` checks every binding against its
    graph.

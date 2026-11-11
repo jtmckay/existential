@@ -16,19 +16,19 @@ image, so it is in two places:
 
 | Where | Use for |
 |---|---|
-| [code-server](../services/code-server)'s terminal | `pi` for the TUI, `pi -p "…"` for one answer |
-| [decree](../decree/) machines | `agent_task`, `router`, `note_connect`: work with nobody present, the answer filed in `workspace/ai/` |
+| [code-server](../services/code-server.md)'s terminal | `pi` for the TUI, `pi -p "…"` for one answer |
+| [decree](../decree/decree.md) machines | `agent_task`, `router`, `note_connect`: work with nobody present, the answer filed in `workspace/ai/` |
 
 ## What it talks to
 
-`pi_configure` (`automation/lib/pi.sh`) writes pi's config on every boot of the `automation`
+`pi_configure` (`workspace/.decree/lib/pi.sh`) writes pi's config on every boot of the `automation`
 daemon and of code-server:
 
 - **`models.json`**: an `existential` provider at the chat role's `/v1` URL (`EXIST_MODEL_URL_CHAT`,
   else `EXIST_MODEL_URL`) with `EXIST_MODEL_CHAT` and its context window. A bare `pi` starts on it.
-- **`mcp.json`**: the MCP server of every add-on that is on: [OpenViking](./openviking),
-  [Firecrawl](./firecrawl), [MCP](./mcp) (Playwright) and [qmd](./qmd). Turn an add-on off and its
-  server is gone on the next boot. OpenViking's key stays in the environment, not in the file.
+- **`mcp.json`**: the MCP server of every add-on that is on: [qmd](./qmd.md),
+  [Firecrawl](./firecrawl.md) and [MCP](./mcp.md) (Playwright). Turn an add-on off and its
+  server is gone on the next boot.
 - **`settings.json`**: install telemetry off.
 
 Each is merged into what is there, so a provider you add, a server you add or a `/login` to a hosted
@@ -37,15 +37,15 @@ provider in code-server survives. In code-server the files live on the volume
 
 ## Departments
 
-A machine runs pi in a **department**: a file in `automation/lib/departments/` naming the tools and
+A machine runs pi in a **department**: a file in `workspace/.decree/lib/departments/` naming the tools and
 MCP servers that run may reach. A department that needs no web gets no web, and pays for no tool
 it does not own.
 
 ```yaml
-# automation/lib/departments/research.yml
+# workspace/.decree/lib/departments/research.yml
 description: Investigation, fact-finding, competitive and market analysis, literature review.
 tools: read, grep, find, ls
-mcp: openviking, firecrawl
+mcp: qmd, firecrawl
 ```
 
 No department means pi's default tools and every MCP server. See

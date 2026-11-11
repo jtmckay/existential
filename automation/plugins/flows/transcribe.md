@@ -1,0 +1,192 @@
+---
+machine: plugin
+automation: transcribe
+lib:
+  file-processors/whisperx-transcribe.sh: |
+    #!/usr/bin/env bash
+    # shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with
+    # file-processor, which sources it and reads them. Nothing here consumes them.
+    # Transcribe audio files via WhisperX (with speaker diarization).
+    #
+    # Matches mp3, mp4, and wav (case-insensitive). Skips the local download and instead
+    # hands WhisperX a pre-signed URL to fetch the audio itself. Saves the diarized,
+    # speaker-labelled transcript to the same rclone key with FILE_SUFFIX appended.
+    PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
+    IS_PRE_SIGNED=true
+
+    # Configuration — override via env or message frontmatter
+    FILE_SUFFIX="${FILE_SUFFIX:-.transcript.txt}"
+    OUTPUT_RCLONE="${OUTPUT_RCLONE:-nextcloud}"
+    export WHISPERX_MODEL="${WHISPERX_MODEL:-}"
+    # Optional diarization speaker bounds (leave empty to auto-detect).
+    export WHISPERX_MIN_SPEAKERS="${WHISPERX_MIN_SPEAKERS:-}"
+    export WHISPERX_MAX_SPEAKERS="${WHISPERX_MAX_SPEAKERS:-}"
+
+    # Env vars from file-processor:
+    #   FILE_SOURCE     full rclone source path
+    #   FILE_KEY        path after "remote:"        e.g. "bucket/recordings/meeting.mp3"
+    #   FILE_ACTION     "created" or "removed"
+    #   FILE_PATH       empty (IS_PRE_SIGNED=true skips download)
+    #   PRE_SIGNED_URL  signed URL for the audio file
+    set -euo pipefail
+
+    if [ "$FILE_ACTION" = "removed" ]; then
+        echo "Delete event for $FILE_KEY — nothing to transcribe."
+        exit 0
+    fi
+
+    if [ -z "$PRE_SIGNED_URL" ]; then
+        echo "PRE_SIGNED_URL is empty — cannot transcribe."
+        exit 1
+    fi
+
+    _output_path="${OUTPUT_RCLONE}:${FILE_KEY}${FILE_SUFFIX}"
+    echo "Transcribing: $FILE_SOURCE"
+
+    _transcription=$(/work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/whisperx-transcribe.ts)
+
+    printf '%s' "$_transcription" | rclone rcat "$_output_path" \
+        --config /secrets/rclone/rclone.conf
+
+    echo "Saved: $_output_path"
+  whisperx-transcribe.ts: |
+    // Transcribes an audio file via WhisperX-FastAPI with speaker diarization and
+    // prints a speaker-labelled transcript to stdout. Called by the
+    // whisperx-transcribe file processor.
+    //
+    // WhisperX-FastAPI is asynchronous: POST the pre-signed URL to /speech-to-text-url
+    // (which runs the full transcribe → align → diarize pipeline), then poll
+    // /task/{id} until it completes. Diarization (pyannote) requires the service's
+    // HF_TOKEN to be set — without it the task fails.
+    //
+    // Required env:
+    //   PRE_SIGNED_URL        signed URL for the audio file (set by the file-processor)
+    //
+    // Optional env:
+    //   WHISPERX_URL          base URL (default http://whisperx:8000)
+    //   WHISPERX_MODEL        whisper model (default large-v3; match the service env)
+    //   WHISPERX_LANGUAGE     ISO 639-1 language hint (default en)
+    //   WHISPERX_DEVICE       cuda | cpu (default: derived from EXIST_GPU_VENDOR)
+    //   WHISPERX_COMPUTE_TYPE int8 | float16 | float32 (default int8)
+    //   WHISPERX_MIN_SPEAKERS / WHISPERX_MAX_SPEAKERS  diarization speaker bounds
+    //   WHISPERX_TIMEOUT_SEC  max seconds to wait for the task (default 1800)
+    //   WHISPERX_POLL_SEC     poll interval in seconds (default 5)
+
+    type Segment = { start: number; end: number; text: string | null; speaker: string | null };
+
+    const env = process.env;
+    const base = (env.WHISPERX_URL ?? "http://whisperx:8000").replace(/\/$/, "");
+    const preSignedUrl = env.PRE_SIGNED_URL ?? "";
+    const model = env.WHISPERX_MODEL || env.WHISPER_MODEL || "large-v3";
+    const language = env.WHISPERX_LANGUAGE || "en";
+    const timeoutSec = Number(env.WHISPERX_TIMEOUT_SEC ?? 1800);
+    const pollSec = Number(env.WHISPERX_POLL_SEC ?? 5);
+
+    // WhisperX's async endpoints do NOT read the service's DEVICE/COMPUTE_TYPE env —
+    // those only reach the OpenAI-compatible /v1 path. Every WhisperModelParams field
+    // is a query param with a hardcoded default (device=cuda, compute_type=float16),
+    // so not sending them means a GPU-less host fails every task with "CUDA driver
+    // version is insufficient for CUDA runtime version" while /health still says ok.
+    // Mirrors resolveGpuVendor in src/generate-compose.ts: the vendor is authoritative,
+    // a blank vendor falls back to what VRAM implied, and both blank means the question
+    // was never asked (fresh clone / CI / e2e) — which is CPU.
+    const vendor = (env.EXIST_GPU_VENDOR ?? "").trim().toLowerCase();
+    const vram = (env.EXIST_VRAM_GB ?? "").trim();
+    const isNvidia = vendor ? vendor === "nvidia" : vram !== "" && vram !== "0";
+    // CTranslate2 has CUDA and CPU backends and no ROCm one, so amd is CPU here too —
+    // the same reason ai/whisperx/docker-compose.exist.yml's x-exist-gpu.amd sets DEVICE=cpu.
+    const device = env.WHISPERX_DEVICE || (isNvidia ? "cuda" : "cpu");
+    // int8 is the only compute type valid on both backends, and matches the service's
+    // own COMPUTE_TYPE. float16 on CPU errors outright.
+    const computeType = env.WHISPERX_COMPUTE_TYPE || "int8";
+
+    const sleep = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
+
+    // Collapse consecutive same-speaker segments into one "[SPEAKER_xx] text" line.
+    function formatTranscript(segments: Segment[]): string {
+      const lines: string[] = [];
+      let speaker = "";
+      let buffer: string[] = [];
+      const flush = () => {
+        if (buffer.length) {
+          lines.push(`[${speaker || "SPEAKER_?"}] ${buffer.join(" ").replace(/\s+/g, " ").trim()}`);
+        }
+        buffer = [];
+      };
+      for (const seg of segments) {
+        const text = (seg.text ?? "").trim();
+        if (!text) continue;
+        const who = seg.speaker ?? speaker; // null speaker → continuation of current
+        if (who !== speaker) {
+          flush();
+          speaker = who;
+        }
+        buffer.push(text);
+      }
+      flush();
+      return lines.join("\n");
+    }
+
+    (async () => {
+      if (!preSignedUrl) {
+        console.error("PRE_SIGNED_URL is required");
+        process.exit(1);
+      }
+
+      // Kick off the async diarized pipeline. model/language/device/compute_type and
+      // the speaker bounds are query params; the audio URL is the multipart form field.
+      const qs = new URLSearchParams({ model, language, device, compute_type: computeType });
+      if (env.WHISPERX_MIN_SPEAKERS) qs.set("min_speakers", env.WHISPERX_MIN_SPEAKERS);
+      if (env.WHISPERX_MAX_SPEAKERS) qs.set("max_speakers", env.WHISPERX_MAX_SPEAKERS);
+
+      const form = new FormData();
+      form.append("url", preSignedUrl);
+
+      const submit = await fetch(`${base}/speech-to-text-url?${qs.toString()}`, {
+        method: "POST",
+        body: form,
+      });
+      if (!submit.ok) {
+        console.error(`WhisperX submit error (${submit.status}): ${await submit.text()}`);
+        process.exit(1);
+      }
+      const { identifier } = (await submit.json()) as { identifier?: string };
+      if (!identifier) {
+        console.error("WhisperX returned no task identifier");
+        process.exit(1);
+      }
+
+      // Poll until the task finishes or we hit the timeout.
+      const deadline = Date.now() + timeoutSec * 1000;
+      while (Date.now() < deadline) {
+        await sleep(pollSec);
+        const poll = await fetch(`${base}/task/${identifier}`);
+        if (!poll.ok) {
+          console.error(`WhisperX poll error (${poll.status}): ${await poll.text()}`);
+          process.exit(1);
+        }
+        const task = (await poll.json()) as {
+          status: string;
+          result?: { segments?: Segment[]; transcript?: { segments?: Segment[] } };
+          error?: string;
+        };
+
+        if (task.status === "completed") {
+          const segments = task.result?.segments ?? task.result?.transcript?.segments ?? [];
+          process.stdout.write(formatTranscript(segments));
+          return;
+        }
+        if (task.status === "failed") {
+          console.error(`WhisperX task failed: ${task.error ?? "unknown error"}`);
+          process.exit(1);
+        }
+        // queued | processing → keep polling
+      }
+
+      console.error(`WhisperX task ${identifier} did not finish within ${timeoutSec}s`);
+      process.exit(1);
+    })();
+---
+# transcribe
+
+A file processor: a recording synced to the workspace is transcribed by WhisperX, the transcript beside it (file-processors/whisperx-transcribe.sh, with whisperx-transcribe.ts).

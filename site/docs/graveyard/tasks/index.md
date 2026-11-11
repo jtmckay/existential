@@ -11,10 +11,10 @@ sidebar_position: 1
 
 ## Evaluated
 
-- [Obsidian Kanban](../../services/obsidian#kanban) — active stack (a board inside the notes vault, no separate task service)
-- [Vikunja](./vikunja) — RIP replaced by the Obsidian Kanban plugin (one less app and database to maintain)
-- [ntfy](../../services/ntfy) — active stack (notifications)
-- [Super Productivity](./super-productivity) — RIP unrecoverable sync issues on phone
+- [Obsidian Kanban](../../services/obsidian.md#kanban) — active stack (a board inside the notes vault, no separate task service)
+- [Vikunja](./vikunja.md) — RIP replaced by the Obsidian Kanban plugin (one less app and database to maintain)
+- [ntfy](../../services/ntfy.md) — active stack (notifications)
+- [Super Productivity](./super-productivity.md) — RIP unrecoverable sync issues on phone
 - Notion
 - Tasks.org
 - Todoist

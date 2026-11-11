@@ -10,8 +10,8 @@
 # HTTP server, so HA cannot drive it without a bridge. Piper is what HA's own
 # voice stack expects, and it is small enough to run well on CPU.
 #
-# Deliberately CPU-only. The GPU is already holding the chat model plus
-# embeddings; a GPU TTS model would evict them mid-answer.
+# Deliberately CPU-only. The GPU is already holding the chat model; a GPU
+# TTS model would evict it mid-answer.
 # Piper synthesises faster than real time on a couple of CPU cores.
 #
 # Services:

@@ -19,7 +19,7 @@ The script will:
 3. After you authorize, your browser redirects to `http://localhost:8803?code=...` and shows a connection error — that's expected
 4. Copy the full URL from the address bar and paste it back into the terminal
 
-Credentials are saved to `automation/secrets/gmail/credentials.env`. To sync on a schedule: `./existential.sh flow on gmail`.
+Credentials are saved to `automation/secrets/gmail/credentials.env`. To sync on a schedule: `./existential.sh flow on gmail-inbox`.
 
 ## Google Cloud Setup
 

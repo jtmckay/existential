@@ -127,13 +127,13 @@ render_template() {
 
         # Per-role model endpoints fall back to the global one when blank. Done
         # HERE, before substitution, so a template can write the bare token
-        # EXIST_MODEL_URL_EMBED and get a working URL on a single-box install
+        # EXIST_MODEL_URL_VISION and get a working URL on a single-box install
         # instead of an empty string. Without this, every consumer would have to
         # carry its own fallback and they would drift.
         # The resolver in src/utils/model-endpoints.sh is the same rule for
         # scripts; keep the two in step when adding a role.
         local _role _role_key
-        for _role in CHAT EMBED VISION; do
+        for _role in CHAT VISION; do
             _role_key="EXIST_MODEL_URL_${_role}"
             if [[ -z "${_vals[$_role_key]:-}" ]]; then
                 _vals["$_role_key"]="${_vals[EXIST_MODEL_URL]:-http://ollama:11434/v1}"
@@ -253,7 +253,7 @@ render_template() {
         content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
     done
 
-    # EXIST_HOST_IP — the LAN address of the machine running the stack.
+    # EXIST_HOST_IP — the LAN address of the host running the stack.
     #
     # This used to be an EXIST_CLI prompt, which is a question the code can
     # answer: existential.sh detects it (`ip route get 1.1.1.1`) and passes it in
@@ -766,23 +766,43 @@ _ask_if_needed() {
     _reload_env_shared
 }
 
-# The first run's one choice: Core, which is what .env.exist.shared ships on, or
-# nothing, for an install that turns on its own with `./existential.sh service`.
-# Enter, Esc and no terminal all mean Core.
-_ask_core_or_none() {
-    local pick=""
+# The first run's one choice.
+#   core        what .env.exist.shared ships on. Enter, Esc and no terminal.
+#   controller  Core, and the worker flow on with no EXIST_CONTROLLER: the host's
+#               decree reports this host, and the others ask it where to report.
+#   worker      no services, only the worker flow, reporting to the controller it asks for.
+#   none        nothing on yet.
+# The worker flow runs in a decree daemon on the host; _host_plugins says so.
+_ask_role() {
+    local pick="" f="${REPO_DIR}/.env.shared" ctl=""
     _prompt_available || return 0
     if command -v fzf >/dev/null 2>&1; then
-        pick="$(printf 'core\tCore: workspace, automation and notifications (recommended)\nnone\tNothing yet: turn services on with ./existential.sh service\n' \
-            | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info --height=6 \
+        pick="$(printf 'core\tCore: workspace, automation and notifications (recommended)\ncontroller\tController: Core, and the host your other hosts report to\nworker\tWorker: no services; reports this host to a controller\nnone\tNothing yet: turn services on with ./existential.sh service\n' \
+            | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info --height=8 \
                 --header='  What should this install start with?   Enter confirms' | cut -f1)" || true
     else
-        pick="$(_prompt_tty 'Start with' 'core/none')"
+        pick="$(_prompt_tty 'Start with' 'core/controller/worker/none')"
     fi
-    [[ "$pick" == [Nn]one ]] || return 0
-    sed -i 's/^\(EXIST_IS_[A-Z0-9_]*\)=true$/\1=false/' "${REPO_DIR}/.env.shared"
+    case "$pick" in
+        [Cc]ontroller|[Ww]orker|[Nn]one) ;;
+        *) return 0 ;;
+    esac
+    if [[ "$pick" != [Cc]ontroller ]]; then
+        sed -i 's/^\(EXIST_IS_[A-Z0-9_]*\)=true$/\1=false/' "$f"
+    fi
+    if [[ "$pick" == [Nn]one ]]; then
+        _reload_env_shared
+        echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2
+        return 0
+    fi
+    # shellcheck source=src/utils/flows.sh
+    ( . "${_SRC_DIR}/utils/flows.sh"; plugins_turn on worker )
+    if [[ "$pick" == [Ww]orker ]]; then
+        ctl="$(_prompt_tty "Controller's tailnet name or 100.x address" 'Enter: later')"
+        [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || ctl=""
+        sed -i "s|^EXIST_CONTROLLER=.*|EXIST_CONTROLLER=${ctl}|" "$f"
+    fi
     _reload_env_shared
-    echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2
 }
 
 # _nas_volumes — "<service>\t<volume>\t<note>" for each `nfs: true` volume an
@@ -860,7 +880,7 @@ _main() {
         # service_is_enabled below, and the service it enables would be skipped
         # for one whole run.
         if [[ "$_rc" == 0 || "$_STATS_KEYS_ADDED" -gt 0 ]]; then _reload_env_shared; fi
-        if [[ "$_rc" == 0 ]]; then _ask_core_or_none; fi
+        if [[ "$_rc" == 0 ]]; then _ask_role; fi
     fi
     _load_env_shared
     local key

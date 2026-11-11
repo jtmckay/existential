@@ -43,7 +43,7 @@ The upload raises a `NodeWrittenEvent`, which Nextcloud POSTs to the Decree webh
 
 ### 3. file_router matches the file
 
-`file_router` scans every processor script in `automation/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
+`file_router` scans every processor script in `workspace/.decree/lib/file-processors/` for a `PATTERN=` match against the full rclone path. The `whisperx-transcribe` processor declares:
 
 ```bash
 PATTERN='\.[Mm][Pp][34]$|\.[Ww][Aa][Vv]$'
@@ -76,7 +76,7 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ## Prerequisites
 
-- **Nextcloud** running, with file events on (see [File Processor](../decree/file-change-processing#setup))
+- **Nextcloud** running, with file events on (see [File Processor](../decree/file-change-processing.md#setup))
 - **WhisperX** container running and reachable at `http://whisperx:8000`
 - **rclone** configured with a `nextcloud` remote (or whichever remote matches your `rclone_src` webhook setting)
 - **Nextcloud mobile app** with auto-upload enabled for your recordings folder
@@ -85,10 +85,10 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ### Step 1 — turn it on
 
-`./existential.sh flow on transcription` turns on WhisperX and Nextcloud's file events (two
+`./existential.sh flow on transcription` asks to turn on WhisperX, and turns on Nextcloud's file events (two
 migrations: the `nextcloud` rclone remote and the webhooks, see
-[File Processor → Setup](../decree/file-change-processing#setup)), and copies the
-`whisperx-transcribe` processor into `automation/lib/file-processors/`.
+[File Processor → Setup](../decree/file-change-processing.md#setup)), and copies the
+`whisperx-transcribe` processor into `workspace/.decree/lib/file-processors/`.
 
 ### Step 2 — Enable WhisperX
 
@@ -104,7 +104,7 @@ WhisperX will download the default model on first use. No further configuration 
 
 ### Step 3 — Confirm the processor is active
 
-The `whisperx-transcribe` processor is auto-discovered from `automation/lib/file-processors/`. No registration step is needed. After the first upload, its run shows up in:
+The `whisperx-transcribe` processor is auto-discovered from `workspace/.decree/lib/file-processors/`. No registration step is needed. After the first upload, its run shows up in:
 
 ```bash
 docker exec automation decree status

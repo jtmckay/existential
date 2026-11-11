@@ -7,7 +7,7 @@
 #   ./existential.sh service off <slug>...    its EXIST_IS_* flag to false
 #
 # A service is a folder (<category>/<slug>), so this is only its flag. A flow
-# turns on everything it needs; this is for the rest. existential.sh renders and
+# asks for each service it needs; this is for the rest. existential.sh renders and
 # rebuilds after. Exits 3 for "nothing changed", as src/flows.sh does.
 set -euo pipefail
 

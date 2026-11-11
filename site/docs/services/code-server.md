@@ -45,7 +45,7 @@ boot).
 ## AI in the terminal
 
 The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
-automations. Machines have their own Claude login: [Decree](../decree/#claude-for-machines).
+automations. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:
@@ -62,21 +62,21 @@ tmx claude                            # attach to it
 
 **What you type into `claude` and `opencode` is captured** to `workspace/.capture/` (secrets
 redacted, never responses). `CODE_SERVER_CAPTURE=false` turns it off. See
-[Capture](../getting-started#capture).
+[Capture](../getting-started.md#capture).
 
 **No telemetry.** code-server runs with `--disable-telemetry`, Claude Code with
 `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, opencode with sharing off. Your conversation
 goes to the AI provider you use, under its terms.
 
-**`pi`** is [pi](../ai/pi), baked into the image and pointed at the same chat model on every
-boot, with the MCP servers of every add-on that is on (OpenViking, Firecrawl, Playwright, qmd):
+**`pi`** is [pi](../ai/pi.md), baked into the image and pointed at the same chat model on every
+boot, with the MCP servers of every add-on that is on (qmd, Firecrawl, Playwright):
 
 ```bash
 pi                                            # the TUI
 pi -p "what is still open in notes/plan.md?"  # one answer
 ```
 
-It is the same CLI and the same configuration (`automation/lib/pi.sh`) decree's `agent_task`
+It is the same CLI and the same configuration (`workspace/.decree/lib/pi.sh`) decree's `agent_task`
 runs. `/login` to a hosted provider if you want one too; it is kept beside the stack's own.
 
 **Installs and logins persist** on the `code_server_data` volume: npm's global prefix,

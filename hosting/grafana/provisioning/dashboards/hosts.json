@@ -1,0 +1,140 @@
+{
+  "description": "Every host that reports (the reporting plugin of the worker flow, job=\"exist\" in Loki): free disk space, the decree machines installed in each project, and their runs.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    { "title": "Decree Overview", "type": "link", "url": "/d/decree-overview/decree-overview" }
+  ],
+  "schemaVersion": 39,
+  "tags": ["hosts", "decree"],
+  "templating": {
+    "list": [
+      {
+        "datasource": { "type": "loki", "uid": "loki" },
+        "definition": "label_values({job=\"exist\"}, host)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "name": "host",
+        "label": "Host",
+        "query": { "type": 1, "label": "host", "stream": "{job=\"exist\"}", "refId": "host" },
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none" },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "count(count by (host) (count_over_time({job=\"exist\", kind=\"disk\", host=~\"$host\"} [15m])))" }
+      ],
+      "title": "Hosts reporting (15m)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "sum(count_over_time({job=\"exist\", kind=\"run\", host=~\"$host\"} | json | state != \"done\" [$__range])) or vector(0)" }
+      ],
+      "title": "Runs not done, in range",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [ { "id": "displayName", "value": "free" }, { "id": "unit", "value": "deckbytes" } ] },
+          { "matcher": { "id": "byName", "options": "Value #B" }, "properties": [
+            { "id": "displayName", "value": "free %" }, { "id": "unit", "value": "percent" }, { "id": "decimals", "value": 0 },
+            { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 10 }, { "color": "green", "value": 20 } ] } }
+          ] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "free %", "desc": false } ] },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "max by (host, mount) (last_over_time({job=\"exist\", kind=\"disk\", host=~\"$host\"} | json | unwrap avail_kb [15m]))" },
+        { "refId": "B", "queryType": "instant",
+          "expr": "100 * max by (host, mount) (last_over_time({job=\"exist\", kind=\"disk\", host=~\"$host\"} | json | unwrap avail_kb [15m])) / max by (host, mount) (last_over_time({job=\"exist\", kind=\"disk\", host=~\"$host\"} | json | unwrap size_kb [15m]))" }
+      ],
+      "title": "Free disk space",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "id": 4,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "host", "desc": false } ] },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "count by (host, project, machine) (count_over_time({job=\"exist\", kind=\"machine\", host=~\"$host\"} | json [15m]))" }
+      ],
+      "title": "Installed decree machines",
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [ { "id": "unit", "value": "ms" } ] },
+          { "matcher": { "id": "byName", "options": "state" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+            { "id": "mappings", "value": [
+              { "type": "value", "options": { "done": { "color": "green" } } },
+              { "type": "regex", "options": { "pattern": ".*", "result": { "color": "red" } } }
+            ] }
+          ] }
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "id": 5,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "Time", "desc": true } ] },
+      "targets": [
+        { "refId": "A", "queryType": "range", "maxLines": 1000, "expr": "{job=\"exist\", kind=\"run\", host=~\"$host\"}" }
+      ],
+      "title": "Last run of each machine",
+      "transformations": [
+        { "id": "extractFields", "options": { "source": "labels", "format": "auto" } },
+        { "id": "extractFields", "options": { "source": "Line", "format": "json" } },
+        { "id": "groupBy", "options": { "fields": {
+          "host": { "operation": "groupby", "aggregations": [] },
+          "project": { "operation": "groupby", "aggregations": [] },
+          "machine": { "operation": "groupby", "aggregations": [] },
+          "Time": { "operation": "aggregate", "aggregations": ["max"] },
+          "state": { "operation": "aggregate", "aggregations": ["first"] },
+          "duration_ms": { "operation": "aggregate", "aggregations": ["first"] }
+        } } },
+        { "id": "organize", "options": { "renameByName": { "Time (max)": "Time", "state (first)": "state", "duration_ms (first)": "duration_ms" } } }
+      ],
+      "type": "table"
+    }
+  ],
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "title": "Hosts",
+  "uid": "hosts",
+  "version": 1
+}

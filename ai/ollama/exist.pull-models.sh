@@ -2,13 +2,13 @@
 # ollama — manual model pull, driven by the global model selection.
 #
 # This is a manual fallback. Under normal operation the decree daemon's ollama
-# migrations (flows/local-models/migrations/) do exactly this after ollama
+# migrations (the local-models flow, automation/plugins/flows/local-models.md) do exactly this after ollama
 # passes its health check — `./existential.sh flow on local-models` and they
 # run once.
 #
 # Which models get pulled is NOT decided here: it comes from the "Model
 # Selection" block in .env.shared (EXIST_MODEL_CHAT,
-# EXIST_MODEL_EMBED, EXIST_MODEL_VISION). Change it there and re-run this.
+# EXIST_MODEL_VISION). Change it there and re-run this.
 #
 # Run manually:
 #   ./existential.sh run ollama pull-models
@@ -52,7 +52,6 @@ _url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else
 
 MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
 MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"
-MODEL_EMBED="${EXIST_MODEL_EMBED:-}"
 MODEL_VISION="${EXIST_MODEL_VISION:-}"
 
 hr() { printf '%0.s─' {1..56}; echo; }
@@ -77,7 +76,6 @@ _add_job() {
     JOBS+=("$entry")
 }
 _add_job chat    "$MODEL_CHAT"
-_add_job embed   "$MODEL_EMBED"
 _add_job vision  "$MODEL_VISION"
 
 CHAT_URL="$(_url_for chat)"

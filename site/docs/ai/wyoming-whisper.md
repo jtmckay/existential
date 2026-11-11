@@ -7,7 +7,7 @@ sidebar_position: 7
 
 - Source: https://github.com/OHF-Voice/wyoming-faster-whisper
 - License: [MIT](https://opensource.org/licenses/MIT)
-- Alternatives: [WhisperX](./whisperx) (long recordings), Vosk, Speaches
+- Alternatives: [WhisperX](./whisperx.md) (long recordings), Vosk, Speaches
 
 Speech-to-text for Home Assistant's Assist pipeline. Runs on CPU.
 
@@ -19,16 +19,15 @@ Home Assistant's Assist pipeline speaks the **Wyoming protocol** — a small,
 line-oriented TCP protocol — not HTTP. WhisperX is a FastAPI service, so HA
 cannot drive it without a bridge.
 
-| | wyoming-whisper | [WhisperX](./whisperx) |
+| | wyoming-whisper | [WhisperX](./whisperx.md) |
 |---|---|---|
 | Job | short voice commands | long recordings |
 | Speaker labels | no | yes (diarization) |
 | Runs on | CPU | GPU |
 | Spoken to by | Home Assistant | Decree, via the transcription flow |
 
-Running it on CPU is deliberate. The GPU is already holding the chat model and
-the embedding model; a GPU speech model here would evict them every time you
-spoke.
+Running it on CPU is deliberate. The GPU is already holding the chat model; a GPU
+speech model here would evict it every time you spoke.
 
 ## Configuration
 
@@ -57,7 +56,7 @@ there is nothing for Caddy to front. You add it inside Home Assistant:
 | Port | `10300` |
 
 Then build a pipeline under **Settings → Voice assistants**, pairing it with
-[wyoming-piper](./wyoming-piper) for the reply.
+[wyoming-piper](./wyoming-piper.md) for the reply.
 
 ## Verify
 

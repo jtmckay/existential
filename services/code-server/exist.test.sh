@@ -27,17 +27,15 @@ env_var_set "code-server password" CODE_SERVER_PASSWORD
 probe_service "code-server auth gate" code-server 8080 / 302
 
 # model.sh and pi.sh (sourced to configure opencode and pi) and the capture hook
-# and plugin under /opt/capture are read-only binds of automation/lib/. A missing
-# source is the one failure mode that stays silent: docker materialises an empty
-# directory for it and the entrypoint's step just warns. Read-only: check the
-# mount sources on disk rather than reaching into the container.
-for _src in automation/lib/model.sh automation/lib/pi.sh \
-            automation/lib/capture/capture.sh automation/lib/capture/opencode.ts; do
-    if [ -f "/repo/${_src}" ]; then
-        ok "code-server ${_src} mounted"
+# and plugin are read from the workspace's decree lib, where the model, pi and
+# capture plugins install them. A missing one only makes the entrypoint warn, so
+# check them on disk.
+for _src in model.sh pi.sh capture/capture.sh capture/opencode.ts; do
+    if [ -f "/repo/volumes/workspace_data/.decree/lib/${_src}" ]; then
+        ok "code-server lib/${_src} installed"
     else
-        fail "code-server ${_src} mounted" "/repo/${_src} is missing" \
-             "The compose file binds it read-only into the container — restore it and recreate it"
+        fail "code-server lib/${_src} installed" "workspace/.decree/lib/${_src} is missing" \
+             "./existential.sh flow on code-server-agents"
     fi
 done
 

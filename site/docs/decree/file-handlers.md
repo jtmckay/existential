@@ -23,7 +23,7 @@ to run, and optionally which changes it cares about and how long the file must b
 
 Two ship with the stack, in the `handlers.yml` seeded on first install (yours to edit after):
 `notes/**/*.md` runs `note_watch`, which offers to automate a standing instruction in a note
-([Note → Automation](../flows/note-to-automation)), and `notes/automations/*.md` runs
+([Note → Automation](../flows/note-to-automation.md)), and `notes/automations/*.md` runs
 `reconcile`, which has `develop` build the ones you accept.
 
 - **A change matching no handler does nothing.** A change matching several runs each of them.
@@ -47,7 +47,7 @@ Two ship with the stack, in the `handlers.yml` seeded on first install (yours to
 ## What never fires
 
 Anything inside a `.git/` folder, and every path a `.gitignore` in the workspace ignores,
-whatever a handler matches. It is the same rule the [Nextcloud sync](../getting-started#syncing-with-a-nextcloud-optional)
+whatever a handler matches. It is the same rule the [Nextcloud sync](../getting-started.md#syncing-with-a-nas-or-a-nextcloud-optional)
 uses, and it is why decree's own run state (`.decree/runs/`, `inbox/`) never triggers anything.
 
 Beyond that, the stack filters nothing: keeping a file from triggering is the handlers' job.
@@ -67,5 +67,5 @@ for.
 
 With Nextcloud in the stack, every upload through it, anywhere in Nextcloud and not only the
 workspace, can also post a file event to automation-webhook. That older path keeps working;
-see [File Processor](./file-change-processing). For files in the workspace, a handler is all
+see [File Processor](./file-change-processing.md). For files in the workspace, a handler is all
 you need, and Nextcloud is optional sync.

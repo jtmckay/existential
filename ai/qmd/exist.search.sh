@@ -10,4 +10,4 @@ set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/src/utils/adhoc.sh"
 adhoc_self_elevate "${BASH_SOURCE[0]}" "$@"
 
-exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/automation/lib/recall/search.sh" "$@"
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/recall/search.sh" "$@"

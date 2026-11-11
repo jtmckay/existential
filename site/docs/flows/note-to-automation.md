@@ -18,9 +18,9 @@ After that, each business idea you write is researched. Your phone gets the verd
 *favorable*, *unfavorable*, or *already done, by these people*. The full analysis, with sources,
 is in `ai/automations/business_idea_research/`.
 
-- Needs Core plus a chat model ([Model endpoints](../configuration#endpoints--putting-roles-on-different-machines)).
+- Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts)).
   With no model it does nothing.
-- Reads the web through [Firecrawl](../ai/firecrawl) when enabled. Without it, web steps come back
+- Reads the web through [Firecrawl](../ai/firecrawl.md) when enabled. Without it, web steps come back
   as "where to look".
 
 ## The proposal is a migration
@@ -38,7 +38,7 @@ Edit it in plain words before accepting. It stays the automation's desired state
 
 | Step | Machine | What happens |
 |---|---|---|
-| A note settles | `note_watch` | The [file handler](../decree/file-handlers) for `notes/**/*.md` runs it a minute after the last save. One model call asks two things: is there a standing instruction here ("next time…", "whenever…"), and is this note the event an automation you accepted is waiting for? |
+| A note settles | `note_watch` | The [file handler](../decree/file-handlers.md) for `notes/**/*.md` runs it a minute after the last save. One model call asks two things: is there a standing instruction here ("next time…", "whenever…"), and is this note the event an automation you accepted is waiting for? |
 | A standing instruction | `automation_propose` | The model writes the migration, and you are told. Nothing is built. |
 | You accept | `reconcile` | Moving the file to `notes/automations/<name>.md` files it as `.decree/migrations/A<stamp>-<name>.md`, which the daemon runs. |
 | It is built | `develop` | The model reads the migration and answers with the trigger and the steps. `develop` writes `.decree/machines/<name>.yml` and `.decree/scripts/<name>.sh` and the trigger: a note event (`note_watch` matches your notes against it), a file handler in `.decree/handlers.yml`, or a schedule in `.decree/cron/<name>.md`. It must pass `decree check` and the trigger's own rules (a file trigger never matches its own output). A failed check is undone and shown to the model once more; a second failure reaches your phone like any failed run. |
@@ -68,9 +68,18 @@ $sources"
 }
 ```
 
-- `web_search` and `web_read` come from `automation/lib/firecrawl.sh`; any decree script can use
+- `web_search` and `web_read` come from `workspace/.decree/lib/firecrawl.sh`; any decree script can use
   them. With Firecrawl off, `develop` refuses steps that use them.
 - The verdict comes first because the first lines are what reach your phone.
+
+## Plugins: an automation that brings its own machine
+
+An automation can arrive already written: a [plugin](../plugins/index.md), one markdown file whose
+frontmatter holds the whole machine. One offered by another stack waits in `ai/proposed/`;
+accept it the same way, by moving it into `notes/automations/<name>.md`, and the `plugin`
+machine installs it as written, asking no model. It is code that runs with the automation
+container's access, so read it before you accept it. Editing or deleting it reinstalls or
+removes all of it, endpoints included.
 
 ## Changing or removing one
 
@@ -88,7 +97,7 @@ $sources"
   `.decree/scripts/<name>.sh` in code-server.
 - A name decree already uses is refused, so it can't replace an existing machine.
 - `develop` uses Claude when the automation container is
-  [signed in](../decree/#claude-for-machines), otherwise the chat model. Built automations can
+  [signed in](../decree/decree.md#claude-for-machines), otherwise the chat model. Built automations can
   then hand a step to Claude too.
 - Your notes are read-only to the automation container, so nothing it reads can rewrite them.
 - For bigger automations, ask Claude in code-server instead.

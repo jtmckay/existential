@@ -3,13 +3,15 @@
 #
 #   ./existential.sh flow                 pick in a terminal; a list otherwise
 #   ./existential.sh flow list
-#   ./existential.sh flow on <name>...    its services on, then its machine
+#   ./existential.sh flow on <name>...    asks for each service it needs, then it is on
 #   ./existential.sh flow off <name>...   its machine off; services stay as they are
 #
-# A flow is a folder in flows/ (see src/utils/flows.sh for its shape). Turning
-# one on turns on the flows it needs and the services they all name, unless the
-# GPU answer forbids one, then copies in the cron files, migrations and file
-# processors that start its machine. existential.sh renders and rebuilds after.
+# A flow is a plugin with no machine, automation/plugins/flows/<name>.md (see
+# src/utils/flows.sh for its shape). Turning one on turns on the flows it needs
+# and asks, one at a time, to turn on each service they name that is off (no
+# answer is no; the GPU answer can forbid one), and puts it
+# in the workspace's plugins.yml, the one record of what is on. existential.sh
+# renders and rebuilds after, which installs it with everything it needs.
 set -euo pipefail
 
 # A REPO_DIR given wins: in adhoc, IN_CONTAINER alone would point a test's
@@ -47,47 +49,53 @@ flows_list() {
     echo "  ./existential.sh flow on <name>"
 }
 
+# _slug <EXIST_IS_CAT_SLUG>: the slug `service on` takes.
+_slug() { echo "$1" | sed 's/^EXIST_IS_[A-Z]*_//' | tr 'A-Z_' 'a-z-'; }
+
+# _ask <question>: yes only for a typed y. No answer (no terminal, EOF) is no.
+_ask() {
+    local reply=""
+    printf '  %s [y/N] ' "$1"
+    IFS= read -r reply || true
+    [[ -t 0 ]] || echo "$reply"
+    [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]]
+}
+
 flows_on() {
-    local want="$1" n v f vendor
+    local want="$1" n v vendor left=""
     flow_exists "$want" || die "no flow '${want}' — ./existential.sh flow list"
     vendor="$(env_get EXIST_GPU_VENDOR)"
     for n in $(flow_closure "$want"); do
+        [[ "$n" == "$want" ]] || echo "  ${_D}(${want} needs ${n}, so it is on too)${_R}"
         for v in $(flow_list "$n" services); do
             [[ "$(env_get "$v")" == true ]] && continue
             if [[ -n "$vendor" ]] && vendor_forbids_service "$vendor" "$v"; then
                 echo "  ${_D}↷ ${v} stays off — EXIST_GPU_VENDOR=${vendor}${_R}"; continue
             fi
-            env_set "$v" true
-            echo "  ${_G}✓${_R} ${v}=true"
+            if _ask "${n} uses $(_slug "$v"), which is off. Turn it on?"; then
+                env_set "$v" true
+                echo "  ${_G}✓${_R} ${v}=true"
+            else
+                left+=" $(_slug "$v")"
+            fi
         done
-        while IFS= read -r f; do [[ -n "$f" ]] && echo "  ${_G}✓${_R} ${f}"; done < <(flow_activate "$n")
-        [[ -f "${REPO_DIR}/${FLOWS_OFF}" ]] && sed -i "/^${n}\$/d" "${REPO_DIR}/${FLOWS_OFF}"
-        [[ "$n" == "$want" ]] || echo "  ${_D}(${want} needs ${n}, so it is on too)${_R}"
     done
+    plugins_turn on "$want"
     echo ""
     echo "  ${_B}$(flow_get "$want" name)${_R} is on. $(flow_get "$want" tagline)"
+    [[ -z "$left" ]] || echo "  It needs${left} to work, still off: ./existential.sh service on${left}"
     flow_body "$want" | sed 's/^/  /'
     echo "  More: https://existential.company$(flow_get "$want" docs)"
     echo ""
 }
 
 flows_off() {
-    local n="$1" src dst
+    local n="$1"
     flow_exists "$n" || die "no flow '${n}' — ./existential.sh flow list"
-    while IFS=$'\t' read -r src dst; do
-        [[ -e "${REPO_DIR}/${dst}" ]] || continue
-        if cmp -s "${REPO_DIR}/${src}" "${REPO_DIR}/${dst}"; then
-            rm -f "${REPO_DIR}/${dst}"; echo "  ✗ ${dst}"
-        else
-            echo "  kept ${dst}: you changed it, so delete it yourself if you mean to"
-        fi
-    done < <(flow_files "$n")
-    if [[ "$(flow_get "$n" default)" == true ]]; then
-        mkdir -p "$(dirname "${REPO_DIR}/${FLOWS_OFF}")"
-        grep -qxF "$n" "${REPO_DIR}/${FLOWS_OFF}" 2>/dev/null || echo "$n" >> "${REPO_DIR}/${FLOWS_OFF}"
-    fi
+    plugins_turn off "$n"
     echo ""
-    echo "  $(flow_get "$n" name) is off. The services it turned on stay on; ./existential.sh service off <slug> turns one off."
+    echo "  $(flow_get "$n" name) is off: its plugins go on the next run, unless something still on needs them."
+    echo "  The services it turned on stay on; ./existential.sh service off <slug> turns one off."
     echo ""
 }
 
@@ -103,6 +111,11 @@ flows_pick() {
         if flow_on "$n"; then flows_off "$n"; else flows_on "$n"; fi
     done
 }
+
+# An install from before plugins.yml gets one that keeps what it had on (plugin.sh seed).
+if command -v yq >/dev/null 2>&1 && [[ ! -f "${REPO_DIR}/${PLUGINS_YML}" ]] && [[ -d "${REPO_DIR}/${FLOWS_DECREE}" ]]; then
+    REPO_DIR="$REPO_DIR" bash "${REPO_DIR}/src/lib/plugin.sh" seed automation >/dev/null
+fi
 
 case "${1:-}" in
     "")   if [[ -t 0 && -t 1 ]]; then flows_pick; else flows_list; exit 3; fi ;;

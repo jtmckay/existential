@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-look-back.sh — the look back, automation/scripts/look_back.sh.
+# test-look-back.sh — the look back, the look_back plugin.
 #
 # One archive of hand-written day notes, in the shape lib/you-were-here/digest.ts
 # writes them, across July to September 2026 plus a day either side; `decree emit`
@@ -42,6 +42,8 @@ assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found:
 section() { awk -v h="## $2" '$0 == h {f=1; next} f && /^## /{exit} f' "$1"; }
 
 TMP="$(mktemp -d)"
+# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
+for _p in look_back; do ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
@@ -121,12 +123,12 @@ run_lb() {
     local -A p=([period]=year [from]="" [to]="" [scope]=all [period_end_only]=false)
     for kv in "$@"; do p[${kv%%=*}]="${kv#*=}"; done
     ( cd "$W" && PATH="${TMP}/bin:$(dirname "$TSX"):${PATH}" TZ=UTC PUSHES="${TMP}/pushes" \
-        DECREE_LIB="${REPO_DIR}/automation/lib" DECREE_RUN_DIR="$run" \
+        DECREE_LIB="${TMP}/unpacked/.decree/lib" DECREE_RUN_DIR="$run" \
         DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_PERIOD="${p[period]}" \
         DECREE_DATA_FROM="${p[from]}" DECREE_DATA_TO="${p[to]}" DECREE_DATA_SCOPE="${p[scope]}" \
         DECREE_DATA_PERIOD_END_ONLY="${p[period_end_only]}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model LOOK_BACK_NOW="$now" \
-        bash "${REPO_DIR}/automation/scripts/look_back.sh" ) > "${run}.log" 2>&1
+        bash "${TMP}/unpacked/.decree/scripts/look_back/look_back.sh" ) > "${run}.log" 2>&1
     echo $?
 }
 lastlog() { cat "$(cat "${TMP}/last").log"; }
@@ -216,14 +218,15 @@ assert_eq "no day note was rewritten" "$SUMS" "$(cd "$A" && find . -name '20*-*-
 assert_eq "a bad date fails the run" "1" "$(run_lb 2026-10-02T09:00:00Z from=2026-13-01)"
 
 # ── wiring ────────────────────────────────────────────────────────────────────
-cron() { awk -v k="$2:" '$1 == k {print $2; exit}' "${REPO_DIR}/flows/look-back/cron/$1"; }
+# The look-back flow's crons, as it ships them (automation/plugins/flows/look-back.md).
+cron() { k="${1%.md}" yq --front-matter=extract -r '.cron[strenv(k)]' "${REPO_DIR}/automation/plugins/flows/look-back.md" | awk -v k="$2:" '$1 == k {print $2; exit}'; }
 assert_eq "the weekly cron runs this machine" "look_back" "$(cron look-back-weekly.md machine)"
 assert_eq "...for the week" "week" "$(cron look-back-weekly.md period)"
 assert_eq "the monthly cron runs this machine" "look_back" "$(cron look-back-monthly.md machine)"
 assert_eq "...only at month-end" "true" "$(cron look-back-monthly.md period_end_only)"
-assert_has "both are a default flow, on in every install" "$(cat "${REPO_DIR}/flows/look-back/flow.md")" "default: true"
-assert_eq "POST /look-back queues this machine" "look_back" \
-    "$(awk '/- path: \/look-back$/{f=1; next} f && /machine:/{print $2; exit}' "${REPO_DIR}/automation/decree-go-rest.yml")"
+assert_has "both are a flow on in every install" "$(cat "${REPO_DIR}/automation/plugins.exist.yml")" "- look-back"
+assert_eq "POST /look-back, which the plugin brings, queues this machine" "look_back" \
+    "$(yq -r '.endpoints[] | select(.path == "/look-back") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).

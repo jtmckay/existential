@@ -7,11 +7,11 @@ sidebar_position: 5
 - Source: https://github.com/HKUDS/LightRAG
 - License: MIT
 - Alternatives: OpenViking, Chroma, Qdrant, Weaviate
-- Status: RIP — replaced by [OpenViking](../../ai/openviking)
+- Status: RIP — replaced by [OpenViking](./openviking.md), itself replaced by [qmd](../../ai/qmd.md)
 
 Local, read-only GraphRAG over an Obsidian vault. LightRAG auto-extracts entities
 and relationships from prose markdown — no wikilinks required — and exposes the
-result as an MCP tool that [hermes-agent](../../ai/hermes) can call when retrieval is warranted.
+result as an MCP tool that [hermes-agent](./hermes.md) can call when retrieval is warranted.
 
 ## Architecture
 

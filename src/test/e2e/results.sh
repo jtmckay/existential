@@ -33,7 +33,7 @@
 
 # Read one frontmatter value out of a message.md. Frontmatter only — a check's
 # prose body is free-form and must never be parsed as data (the same rule
-# src/utils/flows.sh applies to a flow.md).
+# src/utils/flows.sh applies to a flow).
 e2e_fm_get() {
     local file="$1" key="$2"
     [ -f "$file" ] || return 0

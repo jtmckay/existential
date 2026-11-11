@@ -10,7 +10,7 @@ sidebar_position: 10
 - Alternatives: Lowcoder, Retool, Tooljet
 - UI: `https://appsmith.<domain>`
 
-Low-code platform for building internal dashboards, admin panels, and automation UIs. Better suited for internal tools; [Lowcoder](./lowcoder) is preferred for customer-facing apps.
+Low-code platform for building internal dashboards, admin panels, and automation UIs. Better suited for internal tools; [Lowcoder](./lowcoder.md) is preferred for customer-facing apps.
 
 ## What's in the container
 

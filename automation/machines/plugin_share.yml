@@ -1,0 +1,29 @@
+# The plugin system (lib/automations/plugin.sh): never a plugin, so no plugin replaces it.
+name: plugin_share
+description: Send one of this stack's machines, as a plugin file, to a client that asked for it, once it is shared freely or you say yes; or, asked for none, the list of them.
+data:
+  machine: {type: string, default: ""}
+  client: {type: string, default: ""}
+initial: permit
+states:
+  permit:
+    # The list, or a machine in PLUGIN_SHARE_ALLOW, goes straight out; any other asks you.
+    invoke: permit
+    transitions: {allowed: send, done: ask}
+  ask:
+    # asked tells you who wants which machine; a day without an answer is a no.
+    invoke:
+      person:
+        question: Send this machine to the stack that asked for it?
+        ask: asked
+        timeout: 24h
+    transitions:
+      share: {target: send, description: "Send it."}
+      refuse: {target: done, description: "Send nothing."}
+      error: done
+    emits: [notify]
+  send:
+    invoke: send
+    transitions: {done: done}
+  done: {final: true}
+  failed: {final: true}

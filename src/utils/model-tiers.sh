@@ -10,7 +10,7 @@
 # Every figure is the measured Q4 download from ollama.com, not an estimate.
 # The budget for a tier is:
 #
-#     chat model  +  embedding model (bge-m3, 1.2 GB)  +  KV cache  <  VRAM
+#     chat model  +  KV cache  <  VRAM
 #
 # The KV cache grows with context, and a context that does not fit is the failure
 # mode people actually hit: it presents as the model quietly forgetting its
@@ -46,9 +46,6 @@
 #   size      chat model download size, for the picker line
 #   note      the trade-off, in the picker line
 #
-# The embedding model is deliberately NOT per-tier: changing it after first
-# ingestion corrupts openviking's vector index (see EXIST_MODEL_EMBED).
-#
 # ── The two ends of the range ────────────────────────────────────────────────
 #
 # gb=0 is CPU-only, and it is not just a model swap: four services declare an
@@ -73,8 +70,6 @@
 # leaves roughly 30 GB for the KV cache, so it is also the only tier that goes
 # past the 64k floor — 128k, comfortably in VRAM rather than spilling.
 
-MODEL_TIER_EMBED="bge-m3"
-MODEL_TIER_EMBED_DIM="1024"
 MODEL_TIER_DEFAULT_GB="8"
 
 MODEL_TIERS=(
@@ -124,7 +119,7 @@ model_tier_env() {
     IFS=$'\t' read -r _ _ chat ctx _ _ <<< "$row"
     # EXIST_VRAM_GB is a fact about the machine, not about the model, so a
     # hand-typed model leaves whatever is already there alone — including blank.
-    # Both readers (src/generate-compose.ts, automation/lib/whisperx-transcribe.ts)
+    # Both readers (src/generate-compose.ts, lib/whisperx-transcribe.ts)
     # take EXIST_GPU_VENDOR as authoritative and only fall back to this key when
     # the vendor is blank, and the vendor question is always answered before this
     # one. Writing a made-up number here would be the only lie in the file.
@@ -134,8 +129,6 @@ model_tier_env() {
     # One resident model does chat and vision. Splitting
     # them only helps once you have VRAM for two models at once.
     printf 'EXIST_MODEL_VISION=%s\n'         "$chat"
-    printf 'EXIST_MODEL_EMBED=%s\n'          "$MODEL_TIER_EMBED"
-    printf 'EXIST_MODEL_EMBED_DIM=%s\n'      "$MODEL_TIER_EMBED_DIM"
 }
 
 # model_tier_lines [--gpu-only] — echo one human-readable line per tier,
@@ -217,11 +210,11 @@ model_tier_pick() {
         --delimiter=$'\t' \
         --with-nth=2 \
         --layout=reverse \
-        --header="  How much VRAM does this machine's GPU have?
+        --header="  How much VRAM does this host's GPU have?
   ↑↓ navigate   Enter confirm
 
   This sizes the local models: one multimodal model handles chat, background
-  memory work and images, with bge-m3 (1.2 GB) alongside it for embeddings.
+  work and images.
   Everything can be changed later with: ./existential.sh run models" \
         --prompt="VRAM ❯ " \
         --no-info \

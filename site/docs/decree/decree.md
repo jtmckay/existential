@@ -15,16 +15,16 @@ sidebar_position: 1
 
 | To… | Read |
 |---|---|
-| Write your own automation | [Writing an Automation](../writing-a-routine) — machines, scripts, triggers, chaining |
-| Run something when a file changes | [File Handlers](./file-handlers) |
-| Hand a task to a specific agent profile | [Routing to Departments](./routing) |
-| See it all assembled on a real problem | [Note → Action](../flows/note-to-action) |
-| Reach the stack from outside over HTTP | [Build On It](../build-on-it) |
+| Write your own automation | [Writing a Plugin](../plugins/writing-a-plugin.md) — machines, scripts, triggers, chaining |
+| Run something when a file changes | [File Handlers](./file-handlers.md) |
+| Hand a task to a specific agent profile | [Routing to Departments](./routing.md) |
+| See it all assembled on a real problem | [Note → Action](../flows/note-to-action.md) |
+| Reach the stack from outside over HTTP | [Over HTTP](../plugins/http.md) |
 
 ## Running Decree
 
 - **`automation`**: routing, AI work, every migration.
-- **[`automation-backup`](./automation-backup)** (off by default): backups, triage, and anything
+- **[`automation-backup`](./automation-backup.md)** (off by default): backups, triage, and anything
   needing bulk volume access.
 
 Each is its own decree project with its own runs.
@@ -35,14 +35,15 @@ docker exec automation decree status --cron # each cron file and when it fires n
 echo | docker exec -i automation decree emit --machine <name>   # run one by hand
 ```
 
-Every machine and chain is drawn in `automation/graph/system.md` (and
-`services/automation-backup/graph/`).
+Every machine and chain an install has is drawn in `workspace/.decree/graph/system.md` (and
+`services/automation-backup/graph/`), redrawn whenever a machine changes. Which machines those
+are is up to you: see [Plugins](../plugins/index.md).
 
 ## Claude for machines
 
 You write machines by talking to Claude in code-server's terminal. Machines call AI in two ways:
-- `model_chat` (`automation/lib/model.sh`) is one answer from the stack's own model endpoint.
-- `agent` (`automation/lib/agent.sh`) is Claude Code, which can read and search your workspace.
+- `model_chat` (`workspace/.decree/lib/model.sh`) is one answer from the stack's own model endpoint.
+- `agent` (`workspace/.decree/lib/agent.sh`) is Claude Code, which can read and search your workspace.
 
 The automation container comes with Claude Code installed. Sign it in once:
 
@@ -55,7 +56,7 @@ instead, set `AUTOMATION_ANTHROPIC_API_KEY` or `AUTOMATION_CLAUDE_CODE_OAUTH_TOK
 `services/automation/.env`, then `docker compose up -d`.
 
 Once it is signed in:
-- the [automations you write in a note](../flows/note-to-automation) are built by Claude rather
+- the [automations you write in a note](../flows/note-to-automation.md) are built by Claude rather
   than the chat model;
 - a step of one can hand Claude a task;
 - every call adds a line to `.decree/ai-use.md`;
@@ -80,15 +81,15 @@ machine, what happened, and the command to continue:
 - waiting: `docker exec automation decree event <wait id> <option>`
 
 One message per state. A failed `notify` run is never reported. `automation-backup` runs report
-through [Grafana](../hosting/grafana)'s alert when monitoring is on.
+through [Grafana](../hosting/grafana.md)'s alert when monitoring is on.
 
 ## Integrations
 
-Gmail and rclone have interactive setup scripts: [Integrations](../integrations/).
+Gmail and rclone have interactive setup scripts: [Integrations](../integrations/index.md).
 
 ## File events
 
 - A change matching a handler in `workspace/.decree/handlers.yml` runs its machine:
-  [File Handlers](./file-handlers).
+  [File Handlers](./file-handlers.md).
 - Nextcloud uploads can post to the webhook's `/files` endpoint:
-  [File Change Processing](./file-change-processing).
+  [File Change Processing](./file-change-processing.md).

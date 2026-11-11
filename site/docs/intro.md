@@ -5,9 +5,9 @@ slug: /intro
 
 # What It Is
 
-:::info[Level 1 of 4 · Context]
-The system as one box — what it is and what it does for you. Zoom in one step at
-[Level 2 · The Pieces](./how-it-works).
+:::info[Start here]
+What it is and what it does for you. One step deeper: [Services](./how-it-works.md), what
+actually runs.
 :::
 
 **Your best brain day now accessible.**
@@ -34,7 +34,7 @@ flowchart TB
     you["<b>You</b><br/><i>phone · laptop · your voice</i>"]
     outside["<b>The outside world</b><br/><i>bank email · calendars · the web</i>"]
 
-    subgraph house["Your house — one machine, one network"]
+    subgraph house["Your house — one computer or several, one private network"]
         ex["<b>Existential</b><br/>your apps · your storage<br/>your automations · the AI you choose"]
     end
 
@@ -65,7 +65,7 @@ Everything reaches the same model:
 | **Not do a chore again** | A routine that runs on a trigger and only speaks up when it matters |
 
 All three use one OpenAI-compatible URL. Point it at a bigger model and all three change.
-Which projects provide each piece: [Level 2](./how-it-works).
+Which projects provide each piece: [Services](./how-it-works.md).
 
 ## What Core installs
 
@@ -74,15 +74,15 @@ HTTPS on every device you log in.
 
 | | |
 |---|---|
-| [code-server](./services/code-server) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
-| [Decree](./decree/) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
-| [ntfy](./services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
+| [code-server](./services/code-server.md) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
+| [Decree](./decree/decree.md) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
+| [ntfy](./services/ntfy.md) | How an automation tells you it finished, failed or is waiting for you |
 
-Everything else is an add-on, one flow or one flag away: [Level 2](./how-it-works).
+Everything else is an add-on, one flow or one flag away: [Services](./how-it-works.md).
 
 ## Try it
 
-Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
+Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a computer to
 host it, this repo, and, for Core, [Tailscale](https://tailscale.com/download) logged in on that
 machine and on every device that should reach it.
 
@@ -94,4 +94,4 @@ cd existential
 docker compose up -d
 ```
 
-Full walkthrough in [Getting Started](./getting-started).
+Full walkthrough in [Getting Started](./getting-started.md).

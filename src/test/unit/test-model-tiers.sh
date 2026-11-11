@@ -4,9 +4,8 @@
 # The table is the single place that decides which models a user ends up
 # running, and it is consumed by two callers that write straight into
 # .env.shared (src/lib/models.sh, on the first run and after). A silent
-# typo here — a tag that does not exist, a tier that emits no EXIST_MODEL_CHAT,
-# an embedding dimension that stops matching its model — surfaces much later as
-# ollama 404s or a corrupt vector index. So assert the shape, not the taste.
+# typo here — a tag that does not exist, a tier that emits no EXIST_MODEL_CHAT —
+# surfaces much later as ollama 404s. So assert the shape, not the taste.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -97,7 +96,7 @@ fi
 # Every tier must emit every key a consumer reads, or a swap leaves a stale
 # value behind from the previous tier.
 _required=(EXIST_VRAM_GB EXIST_MODEL_CHAT EXIST_MODEL_CHAT_NUM_CTX
-           EXIST_MODEL_VISION EXIST_MODEL_EMBED EXIST_MODEL_EMBED_DIM)
+           EXIST_MODEL_VISION)
 _missing=""
 for _gb in "${_gbs[@]}"; do
     _out="$(model_tier_env "$_gb")"
@@ -108,21 +107,6 @@ done
 [[ -z "$_missing" ]] \
     && _ok "every tier emits every required key, non-empty" \
     || _fail "every tier emits every required key, non-empty" "$_missing"
-
-# bge-m3 is 1024-dimensional. A mismatch here corrupts openviking's index in a
-# way that only shows up as bad search results, so pin it explicitly.
-_dim="$(model_tier_env "$MODEL_TIER_DEFAULT_GB" | grep '^EXIST_MODEL_EMBED_DIM=' | cut -d= -f2-)"
-_emb="$(model_tier_env "$MODEL_TIER_DEFAULT_GB" | grep '^EXIST_MODEL_EMBED=' | cut -d= -f2-)"
-{ [[ "$_emb" == "bge-m3" && "$_dim" == "1024" ]]; } \
-    && _ok "embedding model and dimension agree" \
-    || _fail "embedding model and dimension agree" "${_emb} / ${_dim}"
-
-# The embedding model must be identical across tiers — changing it on a tier
-# swap would silently invalidate an existing vector index.
-_embeds="$(for _gb in "${_gbs[@]}"; do model_tier_env "$_gb" | grep '^EXIST_MODEL_EMBED='; done | sort -u | wc -l)"
-[[ "$_embeds" -eq 1 ]] \
-    && _ok "embedding model is the same for every tier" \
-    || _fail "embedding model is the same for every tier" "found ${_embeds} distinct values"
 
 # An unknown tier must fail loudly rather than emit a half-filled env.
 model_tier_env 999 >/dev/null 2>&1 \
@@ -144,18 +128,13 @@ done
     && _ok "custom:<tag> names the typed model for chat and vision" \
     || _fail "custom:<tag> names the typed model for chat and vision" "wrong or missing: $_cmiss"
 
-# EXIST_VRAM_GB describes the machine, not the model. The custom answer says
+# EXIST_VRAM_GB describes the host, not the model. The custom answer says
 # nothing about the card, so it must leave the key alone — emitting the literal
 # "custom:<tag>" there would be read as "not 0, therefore nvidia" by
 # generate-compose.ts and whisperx-transcribe.ts.
 grep -q '^EXIST_VRAM_GB=' <<< "$_custom" \
     && _fail "custom:<tag> leaves EXIST_VRAM_GB alone" "emitted: $(grep '^EXIST_VRAM_GB=' <<< "$_custom")" \
     || _ok "custom:<tag> leaves EXIST_VRAM_GB alone"
-
-_cemb="$(grep -m1 '^EXIST_MODEL_EMBED=' <<< "$_custom" | cut -d= -f2-)"
-[[ "$_cemb" == "$MODEL_TIER_EMBED" ]] \
-    && _ok "custom:<tag> keeps the shared embedding model" \
-    || _fail "custom:<tag> keeps the shared embedding model" "got '${_cemb}'"
 
 # The callers read six tab-separated fields out of the row to print their
 # summary line; a short row leaves the tail of that line empty.

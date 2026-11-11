@@ -9,13 +9,13 @@ sidebar_position: 2
 - [Docker](https://www.docker.com/get-started/), usable without sudo
   (`sudo usermod -aG docker "$USER"`, then reboot). `existential.sh` refuses to run
   under sudo.
-  - The stack starts with the machine. For rootless Podman, `existential.sh` turns on its restart
+  - The stack starts with the host. For rootless Podman, `existential.sh` turns on its restart
     service and linger, and warns if Docker itself isn't set to start at boot.
   - Docker Desktop: turn on "Start Docker Desktop when you sign in".
-- A machine to host it (see [Hosting](./hosting/)): Linux, or a Mac with Docker Desktop.
+- A computer to host it (see [Hosting](./hosting/index.md)): Linux, or a Mac with Docker Desktop.
   - Windows: run everything inside WSL2. Clone the repo on the Linux side (not under `/mnt/c`)
     and install Tailscale inside WSL.
-- For Core, [Tailscale](https://tailscale.com/download), logged in on that machine and on every
+- For Core, [Tailscale](https://tailscale.com/download), logged in on that host and on every
   device that should reach it. Without it, see
   [Reaching it without Tailscale](#reaching-it-without-tailscale).
 - The repo:
@@ -31,9 +31,15 @@ sidebar_position: 2
 docker compose up -d
 ```
 
-The first run asks one thing: start with **Core** (Enter) or nothing. Core then asks for a username
-and password. No GPU, no model downloads. Start with nothing and `./existential.sh service` turns
-on what you want; the login is asked when the first service that needs it comes on.
+The first run asks one thing: what to start with.
+
+- **Core** (Enter): it then asks for a username and password. No GPU, no model downloads.
+- **Controller**: Core, and the host your other hosts report to. See
+  [Controller and Workers](./hosting/controller-and-workers.md).
+- **Worker**: no services. It asks for its controller's address and reports this host's
+  disks and automations there.
+- **Nothing**: `./existential.sh service` turns on what you want; the login is asked when the
+  first service that needs it comes on.
 
 | | |
 |---|---|
@@ -41,27 +47,27 @@ on what you want; the login is asked when the first service that needs it comes 
 | **Workspace** | code-server (editor + terminal over the work dir) |
 | **Automation** | Decree (the automation daemon), ntfy (where automations report in) |
 
-Four [flows](./flows/) are on by default: the [morning digest](#you-were-here), the
+Four [flows](./flows/index.md) are on by default: the [morning digest](#you-were-here), the
 [look backs](#look-back), run cleanup, and a health check on ntfy.
 
-Core ships no backups. Turn on [automation-backup](./decree/automation-backup), or put
+Core ships no backups. Turn on [automation-backup](./decree/automation-backup.md), or put
 `volumes/workspace_data` under git with a remote you choose.
 
 ### Turning on more
 
 ```bash
 ./existential.sh flow                 # pick from the list
-./existential.sh flow on newsletter   # or by name
+./existential.sh flow on weekly-newsletter   # or by name
 ```
 
 A **flow** is one thing the stack does for you: your own newsletter, transcribed voice memos,
 bank alerts as budget entries.
 
-- `flow on` turns on the services it needs and its machine, rebuilds, and prints any step only you
-  can do (an OAuth grant, a password).
+- `flow on` asks before it turns on each service it needs, turns on its machine, rebuilds, and prints
+  any step only you can do (an OAuth grant, a password).
 - `docker compose up -d` starts what is new.
 - `flow off <name>` turns the machine off and leaves the services alone.
-- The full list: [Flows](./flows/#turning-one-on).
+- The full list: [Flows](./flows/index.md#turning-one-on).
 
 A service no flow needs (Caddy, Grafana, Mealie, ...) is one flag in `.env.shared`,
 `EXIST_IS_<CATEGORY>_<SLUG>=true`, then `./existential.sh` again.
@@ -76,7 +82,7 @@ What each `./existential.sh` run does:
 
 With Tailscale up, it also runs `tailscale serve`:
 
-- code-server at `https://<machine>.<tailnet>.ts.net`, ntfy at `:8443`, with a Let's Encrypt
+- code-server at `https://<host>.<tailnet>.ts.net`, ntfy at `:8443`, with a Let's Encrypt
   certificate.
 - Both containers publish on loopback only, so only your tailnet can connect.
 - The name is saved as `EXIST_TAILNET_NAME`, which ntfy and the digest's links use.
@@ -89,7 +95,7 @@ If Tailscale can't serve yet, the run prints what is missing and carries on:
 
 ### Reaching it without Tailscale
 
-Turn on [Caddy](./hosting/caddy) (`EXIST_IS_HOSTING_CADDY=true`). Every service gets
+Turn on [Caddy](./hosting/caddy.md) (`EXIST_IS_HOSTING_CADDY=true`). Every service gets
 `https://<slug>.<domain>`, with certificates from Caddy's own CA, trusted once per device.
 
 - `EXIST_DOMAIN` defaults to `<lan-ip-with-dashes>.nip.io`: public wildcard DNS that resolves on
@@ -110,10 +116,10 @@ Asked once, by the run that enables the first service that needs a GPU (Ollama, 
 Core never asks.
 
 - **GPU vendor**: `nvidia`, `amd` (Vulkan/ROCm), `none` (CPU), or `external`: models live on
-  another machine and no Ollama runs here. Point `EXIST_MODEL_URL` at any OpenAI-compatible `/v1`
+  another host and no Ollama runs here. Point `EXIST_MODEL_URL` at any OpenAI-compatible `/v1`
   server.
 - **VRAM** picks the model tier. Each model role can live on a different machine:
-  [Configuration](./configuration.md#endpoints--putting-roles-on-different-machines).
+  [Configuration](./configuration.md#endpoints--putting-roles-on-different-hosts).
 
 Re-ask both with `./existential.sh run models`.
 
@@ -130,7 +136,7 @@ Every run also pulls and builds the images, without touching what's running. The
 
 ## Enable/Disable Services
 
-A flow turns on what it needs. For anything else:
+A flow asks for each service it needs. For anything else:
 
 ```bash
 ./existential.sh service                 # pick: Space switches one, Enter applies
@@ -148,7 +154,7 @@ newly enabled services and existing files are left alone. A service turned off k
 docker compose up -d
 ```
 
-Open code-server at `https://<machine>.<tailnet>.ts.net`. That is the [workspace](#workspace);
+Open code-server at `https://<host>.<tailnet>.ts.net`. That is the [workspace](#workspace);
 start `claude` in its terminal.
 
 Decree waits for each migration's service to pass its `exist.test.sh`, then runs the migration.
@@ -159,7 +165,7 @@ To see what is working:
 ./existential.sh run footprint      # memory limits vs actual use
 ```
 
-With [automation-backup](./decree/automation-backup) on, **triage** runs those checks on a schedule
+With [automation-backup](./decree/automation-backup.md) on, **triage** runs those checks on a schedule
 and notifies you when something breaks or recovers.
 
 ### Logging in
@@ -176,25 +182,25 @@ and notifies you when something breaks or recovers.
 
 - **`notes/`**: your notes, plain markdown. Starts with `my-first-note.md`.
 - **`.decree/`**: your automations, run by the `automation` daemon on the next tick. The repo's
-  machines are copied in once, so your edits win. `graph/` draws every machine. See
-  [Writing a routine](./writing-a-routine).
+  machines arrive as [plugins](./plugins/index.md), only the ones you have on, at the version in
+  your checkout. `graph/` draws every machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
 - **`ai/`**: what automations write, indexed like everything else.
 - **`.capture/`**: everything you typed to an agent. See [Capture](#capture).
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under
   `ai/you-were-here/<YYYY>/`. See [You were here](#you-were-here).
 
-In Core, [code-server](./services/code-server) opens it at `/workspace` with `claude`,
+In Core, [code-server](./services/code-server.md) opens it at `/workspace` with `claude`,
 `opencode` and `pi` in the terminal. The workspace carries the decree skill in `.claude/skills/decree/`,
 so `claude` there already knows how to write an automation. Add-ons mount the same tree:
-[Nextcloud](./storage/nextcloud) as its `workspace` folder.
+[Nextcloud](./storage/nextcloud.md) as its `workspace` folder.
 
 - **A file change can start an automation.** A handler in `.decree/handlers.yml` runs once the
   file has been quiet for 30 seconds. A `.gitignore`'d path or anything in `.git/` never does.
-  See [File Handlers](./decree/file-handlers).
-- **With Local AI on**, [OpenViking](./ai/openviking) indexes the workspace every 15 minutes and
-  pi can search it.
-- **To edit on other machines**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
-  or [a Nextcloud elsewhere](#syncing-with-a-nextcloud-optional). Its *Ignored Files* list keeps
+  See [File Handlers](./decree/file-handlers.md).
+- **With Search on** (`./existential.sh flow on search`), [qmd](./ai/qmd.md) indexes the workspace within a
+  minute of each change, and you, pi, Claude Code and opencode can search it.
+- **To edit on other computers**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
+  or [a Nextcloud elsewhere](#syncing-with-a-nas-or-a-nextcloud-optional). Its *Ignored Files* list keeps
   files off the server.
 
 ### Capture
@@ -207,15 +213,15 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
   marker such as `[REDACTED:anthropic-key]` before writing.
 - It never blocks the prompt. Failures go to `workspace/.capture/errors.log`.
 - Prompts with a session id are also appended to
-  `workspace/ai/conversations/<date>-<tool>-<session>.md`, so [search](./ai/qmd) finds them.
-- One script does it all: `automation/lib/capture/capture.sh` (bash and `jq`).
+  `workspace/ai/conversations/<date>-<tool>-<session>.md`, so [search](./ai/qmd.md) finds them.
+- One script does it all: `workspace/.decree/lib/capture/capture.sh` (bash and `jq`).
 
 | Source | On | Off |
 |---|---|---|
-| Claude Code in [code-server](./services/code-server) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
-| opencode in code-server | By default: a plugin, `automation/lib/capture/opencode.ts` | The same key |
-| Claude Code on another machine | `bash automation/lib/capture/capture.sh install <workspace dir>` from a checkout, with the workspace synced there | `bash automation/lib/capture/capture.sh uninstall` |
-| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | Delete `/capture` from `workspace/.decree/decree-go-rest.yml` |
+| Claude Code in [code-server](./services/code-server.md) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
+| opencode in code-server | By default: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
+| Claude Code on another computer | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
+| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh flow off capture-stream` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s) beside your
 other hooks; `uninstall` removes only that one.
@@ -230,8 +236,6 @@ curl -X POST https://automation-webhook.<domain>/capture \
 - The secret is `AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`.
 - Without the webhook: `cd /workspace && echo 'buy filters' | decree emit --machine capture` in
   code-server's terminal.
-- An older install: copy the `/capture` entry from `automation/decree-go-rest.yml` into
-  `workspace/.decree/decree-go-rest.yml`.
 
 ### You were here
 
@@ -264,8 +268,6 @@ Details:
 - Schedule: `workspace/.decree/cron/you-were-here.md`. Off: `./existential.sh flow off you-were-here`.
 - Now: `POST /you-were-here` on `automation-webhook`, or `echo | decree emit --machine you_were_here`
   in code-server's terminal. `note_link` sets the push's last line.
-- An older install: copy `/you-were-here` from `automation/decree-go-rest.yml` into
-  `workspace/.decree/decree-go-rest.yml`.
 
 ### Look back
 
@@ -288,7 +290,6 @@ Every item links to its day note.
   (`cron/look-back-weekly.md`, `look-back-monthly.md`). Longer ranges read those instead of
   every day note.
 - With the webhook: `POST /look-back`, `/look-back/month`, `/look-back/month/work`.
-- An older install: copy the `/look-back` entries from `automation/decree-go-rest.yml`.
 
 ```bash
 docker exec automation decree emit --machine look_back --param period=quarter --param to=2026-09-30 </dev/null
@@ -296,11 +297,11 @@ docker exec automation decree emit --machine look_back --param period=quarter --
 
 ### Syncing with a NAS or a Nextcloud (optional)
 
-With [automation-backup](./decree/automation-backup) on, `workspace-sync` runs `rclone bisync`
+With [automation-backup](./decree/automation-backup.md) on, `workspace-sync` runs `rclone bisync`
 every minute, both ways, with one other copy. A file changed on both sides keeps the newer edit.
 
 - **A NAS folder**: `EXIST_NFS_SHARE_WORKSPACE` in `.env.shared`, asked with the other
-  [NAS paths](./storage/). Compose mounts it; when set, it is the only other copy. A change made
+  [NAS paths](./storage/index.md). Compose mounts it; when set, it is the only other copy. A change made
   on the NAS arrives within a minute: NFS tells nobody, so it is found by the next run.
 - **A Nextcloud folder**: in `.env`, `EXIST_NEXTCLOUD_DOMAIN`, `EXIST_NEXTCLOUD_USER`,
   `EXIST_NEXTCLOUD_APP_PASSWORD` (from Nextcloud's *Settings → Security*). Folder:
@@ -316,7 +317,7 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
 ### Bringing in real notes (e.g. an Obsidian vault)
 
 - Simplest: keep the vault inside `workspace/`.
-- To edit it on other devices: sync through Nextcloud, see [Obsidian](./services/obsidian).
+- To edit it on other devices: sync through Nextcloud, see [Obsidian](./services/obsidian.md).
 - To pull it in from elsewhere (with automation-backup on): copy
   `services/automation-backup/cron.example/notes-pull.md` to `services/automation-backup/cron/`,
   set `NOTES_PULL_SOURCE` to an rsync-over-SSH path (`user@nas:/path/to/vault/`), and put an SSH
@@ -330,4 +331,4 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
 ./existential.sh run rclone                  # Remote file storage
 ```
 
-See [Integrations](./integrations/). `./existential.sh run` lists every action.
+See [Integrations](./integrations/index.md). `./existential.sh run` lists every action.

@@ -6,19 +6,19 @@ sidebar_position: 1
 
 ## Developer Tools
 
-- [IT-Tools](../../services/it-tools) — active stack
-- [Fabric](./fabric) — TBD, LLM prompt organizer/facilitator
+- [IT-Tools](../../services/it-tools.md) — active stack
+- [Fabric](./fabric.md) — TBD, LLM prompt organizer/facilitator
 
 ## Networking / Tunneling
 
-- [Ngrok](./ngrok) — unnecessary with VPN
-- [Docker Swarm](./docker-swarm) — RIP networking complexity
+- [Ngrok](./ngrok.md) — unnecessary with VPN
+- [Docker Swarm](./docker-swarm.md) — RIP networking complexity
 
 ## Messaging / Queues
 
-- [RabbitMQ](./rabbit-mq) — replaced by ntfy/direct webhooks
-- [NSQ](./nsq) — replaced by RabbitMQ
+- [RabbitMQ](./rabbit-mq.md) — replaced by ntfy/direct webhooks
+- [NSQ](./nsq.md) — replaced by RabbitMQ
 
 ## Bookmarks
 
-- [Linkwarden](./linkwarden) — RIP no eject, annoying to load hundreds of bookmarks
+- [Linkwarden](./linkwarden.md) — RIP no eject, annoying to load hundreds of bookmarks

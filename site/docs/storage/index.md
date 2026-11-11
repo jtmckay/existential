@@ -16,8 +16,8 @@ Use what you need. For example, Google Drive for files instead of TrueNAS and Ne
 
 | Service                     | Purpose                | Alternatives                    |
 | --------------------------- | ---------------------- | ------------------------------- |
-| [Nextcloud](./nextcloud)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
-| [Collabora](./collabora)    | Nextcloud document editor | OnlyOffice                   |
+| [Nextcloud](./nextcloud.md)    | File sharing & sync    | Dropbox, OneDrive, Google Drive |
+| [Collabora](./collabora.md)    | Nextcloud document editor | OnlyOffice                   |
 | TrueNAS                     | File redundancy & NFS  | —                               |
 
 ## A NAS for the bulk files
@@ -35,7 +35,7 @@ set up on this host.
    then for each volume's folder on the NAS, each with a line saying what it holds:
    `EXIST_NFS_PATH_<VOLUME>` for a container's data (`EXIST_NFS_PATH_NEXTCLOUD_DATA`), and
    `EXIST_NFS_SHARE_<NAME>` for your own files (`EXIST_NFS_SHARE_NEXTCLOUD`). Enter answers
-   `none`, which keeps that one volume on this machine, under `<repo>/volumes/`.
+   `none`, which keeps that one volume on this host, under `<repo>/volumes/`.
    Each answer is written to `.env.shared` and never asked again; turning on another service
    asks for its volumes, and setting the address later asks for every enabled one.
 3. `./existential.sh` mounts each folder the way Compose will, as `EXIST_PUID:EXIST_PGID`, and

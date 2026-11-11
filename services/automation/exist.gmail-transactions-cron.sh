@@ -18,7 +18,8 @@ SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
 CRON_DIR="/repo/volumes/workspace_data/.decree/cron"
-PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/automation/lib/actual-budget}"
+# Installed by the actual_budget_parse plugin (the budget flow), with any parser of yours beside it.
+PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/volumes/workspace_data/.decree/lib/actual-budget}"
 DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
 
 hr() { printf '%0.s─' {1..56}; echo; }

@@ -51,7 +51,6 @@ across the network.
 | MCP | custom (Node base) | Your code | 🟢 | First-party. |
 | Ollama | [ollama](https://github.com/ollama/ollama) | MIT | 🟢 | |
 | Open WebUI | [open-webui](https://github.com/open-webui/open-webui) | BSD-3 + **branding clause** | 🔴 | For **>50 users** (rolling 30 days) you must **keep "Open WebUI" branding** or buy an enterprise license. White-label = enterprise license required. Hosting *with* branding intact is allowed. |
-| OpenViking | [OpenViking](https://github.com/volcengine/OpenViking) | AGPL-3.0 (main project) | 🟡 | `crates/ov_cli` and `examples/` are Apache-2.0; the server component the stack runs is AGPL — run unmodified, link to source. |
 | pi | [pi](https://github.com/earendil-works/pi) | MIT | 🟢 | CLI baked into the decree image. |
 | WhisperX | [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) | MIT | 🟢 | |
 | wyoming-piper | [wyoming-piper](https://github.com/rhasspy/wyoming-piper) | MIT | 🟢 | |
@@ -115,7 +114,7 @@ Bundled *inside* app stacks, not offered as standalone database services.
 
 - [ ] Every hosted app's license recorded (this page) and re-checked at its current version.
 - [ ] **AGPL apps run unmodified**, *or* your modifications are published and linked in-app.
-- [ ] The [Open Source Notices](./open-source-notices) page is exposed to tenants, linking each AGPL app's running source.
+- [ ] The [Open Source Notices](./open-source-notices.md) page is exposed to tenants, linking each AGPL app's running source.
 - [ ] **Open WebUI**: branding kept intact, *or* an enterprise license obtained for white-label.
 - [ ] **MongoDB/Redis** not exposed as standalone database services; Redis license option chosen (AGPLv3/RSALv2).
 - [ ] Audit re-run on every app version bump — licenses change without notice.
@@ -123,8 +122,8 @@ Bundled *inside* app stacks, not offered as standalone database services.
 ## Bottom line
 
 Most of the catalog is 🟢 and hostable without ceremony. The 🟡 AGPL apps (Nextcloud,
-Immich, Mealie, NocoDB, Lowcoder, Grafana/Loki, Firecrawl, OpenViking) are
+Immich, Mealie, NocoDB, Lowcoder, Grafana/Loki, Firecrawl) are
 compliant as long as you run them unmodified and offer your tenants the source — the
-[Open Source Notices](./open-source-notices) page covers it. The only genuine 🔴 is
+[Open Source Notices](./open-source-notices.md) page covers it. The only genuine 🔴 is
 **Open WebUI's branding clause**: keep their branding or buy an enterprise license. Resolve
 that one and the catalog is clear for commercial hosting.

@@ -5,13 +5,13 @@ sidebar_position: 5
 # Routing to Departments
 
 :::info[Mechanism, not a flow]
-How a task reaches a particular agent. For what the system does, see [Flows](../flows/).
+How a task reaches a particular agent. For what the system does, see [Flows](../flows/index.md).
 :::
 
 - `router` reads a task, picks one department, and emits a message for it.
 - The department answers with its own tools and writes the result to `workspace/ai/`.
 - One machine, `agent_task`, serves every department. A department is a file,
-  `automation/lib/departments/<name>.yml`, read by both the router and [pi](../ai/pi).
+  `workspace/.decree/lib/departments/<name>.yml`, read by both the router and [pi](../ai/pi.md).
 
 ```mermaid
 flowchart LR
@@ -21,8 +21,8 @@ flowchart LR
     B -->|"emit\ndepartment: research"| D["🏷️ agent_task"]
     B -->|"emit\ndepartment: sales"| E["🏷️ agent_task"]
     B -->|"no match, or\nan unknown answer"| F["🚫 not_routed"]
-    D --> G["pi\nresearch\nread · grep · find · ls · openviking · firecrawl"]
-    E --> H["pi\nsales\nread · grep · find · ls · openviking"]
+    D --> G["pi\nresearch\nread · grep · find · ls · qmd · firecrawl"]
+    E --> H["pi\nsales\nread · grep · find · ls · qmd"]
     G --> I["📄 workspace/ai/&lt;name&gt;.md"]
     H --> I
     F --> J["📋 logged, nothing run"]
@@ -37,19 +37,19 @@ tools at all — cheap enough for every message.
 
 ## Adding a department
 
-Create `automation/lib/departments/legal.yml`:
+Create `workspace/.decree/lib/departments/legal.yml`:
 
 ```yaml
 description: Contracts, terms, licensing questions, and compliance review.
 tools: read, grep, find, ls
-mcp: openviking
+mcp: qmd
 ```
 
 Nothing restarts: the next run reads it.
 
 - `tools` are pi's built-ins (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`); `mcp` names
-  servers [pi_configure](../ai/pi#what-it-talks-to) registers while their add-on is on
-  (`openviking`, `firecrawl`, `playwright`, `qmd`). Blank means none.
+  servers [pi_configure](../ai/pi.md#what-it-talks-to) registers while their add-on is on
+  (`qmd`, `firecrawl`, `playwright`). Blank means none.
 - Write `description` as the answer to "when should work come here?". It's all the router sees.
 
 ## Sending work
@@ -63,7 +63,7 @@ echo 'Find out who already sells this, and how they position against each other.
 ```
 
 To skip the router: `--machine agent_task --param department=research`. A
-[file processor](./file-change-processing) can emit that message itself.
+[file processor](./file-change-processing.md) can emit that message itself.
 
 ## When routing fails
 

@@ -1,0 +1,13 @@
+# The automation project's plugins: workspace/.decree/plugins.yml is yours, copied
+# from this once. ./existential.sh flow (and run plugin) edit it; what each needs
+# comes with it. automation/plugins/ has every plugin, automation/plugins/flows/ the flows.
+on:
+  - note-to-automation
+  - capture-stream
+  - code-server-agents
+  - you-were-here
+  - look-back
+  - clean-runs
+  - health-checks
+# false: a plugin whose file changed is named on ./existential.sh, not installed.
+auto_update: true

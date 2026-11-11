@@ -19,14 +19,14 @@ sidebar_position: 1
 
 ## Evaluated
 
-- [Obsidian](../../services/obsidian) — active stack (sync via Nextcloud + FolderSync)
-- [Logseq](./logseq) — RIP replaced by Obsidian
+- [Obsidian](../../services/obsidian.md) — active stack (sync via Nextcloud + FolderSync)
+- [Logseq](./logseq.md) — RIP replaced by Obsidian
 
 - Zettlr — RIP lacks drawing
-- [Trilium](./trilium) — RIP lacks proper markdown support
-- [AppFlowy](./app-flowy) — RIP login/DB issues on setup
-- [Standard Notes](./standard-notes) — RIP sync issues, no backlinking
-- [Nightlio](./nightlio) — RIP broken Docker images
+- [Trilium](./trilium.md) — RIP lacks proper markdown support
+- [AppFlowy](./app-flowy.md) — RIP login/DB issues on setup
+- [Standard Notes](./standard-notes.md) — RIP sync issues, no backlinking
+- [Nightlio](./nightlio.md) — RIP broken Docker images
 - AnyType — RIP no eject, lacks drawing
 - Notion — RIP no FOSS, no MD, no graph view
 - OneNote — RIP no FOSS, no MD, no API

@@ -29,6 +29,10 @@ for f in "$ATTENTION_DIR"/*.md; do
     status="$(field status "$f")"
     state="$(field state "$f")"
     [[ "$machine" == notify ]] && continue
+    # A wait with a timeout ends without you (a lease in line, a poll): only what it
+    # ends in, if that is a failure, is news.
+    [[ "$status" == waiting ]] && [[ -n "$(st="$state" yq '.states[strenv(st)].invoke.person.timeout // ""' \
+        ".decree/machines/${machine}.yml" 2>/dev/null)" ]] && continue
     if [[ "$(field kind "$f")" == run ]]; then
         key="$(field run "$f") ${status} ${state}"
     else

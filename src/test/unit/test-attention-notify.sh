@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-attention-notify.sh — automation/lib/attention-notify.sh sends one ntfy
-# message per run that needs you (failed, or waiting on a person), naming the
+# message per run that needs you (failed, or waiting on a person with no timeout), naming the
 # machine and the command that continues it; a later pass sends nothing new; a
 # failed `notify` run is never reported, so a broken ntfy cannot loop.
 #
@@ -54,6 +54,23 @@ states:
   done: { final: true }
   failed: { final: true }
 EOF
+cat > "$P/.decree/machines/poll.yml" << 'EOF'
+name: poll
+description: Waits for a program, and looks again on its own.
+initial: wait
+states:
+  wait:
+    invoke:
+      person:
+        question: Ready?
+        ask: ask
+        timeout: 1h
+    transitions:
+      go: { target: done, description: Ready. }
+      stop: { target: done, description: Stop. }
+  done: { final: true }
+  failed: { final: true }
+EOF
 printf '#!/usr/bin/env bash\nexit 1\n' > "$P/.decree/scripts/boom.sh"
 printf '#!/usr/bin/env bash\n' > "$P/.decree/scripts/ask.sh"
 chmod +x "$P"/.decree/scripts/*.sh
@@ -78,6 +95,7 @@ pass() { bash "$NOTIFIER" && decree process --quiet >/dev/null 2>&1; true; }
 
 BOOM="$(echo | decree emit --machine boom)"
 ASK="$(echo | decree emit --machine ask)"
+echo | decree emit --machine poll >/dev/null
 decree process --quiet >/dev/null 2>&1
 pass
 pass
@@ -86,6 +104,7 @@ check "two runs need you, two messages" "[[ \$(wc -l < '$TMP/published') == 2 ]]
 check "a failed run names its machine" "grep -qF 'Title: decree: boom failed in run' '$TMP/published'"
 check "...and the command that retries it" "grep -qF 'docker exec automation decree process --retry ${BOOM}' '$TMP/published'"
 check "a waiting run says it is waiting" "grep -qF 'Title: decree: ask is waiting for you in decide' '$TMP/published'"
+check "a wait with a timeout ends without you, so it is not sent" "! grep -qF 'poll' '$TMP/published'"
 check "...and how to answer" "grep -qF 'docker exec automation decree event ${ASK}.w1 yes' '$TMP/published'"
 
 # ntfy down: a new failure's notify run fails too, and that failure is not reported.

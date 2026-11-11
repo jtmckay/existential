@@ -171,7 +171,8 @@ interpolated as Compose's `env_file` does: `${VAR}`, `$VAR`, `${VAR:-default}`,
 `HOST=box` then `COMFY_URL=http://${HOST}:8188`. An unknown variable is empty and
 `decree check` warns. Never source them by hand. `DECREE_*`, `TRACEPARENT` and `TRACESTATE`
 cannot be set in them, except `DECREE_MACHINES` and `DECREE_EXCLUDE_MACHINES` in `.decree/.env`,
-which pick the machines `process` and `daemon` run and never reach scripts. When two set a name, the first wins: decree's own `DECREE_*`, the
+which pick the machines `process` and `daemon` run and never reach scripts, and
+`DECREE_MAX_DEPTH` (default 10), the deepest chain of emits and child runs. When two set a name, the first wins: decree's own `DECREE_*`, the
 machine's `env_file`, the process environment, `.decree/.env`.
 
 One script run by several states with different values: give each state a two-line script,

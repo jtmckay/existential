@@ -24,7 +24,7 @@ _absent() {
 }
 # _links <name> <file> — passes when <file> links to the guide.
 _links() {
-    if grep -qE '\]\((\./|\./hosting/)ai-box\)' "$2"; then _ok "$1"; else _fail "$1" "no link in ${2#"$DOCS/"}"; fi
+    if grep -qE '\]\((\./|\./hosting/)ai-box\.md\)' "$2"; then _ok "$1"; else _fail "$1" "no link in ${2#"$DOCS/"}"; fi
 }
 
 [[ -f "$GUIDE" ]] && _ok "the guide exists" || _fail "the guide exists" "$GUIDE"

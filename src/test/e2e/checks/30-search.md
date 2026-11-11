@@ -21,7 +21,7 @@ waits for it, the way a person would, then asks for it four ways:
 - **MCP**, the protocol Claude Code and opencode speak to it: `initialize`,
   `tools/list` offering `query` and `get`, then `get` returning the note;
 - **the `search` command** code-server puts on PATH, run from the repo's
-  `lib/recall/search.sh`, which must print the note's path.
+  `ai/qmd/recall/search.sh` (staged into the workspace lib), which must print the note's path.
 
 That code-server's Claude Code is registered with qmd, allows its tools and has
 the recall skill is code-server's own `exist.test.sh`, run by `00-services`.

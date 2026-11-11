@@ -18,16 +18,16 @@ ARG RCLONE_VERSION=1.75.1
 ARG RCLONE_SHA256=09c9f7606ed9e31eecc1eec26a89992cf2931a8d2d1a5f0ae2bb1c11630ffb15
 ARG YQ_VERSION=4.44.3
 ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
-# A pre-release, pinned by tag: bump it deliberately, and keep it equal to the
+# Pinned by tag: bump it deliberately, and keep it equal to the
 # decree inside automation-webhook's image (../../automation-webhook/docker-compose.exist.yml). The
 # release's own install.sh fetches its static binary and checks its sha256.
-ARG DECREE_TAG=v0.5.0-beta.13
-# Claude Code, which `ai` in automation/lib/ai.sh calls: machines that need an agent
-# use it (automation/lib/agent.sh). Pinned, and its updater is off below, so a
+ARG DECREE_TAG=v0.5.0
+# Claude Code, which `ai` in lib/ai.sh calls: machines that need an agent
+# use it (lib/agent.sh). Pinned, and its updater is off below, so a
 # run never changes the CLI under it; bump it here.
 ARG CLAUDE_CODE_VERSION=2.1.310
 # pi (pi.dev), the agent on the stack's own chat model: machines reach it through
-# automation/lib/pi.sh, and code-server's terminal shares this image. Pinned,
+# lib/pi.sh, and code-server's terminal shares this image. Pinned,
 # --ignore-scripts like its own install docs, and nothing updates it at runtime.
 ARG PI_VERSION=1.4.0
 RUN apt-get update \

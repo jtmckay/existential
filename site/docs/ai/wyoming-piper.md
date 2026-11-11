@@ -7,7 +7,7 @@ sidebar_position: 8
 
 - Source: https://github.com/OHF-Voice/wyoming-piper
 - License: [MIT](https://opensource.org/licenses/MIT)
-- Alternatives: [Chatterbox](./chatterbox) (expressive TTS over HTTP), Coqui TTS
+- Alternatives: [Chatterbox](./chatterbox.md) (expressive TTS over HTTP), Coqui TTS
 
 Text-to-speech for Home Assistant's Assist pipeline. Runs on CPU.
 
@@ -22,8 +22,8 @@ long-form audio and something in the stack is calling it over HTTP. Piper is
 what HA's own voice stack expects, and it synthesises faster than real time on
 a couple of CPU cores — which is what a spoken reply actually needs.
 
-Running it on CPU is deliberate: the GPU is already holding the chat model and
-the embedding model, and the whole point of a voice reply is that it lands
+Running it on CPU is deliberate: the GPU is already holding the chat model, and
+the whole point of a voice reply is that it lands
 immediately.
 
 ## Configuration
@@ -52,7 +52,7 @@ there is nothing for Caddy to front. You add it inside Home Assistant:
 | Port | `10200` |
 
 Then build a pipeline under **Settings → Voice assistants**, pairing it with
-[wyoming-whisper](./wyoming-whisper) for the listening half.
+[wyoming-whisper](./wyoming-whisper.md) for the listening half.
 
 ## Verify
 

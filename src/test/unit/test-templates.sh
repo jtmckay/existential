@@ -334,15 +334,15 @@ assert_contains "EXIST_CLI key flagged as needing a value" "needs a value" "$out
 # held ollama's root, so the value arrives as the /v1 base the new key means; a
 # blank old key leaves the new one at its template value.
 cp "$TMP/.env.shared" "$TMP/.env.shared.saved"
-printf 'EXIST_MODEL_URL=http://ollama:11434/v1\nEXIST_MODEL_URL_CHAT=\nEXIST_MODEL_URL_EMBED=\n' > "$TMP/.env.exist.shared"
-printf 'EXIST_OLLAMA_URL=http://bigbox:11434\nEXIST_OLLAMA_URL_CHAT=http://chatbox:8080/v1/\nEXIST_OLLAMA_URL_EMBED=\n' > "$TMP/.env.shared"
+printf 'EXIST_MODEL_URL=http://ollama:11434/v1\nEXIST_MODEL_URL_CHAT=\nEXIST_MODEL_URL_VISION=\n' > "$TMP/.env.exist.shared"
+printf 'EXIST_OLLAMA_URL=http://bigbox:11434\nEXIST_OLLAMA_URL_CHAT=http://chatbox:8080/v1/\nEXIST_OLLAMA_URL_VISION=\n' > "$TMP/.env.shared"
 _reconcile_env_keys "$TMP/.env.exist.shared" "$TMP/.env.shared" >/dev/null
 assert_eq "an old global model URL takes effect under the new key" \
     "EXIST_MODEL_URL=http://bigbox:11434/v1" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
 assert_eq "an old role URL that already ended /v1 is not doubled" \
     "EXIST_MODEL_URL_CHAT=http://chatbox:8080/v1" "$(grep '^EXIST_MODEL_URL_CHAT=' "$TMP/.env.shared")"
 assert_eq "a blank old role key leaves the new one blank" \
-    "EXIST_MODEL_URL_EMBED=" "$(grep '^EXIST_MODEL_URL_EMBED=' "$TMP/.env.shared")"
+    "EXIST_MODEL_URL_VISION=" "$(grep '^EXIST_MODEL_URL_VISION=' "$TMP/.env.shared")"
 mv "$TMP/.env.shared.saved" "$TMP/.env.shared"; rm -f "$TMP/.env.exist.shared"
 
 # Blank is load-bearing (EXIST_VRAM_GB = not yet asked, EXIST_MODEL_URL_<ROLE> =
@@ -430,14 +430,30 @@ done
 
 printf 'EXIST_IS_AI_X=true\nEXIST_IS_SERVICES_Y=true\nEXIST_IS_SERVICES_Z=false\n' > "$TMP/.env.shared"
 ( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf none; }
-  _ask_core_or_none ) >/dev/null 2>&1 </dev/null
+  _ask_role ) >/dev/null 2>&1 </dev/null
 assert_eq "none turns every flag off" "" "$(grep '=true$' "$TMP/.env.shared")"
 printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
 ( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf ''; }
-  _ask_core_or_none ) >/dev/null 2>&1 </dev/null
+  _ask_role ) >/dev/null 2>&1 </dev/null
 assert_eq "Enter keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
-_ask_core_or_none >/dev/null 2>&1 </dev/null
+_ask_role >/dev/null 2>&1 </dev/null
 assert_eq "no terminal keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
+# controller and worker turn on the host's worker flow (reporting); a worker runs nothing else.
+mkdir -p "$TMP/automation/plugins/flows"
+cp "$_REAL/automation/plugins.host.exist.yml" "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
+cp "$_REAL/automation/plugins/flows/worker.md" "$TMP/automation/plugins/flows/"
+printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
+( _prompt_available() { true; }; command() { return 1; }
+  _prompt_tty() { case "$1" in Start*) printf worker ;; *) printf box.tail1.ts.net ;; esac; }
+  _ask_role ) >/dev/null 2>&1 </dev/null
+assert_eq "a worker turns every flag off, and names its controller" "EXIST_IS_AI_X=false EXIST_CONTROLLER=box.tail1.ts.net" "$(xargs < "$TMP/.env.shared")"
+assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/host/.decree/plugins.yml")"
+rm -rf "$TMP/host"; printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
+( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf controller; }
+  _ask_role ) >/dev/null 2>&1 </dev/null
+assert_eq "a controller keeps Core, and names no controller" "EXIST_IS_AI_X=true EXIST_CONTROLLER=" "$(xargs < "$TMP/.env.shared")"
+assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/host/.decree/plugins.yml")"
+rm -rf "$TMP/host"
 
 printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
 assert_contains "# DEFAULT: is the literal default when nobody answers" "WHO=admin" "$(render "$TMP/t_default")"

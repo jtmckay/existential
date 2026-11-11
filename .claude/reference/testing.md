@@ -158,10 +158,12 @@ in CI):
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
   that canary.**
 - **`decree-check.sh`** (`test decree`, adhoc) — assembles both decree projects from tracked
-  content with every shipped cron, migration and inbox template queued, and runs `decree check`,
-  so a template naming a renamed machine or an undeclared param fails here rather than as a
-  failed run. It also fails while a committed `graph/` is stale (`run decree-graph` rewrites
-  them) and while the `notify`/`clean_runs` copies in the two projects differ.
+  content (the plugin system and every plugin; automation-backup's set) with every shipped cron,
+  migration and inbox template queued, and runs `decree check`, so a template naming a renamed
+  machine or an undeclared param fails here rather than as a failed run. Then each plugin alone,
+  with only what its `needs:` reach, so a missing `needs:` fails here too.
+- **`lint-shell.sh`** (`test lint`, host) also writes each plugin's scripts out with awk, where
+  the stack installs them, and shellchecks those.
 - **`unit/test-validators.sh`** — opposite-tests the TS validators: builds violating fixture
   trees, asserts `validate-conventions`/`check-drift` exit non-zero (and pass on a clean tree).
 
@@ -251,7 +253,7 @@ Bypass either with `--no-verify`.
 `.github/workflows/ci.yml` runs the same gates as `pre-push`, on push to `main` and on every
 pull request. It exists because a hook is local-only, is installed as a side effect of the
 first `./existential.sh` run, is bypassable with `--no-verify`, and never sees a PR — so the
-gates ran on one machine and nowhere else.
+gates ran on one host and nowhere else.
 
 Five jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`
 (shellcheck, then `test host`), `macos` (`host-portable.sh` under a Mac's `/bin/bash`),

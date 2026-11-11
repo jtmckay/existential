@@ -38,12 +38,13 @@ services:
       - NTFY_USER=${EXIST_NTFY_USER:-}
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
     volumes:
-      # Its own decree project — own machines/, cron/, runs/ and inbox/ — with
-      # the scripts and lib/ shared, read-only, from automation/.
+      # Its own decree project — own cron/, runs/ and inbox/. machines/, scripts/
+      # and lib/ are what exist.initial.sh installs (its plugins from
+      # automation/plugins/, and the shared automation/lib/), read-only here.
       - .:/work/.decree:z
       - ./machines:/work/.decree/machines:ro,z
-      - ../../automation/scripts:/work/.decree/scripts:ro,z
-      - ../../automation/lib:/work/.decree/lib:ro,z
+      - ./scripts:/work/.decree/scripts:ro,z
+      - ./lib:/work/.decree/lib:ro,z
       - ../../automation/secrets:/secrets:ro,z
       # Every volume at once. This is what makes a new service need no backup
       # wiring at all: its volumes/<name> dir is visible here the moment

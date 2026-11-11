@@ -85,7 +85,7 @@ services:
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
       # What you type into claude and opencode lands in workspace/.capture/
-      # (automation/lib/capture/); entrypoint.sh wires both unless this is false.
+      # (the capture plugin's lib/capture/); entrypoint.sh wires both unless this is false.
       - CODE_SERVER_CAPTURE=${CODE_SERVER_CAPTURE:-true}
       - CAPTURE_DIR=/workspace/.capture
       - CAPTURE_HOST=code-server
@@ -95,18 +95,14 @@ services:
       # pi's other MCP servers, the same ones automation's pi gets (lib/pi.sh).
       - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
       - EXIST_IS_AI_MCP=${EXIST_IS_AI_MCP:-false}
-      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
-      # The chat role's resolver and pi's configuration, the same files the
-      # decree daemons run — so opencode, pi and a routine reach the model
-      # through one implementation instead of two.
-      - ../../automation/lib/model.sh:/opt/pi/model.sh:ro
-      - ../../automation/lib/pi.sh:/opt/pi/pi.sh:ro
-      # capture.sh (Claude Code's prompt hook) and opencode.ts (opencode's plugin).
-      - ../../automation/lib/capture:/opt/capture:ro
+      # model.sh, pi.sh and capture/ are read from /workspace/.decree/lib/, where
+      # the model, pi and capture plugins install them (the code-server-agents
+      # flow): the same files the decree daemon runs, so opencode, pi and a
+      # routine reach the model through one implementation instead of two.
       # The recall skill entrypoint.sh copies into the workspace when search is on.
-      - ../../automation/lib/recall:/opt/recall:ro
+      - ../../ai/qmd/recall:/opt/recall:ro
       # code-server's standalone install + extensions (reinstallable — just
       # slow) AND, since entrypoint.sh symlinks $HOME's dotfiles here, whatever
       # you `npm i -g` in the terminal plus its login state — not just a

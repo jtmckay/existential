@@ -50,7 +50,7 @@ services:
       # WhisperModelParams field is a query param with a *hardcoded* default
       # (model=tiny, device=cuda, compute_type=float16 — app/schemas.py:334), so
       # a caller must send its own or a CPU-only host fails every task with
-      # "CUDA driver version is insufficient". automation/lib/whisperx-transcribe.ts
+      # "CUDA driver version is insufficient". lib/whisperx-transcribe.ts
       # sends them.
       WHISPER_MODEL: large-v3
       DEVICE: cuda

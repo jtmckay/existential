@@ -19,7 +19,7 @@ back onto that network from elsewhere, without exposing any service. Any VPN wor
 
 ## Without a VPN: local DNS
 
-If the devices that matter are on your network anyway, a [piHole](./pihole) on another server
+If the devices that matter are on your network anyway, a [piHole](./pihole.md) on another server
 can answer the whole domain locally — one wildcard record — so names resolve with the internet
 unplugged. That is name resolution, not reachability: it does not reach the stack from outside
 the house.

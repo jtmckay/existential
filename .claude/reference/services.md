@@ -18,7 +18,7 @@ another service's config or env.
 
 They all still join `exist` by default, which is fine on one host. The rule is about *not adding
 new coupling*: **never introduce a bare-container-name dependency from the core stack into a
-complementary service.** Reach it by configurable endpoint so it can move to another machine —
+complementary service.** Reach it by configurable endpoint so it can move to another host —
 the recommended shape is three stacks (NAS / core / standalone immich + pihole). When adding a
 service, decide which side it is on and wire it accordingly.
 
@@ -75,8 +75,8 @@ Rules. Keep the true-up **idempotent and quiet** — converge, then say nothing,
 is silent (nextcloud's hook logs only what changed). **`exec` the real entrypoint** so the image's
 init keeps PID 1. If a restart is genuinely needed, **bound it**: gate it on a condition the
 restart itself resolves, or it becomes a crash loop. And leave a deliberate choice alone — reconcile
-only while the value still looks like something existential set (openviking checks `ov.conf`'s
-`api_base` before touching it; `pi_configure` rewrites only its own provider and servers), so pointing a service at Anthropic or an external host is respected.
+only while the value still looks like something existential set (`pi_configure` rewrites only its
+own provider and servers), so pointing a service at Anthropic or an external host is respected.
 
 **Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
 startup — nextcloud's `/docker-entrypoint-hooks.d/{pre-installation,post-installation,
@@ -164,7 +164,7 @@ majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else f
 | `nvidia` | nothing, beyond dropping the `x-exist-gpu` key                                  |
 | `amd`    | strips the nvidia reservation, merges `x-exist-gpu.amd`                         |
 | `none`   | strips the nvidia reservation, merges `x-exist-gpu.none`; `EXIST_VRAM_GB` is 0  |
-| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another machine |
+| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another host |
 
 The strip is not tidiness. Docker refuses to create a container whose device driver it cannot
 satisfy (`could not select device driver … with capabilities: [[gpu]]`), and compose fails the
@@ -228,9 +228,11 @@ decree project:
 
 - **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
   the user's project, so machines, scripts, cron, migrations and inbox written there run on the
-  next tick. `services/automation/exist.initial.sh` seeds it from the repo's `automation/`
-  (`machines/`, `scripts/`, `.gitignore`, `decree-go-rest.yml`), copying each file only while
-  it is absent, so the user's edits win. `lib/` is the repo's, mounted read-only over it;
+  next tick. `services/automation/exist.initial.sh` copies in the plugin system
+  (`automation/machines/`, `scripts/`) every run, installs the plugins it has on at the
+  checkout's version (`.claude/reference/decree.md`), and copies `.gitignore`,
+  `decree-go-rest.yml` and `handlers.yml` only while they are absent, so the user's edits win. `lib/` is `automation/lib/` (the shared part) plus each installed
+  plugin's own lib files, copied in the same way;
   `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
   so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
   redraws `graph/` whenever a machine or cron file changes, and writes the decree skill to
@@ -241,9 +243,9 @@ decree project:
   and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
   `workspace/notes/` is mounted read-only over `/workspace`, so nothing it runs, Claude in
   `auto` mode included, changes a note; machines write under `workspace/ai/`.
-- **`automation-backup`** wholesale-mounts `services/automation-backup/`, with its own
-  `machines/` read-only and `automation/scripts/` and `automation/lib/` mounted read-only into
-  it, so it runs the repo's scripts, never the workspace copies. Its `cron.example/` + `cron/` pair lives there.
+- **`automation-backup`** wholesale-mounts `services/automation-backup/`, with the
+  `machines/`, `scripts/` and `lib/` its plugins install there mounted read-only over its
+  `.decree/`, so nothing a run does changes the code it runs. Its `cron.example/` + `cron/` pair lives there.
 
 | | `automation` | `automation-backup` |
 |---|---|---|

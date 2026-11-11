@@ -36,7 +36,7 @@ Network-wide DNS ad blocker and optional DHCP server. Blocks ads, trackers, and 
 
 Pi-hole then resolves the whole of `EXIST_DOMAIN` locally via a single wildcard record, which
 removes the stack's dependency on public DNS. It is an upgrade, not a requirement — see
-[How It Works](../how-it-works).
+[How It Works](../how-it-works.md).
 
 ## Upstream resolution and blocklists
 

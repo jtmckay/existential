@@ -64,7 +64,6 @@
 # daemon's project); its cron/, migrations/, runs/ and the rest below are only
 # what an install from before that left behind. services/automation-backup/ is
 # the second project and keeps its own runtime state.
-automation/lib/file-processors/*
 automation/cron/*
 automation/migrations/*
 automation/runs/*
@@ -81,10 +80,14 @@ services/automation-backup/runs/*
 services/automation-backup/store/
 services/automation-backup/processed.md
 services/automation-backup/process.log
-# automation-backup mounts automation/lib and automation/scripts into its own
-# project, so these two are only mount points.
-services/automation-backup/lib/*
+# automation-backup's installed plugins and shared lib (src/lib/plugin.sh).
+services/automation-backup/lib/
+services/automation-backup/machines/
 services/automation-backup/scripts/
+services/automation-backup/automations.yml
+services/automation-backup/applied/
+services/automation-backup/archive/
+services/automation-backup/plugins.yml
 # decree 0.4 leftovers exist.initial.sh cannot always remove: the Go webhook's
 # root-owned binary, and the old shared_routines/ and outbox/ mount points.
 services/automation/webhook/
@@ -156,3 +159,8 @@ Thumbs.db
 
 # e2e evidence — one directory per run, copied out of the clone before teardown
 /e2e-out/
+
+# The host's own decree project (./existential.sh run plugin ... host/<name>):
+# its installed plugins and run state, never committed.
+/host/
+automation/typecheck-plugins/

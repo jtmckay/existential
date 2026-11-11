@@ -58,7 +58,7 @@ into per-directory markdown with an index.
 For notes that pass, follow-up work is chained, each step its own message:
 
 - **Market research**: who does this, what they charge, where the gap is.
-  [Firecrawl](../ai/firecrawl) reads the pages.
+  [Firecrawl](../ai/firecrawl.md) reads the pages.
 - **A draft plan**: shape, rough costs, what must be true, first three steps.
 - **Your own notes**: anything else in your vault that bears on it.
 
@@ -92,7 +92,7 @@ This copies `note-triage.md` into `volumes/workspace_data/.decree/cron/`. Its `T
 param picks `note_develop` (default) or `idea_workup`.
 
 The fan-out path uses the `research` and `sales` departments, files in
-`automation/lib/departments/`. Nothing to provision.
+`workspace/.decree/lib/departments/`. Nothing to provision.
 
 ### 2. Watch it do nothing
 
@@ -117,7 +117,7 @@ A dry run prints a verdict per note, chains nothing and writes no ledger entries
 
 - Notes in `/data/notes`: turn on `notes-to-dropbox`, or point `NOTES_DIR` at a vault you sync.
 - A chat model (`EXIST_MODEL_URL_CHAT` or `EXIST_MODEL_URL`). The departments run it through
-  [pi](../ai/pi), which ships in the image.
+  [pi](../ai/pi.md), which ships in the image.
 
 ## Swap the judgment
 
@@ -169,7 +169,7 @@ It emits three messages, each to the department with the right tools:
 
 | Question | Department | Why |
 |---|---|---|
-| Who else is doing this? | `research` | Web access, Firecrawl, OpenViking |
+| Who else is doing this? | `research` | Web access, Firecrawl, qmd |
 | How big is the market? | `research` | Same tools, separate document |
 | What is my value proposition? | `sales` | Pricing and positioning |
 
@@ -184,14 +184,14 @@ workspace/ai/tool-rental-value-prop.md
 :::info[Why three messages]
 A department carries only the tools its question needs, so a narrow one costs a fraction of
 every tool in the prompt, and each question retries and logs on its own. See
-[Routing to Departments](../decree/routing).
+[Routing to Departments](../decree/routing.md).
 :::
 
 ### Writing a third one
 
 Write a machine, add it to `TRIAGE_ROUTINE`'s `enum` and the `emits:` list in
-`automation/machines/note_triage.yml`, and name it in the cron file. It receives `note_path` and
-`note_reason`. See [Writing an Automation](../writing-a-routine).
+`automation/plugins/note_triage.md`, and name it in the cron file. It receives `note_path` and
+`note_reason`. See [Writing a Plugin](../plugins/writing-a-plugin.md).
 
 ## Swap the input
 
@@ -205,11 +205,11 @@ Triage takes text and a name, so any input works. Only the first step changes.
 
 `gmail_sync` archives mail into `automation/emails/` (`/work/.decree/emails` in the container).
 Point `NOTES_DIR` there and set the criteria to what you want caught. See
-[Gmail](../integrations/gmail).
+[Gmail](../integrations/gmail.md).
 
 ### A file you dropped somewhere
 
-- In the workspace: a [file handler](../decree/file-handlers) line in `.decree/handlers.yml`.
+- In the workspace: a [file handler](../decree/file-handlers.md) line in `.decree/handlers.yml`.
 - Through Nextcloud: a file event reaches `file_router`, which matches a **file processor** by
   path and optional content gate:
 
@@ -218,11 +218,11 @@ PATTERN="^nextcloud:workspace/.*\.md$"
 CRITERIA="a business idea"
 ```
 
-See [File Change Processing](../decree/file-change-processing).
+See [File Change Processing](../decree/file-change-processing.md).
 
 ### A sensor, or something you said out loud
 
-A Home Assistant automation POSTs the decree webhook. See [HAwake](./hawake-homeassistant).
+A Home Assistant automation POSTs the decree webhook. See [HAwake](./hawake-homeassistant.md).
 
 ## Cost and pacing
 
@@ -268,8 +268,8 @@ Environment, in `automation/.env`:
 | Detecting new and changed notes | **Ships.** `note_triage` |
 | The triage call and the chain | **Ships.** `note_triage` → `decree emit` |
 | Knowing an idea was already evaluated | **Ships.** `/data/note-triage/ideas.tsv` |
-| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl) when enabled |
+| Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl.md) when enabled |
 | Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` |
-| Indexing notes | **Ships.** `workspace/` into [OpenViking](../ai/openviking) every 15 minutes |
+| Indexing notes | **Ships.** `workspace/` searchable with [qmd](../ai/qmd.md) within a minute of a change (the `search` flow) |
 | Notifying you | **Ships.** `notify` → ntfy |
 | **What counts as worth acting on** | **Yours.** `TRIAGE_CRITERIA` |
