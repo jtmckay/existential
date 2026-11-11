@@ -99,8 +99,8 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
 ## Layout
 
 The user's own content is the `workspace_data` volume — one tree mounted by nextcloud (as a
-Local external storage the desktop client syncs), code-server and decree, indexed
-into openviking, and searched by qmd (read-only; `.gitignore`d and hidden paths never indexed). **Every change in the workspace is seen** (`automation/lib/file-handlers.ts`, in
+Local external storage the desktop client syncs), code-server and decree, and searched
+by qmd (read-only; `.gitignore`d and hidden paths never indexed). **Every change in the workspace is seen** (`automation/lib/file-handlers.ts`, in
 `automation`), but only a handler in `workspace/.decree/handlers.yml` turns one into a run, and a
 `.gitignore`'d path or anything in `.git/` never does. The loop break is the handlers' patterns:
 an automation writes where its own handler does not match (agent output in `workspace/ai/`).
@@ -212,6 +212,8 @@ from the repo root against the generated `docker-compose.yml`.
 - **Env prefixes.** Top-level keys (`.env.exist.shared`) start `EXIST_`; per-service keys
   (`<cat>/<slug>/.env.exist`) start `<SLUG>_` (folder uppercased, hyphens → underscores).
   Enablement flags are `EXIST_IS_<CATEGORY>_<SLUG>=true|false`. → `templates.md`
+- **"Machine" means a decree machine.** A computer is a **host** (`<host>.<tailnet>.ts.net`,
+  the `host` label, `host/.decree`), in docs, code, comments and messages alike.
 - **Container naming.** Every container is prefixed with the service slug (folder name): `loki`,
   `loki-alloy` ✓; `alloy` ✗. Same for identity-bearing support files
   (`loki-alloy-config.alloy`). `docker ps` should make ownership obvious.
@@ -243,7 +245,7 @@ from the repo root against the generated `docker-compose.yml`.
   Compose mounts it from the NAS, and nothing in the stack ever writes a folder there. **Anything gitignored is a volume** — a
   relative bind source is for tracked config only, never for state, however regenerable. **No
   `.gitkeep`** — `generate-compose.ts` creates the dirs for enabled services. → `volumes.md`
-- **Addressing.** Core's two web apps → `https://<machine>.<tailnet>.ts.net` (code-server) and
+- **Addressing.** Core's two web apps → `https://<host>.<tailnet>.ts.net` (code-server) and
   `:8443` (ntfy) via `tailscale serve`, from ports published on `127.0.0.1` only; add-ons in a
   browser → `https://<slug>.<domain>` through Caddy, which ships off;
   container-to-container → `http://<container>:<port>` over Docker DNS. Caddy's

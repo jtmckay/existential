@@ -11,7 +11,7 @@ sidebar_position: 10
 
 Open-source home automation platform. Integrates with thousands of devices and services, supports local processing, and serves as the event bus for voice-triggered automations.
 
-Home Assistant is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine, such as the one your Zigbee or Z-Wave stick is plugged into. On this one it starts with everything else.
+Home Assistant is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another host, such as the one your Zigbee or Z-Wave stick is plugged into. On this one it starts with everything else.
 
 See the blog post [Optimizing my life, now with Home Assistant](/blog/optimizing-my-life-home-assistant) for a real-world setup walkthrough.
 
@@ -82,8 +82,8 @@ which are HTTP services HA cannot drive:
 | Speech → text | [wyoming-whisper](../ai/wyoming-whisper.md) | `10300` |
 | Text → speech | [wyoming-piper](../ai/wyoming-piper.md) | `10200` |
 
-Both run on **CPU** by design. The GPU is already holding the chat model and
-the embedding model; a GPU voice model would evict them mid-answer, and a
+Both run on **CPU** by design. The GPU is already holding the chat model; a GPU
+voice model would evict it mid-answer, and a
 spoken reply needs to land immediately anyway.
 
 ### Wiring it up

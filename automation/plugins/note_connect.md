@@ -4,7 +4,7 @@ automation: note_connect
 needs:
   - pi
 chart:
-  description: For each new or changed note, ask pi in a department with OpenViking access for one non-obvious connection to what you already know.
+  description: For each new or changed note, ask pi in a department that can search your notes (qmd) for one non-obvious connection to what you already know.
   data:
     CONNECT_DEPARTMENT: {type: string, default: research}
     CONNECT_MIN_SCORE: {type: int, default: 7}
@@ -28,13 +28,13 @@ scripts:
     # note_connect — watch your knowledge base for connections to what you already know.
     #
     # Scans NOTES_DIR for notes that are new or changed since the last run, hands each one to a
-    # pi department with OpenViking access, and asks for the single most interesting,
+    # pi department that can search your notes (qmd), and asks for the single most interesting,
     # non-obvious connection to something already there. Only a self-scored connection at or
     # above CONNECT_MIN_SCORE is written down and sent to you — most notes do not have one
     # waiting.
     #
-    # NOTES_DIR defaults to /workspace — the same tree OpenViking already indexes — precisely
-    # so this needs nothing beyond OpenViking and the chat model to work.
+    # NOTES_DIR defaults to /workspace — the same tree qmd already indexes — precisely
+    # so this needs nothing beyond qmd and the chat model to work.
     # Point it at /data/notes instead to scan a note-triage-style vault mirror there.
     #
     # Different job from note-triage: triage asks "is this worth acting on" and is stingy on
@@ -43,11 +43,11 @@ scripts:
     # way you would not have thought of yourself" — and is just as stingy about the answer. A
     # topical match ("both mention coffee") does not clear the bar; a real connection does.
     #
-    # The search itself needs OpenViking, which is a tool, not a plain completion — so this
-    # routine hands the note to pi in a department that carries `mcp: openviking`
+    # The search itself needs qmd, which is a tool, not a plain completion — so this
+    # routine hands the note to pi in a department that carries `mcp: qmd`
     # (CONNECT_DEPARTMENT, default "research", see lib/departments/research.yml)
     # rather than the plain completion note-triage makes. The department
-    # searches the OpenViking index, proposes at most one connection with a self-scored
+    # searches the qmd index, proposes at most one connection with a self-scored
     # interestingness, and this routine only acts when that score clears CONNECT_MIN_SCORE.
     #
     # A connection that clears the bar is written to OUTPUT_DIR (and, when
@@ -276,7 +276,7 @@ scripts:
 ---
 # note_connect
 
-For each new or changed note, ask pi in a department with OpenViking access for one non-obvious connection to what you already know.
+For each new or changed note, ask pi in a department that can search your notes (qmd) for one non-obvious connection to what you already know.
 
 It needs, on the stack that installs it:
 

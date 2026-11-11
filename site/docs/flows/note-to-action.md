@@ -169,7 +169,7 @@ It emits three messages, each to the department with the right tools:
 
 | Question | Department | Why |
 |---|---|---|
-| Who else is doing this? | `research` | Web access, Firecrawl, OpenViking |
+| Who else is doing this? | `research` | Web access, Firecrawl, qmd |
 | How big is the market? | `research` | Same tools, separate document |
 | What is my value proposition? | `sales` | Pricing and positioning |
 
@@ -270,6 +270,6 @@ Environment, in `automation/.env`:
 | Knowing an idea was already evaluated | **Ships.** `/data/note-triage/ideas.tsv` |
 | Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl.md) when enabled |
 | Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` |
-| Indexing notes | **Ships.** `workspace/` into [OpenViking](../ai/openviking.md) every 15 minutes |
+| Indexing notes | **Ships.** `workspace/` searchable with [qmd](../ai/qmd.md) within a minute of a change (the `search` flow) |
 | Notifying you | **Ships.** `notify` → ntfy |
 | **What counts as worth acting on** | **Yours.** `TRIAGE_CRITERIA` |

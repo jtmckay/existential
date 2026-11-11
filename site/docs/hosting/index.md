@@ -33,12 +33,12 @@ automatically by `docker compose up`. Containers reach each other by container n
 
 :::warning[Traffic on this network is not encrypted]
 A bridge network is single-host and carries plain traffic between containers. It is not an
-overlay, there is no IPsec, and it does not span machines. To run services on more than one
+overlay, there is no IPsec, and it does not span hosts. To run services on more than one
 box, treat them as [complementary services](../how-it-works.md) reached over a URL rather than
 trying to stretch this network across hosts.
 :::
 
-### GPU on Another Machine
+### GPU on Another Host
 
 - [A Separate AI Box](./ai-box.md): llama.cpp, ComfyUI and TTS on one GPU box, with the stack
   pointed at it

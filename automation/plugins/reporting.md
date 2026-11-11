@@ -2,7 +2,7 @@
 machine: plugin
 automation: reporting
 chart:
-  description: Report this machine to the Loki its controller names - free disk space, the decree machines installed, and every run since the last report.
+  description: Report this host to the Loki its controller names - free disk space, the decree machines installed, and every run since the last report.
   store:
     loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
     shipped: Stamp of the last report that landed; a run newer than it has not been sent. report reads and touches it.
@@ -16,18 +16,18 @@ chart:
 scripts:
   report: |
     #!/usr/bin/env bash
-    # report — this machine, to the Loki its controller names.
+    # report — this host, to the Loki its controller names.
     #
     # Runs in the host project (host/.decree), so the repo is one up and every
     # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
     # asks that controller at http://<controller>:4480, which serves host/exist.json
-    # over the tailnet; blank, this machine is the controller and reads that file. The
+    # over the tailnet; blank, this host is the controller and reads that file. The
     # answer is kept in $DECREE_STORE/loki for when the controller is away. No
     # answer is not a failure: nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per real filesystem,
     # kind=machine per installed decree machine, kind=run per run finished since
-    # the last push. Grafana's Machines dashboard reads them. job="exist" keeps
+    # the last push. Grafana's Hosts dashboard reads them. job="exist" keeps
     # them apart from alloy's job="decree", so no run is counted twice.
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
@@ -101,9 +101,9 @@ cron:
 ---
 # reporting
 
-Every 5 minutes, this machine's free disk space, the decree machines installed in each of its
+Every 5 minutes, this host's free disk space, the decree machines installed in each of its
 projects, and every run that finished since the last report, sent to the Loki its controller
-names. Grafana's **Machines** dashboard shows every machine that reports. The `worker` flow
-turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this machine is the
+names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
+turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
 controller, and names the Loki in `EXIST_REPORTING_URL`, or its own. See
 /docs/hosting/controller-and-workers.

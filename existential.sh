@@ -95,11 +95,11 @@ _ensure_host_ids() {
 #
 # So detect the IP the same way EXIST_PUID/PGID are detected.
 
-# The address of this machine, preferring its tailnet address. Only the Caddy
+# The address of this host, preferring its tailnet address. Only the Caddy
 # add-on uses it (Core is served on the tailnet *name*, _tailscale_serve_core).
 #
 # The LAN address below works on its own, but when Tailscale is up its 100.64.0.0/10 address is the better answer: it reaches
-# every device enrolled rather than only this LAN, and it survives the machine moving
+# every device enrolled rather than only this LAN, and it survives the host moving
 # networks. `<ts-ip-with-dashes>.nip.io` then gives WILDCARD DNS for an address
 # that is only routable inside the tailnet — private by construction, with no
 # tailnet DNS config at all.
@@ -176,7 +176,7 @@ _ensure_host_access() {
 # Core's two web apps need a certificate every device already trusts: the editor
 # webviews in code-server won't run behind a warning, and the ntfy phone app won't
 # connect to one. `tailscale serve` terminates TLS with a Let's Encrypt cert for
-# this machine's tailnet name and proxies to the loopback ports the templates
+# this host's tailnet name and proxies to the loopback ports the templates
 # publish. tailscaled keeps a `--bg` config across reboots, and setting a port
 # again replaces its handler, so a re-run never stacks a second one.
 #
@@ -261,7 +261,7 @@ _is_controller() {
 
 # The controller's answer to "where do I report?", host/exist.json, served on 4480
 # (_tailscale_serve_core) and read by the reporting plugin on every worker:
-# EXIST_REPORTING_URL, else this machine's Loki when it is on, else nowhere.
+# EXIST_REPORTING_URL, else this host's Loki when it is on, else nowhere.
 _controller_answer() {
     local f="${SCRIPT_DIR}/.env.shared" url name
     _is_controller || return 0
@@ -488,7 +488,7 @@ _report_login() {
     echo "  Password:    EXIST_PASSWORD in .env.shared"
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null || return 0
     tailnet=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
-    echo "  ntfy's phone app: add the server https://${tailnet:-<machine>.<tailnet>.ts.net}:8443"
+    echo "  ntfy's phone app: add the server https://${tailnet:-<host>.<tailnet>.ts.net}:8443"
     echo "  and log in with both (also in services/ntfy/.env as NTFY_ADMIN_USER / NTFY_ADMIN_PASSWORD)."
 }
 
@@ -782,7 +782,7 @@ _check_nas() {
             bad=1
             echo "  ✗ ${key}  ${addr}:${dir}"
             echo "      could not mount it: $(printf '%s\n' "$out" | tail -1)"
-            echo "      The folder must exist on the NAS and be exported over NFS to this machine."
+            echo "      The folder must exist on the NAS and be exported over NFS to this host."
             continue
         fi
         $DOCKER_CMD volume rm -f "$vol" >/dev/null 2>&1
@@ -841,7 +841,7 @@ _build() {
         if _is_worker; then
             _controller_answer
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (host/.decree)"
-            echo "reports this machine to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'the Loki this machine names, as the controller')."
+            echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'the Loki this host names, as the controller')."
         else
             echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
         fi

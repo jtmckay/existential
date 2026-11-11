@@ -76,7 +76,7 @@ gpu_vendor_is_valid "$GPU_VENDOR_DEFAULT" \
 
 # Blank is the record of "not yet asked", exactly as for EXIST_VRAM_GB. Shipping
 # a value here makes the question unreachable on first run — the bug that once
-# pinned every machine at an 8 GB GPU.
+# pinned every host at an 8 GB GPU.
 if [[ -f "$SHIPPED" ]]; then
     grep -q '^EXIST_GPU_VENDOR=' "$SHIPPED" \
         && _ok "EXIST_GPU_VENDOR is declared in .env.exist.shared" \

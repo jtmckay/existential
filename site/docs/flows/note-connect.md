@@ -11,7 +11,7 @@ to something you already wrote, you get the connection beside the note and a not
 flowchart TB
     write["✍️ You write a note<br/><i>phone · laptop · dictated</i>"]
     vault["workspace/<br/><i>the agent's knowledge base</i>"]
-    search["<b>Search</b><br/><i>research profile + OpenViking</i>"]
+    search["<b>Search</b><br/><i>research department + qmd</i>"]
     gate["<b>Is it interesting?</b><br/><i>self-scored, 1-10</i>"]
     skip["Left alone<br/><i>most notes</i>"]
     surface["Written beside the note<br/>+ a notification"]
@@ -39,8 +39,8 @@ flowchart TB
 
 ### 1. Search
 
-The note goes to [pi](../ai/pi.md) in a department (`research` by default) that searches the
-[OpenViking](../ai/openviking.md) index as an MCP tool.
+The note goes to [pi](../ai/pi.md) in a department (`research` by default) that searches your
+notes with [qmd](../ai/qmd.md), as an MCP tool.
 
 ### 2. Score
 
@@ -50,9 +50,8 @@ surface a different one.
 
 ## Turning it on
 
-- `./existential.sh flow on note-connect` turns on the `knowledgebase` flow (which
-  indexes `workspace/` into OpenViking) and copies `note-connect.md` into
-  `volumes/workspace_data/.decree/cron/`.
+- `./existential.sh flow on note-connect` turns on the `search` flow (qmd, which indexes
+  `workspace/`) and installs the hourly `note-connect` cron.
 - `NOTES_DIR` defaults to `/workspace`.
 - Off: `./existential.sh flow off note-connect`.
 
@@ -80,7 +79,9 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 
 ### Prerequisites
 
-- `workspace/` indexed by [OpenViking](../ai/openviking.md) (the `knowledgebase` flow).
+- `workspace/` indexed by [qmd](../ai/qmd.md) (the `search` flow).
+- A `research` department whose `mcp:` names `qmd`. One copied before 2026-11 names `openviking`;
+  change it in `workspace/.decree/lib/departments/research.yml`.
 - A chat model with ollama's `tools` capability; pi ships in the image.
 
 ## Settings reference
@@ -88,7 +89,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 | Setting | Default | Does |
 |---|---|---|
 | `CONNECT_MIN_SCORE` | `7` | How interesting a connection has to be, 1-10 |
-| `CONNECT_DEPARTMENT` | `research` | Which department searches — needs `mcp: openviking` |
+| `CONNECT_DEPARTMENT` | `research` | Which department searches — needs `mcp: qmd` |
 | `CONNECT_DRY_RUN` | `false` | Log every candidate and score, write nothing, notify no one |
 | `CONNECT_LEDGER` | `true` | The same source-to-target pairing is never surfaced twice |
 | `CONNECT_MAX_NOTES` | `20` | Ceiling per run |
@@ -111,7 +112,7 @@ as a new note. Point `CONNECT_OUTPUT_RCLONE_DEST` at a vault folder, not `worksp
 | Part | Status |
 |---|---|
 | Vault diff — detecting new and changed notes | **Ships.** Hashes the vault and diffs against the last run, same mechanism as Note → Action |
-| Searching the knowledge base | **Ships.** pi in the `research` department, with OpenViking as an MCP tool |
+| Searching the knowledge base | **Ships.** pi in the `research` department, with qmd as an MCP tool |
 | Scoring and the relevance gate | **Ships.** One self-scored call; only scores at or above `CONNECT_MIN_SCORE` surface |
 | Not repeating the same pairing | **Ships.** A plain ledger at `/data/note-connect/connections.tsv` |
 | Writing the result beside the note | **Ships.** `<note>.connection.md`, copied over rclone when configured |

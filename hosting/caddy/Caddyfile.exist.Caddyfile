@@ -97,12 +97,6 @@ open-webui.{$CADDY_DOMAIN} {
   reverse_proxy open-webui:8080
 }
 
-openviking.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy openviking:1933
-}
-
 mcp-playwright.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling

@@ -253,7 +253,7 @@ Bypass either with `--no-verify`.
 `.github/workflows/ci.yml` runs the same gates as `pre-push`, on push to `main` and on every
 pull request. It exists because a hook is local-only, is installed as a side effect of the
 first `./existential.sh` run, is bypassable with `--no-verify`, and never sees a PR — so the
-gates ran on one machine and nowhere else.
+gates ran on one host and nowhere else.
 
 Five jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`
 (shellcheck, then `test host`), `macos` (`host-portable.sh` under a Mac's `/bin/bash`),

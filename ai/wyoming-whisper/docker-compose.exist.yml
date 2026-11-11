@@ -10,8 +10,8 @@
 # transcribes long recordings with speaker diarization (the transcription
 # flow); this handles short, latency-sensitive voice commands.
 #
-# Deliberately CPU-only. The GPU is already holding the chat model plus
-# embeddings, and whisperx's large-v3 takes another ~3 GB when it runs. A GPU
+# Deliberately CPU-only. The GPU is already holding the chat model, and
+# whisperx's large-v3 takes another ~3 GB when it runs. A GPU
 # STT model here would make voice and chat evict each other.
 #
 # Services:

@@ -82,7 +82,6 @@ scripts:
         "ntfy	binwiederhier/ntfy	github	binwiederhier/ntfy	v"
         "ollama	ollama/ollama	hub_clean	ollama/ollama	bare"
         "open-webui	ghcr.io/open-webui/open-webui	github	open-webui/open-webui	v"
-        "openviking	ghcr.io/volcengine/openviking	github	volcengine/OpenViking	v"
         "pihole	pihole/pihole	github	pi-hole/pi-hole	v"
         "portainer	portainer/portainer-ce	hub_clean	portainer/portainer-ce	bare"
         "uptime-kuma	louislam/uptime-kuma	github	louislam/uptime-kuma	bare"

@@ -13,7 +13,7 @@ flowchart TB
     you["You<br/>phone · laptop · your voice"]
     outside["The outside world<br/>bank email · calendars · the web"]
 
-    subgraph house["Your house — one machine, one network"]
+    subgraph house["Your house — one computer or several, one private network"]
         ex["Existential<br/>your apps · your storage<br/>your automations · the AI you choose"]
     end
 
@@ -144,7 +144,6 @@ none of it is needed for Core to work.
 | [pi](https://existential.company/docs/ai/pi) | An agent with tools on that same URL, in code-server's terminal and your automations |
 | [Open WebUI](https://existential.company/docs/ai/open-web-ui) | Day-to-day chat |
 | [qmd](https://existential.company/docs/ai/qmd) | Search your notes, PDFs and Word files by meaning and exact words, from a terminal or Claude Code and opencode |
-| [OpenViking](https://existential.company/docs/ai/openviking) | Context database — memory, resources, skills |
 | [Firecrawl](https://existential.company/docs/ai/firecrawl) | Web scraping API for agents |
 | [WhisperX](https://existential.company/docs/ai/whisperx) | Speech → text, with speaker diarization |
 | [Chatterbox](https://existential.company/docs/ai/chatterbox) | Text → speech |
@@ -196,15 +195,14 @@ A **flow** is one complete path from *something happened* to *it was handled*:
 
 ## Docs
 
-The documentation is layered like a [C4 diagram](https://c4model.com/) — each level zooms in one
-step, and you can stop at any of them.
+Read in order, each one step deeper than the last, and stop at any of them.
 
-| | | |
-|---|---|---|
-| **Level 1** | [What It Is](https://existential.company/docs/intro) | What this is and what it does for you |
-| **Level 2** | [Services](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
-| **Level 3** | [Flows](https://existential.company/docs/flows/) | How one job gets done, start to finish |
-| **Level 4** | [Plugins](https://existential.company/docs/plugins) | Write your own automation, or reach the stack over HTTP |
+| | |
+|---|---|
+| [What It Is](https://existential.company/docs/intro) | What this is and what it does for you |
+| [Services](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
+| [Flows](https://existential.company/docs/flows/) | How one job gets done, start to finish |
+| [Plugins](https://existential.company/docs/plugins) | Write your own automation, or reach the stack over HTTP |
 
 ## Third-party software
 

@@ -28,7 +28,7 @@ scripts:
     # workspace/ai/.
     #
     # pi runs its own tool loop against the MCP servers pi_configure registered —
-    # openviking search, firecrawl web search, playwright — so the prompt does not
+    # qmd search, firecrawl web search, playwright — so the prompt does not
     # need to name tools, only to say what it wants. A machine that wants Claude
     # instead uses lib/agent.sh. Repo-editing work belongs to a coding agent on the
     # host, not to this stack.
@@ -63,7 +63,7 @@ scripts:
     # --- Build the full prompt -------------------------------------------------
 
     # Said plainly rather than as tool wiring: pi decides for itself when to reach
-    # for openviking or the web, and telling it what is available is enough.
+    # for qmd or the web, and telling it what is available is enough.
     system_prompt="Search this workspace's knowledgebase and the web where your tools
     allow it and it would change the answer, and say plainly where you could not find
     something rather than inventing it. You are not here to edit files: your answer

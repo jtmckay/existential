@@ -27,7 +27,7 @@ scripts:
     # Opt-in: rsync-pulls notes (e.g. an Obsidian vault) from an external host
     # into workspace/notes/ (or wherever NOTES_PULL_SUBDIR points), so a vault
     # that lives somewhere else becomes part of the workspace/ knowledgebase —
-    # indexed by OpenViking and synced to Nextcloud clients like anything else
+    # searchable with qmd and synced to Nextcloud clients like anything else
     # under workspace/. It is written straight to disk, so it fires no Nextcloud file
     # events; a file handler whose pattern matches it does run.
     #

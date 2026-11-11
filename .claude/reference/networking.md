@@ -6,7 +6,7 @@ There are two paths to a browser, and **Core uses Tailscale**.
 device already trusts (code-server's webviews and the ntfy phone app refuse a warning), and a
 private CA means a root install on every device. So code-server and ntfy publish
 `127.0.0.1:42080` / `127.0.0.1:44680` — loopback only, nothing in Core listens on the LAN — and
-`_tailscale_serve_core` in `existential.sh` puts them on `https://<machine>.<tailnet>.ts.net` and
+`_tailscale_serve_core` in `existential.sh` puts them on `https://<host>.<tailnet>.ts.net` and
 `:8443` with `tailscale serve --bg` (persists across reboots; re-setting a port replaces its
 handler, and it skips one already set). It fills `EXIST_TAILNET_NAME` once serving works (fill
 only); ntfy's entrypoint builds its base URL from it and the digest links to it. It **never runs

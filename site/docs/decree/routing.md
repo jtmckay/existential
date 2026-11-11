@@ -21,8 +21,8 @@ flowchart LR
     B -->|"emit\ndepartment: research"| D["🏷️ agent_task"]
     B -->|"emit\ndepartment: sales"| E["🏷️ agent_task"]
     B -->|"no match, or\nan unknown answer"| F["🚫 not_routed"]
-    D --> G["pi\nresearch\nread · grep · find · ls · openviking · firecrawl"]
-    E --> H["pi\nsales\nread · grep · find · ls · openviking"]
+    D --> G["pi\nresearch\nread · grep · find · ls · qmd · firecrawl"]
+    E --> H["pi\nsales\nread · grep · find · ls · qmd"]
     G --> I["📄 workspace/ai/&lt;name&gt;.md"]
     H --> I
     F --> J["📋 logged, nothing run"]
@@ -42,14 +42,14 @@ Create `workspace/.decree/lib/departments/legal.yml`:
 ```yaml
 description: Contracts, terms, licensing questions, and compliance review.
 tools: read, grep, find, ls
-mcp: openviking
+mcp: qmd
 ```
 
 Nothing restarts: the next run reads it.
 
 - `tools` are pi's built-ins (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`); `mcp` names
   servers [pi_configure](../ai/pi.md#what-it-talks-to) registers while their add-on is on
-  (`openviking`, `firecrawl`, `playwright`, `qmd`). Blank means none.
+  (`qmd`, `firecrawl`, `playwright`). Blank means none.
 - Write `description` as the answer to "when should work come here?". It's all the router sees.
 
 ## Sending work

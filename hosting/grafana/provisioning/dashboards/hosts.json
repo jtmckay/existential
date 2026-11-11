@@ -1,5 +1,5 @@
 {
-  "description": "Every machine that reports (the reporting host plugin, job=\"exist\" in Loki): free disk space, the decree machines installed in each project, and their runs.",
+  "description": "Every host that reports (the reporting plugin of the worker flow, job=\"exist\" in Loki): free disk space, the decree machines installed in each project, and their runs.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -7,7 +7,7 @@
     { "title": "Decree Overview", "type": "link", "url": "/d/decree-overview/decree-overview" }
   ],
   "schemaVersion": 39,
-  "tags": ["machines", "decree"],
+  "tags": ["hosts", "decree"],
   "templating": {
     "list": [
       {
@@ -17,7 +17,7 @@
         "multi": true,
         "current": { "text": "All", "value": "$__all" },
         "name": "host",
-        "label": "Machine",
+        "label": "Host",
         "query": { "type": 1, "label": "host", "stream": "{job=\"exist\"}", "refId": "host" },
         "refresh": 2,
         "type": "query"
@@ -34,7 +34,7 @@
         { "refId": "A", "queryType": "instant",
           "expr": "count(count by (host) (count_over_time({job=\"exist\", kind=\"disk\", host=~\"$host\"} [15m])))" }
       ],
-      "title": "Machines reporting (15m)",
+      "title": "Hosts reporting (15m)",
       "type": "stat"
     },
     {
@@ -134,7 +134,7 @@
   ],
   "time": { "from": "now-7d", "to": "now" },
   "timezone": "browser",
-  "title": "Machines",
-  "uid": "machines",
+  "title": "Hosts",
+  "uid": "hosts",
   "version": 1
 }

@@ -7,8 +7,8 @@
 # "apply it" steps: the build that follows applies it). After that, this is how
 # to change your answers. Asks about the GPU and its VRAM and rewrites the EXIST_MODEL_*
 # globals in .env.shared. Everything downstream reads those, so this is the only
-# place a model needs changing: openviking's embedding settings come from them,
-# the ollama migrations pull whatever they name, and pi is pointed at them.
+# place a model needs changing: the ollama migrations pull whatever they name,
+# and pi is pointed at them.
 
 set -euo pipefail
 
@@ -25,7 +25,6 @@ EXIST_ENV="${REPO_DIR}/.env.shared"
 . "${REPO_DIR}/src/utils/model-tiers.sh"
 
 _C_GREEN=$'\033[32m'
-_C_YELLOW=$'\033[33m'
 _C_RESET=$'\033[0m'
 
 hr()  { printf '%0.s─' {1..56}; echo; }
@@ -46,7 +45,6 @@ env_set() {
 
 CURRENT_GB="$(env_get EXIST_VRAM_GB)"
 CURRENT_CHAT="$(env_get EXIST_MODEL_CHAT)"
-CURRENT_EMBED="$(env_get EXIST_MODEL_EMBED)"
 CURRENT_VENDOR="$(env_get EXIST_GPU_VENDOR)"
 
 echo ""
@@ -56,7 +54,6 @@ hr
 echo ""
 if [[ -n "$CURRENT_CHAT" ]]; then
     echo "  Currently: ${CURRENT_CHAT}${CURRENT_GB:+  (${CURRENT_GB} GB tier)}"
-    echo "             ${CURRENT_EMBED:-bge-m3} for embeddings"
     echo "             ${CURRENT_VENDOR:-nvidia} GPU wiring"
 else
     echo "  Nothing selected yet."
@@ -72,7 +69,7 @@ if [[ "$VENDOR" == "none" ]]; then
     PICKED=0
 else
     # The models live elsewhere: ask where. Checked for shape only, since that
-    # machine may well be off right now; `./existential.sh test services` says
+    # host may well be off right now; `./existential.sh test services` says
     # whether it answers.
     if [[ "$VENDOR" == "external" ]]; then
         _url_default="$(env_get EXIST_MODEL_URL)"; _url_default="${_url_default:-http://192.168.1.20:8080/v1}"
@@ -81,26 +78,10 @@ else
         [[ "$_url" == */v1 ]] || _url="${_url}/v1"
         [[ "$_url" =~ ^https?:// ]] || { echo "     Not a URL; using ${_url_default}. Fix it in .env.shared if wrong."; _url="$_url_default"; }
         env_set EXIST_MODEL_URL "$_url"
-        echo "     How much VRAM does that machine have?"
+        echo "     How much VRAM does that host have?"
     fi
     PICKED="$(model_tier_pick "${CURRENT_GB:-$MODEL_TIER_DEFAULT_GB}" --gpu-only)"
     [[ -n "$PICKED" ]] || { echo "  Unchanged."; echo ""; exit 0; }
-fi
-
-# Changing the embedding model after openviking has ingested anything corrupts
-# the vector index — the dimensions no longer match what is already stored. No
-# tier changes it today, but warn rather than silently break the index if one
-# ever does, or if the user has hand-edited EXIST_MODEL_EMBED.
-NEW_EMBED="$(model_tier_env "$PICKED" | grep '^EXIST_MODEL_EMBED=' | cut -d= -f2-)"
-if [[ -n "$CURRENT_EMBED" && "$CURRENT_EMBED" != "$NEW_EMBED" ]]; then
-    echo ""
-    echo "  ${_C_YELLOW}⚠${_C_RESET}  Embedding model changes: ${CURRENT_EMBED} → ${NEW_EMBED}"
-    echo "     OpenViking's vector index is built for the old dimensions and will"
-    echo "     not match. Wipe volumes/openviking_data after applying, or"
-    echo "     searches will return nonsense."
-    echo ""
-    read -rp "  Continue? [y/N] " _confirm
-    [[ "${_confirm,,}" == "y" ]] || { echo "  Unchanged."; exit 0; }
 fi
 
 env_set EXIST_GPU_VENDOR "$VENDOR"
@@ -143,14 +124,14 @@ echo ""
 source "${REPO_DIR}/src/utils/model-endpoints.sh"
 if endpoints_are_uniform; then
     echo "  Every model role currently runs at $(endpoint_for chat)."
-    echo "  With a second machine you can split them instead of sizing down —"
-    echo "  chat on the big card, embeddings and vision elsewhere. Set the"
-    echo "  per-role keys in the \"Model Endpoints\" block of .env.shared:"
-    echo "    EXIST_MODEL_URL_CHAT / _EMBED / _VISION"
+    echo "  With a second host you can split them instead of sizing down —"
+    echo "  chat on the big card, vision elsewhere. Set the per-role keys in"
+    echo "  the \"Model Endpoints\" block of .env.shared:"
+    echo "    EXIST_MODEL_URL_CHAT / _VISION"
     echo "  Blank means \"wherever EXIST_MODEL_URL points\", which is today."
 else
-    echo "  Model roles are split across machines:"
-    for _r in chat embed vision; do
+    echo "  Model roles are split across hosts:"
+    for _r in chat vision; do
         printf '    %-8s %s\n' "$_r" "$(endpoint_for "$_r")"
     done
     echo "  This tier sizes each role's model; it does not move them."

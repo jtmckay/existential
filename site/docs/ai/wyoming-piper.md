@@ -22,8 +22,8 @@ long-form audio and something in the stack is calling it over HTTP. Piper is
 what HA's own voice stack expects, and it synthesises faster than real time on
 a couple of CPU cores — which is what a spoken reply actually needs.
 
-Running it on CPU is deliberate: the GPU is already holding the chat model and
-the embedding model, and the whole point of a voice reply is that it lands
+Running it on CPU is deliberate: the GPU is already holding the chat model, and
+the whole point of a voice reply is that it lands
 immediately.
 
 ## Configuration

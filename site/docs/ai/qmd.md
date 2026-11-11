@@ -7,14 +7,14 @@ sidebar_position: 12
 
 - Source: https://github.com/tobi/qmd
 - License: [MIT](https://github.com/tobi/qmd/blob/main/LICENSE)
-- Alternatives: XERJ, OpenViking, ripgrep
+- Alternatives: XERJ, ripgrep, [OpenViking](../graveyard/ai/openviking.md) (what this replaced)
 
 Search over everything you've written in the workspace, and the PDF and Word files you
 keep there. One query matches both exact words (names, commands, flags, identifiers)
 and meaning (a note you wrote in other words), and returns the file and line. Claude
 Code and opencode in code-server share the one index over MCP, and a `search` command
 reaches it from a terminal. It runs on the CPU, needs no GPU, and nothing leaves the
-machine.
+host.
 
 Your Markdown files stay the source of truth. The index is a copy that qmd rebuilds
 from them, and nothing in this setup keeps knowledge anywhere else.
@@ -167,7 +167,7 @@ want it to.
 
 **Other MCP clients** that run in a container on the `exist` network can point at
 `http://qmd:8181/mcp` (Streamable HTTP, stateless). Untested: a client on the host or
-another machine needs the port published (`ports: ["127.0.0.1:8181:8181"]` in
+another host needs the port published (`ports: ["127.0.0.1:8181:8181"]` in
 `ai/qmd/docker-compose.yml`) and `QMD_ALLOWED_HOSTS` set to the host name it uses. That
 is a network path to an unauthenticated server, so keep it on loopback or put
 authentication in front of it.
@@ -204,7 +204,7 @@ No shipped machine does this yet.
 
 ## Measured
 
-`./existential.sh run qmd eval` repeats these measurements on your machine. It indexes a
+`./existential.sh run qmd eval` repeats these measurements on your computer. It indexes a
 fixed fixture (personal notes with a long runbook, code blocks, an AI conversation and
 the later decision about it, a PDF manual, a Word policy and a scanned PDF) plus this
 repo's docs as distractors, 159 files in all. It asks 25 questions: exact names and

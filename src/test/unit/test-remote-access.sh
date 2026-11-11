@@ -64,7 +64,7 @@ RUNNING="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"
 NO_HTTPS="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": null}"
 
 printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
-# This machine is the controller: the worker flow on, no EXIST_CONTROLLER.
+# This host is the controller: the worker flow on, no EXIST_CONTROLLER.
 mkdir -p "$WORK/host/.decree"; printf 'on:\n  - worker\n' > "$WORK/host/.decree/plugins.yml"
 cp "$WORK/.env.shared" "$WORK/env.fresh"
 
@@ -118,7 +118,7 @@ _has "uses --bg, which persists across reboots" "$(cat "$TS_CALLS")" "serve --bg
 _has "EXIST_TAILNET_NAME is filled in" "$(cat "$WORK/.env.shared")" "EXIST_TAILNET_NAME=${TS_NAME}"
 [[ ! -e "$WORK/sudo-ran" ]] && _ok "never runs sudo" || _fail "never runs sudo"
 
-# Loki on: its push port on 3100, plain http on the tailnet, for every machine to report to.
+# Loki on: its push port on 3100, plain http on the tailnet, for every host to report to.
 printf 'EXIST_IS_HOSTING_LOKI=true\nEXIST_CONTROLLER=ctl\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"; rm -f "$TS_STATE" "$TS_CALLS"
 out="$(TS_STATUS="$RUNNING" _serve "$WORK/bin:$WORK/nobin")"
 _has "Loki is served on 3100 over http" "$(cat "$TS_CALLS")" "serve --bg --http=3100 http://127.0.0.1:43100"

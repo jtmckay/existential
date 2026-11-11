@@ -130,11 +130,11 @@ To do it by hand instead:
 docker exec nextcloud php /var/www/html/occ app:install calendar
 ```
 
-### Indexed by OpenViking, answerable by pi
+### Searchable, answerable by pi
 
 The flow's `calendar-extract` cron writes each event, from the recent past to
-`CALENDAR_EXTRACT_FUTURE_DAYS` ahead, as a note in `workspace/ai/calendar/<calendar>/`. OpenViking
-indexes it, so pi can answer "what's on my calendar".
+`CALENDAR_EXTRACT_FUTURE_DAYS` ahead, as a note in `workspace/ai/calendar/<calendar>/`. qmd
+indexes it (the `search` flow), so pi can answer "what's on my calendar".
 
 - Full refresh: a cancelled event's note disappears on the next run.
 - CalDAV details: `automation/plugins/calendar_extract.md` (tested on nextcloud:34.0.3, recurring

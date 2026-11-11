@@ -18,7 +18,7 @@ After that, each business idea you write is researched. Your phone gets the verd
 *favorable*, *unfavorable*, or *already done, by these people*. The full analysis, with sources,
 is in `ai/automations/business_idea_research/`.
 
-- Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-machines)).
+- Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts)).
   With no model it does nothing.
 - Reads the web through [Firecrawl](../ai/firecrawl.md) when enabled. Without it, web steps come back
   as "where to look".

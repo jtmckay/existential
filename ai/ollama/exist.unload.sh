@@ -12,7 +12,7 @@
 # This drops it. The next request reloads from the rebuilt tag.
 #
 # With no argument it unloads EXIST_MODEL_CHAT. Pass a tag to unload something
-# else (e.g. the embedding model).
+# else (e.g. a separate vision model).
 
 set -euo pipefail
 

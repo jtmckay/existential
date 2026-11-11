@@ -21,11 +21,11 @@ scripts:
   calendar_extract: |
     #!/usr/bin/env bash
     # calendar_extract — mirror upcoming (and recently past) Nextcloud Calendar
-    # events into workspace/ai/calendar/ as plain notes, so OpenViking indexes
+    # events into workspace/ai/calendar/ as plain notes, so qmd indexes
     # them and pi can answer "what's on my calendar" the same way it answers
     # anything else that lives in workspace/.
     #
-    # Why notes instead of a live CalDAV lookup at query time: OpenViking's MCP
+    # Why notes instead of a live CalDAV lookup at query time: qmd's MCP
     # tool searches an index, not a live API — see note_connect.sh's header for
     # why a department can't just "ask" an external service ad hoc. Turning
     # each event into a note is what makes calendar content reachable the same
@@ -34,8 +34,8 @@ scripts:
     # One markdown file per event under workspace/ai/calendar/<calendar-slug>/,
     # not workspace/<subdir>/: this content is machine-derived from Nextcloud, not
     # something you wrote, and workspace/ai/ is the established home for that —
-    # see openviking_index_dir's cron (workspace/ai/ is deliberately NOT excluded
-    # from indexing). Writing it fires no Nextcloud file event, and no file
+    # qmd indexes it like the rest of workspace/ (workspace/ai/ is deliberately not
+    # hidden or gitignored). Writing it fires no Nextcloud file event, and no file
     # handler should match ai/, so content pulled *from* Nextcloud never loops back in.
     #
     # Full-mirror semantics, not an append log: every run recomputes exactly which

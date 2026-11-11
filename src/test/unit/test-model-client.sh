@@ -72,8 +72,7 @@ STUB="http://127.0.0.1:$(cat "${TMP}/port")/v1"
 _body() { cat "${TMP}/last-body.json"; }
 _reply() { printf '%s' "$1" > "${TMP}/reply"; }
 
-export EXIST_MODEL_URL="$STUB" EXIST_MODEL_URL_CHAT="" \
-       EXIST_MODEL_URL_EMBED="" EXIST_MODEL_URL_VISION=""
+export EXIST_MODEL_URL="$STUB" EXIST_MODEL_URL_CHAT="" EXIST_MODEL_URL_VISION=""
 export EXIST_MODEL_CHAT="chat-model" EXIST_MODEL_VISION="vision-model"
 
 # ── lib/model.sh ──────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ sidebar_position: 1.5
 A weekly issue from feeds you picked, chosen by a paragraph you wrote. At most seven items, or
 one line saying there was nothing.
 
-Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-machines)).
+Needs Core plus a chat model ([Model endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts)).
 
 ## What it does
 

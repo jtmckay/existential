@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-reporting.sh — the reporting host plugin sends this machine to the Loki its
+# test-reporting.sh — the reporting plugin sends this host to the Loki its
 # controller names, with curl stubbed (the push body is kept, the controller's
 # answer is a file):
 #

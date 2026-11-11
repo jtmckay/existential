@@ -61,7 +61,7 @@ docker compose up -d                    # recreates what reads the models
 On one card, at all times:
 
 ```
-chat model  +  bge-m3 (1.2 GB)  +  KV cache  <  your VRAM
+chat model  +  KV cache  <  your VRAM
 ```
 
 Download sizes:
@@ -75,7 +75,6 @@ Download sizes:
 | `gemma4:12b-it-qat` | 7.2 GB | tools, vision | 16 GB |
 | `gemma4:26b-a4b-it-qat` | 16 GB | tools, vision | 24 GB |
 | `gemma4:31b-it-bf16` | 63 GB | tools, vision | 96 GB (bf16) |
-| `bge-m3` | 1.2 GB | embeddings | every tier |
 
 - Up to 24 GB is quantised; 96 GB runs full precision.
 - Every tier runs 64k context (an agent's tool loop needs it). Below about 12 GB the KV cache spills to RAM
@@ -97,9 +96,6 @@ Download sizes:
   agent's prompt. Raising it costs VRAM.
 - `EXIST_MODEL_VISION` ships as the chat tag, so one model stays loaded.
   Blank `EXIST_MODEL_VISION` disables image handling.
-- `EXIST_MODEL_EMBED` is the same on every tier. Changing it after ingestion corrupts the vector
-  index: wipe `volumes/openviking_data`. `EXIST_MODEL_EMBED_DIM` must match: `bge-m3` → 1024,
-  `nomic-embed-text` → 768, `mxbai-embed-large` → 1024.
 - Speech runs on CPU (wyoming-whisper, wyoming-piper):
   - `EXIST_MODEL_STT`: `tiny | base | small | medium | large-v3`
   - `EXIST_MODEL_TTS_VOICE`: a piper voice, `<lang>_<REGION>-<name>-<quality>`
@@ -109,7 +105,7 @@ Download sizes:
 
 <a id="endpoints"></a>
 
-## Endpoints — putting roles on different machines
+## Endpoints — putting roles on different hosts
 
 `EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is the **OpenAI-compatible `/v1` URL**
 every role uses unless it has its own: local ollama, ollama elsewhere, llama.cpp
@@ -117,8 +113,7 @@ every role uses unless it has its own: local ollama, ollama elsewhere, llama.cpp
 
 - Every caller speaks only `/v1`, so the backend doesn't matter.
 - Ollama-only steps (pull, `run ollama unload`, `/api/show`) run only with `EXIST_IS_AI_OLLAMA=true`.
-- The embed server must serve `/v1/embeddings` (llama.cpp: `--embeddings`); the vision server
-  must accept images (llama.cpp: `--mmproj`).
+- The vision server must accept images (llama.cpp: `--mmproj`).
 - Models elsewhere: set `EXIST_IS_AI_OLLAMA=false`.
 
 The **Model Endpoints** block sends each role somewhere different. Every key ships **blank**,
@@ -127,22 +122,20 @@ meaning "use `EXIST_MODEL_URL`".
 | Key | Role | Who reads it |
 |---|---|---|
 | `EXIST_MODEL_URL_CHAT` | Chat / reasoning | pi, open-webui, Home Assistant, decree scripts, the newsletter |
-| `EXIST_MODEL_URL_EMBED` | Embeddings | openviking's vector store |
 | `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr |
 
 A worked split, with a 24 GB card and an 8 GB one:
 
 ```bash
 EXIST_MODEL_URL=http://bigbox:8080/v1             # chat lands here
-EXIST_MODEL_URL_EMBED=http://littlebox:11434/v1
 EXIST_MODEL_URL_VISION=http://littlebox:11434/v1
 ```
 
-Chat keeps the big card; embeddings and OCR stop evicting it. Then `./existential.sh` and
+Chat keeps the big card; OCR stops evicting it. Then `./existential.sh` and
 `docker compose up -d`.
 
 - `./existential.sh run models` prints where each role resolves. Migrations pull each model to
-  the machine that serves it.
+  the host that serves it.
 - The old `EXIST_OLLAMA_URL*` keys are carried over on upgrade, `/v1` added.
 - [A Separate AI Box](./hosting/ai-box.md): llama.cpp presets, ComfyUI, on-demand TTS.
 
@@ -153,16 +146,13 @@ EXIST_COMFYUI_URL=http://bigbox:8188
 EXIST_IS_AI_COMFYUI=false                  # nothing local to start
 ```
 
-Two things don't follow the block:
-
-- Open WebUI's compose file is rendered once. Edit `ai/open-webui/docker-compose.yml` too, or
-  `./existential.sh reset`.
-- OpenViking writes `ov.conf` once. Delete it and re-run to repoint.
+One thing doesn't follow the block: Open WebUI's compose file is rendered once. Edit
+`ai/open-webui/docker-compose.yml` too, or `./existential.sh reset`.
 
 ### Speech has no endpoint keys
 
 They run on CPU, and Home Assistant addresses them by host and port in its own settings. To
-move one: publish its port on the other machine (the commented `ports:` block), disable it here,
+move one: publish its port on the other host (the commented `ports:` block), disable it here,
 and point Home Assistant at it.
 
 ## GPU vendor
@@ -178,7 +168,7 @@ What it changes, in `src/generate-compose.ts`:
 | `nvidia` | Nothing. The templates already declare the nvidia device reservation. |
 | `amd` | The nvidia reservation is stripped, and each service's `x-exist-gpu.amd` block is merged in instead (Vulkan/ROCm). |
 | `none` | The nvidia reservation is stripped, and `x-exist-gpu.none` merged. |
-| `external` | Same treatment as `none` — this machine has no card to reserve. Ollama is not run locally at all; the models come from `EXIST_MODEL_URL` on another machine. |
+| `external` | Same treatment as `none` — this host has no card to reserve. Ollama is not run locally at all; the models come from `EXIST_MODEL_URL` on another host. |
 
 - One nvidia reservation on a host without the runtime fails `docker compose up` for the whole
   stack, which is why it's stripped.
@@ -209,11 +199,11 @@ What it changes, in `src/generate-compose.ts`:
 
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
   works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
-- **`EXIST_CONTROLLER`**: with the `worker` flow on, the controller this machine reports to, its
-  tailnet name or 100.x address. Blank, this machine is the controller. See
+- **`EXIST_CONTROLLER`**: with the `worker` flow on, the controller this host reports to, its
+  tailnet name or 100.x address. Blank, this host is the controller. See
   [Controller and Workers](./hosting/controller-and-workers.md).
-- **`EXIST_REPORTING_URL`**: on the controller, the Loki every machine reports to
-  (`http://<host>:3100`). Blank means this machine's own Loki, when it is on.
+- **`EXIST_REPORTING_URL`**: on the controller, the Loki every host reports to
+  (`http://<host>:3100`). Blank means this host's own Loki, when it is on.
 
 The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 
@@ -234,7 +224,7 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
   `nfs: true` volume is on. Blank is not yet asked; `none` keeps every volume local.
 - **`EXIST_NFS_PATH_<VOLUME>`**: one per `nfs: true` volume of an enabled service (e.g.
   `EXIST_NFS_PATH_NEXTCLOUD_DATA`), appended when asked: that volume's folder on the NAS, or
-  `none` (Enter) to keep it on this machine. Compose mounts it over NFS.
+  `none` (Enter) to keep it on this host. Compose mounts it over NFS.
 - **`EXIST_NFS_SHARE_<NAME>`**: the same for a volume that holds your own files rather than a
   container's data: `EXIST_NFS_SHARE_NEXTCLOUD` (shown in Nextcloud at `/nas`) and
   `EXIST_NFS_SHARE_WORKSPACE` (where `workspace/` syncs to). See

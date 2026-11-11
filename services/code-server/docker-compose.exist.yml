@@ -95,7 +95,6 @@ services:
       # pi's other MCP servers, the same ones automation's pi gets (lib/pi.sh).
       - EXIST_IS_AI_FIRECRAWL=${EXIST_IS_AI_FIRECRAWL:-false}
       - EXIST_IS_AI_MCP=${EXIST_IS_AI_MCP:-false}
-      - OPENVIKING_API_KEY=${OPENVIKING_API_KEY:-}
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # model.sh, pi.sh and capture/ are read from /workspace/.decree/lib/, where

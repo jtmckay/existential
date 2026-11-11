@@ -18,7 +18,7 @@ another service's config or env.
 
 They all still join `exist` by default, which is fine on one host. The rule is about *not adding
 new coupling*: **never introduce a bare-container-name dependency from the core stack into a
-complementary service.** Reach it by configurable endpoint so it can move to another machine —
+complementary service.** Reach it by configurable endpoint so it can move to another host —
 the recommended shape is three stacks (NAS / core / standalone immich + pihole). When adding a
 service, decide which side it is on and wire it accordingly.
 
@@ -75,8 +75,8 @@ Rules. Keep the true-up **idempotent and quiet** — converge, then say nothing,
 is silent (nextcloud's hook logs only what changed). **`exec` the real entrypoint** so the image's
 init keeps PID 1. If a restart is genuinely needed, **bound it**: gate it on a condition the
 restart itself resolves, or it becomes a crash loop. And leave a deliberate choice alone — reconcile
-only while the value still looks like something existential set (openviking checks `ov.conf`'s
-`api_base` before touching it; `pi_configure` rewrites only its own provider and servers), so pointing a service at Anthropic or an external host is respected.
+only while the value still looks like something existential set (`pi_configure` rewrites only its
+own provider and servers), so pointing a service at Anthropic or an external host is respected.
 
 **Entrypoint hooks.** Some images run scripts from a directory at defined points in their own
 startup — nextcloud's `/docker-entrypoint-hooks.d/{pre-installation,post-installation,
@@ -164,7 +164,7 @@ majority of hosts, and `src/generate-compose.ts` rewrites it for everyone else f
 | `nvidia` | nothing, beyond dropping the `x-exist-gpu` key                                  |
 | `amd`    | strips the nvidia reservation, merges `x-exist-gpu.amd`                         |
 | `none`   | strips the nvidia reservation, merges `x-exist-gpu.none`; `EXIST_VRAM_GB` is 0  |
-| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another machine |
+| `external` | strips the nvidia reservation, merges `x-exist-gpu.external`; ollama lives on another host |
 
 The strip is not tidiness. Docker refuses to create a container whose device driver it cannot
 satisfy (`could not select device driver … with capabilities: [[gpu]]`), and compose fails the

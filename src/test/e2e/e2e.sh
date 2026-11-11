@@ -420,7 +420,7 @@ run_unit() {
         fi
         # Verified, not fired and forgotten. This sed is a silent no-op when the
         # key is absent from the fixture, and the fixture had drifted seven keys
-        # behind .env.exist.shared — so Core quietly came up WITHOUT openviking,
+        # behind .env.exist.shared — so Core quietly came up WITHOUT
         # firecrawl, wyoming-whisper and wyoming-piper, and stayed green because
         # nothing checked. Rendering then appends the missing key as `false`,
         # which is why the stack looked deliberate rather than broken. Adding a
@@ -517,10 +517,9 @@ run_unit() {
 #
 # The lock lives in /tmp rather than the repo because the collision is global —
 # two different clones of this repo would fight over the same container names.
-# Same fd-9 idiom as openviking-index-dir.sh: held for the life of the process,
-# so a crash or a kill frees it and there is no stale lock to clean up. That
-# routine SKIPS when it loses the race because a cron will come round again;
-# this one is run by a person, so it says so and stops.
+# The fd-9 idiom: held for the life of the process, so a crash or a kill frees
+# it and there is no stale lock to clean up. This is run by a person, so losing
+# the race says so and stops.
 _LOCK="${TMPDIR:-/tmp}/exist-e2e.lock"
 exec 9>"$_LOCK"
 if ! flock -n 9; then

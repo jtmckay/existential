@@ -28,7 +28,7 @@ EXIST_IS_AI_COMFYUI=false
 ```
 
 Then `./existential.sh && docker compose up -d`. Workflows stay in
-`workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../plugins/index.md)'s); the checkpoints they name must exist on the other machine.
+`workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../plugins/index.md)'s); the checkpoints they name must exist on the other host.
 
 ## First Run
 

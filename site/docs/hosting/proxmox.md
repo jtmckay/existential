@@ -12,7 +12,7 @@ sidebar_position: 2
 
 - If your clock is wrong, check that you can `ping google.com` before trying anything else.
 - Don't use `127.0.0.1` as DNS — use the same IP as your gateway (router).
-- Qualified domain name: the first part (subdomain or domain if no sub) will be the machine's name.
+- Qualified domain name: the first part (subdomain or domain if no sub) will be the host's name.
 
 ## Setup Laptop as Server
 

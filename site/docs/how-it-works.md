@@ -4,10 +4,9 @@ sidebar_position: 3
 
 # Services
 
-:::info[Level 2 of 4 · Containers]
-What is actually running, and how the parts fit together. Back out to
-[Level 1 · What It Is](./intro.md), or zoom in to [Level 3 · Flows](./flows/index.md) to follow one job
-end to end.
+:::info[What runs]
+The services that run, on which hosts, and how they fit together. Back to
+[What It Is](./intro.md), or on to [Flows](./flows/index.md) to follow one job end to end.
 :::
 
 Each project named here fills a slot and can be swapped.
@@ -29,7 +28,7 @@ flowchart TB
     model["A model at an OpenAI-compatible /v1 URL<br/><i>ollama · llama.cpp · another box</i>"]
 
     subgraph addons["Optional add-ons"]
-        ai["Local AI<br/><i>Ollama · OpenViking · Firecrawl</i>"]
+        ai["Local AI<br/><i>Ollama · qmd · Firecrawl</i>"]
         voice["Voice &amp; Home<br/><i>Home Assistant · wyoming-whisper · wyoming-piper</i>"]
         files["Capture<br/><i>automation-webhook · Nextcloud syncs workspace/</i>"]
         more["Network · Monitoring · Apps<br/><i>Caddy · Dashy · Grafana · Actual Budget · …</i>"]
@@ -42,7 +41,7 @@ flowchart TB
     dec <--> ws
     dec --> ntfy
     cs -. opencode .-> model
-    dec -. model.sh .-> model
+    dec -.->|model.sh| model
     ai -. serves .-> model
     files <-. sync .-> ws
 
@@ -76,9 +75,9 @@ None of this is in Core. Each row is a flag; flows that need one turn it on.
 
 | Slot | Ships as | What it does |
 |---|---|---|
-| **Models** | [Ollama](./ai/ollama.md), or any OpenAI-compatible server | Serves the models at `EXIST_MODEL_URL`. Each role can point elsewhere: [Configuration](./configuration.md#endpoints--putting-roles-on-different-machines). |
+| **Models** | [Ollama](./ai/ollama.md), or any OpenAI-compatible server | Serves the models at `EXIST_MODEL_URL`. Each role can point elsewhere: [Configuration](./configuration.md#endpoints--putting-roles-on-different-hosts). |
 | **Agent** | [pi](./ai/pi.md) | An agent with tools on the same model URL, in code-server's terminal and your automations. Baked in. |
-| **Knowledge** | [OpenViking](./ai/openviking.md) | A context database (memory, resources, skills) the agent keeps between sessions. |
+| **Search** | [qmd](./ai/qmd.md) | Your notes, PDFs and Word files by meaning and exact words, for you and every agent. |
 | **The web** | [Firecrawl](./ai/firecrawl.md) | Turns a URL into markdown a model can read. |
 | **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper.md) | What Home Assistant listens with. CPU only, so it never evicts a model from the GPU. |
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper.md) | The voice Home Assistant answers in. CPU only. |
@@ -169,12 +168,12 @@ http://ollama:11434     http://firecrawl:3002     http://automation-webhook:8801
 ## Core over Tailscale
 
 code-server's previews and the ntfy phone app both need a certificate every device trusts.
-Tailscale issues a Let's Encrypt certificate for the machine's tailnet name, so
+Tailscale issues a Let's Encrypt certificate for the host's tailnet name, so
 `./existential.sh` runs `tailscale serve`:
 
 ```
-https://<machine>.<tailnet>.ts.net       →  127.0.0.1:42080  (code-server)
-https://<machine>.<tailnet>.ts.net:8443  →  127.0.0.1:44680  (ntfy)
+https://<host>.<tailnet>.ts.net       →  127.0.0.1:42080  (code-server)
+https://<host>.<tailnet>.ts.net:8443  →  127.0.0.1:44680  (ntfy)
 ```
 
 Nothing to install on devices, nothing on the LAN. Setup steps:
@@ -183,7 +182,7 @@ Nothing to install on devices, nothing on the LAN. Setup steps:
 ## Hostnames that just work
 
 For the Caddy add-on. `EXIST_DOMAIN` defaults to `<host-ip-with-dashes>.nip.io`, from this
-machine's LAN address:
+host's LAN address:
 
 ```
 EXIST_LOCAL_HOST_IP=192.168.1.20          (LAN address)
@@ -247,7 +246,7 @@ needs a domain you own, with no public A record and no inbound access.
 
 ## Owned domain without exposing your network
 
-**The DNS-01 challenge needs no inbound connection.** Your machine creates a `TXT` record
+**The DNS-01 challenge needs no inbound connection.** Your host creates a `TXT` record
 through your DNS provider's API; Let's Encrypt reads it from public DNS.
 
 ```
@@ -272,7 +271,7 @@ You need a domain and a DNS provider with an API. HTTP-01 won't work: it needs i
 **Option A: issue the cert elsewhere and copy it in.**
 
 ```bash
-# on any machine with internet, using your provider's DNS plugin
+# on any computer with internet, using your provider's DNS plugin
 acme.sh --issue --dns dns_cf -d '*.local.example.com' -d local.example.com
 ```
 
@@ -299,7 +298,7 @@ This is about the network, not about what ships on.
 
 - **Core**: talks to other services by container name.
 - **Complementary**: reached by a URL you could point anywhere, or by nothing. It can move to
-  another machine without changing anything else.
+  another host without changing anything else.
 
 | Service | Why it's complementary |
 |---|---|
@@ -311,7 +310,7 @@ This is about the network, not about what ships on.
 
 ## Recommended deployment
 
-Even on one machine, think of it as separate stacks, so moving one later is a config change.
+Even on one host, think of it as separate stacks, so moving one later is a config change.
 
 ```
 ┌─ NAS stack ──────────────┐   Storage and files.
@@ -330,7 +329,7 @@ Even on one machine, think of it as separate stacks, so moving one later is a co
 └──────────────────────────┘
 
 ┌─ Standalone ─────────────┐   Independent appliances.
-│  Immich      pi-hole     │   Own lifecycle, own machine if you like.
+│  Immich      pi-hole     │   Own lifecycle, own host if you like.
 │  Home Assistant          │   HA follows your USB radios.
 └──────────────────────────┘
 ```
@@ -343,9 +342,15 @@ Even on one machine, think of it as separate stacks, so moving one later is a co
 - **Home Assistant:** it lives where your radios are, and your lights should keep working while
   you rebuild.
 
-### Moving one to another machine
+### Moving one to another host
 
 1. Set that service's `EXIST_IS_*` flag to `false` on the original host and re-run
    `./existential.sh`.
 2. Bring the service up on the new host.
 3. Update the endpoint that pointed at it: the rclone remote, the model URL, or the DNS record.
+
+### Watching every host
+
+Once the stack spans hosts, each can report its free disk space and its decree machines' runs to
+one Loki, for Grafana's **Hosts** dashboard: turn on the `worker` flow on each, with one of them
+the controller the others ask where to report. See [Controller and Workers](./hosting/controller-and-workers.md).

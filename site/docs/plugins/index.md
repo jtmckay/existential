@@ -4,9 +4,9 @@ sidebar_position: 1
 
 # Plugins
 
-:::info[Level 4 of 4 · Code]
-What runs your automations, and how to write one. Back out to [Level 3 · Flows](../flows/index.md)
-for worked examples. [Writing a Plugin](./writing-a-plugin.md) is the how-to;
+:::info[The code you write]
+What runs your automations, and how to write one. Back to [Flows](../flows/index.md) for worked
+examples. [Writing a Plugin](./writing-a-plugin.md) is the how-to;
 [Over HTTP](./http.md) is the contract for reaching the stack from outside.
 :::
 

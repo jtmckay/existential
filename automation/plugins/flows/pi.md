@@ -30,7 +30,6 @@ lib:
     # models.json, and the MCP servers of every enabled add-on in mcp.json. Both are
     # merged into what is there, so a provider or server a person adds survives; ours
     # are rewritten every boot, so a changed endpoint or a disabled add-on follows.
-    # Credentials stay in the environment: mcp.json names ${OPENVIKING_API_KEY}.
     pi_configure() {
         local dir="${PI_CODING_AGENT_DIR:-${HOME}/.pi/agent}" f
         mkdir -p "$dir"
@@ -47,12 +46,10 @@ lib:
 
         # direct: each tool declared like a built-in. A local model calls a declared
         # tool far more reliably than it writes a codemode script to find one.
-        jq --arg ov "${OPENVIKING_API_KEY:-}" --arg fc "${EXIST_IS_AI_FIRECRAWL:-false}" \
+        jq --arg fc "${EXIST_IS_AI_FIRECRAWL:-false}" \
            --arg pw "${EXIST_IS_AI_MCP:-false}" --arg qmd "${EXIST_IS_AI_QMD:-false}" '
             def server(on; s): if on then s + {exposure: "direct"} else null end;
             .mcpServers = ((.mcpServers // {}) + {
-                openviking: server($ov != ""; {url: "http://openviking:1933/mcp",
-                    headers: {Authorization: "Bearer ${OPENVIKING_API_KEY}"}}),
                 firecrawl:  server($fc == "true"; {url: "http://firecrawl-mcp:3003/mcp"}),
                 playwright: server($pw == "true"; {url: "http://mcp-playwright:8931/mcp"}),
                 qmd:        server($qmd == "true"; {url: "http://qmd:8181/mcp"})
@@ -110,13 +107,13 @@ lib:
     ```yaml
     description: When work should come here — the router reads this to choose.
     tools: read, grep, find, ls
-    mcp: openviking, firecrawl
+    mcp: qmd, firecrawl
     ```
 
     `description` is the router's catalog entry, so write it as the answer to *"when
     should work come here?"* rather than as a job title. `tools` are pi's built-ins
     (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`); `mcp` names servers
-    `pi_configure` registers: `openviking`, `firecrawl`, `playwright`, `qmd`, each only
+    `pi_configure` registers: `qmd`, `firecrawl`, `playwright`, each only
     while its add-on is on. Blank means none.
 
     No department at all (`agent_task` without `department`) is pi's default tools plus
@@ -147,12 +144,12 @@ lib:
     # The only department with web access.
     description: Investigation, fact-finding, competitive and market analysis, literature review.
     tools: read, grep, find, ls
-    mcp: openviking, firecrawl
+    mcp: qmd, firecrawl
   departments/sales.exist.yml: |
     # Anything aimed at winning or keeping a customer.
     description: Outbound, discovery calls, deal strategy, pricing, and customer-facing writing.
     tools: read, grep, find, ls
-    mcp: openviking
+    mcp: qmd
 ---
 # pi
 

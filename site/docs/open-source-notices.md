@@ -52,7 +52,6 @@ written request and we will provide it: **[insert contact email]**.
 | Collabora Online (CODE) | MPL-2.0 | https://github.com/CollaboraOnline/online |
 | Redis (`redis:8.10.1-alpine3.23`) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |
-| OpenViking | AGPL-3.0 (main project) | https://github.com/volcengine/OpenViking |
 | Firecrawl | AGPL-3.0 | https://github.com/firecrawl/firecrawl |
 | Proxmox VE (host hypervisor) | AGPL-3.0 | https://git.proxmox.com |
 

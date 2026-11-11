@@ -26,9 +26,8 @@ cannot drive it without a bridge.
 | Runs on | CPU | GPU |
 | Spoken to by | Home Assistant | Decree, via the transcription flow |
 
-Running it on CPU is deliberate. The GPU is already holding the chat model and
-the embedding model; a GPU speech model here would evict them every time you
-spoke.
+Running it on CPU is deliberate. The GPU is already holding the chat model; a GPU
+speech model here would evict it every time you spoke.
 
 ## Configuration
 

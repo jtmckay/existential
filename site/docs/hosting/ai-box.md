@@ -11,7 +11,7 @@ router mode, ComfyUI, Qwen3-TTS, and a GLiNER classifier on CPU.
 
 Nothing on `<ai-box>` is part of the stack. It runs no existential compose file, and the stack
 only ever sees the addresses below. Which keys exist and how they fall back is in
-[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-machines).
+[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
 
 ## The VRAM rule: nothing swaps automatically
 
@@ -60,9 +60,6 @@ ctx-size = 65536
 cache-type-k = q8_0
 cache-type-v = q8_0
 
-[<embed-model>]
-model = /models/<embed-model>.gguf
-embeddings = true
 ```
 
 **The V-cache type is set per model, never on the command line.** The router passes its own
@@ -80,7 +77,6 @@ EXIST_IS_AI_OLLAMA=false                  # nothing local to pull or serve
 EXIST_MODEL_URL=http://<ai-box>:8080/v1
 EXIST_MODEL_CHAT=<chat-model>             # a [section] in presets.ini
 EXIST_MODEL_VISION=<chat-model>           # its section needs an mmproj = projector
-EXIST_MODEL_EMBED=<embed-model>           # its section needs embeddings = true
 ```
 
 The rules in [Configuration → Models](../configuration.md#models) still apply, the 64k context

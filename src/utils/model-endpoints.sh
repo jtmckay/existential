@@ -6,9 +6,8 @@
 #   source "${SCRIPT_DIR}/../utils/model-endpoints.sh"
 #   url="$(endpoint_for chat)"     # an OpenAI-compatible base URL, ending /v1
 #
-# Every model role can sit on a different machine, so VRAM can be spread across
-# boxes: chat on the 24 GB card, embeddings on the 8 GB one, vision on whatever
-# is idle. Each role has its own EXIST_MODEL_URL_<ROLE> key in .env.shared, and
+# Every model role can sit on a different host, so VRAM can be spread across
+# boxes: chat on the 24 GB card, vision on whatever is idle. Each role has its own EXIST_MODEL_URL_<ROLE> key in .env.shared, and
 # each ships BLANK — blank means "wherever EXIST_MODEL_URL points".
 #
 # The value is whatever serves OpenAI's /v1 — ollama or llama.cpp alike. Only
@@ -22,7 +21,6 @@
 # cannot see src/; test-model-endpoints.sh asserts the two agree.
 #
 #   chat | chat-ctx  → EXIST_MODEL_URL_CHAT
-#   embed            → EXIST_MODEL_URL_EMBED
 #   vision           → EXIST_MODEL_URL_VISION
 #
 # Speech-to-text and text-to-speech are NOT here: wyoming-whisper and
@@ -37,10 +35,9 @@ endpoint_for() {
 
     case "$role" in
         chat|chat-ctx) specific="${EXIST_MODEL_URL_CHAT:-}" ;;
-        embed)         specific="${EXIST_MODEL_URL_EMBED:-}" ;;
         vision)        specific="${EXIST_MODEL_URL_VISION:-}" ;;
         *)
-            echo "endpoint_for: unknown role '${role}' (chat|chat-ctx|embed|vision)" >&2
+            echo "endpoint_for: unknown role '${role}' (chat|chat-ctx|vision)" >&2
             return 1
             ;;
     esac
@@ -54,7 +51,7 @@ endpoint_for() {
 endpoints_are_uniform() {
     local first role
     first="$(endpoint_for chat)" || return 1
-    for role in embed vision; do
+    for role in vision; do
         [ "$(endpoint_for "$role")" = "$first" ] || return 1
     done
     return 0

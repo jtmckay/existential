@@ -9,13 +9,13 @@ sidebar_position: 2
 - [Docker](https://www.docker.com/get-started/), usable without sudo
   (`sudo usermod -aG docker "$USER"`, then reboot). `existential.sh` refuses to run
   under sudo.
-  - The stack starts with the machine. For rootless Podman, `existential.sh` turns on its restart
+  - The stack starts with the host. For rootless Podman, `existential.sh` turns on its restart
     service and linger, and warns if Docker itself isn't set to start at boot.
   - Docker Desktop: turn on "Start Docker Desktop when you sign in".
-- A machine to host it (see [Hosting](./hosting/index.md)): Linux, or a Mac with Docker Desktop.
+- A computer to host it (see [Hosting](./hosting/index.md)): Linux, or a Mac with Docker Desktop.
   - Windows: run everything inside WSL2. Clone the repo on the Linux side (not under `/mnt/c`)
     and install Tailscale inside WSL.
-- For Core, [Tailscale](https://tailscale.com/download), logged in on that machine and on every
+- For Core, [Tailscale](https://tailscale.com/download), logged in on that host and on every
   device that should reach it. Without it, see
   [Reaching it without Tailscale](#reaching-it-without-tailscale).
 - The repo:
@@ -34,9 +34,9 @@ docker compose up -d
 The first run asks one thing: what to start with.
 
 - **Core** (Enter): it then asks for a username and password. No GPU, no model downloads.
-- **Controller**: Core, and the machine your other machines report to. See
+- **Controller**: Core, and the host your other hosts report to. See
   [Controller and Workers](./hosting/controller-and-workers.md).
-- **Worker**: no services. It asks for its controller's address and reports this machine's
+- **Worker**: no services. It asks for its controller's address and reports this host's
   disks and automations there.
 - **Nothing**: `./existential.sh service` turns on what you want; the login is asked when the
   first service that needs it comes on.
@@ -82,7 +82,7 @@ What each `./existential.sh` run does:
 
 With Tailscale up, it also runs `tailscale serve`:
 
-- code-server at `https://<machine>.<tailnet>.ts.net`, ntfy at `:8443`, with a Let's Encrypt
+- code-server at `https://<host>.<tailnet>.ts.net`, ntfy at `:8443`, with a Let's Encrypt
   certificate.
 - Both containers publish on loopback only, so only your tailnet can connect.
 - The name is saved as `EXIST_TAILNET_NAME`, which ntfy and the digest's links use.
@@ -116,10 +116,10 @@ Asked once, by the run that enables the first service that needs a GPU (Ollama, 
 Core never asks.
 
 - **GPU vendor**: `nvidia`, `amd` (Vulkan/ROCm), `none` (CPU), or `external`: models live on
-  another machine and no Ollama runs here. Point `EXIST_MODEL_URL` at any OpenAI-compatible `/v1`
+  another host and no Ollama runs here. Point `EXIST_MODEL_URL` at any OpenAI-compatible `/v1`
   server.
 - **VRAM** picks the model tier. Each model role can live on a different machine:
-  [Configuration](./configuration.md#endpoints--putting-roles-on-different-machines).
+  [Configuration](./configuration.md#endpoints--putting-roles-on-different-hosts).
 
 Re-ask both with `./existential.sh run models`.
 
@@ -154,7 +154,7 @@ newly enabled services and existing files are left alone. A service turned off k
 docker compose up -d
 ```
 
-Open code-server at `https://<machine>.<tailnet>.ts.net`. That is the [workspace](#workspace);
+Open code-server at `https://<host>.<tailnet>.ts.net`. That is the [workspace](#workspace);
 start `claude` in its terminal.
 
 Decree waits for each migration's service to pass its `exist.test.sh`, then runs the migration.
@@ -197,9 +197,9 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
 - **A file change can start an automation.** A handler in `.decree/handlers.yml` runs once the
   file has been quiet for 30 seconds. A `.gitignore`'d path or anything in `.git/` never does.
   See [File Handlers](./decree/file-handlers.md).
-- **With Local AI on**, [OpenViking](./ai/openviking.md) indexes the workspace every 15 minutes and
-  pi can search it.
-- **To edit on other machines**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
+- **With Search on** (`./existential.sh flow on search`), [qmd](./ai/qmd.md) indexes the workspace within a
+  minute of each change, and you, pi, Claude Code and opencode can search it.
+- **To edit on other computers**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
   or [a Nextcloud elsewhere](#syncing-with-a-nas-or-a-nextcloud-optional). Its *Ignored Files* list keeps
   files off the server.
 
@@ -220,7 +220,7 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
 |---|---|---|
 | Claude Code in [code-server](./services/code-server.md) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
 | opencode in code-server | By default: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
-| Claude Code on another machine | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
+| Claude Code on another computer | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
 | Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh flow off capture-stream` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s) beside your

@@ -4,9 +4,9 @@ sidebar_position: 1
 
 # Flows
 
-:::info[Level 3 of 4 · Components]
-One job traced through the services it touches. Back out to [Level 2 · Services](../how-it-works.md),
-or go on to [Level 4 · Plugins](../plugins/index.md) to write your own.
+:::info[One job, end to end]
+One job traced through the services it touches. Back to [Services](../how-it-works.md), or on
+to [Plugins](../plugins/index.md) to write your own.
 :::
 
 A flow is one job, from *something happened* to *it was handled*: a recording becomes a
@@ -44,20 +44,19 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `gmail-inbox` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail.md)) | a Google grant |
 | `budget` | [Bank alerts become budget entries](./transaction-gmail-actual-budget.md) | Actual Budget, `gmail` |
 | `note-triage` | [The note you meant to come back to](./note-to-action.md) | Nextcloud, a chat model |
-| `knowledgebase` | The workspace indexed into OpenViking, so pi answers from it | OpenViking |
-| `note-connect` | [Notes that find their own connections](./note-connect.md) | `knowledgebase` |
+| `note-connect` | [Notes that find their own connections](./note-connect.md) | `search` |
 | `nextcloud-capture` | A file uploaded through Nextcloud runs the [file processors](../decree/file-change-processing.md) | Nextcloud, automation-webhook |
 | `image-ocr` | [A photo's text, written beside it](./image-ocr.md) | `nextcloud-capture`, a vision model |
 | `transcription` | [Recordings become speaker-labelled transcripts](./recording-transcription.md) | WhisperX, `nextcloud-capture` |
-| `workspace-agent` | A file matching your criteria is handed to an agent | OpenViking, Firecrawl, `nextcloud-capture` |
+| `workspace-agent` | A file matching your criteria is handed to an agent | qmd, Firecrawl, `nextcloud-capture` |
 | `notes-to-dropbox` | Nextcloud notes compiled and pushed to Dropbox | `nextcloud-capture`, a Dropbox remote |
 | `calendar` | Nextcloud's calendar, every event mirrored into the workspace | Nextcloud |
 | `office-documents` | Word, Excel and PowerPoint in the browser | Nextcloud, Collabora |
-| `local-models` | Ollama on this machine pulls your tier's models, once | Ollama |
+| `local-models` | Ollama on this host pulls your tier's models, once | Ollama |
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, your chat model answering | Home Assistant, Wyoming |
 | `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
 | `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
-| `worker` | [This machine reported to your controller](../hosting/controller-and-workers.md): disks, automations, runs, in Grafana | decree on the host |
+| `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, automations, runs, in Grafana | decree on the host |
 | `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
 
 [Note → Automation](./note-to-automation.md) is part of Core, on whenever a chat model answers.

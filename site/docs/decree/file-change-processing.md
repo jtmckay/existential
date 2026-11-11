@@ -253,7 +253,7 @@ echo 'Read this note and work out what can be settled without the author.' \
 processor may emit either. `file-processors.example/agent-handoff.sh` is a complete one.
 
 pi runs its own tool loop, so with no `department` the task gets every MCP server
-of an add-on that is on: OpenViking search, Firecrawl web search, Playwright. The
+of an add-on that is on: qmd search, Firecrawl web search, Playwright. The
 prompt does not name tools; it says what it wants, and pi decides what to reach
 for. `--param department=research` narrows it to that department's tools
 ([Routing](./routing.md)).

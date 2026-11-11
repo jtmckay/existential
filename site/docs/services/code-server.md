@@ -69,7 +69,7 @@ redacted, never responses). `CODE_SERVER_CAPTURE=false` turns it off. See
 goes to the AI provider you use, under its terms.
 
 **`pi`** is [pi](../ai/pi.md), baked into the image and pointed at the same chat model on every
-boot, with the MCP servers of every add-on that is on (OpenViking, Firecrawl, Playwright, qmd):
+boot, with the MCP servers of every add-on that is on (qmd, Firecrawl, Playwright):
 
 ```bash
 pi                                            # the TUI

@@ -6,7 +6,7 @@ tagline: A new note is checked against everything you already wrote, and real li
 docs: /docs/flows/note-connect
 needs:
   - note_connect
-  - knowledgebase
+  - search
 cron:
   note-connect: |
     ---
@@ -24,7 +24,7 @@ cron:
 
     Different question than note_triage: not "is this worth acting on" but "does anything you
     already know connect to this". The search runs through pi in the `research`
-    department (workspace/.decree/lib/departments/research.yml) so it can reach OpenViking as a tool —
+    department (workspace/.decree/lib/departments/research.yml) so it can search your notes with qmd —
     a plain completion cannot search the knowledge base.
 
     The first run records the tree as seen WITHOUT scanning, so enabling this over an existing
@@ -41,7 +41,7 @@ cron:
     The same source-note-to-target pairing is never surfaced twice; editing the source note
     again can surface a new pairing, just not the same one.
 
-    Requires openviking enabled, and workspace/ actually indexed
-    (openviking-index-knowledgebase — on by default with Core). Point NOTES_DIR at /data/notes
-    instead to scan a note-triage-style vault mirror there.
+    It needs the `search` flow (qmd), which turning this on turns on, and a research department
+    whose `mcp:` names qmd: one copied before 2026-11 names openviking, so change it. Point
+    NOTES_DIR at /data/notes instead to scan a note-triage-style vault mirror there.
 ---

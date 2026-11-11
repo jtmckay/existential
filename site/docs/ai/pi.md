@@ -26,9 +26,9 @@ daemon and of code-server:
 
 - **`models.json`**: an `existential` provider at the chat role's `/v1` URL (`EXIST_MODEL_URL_CHAT`,
   else `EXIST_MODEL_URL`) with `EXIST_MODEL_CHAT` and its context window. A bare `pi` starts on it.
-- **`mcp.json`**: the MCP server of every add-on that is on: [OpenViking](./openviking.md),
-  [Firecrawl](./firecrawl.md), [MCP](./mcp.md) (Playwright) and [qmd](./qmd.md). Turn an add-on off and its
-  server is gone on the next boot. OpenViking's key stays in the environment, not in the file.
+- **`mcp.json`**: the MCP server of every add-on that is on: [qmd](./qmd.md),
+  [Firecrawl](./firecrawl.md) and [MCP](./mcp.md) (Playwright). Turn an add-on off and its
+  server is gone on the next boot.
 - **`settings.json`**: install telemetry off.
 
 Each is merged into what is there, so a provider you add, a server you add or a `/login` to a hosted
@@ -45,7 +45,7 @@ it does not own.
 # workspace/.decree/lib/departments/research.yml
 description: Investigation, fact-finding, competitive and market analysis, literature review.
 tools: read, grep, find, ls
-mcp: openviking, firecrawl
+mcp: qmd, firecrawl
 ```
 
 No department means pi's default tools and every MCP server. See

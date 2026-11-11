@@ -49,8 +49,8 @@ services:
     networks:
       - exist
     environment:
-      # VRAM guards. The stack targets an 8 GB card, where chat + embeddings
-      # together already fill most of it; without these ollama will happily load
+      # VRAM guards. The stack targets an 8 GB card, where the chat model and
+      # its context already fill most of it; without these ollama will happily load
       # a third model on the next request and OOM the GPU mid-generation.
       # Values and their rationale live in this service's .env.exist — these are
       # per-service knobs, so they carry the OLLAMA_ prefix, not EXIST_.

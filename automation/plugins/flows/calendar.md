@@ -24,7 +24,7 @@ cron:
     Every 30 minutes, mirrors every Nextcloud calendar you have (Personal, Contact birthdays, any
     shared calendar) into `workspace/ai/calendar/<calendar>/` as one markdown note per event — recent
     past through `CALENDAR_EXTRACT_FUTURE_DAYS` ahead. Those notes are indexed by
-    `openviking-index-knowledgebase` the same as anything else in `workspace/`, which is what lets
+    qmd (the `search` flow) the same as anything else in `workspace/`, which is what lets
     pi actually answer "what's on my calendar" instead of you having to open Nextcloud.
 
     Full-mirror, not append-only: an event that's cancelled, deleted, or ages out the back of the
@@ -61,7 +61,7 @@ migrations:
     Requires nas/nextcloud (`EXIST_IS_NAS_NEXTCLOUD`) enabled.
 
     Its flow's `calendar-extract.md` cron pulls events into `workspace/ai/calendar/`, where
-    OpenViking indexes them and pi can answer questions about your calendar the same way it
+    qmd indexes them and pi can answer questions about your calendar the same way it
     answers anything else in `workspace/`.
 
     `./existential.sh flow on calendar` activates it.

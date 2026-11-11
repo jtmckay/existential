@@ -127,13 +127,13 @@ render_template() {
 
         # Per-role model endpoints fall back to the global one when blank. Done
         # HERE, before substitution, so a template can write the bare token
-        # EXIST_MODEL_URL_EMBED and get a working URL on a single-box install
+        # EXIST_MODEL_URL_VISION and get a working URL on a single-box install
         # instead of an empty string. Without this, every consumer would have to
         # carry its own fallback and they would drift.
         # The resolver in src/utils/model-endpoints.sh is the same rule for
         # scripts; keep the two in step when adding a role.
         local _role _role_key
-        for _role in CHAT EMBED VISION; do
+        for _role in CHAT VISION; do
             _role_key="EXIST_MODEL_URL_${_role}"
             if [[ -z "${_vals[$_role_key]:-}" ]]; then
                 _vals["$_role_key"]="${_vals[EXIST_MODEL_URL]:-http://ollama:11434/v1}"
@@ -253,7 +253,7 @@ render_template() {
         content="$(sed "${line_num}s|EXIST_CLI|${escaped}|" <<<"$content")"
     done
 
-    # EXIST_HOST_IP — the LAN address of the machine running the stack.
+    # EXIST_HOST_IP — the LAN address of the host running the stack.
     #
     # This used to be an EXIST_CLI prompt, which is a question the code can
     # answer: existential.sh detects it (`ip route get 1.1.1.1`) and passes it in
@@ -769,7 +769,7 @@ _ask_if_needed() {
 # The first run's one choice.
 #   core        what .env.exist.shared ships on. Enter, Esc and no terminal.
 #   controller  Core, and the worker flow on with no EXIST_CONTROLLER: the host's
-#               decree reports this machine, and the others ask it where to report.
+#               decree reports this host, and the others ask it where to report.
 #   worker      no services, only the worker flow, reporting to the controller it asks for.
 #   none        nothing on yet.
 # The worker flow runs in a decree daemon on the host; _host_plugins says so.
@@ -777,7 +777,7 @@ _ask_role() {
     local pick="" f="${REPO_DIR}/.env.shared" ctl=""
     _prompt_available || return 0
     if command -v fzf >/dev/null 2>&1; then
-        pick="$(printf 'core\tCore: workspace, automation and notifications (recommended)\ncontroller\tController: Core, and the machine your other machines report to\nworker\tWorker: no services; reports this machine to a controller\nnone\tNothing yet: turn services on with ./existential.sh service\n' \
+        pick="$(printf 'core\tCore: workspace, automation and notifications (recommended)\ncontroller\tController: Core, and the host your other hosts report to\nworker\tWorker: no services; reports this host to a controller\nnone\tNothing yet: turn services on with ./existential.sh service\n' \
             | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info --height=8 \
                 --header='  What should this install start with?   Enter confirms' | cut -f1)" || true
     else

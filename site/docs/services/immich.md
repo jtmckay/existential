@@ -11,7 +11,7 @@ sidebar_position: 4
 
 ## Getting Started
 
-Immich is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another machine. On this one it starts with everything else.
+Immich is a [complementary service](../how-it-works.md#core-vs-complementary-services): nothing else in the stack talks to it, so it can run on another host. On this one it starts with everything else.
 
 ## Containers
 

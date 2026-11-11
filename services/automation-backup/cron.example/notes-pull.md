@@ -12,8 +12,8 @@ workspace/ knowledgebase.
 **This has real knock-on effects — know what you're opting into.** Anything
 that lands in `workspace/notes/` is a normal file under `workspace/`, so it
 automatically:
-  - gets indexed by OpenViking and becomes searchable/citable context for
-    every agent (see openviking-index-knowledgebase.md)
+  - gets indexed by qmd (the search flow) and becomes searchable context for
+    every agent
   - shows up in Nextcloud's `workspace` folder, and so on every desktop client
     syncing it
 

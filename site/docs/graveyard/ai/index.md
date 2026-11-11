@@ -37,5 +37,6 @@ The idea is to converse with all notes and digital context.
 
 ## Research / Notebooks
 
-- [LightRAG](./lightrag.md) — RIP replaced by [OpenViking](../../ai/openviking.md)
+- [LightRAG](./lightrag.md) — RIP replaced by OpenViking
+- [OpenViking](./openviking.md) — RIP replaced by [qmd](../../ai/qmd.md)
 - [OpenNotebook](./open-notebook.md) — TBD

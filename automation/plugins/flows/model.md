@@ -40,10 +40,9 @@ lib:
         local role="${1:-}" specific=""
         case "$role" in
             chat|chat-ctx) specific="${EXIST_MODEL_URL_CHAT:-}" ;;
-            embed)         specific="${EXIST_MODEL_URL_EMBED:-}" ;;
             vision)        specific="${EXIST_MODEL_URL_VISION:-}" ;;
             *)
-                echo "model_url: unknown role '${role}' (chat|chat-ctx|embed|vision)" >&2
+                echo "model_url: unknown role '${role}' (chat|chat-ctx|vision)" >&2
                 return 1
                 ;;
         esac
@@ -54,7 +53,6 @@ lib:
     model_tag() {
         case "${1:-}" in
             chat|chat-ctx) printf '%s\n' "${EXIST_MODEL_CHAT:-}" ;;
-            embed)         printf '%s\n' "${EXIST_MODEL_EMBED:-}" ;;
             vision)        printf '%s\n' "${EXIST_MODEL_VISION:-}" ;;
             *)             return 1 ;;
         esac

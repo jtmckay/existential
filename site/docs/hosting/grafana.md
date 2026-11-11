@@ -22,7 +22,7 @@ Dashboards for [Prometheus](./prometheus.md) metrics and [Loki](./loki.md) logs,
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Pre-built Decree monitoring |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
-| Machines dashboard | `provisioning/dashboards/machines.json` | Every machine that reports: free disk space, installed decree machines, each one's last run ([Controller and Workers](./controller-and-workers.md)) |
+| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, installed decree machines, each one's last run ([Controller and Workers](./controller-and-workers.md)) |
 | decree alert | `provisioning/alerting/decree.yaml` | A failed `automation-backup` run → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.

@@ -10,8 +10,8 @@ sidebar_position: 2
 - Each one is a separate account and subscription, and can change under you.
 - Here everything works on one folder, `workspace/`: code-server with `claude` and `opencode`,
   automated by decree, using [one model URL](./how-it-works.md#the-ai-slot-by-slot).
-- With **Local AI**, [OpenViking](./ai/openviking.md) indexes `workspace/` and [pi](./ai/pi.md)
-  searches it with tools, on your own model.
+- With **Search** on, [qmd](./ai/qmd.md) indexes `workspace/`, and [pi](./ai/pi.md), Claude Code and
+  opencode search it with tools.
 - It runs on your hardware. No subscription.
 
 ### Is it hard to set up?
@@ -53,7 +53,7 @@ No. Services are added, replaced, or moved to the [graveyard](./graveyard/index.
 
 ### Can the stack's own agent change the stack?
 
-Not recommended. Use a coding agent against a frontier model, on the machine with the repo.
+Not recommended. Use a coding agent against a frontier model, on the computer with the repo.
 
 - A local model at 64k context is too small for this repo.
 - pi works on `workspace/`: the [agent automations](./flows/note-to-action.md) that write into

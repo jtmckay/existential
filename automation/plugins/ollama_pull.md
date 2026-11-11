@@ -6,7 +6,7 @@ needs:
 chart:
   description: Pull an Ollama model by role (or tag), or rebuild it with a context window; idempotent.
   data:
-    OLLAMA_ROLE: {type: string, enum: ["", chat, chat-ctx, embed, vision], default: ""}
+    OLLAMA_ROLE: {type: string, enum: ["", chat, chat-ctx, vision], default: ""}
     OLLAMA_MODEL: {type: string, default: ""}
     OLLAMA_URL: {type: string, default: ""}
     OLLAMA_FROM: {type: string, default: ""}
@@ -29,19 +29,18 @@ scripts:
     # true: a llama.cpp (or any other /v1) server loads its models itself.
     #
     # Naming a model by ROLE (preferred):
-    #   OLLAMA_ROLE      chat | chat-ctx | embed | vision
+    #   OLLAMA_ROLE      chat | chat-ctx | vision
     #
-    # A role resolves BOTH halves of "which model, on which machine": the tag from
+    # A role resolves BOTH halves of "which model, on which host": the tag from
     # the EXIST_MODEL_* globals, and the endpoint through lib/model.sh's model_url.
     # That matters as soon as roles are split across boxes — pulling the chat model
-    # to the embedding host would fill the wrong disk and leave chat with no model
+    # to the vision host would fill the wrong disk and leave chat with no model
     # at all. Model choice stays in ONE place — the "Model Selection" and "Model
     # Endpoints" blocks in .env.exist.shared — instead of hardcoded per migration:
     #
     #   chat      → EXIST_MODEL_CHAT
     #   chat-ctx  → rebuilds EXIST_MODEL_CHAT with num_ctx=EXIST_MODEL_CHAT_NUM_CTX,
     #               keeping the same tag so every consumer still names one model
-    #   embed     → EXIST_MODEL_EMBED
     #   vision    → EXIST_MODEL_VISION
     #
     # An explicit OLLAMA_URL param in the migration wins over the role's endpoint.
@@ -50,7 +49,7 @@ scripts:
     # EXIST_MODEL_VISION= turns the vision model off on a small card.
     #
     # Naming a model directly (still supported):
-    #   OLLAMA_MODEL     model tag  e.g. "gemma4:e2b-it-qat", "bge-m3:latest"
+    #   OLLAMA_MODEL     model tag  e.g. "gemma4:e2b-it-qat", "qwen3-vl:4b"
     #   OLLAMA_URL       ollama's root (default: the role's endpoint without /v1)
     #
     # Create with a Modelfile (optional — replaces pull with /api/create):
@@ -77,7 +76,7 @@ scripts:
 
     if [ -n "$OLLAMA_ROLE" ]; then
         OLLAMA_MODEL="$(model_tag "$OLLAMA_ROLE")" || {
-            echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|embed|vision)" >&2
+            echo "Unknown OLLAMA_ROLE '${OLLAMA_ROLE}' (chat|chat-ctx|vision)" >&2
             exit 1
         }
         if [ "$OLLAMA_ROLE" = chat-ctx ]; then
@@ -108,8 +107,8 @@ scripts:
     # /api/pull and /api/create stream for as long as the transfer takes — minutes
     # for a multi-GB tag. ollama_api's 30s cap is right for /api/tags and /api/show
     # and fatal here: curl exits 28 mid-stream, pipefail turns that into a routine
-    # failure, and a failed migration halts the queue, so the embed/vision
-    # models behind it are never pulled either. That is the "ollama came up with no
+    # failure, and a failed migration halts the queue, so the vision
+    # model behind it is never pulled either. That is the "ollama came up with no
     # models" failure the e2e harness found. Mirrors exist.pull-models.sh.
     ollama_api_stream() {
         curl -fsSL --no-buffer --max-time 3600 "${OLLAMA_URL}${1}" "${@:2}"
@@ -199,7 +198,7 @@ scripts:
         # fields (`from` plus `parameters`/`system`/…). Sending the old form to a
         # current ollama (0.32.x here) is a hard 400, which stopped this migration —
         # and, because a failed migration halts the chain, silently prevented the
-        # embed/vision models behind it from ever being pulled.
+        # vision model behind it from ever being pulled.
         echo "Creating ${OLLAMA_MODEL} from ${OLLAMA_FROM} (num_ctx=${OLLAMA_NUM_CTX:-default})..."
         if [ -n "$OLLAMA_NUM_CTX" ]; then
             jq -nc --arg m "$OLLAMA_MODEL" --arg f "$OLLAMA_FROM" --argjson c "$OLLAMA_NUM_CTX" \
