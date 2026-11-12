@@ -74,11 +74,4 @@ else
     fi
 fi
 
-# ── 4. Caddy routing ─────────────────────────────────────────────────────────
-#
-# 400 is the server rejecting a plain GET, which is what proves Caddy reached it
-# and that mcp-playwright.<domain> is in --allowed-hosts (an unknown Host is 403).
-
-probe_caddy_any "mcp-playwright via caddy" mcp-playwright / "^400$"
-
 finish

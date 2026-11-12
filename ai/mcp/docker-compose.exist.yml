@@ -6,8 +6,10 @@
 # Access: http://mcp-playwright:8931/mcp on the exist network.
 # There is NO authentication — upstream says so explicitly ("Playwright MCP is
 # not a security boundary"). Anything that can reach the port gets a browser
-# with network access to every other container, so keep it off the public
-# internet; --allowed-hosts is DNS-rebinding protection, not auth.
+# with network access to every other container, including the ones whose only
+# protection is being on that network (qmd, firecrawl, loki). So it has no Caddy
+# block and no published port, and must never get one; --allowed-hosts is
+# DNS-rebinding protection, not auth.
 
 services:
   mcp-playwright:
@@ -32,8 +34,7 @@ services:
     #
     # --allowed-hosts: the server 403s any Host it does not recognise. The entry
     #   must carry the port exactly as clients send it, so the Docker-DNS form is
-    #   `mcp-playwright:8931`; Caddy forwards `mcp-playwright.<domain>` with no
-    #   port. Dropping this to '*' disables the check entirely.
+    #   `mcp-playwright:8931`. Dropping this to '*' disables the check entirely.
     # --isolated: browser profile in memory, so nothing persists between clients.
     command:
       - "--port"
@@ -41,7 +42,7 @@ services:
       - "--host"
       - "0.0.0.0"
       - "--allowed-hosts"
-      - "mcp-playwright:8931,mcp-playwright.${EXIST_DOMAIN}"
+      - "mcp-playwright:8931"
       - "--isolated"
       - "--output-dir"
       - "/output"

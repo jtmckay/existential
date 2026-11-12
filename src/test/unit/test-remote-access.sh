@@ -30,6 +30,15 @@ for svc in services/code-server services/ntfy services/automation hosting/loki; 
     if [[ -z "$bad" ]]; then _ok "${svc} publishes only on 127.0.0.1"; else _fail "${svc} publishes only on 127.0.0.1" "$bad"; fi
 done
 
+# ── No auth of its own, so no name on the LAN ─────────────────────────────────
+# mcp-playwright is a browser inside the exist network, and qmd has no login:
+# a Caddy block or a published port for either hands the whole network to the LAN.
+
+for svc in mcp-playwright qmd; do
+    if grep -qE "^${svc}\." "${REPO_DIR}/hosting/caddy/Caddyfile.exist.Caddyfile"; then _fail "${svc} has no Caddy block" "found one in Caddyfile.exist.Caddyfile"; else _ok "${svc} has no Caddy block"; fi
+done
+if grep -qE '^ *ports:' "${REPO_DIR}/ai/mcp/docker-compose.exist.yml"; then _fail "ai/mcp publishes no port" "ports: in ai/mcp/docker-compose.exist.yml"; else _ok "ai/mcp publishes no port"; fi
+
 # ── tailscale serve ───────────────────────────────────────────────────────────
 
 # A stub tailscale: `status --json` prints $TS_STATUS; `serve --bg --https=P T` (or --http) sets the

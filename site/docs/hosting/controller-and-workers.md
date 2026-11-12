@@ -115,9 +115,9 @@ named anywhere, nothing is sent and nothing fails.
 
 ## Things to know
 
-- **Anyone on your tailnet can push to Loki**, and with `LOKI_BIND=0.0.0.0` anyone on your
-  network. That's the same trust as code-server on the
-  tailnet; use Tailscale's access controls to narrow it.
+- **Loki has no login.** Anyone on your tailnet, and with `LOKI_BIND=0.0.0.0` anyone on your
+  network, can push to it and read every log it holds, which includes every container's output.
+  Use Tailscale's access controls, or a firewall rule for port 43100, to narrow it.
 - **An install from before this page** has Loki's compose file already rendered without the
   loopback port. Add `ports: ["${LOKI_BIND:-127.0.0.1}:43100:3100"]` to the `loki` service in
   `hosting/loki/docker-compose.yml`, or `./existential.sh reset`, then re-run.

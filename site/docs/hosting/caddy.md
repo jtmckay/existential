@@ -59,6 +59,24 @@ matches nothing, so the host answers 401 rather than opening up. That is the pat
 you gate another host — never a config that errors, because a Caddyfile that fails to load takes
 every hostname down, not one.
 
+## A name is not a login
+
+Caddy gives a service a name and a certificate. It adds no login (Firecrawl, above, is the one
+exception), and it listens on every address of the host, so anyone on your network can open
+every name.
+
+Most services have their own login. These have none, so anyone who can reach Caddy can use them:
+`chatterbox`, `comfyui`, `ollama`, `whisperx`, `prometheus` and `dashy`. Turn one on only on a
+network you trust.
+
+Two services get no name at all, because reaching them is reaching everything behind them:
+[qmd](../ai/qmd.md), which is your notes, and the [Playwright MCP](../ai/mcp.md) server, which is a
+browser inside the stack's network.
+
+Nothing in the stack publishes a service to the internet. If you do it yourself, leave these out,
+and create each service's first account before you open the port: on several of them, whoever
+arrives first becomes the admin.
+
 ## Port Binding Note
 
 Ports exposed to the Docker host using `port: 8421:80` bind the host port to the Docker port at `:80`. However, if another container within the Docker network is accessing that container, it will still use `:80` — not `:8421`.

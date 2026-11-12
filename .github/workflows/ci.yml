@@ -32,7 +32,7 @@ jobs:
     name: Secret guards and harness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           fetch-depth: 0
       - name: Secret-guard self-test
@@ -46,14 +46,14 @@ jobs:
     name: Shell lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       # Pulls the digest-pinned shellcheck image named in src/test/lint-shell.sh.
       - name: shellcheck
         run: ./existential.sh test lint
       # A worker without docker syncs its plugins with the host's yq (on the
       # runner already) and decree, so the suite runs that sync too.
       - name: Install decree
-        run: curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh
+        run: curl -fsSL https://github.com/jtmckay/decree/releases/download/v0.5.0/install.sh | sh -s -- v0.5.0  # the tag the decree image pins (DECREE_TAG)
       # Host-side code on this runner's bash, then again under bash 3.2.
       - name: Host-side portability
         run: ./existential.sh test host
@@ -64,7 +64,7 @@ jobs:
     name: Host-side on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - name: Host-side portability
         run: /bin/bash src/test/host-portable.sh
 
@@ -79,7 +79,7 @@ jobs:
     env:
       DOCKER_CMD: docker
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       # Nothing below renders templates, so this runs against the tracked tree
       # exactly as a fresh clone has it. `validate conventions` is a soft gate
       # that tolerates an unrendered docker-compose.yml.
