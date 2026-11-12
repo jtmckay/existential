@@ -114,7 +114,7 @@ flows_pick() {
 
 # An install from before plugins.yml gets one that keeps what it had on (plugin.sh seed).
 if command -v yq >/dev/null 2>&1 && [[ ! -f "${REPO_DIR}/${PLUGINS_YML}" ]] && [[ -d "${REPO_DIR}/${FLOWS_DECREE}" ]]; then
-    REPO_DIR="$REPO_DIR" bash "${REPO_DIR}/src/lib/plugin.sh" seed automation >/dev/null
+    env REPO_DIR="$REPO_DIR" bash "${REPO_DIR}/src/lib/plugin.sh" seed automation >/dev/null
 fi
 
 case "${1:-}" in

@@ -49,11 +49,9 @@ endpoint_for() {
 # install. Callers use it to keep their output honest: there is no point telling
 # someone which box a role landed on when there is only one.
 endpoints_are_uniform() {
-    local first role
+    local first
     first="$(endpoint_for chat)" || return 1
-    for role in vision; do
-        [ "$(endpoint_for "$role")" = "$first" ] || return 1
-    done
+    [ "$(endpoint_for vision)" = "$first" ] || return 1
     return 0
 }
 

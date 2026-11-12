@@ -368,7 +368,9 @@ _install_steps() {
 # is named with how to get it; 1 if any is. decree and yq install to ~/.local/bin,
 # which is not always on PATH: one there is named with the line that puts it on.
 _worker_needs() {
+    # shellcheck disable=SC2088  # printed for the user to paste, never expanded here
     local t miss=0 bin="${XDG_BIN_HOME:-${HOME}/.local/bin}" rc="~/.bashrc"
+    # shellcheck disable=SC2088  # as above
     [[ "${SHELL##*/}" == zsh ]] && rc="~/.zshrc"
     for t in curl decree yq tmux; do
         if ! command -v "$t" >/dev/null 2>&1 && [[ -x "${bin}/${t}" ]]; then

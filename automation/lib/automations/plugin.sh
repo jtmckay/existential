@@ -165,18 +165,18 @@ plugin_export() {  # <name>
     # Its lib: the files its install wrote (the registry has them).
     if [[ -f "$REGISTRY" ]]; then
         for k in $(n="$name" yq -r '.[] | select(.machine == strenv(n)) | .libs[]?' "$REGISTRY"); do
-            [[ -f ".decree/lib/${k}" ]] && k="$k" f=".decree/lib/${k}" yq -i '.lib[strenv(k)] = load_str(strenv(f))' "$out"
+            [[ -f ".decree/lib/${k}" ]] && K="$k" f=".decree/lib/${k}" yq -i '.lib[strenv(K)] = load_str(strenv(f))' "$out"
         done
     fi
     # Its crons and migrations: an installed plugin's are in the registry; any other
     # machine's crons are the ones that run it.
     if [[ -f "$REGISTRY" ]] && automation_installed "$name"; then
         for k in $(n="$name" yq -r '.[] | select(.machine == strenv(n)) | .crons[]?' "$REGISTRY"); do
-            [[ -f ".decree/cron/${k}.md" ]] && k="$k" f=".decree/cron/${k}.md" yq -i '.cron[strenv(k)] = load_str(strenv(f))' "$out"
+            [[ -f ".decree/cron/${k}.md" ]] && K="$k" f=".decree/cron/${k}.md" yq -i '.cron[strenv(K)] = load_str(strenv(f))' "$out"
         done
         for k in $(n="$name" yq -r '.[] | select(.machine == strenv(n)) | .migrations[]?' "$REGISTRY"); do
             if [[ -f ".decree/migrations/${k}.md" ]]; then
-                k="$k" f=".decree/migrations/${k}.md" yq -i '.migrations[strenv(k)] = load_str(strenv(f))' "$out"
+                K="$k" f=".decree/migrations/${k}.md" yq -i '.migrations[strenv(K)] = load_str(strenv(f))' "$out"
             elif [[ -f ".decree/applied/plugins/${name}.md" ]]; then   # it ran and is gone: as it was installed
                 printf '%s\n' "$(k="$k" yq --front-matter=extract -r '.migrations[strenv(k)]' ".decree/applied/plugins/${name}.md")" > "${out}.mig"
                 k="$k" f="${out}.mig" yq -i '.migrations[strenv(k)] = load_str(strenv(f))' "$out"

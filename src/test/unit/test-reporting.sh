@@ -99,6 +99,8 @@ report >/dev/null
 assert_eq "a controller reads host/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 assert_eq "...and sends every run the first time" "1" "$(lines run | wc -l | tr -d ' ')"
 
+[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
+
 echo ""
 echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
 for n in "${FAIL_NAMES[@]+"${FAIL_NAMES[@]}"}"; do echo "  ✗ $n"; done
