@@ -12,7 +12,7 @@ Retired 2026-11. Everything the stack used it for, searching the workspace, qmd 
 with no embedding model, no API key and no backup, matching exact words as well as meaning and
 fresher (60 seconds, not 15 minutes). Its own extras, a memory agents write to and a web UI,
 were never used, and a memory kept outside your Markdown files is against how the stack keeps
-knowledge. Its folder is `graveyard/openviking/`. What follows is the page as it was.
+knowledge. What follows is the page as it was.
 
 Context database for AI agents: a `viking://` filesystem of memory, resources and skills that
 persists between sessions.

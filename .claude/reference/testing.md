@@ -180,7 +180,7 @@ proven only by the `macos` CI job, which runs it with `/bin/bash` on a real Mac.
 ## Shell lint
 
 `./existential.sh test lint` → `src/test/lint-shell.sh`. Runs shellcheck at `-S warning` over
-every tracked `*.sh` plus `.githooks/*` (graveyard excluded), in a throwaway
+every tracked `*.sh` plus `.githooks/*`, in a throwaway
 `koalaman/shellcheck-alpine` container pinned by tag **and** digest. Shellcheck is in neither
 the host nor the adhoc image, and baking it into the decree image would force an image rebuild
 on everyone for a developer-only tool — so this follows the same throwaway-container pattern as

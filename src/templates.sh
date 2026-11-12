@@ -703,14 +703,14 @@ _process_templates_in() {
         _rc=0; _process_one_template "$src" || _rc=$?
         _tally "$_rc"
     done < <(find "$root" -name '*.exist.*' -type d \
-        -not -path '*/graveyard/*' -not -path '*/.git/*' \
+        -not -path '*/.git/*' \
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 
     while IFS= read -r src; do
         _rc=0; _process_one_template "$src" || _rc=$?
         _tally "$_rc"
     done < <(find "$root" \( -name '*.exist.*' -o -name '*.env.exist' \) -type f \
-        -not -path '*/graveyard/*' -not -path '*/.git/*' \
+        -not -path '*/.git/*' \
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 }
 

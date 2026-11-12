@@ -64,7 +64,7 @@ _rendered_files() {
         dst="$(_template_to_dst "$src")"
         [[ -n "$dst" && -e "$dst" ]] && printf '%s\n' "${dst#"$REPO_DIR/"}"
     done < <(find "$REPO_DIR" \( -name '*.exist.*' -o -name '*.env.exist' \) \
-                 -not -path '*/graveyard/*' -not -path '*/.git/*' \
+                 -not -path '*/.git/*' \
                  -not -path '*/node_modules/*' -not -path '*/site/*' \
                  -not -path "*/archive/*" 2>/dev/null | sort)
 }
@@ -104,7 +104,7 @@ _activated_files() {
     done < <(find "$REPO_DIR" \( -path '*/workspace_data/.decree/cron/*' -o -path '*/workspace_data/.decree/migrations/*' \
                                 -o -path '*/automation-backup/cron/*' \) \
                  -name '*.md' -type f \
-                 -not -path '*/graveyard/*' -not -path '*/node_modules/*' 2>/dev/null | sort)
+                 -not -path '*/node_modules/*' 2>/dev/null | sort)
 }
 
 # ── Collect ───────────────────────────────────────────────────────────────────

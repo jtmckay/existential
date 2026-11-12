@@ -15,4 +15,3 @@ system prompt per call, and a config file the stack had to keep reconciling with
 pi does the same work as a CLI in the decree image: profiles became
 [departments](../../ai/pi.md#departments), the `/hermes/*` webhook endpoints became nothing (pi
 runs inside `automation`), and Open WebUI and Home Assistant talk to the chat model directly.
-The service folder is `graveyard/hermes/`.

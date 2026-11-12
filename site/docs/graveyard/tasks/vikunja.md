@@ -15,9 +15,7 @@ hostname, and a backup sidecar to keep tasks that now live as markdown in the no
 
 ## If you still want it
 
-The service files are kept under `graveyard/vikunja/`: `docker-compose.yml.example`,
-`.env.example`, its `exist.test.sh`, and the decree sidecar's backup crons and default-user
-migration. Nothing was deleted — but it is no longer wired into `./existential.sh`, Caddy,
+The service files are in this repo's git history. It is no longer wired into `./existential.sh`, Caddy,
 Dashy, or the quests, so re-enabling it means restoring those by hand.
 
 Existing data is untouched. Volumes stay at `volumes_local/vikunja_data/` and any backups at

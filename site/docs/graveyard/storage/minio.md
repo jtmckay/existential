@@ -45,8 +45,7 @@ publishing `RELEASE.*` tags to Docker Hub while still cutting GitHub releases.
 
 ## If you still want it
 
-The service files are kept under `graveyard/minio/`: `docker-compose.yml.example`,
-`.env.example`, and its `exist.test.sh`. Nothing was deleted — but it is no longer
+The service files are in this repo's git history. It is no longer
 wired into `./existential.sh`, Caddy, Dashy, or the quests, and the routines it
 depended on are gone, so re-enabling it means restoring those by hand.
 

@@ -39,5 +39,5 @@ is plain files, and the stack's own writes fire nothing, so the loop-breaker tha
 
 ## If you still want it
 
-The service files are kept under `graveyard/seaweedfs/`. Nothing in the stack talks
+The service files are in this repo's git history. Nothing in the stack talks
 to it any more, so re-enabling it means restoring the routing by hand.

@@ -41,7 +41,7 @@ for f in "${staged[@]}"; do
     # hosting/loki/loki-config.yaml is hand-committed upstream config with
     # no template, so it stays committable.
     case "$f" in
-        graveyard/*|*.exist.*|*.exist|*.example) ;;
+        *.exist.*|*.exist|*.example) ;;
         *)
             if tmpl="$(template_for_rendered "$f")"; then
                 note "rendered file staged: $f (commit $tmpl instead)"

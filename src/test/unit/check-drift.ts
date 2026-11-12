@@ -27,7 +27,7 @@ const REPO_ROOT = path.resolve(
 // or root-owned (secrets/, runs/, volumes/). The walk also tolerates EACCES as a
 // backstop, but skipping these up front is faster and clearer.
 const SKIP_DIRS = new Set([
-  'graveyard', 'node_modules', '.git', 'site', 'secrets', 'runs', 'volumes',
+  'node_modules', '.git', 'site', 'secrets', 'runs', 'volumes',
 ]);
 const PLACEHOLDER_RE = /EXIST_[A-Z0-9_]+/;
 // Header that src/templates.sh (_RECONCILE_MARKER) stamps above keys it appended

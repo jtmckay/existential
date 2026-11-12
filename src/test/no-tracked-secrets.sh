@@ -42,7 +42,7 @@ while IFS= read -r f; do
     # hosting/loki/loki-config.yaml is hand-committed upstream config with no
     # template, so it stays committable.
     case "$f" in
-        graveyard/*|*.exist.*|*.exist|*.example) ;;
+        *.exist.*|*.exist|*.example) ;;
         *)
             if tmpl="$(template_for_rendered "$f")"; then
                 flag "tracked rendered file: $f (commit $tmpl instead)"
@@ -53,9 +53,9 @@ while IFS= read -r f; do
     esac
 done < <(git ls-files)
 
-# ── Secret-shaped content in any tracked file (excl. graveyard + placeholders) ─
+# ── Secret-shaped content in any tracked file (excl. placeholders) ─────────────
 secret_re='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AIza[0-9A-Za-z_-]{30,}'
-if matches="$(git grep -nIE "$secret_re" -- . ':(exclude)graveyard/*' 2>/dev/null)"; then
+if matches="$(git grep -nIE "$secret_re" 2>/dev/null)"; then
     if [ -n "$matches" ]; then
         flag "API-key-shaped string in tracked content:"
         echo "$matches" >&2
@@ -67,7 +67,7 @@ while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     file="${hit%%:*}"
     case "$file" in
-        *.exist.*|*.example|graveyard/*) continue ;;
+        *.exist.*|*.example) continue ;;
     esac
     flag "private key material in tracked file: $hit"
 done < <(git grep -nIE -- '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' 2>/dev/null || true)

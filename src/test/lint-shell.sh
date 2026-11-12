@@ -40,9 +40,8 @@ if ! adhoc_find_runtime; then
     exit 0
 fi
 
-# Tracked shell scripts only. graveyard/ is archived and explicitly out of scope
-# (CLAUDE.md principle 9); .githooks/* are shell without a .sh suffix.
-mapfile -t FILES < <(git ls-files '*.sh' .githooks/ | grep -v '^graveyard/' || true)
+# Tracked shell scripts only; .githooks/* are shell without a .sh suffix.
+mapfile -t FILES < <(git ls-files '*.sh' .githooks/)
 
 if [ "${#FILES[@]}" -eq 0 ]; then
     echo "  FAIL  lint-shell: no shell scripts found — the file selection is broken" >&2

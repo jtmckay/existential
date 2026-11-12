@@ -101,13 +101,6 @@ automation/outbox/
 **/immich/library
 **/immich/postgres
 
-# LibreChat (graveyard)
-**/librechat/data-node
-**/librechat/logs
-**/librechat/meili_data_v1.12
-**/librechat/uploads
-**/librechat/librechat.yaml
-
 # Nextcloud
 **/nextcloud/servername.conf
 # The entrypoint writes the redis password into it on every start.
