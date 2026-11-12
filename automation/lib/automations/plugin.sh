@@ -197,10 +197,11 @@ plugin_export() {  # <name>
         '(.chart | .. | select(tag == "!!map" and has("emits")) | .emits) -= [load(strenv(r))[] | select(.kind != "plugin") | .machine]' "$out"
     # What it starts or emits to, less itself and the plugin system, which every project has.
     # And every plugin whose lib it uses: ${DECREE_LIB}/model.sh, lib/rss, ../you-were-here/digest.
+    # A flow's needs are what it turns on, which nothing here can work out: kept as installed.
+    # (No comment inside the $( ): bash 3.2 reads an apostrophe in one as an open quote.)
     needs="$( { yq -r '[.chart // {} | .. | select(tag == "!!map") | (.invoke.machine, .emits[]?) | select(tag == "!!str")] | .[]' "$out"
                 yq -r '(.scripts // {})[], (.lib // {})[]' "$out" | grep -oE 'emit --machine [a-z_][a-z0-9_]*' | sed 's/.* //'
                 [[ ! -f "$REGISTRY" ]] || _plugin_lib_users "$out"
-                # A flow's needs are what it turns on, which nothing here can work out: kept as installed.
                 [[ -f "$m" || ! -f ".decree/applied/plugins/${name}.md" ]] ||
                     yq --front-matter=extract -r '.needs // [] | .[]' ".decree/applied/plugins/${name}.md"
               } | grep -v '^$' | grep -vxF "$name" | while read -r k; do [[ "$PLUGIN_KERNEL" == *" ${k} "* ]] || echo "$k"; done |
