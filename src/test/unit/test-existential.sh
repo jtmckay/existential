@@ -381,14 +381,20 @@ echo "=== CLI: run (no args) ==="
         _fail "existential.sh run (no args) → prints Usage" \
               "output: $(echo "$out" | head -5)"
     fi
-    # reset has one entry point (./existential.sh reset); backup-config is gone.
-    for gone in reset backup-config; do
+    # reset has one entry point (./existential.sh reset); backup-config is gone, and
+    # nothing publishes a service to the internet.
+    for gone in reset backup-config "caddy public-domain"; do
         if echo "$out" | grep -qE "run ${gone}\$"; then
             _fail "existential.sh run (no args) → does not list ${gone}"
         else
             _ok "existential.sh run (no args) → does not list ${gone}"
         fi
     done
+    if grep -q '^EXIST_PUBLIC_DOMAIN=' "${REPO}/.env.exist.shared"; then
+        _fail ".env.exist.shared has no EXIST_PUBLIC_DOMAIN"
+    else
+        _ok ".env.exist.shared has no EXIST_PUBLIC_DOMAIN"
+    fi
 )
 
 # ── Section: CLI — `test <name>` finds a suite by file name ──────────────────

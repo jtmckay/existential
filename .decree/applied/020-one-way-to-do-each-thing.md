@@ -15,7 +15,8 @@ publishing identity.
 
 - **One Caddy, one host.** There is no peer or front-door mode: no `EXIST_PEER_HOST_IP`, no
   `Caddyfile.frontdoor-*.example`, and nothing in docs, flows or templates describes one.
-  `run caddy public-domain` is the way to add public hostnames.
+  Nothing publishes a service to the internet: there is no `run caddy public-domain` and no
+  `EXIST_PUBLIC_DOMAIN`. Public hostnames are blocks a person adds to their own Caddyfile.
 - **Compose owns the `exist` network.** The generated `docker-compose.yml` always declares it
   as Compose's own bridge, never `external`. No service template declares it, and no doc or
   doc says to `docker network create` it. `EXIST_NETWORK_EXTERNAL` and
