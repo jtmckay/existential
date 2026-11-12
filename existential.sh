@@ -1042,12 +1042,15 @@ case "$action" in
                 # The same gate for TypeScript. tsx strips types without checking
                 # them, so without this `"strict": true` means nothing.
                 bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" || _rc=1
+                # The rest run in containers. A worker may have no engine; CI does.
+                if ! adhoc_find_runtime; then
+                    echo "  (no docker or podman: container suites skipped; CI runs them)"
+                    exit "$_rc"
+                fi
                 # Both decree projects, with every shipped message template.
-                adhoc_detect_runtime
                 run_adhoc bash /src/test/decree-check.sh || _rc=1
                 # Host-side container-state gate next (adhoc has no docker socket,
                 # so this is the only place daemon crash-loops are visible).
-                adhoc_detect_runtime
                 DOCKER_CMD="$DOCKER_CMD" bash "${SCRIPT_DIR}/src/test/integration/container-health.sh" \
                     "${SCRIPT_DIR}/docker-compose.yml" || _rc=1
                 run_adhoc bash /src/test/run-all.sh all || _rc=1

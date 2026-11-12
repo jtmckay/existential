@@ -58,6 +58,11 @@ _tsc_in_container() {
 # NOT a dotfile: tsconfig's include glob `src/**/*.ts` does not match a leading
 # dot, so a canary named .typecheck-canary.ts is never compiled and the
 # self-check reports "tsc is not running" on a perfectly working checker.
+if ! adhoc_find_runtime; then
+    echo "  PASS  typecheck-ts (no docker or podman: skipped; CI runs it)"
+    exit 0
+fi
+
 _canary_src='src/typecheck-canary.ts'
 _PLUGINS_TS=automation/typecheck-plugins
 # Refuse to clobber a real node_modules: if one exists and is a directory, this

@@ -66,6 +66,14 @@ if ! ./existential.sh test typecheck; then
     exit 1
 fi
 
+# The rest run in containers. A worker may have no engine; CI does.
+# shellcheck source=../src/utils/adhoc.sh
+. src/utils/adhoc.sh
+if ! adhoc_find_runtime; then
+    echo "pre-push: no docker or podman: container gates skipped; CI runs them."
+    exit 0
+fi
+
 # Both decree projects as a fresh install has them: machines, scripts, every
 # shipped cron/migration/inbox template, and the committed graphs.
 if ! ./existential.sh test decree; then

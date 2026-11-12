@@ -198,7 +198,9 @@ found one the day it was wired up (env assignments prefixed to a command substit
 of the command inside it, so `ocr.ts` never received `FILE_PATH`).
 
 Wired into `test` (all) and `pre-push`, grouped with the Docker-needing gates rather than the
-Docker-free self-tests.
+Docker-free self-tests. On a host with neither docker nor podman (a worker), it, `typecheck-ts`
+and the container suites in `test` (all) and `pre-push` skip with a note, like `host-portable.sh`'s bash 3.2
+leg; CI always has docker and runs them.
 
 ## TypeScript
 
