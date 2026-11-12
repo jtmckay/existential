@@ -25,8 +25,7 @@ services:
       retries: 3
       start_period: 10s
     ports:
-      # :443 is HTTPS; :80 redirects http→https (and serves the Let's Encrypt
-      # challenge when EXIST_PUBLIC_DOMAIN is set). Keep both.
+      # :443 is HTTPS; :80 redirects http→https. Keep both.
       - "80:80"
       - "443:443"
       # Caddy serves HTTP/3 on udp/443 and advertises it via Alt-Svc on every

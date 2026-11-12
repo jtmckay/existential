@@ -17,7 +17,7 @@ missing, with its comment, and lists it:
 ```
   updated: .env.shared — 2 new key(s) from the template
     + EXIST_NTFY_USER
-    + EXIST_PUBLIC_DOMAIN  (needs a value)
+    + EXIST_NFS_ADDRESS  (needs a value)
 ```
 
 `git pull && ./existential.sh` is the upgrade. It never:
@@ -211,9 +211,6 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
   Keep it **above** `EXIST_DOMAIN` in the file; placeholders resolve top-down.
 - **`EXIST_DOMAIN`**: defaults to `<ip-with-dashes>.nip.io`. Never a MagicDNS name: there's no
   wildcard under one.
-- **`EXIST_PUBLIC_DOMAIN`**: adds Let's Encrypt certs. Needs a domain you own, `<domain>` and
-  `*.<domain>` pointing at your public IP, and ports 80 and 443 forwarded. Then
-  `./existential.sh run caddy public-domain`.
 
 `docker compose up` creates the `exist` network.
 

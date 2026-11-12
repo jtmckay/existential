@@ -204,8 +204,6 @@ http_probe_any() {
 #   1. Container DNS    : http://<HOSTNAME>:<PORT><PATH>
 #   2. piHole DNS       : dig @pihole <HOSTNAME>.<EXIST_DOMAIN>      (if pihole enabled)
 #   3. LAN via caddy    : https://<HOSTNAME>.<EXIST_DOMAIN><PATH>    (if caddy enabled)
-#   4. Public via caddy : https://<HOSTNAME>.<EXIST_PUBLIC_DOMAIN><PATH>
-#                                                                   (if EXIST_PUBLIC_DOMAIN set)
 #
 # HOSTNAME is the bare front-of-hostname — used both as the Docker DNS name
 # and as the `<EXIST_DOMAIN>` / public subdomain (i.e. `<HOSTNAME>.<EXIST_DOMAIN>`).
@@ -279,8 +277,8 @@ probe_pihole() {
 }
 
 # probe_caddy NAME HOST [PATH=/] [EXPECT=200] [TIMEOUT=5]
-# Probes the caddy-fronted paths for HOST — piHole DNS, <EXIST_DOMAIN> via caddy,
-# and (if EXIST_PUBLIC_DOMAIN is set) public via caddy. Use when the direct
+# Probes the caddy-fronted paths for HOST — piHole DNS and <EXIST_DOMAIN> via caddy.
+# Use when the direct
 # container name differs from the caddy block name (e.g. caddy routes
 # librechat.<domain> -> librechat-client:80), so direct + caddy can't share
 # a single hostname. Caller pairs this with their own http_probe for the
@@ -329,12 +327,6 @@ _probe_caddy_paths() {
     local dom="${EXIST_DOMAIN:-x.internal}"
     _probe_via_caddy "$mode" "${name} via ${host}.${dom}" \
                      "${host}.${dom}" "$path" "$expect" "$timeout"
-
-    # Public domain — real DNS (not pihole), so no pihole probe for this leg.
-    if [ -n "${EXIST_PUBLIC_DOMAIN:-}" ]; then
-        _probe_via_caddy "$mode" "${name} via ${host}.${EXIST_PUBLIC_DOMAIN}" \
-                         "${host}.${EXIST_PUBLIC_DOMAIN}" "$path" "$expect" "$timeout"
-    fi
 }
 
 _probe_via_caddy() {

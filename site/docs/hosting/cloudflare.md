@@ -8,18 +8,14 @@ sidebar_position: 6
 - License: N/A — proprietary managed SaaS; no self-hosted software is bundled
 - Alternatives: Let's Encrypt + self-hosted DNS, Bunny DNS, Route 53
 
-DNS and domain management for external access. Nothing is installed — this page is
-the manual half of pointing a domain you own at the stack.
+DNS and domain management for external access. Nothing is installed, and nothing in the stack
+publishes a service to the internet: this page is notes for doing that yourself, by hand, behind
+Cloudflare's proxy with an Origin Certificate. Records are **proxied (orange cloud)**, so your
+home IP stays out of DNS and Cloudflare terminates TLS. Read
+[A name is not a login](./caddy.md#a-name-is-not-a-login) first.
 
-Pick **one** of the two public paths; they are alternatives, not steps:
-
-- **Let's Encrypt (the supported default).** `./existential.sh run caddy public-domain`
-  generates a `<slug>.<public-domain>` block per service and lets Caddy get and renew
-  the certs itself. Needs the DNS records **DNS-only (grey cloud)** and :80/:443
-  forwarded to the box — an orange-clouded record terminates TLS at Cloudflare and
-  can swallow the HTTP-01 challenge.
-- **Cloudflare proxy + Origin Certificate (below).** Records are **proxied (orange
-  cloud)**, so your home IP stays out of DNS and Cloudflare terminates TLS.
+For trusted certificates on your own network, with nothing exposed, see
+[Owned domain without exposing your network](../how-it-works.md#owned-domain-without-exposing-your-network).
 
 ## DNS
 
@@ -44,20 +40,18 @@ certificate, so strict costs nothing.
 3. Save the certificate to `hosting/caddy/certs/cloudflare.pem` and the key to
    `hosting/caddy/certs/cloudflare-key.pem` (that directory is mounted read-only into
    Caddy at `/etc/caddy/certs/`; nothing in it is tracked by git)
-4. Point the `tls` directive at the pair in whichever Caddyfile serves the public
-   hostnames:
+4. Add a block for each hostname you publish to `hosting/caddy/Caddyfile`, which is yours to
+   edit, with a `tls` directive pointing at the pair:
 
    ```
    tls /etc/caddy/certs/cloudflare.pem /etc/caddy/certs/cloudflare-key.pem
    ```
 
-   That is hand-managing `hosting/caddy/Caddyfile`, so do **not** use `run caddy public-domain`, which regenerates `Caddyfile.public`
-   from scratch on every run and would overwrite the change. Then
-   `docker compose restart caddy` from the repo root.
+   Then `docker compose restart caddy` from the repo root.
 
 :::warning One wildcard label only
 The default hostnames on an Origin Certificate are `example.com` and `*.example.com`.
-A wildcard matches **one** label, so if `EXIST_PUBLIC_DOMAIN` is itself a subdomain
+A wildcard matches **one** label, so if your public domain is itself a subdomain
 (`homelab.example.com`), `app.homelab.example.com` is **not** covered and Cloudflare
 returns a 526. Add `*.homelab.example.com` to the hostname list when creating the
 certificate.
