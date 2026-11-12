@@ -105,9 +105,10 @@ run_adhoc() {
     # `docker compose run` allocates a pseudo-TTY by default (keyed off stdout),
     # which fails with "the input device is not a TTY" when stdin isn't one — e.g.
     # a git-push pre-push hook: stdout is the terminal, stdin is git's pipe. Default
-    # to -T (no TTY) and only opt into -it when BOTH ends are real TTYs.
+    # to -T (no TTY) and drop it only when BOTH ends are real TTYs. Never -it:
+    # a TTY with stdin open is compose's default, and podman-compose has no -i or -t.
     local tty_flags=(-T)
-    [[ -t 0 && -t 1 ]] && tty_flags=(-it)
+    [[ -t 0 && -t 1 ]] && tty_flags=()
     # Rootless Podman user-namespace fix: --user uid:gid maps the process to a
     # sub-uid range, not the host user, so bind-mount writes fail. In rootless
     # Podman, container root (UID 0) already maps to the host user, so omitting
@@ -115,7 +116,7 @@ run_adhoc() {
     # needs --user to produce host-owned files.
     local user_flags=(--user "$(id -u):$(id -g)")
     ${ROOTLESS_PODMAN:-false} && user_flags=()
-    $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" run --rm "${tty_flags[@]}" \
+    $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" run --rm ${tty_flags[@]+"${tty_flags[@]}"} \
         ${user_flags[@]+"${user_flags[@]}"} \
         --entrypoint "" existential-adhoc "$@"
 }
@@ -143,12 +144,12 @@ adhoc_self_elevate() {
 
     ensure_adhoc_built
     local tty_flags=(-T)
-    [[ -t 0 && -t 1 ]] && tty_flags=(-it)
+    [[ -t 0 && -t 1 ]] && tty_flags=()
     local user_flags=(--user "$(id -u):$(id -g)")
     ${ROOTLESS_PODMAN:-false} && user_flags=()
 
     exec $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" run --rm \
-        "${tty_flags[@]}" ${user_flags[@]+"${user_flags[@]}"} \
+        ${tty_flags[@]+"${tty_flags[@]}"} ${user_flags[@]+"${user_flags[@]}"} \
         ${ADHOC_EXTRA_FLAGS[@]+"${ADHOC_EXTRA_FLAGS[@]}"} \
         --entrypoint "" existential-adhoc bash "$in_repo" "$@"
 }

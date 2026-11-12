@@ -389,14 +389,46 @@ _worker_needs() {
     return "$miss"
 }
 
-# Neither docker nor podman: the one thing this host can be is a worker, whose
+# A host that is already a worker with no services, and has what a worker needs:
+# nothing here is for a container, so the image is never built, engine or not.
+_worker_only() {
+    [[ -f "${SCRIPT_DIR}/.env.shared" ]] && _is_worker \
+        && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" \
+        && _worker_needs >/dev/null
+}
+
+# The first run's one question, asked here and not in adhoc so that a worker never
+# builds the image. Echoes core, controller, worker or none; Enter, anything else
+# and no terminal are core.
+_ask_role() {
+    local pick=""
+    if [[ -t 0 && -t 2 ]]; then
+        {
+            echo "What should this install start with?"
+            echo "  core        workspace, automation and notifications (Enter)"
+            echo "  controller  Core, and the host your other hosts report to"
+            echo "  worker      no services; reports this host to a controller"
+            echo "  none        nothing yet: turn services on with ./existential.sh service"
+        } >&2
+        read -r -p "Start with [core]: " pick || true
+    fi
+    case "$(printf '%s' "$pick" | tr 'A-Z' 'a-z')" in
+        controller) echo controller ;;
+        worker)     echo worker ;;
+        none)       echo none ;;
+        *)          echo core ;;
+    esac
+}
+
+# A worker, by the first run's answer, by having no engine, or by already being one
+# (_worker_only): nothing runs in a container, so adhoc is never built. Its
 # plugins run in a decree daemon on the host. The two steps that run in adhoc
 # elsewhere run here instead: .env.shared is written with every service off and
 # the controller asked (a later run with an engine appends the rest of its keys),
 # and _host_plugins syncs host/.decree with the host's yq and decree.
 _worker_without_engine() {
     local f="${SCRIPT_DIR}/.env.shared" ctl=""
-    echo "Neither docker nor podman is here, so this host can be a worker: it reports itself to a controller."
+    [[ -f "$f" ]] || echo "A worker runs no containers: this host reports itself to a controller, with its own tools."
     _worker_needs || return 1
     if grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f" 2>/dev/null; then
         echo "  ✗ Services are on in .env.shared, and they need docker: https://docs.docker.com/engine/install/"
@@ -728,7 +760,7 @@ run_setup() {
 # templates.sh fills both itself there.
 _render() {
     _ensure_host_access
-    run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
+    run_adhoc env REPO_DIR=/repo EXIST_ROLE="${EXIST_ROLE:-}" EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
     _reload_env_shared
 }
 
@@ -1003,7 +1035,12 @@ case "$action" in
         [[ ! -f "${SCRIPT_DIR}/.env.shared" ]] && _is_first_run=true
 
         ensure_git_hooks
-        if ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
+        if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
+        if [[ "$_is_first_run" == "true" ]]; then
+            EXIST_ROLE="$(_ask_role)"
+            # DOCKER_CMD blank is what sends _host_plugins to the host's own yq and decree.
+            if [[ "$EXIST_ROLE" == worker ]]; then DOCKER_CMD=""; _worker_without_engine; exit $?; fi
+        fi
         ensure_adhoc_built
         _render
         _ask_hardware_if_needed

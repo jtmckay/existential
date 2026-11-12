@@ -429,28 +429,17 @@ for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist
 done
 
 printf 'EXIST_IS_AI_X=true\nEXIST_IS_SERVICES_Y=true\nEXIST_IS_SERVICES_Z=false\n' > "$TMP/.env.shared"
-( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf none; }
-  _ask_role ) >/dev/null 2>&1 </dev/null
+( EXIST_ROLE=none _apply_role ) >/dev/null 2>&1
 assert_eq "none turns every flag off" "" "$(grep '=true$' "$TMP/.env.shared")"
 printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
-( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf ''; }
-  _ask_role ) >/dev/null 2>&1 </dev/null
-assert_eq "Enter keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
-_ask_role >/dev/null 2>&1 </dev/null
-assert_eq "no terminal keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
-# controller and worker turn on the host's worker flow (reporting); a worker runs nothing else.
+( EXIST_ROLE="" _apply_role ) >/dev/null 2>&1
+assert_eq "no answer keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
+# A controller turns on the host's worker flow (reporting) and keeps Core.
 mkdir -p "$TMP/automation/plugins/flows"
 cp "$_REAL/automation/plugins.host.exist.yml" "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
 cp "$_REAL/automation/plugins/flows/worker.md" "$TMP/automation/plugins/flows/"
 printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
-( _prompt_available() { true; }; command() { return 1; }
-  _prompt_tty() { case "$1" in Start*) printf worker ;; *) printf box.tail1.ts.net ;; esac; }
-  _ask_role ) >/dev/null 2>&1 </dev/null
-assert_eq "a worker turns every flag off, and names its controller" "EXIST_IS_AI_X=false EXIST_CONTROLLER=box.tail1.ts.net" "$(xargs < "$TMP/.env.shared")"
-assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/host/.decree/plugins.yml")"
-rm -rf "$TMP/host"; printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
-( _prompt_available() { true; }; command() { return 1; }; _prompt_tty() { printf controller; }
-  _ask_role ) >/dev/null 2>&1 </dev/null
+( EXIST_ROLE=controller _apply_role ) >/dev/null 2>&1
 assert_eq "a controller keeps Core, and names no controller" "EXIST_IS_AI_X=true EXIST_CONTROLLER=" "$(xargs < "$TMP/.env.shared")"
 assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/host/.decree/plugins.yml")"
 rm -rf "$TMP/host"

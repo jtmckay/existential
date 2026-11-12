@@ -50,12 +50,13 @@ A worker picked on the first run has no services: nothing runs in containers. On
 already runs services, `./existential.sh flow on worker` and `EXIST_CONTROLLER=<controller>` in
 `.env.shared` make it a worker too.
 
-### A host without Docker
+### What a worker needs
 
-A worker needs no container engine. On a host with neither docker nor podman, a bare
-`./existential.sh` sets it up as a worker without asking which: it asks the controller's address,
-turns every service off, and installs the worker flow with the host's own tools. It checks for
-them first and, for each one missing, prints how to install it:
+A worker needs no container engine and builds no image. Pick **Worker** on the first run, or run
+a bare `./existential.sh` on a host with neither docker nor podman, where a worker is the one
+thing it can be and nothing is asked. It asks the controller's address, turns every service off,
+and installs the worker flow with the host's own tools. It checks for them first and, for each
+one missing, prints how to install it:
 
 | Tool | For |
 |---|---|

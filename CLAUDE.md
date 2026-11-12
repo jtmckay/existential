@@ -175,9 +175,9 @@ fresh. → `setup.md`
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e [pattern...]`, and `flow`/`service [list|on|off]` (pickers). The
 first bare run asks one thing: Core (the default), controller (Core, reporting the others), worker
-(no services; reports to a controller) or nothing. A host with neither docker nor podman is
-always a worker, set up with the host's own decree and yq, so the host plugin sync is host
-code (bash 3.2). A login is asked when an enabled
+(no services; reports to a controller) or nothing. It is asked on the host, before the image is
+built: a worker never builds it, and is set up with the host's own decree and yq, so the host
+plugin sync is host code (bash 3.2). A host with neither docker nor podman is always a worker. A login is asked when an enabled
 service first uses one; the hardware questions
 (`src/lib/models.sh`) wait for the first enabled service that reserves a GPU. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,

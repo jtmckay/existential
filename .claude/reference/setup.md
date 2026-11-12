@@ -61,13 +61,16 @@ the adhoc container, which has no docker socket.
 ## The first run
 
 The first run asks one thing: core, controller, worker or nothing (`_ask_role` in
-`src/templates.sh`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
+`existential.sh`, on the host and before adhoc is built, so a worker never builds it; the answer
+reaches `src/templates.sh` as `EXIST_ROLE`, where `_apply_role` acts on `none` and `controller`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
 keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing is on yet".
 Controller is Core plus the host flow `worker`; worker is nothing plus `worker`, and asks
 `EXIST_CONTROLLER`. A worker is any machine whose `host/.decree/plugins.yml` has `worker` on
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 `_build` syncs the host plugins even with nothing on.
-A host with neither docker nor podman (`adhoc_find_runtime` fails) skips adhoc altogether:
+A worker picked there, a host with neither docker nor podman (`adhoc_find_runtime` fails), and
+one that is already a worker with no service on and has the worker's tools (`_worker_only`) all
+skip adhoc altogether:
 `_worker_without_engine` checks decree, yq, curl and tmux (`_worker_needs`, each missing one
 printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false` plus
 `EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), turns
