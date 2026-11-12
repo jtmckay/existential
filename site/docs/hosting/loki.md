@@ -16,7 +16,7 @@ Two containers work together:
 
 | Service | Role |
 |---|---|
-| `loki` | Stores and indexes logs. Port 3100 on the exist network, on `127.0.0.1:43100`, and on the tailnet at `http://<host>:3100`, where every host's reporting plugin pushes ([Controller and Workers](./controller-and-workers.md)) |
+| `loki` | Stores and indexes logs. Port 3100 on the exist network, on `127.0.0.1:43100` (`LOKI_BIND` in `hosting/loki/.env` picks the address), and on the tailnet at `http://<host>:3100`, where every host's reporting plugin pushes ([Controller and Workers](./controller-and-workers.md)) |
 | `loki-alloy` | Tails log files and ships them to Loki |
 
 [Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.

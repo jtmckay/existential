@@ -22,11 +22,11 @@ _lacks() { if grep -qF -- "$3" <<<"$2"; then _fail "$1" "unexpected '$3' in: $2"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# ── Core binds loopback only ──────────────────────────────────────────────────
+# ── Core binds loopback only (Loki by default: LOKI_BIND is how a host without Tailscale opens it) ──
 
 for svc in services/code-server services/ntfy services/automation hosting/loki; do
     f="${REPO_DIR}/${svc}/docker-compose.exist.yml"
-    bad="$(awk '/^ *ports:/{on=1; next} on && /^ *- /{print; next} {on=0}' "$f" | grep -v '"127\.0\.0\.1:' || true)"
+    bad="$(awk '/^ *ports:/{on=1; next} on && /^ *- /{print; next} {on=0}' "$f" | grep -v -e '"127\.0\.0\.1:' -e '"${LOKI_BIND:-127\.0\.0\.1}:' || true)"
     if [[ -z "$bad" ]]; then _ok "${svc} publishes only on 127.0.0.1"; else _fail "${svc} publishes only on 127.0.0.1" "$bad"; fi
 done
 

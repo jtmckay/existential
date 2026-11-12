@@ -45,9 +45,10 @@ Re-mint the leaf (the CA, and every device's trust in it, survives):
 `rm hosting/caddy/certs/internal.pem hosting/caddy/certs/internal-key.pem`, then
 `./existential.sh && docker compose up -d`.
 
-For names that resolve with the internet down, add [piHole](./pihole.md) and point your router's DNS
-at this machine. For real Let's Encrypt names on a domain you own, with a wildcard record at your
-public IP: `./existential.sh run caddy public-domain`.
+For a certificate every device already trusts, with nothing to install, use
+[a domain you own](../how-it-works.md#owned-domain-without-exposing-your-network). For names that
+resolve with the internet down, add [piHole](./pihole.md) and point your router's DNS at this
+machine. To serve the stack to the internet at your public IP: `./existential.sh run caddy public-domain`.
 
 ## Auth at the edge
 

@@ -37,7 +37,9 @@ hostnames exist** — `validate conventions` keys off it.
 **DNS and TLS are independent choices.** piHole swaps public DNS for local (removing the
 internet dependency); a real cert removes the trust step. Neither requires the other, and the
 combination — owned domain + piHole + a DNS-01 wildcard cert — needs no public A record and no
-inbound connectivity. See `site/docs/how-it-works.md`.
+inbound connectivity. See `site/docs/how-it-works.md`. The path the docs walk through is the
+simplest one: a public wildcard `A` record at the LAN address (nip.io's trick, on a domain that
+can have a real cert), acme.sh for the DNS-01 wildcard, dropped in as `internal.pem`.
 
 ## Two addresses, two uses
 

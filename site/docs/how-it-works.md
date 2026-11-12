@@ -202,13 +202,15 @@ EXIST_DOMAIN=192-168-1-20.nip.io   →  https://dashy.192-168-1-20.nip.io
 `tailscale serve` has the same limit, one hostname per node, which is why it serves only Core.
 :::
 
-Downsides of nip.io:
+Downsides of the default:
 
-- Without internet, names stop resolving, even on the host.
+- The certificate is from the stack's own CA, so a browser warns until you
+  [trust it on that device](./hosting/caddy.md#trust-its-ca-once-per-device).
+  [A domain you own](#owned-domain-without-exposing-your-network) gets a certificate every
+  device already trusts.
+- Without internet, names stop resolving, even on the host. [pihole](./hosting/pihole.md)
+  answers them locally.
 - nip.io sees your host's IP and each service name you look up.
-
-[pihole](./hosting/pihole.md) or [a domain you own](#owned-domain-without-exposing-your-network)
-fixes both.
 
 ### Upgrading an existing install
 
@@ -231,66 +233,64 @@ files. Delete these lines if present:
   `docker compose up -d` in a tree that was never rendered. `./existential.sh run fix-permissions`
   (`--dry-run` first) gives them back to you without `sudo`.
 
-### Two independent choices, not one upgrade path
-
-1. **How do names resolve?** Public DNS, or pihole.
-2. **Does the browser trust the cert?** The stack's own CA, or a real certificate.
-
-|                    | **Internal CA** (trust once per device) | **Real certificate** (nothing to trust) |
-|---|---|---|
-| **nip.io** *(default)* | Zero setup. Needs internet for DNS. | Not possible — you don't control the `nip.io` zone. |
-| **pihole** | Fully offline. Resolves locally. | **Fully offline *and* no warnings.** See below. |
-
-Reachability is a separate question, answered by your network or VPN. The bottom-right cell
-needs a domain you own, with no public A record and no inbound access.
-
 ## Owned domain without exposing your network
 
-**The DNS-01 challenge needs no inbound connection.** Your host creates a `TXT` record
-through your DNS provider's API; Let's Encrypt reads it from public DNS.
+The default works with no setup, but its certificate comes from the stack's own CA, so a browser
+warns until that CA is [trusted on the device](./hosting/caddy.md#trust-its-ca-once-per-device).
+With a domain you own, every device trusts `https://<slug>.<domain>` with nothing to install.
+
+Nothing on your network becomes reachable from outside. The DNS record points at a LAN address,
+which only routes inside your network, and the certificate is issued by a DNS challenge:
+Let's Encrypt reads a record from public DNS and never connects to you.
+
+The steps use a subdomain, `home.example.com`, so the rest of the domain is untouched, and
+Cloudflare as the DNS provider. [acme.sh](https://github.com/acmesh-official/acme.sh) issues
+the certificate and [supports most other providers](https://github.com/acmesh-official/acme.sh/wiki/dnsapi).
+
+### 1. One DNS record
+
+At your DNS provider, add a wildcard `A` record at this host's LAN address
+(`EXIST_LOCAL_HOST_IP` in `.env.shared`):
 
 ```
-your host  ──outbound──▶  DNS provider API   (creates _acme-challenge TXT)
-Let's Encrypt  ──reads──▶  public DNS         (never touches your network)
-
-meanwhile:
-pihole  ──▶  local.example.com  =  192.168.1.50   (resolution stays entirely on your LAN)
+*.home.example.com   A   192.168.1.20
 ```
 
-Result:
+On Cloudflare, set it to **DNS only**, not proxied. A new service needs no further record.
 
-- a trusted certificate on every device
-- no public A record, no port forwarding
-- local DNS via pihole, working offline
-- one outbound API call at renewal, about every 60 days
+### 2. A certificate
 
-### Setting it up
-
-You need a domain and a DNS provider with an API. HTTP-01 won't work: it needs inbound access.
-
-**Option A: issue the cert elsewhere and copy it in.**
+Make an API token that can edit the domain's DNS (Cloudflare: **My Profile → API Tokens →
+Create Token → Edit zone DNS**, for that one zone). [Install acme.sh](https://github.com/acmesh-official/acme.sh#1-how-to-install),
+then, from the repo:
 
 ```bash
-# on any computer with internet, using your provider's DNS plugin
-acme.sh --issue --dns dns_cf -d '*.local.example.com' -d local.example.com
+acme.sh --set-default-ca --server letsencrypt
+read -rs CF_Token && export CF_Token      # paste the token and press Enter; nothing is shown
+acme.sh --issue --dns dns_cf -d '*.home.example.com' -d home.example.com
+acme.sh --install-cert -d '*.home.example.com' \
+  --fullchain-file "$PWD/hosting/caddy/certs/internal.pem" \
+  --key-file       "$PWD/hosting/caddy/certs/internal-key.pem" \
+  --reloadcmd      "docker restart caddy"
+acme.sh --install-cronjob
 ```
 
-Copy the result into `hosting/caddy/certs/` as `internal.pem` and `internal-key.pem`; Caddy
-uses an existing cert as is. Renew every 90 days.
+Caddy serves whatever certificate is in those two files, and `./existential.sh` leaves one it
+did not mint alone. The cron job renews it about every 60 days, copies it in and restarts Caddy.
 
-**Option B: Caddy renews it.** The shipped `caddy:2.11.4` image has no DNS provider plugins, so
-this needs a custom `xcaddy` image with your provider's module and an API token.
+### 3. Point the stack at it
 
-Then point `EXIST_DOMAIN` at your domain and add the pihole record:
-
-```
-EXIST_DOMAIN=local.example.com
-address=/local.example.com/192.168.1.50     # pihole, resolves entirely on-LAN
+```bash
+EXIST_DOMAIN=home.example.com          # in .env.shared
+./existential.sh && docker compose up -d
 ```
 
-:::note[Why not nip.io or .internal]
-No CA issues for `.internal`, and you can't write to the `nip.io` zone. Both need the internal CA.
-:::
+Every service now answers at `https://<slug>.home.example.com`. The old names stop working, so
+update bookmarks and the ntfy app.
+
+A name that doesn't resolve on your network is usually the router's DNS rebind protection, which
+drops public answers that point at a private address. Allow the domain there, or answer it
+locally with [pihole](./hosting/pihole.md).
 
 ## Core vs. complementary services
 

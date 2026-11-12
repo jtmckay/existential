@@ -75,7 +75,7 @@ printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false`
 host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
 bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `host/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
-and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. A flow with
+and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts 43100 on the LAN and each host names it in its own `EXIST_REPORTING_URL`. A flow with
 `project: host` (`worker`, `auto-update`) is turned on in the host's `plugins.yml`. `EXIST_USERNAME`, `EXIST_PASSWORD`
 and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
 renders, so Core asks for a login and none asks nothing.

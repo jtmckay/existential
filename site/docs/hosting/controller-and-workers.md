@@ -75,6 +75,24 @@ Either way, the worker flow runs in the host's own decree project, `host/.decree
 daemon the way [Updates](./updates.md#a-decree-daemon-on-the-host) says, and have it start at
 boot. Within 5 minutes the host is on the **Hosts** dashboard.
 
+## Without Tailscale: your own network
+
+When every host is on one network, that network is already private and nothing more is needed:
+no tailnet, no DNS record. Loki listens there instead, and each host is told where it is.
+
+On the host with Loki, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
+and `docker compose up -d`. Loki's push address is now `http://<that-host's-ip>:43100`.
+
+On every other host, leave `EXIST_CONTROLLER` blank and name the Loki
+in `.env.shared`:
+
+```bash
+EXIST_REPORTING_URL=http://192.168.1.10:43100   # the Loki host's address
+```
+
+then `./existential.sh flow on worker` (or pick **Worker** on the first run and press Enter at
+the controller question). Each host is its own controller, so none asks another where to report.
+
 ## Updating on its own
 
 A worker's decree daemon can also keep the install current: `./existential.sh flow on
@@ -97,8 +115,9 @@ named anywhere, nothing is sent and nothing fails.
 
 ## Things to know
 
-- **Anyone on your tailnet can push to Loki.** That's the same trust as code-server on the
+- **Anyone on your tailnet can push to Loki**, and with `LOKI_BIND=0.0.0.0` anyone on your
+  network. That's the same trust as code-server on the
   tailnet; use Tailscale's access controls to narrow it.
 - **An install from before this page** has Loki's compose file already rendered without the
-  loopback port. Add `ports: ["127.0.0.1:43100:3100"]` to the `loki` service in
+  loopback port. Add `ports: ["${LOKI_BIND:-127.0.0.1}:43100:3100"]` to the `loki` service in
   `hosting/loki/docker-compose.yml`, or `./existential.sh reset`, then re-run.
