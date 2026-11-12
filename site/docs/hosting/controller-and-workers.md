@@ -59,10 +59,13 @@ them first and, for each one missing, prints how to install it:
 
 | Tool | For |
 |---|---|
+| `curl` | sends the reports, and installs decree and yq, so it comes first |
 | [decree](https://github.com/jtmckay/decree) | runs the worker's reporting: `curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh \| sh` |
 | [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
-| `curl` | sends the reports |
 | `tmux` | keeps the decree daemon running |
+
+decree and yq install to `~/.local/bin`. If that isn't on your `PATH`, `./existential.sh` prints
+the line that puts it there, e.g. `echo 'export PATH="/home/you/.local/bin:$PATH"' >> ~/.bashrc`.
 
 Tailscale isn't checked: the worker only has to reach `http://<controller>:4480` and the Loki it
 names, and `./existential.sh` warns when the controller doesn't answer. Both are served on the

@@ -362,13 +362,20 @@ _install_steps() {
     esac
 }
 
-# A worker without docker or podman: decree runs its plugins, yq installs them
-# (what adhoc does elsewhere), curl is how reporting sends, and tmux keeps the
-# daemon running. Each one missing is named with how to get it; 1 if any is.
+# A worker without docker or podman: curl is how reporting sends (and how decree
+# and yq install, so it comes first), decree runs its plugins, yq installs them
+# (what adhoc does elsewhere), and tmux keeps the daemon running. Each one missing
+# is named with how to get it; 1 if any is. decree and yq install to ~/.local/bin,
+# which is not always on PATH: one there is named with the line that puts it on.
 _worker_needs() {
-    local t miss=0
-    for t in decree yq curl tmux; do
-        if ! command -v "$t" >/dev/null 2>&1; then
+    local t miss=0 bin="${XDG_BIN_HOME:-${HOME}/.local/bin}" rc="~/.bashrc"
+    [[ "${SHELL##*/}" == zsh ]] && rc="~/.zshrc"
+    for t in curl decree yq tmux; do
+        if ! command -v "$t" >/dev/null 2>&1 && [[ -x "${bin}/${t}" ]]; then
+            echo "  ✗ ${t} is in ${bin}, which is not on PATH. Add it, open a new shell, then re-run ./existential.sh:"
+            echo "       echo 'export PATH=\"${bin}:\$PATH\"' >> ${rc}"
+            miss=1; continue
+        elif ! command -v "$t" >/dev/null 2>&1; then
             echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
         elif [[ "$t" == yq && "$(yq --version 2>&1)" != *mikefarah* ]]; then
             echo "  ✗ the yq here ($(command -v yq)) is not mikefarah's yq v4. Put that one first on PATH:"
@@ -396,7 +403,10 @@ _worker_without_engine() {
     fi
     if [[ ! -f "$f" ]]; then
         if [[ -t 0 ]]; then
-            read -r -p "Controller's tailnet name or address (Enter: later, EXIST_CONTROLLER in .env.shared): " ctl || true
+            echo "Which host is the controller? This worker sends its reports there."
+            echo "Give its Tailscale name (e.g. myserver) or IP address. Leave it blank to skip for now;"
+            echo "you can set EXIST_CONTROLLER in .env.shared later."
+            read -r -p "Controller: " ctl || true
             [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || ctl=""
         fi
         { grep -E '^EXIST_IS_' "${SCRIPT_DIR}/.env.exist.shared" | sed 's/=.*/=false/'

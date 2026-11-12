@@ -73,10 +73,14 @@ es 'timeout 1 sleep 5' >/dev/null
 assert_eq "timeout stops a command" "yes" "$([[ $((SECONDS - t0)) -lt 4 ]] && echo yes || echo no)"
 
 echo ""; echo "=== a worker without docker ==="
-out="$(es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
+out="$(XDG_BIN_HOME="${R}/.none" es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
 assert_has "a missing tool is named" "$out" "yq is not here"
 assert_has "...with how to get it" "$out" "mikefarah/yq/releases/download/v"
 assert_has "...and the run stops" "$out" "rc=1"
+mkdir -p "${R}/.bin"; printf '#!/bin/sh\n' > "${R}/.bin/yq"; chmod +x "${R}/.bin/yq"
+out="$(XDG_BIN_HOME="${R}/.bin" es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs')"
+assert_has "one installed off PATH is named with the line that adds it" "$out" "export PATH=\"${R}/.bin:"
+rm -rf "${R}/.bin"
 # The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
 if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
