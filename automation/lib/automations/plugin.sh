@@ -135,7 +135,7 @@ plugin_install() {  # <name> <message> [spec, as the registry records it] [noche
             rm -rf "$f"
             [[ -e "$backup/$(echo "$f" | tr / _)" ]] && cp -rp "$backup/$(echo "$f" | tr / _)" "$f"
         done
-        echo "- decree check: $( { grep -i "$name" <<<"$check" || printf '%s\n' "$check"; } | head -5 | paste -sd ';')" >&2
+        echo "- decree check: $( { grep -i "$name" <<<"$check" || printf '%s\n' "$check"; } | head -5 | paste -sd ';' -)" >&2
         return 1
     fi
 }
@@ -205,7 +205,7 @@ plugin_export() {  # <name>
                     yq --front-matter=extract -r '.needs // [] | .[]' ".decree/applied/plugins/${name}.md"
               } | grep -v '^$' | grep -vxF "$name" | while read -r k; do [[ "$PLUGIN_KERNEL" == *" ${k} "* ]] || echo "$k"; done |
               if [[ -f "$m" ]]; then sort -u; else awk '!seen[$0]++'; fi || true)"
-    [[ -z "$needs" ]] || v="$(paste -sd, <<<"$needs")" yq -i '.needs = (strenv(v) | split(","))' "$out"
+    [[ -z "$needs" ]] || v="$(paste -sd, - <<<"$needs")" yq -i '.needs = (strenv(v) | split(","))' "$out"
     # In reading order: what it is, the machine, what the machine runs, how it is reached.
     yq -i 'pick(["machine", "automation", "name", "tagline", "docs", "services", "needs", "e2e", "chart", "scripts", "lib", "cron", "migrations", "endpoints", "examples"])
         | with_entries(select(.value != null))' "$out"

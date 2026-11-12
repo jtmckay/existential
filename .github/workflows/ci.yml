@@ -50,6 +50,10 @@ jobs:
       # Pulls the digest-pinned shellcheck image named in src/test/lint-shell.sh.
       - name: shellcheck
         run: ./existential.sh test lint
+      # A worker without docker syncs its plugins with the host's yq (on the
+      # runner already) and decree, so the suite runs that sync too.
+      - name: Install decree
+        run: curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh
       # Host-side code on this runner's bash, then again under bash 3.2.
       - name: Host-side portability
         run: ./existential.sh test host

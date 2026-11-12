@@ -26,7 +26,12 @@ if [[ "${1:-}" != --in ]]; then
     if command -v "$DOCKER_CMD" >/dev/null 2>&1; then
         rm -rf "$TMP"/volumes "$TMP"/.env.shared
         echo ""; echo "=== host-portable: bash 3.2 ==="
-        $DOCKER_CMD run --rm --user "$(id -u):$(id -g)" -v "$TMP":/r -w /r "$BASH32_IMAGE" \
+        # yq and decree are static binaries: the host's, where it has them, for the host sync.
+        tools=()
+        for t in yq decree; do
+            command -v "$t" >/dev/null 2>&1 && tools+=(-v "$(command -v "$t")":/usr/local/bin/"$t":ro)
+        done
+        $DOCKER_CMD run --rm --user "$(id -u):$(id -g)" -v "$TMP":/r -w /r ${tools[@]+"${tools[@]}"} "$BASH32_IMAGE" \
             bash /r/src/test/host-portable.sh --in || rc=1
     else
         echo "  (no docker: bash 3.2 leg skipped; the macOS CI job runs it natively)"
@@ -66,6 +71,22 @@ assert_has "a logged-out Tailscale is a next step, not a failure" "$out" "rc=0"
 t0=$SECONDS
 es 'timeout 1 sleep 5' >/dev/null
 assert_eq "timeout stops a command" "yes" "$([[ $((SECONDS - t0)) -lt 4 ]] && echo yes || echo no)"
+
+echo ""; echo "=== a worker without docker ==="
+out="$(es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
+assert_has "a missing tool is named" "$out" "yq is not here"
+assert_has "...with how to get it" "$out" "mikefarah/yq/releases/download/v"
+assert_has "...and the run stops" "$out" "rc=1"
+# The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
+if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
+    (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
+    out="$(REPO_DIR="$R" "$BASH" src/lib/plugin.sh sync host 2>&1)"; rc=$?
+    assert_eq "the host's plugins sync without adhoc" "0" "$rc"
+    assert_has "...installing the worker's reporting" "$out" "reporting installed"
+    rm -rf "${R}/host"
+else
+    echo "  (no yq and decree here: the host sync is not run)"
+fi
 
 echo ""; echo "=== flows and Core's setup ==="
 assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \

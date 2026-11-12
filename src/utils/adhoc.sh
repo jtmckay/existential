@@ -34,6 +34,16 @@
 #
 # Idempotent and cheap to call repeatedly: it no-ops once DOCKER_CMD is set.
 adhoc_detect_runtime() {
+    adhoc_find_runtime && return 0
+    echo "Error: neither docker nor podman found." >&2
+    echo "Install Docker: https://docs.docker.com/engine/install/" >&2
+    echo "A host with neither can still be a worker: a bare ./existential.sh sets one up." >&2
+    exit 1
+}
+
+# The same, returning 1 when there is neither: the bare run's question, since a
+# host without one is a worker set up without adhoc (_worker_without_engine).
+adhoc_find_runtime() {
     [[ -n "${DOCKER_CMD:-}" ]] && return 0
     ROOTLESS_PODMAN=false
     if podman --version &>/dev/null 2>&1; then
@@ -52,9 +62,7 @@ adhoc_detect_runtime() {
             exit 1
         fi
     else
-        echo "Error: neither docker nor podman found." >&2
-        echo "Install Docker: https://docs.docker.com/engine/install/" >&2
-        exit 1
+        return 1
     fi
 }
 

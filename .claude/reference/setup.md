@@ -66,7 +66,14 @@ keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing i
 Controller is Core plus the host flow `worker`; worker is nothing plus `worker`, and asks
 `EXIST_CONTROLLER`. A worker is any machine whose `host/.decree/plugins.yml` has `worker` on
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
-`_build` syncs the host plugins even with nothing on. The controller writes `host/exist.json`
+`_build` syncs the host plugins even with nothing on.
+A host with neither docker nor podman (`adhoc_find_runtime` fails) skips adhoc altogether:
+`_worker_without_engine` checks decree, yq, curl and tmux (`_worker_needs`, each missing one
+printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false` plus
+`EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), turns
+`worker` on, and runs `_build`, whose `_host_plugins` runs `src/lib/plugin.sh sync host` on the
+host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
+bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `host/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
 and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. A flow with
 `project: host` (`worker`, `auto-update`) is turned on in the host's `plugins.yml`. `EXIST_USERNAME`, `EXIST_PASSWORD`

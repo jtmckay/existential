@@ -265,9 +265,9 @@ _is_controller() {
 _controller_answer() {
     local f="${SCRIPT_DIR}/.env.shared" url name
     _is_controller || return 0
-    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" 2>/dev/null | cut -d= -f2-)
+    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" 2>/dev/null | cut -d= -f2-) || true
     if [[ -z "$url" ]] && grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null; then
-        name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
+        name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-) || true
         if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
     fi
     mkdir -p "${SCRIPT_DIR}/host"
@@ -322,14 +322,16 @@ _start_on_boot() {
 # version, then whether a decree daemon is there to run them. Nothing starts one
 # for you: it has to start at boot, which is the host's to set up.
 _host_plugins() {
-    run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host \
-        || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh run plugin sync host tries again."
+    # No engine (_worker_without_engine): the same sync, with the host's own yq and decree.
+    if [[ -n "${DOCKER_CMD:-}" ]]; then run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host
+    else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" sync host; fi \
+        || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh tries again."
     local on
     on="$(cd "${SCRIPT_DIR}/host/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | xargs)"
     [[ -n "$on" ]] || return 0
     if ! command -v decree >/dev/null 2>&1; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and decree is not here:"
-        echo "     https://github.com/jtmckay/decree (the version services/automation/decree/Dockerfile pins)."
+        _install_steps decree
         echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
     elif ! tmux has-session -t "=existential-host" 2>/dev/null; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs host/.decree. Start one:"
@@ -338,6 +340,75 @@ _host_plugins() {
         echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
     fi
     return 0
+}
+
+# _install_steps <tool> — how to get one of a worker's tools on this host. yq is
+# the version the decree image pins, so host and container agree.
+_install_steps() {
+    local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch
+    os="$(uname -s | tr 'A-Z' 'a-z')"
+    case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) arch="$(uname -m)" ;; esac
+    case "$1" in
+        decree)
+            echo "       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh" ;;
+        yq)
+            v="$(sed -n 's/^ARG YQ_VERSION=//p' "$df")"
+            echo "       mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq \\"
+            echo "         https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch} && chmod +x ~/.local/bin/yq"
+            [[ "$os" == darwin ]] && echo "       or: brew install yq" ;;
+        curl|tmux)
+            if [[ "$os" == darwin ]]; then echo "       brew install $1"
+            else echo "       with your package manager: sudo apt install $1, sudo dnf install $1, ..."; fi ;;
+    esac
+}
+
+# A worker without docker or podman: decree runs its plugins, yq installs them
+# (what adhoc does elsewhere), curl is how reporting sends, and tmux keeps the
+# daemon running. Each one missing is named with how to get it; 1 if any is.
+_worker_needs() {
+    local t miss=0
+    for t in decree yq curl tmux; do
+        if ! command -v "$t" >/dev/null 2>&1; then
+            echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
+        elif [[ "$t" == yq && "$(yq --version 2>&1)" != *mikefarah* ]]; then
+            echo "  ✗ the yq here ($(command -v yq)) is not mikefarah's yq v4. Put that one first on PATH:"
+        else
+            continue
+        fi
+        _install_steps "$t"; miss=1
+    done
+    return "$miss"
+}
+
+# Neither docker nor podman: the one thing this host can be is a worker, whose
+# plugins run in a decree daemon on the host. The two steps that run in adhoc
+# elsewhere run here instead: .env.shared is written with every service off and
+# the controller asked (a later run with an engine appends the rest of its keys),
+# and _host_plugins syncs host/.decree with the host's yq and decree.
+_worker_without_engine() {
+    local f="${SCRIPT_DIR}/.env.shared" ctl=""
+    echo "Neither docker nor podman is here, so this host can be a worker: it reports itself to a controller."
+    _worker_needs || return 1
+    if grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f" 2>/dev/null; then
+        echo "  ✗ Services are on in .env.shared, and they need docker: https://docs.docker.com/engine/install/"
+        echo "    Or, to make this host a worker only, set each EXIST_IS_*=true there to false."
+        return 1
+    fi
+    if [[ ! -f "$f" ]]; then
+        if [[ -t 0 ]]; then
+            read -r -p "Controller's tailnet name or address (Enter: later, EXIST_CONTROLLER in .env.shared): " ctl || true
+            [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || ctl=""
+        fi
+        { grep -E '^EXIST_IS_' "${SCRIPT_DIR}/.env.exist.shared" | sed 's/=.*/=false/'
+          echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
+        ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on worker )
+    fi
+    _build
+    ctl="$(grep -m1 '^EXIST_CONTROLLER=' "$f" | cut -d= -f2-)"
+    if [[ -n "$ctl" ]] && ! curl -fsS --max-time 5 "http://${ctl}:4480/" >/dev/null 2>&1; then
+        echo "  ⚠  http://${ctl}:4480 does not answer from here. The controller serves it on its tailnet,"
+        echo "     so this host needs a route there (Tailscale, or a network that reaches that address)."
+    fi
 }
 
 # ── Service enablement ────────────────────────────────────────────────────────
@@ -920,6 +991,7 @@ case "$action" in
         [[ ! -f "${SCRIPT_DIR}/.env.shared" ]] && _is_first_run=true
 
         ensure_git_hooks
+        if ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
         ensure_adhoc_built
         _render
         _ask_hardware_if_needed

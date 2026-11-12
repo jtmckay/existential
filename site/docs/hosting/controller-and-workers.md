@@ -50,6 +50,24 @@ A worker picked on the first run has no services: nothing runs in containers. On
 already runs services, `./existential.sh flow on worker` and `EXIST_CONTROLLER=<controller>` in
 `.env.shared` make it a worker too.
 
+### A host without Docker
+
+A worker needs no container engine. On a host with neither docker nor podman, a bare
+`./existential.sh` sets it up as a worker without asking which: it asks the controller's address,
+turns every service off, and installs the worker flow with the host's own tools. It checks for
+them first and, for each one missing, prints how to install it:
+
+| Tool | For |
+|---|---|
+| [decree](https://github.com/jtmckay/decree) | runs the worker's reporting: `curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh \| sh` |
+| [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
+| `curl` | sends the reports |
+| `tmux` | keeps the decree daemon running |
+
+Tailscale isn't checked: the worker only has to reach `http://<controller>:4480` and the Loki it
+names, and `./existential.sh` warns when the controller doesn't answer. Both are served on the
+controller's tailnet, so in practice that's Tailscale.
+
 Either way, the worker flow runs in the host's own decree project, `host/.decree`. Start its
 daemon the way [Updates](./updates.md#a-decree-daemon-on-the-host) says, and have it start at
 boot. Within 5 minutes the host is on the **Hosts** dashboard.
