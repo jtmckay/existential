@@ -9,8 +9,9 @@ itself, with the `worker` flow on. Every 5 minutes it reports its free disk spac
 machines it has installed and each one's runs to one Loki, and Grafana's **Hosts** dashboard
 shows them all.
 
-- A worker with `EXIST_CONTROLLER` set reports to that controller.
-- A worker with it blank **is** the controller: the others ask it where to report.
+- The **controller** is the one host the others ask "where do I report?". It answers with a
+  Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank.
+- Every other worker names it in `EXIST_CONTROLLER`.
 - A host doesn't have to be a worker at all. Without the `worker` flow, nothing runs on the
   host and nothing is reported.
 
@@ -39,60 +40,78 @@ To report to a Loki on another host, set `EXIST_REPORTING_URL=http://<that-host>
 controller's `.env.shared` and re-run `./existential.sh`. Every worker picks it up on its next
 report.
 
-## Every other host
+## Add a worker
 
-```bash
-git clone https://github.com/jtmckay/existential && cd existential
-./existential.sh            # pick Worker, then give the controller's tailnet name or 100.x address
-```
+On the new host:
 
-A worker picked on the first run has no services: nothing runs in containers. On a host that
-already runs services, `./existential.sh flow on worker` and `EXIST_CONTROLLER=<controller>` in
-`.env.shared` make it a worker too.
+1. **Get the tools**, only if the host has neither docker nor podman (with either, skip this:
+   the stack brings its own). `./existential.sh` checks for each and prints how to install
+   what's missing:
 
-### What a worker needs
+   | Tool | For |
+   |---|---|
+   | `curl` | sends the reports, and installs decree and yq, so it comes first |
+   | [decree](https://github.com/jtmckay/decree) | runs the worker's reporting: `curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh \| sh` |
+   | [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
+   | `tmux` | keeps the decree daemon running |
 
-A worker needs no container engine and builds no image. Pick **Worker** on the first run, or run
-a bare `./existential.sh` on a host with neither docker nor podman, where a worker is the one
-thing it can be and nothing is asked. It asks the controller's address, turns every service off,
-and installs the worker flow with the host's own tools. It checks for them first and, for each
-one missing, prints how to install it:
+   decree and yq install to `~/.local/bin`. If that isn't on your `PATH`, `./existential.sh`
+   prints the line that puts it there, e.g.
+   `echo 'export PATH="/home/you/.local/bin:$PATH"' >> ~/.bashrc`.
 
-| Tool | For |
-|---|---|
-| `curl` | sends the reports, and installs decree and yq, so it comes first |
-| [decree](https://github.com/jtmckay/decree) | runs the worker's reporting: `curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh \| sh` |
-| [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
-| `tmux` | keeps the decree daemon running |
+2. **Clone and run.**
 
-decree and yq install to `~/.local/bin`. If that isn't on your `PATH`, `./existential.sh` prints
-the line that puts it there, e.g. `echo 'export PATH="/home/you/.local/bin:$PATH"' >> ~/.bashrc`.
+   ```bash
+   git clone https://github.com/jtmckay/existential && cd existential
+   ./existential.sh
+   ```
+
+   Pick **Worker**, then give the controller's tailnet name or 100.x address. A host with no
+   docker or podman is not asked which: it can only be a worker, and goes straight to the
+   controller question. A worker set up this way has no services: nothing runs in containers.
+
+3. **Start [the host daemon](./host-daemon.md)**, and have it start at boot:
+
+   ```bash
+   tmux new -d -s existential-host -c "$PWD/host" decree daemon
+   ```
+
+4. **Check it's reporting.** Within 5 minutes, `./existential.sh` prints what the newest report
+   said, as `Last report:`. So does the run's own log, `host/.decree/runs/<run>/0001-report.log`.
+
+   | It says | Which means |
+   |---|---|
+   | `<hostname> to http://…: 1 disks, 1 machines, 3 runs` | Sent. The host is on the **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`. |
+   | `no Loki named yet …, so nothing is sent` | The controller didn't answer, or names no Loki. Re-run `./existential.sh`: it warns when `http://<controller>:4480` doesn't answer. |
+   | `none yet` | No report has run. If that lasts past 5 minutes, the host daemon isn't running. |
+
+To name the controller later, or change it, edit the `EXIST_CONTROLLER=` line already in
+`.env.shared` (only the first one is read). The next report uses it: nothing to restart.
 
 Tailscale isn't checked: the worker only has to reach `http://<controller>:4480` and the Loki it
-names, and `./existential.sh` warns when the controller doesn't answer. Both are served on the
-controller's tailnet, so in practice that's Tailscale.
+names. Both are served on the controller's tailnet, so in practice that's Tailscale.
 
-Either way, the worker flow runs in the host's own decree project, `host/.decree`. Start its
-daemon the way [Updates](./updates.md#a-decree-daemon-on-the-host) says, and have it start at
-boot. Within 5 minutes the host is on the **Hosts** dashboard.
+### A host that already runs services
+
+`./existential.sh flow on worker`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
+steps 3 and 4.
 
 ## Without Tailscale: your own network
 
 When every host is on one network, that network is already private and nothing more is needed:
-no tailnet, no DNS record. Loki listens there instead, and each host is told where it is.
+no tailnet, no DNS record, no controller to ask. Loki listens there instead, and each host is told
+where it is.
 
 On the host with Loki, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
 and `docker compose up -d`. Loki's push address is now `http://<that-host's-ip>:43100`.
 
-On every other host, leave `EXIST_CONTROLLER` blank and name the Loki
-in `.env.shared`:
+Every other host follows [Add a worker](#add-a-worker) with one difference in step 2: press Enter
+at the controller question, leaving `EXIST_CONTROLLER` blank, and name the Loki in `.env.shared`
+(add the line if it isn't there):
 
 ```bash
 EXIST_REPORTING_URL=http://192.168.1.10:43100   # the Loki host's address
 ```
-
-then `./existential.sh flow on worker` (or pick **Worker** on the first run and press Enter at
-the controller question). Each host is its own controller, so none asks another where to report.
 
 ## Updating on its own
 

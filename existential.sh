@@ -336,8 +336,15 @@ _host_plugins() {
     elif ! tmux has-session -t "=existential-host" 2>/dev/null; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs host/.decree. Start one:"
         echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
-        echo "     and have it start at boot: https://existential.company/docs/hosting/updates"
+        echo "     and have it start at boot: https://existential.company/docs/hosting/host-daemon"
         echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
+    elif [[ " ${on} " == *" reporting "* ]]; then
+        # The answer to "is this host reporting?": what its newest report said.
+        local runs="${SCRIPT_DIR}/host/.decree/runs" r last=""
+        for r in $(ls -t "$runs" 2>/dev/null | head -20); do
+            last="$(grep -m1 '^reporting:' "${runs}/${r}/0001-report.log" 2>/dev/null)" && break
+        done
+        last="${last#reporting: }"; echo "  Last report: ${last:-none yet (the first is within 5 minutes)}"
     fi
     return 0
 }

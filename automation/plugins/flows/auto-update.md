@@ -9,5 +9,5 @@ needs:
   - update
 ---
 It runs in a decree daemon on the host (host/.decree): start one, and have it start at boot,
-as https://existential.company/docs/hosting/updates says. A pull that cannot fast-forward
+as https://existential.company/docs/hosting/host-daemon says. A pull that cannot fast-forward
 changes nothing, and your phone says why.

@@ -53,7 +53,7 @@ Three decree projects install plugins, each from the same folder:
 |---|---|---|
 | `automation` | `workspace/.decree` | everything that reasons, routes or calls a service |
 | `backup` | `services/automation-backup/` | backups, triage, workspace sync |
-| `host` | `host/.decree` | what runs on the host itself: [updates](../hosting/updates.md) |
+| `host` | `host/.decree` | what runs on the host itself, in [the host daemon](../hosting/host-daemon.md): [updates](../hosting/updates.md) |
 
 A project has exactly what its `.decree/plugins.yml` lists under `on:`, and whatever those need.
 That file is yours, never in git, and written the first time from the project's
