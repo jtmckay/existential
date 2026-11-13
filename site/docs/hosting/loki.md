@@ -17,26 +17,28 @@ Two containers work together:
 | Service | Role |
 |---|---|
 | `loki` | Stores and indexes logs. Port 3100 on the exist network, on `127.0.0.1:43100` (`LOKI_BIND` in `hosting/loki/.env` picks the address), and on the tailnet at `http://<host>:3100`, where every host's reporting plugin pushes ([Controller and Workers](./controller-and-workers.md)) |
-| `loki-alloy` | Tails log files and ships them to Loki |
+| `loki-alloy` | Tails every container's log and ships it to Loki |
 
 [Grafana Alloy](https://github.com/grafana/alloy) replaced Promtail, which Grafana declared feature-complete and end-of-lifed in March 2026. Its config (`loki-alloy-config.alloy`) is written in Alloy's own configuration language, not YAML.
 
-Alloy is mounted read-only on both decree projects' `runs/` and tails each run's
-`events.jsonl` (decree's own record, one JSON line per step) as `{job="decree"}` and each
-script's output as `{job="decree_script"}`:
+Decree runs are not tailed here. Every host that reports ships its own, live, with a native
+alloy the [reporting plugin](./controller-and-workers.md) starts in a tmux session
+(`reporting-alloy`): each run's `events.jsonl` (decree's own record, one JSON line per step) as
+`{job="decree"}` and each script's output as `{job="decree_script"}`, from existential's three
+decree projects:
 
 | Label | Values |
 |---|---|
-| `daemon` | `automation`, `automation-backup` |
+| `host` | the host the run was on |
+| `project` | `automation`, `automation-backup`, `host` |
 | `machine` | the machine that ran (`events.jsonl` lines) |
 | `type` | `transition`, `script`, `run_finished`, … (`events.jsonl` lines) |
-| `script` | the script that wrote the output (`decree_script` lines) |
+| `script` | the script that wrote the output (`decree_script` lines; blank when it is the state's own) |
 
 `run_id` is structured metadata, not a label, so one run is `{job="decree"} | run_id="<id>"`.
-The same pipeline turns every `run_finished` line into Prometheus metrics; see
-[Prometheus](./prometheus.md).
+Grafana's [Decree Overview](./grafana.md#decree-overview-dashboard) and its alerts read these.
 
-It also tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines have no container name, only the container id in `filename` (`docker inspect` it): naming them would need the Docker socket, which is host root.
+`loki-alloy` tails every container's `json-file` log under `/var/lib/docker/containers` as `{job="docker"}`. Those lines have no container name, only the container id in `filename` (`docker inspect` it): naming them would need the Docker socket, which is host root.
 
 ## Storage
 

@@ -338,6 +338,9 @@ _host_plugins() {
         echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
         echo "     and have it start at boot: https://existential.company/docs/hosting/host-daemon"
         echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
+    elif [[ " ${on} " == *" reporting "* ]] && ! command -v alloy >/dev/null 2>&1; then
+        echo "  ⚠  reporting ships this host's decree runs with alloy, and alloy is not here:"
+        _install_steps alloy
     elif [[ " ${on} " == *" reporting "* ]]; then
         # The answer to "is this host reporting?": what its newest report said.
         local runs="${SCRIPT_DIR}/host/.decree/runs" r last=""
@@ -363,6 +366,13 @@ _install_steps() {
             echo "       mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq \\"
             echo "         https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch} && chmod +x ~/.local/bin/yq"
             [[ "$os" == darwin ]] && echo "       or: brew install yq" ;;
+        alloy)
+            # The version loki-alloy runs, so every host ships with the same alloy.
+            v="$(sed -n 's/^ *image: grafana\/alloy:v//p' "${SCRIPT_DIR}/hosting/loki/docker-compose.exist.yml")"
+            echo "       mkdir -p ~/.local/bin && curl -fsSL -o /tmp/alloy.zip \\"
+            echo "         https://github.com/grafana/alloy/releases/download/v${v}/alloy-${os}-${arch}.zip \\"
+            echo "         && unzip -p /tmp/alloy.zip > ~/.local/bin/alloy && chmod +x ~/.local/bin/alloy && rm /tmp/alloy.zip"
+            [[ "$os" == darwin ]] && echo "       or: brew install grafana/grafana/alloy" ;;
         curl|tmux)
             if [[ "$os" == darwin ]]; then echo "       brew install $1"
             else echo "       with your package manager: sudo apt install $1, sudo dnf install $1, ..."; fi ;;

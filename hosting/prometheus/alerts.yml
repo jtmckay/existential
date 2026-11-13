@@ -47,20 +47,3 @@ groups:
         annotations:
           summary: "Service {{ $labels.service }} is failing its own exist.test.sh"
           description: "Triage has reported {{ $labels.service }} ({{ $labels.category }}) unhealthy for 20 minutes. Check Loki for recent run logs."
-
-      # ── Backup health (via alloy's decree_runs_total) ─────────────────────
-      # alloy derives decree_runs_total{machine, state} from each run's
-      # events.jsonl (hosting/loki/loki-alloy-config.alloy). Every backup
-      # machine runs nightly, so a 48h window with no successful run is a
-      # stopped backup. `and ... offset 48h` holds it off until the series is
-      # 48h old: a fresh install's first run is a flat 1, not an increase.
-      - alert: BackupNotRun
-        expr: |
-          increase(decree_runs_total{machine=~"db_backup|volume_backup|sqlite_backup", state="done"}[48h]) == 0
-            and decree_runs_total{machine=~"db_backup|volume_backup|sqlite_backup", state="done"} offset 48h
-        for: 0m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Backup machine {{ $labels.machine }} has not succeeded in 48h"
-          description: "No run of {{ $labels.machine }} ended in done for 48h. `docker exec automation-backup decree status` lists its recent runs."

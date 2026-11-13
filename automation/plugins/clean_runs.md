@@ -17,9 +17,9 @@ scripts:
     #!/usr/bin/env bash
     # clean_runs — delete this project's finished runs older than OLDER_THAN.
     #
-    # runs/ is a working copy: alloy ships every run's events.jsonl and script logs
-    # to Loki (hosting/loki/loki-alloy-config.alloy), which is the history Grafana's
-    # decree dashboards read. decree prune never touches an unfinished run, a failed
+    # runs/ is a working copy: each host's alloy ships every run's events.jsonl and
+    # script logs to Loki (automation/plugins/reporting.md), which is the history
+    # Grafana's decree dashboards read. decree prune never touches an unfinished run, a failed
     # migration, or a child whose parent still runs.
     set -euo pipefail
 

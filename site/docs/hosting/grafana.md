@@ -20,22 +20,25 @@ Dashboards for [Prometheus](./prometheus.md) metrics and [Loki](./loki.md) logs,
 |---|---|---|
 | Prometheus datasource | `provisioning/datasources/prometheus.yaml` | Default datasource, 15s scrape interval |
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
-| Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Pre-built Decree monitoring |
+| Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Every decree run on every host that reports |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
-| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, installed decree machines, each one's last run ([Controller and Workers](./controller-and-workers.md)) |
-| decree alert | `provisioning/alerting/decree.yaml` | A failed `automation-backup` run → one ntfy notification |
+| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM ([Controller and Workers](./controller-and-workers.md)) |
+| decree alerts | `provisioning/alerting/decree.yaml` | A failed run in `automation-backup` or a host's own project, or a backup with no `done` run in 48h → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
 
 ## Decree Overview dashboard
 
-Covers both decree daemons, filterable by `daemon` and `machine`, with panels for:
+Every decree run on every host that reports, in each of existential's projects (`automation`,
+`automation-backup`, `host`), filterable by `host`, `project` and `machine`. Each host's alloy
+ships its runs live ([Loki](./loki.md)), so a run is here seconds after it ends:
 
-- **Runs in range** — finished runs per machine, done and failed (Prometheus)
-- **Run duration** — p95 per machine (Prometheus histogram)
-- **Finished runs per hour** — stacked by final state
-- **Recent runs** — one row per run (Loki, the `run_finished` events): machine, final state,
-  duration, trigger, and the run ID, linking to the Run Detail dashboard
+- **Not 'done' runs** — every run that ended in anything but `done`: host, project, machine,
+  state, duration, trigger, and the run ID, which opens it in Run Detail
+- **Runs per machine** — done and not done, in the dashboard's range
+- **Run duration** — p95 per machine
+- **Recent runs** — every run, the same columns, each linking to Run Detail
+- **Installed machines** — what each host's projects have installed, from its last report
 
 This is the main place to check when a Decree automation fails or behaves unexpectedly.
 
@@ -44,21 +47,25 @@ This is the main place to check when a Decree automation fails or behaves unexpe
 - **New dashboard**: drop a JSON export into `hosting/grafana/provisioning/dashboards/`. Grafana auto-loads it.
 - **New datasource**: add a YAML file to `hosting/grafana/provisioning/datasources/`.
 - **Alerts**: unified alerting. `provisioning/alerting/decree.yaml` provisions the ntfy contact
-  point (a webhook, authenticated as `EXIST_NTFY_USER`) and the `decree run failed` rule, on
-  `increase(decree_runs_total{daemon="automation-backup",state="failed"}[10m]) > 0`, repeating at
-  most every 6 hours per machine. The `automation` daemon reports its own runs without Grafana
+  point (a webhook, authenticated as `EXIST_NTFY_USER`) and two rules on Loki, each repeating at
+  most every 6 hours per machine: `decree run failed`, a run in `automation-backup` or a host's
+  own project that ended `failed` in the last 10 minutes, and `backup has not run`, a
+  `db_backup`, `volume_backup` or `sqlite_backup` that ran in the last 8 days but has not ended
+  `done` in 48 hours. The `automation` daemon reports its own runs without Grafana
   ([When a run needs you](../decree/decree.md#when-a-run-needs-you)), so it is left out. Rules made in
   the UI persist in the `grafana_data` volume.
 
 ## Data flow summary
 
 ```
-<project>/runs/<id>/events.jsonl, <NNNN>-<state>-<script>.log
-  └─ Alloy
-       ├─ Loki (every event and every script's output)
-       └─ /metrics → Prometheus (decree_runs_total, decree_run_duration_milliseconds)
+each host: <project>/runs/<id>/events.jsonl, <NNNN>-<state>[-<script>].log
+  └─ alloy (reporting-alloy, started by the reporting plugin)
+       └─ Loki {job="decree"}, {job="decree_script"}, labelled host and project
+
+each host: the reporting plugin, every 5 minutes
+  └─ Loki {job="exist"}: disks, CPU/RAM/VRAM, installed machines
 
 Grafana
-  ├─ queries Prometheus for metric panels
-  └─ queries Loki for log panels
+  ├─ queries Loki for Decree Overview, Run Detail, Hosts and the decree alerts
+  └─ queries Prometheus for host and service metrics
 ```

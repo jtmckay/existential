@@ -2,10 +2,11 @@
 machine: plugin
 automation: reporting
 chart:
-  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines installed, and every run since the last report.
+  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines installed - and keep alloy shipping every decree run there live.
   store:
     loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
-    shipped: Stamp of the last report that landed; a run newer than it has not been sent. report reads and touches it.
+    alloy-loki: The Loki address the running alloy was started with; a new one restarts it. report reads and writes it.
+    alloy: alloy's own state, its read position in each run's files. alloy writes it.
     cpu: The /proc/stat CPU counters at the last report, so the next one averages over the time between. report reads and writes it.
   initial: report
   states:
@@ -27,10 +28,8 @@ scripts:
     # answer is not a failure: nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
-    # (CPU, RAM, VRAM) once, kind=machine per installed decree machine, kind=run
-    # per run finished since the last push. Grafana's Hosts dashboard reads them.
-    # job="exist" keeps them apart from alloy's job="decree", so no run is
-    # counted twice.
+    # (CPU, RAM, VRAM) once, kind=machine per installed decree machine. Each run
+    # is alloy's, below, as {job="decree"} and {job="decree_script"}.
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
     set -euo pipefail
@@ -50,7 +49,6 @@ scripts:
     [[ -n "$loki" ]] || { echo "reporting: no Loki named yet (EXIST_REPORTING_URL on the controller, or Loki on there), so nothing is sent"; exit 0; }
 
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-    touch "${tmp}/now"   # runs finishing while this one reads are in the next report
 
     # The disks are / and each mount under /mnt (/var/mnt on an atomic host). On
     # ostree, / is a read-only composefs image and the disk under it is /sysroot.
@@ -98,21 +96,34 @@ scripts:
             [[ -f "$m" ]] || continue
             printf '{"project":"%s","machine":"%s"}\n' "$name" "$(basename "$m" .yml)" >> "${tmp}/machine"
         done
-        [[ -d "${dir}/runs" ]] || continue
-        if [[ -f "${store}/shipped" ]]; then newer=(-newer "${store}/shipped"); else newer=(); fi
-        find "${dir}/runs" -name events.jsonl ${newer[@]+"${newer[@]}"} 2>/dev/null | while IFS= read -r ev; do
-            { grep -hE '"type"[[:space:]]*:[[:space:]]*"run_finished"' "$ev" || true; } | tail -1 | sed "s/^{/{\"project\":\"${name}\",/"
-        done >> "${tmp}/run"
     done
+
+    # Every run, live: alloy tails the same projects' runs/ into the same Loki
+    # (lib/reporting/decree.alloy), in its own tmux session. Its read positions
+    # are in the store, so a run that ends while it is down is sent once it is
+    # back. A new Loki address restarts it.
+    host="$(hostname -s 2>/dev/null || hostname)"
+    if command -v alloy >/dev/null 2>&1; then
+        # shellcheck source=/dev/null
+        . "${repo}/services/automation/decree/tmx.sh"
+        if [[ "$(cat "${store}/alloy-loki" 2>/dev/null || true)" != "$loki" ]]; then
+            tmux kill-session -t "=reporting-alloy" 2>/dev/null || true
+            printf '%s\n' "$loki" > "${store}/alloy-loki"
+        fi
+        mkdir -p "${store}/alloy"
+        tmx -d reporting-alloy "EXIST_REPO='${repo}' EXIST_HOST='${host}' EXIST_LOKI='${loki%/}/loki/api/v1/push' exec alloy run '${DECREE_LIB}/reporting/decree.alloy' --storage.path='$(cd "${store}/alloy" && pwd)' --server.http.listen-addr=127.0.0.1:12346 --disable-reporting"
+        runs="runs shipped live by alloy (tmux attach -t reporting-alloy)"
+    else
+        runs="no runs shipped: alloy is not on PATH"
+    fi
 
     # One Loki push: a stream per kind, each line a JSON string. The timestamp is
     # now plus a nanosecond per line, so no two lines of a stream share one.
-    host="$(hostname -s 2>/dev/null || hostname)"
     now="$(date +%s)"
     {
         printf '{"streams":['
         sep=""
-        for kind in disk load machine run; do
+        for kind in disk load machine; do
             [[ -s "${tmp}/${kind}" ]] || continue
             printf '%s{"stream":{"job":"exist","host":"%s","kind":"%s"},"values":[' "$sep" "$host" "$kind"
             sed 's/\\/\\\\/g; s/"/\\"/g' "${tmp}/${kind}" \
@@ -125,8 +136,90 @@ scripts:
 
     curl -fsS --max-time 20 -H 'Content-Type: application/json' \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
-    cp -p "${tmp}/now" "${store}/shipped"
-    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/run" | tr -d ' ') runs"
+    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, ${runs}"
+lib:
+  reporting/decree.alloy: |
+    // Every decree run on this host, live, into the Loki its controller names.
+    // report starts it (tmux session reporting-alloy) with EXIST_REPO, EXIST_HOST
+    // and EXIST_LOKI set. decree 0.5 writes each run's record as
+    // runs/<id>/events.jsonl and each script's output as
+    // runs/<id>/<NNNN>-<state>-<script>.log; the event log is the telemetry.
+    // The projects are existential's own, the ones report lists machines for.
+    //
+    // These labels are a contract: grafana's decree dashboards and the decree
+    // alerts query them. Low cardinality only: run_id is metadata, never a label.
+
+    loki.source.file "decree_events" {
+    	targets = [
+    		{ __path__ = sys.env("EXIST_REPO") + "/volumes/workspace_data/.decree/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "automation" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/services/automation-backup/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "automation-backup" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/host/.decree/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "host" },
+    	]
+    	forward_to = [loki.process.decree_events.receiver]
+    	file_match {
+    		enabled = true
+    	}
+    }
+
+    loki.process "decree_events" {
+    	forward_to = [loki.write.default.receiver]
+    	stage.json {
+    		expressions = { ts = "", type = "", machine = "", run_id = "" }
+    	}
+    	// decree's own timestamp, not the time alloy read the line.
+    	stage.timestamp {
+    		source = "ts"
+    		format = "RFC3339"
+    	}
+    	stage.labels {
+    		values = { type = "", machine = "" }
+    	}
+    	stage.structured_metadata {
+    		values = { run_id = "" }
+    	}
+    	// filename names the run: a label per run is what run_id avoids.
+    	stage.label_drop {
+    		values = ["filename"]
+    	}
+    }
+
+    // Each script's stdout+stderr, as <NNNN>-<state>-<script>.log, or
+    // <NNNN>-<state>.log when the script is the state's own. Neither name can
+    // contain "-", so the path regex is unambiguous.
+    loki.source.file "decree_script_output" {
+    	targets = [
+    		{ __path__ = sys.env("EXIST_REPO") + "/volumes/workspace_data/.decree/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "automation" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/services/automation-backup/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "automation-backup" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/host/.decree/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "host" },
+    	]
+    	forward_to = [loki.process.decree_script_output.receiver]
+    	file_match {
+    		enabled = true
+    	}
+    }
+
+    loki.process "decree_script_output" {
+    	forward_to = [loki.write.default.receiver]
+    	stage.regex {
+    		source     = "filename"
+    		expression = "/(?P<run_id>[^/]+)/(?P<n>\\d{4,})-(?P<state>[^-/.]+)(?:-(?P<script>[^/]+))?\\.log$"
+    	}
+    	stage.labels {
+    		values = { script = "" }
+    	}
+    	stage.structured_metadata {
+    		values = { run_id = "", state = "" }
+    	}
+    	stage.label_drop {
+    		values = ["filename"]
+    	}
+    }
+
+    loki.write "default" {
+    	endpoint {
+    		url = sys.env("EXIST_LOKI")
+    	}
+    }
 cron:
   reporting: |
     ---

@@ -148,10 +148,10 @@ on the host itself: `update`).
   and the watcher logs that. The decree skill learns this from `automation/lib/skill-notes.md`.
   Nextcloud's `/files` webhook is the optional older path. Tested by
   `src/test/unit/test-file-handlers.sh`.
-- **Telemetry is the event log.** alloy ships `runs/*/events.jsonl` and script
-  logs to Loki and derives `decree_runs_total{daemon, machine, state}` and
-  `decree_run_duration_milliseconds` for Prometheus. A failed `automation-backup` run
-  alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
+- **Telemetry is the event log.** Each host's alloy, which the `reporting` plugin keeps
+  running, ships `runs/*/events.jsonl` and script logs of all three projects to Loki, live,
+  labelled `host` and `project`; Grafana counts runs from those lines. A failed run in
+  `automation-backup` or `host`, or a backup with no `done` run in 48h, alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
   There are no hooks. `clean_runs` prunes runs older than 7 days.
 - **A run that needs you pages you:** `automation/lib/attention-notify.sh`, looped by the
   `automation` entrypoint (`ATTENTION_NOTIFY=1`), turns each new file in

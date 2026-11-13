@@ -1,55 +1,70 @@
 {
-  "description": "decree runs from both projects: outcomes, durations and recent runs. Metrics come from alloy's stage.metrics over each run's events.jsonl; runs are the run_finished lines in Loki.",
+  "description": "Every decree run on every host that reports, in each of existential's projects (automation, automation-backup, host): what did not end done, runs per machine, durations, recent runs and installed machines. Each host's alloy ships its runs' events.jsonl live (automation/plugins/reporting.md); a run_id opens Decree Run Detail.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    { "title": "Hosts", "type": "link", "url": "/d/hosts/hosts" }
+  ],
   "panels": [
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [ { "id": "unit", "value": "ms" } ] },
+          { "matcher": { "id": "byName", "options": "state" }, "properties": [ { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "run_id" }, "properties": [
+            { "id": "links", "value": [ { "title": "View run", "url": "/d/decree-run-detail/decree-run-detail?var-run_id=${__value.raw}&from=${__from}&to=${__to}" } ] }
+          ] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "Time", "desc": true } ] },
+      "targets": [
+        { "refId": "A", "queryType": "range", "maxLines": 200,
+          "expr": "{job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json state | state != \"done\"" }
+      ],
+      "title": "Not 'done' runs",
+      "transformations": [
+        { "id": "extractFields", "options": { "source": "labels" } },
+        { "id": "extractFields", "options": { "source": "Line", "format": "json" } },
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["Time", "host", "project", "machine", "state", "duration_ms", "trigger", "run_id"] } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0 },
         "overrides": [
-          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "id": 1,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 2,
       "options": { "orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "instant": true, "legendFormat": "{{machine}} done", "expr": "round(sum by (machine) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\", state=\"done\"}[$__range])))" },
-        { "refId": "B", "instant": true, "legendFormat": "{{machine}} failed", "expr": "round(sum by (machine) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\", state!=\"done\"}[$__range]))) > 0" }
+        { "refId": "A", "queryType": "instant", "legendFormat": "{{machine}} done",
+          "expr": "sum by (machine) (count_over_time({job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json state | state = \"done\" [$__range]))" },
+        { "refId": "B", "queryType": "instant", "legendFormat": "{{machine}} not done",
+          "expr": "sum by (machine) (count_over_time({job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json state | state != \"done\" [$__range]))" }
       ],
-      "title": "Runs in range",
+      "title": "Runs per machine",
       "type": "bargauge"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": { "defaults": { "unit": "ms" } },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "id": 2,
-      "targets": [
-        { "refId": "A", "legendFormat": "{{machine}}", "expr": "histogram_quantile(0.95, sum by (machine, le) (rate(decree_run_duration_milliseconds_bucket{daemon=~\"$daemon\", machine=~\"$machine\"}[1h])))" }
-      ],
-      "title": "Run duration (p95, 1h)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "stacking": { "mode": "normal" }, "fillOpacity": 80 } },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "done" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byName", "options": "failed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] }
-        ]
-      },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "id": 3,
       "targets": [
-        { "refId": "A", "legendFormat": "{{state}}", "interval": "1h", "expr": "sum by (state) (increase(decree_runs_total{daemon=~\"$daemon\", machine=~\"$machine\"}[$__interval]))" }
+        { "refId": "A", "queryType": "range", "legendFormat": "{{machine}}",
+          "expr": "quantile_over_time(0.95, {job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json duration_ms | unwrap duration_ms [1h]) by (machine)" }
       ],
-      "title": "Finished runs per hour, by final state",
+      "title": "Run duration (p95, 1h)",
       "type": "timeseries"
     },
     {
@@ -57,32 +72,46 @@
       "fieldConfig": {
         "defaults": {},
         "overrides": [
-          { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [{ "id": "unit", "value": "ms" }] },
-          {
-            "matcher": { "id": "byName", "options": "state" },
-            "properties": [
-              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
-              { "id": "mappings", "value": [{ "type": "value", "options": { "done": { "color": "green" } } }, { "type": "regex", "options": { "pattern": ".*", "result": { "color": "red" } } }] }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "run_id" },
-            "properties": [
-              { "id": "links", "value": [{ "title": "View run", "url": "/d/decree-run-detail/decree-run-detail?var-run_id=${__value.raw}&from=${__from}&to=${__to}" }] }
-            ]
-          }
+          { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [ { "id": "unit", "value": "ms" } ] },
+          { "matcher": { "id": "byName", "options": "state" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+            { "id": "mappings", "value": [
+              { "type": "value", "options": { "done": { "color": "green" } } },
+              { "type": "regex", "options": { "pattern": ".*", "result": { "color": "red" } } }
+            ] }
+          ] },
+          { "matcher": { "id": "byName", "options": "run_id" }, "properties": [
+            { "id": "links", "value": [ { "title": "View run", "url": "/d/decree-run-detail/decree-run-detail?var-run_id=${__value.raw}&from=${__from}&to=${__to}" } ] }
+          ] }
         ]
       },
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
       "id": 4,
-      "options": { "showHeader": true, "sortBy": [{ "displayName": "Time", "desc": true }] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "Time", "desc": true } ] },
       "targets": [
-        { "refId": "A", "queryType": "range", "maxLines": 200, "expr": "{job=\"decree\", daemon=~\"$daemon\", type=\"run_finished\", machine=~\"$machine\"}" }
+        { "refId": "A", "queryType": "range", "maxLines": 200,
+          "expr": "{job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"}" }
       ],
       "title": "Recent runs",
       "transformations": [
+        { "id": "extractFields", "options": { "source": "labels" } },
         { "id": "extractFields", "options": { "source": "Line", "format": "json" } },
-        { "id": "filterFieldsByName", "options": { "include": { "names": ["Time", "machine", "state", "duration_ms", "trigger", "run_id"] } } }
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["Time", "host", "project", "machine", "state", "duration_ms", "trigger", "run_id"] } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "id": 5,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "host", "desc": false } ] },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "count by (host, project, machine) (count_over_time({job=\"exist\", kind=\"machine\", host=~\"$host\"} | json | project=~\"$project\" | machine=~\"$machine\" [15m]))" }
+      ],
+      "title": "Installed machines (15m)",
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true } } }
       ],
       "type": "table"
     }
@@ -91,34 +120,17 @@
   "tags": ["decree", "automation"],
   "templating": {
     "list": [
-      {
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(decree_runs_total, daemon)",
-        "includeAll": true,
-        "current": { "text": "All", "value": "$__all" },
-        "name": "daemon",
-        "label": "Daemon",
-        "query": { "query": "label_values(decree_runs_total, daemon)", "refId": "daemon" },
-        "refresh": 2,
-        "type": "query"
-      },
-      {
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(decree_runs_total{daemon=~\"$daemon\"}, machine)",
-        "includeAll": true,
-        "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "name": "machine",
-        "label": "Machine",
-        "query": { "query": "label_values(decree_runs_total{daemon=~\"$daemon\"}, machine)", "refId": "machine" },
-        "refresh": 2,
-        "type": "query"
-      }
+      { "datasource": { "type": "loki", "uid": "loki" }, "includeAll": true, "allValue": ".+", "multi": true, "current": { "text": "All", "value": "$__all" },
+        "name": "host", "label": "Host", "query": { "type": 1, "label": "host", "stream": "{job=\"decree\"}", "refId": "host" }, "refresh": 2, "type": "query" },
+      { "datasource": { "type": "loki", "uid": "loki" }, "includeAll": true, "allValue": ".+", "multi": true, "current": { "text": "All", "value": "$__all" },
+        "name": "project", "label": "Project", "query": { "type": 1, "label": "project", "stream": "{job=\"decree\", host=~\"$host\"}", "refId": "project" }, "refresh": 2, "type": "query" },
+      { "datasource": { "type": "loki", "uid": "loki" }, "includeAll": true, "allValue": ".+", "multi": true, "current": { "text": "All", "value": "$__all" },
+        "name": "machine", "label": "Machine", "query": { "type": 1, "label": "machine", "stream": "{job=\"decree\", host=~\"$host\", project=~\"$project\"}", "refId": "machine" }, "refresh": 2, "type": "query" }
     ]
   },
   "time": { "from": "now-7d", "to": "now" },
   "timezone": "browser",
   "title": "Decree Overview",
   "uid": "decree-overview",
-  "version": 2
+  "version": 3
 }

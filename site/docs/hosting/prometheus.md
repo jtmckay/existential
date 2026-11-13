@@ -22,21 +22,14 @@ health gauge) and **node-exporter** (host CPU/memory/disk metrics).
 | `prometheus-pushgateway` | 9091 (internal) | Receives pushed metrics from short-lived jobs |
 | `prometheus-node-exporter` | 9100 (internal) | Exposes host CPU/memory/disk/filesystem metrics |
 
-Prometheus scrapes itself, Pushgateway, node-exporter and `loki-alloy` every 15s and retains data for
+Prometheus scrapes itself, Pushgateway and node-exporter every 15s and retains data for
 90 days or 5 GB, whichever comes first.
 
 ## How metrics get in
 
-Decree has no exporter: each run's `events.jsonl` is its record. [Loki](./loki.md)'s Alloy turns
-the last line of every run into two metrics on its own `/metrics`, which Prometheus scrapes:
-
-| Metric | Labels |
-|---|---|
-| `decree_runs_total` (counter) | `daemon`, `machine`, `state` (`done`, `failed`, …) |
-| `decree_run_duration_milliseconds` (histogram) | same |
-
-Decree's **triage** machine pushes one more, to Pushgateway, and it is the one to graph if you want a single
-answer to "is anything broken":
+Decree runs are not metrics here: each run's `events.jsonl` is its record, in [Loki](./loki.md),
+where Grafana counts and times them. Decree's **triage** machine pushes one metric to
+Pushgateway, and it is the one to graph if you want a single answer to "is anything broken":
 
 | Metric | Labels |
 |---|---|
@@ -57,13 +50,14 @@ Edit `hosting/prometheus/prometheus.yml` and add a new entry under `scrape_confi
 ## Alert rules
 
 `hosting/prometheus/alerts.yml` defines host-resource alerts (disk/memory/CPU, off node-exporter),
-a service-health alert (`ServiceHealthCheckFailing`, off triage's `exist_service_healthy` gauge —
-see above), and a backup alert (`BackupNotRun`: no `volume_backup`, `db_backup` or `sqlite_backup` run ended in
-`done` for 48 hours, off `decree_runs_total`).
+and a service-health alert (`ServiceHealthCheckFailing`, off triage's `exist_service_healthy` gauge —
+see above).
 
 **There is no Alertmanager in this stack.** These rules are visible at
-`https://prometheus.<domain>/alerts` and nowhere else. The one alert that reaches you is
-[Grafana](./grafana.md)'s: an `automation-backup` run that ends in `failed` sends an ntfy notification.
+`https://prometheus.<domain>/alerts` and nowhere else. The alerts that reach you are
+[Grafana](./grafana.md)'s, off Loki: a run in `automation-backup` or a host's own project that ends
+in `failed`, and a backup machine with no run ended `done` in 48 hours, each send an ntfy
+notification.
 The `automation` daemon reports its own failed and waiting runs without either
 ([When a run needs you](../decree/decree.md#when-a-run-needs-you)).
 

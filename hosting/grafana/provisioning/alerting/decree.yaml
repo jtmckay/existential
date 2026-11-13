@@ -1,13 +1,14 @@
-# A backup daemon run that ended in `failed` -> one ntfy notification. The
-# `automation` daemon reports its own failed and waiting runs, with the command
-# that continues each (automation/lib/attention-notify.sh), so it is left out
-# here rather than sent twice.
+# Two alerts on decree runs, each one ntfy notification:
+# - a run that ended in `failed`, in automation-backup or a host's own project.
+#   The `automation` daemon reports its own failed and waiting runs, with the
+#   command that continues each (automation/lib/attention-notify.sh), so it is
+#   left out here rather than sent twice.
+# - a backup machine that ran in the last 8 days but has not ended done in 48h:
+#   every backup runs nightly, so that is a stopped backup.
 #
-# decree 0.5 has no hooks: a run's record is its events.jsonl, which alloy
-# ships to Loki and turns into decree_runs_total{machine, state} on its own
-# /metrics (hosting/loki/loki-alloy-config.alloy), scraped by Prometheus. This
-# is the alert on that counter — the job lib/hooks/onDeadLetter.sh used to do.
-#
+# decree 0.5 has no hooks: a run's record is its events.jsonl, which each host's
+# alloy ships to Loki as {job="decree", host, project, machine, type}
+# (automation/plugins/reporting.md). These alerts query that.
 # ntfy has no Grafana integration, so the contact point is a plain webhook and
 # ntfy's own message templating (tpl=1) renders Grafana's JSON: t and m are the
 # URL-encoded templates {{.title}} and {{.message}}. It authenticates as the
@@ -46,11 +47,11 @@ groups:
         data:
           - refId: A
             relativeTimeRange: { from: 600, to: 0 }
-            datasourceUid: prometheus
+            datasourceUid: loki
             model:
               refId: A
-              instant: true
-              expr: sum by (machine) (increase(decree_runs_total{daemon="automation-backup",state="failed"}[10m]))
+              queryType: instant
+              expr: sum by (host, project, machine) (count_over_time({job="decree", project=~"automation-backup|host", type="run_finished"} | json | state="failed" [10m]))
           - refId: B
             datasourceUid: __expr__
             model:
@@ -64,8 +65,38 @@ groups:
         for: 0s
         labels: { severity: warning }
         annotations:
-          summary: "decree: {{ $$labels.machine }} failed"
+          summary: "decree: {{ $$labels.machine }} failed on {{ $$labels.host }}"
           description: >-
-            A {{ $$labels.machine }} run ended in failed. `docker exec automation-backup
-            decree status` lists it with the command that
-            retries it; its log is in Loki under {job="decree"}.
+            A {{ $$labels.machine }} run in {{ $$labels.project }} on {{ $$labels.host }}
+            ended in failed. Grafana's Decree Overview lists it under Failed runs,
+            and opens its events and script output.
+      - uid: decree-backup-not-run
+        title: backup has not run
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: { from: 691200, to: 0 }
+            datasourceUid: loki
+            model:
+              refId: A
+              queryType: instant
+              expr: >-
+                sum by (host, machine) (count_over_time({job="decree", type="run_finished", machine=~"db_backup|volume_backup|sqlite_backup"} | json | state="done" [8d]))
+                unless sum by (host, machine) (count_over_time({job="decree", type="run_finished", machine=~"db_backup|volume_backup|sqlite_backup"} | json | state="done" [48h]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels: { severity: warning }
+        annotations:
+          summary: "Backup {{ $$labels.machine }} has not succeeded in 48h"
+          description: >-
+            No run of {{ $$labels.machine }} on {{ $$labels.host }} ended in done for
+            48h. `docker exec automation-backup decree status` lists its recent runs.

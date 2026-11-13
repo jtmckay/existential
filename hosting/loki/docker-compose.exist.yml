@@ -37,9 +37,9 @@ services:
     # EOL'd in March 2026 (frozen at 3.6.11, no 3.7.x).
     image: grafana/alloy:v1.19.2
     restart: unless-stopped
-    # Tails decree's run logs *and* every container's
-    # json-file log. ~42 MiB idle, ~65 MiB while backfilling a cold positions
-    # file.
+    # Tails every container's json-file log (each host ships its own decree
+    # runs: automation/plugins/reporting.md). ~42 MiB idle, ~65 MiB while
+    # backfilling a cold positions file.
     deploy:
       resources:
         limits:
@@ -54,9 +54,6 @@ services:
       - exist
     volumes:
       - ./loki-alloy-config.alloy:/etc/alloy/config.alloy:ro
-      # Both decree projects' runs (each has its own runs/ in decree 0.5).
-      - workspace_data/.decree/runs:/decree/automation:ro
-      - ../../services/automation-backup/runs:/decree/automation-backup:ro
       # Alloy keeps its file offsets under --storage.path; without persisting it
       # every restart re-tails every log from byte 0 and re-ships it.
       - loki_alloy_data:/var/lib/alloy/data
@@ -82,5 +79,3 @@ x-exist-volumes:
   # alloy's storage path — file offsets, not a db. Host-local by nature: it
   # tracks byte offsets into this host's docker log files.
   loki_alloy_data: {}
-  # automation's runs live in workspace/.decree; declared identically everywhere.
-  workspace_data: {}

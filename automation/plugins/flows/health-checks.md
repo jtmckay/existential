@@ -29,11 +29,11 @@ cron:
     runs this cron, so it is present on every Core install. Point it at a service that
     is NOT enabled and the check fails every run, and alerts every 6 hours, which is
     exactly what a default of `grafana` used to do on every Core install (Core does
-    not include grafana). Results appear in Grafana via
-    Prometheus (decree_runs_total) and Loki (run logs).
+    not include grafana). Results appear in Grafana's Decree Overview,
+    from Loki.
 
-    The metric's machine label is "service_health", not SERVICE_NAME — every
-    copy of this cron shares one series. The per-service
+    The run's machine is "service_health", not SERVICE_NAME — every copy of
+    this cron shares one. The per-service
     alert in hosting/prometheus/alerts.yml rides triage's exist_service_healthy
     gauge instead, which needs no cron file at all.
 

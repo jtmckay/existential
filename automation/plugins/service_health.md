@@ -22,8 +22,8 @@ scripts:
     # service_health — HTTP probe for a single service endpoint.
     #
     # Runs in the main decree daemon (on the exist Docker network) on a cron
-    # schedule. Every run lands in Loki and in decree_runs_total{machine=
-    # "service_health"}, so a failing probe is a failed run — and a Grafana alert.
+    # schedule. Every run lands in Loki ({job="decree", machine="service_health"}),
+    # so a failing probe is a failed run, which the daemon reports like any other.
     #
     # SERVICE_NAME, SERVICE_URL, EXPECT_CODE and TIMEOUT are the machine's data:
     #

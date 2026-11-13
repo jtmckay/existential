@@ -3,11 +3,14 @@
 # controller names, with curl stubbed (the push body is kept, the controller's
 # answer is a file):
 #
-#   worker      asks the controller, sends disks, load, machines and finished runs
-#   again       a run already sent is not sent twice
+#   worker      asks the controller, sends disks, load and machines, and starts
+#               alloy (tmux stubbed) to ship the runs to that Loki
+#   again       alloy, already running, is left alone
 #   away        the controller does not answer: the Loki it gave last time is used
 #   nowhere     the controller, naming no Loki: nothing is sent, and the run is still done
-#   controller  no EXIST_CONTROLLER: this is it, and reads host/exist.json itself
+#   controller  no EXIST_CONTROLLER: this is it, and reads host/exist.json itself;
+#               a new Loki restarts alloy
+#   no alloy    still done, and it says the runs are not shipped
 #
 # Everything is written under a temp dir, removed in the trap.
 set -uo pipefail
@@ -52,11 +55,27 @@ done
 EOF
 chmod +x "${TMP}/bin/curl"
 
-report() {
+# tmux: one session, up or not; each start and kill is logged to $TMP/tmux.
+# alloy only has to be on PATH; tmx is sourced from the install, as on a host.
+cat > "${TMP}/bin/tmux" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+    has-session) [[ -f "${TMP}/tmux-up" ]] ;;
+    new) touch "${TMP}/tmux-up"; echo "new \$*" >> "${TMP}/tmux" ;;
+    kill-session) rm -f "${TMP}/tmux-up"; echo kill >> "${TMP}/tmux" ;;
+esac
+EOF
+printf '#!/bin/sh\n' > "${TMP}/bin/alloy"
+chmod +x "${TMP}/bin/tmux" "${TMP}/bin/alloy"
+mkdir -p "${I}/services/automation/decree"
+cp "${REPO_DIR}/services/automation/decree/tmx.sh" "${I}/services/automation/decree/"
+
+report() {  # [PATH]
     rm -f "${TMP}/body" "${TMP}/pushed-to"
-    (cd "${I}/host" && PATH="${TMP}/bin:${PATH}" DECREE_STORE="${I}/host/.decree/store/reporting" \
-        bash .decree/scripts/reporting/report.sh 2>&1)
+    (cd "${I}/host" && PATH="${1:-${TMP}/bin:${PATH}}" DECREE_STORE="${I}/host/.decree/store/reporting" \
+        DECREE_LIB="${I}/host/.decree/lib" bash .decree/scripts/reporting/report.sh 2>&1)
 }
+started() { grep -c '^new ' "${TMP}/tmux" 2>/dev/null || true; }
 field() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p"; }
 lines() { yq -p json -o yaml -r ".streams[] | select(.stream.kind == \"$1\") | .values[][1]" "${TMP}/body" 2>/dev/null; }
 
@@ -68,18 +87,24 @@ assert_eq "it pushes to the Loki the controller names" "http://loki-box:3100/lok
 assert_eq "the body is JSON Loki takes" "ok" "$(yq -p json -o yaml '.streams[0].stream.job' "${TMP}/body" >/dev/null 2>&1 && echo ok)"
 assert_has "every line names this host" "$(yq -p json -o yaml -r '.streams[].stream.host' "${TMP}/body" | sort -u)" "$(hostname -s 2>/dev/null || hostname)"
 assert_eq "a line per installed machine, in every project" "look_back notify reporting" "$(lines machine | field machine | sort | xargs)"
-assert_eq "a finished run is sent, with its project; a running one is not" "automation notify done" \
-    "$(lines run | field project) $(lines run | field machine) $(lines run | field state)"
+assert_eq "no run line: alloy ships the runs" "" "$(lines run)"
 assert_has "the disks it has" "$(lines disk | head -1)" '"avail_kb":'
 assert_eq ".../ among them, by that name" "/" "$(lines disk | field mount | grep -x /)"
 assert_has "its CPU and RAM" "$(lines load)" '"mem_total_kb":'
-assert_has "it says what it sent" "$out" "1 runs"
+assert_eq "it starts alloy, once" "1" "$(started)"
+assert_has "...in its own tmux session" "$(cat "${TMP}/tmux")" "-s reporting-alloy"
+assert_has "...shipping to the same Loki" "$(cat "${TMP}/tmux")" "EXIST_LOKI='http://loki-box:3100/loki/api/v1/push'"
+assert_has "...this install's runs" "$(cat "${TMP}/tmux")" "EXIST_REPO='$(cd "$I" && pwd)'"
+assert_has "...with the config the plugin ships" "$(cat "${TMP}/tmux")" "${I}/host/.decree/lib/reporting/decree.alloy"
+assert_has "it says so" "$out" "runs shipped live by alloy"
+if command -v alloy >/dev/null 2>&1 && [[ "$(command -v alloy)" != "${TMP}/bin/alloy" ]]; then
+    assert_eq "the config is one alloy reads" "0" "$(alloy fmt "${I}/host/.decree/lib/reporting/decree.alloy" >/dev/null 2>&1; echo $?)"
+fi
 
 echo ""; echo "=== again ==="
-sleep 1; touch "${W}/machines/notify.yml"
 report >/dev/null
-assert_eq "a run already sent is not sent again" "" "$(lines run)"
-assert_eq "...but the machines are, every time" "3" "$(lines machine | wc -l | tr -d ' ')"
+assert_eq "alloy, running, is left alone" "1" "$(started)"
+assert_eq "...and the machines are sent every time" "3" "$(lines machine | wc -l | tr -d ' ')"
 
 echo ""; echo "=== away ==="
 rm -f "${TMP}/answer"
@@ -99,7 +124,14 @@ printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
 echo '{"loki":"http://127.0.0.1:43100"}' > "${I}/host/exist.json"
 report >/dev/null
 assert_eq "a controller reads host/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
-assert_eq "...and sends every run the first time" "1" "$(lines run | wc -l | tr -d ' ')"
+assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | head -1)"
+assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
+
+echo ""; echo "=== no alloy ==="
+rm -f "${TMP}/bin/alloy"
+out="$(report "${TMP}/bin:/usr/bin:/bin")"; rc=$?
+assert_eq "no alloy: still done" "0" "$rc"
+assert_has "...and it says the runs are not shipped" "$out" "alloy is not on PATH"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 
