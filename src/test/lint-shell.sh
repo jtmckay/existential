@@ -19,8 +19,9 @@ set -euo pipefail
 
 # Pinned by tag *and* digest, like the image bases in webhook/Dockerfile: the
 # tag documents the version, the digest is what Docker actually resolves, so a
-# re-pushed tag cannot silently change what this gate enforces.
-SHELLCHECK_IMAGE="koalaman/shellcheck-alpine:stable@sha256:c82fe42504fbc9fc68f15d36638e5ee2324ebb8b94e96a3c4e395bf361c49183"
+# re-pushed tag cannot silently change what this gate enforces. Fully qualified:
+# podman will not guess a registry for a short name without a terminal to ask.
+SHELLCHECK_IMAGE="docker.io/koalaman/shellcheck-alpine:stable@sha256:c82fe42504fbc9fc68f15d36638e5ee2324ebb8b94e96a3c4e395bf361c49183"
 SEVERITY="${SHELLCHECK_SEVERITY:-warning}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +34,8 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 # A worker may have neither docker nor podman; CI's lint job always has docker.
+# :z on each mount: under SELinux (podman on Fedora) the container cannot read
+# it otherwise. Without SELinux it does nothing.
 # shellcheck source=../utils/adhoc.sh
 . src/utils/adhoc.sh
 if ! adhoc_find_runtime; then
@@ -59,7 +62,7 @@ trap 'rm -rf "$(dirname "$_canary")"' EXIT
 # Captured, not piped: shellcheck exits non-zero when it finds something, and
 # `set -o pipefail` would let that failure win over a successful grep — the
 # check would then report "not running" precisely when it IS working.
-_canary_out="$($DOCKER_CMD run --rm -v "$(dirname "$_canary")":/c -w /c \
+_canary_out="$($DOCKER_CMD run --rm -v "$(dirname "$_canary")":/c:z -w /c \
     --entrypoint shellcheck "$SHELLCHECK_IMAGE" -S warning canary.sh 2>/dev/null || true)"
 if ! printf '%s' "$_canary_out" | grep -q SC2154; then
     echo "  FAIL  lint-shell: shellcheck did not flag the canary — the linter is not running" >&2
@@ -69,7 +72,7 @@ fi
 echo "  linting ${#FILES[@]} shell scripts at -S ${SEVERITY}"
 
 _rc=0
-$DOCKER_CMD run --rm -v "$ROOT":/repo -w /repo \
+$DOCKER_CMD run --rm -v "$ROOT":/repo:z -w /repo \
     --entrypoint shellcheck "$SHELLCHECK_IMAGE" \
     -x -S "$SEVERITY" -f gcc "${FILES[@]}" || _rc=1
 
@@ -102,7 +105,7 @@ for _f in ${PLUGIN_LIB[@]+"${PLUGIN_LIB[@]}"}; do
     [ -s "${_pd}/${_f}" ] || { echo "  FAIL  lint-shell: plugin ${_f} was not written out" >&2; _rc=1; }
 done
 echo "  linting ${#PLUGIN_SCRIPTS[@]} plugin scripts and ${#PLUGIN_LIB[@]} plugin lib files (automation/plugins/)"
-$DOCKER_CMD run --rm -v "$_pd":/plugins -w /plugins \
+$DOCKER_CMD run --rm -v "$_pd":/plugins:z -w /plugins \
     --entrypoint shellcheck "$SHELLCHECK_IMAGE" \
     -x -S "$SEVERITY" -f gcc "${PLUGIN_SCRIPTS[@]}" ${PLUGIN_LIB[@]+"${PLUGIN_LIB[@]}"} \
     | sed 's#^scripts/\([^/]*\)/#automation/plugins/\1.md: scripts.#' || _rc=1

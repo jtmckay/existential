@@ -107,7 +107,8 @@ assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \
 # The plugin sync runs in adhoc (yq, decree), which a Mac host has no part in:
 # a docker that writes down what it was asked stands in for it.
 mkdir -p "${R}/.stub"; printf '#!/bin/sh\n[ "$1" = compose ] && echo "$*" >> "%s/.stub/asked"\nexit 0\n' "$R" > "${R}/.stub/docker"
-chmod +x "${R}/.stub/docker"; PATH="${R}/.stub:${PATH}"; export PATH
+cp "${R}/.stub/docker" "${R}/.stub/podman"   # adhoc takes podman when it is here
+chmod +x "${R}/.stub/docker" "${R}/.stub/podman"; PATH="${R}/.stub:${PATH}"; export PATH
 out="$("$BASH" services/automation/exist.initial.sh 2>&1)"; rc=$?
 assert_eq "automation's exist.initial.sh runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
@@ -116,19 +117,23 @@ assert_eq "...and a second run changes nothing" "" "$("$BASH" services/automatio
 
 echo ""; echo "=== host plugins ==="
 # A host plugin's script runs on the host. reporting's, taken out of its plugin
-# with awk (no yq here), against a scratch host project and a curl that keeps
-# the push. test-reporting.sh covers what it sends; this covers that it runs.
-H="${R}/host"; mkdir -p "${H}/rep" "${R}/volumes/workspace_data/.decree/runs/r1"
-printf '{"type":"run_finished","machine":"notify","state":"done"}\n' > "${R}/volumes/workspace_data/.decree/runs/r1/events.jsonl"
+# with awk (no yq here), against a scratch host project, a curl that keeps the
+# push, and a tmux that writes down what it would start (alloy only has to be
+# there). test-reporting.sh covers what it sends; this covers that it runs.
+H="${R}/host"; mkdir -p "${H}/rep" "${H}/.decree/machines"
+touch "${H}/.decree/machines/reporting.yml"
 awk '/^  report: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
     automation/plugins/reporting.md > "${H}/report.sh"
 echo '{"loki":"http://loki:3100"}' > "${H}/exist.json"
 printf '#!/bin/sh\nfor a in "$@"; do case "$a" in @*) cp "${a#@}" "%s/body" ;; esac; done\nexit 0\n' "$H" > "${R}/.stub/curl"
-chmod +x "${R}/.stub/curl"
-out="$(cd "$H" && DECREE_STORE="${H}/rep" "$BASH" report.sh 2>&1)"; rc=$?
+printf '#!/bin/sh\n[ "$1" = has-session ] && exit 1\necho "$*" >> "%s/tmux"\n' "$H" > "${R}/.stub/tmux"
+printf '#!/bin/sh\n' > "${R}/.stub/alloy"
+chmod +x "${R}/.stub/curl" "${R}/.stub/tmux" "${R}/.stub/alloy"
+out="$(cd "$H" && DECREE_STORE="${H}/rep" DECREE_LIB="${H}/lib" "$BASH" report.sh 2>&1)"; rc=$?
 assert_eq "reporting runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
-assert_has "...and sends the run" "$(cat "${H}/body" 2>/dev/null)" 'notify'
+assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'
+assert_has "...and starts alloy" "$(cat "${H}/tmux" 2>/dev/null)" "reporting-alloy"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven.

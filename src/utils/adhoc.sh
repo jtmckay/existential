@@ -64,6 +64,7 @@ adhoc_find_runtime() {
     else
         return 1
     fi
+    return 0   # not the rootless check's status: rootful podman is a runtime too
 }
 
 # Repo root, derived from this file's own location so a caller in any service
