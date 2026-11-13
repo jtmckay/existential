@@ -45,9 +45,9 @@
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
       "targets": [
         { "refId": "A", "queryType": "instant",
-          "expr": "sum(count_over_time({job=\"exist\", kind=\"run\", host=~\"$host\"} | json | state != \"done\" [$__range])) or vector(0)" }
+          "expr": "sum(count_over_time({job=\"exist\", kind=\"run\", host=~\"$host\"} | json | state != \"done\" [7d])) or vector(0)" }
       ],
-      "title": "Runs not done, in range",
+      "title": "Not 'done' runs (7d)",
       "type": "stat"
     },
     {
