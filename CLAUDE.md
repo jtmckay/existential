@@ -165,8 +165,9 @@ rendered compose file whose service `image:` differs from its template's is list
 when its build context changed) without touching running containers, so the next `up -d` gets
 them. Every run also installs each decree project's plugins at this checkout's version. The
 optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow
-reports the machine to its controller; both are host flows, run by a decree daemon in
-`host/.decree` that the host starts at boot, and `./existential.sh` says so until it does.
+reports the host to its controller, and the optional `on-boot` flow runs `host/boot.sh` once
+when that daemon starts; all three are host flows, run by a decree daemon in `host/.decree`
+that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`
 

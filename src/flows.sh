@@ -31,7 +31,7 @@ _G='' _D='' _B='' _R=''
 die() { echo "Error: $*" >&2; exit 1; }
 [[ -f "$EXIST_ENV" ]] || die "${EXIST_ENV} not found — run ./existential.sh first"
 
-env_get() { grep -E "^${1}=" "$EXIST_ENV" 2>/dev/null | head -1 | cut -d= -f2-; }
+env_get() { sed -n "s/^${1}=//p" "$EXIST_ENV" 2>/dev/null | head -1; }
 env_set() {
     if grep -qE "^${1}=" "$EXIST_ENV"; then sed -i "s|^${1}=.*|${1}=${2}|" "$EXIST_ENV"; else echo "${1}=${2}" >> "$EXIST_ENV"; fi
 }

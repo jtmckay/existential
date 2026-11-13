@@ -26,7 +26,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 - `docker compose up -d` afterwards starts anything new.
 - A flow that needs another turns that one on too.
 - `off` never deletes a file you changed.
-- `worker` and `auto-update` run on the host itself, in a decree daemon there (`host/.decree`),
+- `worker`, `auto-update` and `on-boot` run on the host itself, in a decree daemon there (`host/.decree`),
   not in a container. `./existential.sh` says so until one runs.
 
 | Flow | What it does | Needs, beyond Core |
@@ -58,6 +58,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 | `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, automations, runs, in Grafana | decree on the host |
 | `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
+| `on-boot` | [Your `host/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
 
 [Note → Automation](./note-to-automation.md) is part of Core, on whenever a chat model answers.
 
