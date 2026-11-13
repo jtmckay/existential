@@ -2,7 +2,7 @@
 machine: plugin
 automation: clean-runs
 name: Clean runs
-tagline: Prune decree's finished run logs after a week, so runs/ never fills the disk
+tagline: Prune decree's finished run logs after 30 days, so runs/ never fills the disk
 docs: /docs/flows#housekeeping
 services:
   - EXIST_IS_SERVICES_AUTOMATION
@@ -14,7 +14,7 @@ cron:
     cron: "0 4 * * *"
     machine: clean_runs
     params:
-      OLDER_THAN: 7d
+      OLDER_THAN: 30d
     ---
 
     Delete this project's finished runs older than OLDER_THAN, once a day.

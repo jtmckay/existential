@@ -2,7 +2,7 @@
 cron: "0 4 * * *"
 machine: clean_runs
 params:
-  OLDER_THAN: 7d
+  OLDER_THAN: 30d
 ---
 
 Delete this project's finished runs older than OLDER_THAN, once a day.

@@ -4,7 +4,7 @@ automation: clean_runs
 chart:
   description: Delete this project's finished runs older than OLDER_THAN; Loki keeps the history.
   data:
-    OLDER_THAN: {type: string, default: 7d}
+    OLDER_THAN: {type: string, default: 30d}
   initial: prune
   states:
     prune:

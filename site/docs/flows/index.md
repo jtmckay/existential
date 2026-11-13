@@ -33,7 +33,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 |---|---|---|
 | `you-were-here` | Every morning, yesterday in one notification. **On by default** | a chat model |
 | `look-back` | The week and the month in review, next to your notes. **On by default** | a chat model |
-| `clean-runs` | Prunes decree's finished run logs after a week. **On by default** | — |
+| `clean-runs` | Prunes decree's finished run logs after 30 days. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
 | `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), accept what is proposed, and it runs. **On by default** | a chat model |
 | `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/`. **On by default** | — |

@@ -152,7 +152,7 @@ on the host itself: `update`).
   running, ships `runs/*/events.jsonl` and script logs of all three projects to Loki, live,
   labelled `host` and `project`; Grafana counts runs from those lines. A failed run in
   `automation-backup` or `host`, or a backup with no `done` run in 48h, alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
-  There are no hooks. `clean_runs` prunes runs older than 7 days.
+  There are no hooks. `clean_runs` prunes runs older than 30 days.
 - **A run that needs you pages you:** `automation/lib/attention-notify.sh`, looped by the
   `automation` entrypoint (`ATTENTION_NOTIFY=1`), turns each new file in
   `workspace/.decree/attention/` (failed, interrupted, waiting on a person, a hold) into one
