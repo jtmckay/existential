@@ -2,7 +2,7 @@
 machine: plugin
 automation: worker
 name: Worker
-tagline: This host's disks and automations, reported to your controller every 5 minutes, for Grafana's Hosts dashboard
+tagline: This host's disks, CPU, RAM, VRAM and automations, reported to your controller every 5 minutes, for Grafana's Hosts dashboard
 docs: /docs/hosting/controller-and-workers
 project: host
 needs:

@@ -3,7 +3,7 @@
 # controller names, with curl stubbed (the push body is kept, the controller's
 # answer is a file):
 #
-#   worker      asks the controller, sends disks, machines and finished runs
+#   worker      asks the controller, sends disks, load, machines and finished runs
 #   again       a run already sent is not sent twice
 #   away        the controller does not answer: the Loki it gave last time is used
 #   nowhere     the controller, naming no Loki: nothing is sent, and the run is still done
@@ -71,6 +71,8 @@ assert_eq "a line per installed machine, in every project" "look_back notify rep
 assert_eq "a finished run is sent, with its project; a running one is not" "automation notify done" \
     "$(lines run | field project) $(lines run | field machine) $(lines run | field state)"
 assert_has "the disks it has" "$(lines disk | head -1)" '"avail_kb":'
+assert_eq ".../ among them, by that name" "/" "$(lines disk | field mount | grep -x /)"
+assert_has "its CPU and RAM" "$(lines load)" '"mem_total_kb":'
 assert_has "it says what it sent" "$out" "1 runs"
 
 echo ""; echo "=== again ==="

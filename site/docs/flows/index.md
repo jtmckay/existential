@@ -56,7 +56,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, your chat model answering | Home Assistant, Wyoming |
 | `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
 | `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
-| `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, automations, runs, in Grafana | decree on the host |
+| `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, CPU, RAM, VRAM, automations, runs, in Grafana | decree on the host |
 | `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
 | `on-boot` | [Your `host/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
 

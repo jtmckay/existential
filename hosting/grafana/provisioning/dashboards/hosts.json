@@ -99,6 +99,40 @@
       "fieldConfig": {
         "defaults": {},
         "overrides": [
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [ { "id": "displayName", "value": "CPU (avg)" }, { "id": "unit", "value": "percent" }, { "id": "decimals", "value": 0 } ] },
+          { "matcher": { "id": "byName", "options": "Value #B" }, "properties": [ { "id": "displayName", "value": "RAM used" }, { "id": "unit", "value": "deckbytes" } ] },
+          { "matcher": { "id": "byName", "options": "Value #C" }, "properties": [ { "id": "displayName", "value": "RAM total" }, { "id": "unit", "value": "deckbytes" } ] },
+          { "matcher": { "id": "byName", "options": "Value #D" }, "properties": [ { "id": "displayName", "value": "VRAM used" }, { "id": "unit", "value": "decmbytes" } ] },
+          { "matcher": { "id": "byName", "options": "Value #E" }, "properties": [ { "id": "displayName", "value": "VRAM total" }, { "id": "unit", "value": "decmbytes" } ] }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+      "id": 6,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "host", "desc": false } ] },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "max by (host) (last_over_time({job=\"exist\", kind=\"load\", host=~\"$host\"} | json | unwrap cpu_pct [15m]))" },
+        { "refId": "B", "queryType": "instant",
+          "expr": "max by (host) (last_over_time({job=\"exist\", kind=\"load\", host=~\"$host\"} | json | unwrap mem_used_kb [15m]))" },
+        { "refId": "C", "queryType": "instant",
+          "expr": "max by (host) (last_over_time({job=\"exist\", kind=\"load\", host=~\"$host\"} | json | unwrap mem_total_kb [15m]))" },
+        { "refId": "D", "queryType": "instant",
+          "expr": "max by (host) (last_over_time({job=\"exist\", kind=\"load\", host=~\"$host\"} | json | unwrap vram_used_mb [15m]))" },
+        { "refId": "E", "queryType": "instant",
+          "expr": "max by (host) (last_over_time({job=\"exist\", kind=\"load\", host=~\"$host\"} | json | unwrap vram_total_mb [15m]))" }
+      ],
+      "title": "CPU, RAM and VRAM",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
           { "matcher": { "id": "byName", "options": "duration_ms" }, "properties": [ { "id": "unit", "value": "ms" } ] },
           { "matcher": { "id": "byName", "options": "state" }, "properties": [
             { "id": "custom.cellOptions", "value": { "type": "color-text" } },
@@ -109,7 +143,7 @@
           ] }
         ]
       },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
       "id": 5,
       "options": { "showHeader": true, "sortBy": [ { "displayName": "Time", "desc": true } ] },
       "targets": [

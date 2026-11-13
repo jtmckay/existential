@@ -5,7 +5,7 @@ sidebar_position: 13
 # Controller and Workers
 
 One host keeps your notes; the others just need watching. A **worker** is a host that runs decree
-itself, with the `worker` flow on. Every 5 minutes it reports its free disk space, the decree
+itself, with the `worker` flow on. Every 5 minutes it reports its free disk space, CPU, RAM and VRAM use, the decree
 machines it has installed and each one's runs to one Loki, and Grafana's **Hosts** dashboard
 shows them all.
 
@@ -81,7 +81,7 @@ On the new host:
 
    | It says | Which means |
    |---|---|
-   | `<hostname> to http://…: 1 disks, 1 machines, 3 runs` | Sent. The host is on the **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`. |
+   | `<hostname> to http://…: 1 disks, {"cpu_pct":…}, 1 machines, 3 runs` | Sent. The host is on the **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`. |
    | `no Loki named yet …, so nothing is sent` | The controller didn't answer, or names no Loki. Re-run `./existential.sh`: it warns when `http://<controller>:4480` doesn't answer. |
    | `none yet` | No report has run. If that lasts past 5 minutes, the host daemon isn't running. |
 
@@ -126,7 +126,8 @@ The `reporting` plugin sends one push to Loki every 5 minutes, labelled `job="ex
 
 | `kind` | One line per |
 |---|---|
-| `disk` | real filesystem: mount, size and free space |
+| `disk` | disk: `/` and each mount under `/mnt` (`/var/mnt` on an atomic host), its size and free space |
+| `load` | push: average CPU % since the last one, RAM used and total, and GPU VRAM used and total, summed over every GPU, when there is one |
 | `machine` | decree machine installed, in each project on the host (`automation`, `automation-backup`, `host`) |
 | `run` | run that finished since the last push: its machine, final state, duration |
 
