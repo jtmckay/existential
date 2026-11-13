@@ -29,3 +29,34 @@ once, and have it start at boot. `./existential.sh` says so until one runs.
 ```
 
 Then you pull and run `./existential.sh` yourself, as before.
+
+## Ubuntu {#ubuntu}
+
+`auto-update` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu
+host under it, also from [the host daemon](./host-daemon.md):
+
+| | When |
+|---|---|
+| Check for updates | Daily, by Ubuntu's own `unattended-upgrades` |
+| Security updates | Daily, by `unattended-upgrades` |
+| Every other package update | Sundays at 01:00, by the flow (`apt-get upgrade`: nothing is removed) |
+| Reboot | At 02:00, only when an installed update requires one |
+| Ubuntu release upgrades | Never. `do-release-upgrade` is yours to schedule |
+
+```bash
+./existential.sh flow on update-ubuntu
+./existential.sh
+sudo bash host/.decree/lib/ubuntu_upgrade/setup.sh
+```
+
+The last line is the one step that needs root, once. It turns `unattended-upgrades` on, and
+lets the host daemon run one root-owned script, `/usr/local/sbin/existential-ubuntu-upgrade`,
+without a password, and nothing else. Until it has run, the weekly run fails and says so.
+
+Your phone hears when the weekly run failed, and when a reboot is coming. The failed run is in
+`host/.decree/runs/`; fix what apt complained about, then `decree process --retry` in `host/`.
+
+Reboots are `unattended-upgrades`' own setting, in `/etc/apt/apt.conf.d/52existential-updates`,
+which is yours once written. On a host whose work can't be interrupted, set
+`Unattended-Upgrade::Automatic-Reboot "false";` there: nothing reboots it, and your phone says
+when a reboot is due.

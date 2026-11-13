@@ -1,6 +1,6 @@
 # The host project's plugins (host/.decree): host/.decree/plugins.yml is yours,
 # copied from this once. Nothing runs on the host until you turn something on:
-# ./existential.sh flow on worker (reporting), auto-update or on-boot, or
+# ./existential.sh flow on worker (reporting), auto-update, on-boot or update-ubuntu, or
 # ./existential.sh run plugin on|off host/<name>.
 on: []
 # false: a plugin whose file changed is named on ./existential.sh, not installed.
