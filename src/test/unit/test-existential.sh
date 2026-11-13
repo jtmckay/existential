@@ -494,7 +494,7 @@ assert_eq "a flow every install starts with (plugins.exist.yml) needs nothing be
 # A rendered compose file is written once, so _offer_image_updates is how a
 # template's newer image reaches it. Pins: per-service comparison (a nested
 # x-exist-gpu image is not the service's), comment kept on rewrite, and a run
-# with no terminal only reports.
+# with no terminal (the opt-in auto-update flow) applies them without asking.
 
 FAKE_IMG="${TMPDIR_ROOT}/fake-img"
 mkdir -p "${FAKE_IMG}/services/foo"
@@ -531,11 +531,7 @@ assert_eq "_image_lines lists each service's own image" \
 _out="$(_source_existential "$FAKE_IMG" "_offer_image_updates" </dev/null 2>&1)"
 assert_eq "a changed image is listed" "1" "$(grep -cF 'foo: foo/app:1.0 → foo/app:2.0' <<< "$_out")"
 assert_eq "...an unchanged one is not" "" "$(grep -F 'foo-db' <<< "$_out" || true)"
-assert_eq "...and without a terminal nothing is rewritten" "1" \
-    "$(grep -c 'foo/app:1.0  # pinned' "${FAKE_IMG}/services/foo/docker-compose.yml")"
-
-_source_existential "$FAKE_IMG" "_set_image '${FAKE_IMG}/services/foo/docker-compose.yml' foo foo/app:2.0"
-assert_eq "_set_image rewrites the service's image, comment kept" "1" \
+assert_eq "...and without a terminal (auto-update) it is rewritten, comment kept" "1" \
     "$(grep -c '^    image: foo/app:2.0  # pinned$' "${FAKE_IMG}/services/foo/docker-compose.yml")"
 assert_eq "...and leaves the nested gpu image alone" "1" \
     "$(grep -c 'image: foo/app:1.0-rocm' "${FAKE_IMG}/services/foo/docker-compose.yml")"

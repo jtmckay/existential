@@ -161,7 +161,7 @@ written **once** and skipped thereafter — there is no re-render flag. Two exce
 existing install on `git pull && ./existential.sh`: a rendered `.env*` gets every key the
 template has gained **appended** (existing values, blanks included, never touched), and a
 rendered compose file whose service `image:` differs from its template's is listed and updated
-**if the user says yes**. Every run then pulls and builds every enabled image (the decree image
+**if the user says yes** (with no terminal, as under `auto-update`, without asking). Every run then pulls and builds every enabled image (the decree image
 when its build context changed) without touching running containers, so the next `up -d` gets
 them. Every run also installs each decree project's plugins at this checkout's version. The
 optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow

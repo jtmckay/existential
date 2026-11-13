@@ -37,6 +37,9 @@ scripts:
     if [[ "$(git rev-parse HEAD)" == "$before" ]]; then echo "update: up to date"; exit 0; fi
     ./existential.sh </dev/null
     $DOCKER_CMD compose up -d
+    # Every container is on its new image now, so an image none uses is an old
+    # version (a moved pin keeps its old tag, so it is never "dangling").
+    $DOCKER_CMD image prune -af >/dev/null || true
     tell "Updated" "$(hostname) is at $(git log -1 --format='%h %s')."
     echo "update: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
 cron:
@@ -50,7 +53,7 @@ cron:
 
 Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, runs
 `./existential.sh` (which installs the new version of every plugin you have on) and
-`docker compose up -d`. Your phone hears when it updated, and when a pull could not
+`docker compose up -d`, then deletes the images no container uses any more. Your phone hears when it updated, and when a pull could not
 fast-forward, which changes nothing.
 
 It runs in the host's own decree project, `host/.decree`, so a decree daemon has to be

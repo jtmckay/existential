@@ -318,7 +318,7 @@ _start_on_boot() {
     return 0
 }
 
-# The host's own plugins (host/.decree: update, by default) at this checkout's
+# The host's own plugins (host/.decree: none, by default) at this checkout's
 # version, then whether a decree daemon is there to run them. Nothing starts one
 # for you: it has to start at boot, which is the host's to set up.
 _host_plugins() {
@@ -830,6 +830,8 @@ _set_image() {
 # (`git pull`, `run check-versions --update`) never reaches it on its own.
 # List each enabled service whose rendered image differs from its template's,
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
+# No terminal is the auto-update flow, which you turned on to follow the branch,
+# so there they are applied: listed only, the pins would never move.
 _offer_image_updates() {
     local svc_dir out svc old new reply changes=""
     while IFS= read -r svc_dir; do
@@ -848,12 +850,10 @@ _offer_image_updates() {
     while IFS='|' read -r out svc old new; do
         [[ -n "$out" ]] && echo "  ${svc}: ${old} → ${new}"
     done <<< "$changes"
-    if [[ ! -t 0 ]]; then
-        echo "  Run ./existential.sh in a terminal to apply them."
-        return 0
+    if [[ -t 0 ]]; then
+        read -rp "  Update them? [Y/n] " reply
+        [[ "$reply" =~ ^[Nn] ]] && return 0
     fi
-    read -rp "  Update them? [Y/n] " reply
-    [[ "$reply" =~ ^[Nn] ]] && return 0
     while IFS='|' read -r out svc old new; do
         [[ -n "$out" ]] && _set_image "$out" "$svc" "$new"
     done <<< "$changes"

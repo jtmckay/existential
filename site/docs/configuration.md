@@ -30,7 +30,8 @@ missing, with its comment, and lists it:
 New services arrive with their flag `false`.
 
 Images work differently: when a template names a different image than your rendered compose
-file, the run lists it and asks before updating the file. Each run then pulls and builds every
+file, the run lists it and asks before updating the file (with no terminal to ask, as under the
+`auto-update` flow, it updates it). Each run then pulls and builds every
 enabled image without touching running containers; `docker compose up -d` switches to them.
 
 ## Service enablement

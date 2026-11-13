@@ -9,8 +9,10 @@ turn it on, runs on the host every 15 minutes:
 
 1. `git pull`, fast-forward only. A checkout with commits of its own, or an upstream that was
    rewritten, is left exactly as it is, and your phone says why.
-2. `./existential.sh`, which installs the new version of every plugin you have on.
-3. `docker compose up -d`.
+2. `./existential.sh`, which installs the new version of every plugin you have on, and moves
+   your rendered compose files to every image the pull changed (in a terminal it asks first).
+3. `docker compose up -d`, then `docker image prune -a`: every image no container uses, old
+   versions included, is deleted.
 
 Your phone hears each update, with the commit it landed on. The repo is the authority: what is
 on its branch is what your install runs.
@@ -47,6 +49,7 @@ It is a host flow too. When a notification arrives:
 ```bash
 ./existential.sh run check-versions --update     # moves the pins in the templates
 ./existential.sh && docker compose up -d         # offers them to your rendered files, pulls, restarts
+docker image prune -a                            # deletes the old versions, which keep their tags
 ```
 
 For another day or time, edit `cron:` in `host/.decree/cron/check-versions.md`.
