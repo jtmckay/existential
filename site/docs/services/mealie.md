@@ -34,7 +34,7 @@ Log in at `https://mealie.<domain>` and change both immediately in **Settings > 
 ## AI Recipe Parsing (optional, manual)
 
 Mealie can use an LLM to parse a recipe from a pasted image, or to transcribe and structure a
-recipe from a video/audio URL. As of the version this stack ships (v3.23.1), upstream moved this
+recipe from a video/audio URL. As of v3.23.1, upstream moved this
 out of environment variables entirely — the whole feature is configured through **Admin >
 AI Providers** in the UI and stored per-group in Mealie's own database, not in this service's
 compose file or `.env`. There is nothing here for `.env.exist.shared`'s model-role keys to wire

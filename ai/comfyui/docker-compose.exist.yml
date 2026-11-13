@@ -7,7 +7,7 @@ services:
     # week. Bump all three together via ./existential.sh run check-versions.
     # cu126 (not cu130) is the nvidia default: it runs on a 525+ driver, where
     # CUDA 13 needs 580+.
-    image: yanwk/comfyui-boot:cu126-slim-20260831
+    image: yanwk/comfyui-boot:cu126-slim-20261109
 
     # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
     # The nvidia reservation below is stripped automatically when this applies.
@@ -16,13 +16,13 @@ services:
         # ROCm build of the same image. privileged is what actually grants
         # /dev/dri here, and it is the sanctioned exception to least privilege:
         # it applies ONLY on an AMD host, never by default.
-        image: yanwk/comfyui-boot:rocm-20260826
+        image: yanwk/comfyui-boot:rocm-20261111
         privileged: true
       none:
         # CPU build. Its own CLI_ARGS default is --cpu, which the body's
         # CLI_ARGS would otherwise blank out — hence restating it here.
         # Generation on CPU is minutes per image: a smoke test, not real work.
-        image: yanwk/comfyui-boot:cpu-20260831
+        image: yanwk/comfyui-boot:cpu-20261109
         environment:
           CLI_ARGS: --cpu ${COMFYUI_ARGS:-}
 

@@ -50,7 +50,7 @@ written request and we will provide it: **[insert contact email]**.
 | Loki | AGPL-3.0 | https://github.com/grafana/loki |
 | Alloy | Apache-2.0 | https://github.com/grafana/alloy |
 | Collabora Online (CODE) | MPL-2.0 | https://github.com/CollaboraOnline/online |
-| Redis (`redis:8.10.1-alpine3.23`) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
+| Redis (`redis:8.10.3-alpine3.23`) | AGPLv3 *(option selected)* | https://github.com/redis/redis |
 | MongoDB (bundled in Lowcoder) | SSPL-1.0 | https://github.com/mongodb/mongo |
 | Firecrawl | AGPL-3.0 | https://github.com/firecrawl/firecrawl |
 | Proxmox VE (host hypervisor) | AGPL-3.0 | https://git.proxmox.com |

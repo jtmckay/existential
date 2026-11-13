@@ -49,6 +49,8 @@ if [ -n "$ntfy_tags" ]; then
     args+=(-H "Tags: $ntfy_tags")
 fi
 
+# ntfy's reply, the message as one JSON line, goes to stdout on purpose: the run's
+# output is shipped to Loki, and Grafana's Notifications dashboard reads that line.
 if curl "${args[@]}" "${ntfy_url}/${ntfy_topic}"; then
     echo ""
     echo "Notification sent to ${ntfy_topic}"

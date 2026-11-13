@@ -39,7 +39,7 @@ services:
     # taking for a service that runs untrusted-ish model files through it.
     # Re-tested end-to-end at this tag: model download (with the HF_HOME fix
     # below), describe handshake, and a real transcription all still work.
-    image: rhasspy/wyoming-whisper:3.7.0
+    image: rhasspy/wyoming-whisper:3.8.1
     restart: unless-stopped
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:

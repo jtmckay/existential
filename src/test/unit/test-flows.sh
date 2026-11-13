@@ -111,11 +111,11 @@ echo ""; echo "=== seed ==="
 # An install from before plugins.yml: an old flow's cron in place, a default flow it turned off.
 O="${TMP}/old"; mkdir -p "$O"; cp -r "${R}/automation" "${R}/src" "$O/"
 mkdir -p "${O}/volumes/workspace_data/.decree/cron"
-printf -- '---\nmachine: check_versions\ncron: "0 9 * * 1"\n---\n' > "${O}/volumes/workspace_data/.decree/cron/check-versions.md"
+printf -- '---\nmachine: newsletter\ncron: "0 7 * * 1"\n---\n' > "${O}/volumes/workspace_data/.decree/cron/newsletter.md"
 echo look-back > "${O}/volumes/workspace_data/.decree/flows-off"
 PATH="${TMP}/bin:${PATH}" REPO_DIR="$O" bash "${O}/src/lib/plugin.sh" seed automation >/dev/null 2>&1
 seeded="$(yq -r '.on[]' "${O}/volumes/workspace_data/.decree/plugins.yml" | xargs)"
-assert_has "a flow it had on stays on" "$seeded" "check-versions"
+assert_has "a flow it had on stays on" "$seeded" "weekly-newsletter"
 assert_lacks "a default it had turned off stays off" "$seeded" "look-back"
 assert_has "...and the other defaults are on" "$seeded" "you-were-here"
 assert_eq "flows-off is gone: plugins.yml says it all" "no" "$(is_file "${O}/volumes/workspace_data/.decree/flows-off")"

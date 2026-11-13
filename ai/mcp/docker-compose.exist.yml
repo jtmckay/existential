@@ -18,7 +18,7 @@ services:
     # `node:22 + npx @playwright/mcp@latest` shape started and answered MCP but
     # had no browser, so every tool call returned "Chromium distribution 'chrome'
     # is not found at /opt/google/chrome/chrome".
-    image: mcr.microsoft.com/playwright/mcp:v0.0.80
+    image: mcr.microsoft.com/playwright/mcp:v0.0.85
     restart: unless-stopped
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     # Chromium + one page; ~215 MiB with a tab open, ~70 MiB idle. Headroom is

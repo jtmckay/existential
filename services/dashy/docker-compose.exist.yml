@@ -1,7 +1,7 @@
 services:
   dashy:
     container_name: dashy
-    image: "lissy93/dashy:4.5.0"
+    image: "lissy93/dashy:4.9.0"
     # The image runs USER node (uid/gid 1000, confirmed via docker inspect + `id`
     # inside the image) and owns nothing outside /app that this service ever
     # writes to — the config mount is :ro and preventWriteToDisk kills the one

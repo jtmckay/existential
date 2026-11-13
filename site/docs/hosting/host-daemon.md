@@ -4,10 +4,11 @@ sidebar_position: 13
 
 # The Host Daemon
 
-Most of the stack runs in containers. Four flows run on the host itself, in its own decree project,
+Most of the stack runs in containers. Five flows run on the host itself, in its own decree project,
 `host/.decree`: [`worker`](./controller-and-workers.md), which reports the host,
 [`auto-update`](./updates.md), which keeps the install current, [`on-boot`](#on-boot),
-which runs your own script when the daemon starts, and [`update-ubuntu`](./updates.md#ubuntu),
+which runs your own script when the daemon starts, [`check-versions`](./updates.md#pinned-images),
+which says when a pinned image is behind, and [`update-ubuntu`](./updates.md#ubuntu),
 which keeps an Ubuntu host patched. They run only while a decree
 daemon runs there, and nothing starts one for you. `./existential.sh` says so until one does.
 

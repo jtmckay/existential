@@ -30,6 +30,27 @@ once, and have it start at boot. `./existential.sh` says so until one runs.
 
 Then you pull and run `./existential.sh` yourself, as before.
 
+## Pinned images {#pinned-images}
+
+Every image the stack runs is pinned to a tag in the repo, so nothing moves until the pin does.
+The `check-versions` flow says when one is behind: Fridays at noon it runs
+`./existential.sh run check-versions`, which compares every pinned tag and base image against
+upstream, and sends one notification listing each that has a newer version. Nothing is changed,
+and a week with nothing behind is silent.
+
+```bash
+./existential.sh flow on check-versions
+```
+
+It is a host flow too. When a notification arrives:
+
+```bash
+./existential.sh run check-versions --update     # moves the pins in the templates
+./existential.sh && docker compose up -d         # offers them to your rendered files, pulls, restarts
+```
+
+For another day or time, edit `cron:` in `host/.decree/cron/check-versions.md`.
+
 ## Ubuntu {#ubuntu}
 
 `auto-update` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu

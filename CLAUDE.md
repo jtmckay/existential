@@ -166,7 +166,7 @@ when its build context changed) without touching running containers, so the next
 them. Every run also installs each decree project's plugins at this checkout's version. The
 optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow
 reports the host to its controller, the optional `on-boot` flow runs `host/boot.sh` once
-when that daemon starts, and the optional `update-ubuntu` flow patches an Ubuntu host; all four are host flows, run by a decree daemon in `host/.decree`
+when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, and the optional `update-ubuntu` flow patches an Ubuntu host; all five are host flows, run by a decree daemon in `host/.decree`
 that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`

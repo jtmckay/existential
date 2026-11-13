@@ -1,7 +1,7 @@
 services:
   actual-budget:
     container_name: actual-budget
-    image: actualbudget/actual-server:26.8.1
+    image: actualbudget/actual-server:26.11.0
     # Image ships no USER (runs root by default) and no entrypoint script — tini
     # execs `node app.js` directly. /data is baked actual:actual (1001:1001), but
     # that's irrelevant once it's a bind mount: verified this image starts and

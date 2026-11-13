@@ -1,7 +1,7 @@
 services:
   loki:
     container_name: loki
-    image: grafana/loki:3.7.7
+    image: grafana/loki:3.7.10
     restart: unless-stopped
     # ~157 MiB measured, including loki-config.yaml's 100 MB embedded results
     # cache. A wide Grafana time range costs more; that spill goes to swap, which
@@ -35,7 +35,7 @@ services:
     container_name: loki-alloy
     # Replaces grafana/promtail, which grafana declared feature-complete and
     # EOL'd in March 2026 (frozen at 3.6.11, no 3.7.x).
-    image: grafana/alloy:v1.19.2
+    image: grafana/alloy:v1.22.0
     restart: unless-stopped
     # Tails every container's json-file log (each host ships its own decree
     # runs: automation/plugins/reporting.md). ~42 MiB idle, ~65 MiB while

@@ -39,7 +39,7 @@ Without a NAS, `/nas` is an empty folder under `volumes/`.
 
 ## Cache
 
-`nextcloud-redis` (`redis:8.10.1-alpine3.23`, licensed
+`nextcloud-redis` (`redis:8.10.3-alpine3.23`, licensed
 [RSALv2 / SSPLv1 / AGPLv3](https://redis.io/legal/licenses/); for commercial hosting pick AGPLv3
 or RSALv2):
 

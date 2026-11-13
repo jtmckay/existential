@@ -1,7 +1,7 @@
 services:
   mealie:
     container_name: mealie
-    image: ghcr.io/mealie-recipes/mealie:v3.23.1
+    image: ghcr.io/mealie-recipes/mealie:v3.31.0
     # The image's own entrypoint (/app/run.sh) is a gosu/PUID-style init: it
     # only chowns /app and re-execs via gosu when it starts as root (uid 0) or
     # when the running uid already equals $PUID (default 911). Neither branch

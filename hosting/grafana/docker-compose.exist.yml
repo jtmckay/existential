@@ -2,7 +2,7 @@ services:
   # Grafana dashboards at http://localhost:43010
   grafana:
     container_name: grafana
-    image: grafana/grafana:13.2.1
+    image: grafana/grafana:13.3.1
     restart: unless-stopped
     # ~300 MiB measured idle on 13.2 (11.x sat at ~110 MiB).
     deploy:

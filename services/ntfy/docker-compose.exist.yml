@@ -1,7 +1,7 @@
 services:
   ntfy:
     container_name: ntfy
-    image: binwiederhier/ntfy:v2.27.0
+    image: binwiederhier/ntfy:v2.37.2
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     # Go binary with a SQLite message cache; 14-17 MiB measured idle, publishing,

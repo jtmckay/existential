@@ -1,7 +1,7 @@
 services:
   portainer:
     container_name: portainer
-    image: portainer/portainer-ce:2.45.0
+    image: portainer/portainer-ce:2.45.3
     # Root: the image ships no USER (defaults to uid/gid 0 — verified: a container
     # started with no `user:` override reports Uid/Gid 0 in /proc/1/status) and is
     # distroless (verified: no /bin/sh, /bin/bash or busybox in the rootfs — no

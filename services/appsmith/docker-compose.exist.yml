@@ -1,7 +1,7 @@
 services:
   appsmith:
     container_name: appsmith
-    image: index.docker.io/appsmith/appsmith-ce:v2.3
+    image: index.docker.io/appsmith/appsmith-ce:v2.7.0
     restart: unless-stopped
     # One container, six supervisord-managed processes (`supervisorctl status`
     # inside a running container): the Java backend (`backend`, Spring on

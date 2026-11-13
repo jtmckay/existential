@@ -3,7 +3,7 @@ services:
   # UI interface at http://localhost:8421/
   nextcloud:
     container_name: nextcloud
-    image: nextcloud:34.0.3
+    image: nextcloud:35.0.3
     # Same uid as code-server and decree, because all three write the
     # same workspace_data volume. The image supports a non-root start (its
     # entrypoint skips the chown/su dance when `id -u` is not 0); the sysctl is
@@ -131,7 +131,7 @@ services:
   #                    file events (verified); only a file handler can see those writes.
   nextcloud-cron:
     container_name: nextcloud-cron
-    image: nextcloud:34.0.3
+    image: nextcloud:35.0.3
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     # PHP CLI. Idle is a sleeping worker; the limit matches the image's own PHP
@@ -219,7 +219,7 @@ services:
   # than as its own toggleable service, and nextcloud depends_on it above.
   nextcloud-redis:
     container_name: nextcloud-redis
-    image: redis:8.10.1-alpine3.23
+    image: redis:8.10.3-alpine3.23
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped
     # No volume, and --save "" so redis never tries to write one. Locks and

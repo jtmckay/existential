@@ -29,7 +29,7 @@ services:
 
   nocodb:
     container_name: nocodb
-    image: "nocodb/nocodb:2026.08.1"
+    image: "nocodb/nocodb:2026.10.1"
     # The image ships no USER (Config.User is empty — dumb-init/start.sh both run
     # as root by default) but tolerates an arbitrary uid: verified
     # nocodb/nocodb:2026.08.1 starts, mkdir -p's NC_TOOL_DIR (/usr/app/data), and

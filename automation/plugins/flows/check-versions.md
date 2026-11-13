@@ -2,28 +2,24 @@
 machine: plugin
 automation: check-versions
 name: Version updates
-tagline: Mondays, a notification listing every service with a newer image
-docs: /docs/flows#housekeeping
-services:
-  - EXIST_IS_SERVICES_AUTOMATION
-  - EXIST_IS_SERVICES_NTFY
+tagline: Fridays at noon, a notification listing every pinned image with a newer version upstream
+docs: /docs/hosting/updates#pinned-images
+project: host
 needs:
   - check_versions
 cron:
   check-versions: |
     ---
-    cron: "0 9 * * MON"
+    cron: "0 12 * * FRI"
     machine: check_versions
     ---
 
-    Weekly image version check. Sends an ntfy notification listing every service
-    with a newer upstream tag. Silent when all tags are current.
-
-    Runs Mondays at 09:00. To apply updates after being notified:
-      ./existential.sh run check-versions --update
-      docker compose pull && docker compose up -d
+    Fridays at 12:00, every pinned image against upstream. One ntfy notification
+    lists each that is behind; silent when all are current.
 ---
+It runs in a decree daemon on the host (host/.decree): start one, and have it start at boot,
+as https://existential.company/docs/hosting/host-daemon says.
 
 When one arrives:
   ./existential.sh run check-versions --update
-  ./existential.sh && docker compose pull && docker compose up -d
+  ./existential.sh && docker compose up -d

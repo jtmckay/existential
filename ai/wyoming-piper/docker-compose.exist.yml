@@ -29,7 +29,7 @@
 services:
   wyoming-piper:
     container_name: wyoming-piper
-    image: rhasspy/wyoming-piper:2.4.2
+    image: rhasspy/wyoming-piper:2.5.3
     restart: unless-stopped
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     networks:

@@ -29,7 +29,7 @@ services:
   # Needs root — Chromium sandbox requires CAP_SYS_ADMIN inside the container.
   firecrawl-playwright:
     container_name: firecrawl-playwright
-    image: ghcr.io/firecrawl/playwright-service:latest@sha256:443030bed5c8162c85998276f76bf7f8a95545dfeb088581f41f91506cfa1017
+    image: ghcr.io/firecrawl/playwright-service:latest@sha256:227ce3d8059173925a5a0697c63a1e947662cca934a609151651f578774edd5d
     restart: unless-stopped
     deploy:
       resources:
@@ -51,7 +51,7 @@ services:
 
   firecrawl:
     container_name: firecrawl
-    image: ghcr.io/firecrawl/firecrawl:latest@sha256:e4f9725dbb267f501830e6651e5f61af9e5a5b18d835eada2db7811b24c49c81
+    image: ghcr.io/firecrawl/firecrawl:latest@sha256:b766b18a162a08e28d37ff58e83c830232ac6f39b2eb621eb588cbe755a9c5ef
     restart: unless-stopped
     deploy:
       resources:
@@ -120,7 +120,7 @@ services:
 
   firecrawl-redis:
     container_name: firecrawl-redis
-    image: redis:8.6.4-alpine3.23
+    image: redis:8.10.3-alpine3.23
     restart: unless-stopped
     # No volume, so nothing to chown — same as nas/redis.
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
@@ -145,7 +145,7 @@ services:
 
   firecrawl-rabbitmq:
     container_name: firecrawl-rabbitmq
-    image: rabbitmq:4.3.1-management
+    image: rabbitmq:4.4.0-management
     restart: unless-stopped
     # Erlang broker; ~94 MiB idle. A backed-up crawl queue is what grows it.
     deploy:

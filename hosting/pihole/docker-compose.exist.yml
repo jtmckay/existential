@@ -14,7 +14,7 @@
 services:
   pihole:
     container_name: pihole
-    image: pihole/pihole:2026.07.2
+    image: pihole/pihole:2026.11.0
     restart: unless-stopped
     # DNS + a small web UI. The query log is on disk, not in memory.
     #

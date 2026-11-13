@@ -1,0 +1,175 @@
+{
+  "description": "Every notification the stack sent to ntfy: the topic to subscribe to, and what was said.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "Decree Overview",
+      "type": "link",
+      "url": "/d/decree-overview/decree-overview"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "type": "table",
+      "title": "Topics (subscribe to these in the ntfy app)",
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (topic) (count_over_time({job=\"decree_script\", script=\"notify\", host=~\"$host\"} |= `\"event\":\"message\"` | json [$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "topic": "Topic",
+              "Value": "Notifications"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 0
+      },
+      "id": 2,
+      "type": "timeseries",
+      "title": "Notifications per day, by topic",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "{{topic}}",
+          "expr": "sum by (topic) (count_over_time({job=\"decree_script\", script=\"notify\", host=~\"$host\"} |= `\"event\":\"message\"` | json [1d]))"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "type": "logs",
+      "title": "Notifications",
+      "options": {
+        "enableLogDetails": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{job=\"decree_script\", script=\"notify\", host=~\"$host\"} |= `\"event\":\"message\"` | json | line_format `[{{.topic}}] {{.title}}\\n{{.message}}`"
+        }
+      ]
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 4,
+      "type": "alertlist",
+      "title": "Grafana's own alerts (sent straight to the decree topic)",
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "maxItems": 20,
+        "sortOrder": 3,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": false,
+          "normal": false,
+          "error": true
+        }
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [
+    "ntfy",
+    "decree"
+  ],
+  "templating": {
+    "list": [
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "definition": "label_values({job=\"decree_script\"}, host)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "name": "host",
+        "label": "Host",
+        "query": {
+          "type": 1,
+          "label": "host",
+          "stream": "{job=\"decree_script\"}",
+          "refId": "host"
+        },
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Notifications",
+  "uid": "notifications",
+  "version": 1
+}

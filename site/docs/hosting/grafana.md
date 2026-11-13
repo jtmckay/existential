@@ -23,6 +23,7 @@ Dashboards for [Prometheus](./prometheus.md) metrics and [Loki](./loki.md) logs,
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Every decree run on every host that reports |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
 | Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM ([Controller and Workers](./controller-and-workers.md)) |
+| Notifications dashboard | `provisioning/dashboards/notifications.json` | Every notification the stack sent to ntfy: which topics, and what each said |
 | decree alerts | `provisioning/alerting/decree.yaml` | A failed run in `automation-backup` or a host's own project, or a backup with no `done` run in 48h → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
@@ -41,6 +42,20 @@ ships its runs live ([Loki](./loki.md)), so a run is here seconds after it ends:
 - **Installed machines** — what each host's projects have installed, from its last report
 
 This is the main place to check when a Decree automation fails or behaves unexpectedly.
+
+## Notifications dashboard
+
+Every notification a decree run sent, on every host that reports, read from the reply ntfy
+gives the `notify` machine, which each host's alloy ships with the rest of the run:
+
+- **Topics** — each topic that got one, and how many: these are what to subscribe to in the
+  ntfy app. Everything goes to `decree` unless a flow names another
+- **Notifications per day**, by topic
+- **Notifications** — each one's topic, title and text
+- **Grafana's own alerts** — the two decree alerts go from Grafana straight to the `decree`
+  topic, not through a run, so they are listed from Grafana itself
+
+A message something else publishes to ntfy (your own `curl`) is not here.
 
 ## Extending
 

@@ -26,7 +26,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 - `docker compose up -d` afterwards starts anything new.
 - A flow that needs another turns that one on too.
 - `off` never deletes a file you changed.
-- `worker`, `auto-update`, `on-boot` and `update-ubuntu` run on the host itself, in a decree daemon there (`host/.decree`),
+- `worker`, `auto-update`, `on-boot`, `check-versions` and `update-ubuntu` run on the host itself, in a decree daemon there (`host/.decree`),
   not in a container. `./existential.sh` says so until one runs.
 
 | Flow | What it does | Needs, beyond Core |
@@ -39,7 +39,6 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/`. **On by default** | — |
 | `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model. **On by default** | — |
 | `weekly-newsletter` | [Your own newsletter](./newsletter.md) from only the feeds you picked | a chat model |
-| `check-versions` | Mondays, the services with a newer image | — |
 | `search` | Your notes, PDFs and Word files, by meaning and by words ([qmd](../ai/qmd.md)) | qmd |
 | `gmail-inbox` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail.md)) | a Google grant |
 | `budget` | [Bank alerts become budget entries](./transaction-gmail-actual-budget.md) | Actual Budget, `gmail` |
@@ -59,6 +58,7 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, CPU, RAM, VRAM, automations, runs, in Grafana | decree on the host |
 | `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
 | `on-boot` | [Your `host/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
+| `check-versions` | [Fridays at noon, every pinned image with a newer version upstream](../hosting/updates.md#pinned-images), in one notification | decree on the host |
 | `update-ubuntu` | [Keep an Ubuntu host patched](../hosting/updates.md#ubuntu): security updates daily, the rest weekly, a reboot at 02:00 only when one is required | decree on the host, Ubuntu |
 
 [Note → Automation](./note-to-automation.md) is part of Core, on whenever a chat model answers.
@@ -69,9 +69,6 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 - **`health-checks`** probes ntfy. For another service, copy its cron in
   `workspace/.decree/cron/` to `health-check-<slug>.md` and set `SERVICE_NAME` and `SERVICE_URL`
   (`http://<container>:<port>/<health path>`).
-- **`check-versions`** reports images that are behind. `./existential.sh run check-versions
-  --update` patches the templates; then `./existential.sh && docker compose pull && docker
-  compose up -d`.
 
 ## How every flow works
 
