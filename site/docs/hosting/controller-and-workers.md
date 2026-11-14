@@ -121,7 +121,8 @@ EXIST_REPORTING_URL=http://192.168.1.10:43100   # the Loki host's address
 
 A worker's decree daemon can also keep the install current: `./existential.sh flow on
 auto-update` runs `git pull`, `./existential.sh` and `docker compose up -d` every 15 minutes.
-See [Updates](./updates.md).
+On a host with neither docker nor podman, `flow` works the same, with the host's own tools,
+and the update leaves out `docker compose`. See [Updates](./updates.md).
 
 ## What each host reports
 

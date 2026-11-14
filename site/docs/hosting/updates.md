@@ -12,9 +12,10 @@ turn it on, runs on the host every 15 minutes:
 2. `./existential.sh`, which installs the new version of every plugin you have on, and moves
    your rendered compose files to every image the pull changed (in a terminal it asks first).
 3. `docker compose up -d`, then `docker image prune -a`: every image no container uses, old
-   versions included, is deleted.
+   versions included, is deleted. A worker with neither docker nor podman skips this step.
 
-Your phone hears each update, with the commit it landed on. The repo is the authority: what is
+Your phone hears each update, with the commit it landed on (an install with no engine has no
+notify to tell it). The repo is the authority: what is
 on its branch is what your install runs.
 
 ```bash

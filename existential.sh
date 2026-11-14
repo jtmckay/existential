@@ -329,19 +329,24 @@ _host_plugins() {
     local on
     on="$(cd "${SCRIPT_DIR}/host/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | xargs)"
     [[ -n "$on" ]] || return 0
+    # Every step still to do, in one go, so one fix-and-retry covers them all.
+    local todo=false
     if ! command -v decree >/dev/null 2>&1; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and decree is not here:"
-        _install_steps decree
-        echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
-    elif ! tmux has-session -t "=existential-host" 2>/dev/null; then
+        _install_steps decree; todo=true
+    fi
+    if ! tmux has-session -t "=existential-host" 2>/dev/null; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs host/.decree. Start one:"
         echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
         echo "     and have it start at boot: https://existential.company/docs/hosting/host-daemon"
-        echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
-    elif [[ " ${on} " == *" reporting "* ]] && ! command -v alloy >/dev/null 2>&1; then
+        todo=true
+    fi
+    $todo && echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
+    if [[ " ${on} " == *" reporting "* ]] && ! command -v alloy >/dev/null 2>&1; then
         echo "  ⚠  reporting ships this host's decree runs with alloy, and alloy is not here:"
-        _install_steps alloy
-    elif [[ " ${on} " == *" reporting "* ]]; then
+        _install_steps alloy; todo=true
+    fi
+    if ! $todo && [[ " ${on} " == *" reporting "* ]]; then
         # The answer to "is this host reporting?": what its newest report said.
         local runs="${SCRIPT_DIR}/host/.decree/runs" r last=""
         for r in $(ls -t "$runs" 2>/dev/null | head -20); do
@@ -389,19 +394,22 @@ _worker_needs() {
     local t miss=0 bin="${XDG_BIN_HOME:-${HOME}/.local/bin}" rc="~/.bashrc"
     # shellcheck disable=SC2088  # as above
     [[ "${SHELL##*/}" == zsh ]] && rc="~/.zshrc"
-    for t in curl decree yq tmux; do
+    # Every missing one is named in one go. alloy is named too but does not stop
+    # setup: without it reporting still sends, it just ships no decree runs.
+    for t in curl decree yq tmux alloy; do
         if ! command -v "$t" >/dev/null 2>&1 && [[ -x "${bin}/${t}" ]]; then
             echo "  ✗ ${t} is in ${bin}, which is not on PATH. Add it, open a new shell, then re-run ./existential.sh:"
             echo "       echo 'export PATH=\"${bin}:\$PATH\"' >> ${rc}"
-            miss=1; continue
         elif ! command -v "$t" >/dev/null 2>&1; then
             echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
+            _install_steps "$t"
         elif [[ "$t" == yq && "$(yq --version 2>&1)" != *mikefarah* ]]; then
             echo "  ✗ the yq here ($(command -v yq)) is not mikefarah's yq v4. Put that one first on PATH:"
+            _install_steps "$t"
         else
             continue
         fi
-        _install_steps "$t"; miss=1
+        [[ "$t" == alloy ]] || miss=1
     done
     return "$miss"
 }
@@ -1074,6 +1082,15 @@ case "$action" in
         ;;
     flow|service)
         ensure_git_hooks
+        # No engine: a worker's flows (auto-update, on-boot, ...) are host plugins,
+        # turned on and synced with the host's own tools, as the bare run does.
+        if ! adhoc_find_runtime; then
+            [[ "$action" == flow ]] || { echo "Services need docker or podman: https://docs.docker.com/engine/install/" >&2; exit 1; }
+            _rc=0; REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/flows.sh" "$@" || _rc=$?
+            [[ "$_rc" -eq 3 ]] && exit 0
+            [[ "$_rc" -eq 0 ]] || exit "$_rc"
+            _worker_without_engine; exit $?
+        fi
         ensure_adhoc_built
         # 3 is "nothing changed": a list, or a picker left without a choice.
         _rc=0; run_adhoc env REPO_DIR=/repo bash "/src/${action}s.sh" "$@" || _rc=$?

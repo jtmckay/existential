@@ -33,7 +33,8 @@ die() { echo "Error: $*" >&2; exit 1; }
 
 env_get() { sed -n "s/^${1}=//p" "$EXIST_ENV" 2>/dev/null | head -1; }
 env_set() {
-    if grep -qE "^${1}=" "$EXIST_ENV"; then sed -i "s|^${1}=.*|${1}=${2}|" "$EXIST_ENV"; else echo "${1}=${2}" >> "$EXIST_ENV"; fi
+    # sed -i with a suffix: this runs on the host, a Mac's BSD sed included, when there is no engine.
+    if grep -qE "^${1}=" "$EXIST_ENV"; then sed -i.bak "s|^${1}=.*|${1}=${2}|" "$EXIST_ENV" && rm -f "${EXIST_ENV}.bak"; else echo "${1}=${2}" >> "$EXIST_ENV"; fi
 }
 
 _row() {   # one line per flow: its id for the picker, then a mark, the id and the tagline

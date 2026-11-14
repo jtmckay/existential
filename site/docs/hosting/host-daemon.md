@@ -12,6 +12,20 @@ which says when a pinned image is behind, and [`update-ubuntu`](./updates.md#ubu
 which keeps an Ubuntu host patched. They run only while a decree
 daemon runs there, and nothing starts one for you. `./existential.sh` says so until one does.
 
+## Turn a flow on
+
+Each one is off until you turn it on, from the checkout:
+
+```bash
+./existential.sh flow on auto-update     # or worker, on-boot, check-versions, update-ubuntu
+```
+
+That puts it in `host/.decree/plugins.yml` and installs it into `host/.decree`. It works on
+a host with neither docker nor podman, with the host's own tools; anything missing is named,
+all of it at once, with how to install it. Then start the daemon, below.
+
+## What it needs
+
 You need [decree](https://github.com/jtmckay/decree) on the host (the version
 `services/automation/decree/Dockerfile` pins), and `tmux`:
 

@@ -23,8 +23,10 @@ scripts:
     cd "$repo"
     # shellcheck source=/dev/null
     . src/utils/adhoc.sh
-    adhoc_detect_runtime
+    # No engine is a worker: it pulls and re-syncs its host plugins, nothing more.
+    adhoc_find_runtime || DOCKER_CMD=""
     tell() {  # <title> <body>: to your phone, through the stack's own notify
+        [[ -n "$DOCKER_CMD" ]] || return 0
         printf '%s\n' "$2" | $DOCKER_CMD exec -i automation decree emit --machine notify \
             --param ntfy_title="$1" --param ntfy_tags=arrows_counterclockwise >/dev/null 2>&1 || true
     }
@@ -36,10 +38,12 @@ scripts:
     fi
     if [[ "$(git rev-parse HEAD)" == "$before" ]]; then echo "update: up to date"; exit 0; fi
     ./existential.sh </dev/null
-    $DOCKER_CMD compose up -d
-    # Every container is on its new image now, so an image none uses is an old
-    # version (a moved pin keeps its old tag, so it is never "dangling").
-    $DOCKER_CMD image prune -af >/dev/null || true
+    if [[ -n "$DOCKER_CMD" ]]; then
+        $DOCKER_CMD compose up -d
+        # Every container is on its new image now, so an image none uses is an old
+        # version (a moved pin keeps its old tag, so it is never "dangling").
+        $DOCKER_CMD image prune -af >/dev/null || true
+    fi
     tell "Updated" "$(hostname) is at $(git log -1 --format='%h %s')."
     echo "update: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
 cron:
