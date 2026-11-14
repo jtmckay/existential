@@ -40,6 +40,23 @@ To report to a Loki on another host, set `EXIST_REPORTING_URL=http://<that-host>
 controller's `.env.shared` and re-run `./existential.sh`. Every worker picks it up on its next
 report.
 
+## Services a host has off
+
+The controller's answer also names its `EXIST_DOMAIN`. On every other host, each
+`./existential.sh` keeps a copy (`host/controller.json`, the last one while the controller is
+away), and any address in `.env` that names the container of a service that is off on that host
+points at the controller's domain instead: `EXIST_MODEL_URL=http://ollama:11434/v1` becomes
+`https://ollama.<domain>/v1`. An address you set to anything else is left alone. The
+controller's Caddy (or yours) has to serve each of those names.
+
+Notifications are the exception, so no ntfy password leaves the controller. On a host with ntfy
+off, `EXIST_NTFY_URL` becomes the controller's Loki (`https://loki.<domain>/loki/api/v1/push`),
+`notify` pushes each message there as `{job="exist", kind="notify"}`, and the controller,
+with ntfy on, publishes it to ntfy within 15 seconds. That relay runs in the controller's tmux
+session `notify-relay` (`tmux attach -t notify-relay`), started by its `reporting`, and needs
+`jq` on the controller. It keeps its place, so a message sent while it is down goes out once it
+is back.
+
 ## Add a worker
 
 On the new host:
@@ -56,8 +73,8 @@ On the new host:
    | `tmux` | keeps the decree daemon running |
 
    decree and yq install to `~/.local/bin`. If that isn't on your `PATH`, `./existential.sh`
-   prints the line that puts it there, e.g.
-   `echo 'export PATH="/home/you/.local/bin:$PATH"' >> ~/.bashrc`.
+   prints the line that puts it there:
+   `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc`.
 
    Every worker, docker or not, also needs [alloy](https://github.com/grafana/alloy) on the
    host: it ships the decree runs. `./existential.sh` prints how to get it, the version the
@@ -135,6 +152,7 @@ The `reporting` plugin sends one push to Loki every 5 minutes, labelled `job="ex
 | `load` | push: average CPU % since the last one, RAM used and total, and GPU VRAM used and total, summed over every GPU, when there is one |
 | `machine` | decree machine installed, in each project on the host (`automation`, `automation-backup`, `host`) |
 | `plugin` | plugin installed, in each of those projects: the ones turned on and the ones they need |
+| `cron` | active cron (`cron/`) in each of those projects, with its schedule and machine |
 | `container` | container running, by name and image (docker or podman, when the host has one) |
 
 A container in the last day's reports that is missing from the last 10 minutes', on a host still

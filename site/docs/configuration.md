@@ -235,7 +235,10 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
 Generated on render, shared between services:
 
 - **`EXIST_NTFY_URL`**: ntfy, by container name. `EXIST_NTFY_USER` / `EXIST_NTFY_PASSWORD` are
-  the publisher, created by ntfy on first boot.
+  the publisher, created by ntfy on first boot. On a host with ntfy off and a controller, `.env`
+  gets the controller's Loki instead, which relays to its ntfy; any other address naming a
+  service that is off here gets the controller's domain. See
+  [Controller and Workers](./hosting/controller-and-workers.md#services-a-host-has-off).
 - **`EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN`**: what Nextcloud's file-event webhooks send to
   `/files`. See [File Processor](./decree/file-change-processing.md#setup).
 - **`EXIST_NEXTCLOUD_DOMAIN`, `_USER`, `_APP_PASSWORD`, `_WORKSPACE_DIR`**: the Nextcloud

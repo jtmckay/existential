@@ -135,6 +135,22 @@
         { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true, "Value #A": true } } }
       ],
       "type": "table"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 52 },
+      "id": 9,
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "host", "desc": false } ] },
+      "targets": [
+        { "refId": "A", "queryType": "instant",
+          "expr": "count by (host, project, cron, schedule, machine) (count_over_time({job=\"exist\", kind=\"cron\", host=~\"$host\"} | json [15m]))" }
+      ],
+      "title": "Crons, per project",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true, "Value #A": true } } }
+      ],
+      "type": "table"
     }
   ],
   "time": { "from": "now-7d", "to": "now" },

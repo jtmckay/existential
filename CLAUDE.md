@@ -250,7 +250,9 @@ from the repo root against the generated `docker-compose.yml`.
 - **Addressing.** Core's two web apps → `https://<host>.<tailnet>.ts.net` (code-server) and
   `:8443` (ntfy) via `tailscale serve`, from ports published on `127.0.0.1` only; add-ons in a
   browser → `https://<slug>.<domain>` through Caddy, which ships off;
-  container-to-container → `http://<container>:<port>` over Docker DNS. Caddy's
+  container-to-container → `http://<container>:<port>` over Docker DNS; one whose service is
+  off here → the controller's `https://<slug>.<domain>` (`resolveOffServices` in
+  `generate-compose.ts`, ntfy → the controller's Loki). Caddy's
   `Caddyfile.exist.Caddyfile` is the single source of truth for which hostnames exist. →
   `networking.md`
 - **Prefer runtime env over render-time baking.** A bare `EXIST_DOMAIN` token is substituted once

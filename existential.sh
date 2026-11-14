@@ -265,15 +265,29 @@ _is_controller() {
 # (_tailscale_serve_core) and read by the reporting plugin on every worker:
 # EXIST_REPORTING_URL, else this host's Loki when it is on, else nowhere.
 _controller_answer() {
-    local f="${SCRIPT_DIR}/.env.shared" url name
+    local f="${SCRIPT_DIR}/.env.shared" url name domain
     _is_controller || return 0
     url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" 2>/dev/null | cut -d= -f2-) || true
     if [[ -z "$url" ]] && grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null; then
         name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-) || true
         if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
     fi
+    # Its domain: where a service another host has off is found (https://<slug>.<domain>).
+    domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2-) || true
     mkdir -p "${SCRIPT_DIR}/host"
-    if [[ -n "$url" ]]; then printf '{"loki":"%s"}\n' "$url"; else echo '{}'; fi > "${SCRIPT_DIR}/host/exist.json"
+    printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/host/exist.json"
+}
+
+# Another host's copy of its controller's answer, host/controller.json, for
+# generate-compose's .env (the controller reads its own host/exist.json). The
+# last answer stays while the controller is away.
+_controller_fetch() {
+    local ctl ans
+    ctl=$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
+    [[ -n "$ctl" ]] || return 0
+    ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null)" || true
+    if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/host"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/host/controller.json"
+    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480; using its last answer, if any."; fi
 }
 
 _tailscale_serve_steps() {
@@ -1010,6 +1024,7 @@ _build() {
     fi
     _tailscale_serve_core
     _controller_answer
+    _controller_fetch
     _start_on_boot
     _check_nas || exit 1
     echo ""
@@ -1043,6 +1058,10 @@ Actions:
                          next run renders fresh. Asks first; never touches volumes.
   run                    List every action.
   run <utility> [args]   A general utility in src/lib/ (rclone, models, footprint, ...).
+  run plugin [list|on|off|sync|export] [project/][name]
+                         Each decree project's plugins (automation, backup, host).
+                         sync installs them at this checkout's version; a bare
+                         run already does that for every project.
   run <slug> [action] [args]
                          A service's exist.<action>.sh (action defaults to initial).
   test [name]            all (default); secrets, guards, harness, lint, typecheck,

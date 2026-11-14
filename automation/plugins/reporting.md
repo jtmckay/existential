@@ -2,7 +2,7 @@
 machine: plugin
 automation: reporting
 chart:
-  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines and plugins installed, the containers running - and keep alloy shipping every decree run there live.
+  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
   store:
     loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
     alloy-loki: The Loki address the running alloy was started with; a new one restarts it. report reads and writes it.
@@ -29,7 +29,8 @@ scripts:
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
     # (CPU, RAM, VRAM) once, kind=machine per installed decree machine, kind=plugin
-    # per installed plugin, kind=container per running container. Each run
+    # per installed plugin, kind=cron per active cron, kind=container per running
+    # container. Each run
     # is alloy's, below, as {job="decree"} and {job="decree_script"}.
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
@@ -91,7 +92,7 @@ scripts:
 
     # Each project's machines, and its plugins: what plugin sync installed there
     # (applied/plugins/), the ones turned on and the ones they need.
-    : > "${tmp}/machine"; : > "${tmp}/plugin"
+    : > "${tmp}/machine"; : > "${tmp}/plugin"; : > "${tmp}/cron"
     for p in automation:volumes/workspace_data/.decree automation-backup:services/automation-backup host:host/.decree; do
         name="${p%%:*}" dir="${repo}/${p#*:}"
         [[ -d "$dir" ]] || continue
@@ -102,6 +103,16 @@ scripts:
         for m in "$dir"/applied/plugins/*.md; do
             [[ -f "$m" ]] || continue
             printf '{"project":"%s","plugin":"%s"}\n' "$name" "$(basename "$m" .md)" >> "${tmp}/plugin"
+        done
+        # Each active cron (cron/, what the daemon fires): its schedule and machine.
+        for m in "$dir"/cron/*.md; do
+            [[ -f "$m" ]] || continue
+            awk -v p="$name" -v n="$(basename "$m" .md)" '
+                NR == 1 && /^---/ { fm = 1; next }
+                fm && /^---/ { exit }
+                fm && /^cron:/ { sub(/^cron:[[:space:]]*/, ""); gsub(/["\047]/, ""); c = $0 }
+                fm && /^machine:/ { sub(/^machine:[[:space:]]*/, ""); gsub(/["\047]/, ""); s = $0 }
+                END { printf "{\"project\":\"%s\",\"cron\":\"%s\",\"schedule\":\"%s\",\"machine\":\"%s\"}\n", p, n, c, s }' "$m" >> "${tmp}/cron"
         done
     done
 
@@ -120,9 +131,9 @@ scripts:
     # are in the store, so a run that ends while it is down is sent once it is
     # back. A new Loki address restarts it.
     host="$(hostname -s 2>/dev/null || hostname)"
+    # shellcheck source=/dev/null
+    . "${repo}/services/automation/decree/tmx.sh"
     if command -v alloy >/dev/null 2>&1; then
-        # shellcheck source=/dev/null
-        . "${repo}/services/automation/decree/tmx.sh"
         if [[ "$(cat "${store}/alloy-loki" 2>/dev/null || true)" != "$loki" ]]; then
             tmux kill-session -t "=reporting-alloy" 2>/dev/null || true
             printf '%s\n' "$loki" > "${store}/alloy-loki"
@@ -134,13 +145,21 @@ scripts:
         runs="no runs shipped: alloy is not on PATH"
     fi
 
+    # The controller, with ntfy on: what another host's notify pushed to Loki
+    # ({job="exist", kind="notify"}), published to this ntfy, in tmux as
+    # notify-relay (lib/reporting/relay.sh). It reads the Loki address from the
+    # store each time, so a new one needs no restart.
+    if [[ -z "$ctl" ]] && grep -q '^EXIST_IS_SERVICES_NTFY=true' "${repo}/.env.shared" 2>/dev/null; then
+        tmx -d notify-relay "exec bash '${DECREE_LIB}/reporting/relay.sh' '$(cd "$store" && pwd)' '${repo}'"
+    fi
+
     # One Loki push: a stream per kind, each line a JSON string. The timestamp is
     # now plus a nanosecond per line, so no two lines of a stream share one.
     now="$(date +%s)"
     {
         printf '{"streams":['
         sep=""
-        for kind in disk load machine plugin container; do
+        for kind in disk load machine plugin cron container; do
             [[ -s "${tmp}/${kind}" ]] || continue
             printf '%s{"stream":{"job":"exist","host":"%s","kind":"%s"},"values":[' "$sep" "$host" "$kind"
             sed 's/\\/\\\\/g; s/"/\\"/g' "${tmp}/${kind}" \
@@ -153,8 +172,50 @@ scripts:
 
     curl -fsS --max-time 20 -H 'Content-Type: application/json' \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
-    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/container" | tr -d ' ') containers, ${runs}"
+    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, ${runs}"
 lib:
+  reporting/relay.sh: |
+    #!/usr/bin/env bash
+    # notify-relay <store> <repo> — on the controller: every message another host's
+    # notify pushed to Loki ({job="exist", kind="notify"}, a JSON line of topic,
+    # title, priority, tags and body), published to this host's ntfy as the shared
+    # publisher. report starts it in tmux (notify-relay). Its place is
+    # <store>/relay-cursor, so a message sent while it is down is published once it
+    # is back; one ntfy refuses is tried again, in order. Needs jq.
+    #
+    # On the host, so bash 3.2 and BSD tools on a Mac: no date +%N.
+    set -uo pipefail
+    store="$1" repo="$2"
+    ntfy=http://127.0.0.1:44680   # where services/ntfy publishes itself on the host
+    command -v jq >/dev/null 2>&1 || { echo "notify-relay: needs jq on this host"; exit 1; }
+    env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
+    cursor="${store}/relay-cursor"
+    [[ -s "$cursor" ]] || echo "$(date +%s)000000000" > "$cursor"
+    while :; do
+        loki="$(cat "${store}/loki" 2>/dev/null || true)"
+        if [[ -n "$loki" ]] && out="$(curl -fsSG --max-time 10 "${loki%/}/loki/api/v1/query_range" \
+                --data-urlencode 'query={job="exist", kind="notify"}' --data-urlencode "start=$(( $(cat "$cursor") + 1 ))" \
+                --data-urlencode direction=forward --data-urlencode limit=200)"; then
+            printf '%s' "$out" | jq -c '[.data.result[] | .stream.host as $h | .values[]
+                    | {ts: .[0], host: $h, m: ((.[1] | fromjson?) // {})}] | sort_by(.ts) | .[]' |
+            while IFS= read -r e; do
+                if [[ -z "$(jq -r '.m.body // ""' <<<"$e")" ]]; then jq -r .ts <<<"$e" > "$cursor"; continue; fi
+                set -- -fsS --max-time 20 -u "$(env_get EXIST_NTFY_USER):$(env_get EXIST_NTFY_PASSWORD)"
+                for h in Title:title Priority:priority Tags:tags; do
+                    v="$(jq -r --arg k "${h#*:}" '.m[$k] // ""' <<<"$e" | tr -d '\r\n')"
+                    [[ -z "$v" ]] || set -- "$@" -H "${h%%:*}: $v"
+                done
+                topic="$(jq -r '.m.topic // "" | if . == "" then "decree" else . end' <<<"$e")"
+                if jq -r '.m.body // ""' <<<"$e" | curl "$@" --data-binary @- "${ntfy}/${topic}" >/dev/null; then
+                    jq -r .ts <<<"$e" > "$cursor"
+                    echo "notify-relay: $(jq -r .host <<<"$e") → ${topic}"
+                else
+                    echo "notify-relay: ntfy refused a message from $(jq -r .host <<<"$e"); trying again"; break
+                fi
+            done
+        fi
+        sleep 15
+    done
   reporting/decree.alloy: |
     // Every decree run on this host, live, into the Loki its controller names.
     // report starts it (tmux session reporting-alloy) with EXIST_REPO, EXIST_HOST
@@ -246,7 +307,7 @@ cron:
 ---
 # reporting
 
-Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines and plugins installed in each of its
+Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines, plugins and crons installed in each of its
 projects, the containers running, and every run that finished since the last report, sent to the Loki its controller
 names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
 turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the

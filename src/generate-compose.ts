@@ -595,6 +595,48 @@ function merge(
 
 // ── Master .env generation ─────────────────────────────────────────────────────
 
+// The controller's answer (host/exist.json, served on :4480): another host's copy
+// is host/controller.json, the controller's own is host/exist.json.
+function controllerAnswer(repoRoot: string): { loki?: string; domain?: string } {
+  for (const f of ['controller.json', 'exist.json']) {
+    try { return JSON.parse(fs.readFileSync(path.join(repoRoot, 'host', f), 'utf8')); } catch { /* next */ }
+  }
+  return {};
+}
+
+// Every service's slug: each folder that ships a compose template.
+function allServiceSlugs(repoRoot: string): Set<string> {
+  const slugs = new Set<string>();
+  for (const top of fs.readdirSync(repoRoot, { withFileTypes: true })) {
+    if (!top.isDirectory() || SKIP_DIRS.has(top.name) || top.name.startsWith('.')) continue;
+    for (const sub of fs.readdirSync(path.join(repoRoot, top.name), { withFileTypes: true })) {
+      if (sub.isDirectory() && fs.existsSync(path.join(repoRoot, top.name, sub.name, 'docker-compose.exist.yml'))) slugs.add(sub.name);
+    }
+  }
+  return slugs;
+}
+
+// A service that is off here is the controller's: an address naming its
+// container (http://ollama:11434/v1) becomes https://<slug>.<domain>/v1, the
+// controller's domain. ntfy is the one exception: with none here, EXIST_NTFY_URL
+// becomes a Loki push address (loki by the same rule), notify.sh pushes there,
+// and the controller's notify-relay publishes to its ntfy, so no ntfy password
+// leaves the controller. Anything else, your own https://... included, is left as it is.
+function resolveOffServices(
+  merged: Record<string, string>, here: Set<string>, all: Set<string>, ctl: { loki?: string; domain?: string },
+): void {
+  const push = '/loki/api/v1/push';
+  if (!here.has('ntfy') && /^http:\/\/ntfy[:/]/.test(merged.EXIST_NTFY_URL ?? '')) {
+    merged.EXIST_NTFY_URL = here.has('loki') || ctl.domain ? `http://loki:3100${push}`
+      : ctl.loki ? `${ctl.loki.replace(/\/$/, '')}${push}` : merged.EXIST_NTFY_URL;
+  }
+  if (!ctl.domain) return;
+  for (const [k, v] of Object.entries(merged)) {
+    const m = v.match(/^http:\/\/([a-z0-9-]+)(?::\d+)?(\/.*)?$/);
+    if (m && all.has(m[1]) && !here.has(m[1])) merged[k] = `https://${m[1]}.${ctl.domain}${m[2] ?? ''}`;
+  }
+}
+
 function mergeEnv(repoRoot: string, enabled: string[]): void {
   const merged: Record<string, string> = {};
   const paths = [
@@ -602,6 +644,7 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
     ...enabled.map(r => path.join(repoRoot, r, '.env')),
   ];
   for (const p of paths) Object.assign(merged, loadEnv(p));
+  resolveOffServices(merged, new Set(enabled.map(r => path.basename(r))), allServiceSlugs(repoRoot), controllerAnswer(repoRoot));
 
   const header = [
     '# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n',

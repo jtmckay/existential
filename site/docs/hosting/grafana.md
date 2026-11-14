@@ -22,7 +22,7 @@ Dashboards for [Prometheus](./prometheus.md) metrics and [Loki](./loki.md) logs,
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Every decree run on every host that reports |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
-| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM, containers running, plugins installed per project ([Controller and Workers](./controller-and-workers.md)) |
+| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM, containers running, plugins and crons per project ([Controller and Workers](./controller-and-workers.md)) |
 | Notifications dashboard | `provisioning/dashboards/notifications.json` | Every notification the stack sent to ntfy: which topics, and what each said |
 | decree alerts | `provisioning/alerting/decree.yaml` | A failed run in `automation-backup` or a host's own project, a backup with no `done` run in 48h, or a container that stopped running on a host → one ntfy notification |
 

@@ -85,6 +85,22 @@ assert_dir "local bind dir created for nfs volume" "$repo/volumes/foo_nfs"
 envout="$(cat "$repo/.env" 2>/dev/null || true)"
 assert_contains "master .env carries the do-not-edit header" "DO NOT EDIT" "$envout"
 
+# ── A service off here is the controller's ────────────────────────────────────
+repo="$(new_repo)"
+mkdir -p "$repo/ai/ollama" "$repo/services/ntfy" "$repo/hosting/loki" "$repo/host"
+touch "$repo/ai/ollama/docker-compose.exist.yml" "$repo/services/ntfy/docker-compose.exist.yml" \
+    "$repo/hosting/loki/docker-compose.exist.yml" "$repo/services/foo/docker-compose.exist.yml"
+printf 'EXIST_IS_SERVICES_FOO=true\nEXIST_MODEL_URL=http://ollama:11434/v1\nEXIST_NTFY_URL=http://ntfy:80\nEXIST_MINE=https://mine.example/v1\nEXIST_FOO_URL=http://foo:80\n' > "$repo/.env.shared"
+tsx "$GC" "$repo" >/dev/null 2>&1 || true
+assert_contains "no controller answer: addresses stay" "EXIST_MODEL_URL=http://ollama:11434/v1" "$(cat "$repo/.env")"
+echo '{"loki":"http://ctl:3100","domain":"i.example"}' > "$repo/host/controller.json"
+tsx "$GC" "$repo" >/dev/null 2>&1 || true
+envout="$(cat "$repo/.env" 2>/dev/null || true)"
+assert_contains "a service off here is at the controller's domain, path kept" "EXIST_MODEL_URL=https://ollama.i.example/v1" "$envout"
+assert_contains "no ntfy here: notifications go to the controller's Loki" "EXIST_NTFY_URL=https://loki.i.example/loki/api/v1/push" "$envout"
+assert_contains "an address you set is yours" "EXIST_MINE=https://mine.example/v1" "$envout"
+assert_contains "a service on here stays here" "EXIST_FOO_URL=http://foo:80" "$envout"
+
 # ── NFS volumes: Compose mounts the export ────────────────────────────────────
 # A path → a top-level local volume with NFS driver_opts, mounted nocopy; `none`
 # → a bind like any other; a missing path → a hard error naming the key.

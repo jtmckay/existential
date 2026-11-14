@@ -73,6 +73,9 @@ cp "${TMP}/bin/podman" "${TMP}/bin/docker"; chmod +x "${TMP}/bin/podman" "${TMP}
 # What plugin sync installed: one plugin in the automation project, the host's own.
 mkdir -p "${W}/applied/plugins" "${I}/host/.decree/applied/plugins"
 touch "${W}/applied/plugins/look_back.md" "${I}/host/.decree/applied/plugins/reporting.md"
+# An active cron, as a plugin installs it.
+mkdir -p "${W}/cron"
+printf -- '---\ncron: "0 21 * * SUN"\nmachine: look_back\nparams:\n  period: week\n---\n\nEvery Sunday.\n' > "${W}/cron/look-back-weekly.md"
 mkdir -p "${I}/services/automation/decree"
 cp "${REPO_DIR}/services/automation/decree/tmx.sh" "${I}/services/automation/decree/"
 
@@ -94,6 +97,8 @@ assert_eq "the body is JSON Loki takes" "ok" "$(yq -p json -o yaml '.streams[0].
 assert_has "every line names this host" "$(yq -p json -o yaml -r '.streams[].stream.host' "${TMP}/body" | sort -u)" "$(hostname -s 2>/dev/null || hostname)"
 assert_eq "a line per installed machine, in every project" "look_back notify reporting" "$(lines machine | field machine | sort | xargs)"
 assert_eq "a line per installed plugin, with its project" "automation look_back,host reporting" "$(lines plugin | while read -r l; do echo "$(field project <<<"$l") $(field plugin <<<"$l")"; done | sort | paste -sd, -)"
+assert_eq "a line per active cron, with its schedule and machine" \
+    '{"project":"automation","cron":"look-back-weekly","schedule":"0 21 * * SUN","machine":"look_back"}' "$(lines cron | grep look-back-weekly)"
 assert_eq "a line per running container" "loki ntfy" "$(lines container | field name | sort | xargs)"
 assert_has "...with its image" "$(lines container)" '"image":"grafana/loki:3.5"'
 assert_eq "no run line: alloy ships the runs" "" "$(lines run)"
@@ -135,6 +140,11 @@ report >/dev/null
 assert_eq "a controller reads host/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | head -1)"
 assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
+assert_eq "no ntfy here: no notify-relay" "0" "$(grep -c 's notify-relay' "${TMP}/tmux")"
+printf 'EXIST_CONTROLLER=\nEXIST_IS_SERVICES_NTFY=true\n' > "${I}/.env.shared"
+rm -f "${TMP}/tmux-up"; report >/dev/null
+assert_has "the controller with ntfy starts notify-relay" "$(cat "${TMP}/tmux")" "-s notify-relay"
+assert_has "...with the relay the plugin ships" "$(cat "${TMP}/tmux")" "${I}/host/.decree/lib/reporting/relay.sh"
 
 echo ""; echo "=== no alloy ==="
 rm -f "${TMP}/bin/alloy"
