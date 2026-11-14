@@ -6,7 +6,7 @@ sidebar_position: 13
 
 One host keeps your notes; the others just need watching. A **worker** is a host that runs decree
 itself, with the `worker` flow on. Every 5 minutes it reports its free disk space, CPU, RAM and
-VRAM use and the decree machines it has installed to one Loki, and ships every decree run there
+VRAM use, the decree machines and plugins it has installed and the containers it runs to one Loki, and ships every decree run there
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
 - The **controller** is the one host the others ask "where do I report?". It answers with a
@@ -134,6 +134,11 @@ The `reporting` plugin sends one push to Loki every 5 minutes, labelled `job="ex
 | `disk` | disk: `/` and each mount under `/mnt` (`/var/mnt` on an atomic host), its size and free space |
 | `load` | push: average CPU % since the last one, RAM used and total, and GPU VRAM used and total, summed over every GPU, when there is one |
 | `machine` | decree machine installed, in each project on the host (`automation`, `automation-backup`, `host`) |
+| `plugin` | plugin installed, in each of those projects: the ones turned on and the ones they need |
+| `container` | container running, by name and image (docker or podman, when the host has one) |
+
+A container in the last day's reports that is missing from the last 10 minutes', on a host still
+reporting, sends one ntfy notification: Grafana's `container stopped` alert, on the controller.
 
 Each report also makes sure alloy is shipping this host's decree runs to that Loki, in a tmux
 session, `reporting-alloy` (`tmux attach -t reporting-alloy` shows it): every step of every run

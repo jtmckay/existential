@@ -67,6 +67,12 @@ esac
 EOF
 printf '#!/bin/sh\n' > "${TMP}/bin/alloy"
 chmod +x "${TMP}/bin/tmux" "${TMP}/bin/alloy"
+# The engine, either name: two containers running.
+printf '#!/bin/sh\n[ "$1" = ps ] && printf "loki grafana/loki:3.5\\nntfy binwiederhier/ntfy:v2\\n"\n' > "${TMP}/bin/podman"
+cp "${TMP}/bin/podman" "${TMP}/bin/docker"; chmod +x "${TMP}/bin/podman" "${TMP}/bin/docker"
+# What plugin sync installed: one plugin in the automation project, the host's own.
+mkdir -p "${W}/applied/plugins" "${I}/host/.decree/applied/plugins"
+touch "${W}/applied/plugins/look_back.md" "${I}/host/.decree/applied/plugins/reporting.md"
 mkdir -p "${I}/services/automation/decree"
 cp "${REPO_DIR}/services/automation/decree/tmx.sh" "${I}/services/automation/decree/"
 
@@ -87,6 +93,9 @@ assert_eq "it pushes to the Loki the controller names" "http://loki-box:3100/lok
 assert_eq "the body is JSON Loki takes" "ok" "$(yq -p json -o yaml '.streams[0].stream.job' "${TMP}/body" >/dev/null 2>&1 && echo ok)"
 assert_has "every line names this host" "$(yq -p json -o yaml -r '.streams[].stream.host' "${TMP}/body" | sort -u)" "$(hostname -s 2>/dev/null || hostname)"
 assert_eq "a line per installed machine, in every project" "look_back notify reporting" "$(lines machine | field machine | sort | xargs)"
+assert_eq "a line per installed plugin, with its project" "automation look_back,host reporting" "$(lines plugin | while read -r l; do echo "$(field project <<<"$l") $(field plugin <<<"$l")"; done | sort | paste -sd, -)"
+assert_eq "a line per running container" "loki ntfy" "$(lines container | field name | sort | xargs)"
+assert_has "...with its image" "$(lines container)" '"image":"grafana/loki:3.5"'
 assert_eq "no run line: alloy ships the runs" "" "$(lines run)"
 assert_has "the disks it has" "$(lines disk | head -1)" '"avail_kb":'
 assert_eq ".../ among them, by that name" "/" "$(lines disk | field mount | grep -x /)"

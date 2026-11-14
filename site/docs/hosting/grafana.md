@@ -22,9 +22,9 @@ Dashboards for [Prometheus](./prometheus.md) metrics and [Loki](./loki.md) logs,
 | Loki datasource | `provisioning/datasources/loki.yaml` | Log queries, max 1000 lines |
 | Decree Overview dashboard | `provisioning/dashboards/decree-overview.json` | Every decree run on every host that reports |
 | Decree Run Detail dashboard | `provisioning/dashboards/decree-run-detail.json` | One run's `events.jsonl` and script output, by run ID |
-| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM ([Controller and Workers](./controller-and-workers.md)) |
+| Hosts dashboard | `provisioning/dashboards/hosts.json` | Every host that reports: free disk space, CPU, RAM and VRAM, containers running, plugins installed per project ([Controller and Workers](./controller-and-workers.md)) |
 | Notifications dashboard | `provisioning/dashboards/notifications.json` | Every notification the stack sent to ntfy: which topics, and what each said |
-| decree alerts | `provisioning/alerting/decree.yaml` | A failed run in `automation-backup` or a host's own project, or a backup with no `done` run in 48h → one ntfy notification |
+| decree alerts | `provisioning/alerting/decree.yaml` | A failed run in `automation-backup` or a host's own project, a backup with no `done` run in 48h, or a container that stopped running on a host → one ntfy notification |
 
 Grafana re-reads the dashboards directory every 30 seconds, so a dashboard JSON edit lands without a restart. Datasource provisioning is applied at startup only — restart grafana after editing a datasource YAML.
 
@@ -52,7 +52,7 @@ gives the `notify` machine, which each host's alloy ships with the rest of the r
   ntfy app. Everything goes to `decree` unless a flow names another
 - **Notifications per day**, by topic
 - **Notifications** — each one's topic, title and text
-- **Grafana's own alerts** — the two decree alerts go from Grafana straight to the `decree`
+- **Grafana's own alerts** — the decree and container alerts go from Grafana straight to the `decree`
   topic, not through a run, so they are listed from Grafana itself
 
 A message something else publishes to ntfy (your own `curl`) is not here.
@@ -78,7 +78,7 @@ each host: <project>/runs/<id>/events.jsonl, <NNNN>-<state>[-<script>].log
        └─ Loki {job="decree"}, {job="decree_script"}, labelled host and project
 
 each host: the reporting plugin, every 5 minutes
-  └─ Loki {job="exist"}: disks, CPU/RAM/VRAM, installed machines
+  └─ Loki {job="exist"}: disks, CPU/RAM/VRAM, installed machines and plugins, containers
 
 Grafana
   ├─ queries Loki for Decree Overview, Run Detail, Hosts and the decree alerts

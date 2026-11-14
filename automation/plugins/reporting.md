@@ -2,7 +2,7 @@
 machine: plugin
 automation: reporting
 chart:
-  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines installed - and keep alloy shipping every decree run there live.
+  description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines and plugins installed, the containers running - and keep alloy shipping every decree run there live.
   store:
     loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
     alloy-loki: The Loki address the running alloy was started with; a new one restarts it. report reads and writes it.
@@ -28,7 +28,8 @@ scripts:
     # answer is not a failure: nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
-    # (CPU, RAM, VRAM) once, kind=machine per installed decree machine. Each run
+    # (CPU, RAM, VRAM) once, kind=machine per installed decree machine, kind=plugin
+    # per installed plugin, kind=container per running container. Each run
     # is alloy's, below, as {job="decree"} and {job="decree_script"}.
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
@@ -88,7 +89,9 @@ scripts:
     fi
     echo "$mem" | awk -v c="$cpu" -v v="$vram" '{ printf "{\"cpu_pct\":%s,\"mem_used_kb\":%d,\"mem_total_kb\":%d%s}\n", c, $1, $2, v }' > "${tmp}/load"
 
-    : > "${tmp}/machine"; : > "${tmp}/run"
+    # Each project's machines, and its plugins: what plugin sync installed there
+    # (applied/plugins/), the ones turned on and the ones they need.
+    : > "${tmp}/machine"; : > "${tmp}/plugin"
     for p in automation:volumes/workspace_data/.decree automation-backup:services/automation-backup host:host/.decree; do
         name="${p%%:*}" dir="${repo}/${p#*:}"
         [[ -d "$dir" ]] || continue
@@ -96,6 +99,20 @@ scripts:
             [[ -f "$m" ]] || continue
             printf '{"project":"%s","machine":"%s"}\n' "$name" "$(basename "$m" .yml)" >> "${tmp}/machine"
         done
+        for m in "$dir"/applied/plugins/*.md; do
+            [[ -f "$m" ]] || continue
+            printf '{"project":"%s","plugin":"%s"}\n' "$name" "$(basename "$m" .md)" >> "${tmp}/plugin"
+        done
+    done
+
+    # The containers running here, whichever engine the stack uses (podman first,
+    # as adhoc picks). The controller's Grafana pages when one that was is gone.
+    : > "${tmp}/container"
+    for e in podman docker; do
+        command -v "$e" >/dev/null 2>&1 || continue
+        { "$e" ps --format '{{.Names}} {{.Image}}' 2>/dev/null || true; } \
+            | awk 'NF { printf "{\"name\":\"%s\",\"image\":\"%s\"}\n", $1, $2 }' > "${tmp}/container"
+        break
     done
 
     # Every run, live: alloy tails the same projects' runs/ into the same Loki
@@ -123,7 +140,7 @@ scripts:
     {
         printf '{"streams":['
         sep=""
-        for kind in disk load machine; do
+        for kind in disk load machine plugin container; do
             [[ -s "${tmp}/${kind}" ]] || continue
             printf '%s{"stream":{"job":"exist","host":"%s","kind":"%s"},"values":[' "$sep" "$host" "$kind"
             sed 's/\\/\\\\/g; s/"/\\"/g' "${tmp}/${kind}" \
@@ -136,7 +153,7 @@ scripts:
 
     curl -fsS --max-time 20 -H 'Content-Type: application/json' \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
-    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, ${runs}"
+    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/container" | tr -d ' ') containers, ${runs}"
 lib:
   reporting/decree.alloy: |
     // Every decree run on this host, live, into the Loki its controller names.
@@ -229,8 +246,8 @@ cron:
 ---
 # reporting
 
-Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines installed in each of its
-projects, and every run that finished since the last report, sent to the Loki its controller
+Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines and plugins installed in each of its
+projects, the containers running, and every run that finished since the last report, sent to the Loki its controller
 names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
 turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
 controller, and names the Loki in `EXIST_REPORTING_URL`, or its own. See

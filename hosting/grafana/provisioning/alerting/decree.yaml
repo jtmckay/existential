@@ -1,4 +1,4 @@
-# Two alerts on decree runs, each one ntfy notification:
+# Two alerts on decree runs, and one on containers (at the end), each one ntfy notification:
 # - a run that ended in `failed`, in automation-backup or a host's own project.
 #   The `automation` daemon reports its own failed and waiting runs, with the
 #   command that continues each (automation/lib/attention-notify.sh), so it is
@@ -27,6 +27,18 @@ contactPoints:
           httpMethod: POST
           username: ${NTFY_USER}
           password: ${NTFY_PASSWORD}
+  # The same ntfy, for news that needs no all-clear: one push, never a resolved one.
+  - orgId: 1
+    name: ntfy-once
+    receivers:
+      - uid: ntfy-once
+        type: webhook
+        disableResolveMessage: true
+        settings:
+          url: ${NTFY_URL}/decree?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
+          httpMethod: POST
+          username: ${NTFY_USER}
+          password: ${NTFY_PASSWORD}
 
 policies:
   - orgId: 1
@@ -34,6 +46,12 @@ policies:
     group_by: [alertname, machine]
     # A machine that keeps failing pages once every 6 hours, not every run.
     repeat_interval: 6h
+    routes:
+      # A stopped container fires for at most a day (its window): one push for it.
+      - receiver: ntfy-once
+        object_matchers: [["alertname", "=", "container stopped"]]
+        group_by: [alertname, host, name]
+        repeat_interval: 25h
 
 groups:
   - orgId: 1
@@ -100,3 +118,37 @@ groups:
           description: >-
             No run of {{ $$labels.machine }} on {{ $$labels.host }} ended in done for
             48h. `docker exec automation-backup decree status` lists its recent runs.
+      # Each host's report lists its running containers every 5 minutes. One in the
+      # last day's reports but not the last 10 minutes', on a host still reporting,
+      # has stopped. A host that stops reporting is not every container stopping.
+      - uid: container-stopped
+        title: container stopped
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: { from: 86400, to: 0 }
+            datasourceUid: loki
+            model:
+              refId: A
+              queryType: instant
+              expr: >-
+                count by (host, name) (count_over_time({job="exist", kind="container"} | json name="name" [24h]))
+                unless count by (host, name) (count_over_time({job="exist", kind="container"} | json name="name" [10m]))
+                and on (host) count by (host) (count_over_time({job="exist", kind="load"} [10m]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $$labels.name }} stopped on {{ $$labels.host }}"
+          description: >-
+            {{ $$labels.name }} was running on {{ $$labels.host }} and is not any more.
+            `docker ps -a --filter name={{ $$labels.name }}` there says how it ended.
