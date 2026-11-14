@@ -30,8 +30,9 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER
 git init -q --bare "${TMP}/upstream.git"
 U="${TMP}/author"; git clone -q "${TMP}/upstream.git" "$U" 2>/dev/null
 mkdir -p "${U}/src/utils"; cp "${REPO_DIR}/src/utils/adhoc.sh" "${U}/src/utils/"
-printf '#!/usr/bin/env bash\necho ran >> "%s/existential-ran"\n' "$TMP" > "${U}/existential.sh"; chmod +x "${U}/existential.sh"
-printf 'host/\n' > "${U}/.gitignore"
+# A worker with no services (the no-services file) gets no docker-compose.yml.
+printf '#!/usr/bin/env bash\necho ran >> "%s/existential-ran"\n[[ -f "%s/no-services" ]] || touch docker-compose.yml\n' "$TMP" "$TMP" > "${U}/existential.sh"; chmod +x "${U}/existential.sh"
+printf 'host/\ndocker-compose.yml\n' > "${U}/.gitignore"
 (cd "$U" && git add -A && git commit -qm one && git push -q origin HEAD 2>/dev/null)
 I="${TMP}/install"; git clone -q "${TMP}/upstream.git" "$I"
 
@@ -45,7 +46,7 @@ mkdir -p "${TMP}/bin"
 printf '#!/usr/bin/env bash\n[[ "$1" == --version || "$1" == info ]] && exit 0\necho "$*" >> "%s/docker"; cat >> "%s/told" 2>/dev/null || true\n' "$TMP" "$TMP" > "${TMP}/bin/docker"
 chmod +x "${TMP}/bin/docker"
 run() { (cd "${I}/host" && env PATH="${TMP}/bin:${PATH}" bash "$UPDATE") > "${TMP}/log" 2>&1; echo $?; }
-reset() { rm -f "${TMP}/existential-ran" "${TMP}/docker" "${TMP}/told"; }
+reset() { rm -f "${TMP}/existential-ran" "${TMP}/docker" "${TMP}/told" "${I}/docker-compose.yml"; }
 
 echo ""; echo "=== current ==="
 assert_eq "an install with nothing new" "0" "$(run)"
@@ -61,6 +62,13 @@ assert_eq "...then runs ./existential.sh" "ran" "$(cat "${TMP}/existential-ran" 
 assert_has "...then brings the stack up" "$(cat "${TMP}/docker" 2>/dev/null)" "compose up -d"
 assert_has "...and tells you, through the stack's notify" "$(cat "${TMP}/docker" 2>/dev/null)" "exec -i automation decree emit --machine notify --param ntfy_title=Updated"
 assert_has "...naming the commit" "$(cat "${TMP}/told" 2>/dev/null)" "two"
+
+echo ""; echo "=== worker, engine and no services ==="
+(cd "$U" && echo w > w && git add w && git commit -qm w && git push -q origin HEAD 2>/dev/null)
+reset; touch "${TMP}/no-services"
+assert_eq "a host with no docker-compose.yml updates" "0" "$(run)"
+assert_eq "...without compose" "0" "$(grep -c 'compose' "${TMP}/docker" 2>/dev/null || true)"
+rm -f "${TMP}/no-services"
 
 echo ""; echo "=== diverged ==="
 (cd "$U" && echo three > three && git add three && git commit -qm three && git push -q origin HEAD 2>/dev/null)
