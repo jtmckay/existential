@@ -55,14 +55,14 @@ done
 EOF
 chmod +x "${TMP}/bin/curl"
 
-# tmux: one session, up or not; each start and kill is logged to $TMP/tmux.
+# tmux: each session up or not (a file per name); each start and kill is logged to $TMP/tmux.
 # alloy only has to be on PATH; tmx is sourced from the install, as on a host.
 cat > "${TMP}/bin/tmux" <<EOF
 #!/usr/bin/env bash
 case "\$1" in
-    has-session) [[ -f "${TMP}/tmux-up" ]] ;;
-    new) touch "${TMP}/tmux-up"; echo "new \$*" >> "${TMP}/tmux" ;;
-    kill-session) rm -f "${TMP}/tmux-up"; echo kill >> "${TMP}/tmux" ;;
+    has-session) [[ -f "${TMP}/tmux-up-\${3#=}" ]] ;;
+    new) touch "${TMP}/tmux-up-\$4"; echo "new \$*" >> "${TMP}/tmux" ;;
+    kill-session) rm -f "${TMP}/tmux-up-\${3#=}"; echo kill >> "${TMP}/tmux" ;;
 esac
 EOF
 printf '#!/bin/sh\n' > "${TMP}/bin/alloy"
@@ -142,7 +142,7 @@ assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | h
 assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
 assert_eq "no ntfy here: no notify-relay" "0" "$(grep -c 's notify-relay' "${TMP}/tmux")"
 printf 'EXIST_CONTROLLER=\nEXIST_IS_SERVICES_NTFY=true\n' > "${I}/.env.shared"
-rm -f "${TMP}/tmux-up"; report >/dev/null
+report >/dev/null
 assert_has "the controller with ntfy starts notify-relay" "$(cat "${TMP}/tmux")" "-s notify-relay"
 assert_has "...with the relay the plugin ships" "$(cat "${TMP}/tmux")" "${I}/host/.decree/lib/reporting/relay.sh"
 
