@@ -80,7 +80,7 @@ assert_has "a missing tool is named" "$out" "yq is not here"
 assert_has "...with how to get it" "$out" "mikefarah/yq/releases/download/v"
 assert_has "...and the run stops" "$out" "rc=1"
 out="$(es '_SHELL_PATH=/usr/bin; _check_local_bin')"
-assert_has "~/.local/bin off your PATH is named with the line that adds it" "$out" 'export PATH="$HOME/.local/bin:$PATH"'
+assert_has "a .local/bin off your PATH is named with the line that adds it" "$out" 'export PATH="$HOME/.local/bin:$PATH"'
 # The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
 if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
