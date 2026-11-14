@@ -38,7 +38,8 @@ scripts:
     fi
     if [[ "$(git rev-parse HEAD)" == "$before" ]]; then echo "update: up to date"; exit 0; fi
     ./existential.sh </dev/null
-    if [[ -n "$DOCKER_CMD" ]]; then
+    # A host with an engine but no services (a worker) has no docker-compose.yml.
+    if [[ -n "$DOCKER_CMD" && -f docker-compose.yml ]]; then
         $DOCKER_CMD compose up -d
         # Every container is on its new image now, so an image none uses is an old
         # version (a moved pin keeps its old tag, so it is never "dangling").
