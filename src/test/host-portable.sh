@@ -75,27 +75,24 @@ assert_eq "timeout stops a command" "yes" "$([[ $((SECONDS - t0)) -lt 4 ]] && ec
 echo ""; echo "=== a worker without docker ==="
 assert_eq "the first run's question is core with no terminal" "core" "$(es _ask_role </dev/null)"
 assert_eq "adhoc never passes -it, which podman-compose does not have" "0" "$(grep -c 'tty_flags=(-it)' src/utils/adhoc.sh)"
-out="$(XDG_BIN_HOME="${R}/.none" es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
+out="$(es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
 assert_has "a missing tool is named" "$out" "yq is not here"
 assert_has "...with how to get it" "$out" "mikefarah/yq/releases/download/v"
 assert_has "...and the run stops" "$out" "rc=1"
-mkdir -p "${R}/.bin"; printf '#!/bin/sh\n' > "${R}/.bin/yq"; chmod +x "${R}/.bin/yq"
-out="$(XDG_BIN_HOME="${R}/.bin" es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs')"
-assert_has "one installed off PATH is named with the line that adds it" "$out" "export PATH=\"${R}/.bin:"
-rm -rf "${R}/.bin"
+out="$(es '_SHELL_PATH=/usr/bin; _check_local_bin')"
+assert_has "~/.local/bin off your PATH is named with the line that adds it" "$out" 'export PATH="$HOME/.local/bin:$PATH"'
 # The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
 if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
     out="$(REPO_DIR="$R" "$BASH" src/lib/plugin.sh sync host 2>&1)"; rc=$?
     assert_eq "the host's plugins sync without adhoc" "0" "$rc"
     assert_has "...installing the worker's reporting" "$out" "reporting installed"
-    # A worker with no services never needs the image, even where an engine is.
-    if es '_worker_needs' >/dev/null 2>&1; then
-        assert_eq "a worker with services on still builds" "no" "$(es '_worker_only && echo yes || echo no')"
-        cp .env.shared .env.shared.keep; sed -i.bak 's/^\(EXIST_IS_[A-Z0-9_]*\)=true/\1=false/' .env.shared; rm -f .env.shared.bak
-        assert_eq "a worker with none skips the engine" "yes" "$(es '_worker_only && echo yes || echo no')"
-        mv .env.shared.keep .env.shared
-    fi
+    # A worker with no services never needs the image, even where an engine is,
+    # and even missing a tool (_worker_without_engine names it).
+    assert_eq "a worker with services on still builds" "no" "$(es '_worker_only && echo yes || echo no')"
+    cp .env.shared .env.shared.keep; sed -i.bak 's/^\(EXIST_IS_[A-Z0-9_]*\)=true/\1=false/' .env.shared; rm -f .env.shared.bak
+    assert_eq "a worker with none skips the engine" "yes" "$(es '_worker_only && echo yes || echo no')"
+    mv .env.shared.keep .env.shared
     rm -rf "${R}/host"
 else
     echo "  (no yq and decree here: the host sync is not run)"

@@ -69,8 +69,8 @@ Controller is Core plus the host flow `worker`; worker is nothing plus `worker`,
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 `_build` syncs the host plugins even with nothing on.
 A worker picked there, a host with neither docker nor podman (`adhoc_find_runtime` fails), and
-one that is already a worker with no service on and has the worker's tools (`_worker_only`) all
-skip adhoc altogether:
+one that is already a worker with no service on (`_worker_only`) all skip adhoc altogether, on
+the bare run, `flow` and `run plugin` alike (a tool missing is named, never a reason to build):
 `_worker_without_engine` checks decree, yq, curl and tmux (`_worker_needs`, each missing one
 printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false` plus
 `EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), turns

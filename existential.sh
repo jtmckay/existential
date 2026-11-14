@@ -38,6 +38,8 @@ if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
     . "${SCRIPT_DIR}/src/utils/service-common.sh"
 fi
 
+# The PATH your shell gave us, before the line below adds to it: _check_local_bin reads it.
+_SHELL_PATH="$PATH"
 # The last entry is the Mac app's Tailscale binary; APFS ignores case, so `tailscale` finds it.
 export PATH="$HOME/.local/bin:/usr/local/bin:/run/host/usr/bin:/run/host/usr/local/bin:$PATH:/Applications/Tailscale.app/Contents/MacOS"
 export COMPOSE_IGNORE_ORPHANS=1
@@ -387,20 +389,13 @@ _install_steps() {
 # A worker without docker or podman: curl is how reporting sends (and how decree
 # and yq install, so it comes first), decree runs its plugins, yq installs them
 # (what adhoc does elsewhere), and tmux keeps the daemon running. Each one missing
-# is named with how to get it; 1 if any is. decree and yq install to ~/.local/bin,
-# which is not always on PATH: one there is named with the line that puts it on.
+# is named with how to get it; 1 if any is.
 _worker_needs() {
-    # shellcheck disable=SC2088  # printed for the user to paste, never expanded here
-    local t miss=0 bin="${XDG_BIN_HOME:-${HOME}/.local/bin}" rc="~/.bashrc"
-    # shellcheck disable=SC2088  # as above
-    [[ "${SHELL##*/}" == zsh ]] && rc="~/.zshrc"
+    local t miss=0
     # Every missing one is named in one go. alloy is named too but does not stop
     # setup: without it reporting still sends, it just ships no decree runs.
     for t in curl decree yq tmux alloy; do
-        if ! command -v "$t" >/dev/null 2>&1 && [[ -x "${bin}/${t}" ]]; then
-            echo "  ✗ ${t} is in ${bin}, which is not on PATH. Add it, open a new shell, then re-run ./existential.sh:"
-            echo "       echo 'export PATH=\"${bin}:\$PATH\"' >> ${rc}"
-        elif ! command -v "$t" >/dev/null 2>&1; then
+        if ! command -v "$t" >/dev/null 2>&1; then
             echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
             _install_steps "$t"
         elif [[ "$t" == yq && "$(yq --version 2>&1)" != *mikefarah* ]]; then
@@ -414,12 +409,22 @@ _worker_needs() {
     return "$miss"
 }
 
-# A host that is already a worker with no services, and has what a worker needs:
-# nothing here is for a container, so the image is never built, engine or not.
+# decree, yq, claude and the rest install to ~/.local/bin. This script finds them
+# either way (PATH above); your shell only does when it is on the PATH it gave us.
+_check_local_bin() {
+    local rc=.bashrc
+    [[ "${SHELL##*/}" == zsh ]] && rc=.zshrc
+    case ":${_SHELL_PATH}:" in *":$HOME/.local/bin:"*) return 0 ;; esac
+    echo "  ⚠  ~/.local/bin is not on your PATH. Run this once:"
+    echo "       echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/${rc} && source ~/${rc}"
+}
+
+# A host that is already a worker with no services: nothing here is for a
+# container, so the image is never built, engine or not. A tool it lacks is
+# _worker_without_engine's to name, never a reason to build.
 _worker_only() {
     [[ -f "${SCRIPT_DIR}/.env.shared" ]] && _is_worker \
-        && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" \
-        && _worker_needs >/dev/null
+        && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared"
 }
 
 # The first run's one question, asked here and not in adhoc so that a worker never
@@ -760,9 +765,9 @@ _run_general_utility() {
         # Host-side: reads `docker stats` so it can put observed usage next to
         # the declared ceilings, and adhoc has no docker socket.
         footprint)      bash "${SCRIPT_DIR}/src/lib/footprint.sh" "$@" ;;
-        # No engine is a worker, set up with the host's own yq and decree: the same
-        # sync _host_plugins does, so list, on and off work there too.
-        plugin)         if adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
+        # A worker (no engine, or no services) uses the host's own yq and decree:
+        # the same sync _host_plugins does, so list, on and off work there too.
+        plugin)         if ! _worker_only && adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
                         else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" "$@"; fi ;;
         *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
@@ -1075,6 +1080,7 @@ case "$action" in
         [[ ! -f "${SCRIPT_DIR}/.env.shared" ]] && _is_first_run=true
 
         ensure_git_hooks
+        _check_local_bin
         if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
         if [[ "$_is_first_run" == "true" ]]; then
             EXIST_ROLE="$(_ask_role)"
@@ -1097,20 +1103,23 @@ case "$action" in
         ;;
     flow|service)
         ensure_git_hooks
-        # No engine: a worker's flows (auto-update, on-boot, ...) are host plugins,
-        # turned on and synced with the host's own tools, as the bare run does.
-        if ! adhoc_find_runtime; then
-            [[ "$action" == flow ]] || { echo "Services need docker or podman: https://docs.docker.com/engine/install/" >&2; exit 1; }
+        # A worker (no engine, or no services): its flows (auto-update, on-boot, ...)
+        # are host plugins, turned on and synced with the host's own tools, as the
+        # bare run does. One that turned a service on, where an engine is, builds.
+        # 3 is "nothing changed": a list, or a picker left without a choice.
+        if [[ "$action" == flow ]] && { _worker_only || ! adhoc_find_runtime; }; then
             _rc=0; REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/flows.sh" "$@" || _rc=$?
             [[ "$_rc" -eq 3 ]] && exit 0
             [[ "$_rc" -eq 0 ]] || exit "$_rc"
-            _worker_without_engine; exit $?
+            if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
+            ensure_adhoc_built
+        else
+            adhoc_find_runtime || { echo "Services need docker or podman: https://docs.docker.com/engine/install/" >&2; exit 1; }
+            ensure_adhoc_built
+            _rc=0; run_adhoc env REPO_DIR=/repo bash "/src/${action}s.sh" "$@" || _rc=$?
+            [[ "$_rc" -eq 3 ]] && exit 0
+            [[ "$_rc" -eq 0 ]] || exit "$_rc"
         fi
-        ensure_adhoc_built
-        # 3 is "nothing changed": a list, or a picker left without a choice.
-        _rc=0; run_adhoc env REPO_DIR=/repo bash "/src/${action}s.sh" "$@" || _rc=$?
-        [[ "$_rc" -eq 3 ]] && exit 0
-        [[ "$_rc" -eq 0 ]] || exit "$_rc"
         _render
         _ask_hardware_if_needed
         _build
