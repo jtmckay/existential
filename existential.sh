@@ -424,10 +424,21 @@ _worker_only() {
 
 # The first run's one question, asked here and not in adhoc so that a worker never
 # builds the image. Echoes core, controller, worker or none; Enter, anything else
-# and no terminal are core.
+# and no terminal are core. The arrow-key picker every other question uses when
+# the host has fzf (adhoc has it, the host may not); typed otherwise.
 _ask_role() {
     local pick=""
-    if [[ -t 0 && -t 2 ]]; then
+    if [[ -t 0 && -t 2 ]] && command -v fzf >/dev/null 2>&1; then
+        # fzf draws on stderr and answers on stdout: never redirect its stderr.
+        pick="$(printf '%s\t%s\n' \
+            core       "core        workspace, automation and notifications" \
+            controller "controller  Core, and the host your other hosts report to" \
+            worker     "worker      no services; reports this host to a controller" \
+            none       "none        nothing yet: turn services on with ./existential.sh service" \
+            | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info \
+                --header="  What should this install start with?
+  ↑↓ navigate   Enter confirm" --prompt="Start with ❯ " | cut -f1)" || true
+    elif [[ -t 0 && -t 2 ]]; then
         {
             echo "What should this install start with?"
             echo "  core        workspace, automation and notifications (Enter)"
@@ -749,6 +760,10 @@ _run_general_utility() {
         # Host-side: reads `docker stats` so it can put observed usage next to
         # the declared ceilings, and adhoc has no docker socket.
         footprint)      bash "${SCRIPT_DIR}/src/lib/footprint.sh" "$@" ;;
+        # No engine is a worker, set up with the host's own yq and decree: the same
+        # sync _host_plugins does, so list, on and off work there too.
+        plugin)         if adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
+                        else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" "$@"; fi ;;
         *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
 }

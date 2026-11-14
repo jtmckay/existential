@@ -63,7 +63,8 @@ flow_closure() {
     _flow_visit "$1"
 }
 
-# What a project has on: its plugins.yml, or, before there is one, its example.
+# What a project has on: its plugins.yml. None is nothing on: a worker never has
+# the workspace's, and its example is what an install starts with, not what runs.
 # A flow is the workspace's (automation) unless it says `project: host`: the
 # host's own decree project, host/.decree, for what runs on the host itself.
 _plugins_files() {  # <name>: "<plugins.yml> <its example>", relative to REPO_DIR
@@ -73,7 +74,7 @@ _plugins_files() {  # <name>: "<plugins.yml> <its example>", relative to REPO_DI
 plugins_on() {  # [name]: what the project that name belongs to has on
     local yml seed f
     read -r yml seed <<<"$(_plugins_files "${1:-}")"
-    f="${REPO_DIR}/${yml}"; [[ -f "$f" ]] || f="${REPO_DIR}/${seed}"
+    f="${REPO_DIR}/${yml}"; [[ -f "$f" ]] || return 0
     _yaml_list on < "$f"
 }
 flow_on() { plugins_on "$1" | grep -qxF "$1"; }

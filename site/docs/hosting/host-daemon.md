@@ -23,6 +23,8 @@ Each one is off until you turn it on, from the checkout:
 That puts it in `host/.decree/plugins.yml` and installs it into `host/.decree`. It works on
 a host with neither docker nor podman, with the host's own tools; anything missing is named,
 all of it at once, with how to install it. Then start the daemon, below.
+`./existential.sh flow list` shows which flows are on; `./existential.sh run plugin list host`
+shows every plugin the host has, including what the flows brought in.
 
 ## What it needs
 

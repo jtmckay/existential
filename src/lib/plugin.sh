@@ -14,7 +14,8 @@
 # longer wanted (lib/automations/plugin.sh). A flow is a plugin in
 # automation/plugins/flows/; ./existential.sh flow is the same list, for flows.
 # export writes an installed plugin back to its file in automation/plugins/.
-# existential.sh runs it inside adhoc, where yq and decree are.
+# existential.sh runs it inside adhoc, where yq and decree are; on a host with
+# neither docker nor podman, on the host, with the host's own.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/repo}"
