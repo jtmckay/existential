@@ -51,6 +51,17 @@ scripts:
         esac
     fi
 
+    # A container name (no dot) that the generated compose (/work/docker-compose.yml,
+    # every service that is on) does not run is a service that is off here: skipped,
+    # not failed. An address with a dot, another host's, is always probed.
+    target="${SERVICE_URL#*://}"; target="${target%%[:/]*}"
+    compose=/work/docker-compose.yml
+    if [[ "$target" != *.* && -f "$compose" ]] &&
+        ! grep -qE "^[[:space:]]+container_name:[[:space:]]*[\"']?${target}[\"']?[[:space:]]*$" "$compose"; then
+        printf '[%s] %s is not on here; skipped\n' "$SERVICE_NAME" "$target"
+        exit 0
+    fi
+
     printf '[%s] probe %s\n' "$SERVICE_NAME" "$SERVICE_URL"
 
     http_code=$(curl -fsS -o /dev/null -w "%{http_code}" \

@@ -24,11 +24,10 @@ cron:
     SERVICE_URL for each service you want to monitor.
 
     The shipped default leaves SERVICE_URL blank: it checks where this host's
-    notifications go, its ntfy, or the controller's Loki when ntfy is off here. Point it at a service that
-    is NOT enabled and the check fails every run, and alerts every 6 hours, which is
-    exactly what a default of `grafana` used to do on every Core install (Core does
-    not include grafana). Results appear in Grafana's Decree Overview,
-    from Loki.
+    notifications go, its ntfy, or the controller's Loki when ntfy is off here. A
+    check on a container this host does not run (a service that is off here) is
+    skipped, not failed, so a copy can stay in place on every host. Results appear
+    in Grafana's Decree Overview, from Loki.
 
     The run's machine is "service_health", not SERVICE_NAME — every copy of
     this cron shares one. The per-service
