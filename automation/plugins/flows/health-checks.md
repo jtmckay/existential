@@ -2,11 +2,10 @@
 machine: plugin
 automation: health-checks
 name: Health checks
-tagline: Probe a service every 15 minutes and tell your phone when it stops answering
+tagline: Probe where your notifications go (or any service) every 15 minutes, and tell your phone when it stops answering
 docs: /docs/flows#housekeeping
 services:
   - EXIST_IS_SERVICES_AUTOMATION
-  - EXIST_IS_SERVICES_NTFY
 needs:
   - service_health
 cron:
@@ -15,8 +14,7 @@ cron:
     cron: "*/15 * * * *"
     machine: service_health
     params:
-      SERVICE_NAME: ntfy
-      SERVICE_URL: http://ntfy:80/v1/health
+      SERVICE_NAME: notifications
     ---
 
     Health check cron template for all services accessible from the main decree
@@ -25,8 +23,8 @@ cron:
     Each check is a separate cron file. Copy this file and adjust SERVICE_NAME and
     SERVICE_URL for each service you want to monitor.
 
-    The shipped default checks ntfy, which is in Core alongside the daemon that
-    runs this cron, so it is present on every Core install. Point it at a service that
+    The shipped default leaves SERVICE_URL blank: it checks where this host's
+    notifications go, its ntfy, or the controller's Loki when ntfy is off here. Point it at a service that
     is NOT enabled and the check fails every run, and alerts every 6 hours, which is
     exactly what a default of `grafana` used to do on every Core install (Core does
     not include grafana). Results appear in Grafana's Decree Overview,
@@ -49,6 +47,6 @@ cron:
       http://open-webui:8080/health           - open-webui
 ---
 
-It probes ntfy. To probe another service, copy
+It probes where notifications go: this host's ntfy, or the controller's Loki. To probe another service, copy
 volumes/workspace_data/.decree/cron/health-checks.md to health-check-<slug>.md and set
 SERVICE_NAME and SERVICE_URL (http://<container>:<port>/<health path>) in its params.

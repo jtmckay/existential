@@ -25,7 +25,8 @@ scripts:
     # schedule. Every run lands in Loki ({job="decree", machine="service_health"}),
     # so a failing probe is a failed run, which the daemon reports like any other.
     #
-    # SERVICE_NAME, SERVICE_URL, EXPECT_CODE and TIMEOUT are the machine's data:
+    # SERVICE_NAME, SERVICE_URL, EXPECT_CODE and TIMEOUT are the machine's data
+    # (SERVICE_URL blank probes where notifications go):
     #
     #   ---
     #   cron: "*/15 * * * *"
@@ -36,10 +37,19 @@ scripts:
     #   ---
     set -euo pipefail
 
-    SERVICE_NAME="${DECREE_DATA_SERVICE_NAME:?SERVICE_NAME is required in the cron file params}"
-    SERVICE_URL="${DECREE_DATA_SERVICE_URL:?SERVICE_URL is required in the cron file params}"
+    SERVICE_NAME="${DECREE_DATA_SERVICE_NAME:-notifications}"
+    SERVICE_URL="$DECREE_DATA_SERVICE_URL"
     EXPECT_CODE="$DECREE_DATA_EXPECT_CODE"
     TIMEOUT="$DECREE_DATA_TIMEOUT"
+
+    # Blank: where this host's notifications go. Its own ntfy, or, with ntfy off
+    # here, the controller's Loki (NTFY_URL is then Loki's push address).
+    if [[ -z "$SERVICE_URL" ]]; then
+        case "${NTFY_URL:-http://ntfy:80}" in
+            */loki/api/v1/push) SERVICE_URL="${NTFY_URL%/loki/api/v1/push}/ready" ;;
+            *)                  SERVICE_URL="${NTFY_URL:-http://ntfy:80}/v1/health" ;;
+        esac
+    fi
 
     printf '[%s] probe %s\n' "$SERVICE_NAME" "$SERVICE_URL"
 
