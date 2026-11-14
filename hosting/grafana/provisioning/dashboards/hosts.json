@@ -27,7 +27,7 @@
   "panels": [
     {
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 6 },
       "id": 1,
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none" },
       "targets": [
@@ -50,7 +50,7 @@
           ] }
         ]
       },
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 6 },
       "id": 3,
       "options": { "showHeader": true, "sortBy": [ { "displayName": "free %", "desc": false } ] },
       "targets": [
@@ -78,7 +78,7 @@
           { "matcher": { "id": "byName", "options": "Value #E" }, "properties": [ { "id": "displayName", "value": "VRAM total" }, { "id": "unit", "value": "decmbytes" } ] }
         ]
       },
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
       "id": 6,
       "options": { "showHeader": true, "sortBy": [ { "displayName": "host", "desc": false } ] },
       "targets": [

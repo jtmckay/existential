@@ -39,17 +39,17 @@
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0 },
         "overrides": [
-          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
-          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [ { "id": "displayName", "value": "${__data.fields.machine} done" }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] },
+          { "matcher": { "id": "byName", "options": "Value #B" }, "properties": [ { "id": "displayName", "value": "${__data.fields.machine} not done" }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
         ]
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "id": 2,
-      "options": { "orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": { "orientation": "horizontal", "displayMode": "basic", "showUnfilled": true, "reduceOptions": { "values": true, "calcs": [] } },
       "targets": [
-        { "refId": "A", "queryType": "instant", "legendFormat": "{{machine}} done",
+        { "refId": "A", "queryType": "instant",
           "expr": "sum by (machine) (count_over_time({job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json state | state = \"done\" [$__range]))" },
-        { "refId": "B", "queryType": "instant", "legendFormat": "{{machine}} not done",
+        { "refId": "B", "queryType": "instant",
           "expr": "sum by (machine) (count_over_time({job=\"decree\", host=~\"$host\", project=~\"$project\", machine=~\"$machine\", type=\"run_finished\"} | json state | state != \"done\" [$__range]))" }
       ],
       "title": "Runs per machine",
