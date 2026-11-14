@@ -272,7 +272,8 @@ Details:
 ### Look back
 
 `look_back` reads a range of day notes, writes
-`workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md`, and sends a short ntfy:
+`workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md`, and sends a short ntfy when
+anything finished or was decided (an empty range sends nothing):
 
 - **Highlights**: checkboxes ticked, notes created, migrations landed, by project.
 - **Themes**: projects that came up on more than one day.

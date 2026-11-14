@@ -184,8 +184,13 @@ assert_has "a scope folder matches by path" "$(section "$QW" "Highlights")" "wat
 assert_has "a scope source matches what was captured from it" "$(section "$QW" "By the numbers")" "Prompts: 1"
 assert_lacks "...and nothing else" "$(cat "$QW")" "hang the door"
 
-# ── Sunday and month-end ──────────────────────────────────────────────────────
+# ── nothing to see ────────────────────────────────────────────────────────────
 N="$(pushes)"
+assert_eq "an empty range runs" "0" "$(run_lb 2026-10-02T09:00:00Z period=month to=2025-01-31)"
+assert_eq "...writes its look back" "yes" "$([[ -f "$A/2025/look-back-2025-01-01-2025-01-31.md" ]] && echo yes)"
+assert_eq "...and pushes nothing" "$N" "$(pushes)"
+
+# ── Sunday and month-end ──────────────────────────────────────────────────────
 assert_eq "on a Saturday the weekly run exits 0" "0" "$(run_lb 2026-09-19T21:00:00Z period=week period_end_only=true)"
 assert_eq "...and writes nothing" "" "$(find "$A" -name 'look-back-2026-09-14-*')"
 assert_eq "...and pushes nothing" "$N" "$(pushes)"

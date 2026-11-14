@@ -69,6 +69,7 @@ scripts:
 
     tsx "$look_back" write
 
+    [[ -f "${DECREE_RUN_DIR}/ntfy.md" ]] || { echo "look_back: nothing finished or decided; no push"; exit 0; }
     decree emit --machine notify --param ntfy_topic="$DECREE_DATA_NTFY_TOPIC" \
         --param ntfy_title="Look back" --param ntfy_tags=calendar <"${DECREE_RUN_DIR}/ntfy.md" >/dev/null
     echo "look_back: pushed"
@@ -84,7 +85,7 @@ lib:
     //                         writes nothing
     //   look-back.ts write    renders facts.json (+ model.json when the model answered) into
     //                         ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and writes
-    //                         $DECREE_RUN_DIR/ntfy.md
+    //                         $DECREE_RUN_DIR/ntfy.md, when anything finished or was decided
     //
     // The archive is the day notes lib/you-were-here/digest.ts writes; this only reads
     // them. A full week or month that already has a look back is read from that look
@@ -378,7 +379,9 @@ lib:
       writeAtomic(path.join(WS, f.file), `${doc}\n`);
       console.log(`write: ${f.file}`);
 
+      // A push only when there is something to see: the file is written either way.
       const shipped = f.highlights.reduce((k, h) => k + h.items.length, 0);
+      if (!shipped && !f.decisions.length) return;
       writeAtomic(path.join(RUN, "ntfy.md"),
         `${f.from} to ${f.to}${f.scope === "work" ? ", work" : ""}: ${shipped} highlight${shipped === 1 ? "" : "s"}, ` +
         `${f.decisions.length} decision${f.decisions.length === 1 ? "" : "s"} over ${n.days} recorded day${n.days === 1 ? "" : "s"}.\n\n` +

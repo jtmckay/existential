@@ -32,7 +32,7 @@ scripts:
     # newsletter's deliver: copy the run's issue.md to NEWSLETTER_DIR/<YYYY-MM-DD>.md (-2,
     # -3 when that day already has an issue), record every gathered link in
     # $DECREE_STORE/seen.tsv with the date, and send the issue's first lines as a
-    # notification. Safe to re-run: an identical issue is not copied twice, and a link
+    # notification when anything was new. Safe to re-run: an identical issue is not copied twice, and a link
     # already in seen.tsv is not added again.
     #
     # Written straight to disk, so Nextcloud shows it but no file event fires.
@@ -66,6 +66,7 @@ scripts:
     fi
     echo "deliver: ${added} links added to ${seen}"
 
+    [ -s "${items}" ] || { echo "deliver: nothing new; no push"; exit 0; }
     head -n 5 "${target}" | decree emit --machine notify \
       --param ntfy_title="Newsletter, ${today}" --param ntfy_tags=newspaper >/dev/null
   gather.ts: |
