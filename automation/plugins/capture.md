@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: capture
+project: automation
 chart:
   description: Append the message body (JSON {source, text} or plain text) to the capture stream, workspace/.capture/.
   data:

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# automation-backup — pre-startup init: the project's runtime dirs and the crons
-# it always runs. Off by default: backups are not Core.
+# automation-backup — pre-startup init: the project's runtime dirs and its
+# plugins. Off by default: backups are not Core. Nothing is scheduled until a flow
+# is on (./existential.sh flow on service-triage, backup-<service>, ...); clean-runs
+# is the one every install starts with.
 #
 # Runs on the host every `./existential.sh` while enabled; idempotent.
 set -euo pipefail
@@ -21,7 +23,7 @@ done
 # A missing bind-mount source is created root-owned by Docker.
 mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,cron,lib,machines,scripts} "${REPO}/automation/secrets"
 
-# Its machines are plugins (automation/plugins/, default: [backup]), installed
+# Its machines are plugins (automation/plugins/, project: backup), installed
 # at this checkout's version every run, in adhoc where yq and decree are.
 if [[ -n "${IN_CONTAINER:-}" ]]; then
     REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync backup ||
@@ -32,14 +34,3 @@ else
     ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync backup ) ||
         echo "[automation-backup] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync backup tries again."
 fi
-
-# triage watches the stack, and clean-runs keeps this daemon's runs/ from
-# growing; workspace-sync does nothing until it has a NAS folder or Nextcloud keys. cron/
-# is the user's active set, so each is copied once: edit or delete a copy and it
-# stays that way.
-for _cron in triage.md clean-runs.md workspace-sync.md; do
-    if [[ ! -e "${SCRIPT_DIR}/cron/${_cron}" ]]; then
-        cp "${SCRIPT_DIR}/cron.example/${_cron}" "${SCRIPT_DIR}/cron/${_cron}"
-        echo "[automation-backup] ${_cron%.md} cron activated."
-    fi
-done

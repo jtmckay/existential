@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: comfyui
+project: automation
 name: Images and video on your own card
 tagline: ComfyUI workflows a decree message can run, the prompt in its body
 docs: /docs/ai/comfyui

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: home-voice
+project: automation
 name: Talk to the house
 tagline: Home Assistant with speech in and out on CPU, and your own chat model answering what you ask
 docs: /docs/services/homeassistant

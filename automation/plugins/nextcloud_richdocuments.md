@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: nextcloud_richdocuments
+project: automation
 chart:
   description: Install richdocuments and point it at Collabora, with the WOPI allowlist set to the exist bridge.
   data:

@@ -28,8 +28,8 @@ services:
       # this volume leaves .env and the running server out of step; see
       # .claude/reference/volumes.md.
       #
-      # Backup IS wired up: copy lowcoder-db-backup-{nightly,weekly}.md from
-      # services/automation-backup/cron.example/ into cron/ and restart
+      # Backup IS wired up: ./existential.sh flow on backup-lowcoder schedules
+      # lowcoder-db-backup-{nightly,weekly} in
       # decree-backup (mongodump straight to ${EXIST_BACKUP_RCLONE_REMOTE}, same
       # as every other db-backup — there is no local *_backup volume for any of
       # them, see volumes.md). lowcoder-volume-backup-{nightly,weekly}.md covers

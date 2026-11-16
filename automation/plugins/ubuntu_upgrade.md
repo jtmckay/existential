@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: ubuntu_upgrade
+project: host
 chart:
   description: Once a week, install every Ubuntu package update that is not a release upgrade, and reboot at the configured time only if one of them requires it. Ubuntu's own unattended-upgrades does the daily security updates.
   initial: upgrade
@@ -18,9 +19,9 @@ scripts:
     # upgrade — the weekly maintenance window: run the root half, which setup.sh
     # installed, and tell your phone when it failed or a reboot is coming. Nothing
     # here is root: the one thing sudo allows is that installed script. Runs in the
-    # host project (host/.decree), so the repo is one up.
+    # host project (the repo's own .decree), so it runs in the repo.
     set -euo pipefail
-    repo="$(cd .. && pwd)"
+    repo="$(pwd)"
     lib="${DECREE_LIB:-${PWD}/.decree/lib}/ubuntu_upgrade"
     root=/usr/local/sbin/existential-ubuntu-upgrade
     # shellcheck source=/dev/null
@@ -73,7 +74,7 @@ lib:
     # setup.sh — the one root step of the update-ubuntu flow. Safe to run again;
     # run it again when ubuntu_upgrade says upgrade.sh changed.
     #
-    #   sudo bash host/.decree/lib/ubuntu_upgrade/setup.sh
+    #   sudo bash .decree/lib/ubuntu_upgrade/setup.sh
     #
     # 1. unattended-upgrades on: package lists and security updates daily, and a
     #    reboot at 02:00 only when an installed update requires one. The file is
@@ -121,6 +122,6 @@ a reboot for 02:00 only when one of them requires it. Your phone hears a failure
 that is coming. The daily half, security updates, is Ubuntu's own `unattended-upgrades`, which
 `setup.sh` turns on.
 
-It runs in the host's own decree project, `host/.decree`, without root: `setup.sh`, run once
+It runs in the host's own decree project, the repo's own `.decree`, without root: `setup.sh`, run once
 with sudo, installs the one script sudo then lets it run. The `update-ubuntu` flow turns it on:
 `./existential.sh flow on update-ubuntu`.

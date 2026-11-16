@@ -1,12 +1,13 @@
 ---
 machine: plugin
 automation: develop
+project: automation
 needs:
   - agent
   - firecrawl
   - model
 chart:
-  description: Build an accepted automation from its migration (notes/automations/<name>.md) - the machine, its script and its trigger - checked by decree check, or undone.
+  description: Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file - the machine, its script and its trigger - checked by decree check, and offer it in ai/proposed/ for you to read and accept on the host. It installs nothing.
   data:
     # From the migration's frontmatter, which automation_propose writes.
     automation: {type: string, default: ""}
@@ -24,26 +25,30 @@ chart:
 scripts:
   develop: |
     #!/usr/bin/env bash
-    # develop — build one automation from its migration.
+    # develop — build one automation from its spec, as an offer.
     #
-    # The migration (notes/automations/<name>.md, filed by reconcile) says what is
-    # true once the automation exists. Claude (lib/agent.sh) reads it when this
+    # The spec (notes/automations/<name>.md, filed by reconcile) says what is true
+    # once the automation exists. Claude (lib/agent.sh) reads it when this
     # container is signed in, the chat model when not, and answers with the trigger,
     # as one JSON line, and the `steps` function; this writes the rest from fixed
-    # templates:
-    #   .decree/machines/<name>.yml   one state, invoking its script, emitting notify
-    #   .decree/scripts/<name>.sh     lib/automations/run.sh + steps + automation_run
-    #   the trigger                   note: an entry note_watch matches notes against
-    #                                 file: a .decree/handlers.yml entry
-    #                                 cron: .decree/cron/<name>.md
-    # The gate is decree check plus the trigger's own rules. A failed gate is undone
-    # and its errors kept for the second attempt; the second failure ends the run,
-    # which reaches your phone like any failed run.
+    # templates, as ONE PLUGIN FILE:
+    #   chart, scripts   one state, invoking lib/automations/run.sh + steps
+    #   the trigger      note: `when:`, which note_watch matches notes against
+    #                    file: a `handlers:` entry
+    #                    cron: a `cron:` entry
+    # Nothing is installed here, and nothing here can be: machines/, scripts/ and
+    # lib/ are read-only in this container. The plugin is installed into a scratch
+    # project to pass decree check, then written to ai/proposed/<name>.md, and you
+    # are told where to read it and the one command, on the host, that accepts it.
+    # A failed gate keeps its errors for the second attempt; the second failure ends
+    # the run, which reaches your phone like any failed run.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
     source "${DECREE_LIB}/model.sh"
     # shellcheck source=../../lib/automations/registry.sh
     source "${DECREE_LIB}/automations/registry.sh"
+    # shellcheck source=../../lib/automations/plugin.sh
+    source "${DECREE_LIB}/automations/plugin.sh"
     # shellcheck source=../../lib/firecrawl.sh
     source "${DECREE_LIB}/firecrawl.sh"
     # shellcheck source=../../lib/agent.sh
@@ -55,18 +60,13 @@ scripts:
     name="${DECREE_DATA_AUTOMATION:-$(fm automation)}" from="${DECREE_DATA_FROM:-$(fm from)}"
     [[ -n "$name" ]] || { echo "develop: the migration names no automation" >&2; exit 1; }
     [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "develop: '${name}' is not a machine name" >&2; exit 1; }
-    if [[ -e ".decree/machines/${name}.yml" ]] && ! automation_installed "$name"; then
-        echo "develop: ${name} is a machine this stack ships or you wrote; refusing to replace it" >&2; exit 1
+    # Only a plugin you accepted before (automation/plugins/local/) is ever offered again.
+    if [[ -e ".decree/machines/${name}.yml" && "$(automation_get "$name" spec 2>/dev/null)" != automation/plugins/local/* ]]; then
+        echo "develop: ${name} is a machine this stack ships; refusing to offer one by its name" >&2; exit 1
     fi
+    WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     spec="$(awk 'NR==1 && /^---$/{f=1; next} f && /^---$/{f=0; next} !f' "$DECREE_MESSAGE")"
     errors="${DECREE_RUN_DIR}/gate.err"
-
-    # What it was built from, so reconcile can tell an edit from no change.
-    record_applied() {
-        local migration
-        migration="$(cd .decree/migrations && ls -- A*-"${name}".md 2>/dev/null | head -1 || true)"
-        if [[ -n "$migration" ]]; then mkdir -p .decree/applied; cp ".decree/migrations/${migration}" ".decree/applied/${migration}"; fi
-    }
 
     system='You build one automation from its spec. Reply with exactly two parts and nothing else:
     Line 1: TRIGGER: <one JSON object>, one of
@@ -140,76 +140,57 @@ scripts:
     }
     [[ ${#fails[@]} -eq 0 ]] || fail_gate
 
-    # ── Install, keeping what was there so a failed check puts it back ───────────
-    backup="${DECREE_RUN_DIR}/previous"; rm -rf "$backup"; mkdir -p "$backup"
-    touched=(".decree/machines/${name}.yml" ".decree/scripts/${name}.sh" ".decree/cron/${name}.md" "$REGISTRY" "$HANDLERS" "$WATCH")
-    for f in "${touched[@]}"; do [[ -e "$f" ]] && cp -p "$f" "$backup/$(echo "$f" | tr / _)"; done
-    restore() {
-        for f in "${touched[@]}"; do
-            if [[ -e "$backup/$(echo "$f" | tr / _)" ]]; then cp -p "$backup/$(echo "$f" | tr / _)" "$f"; else rm -f "$f"; fi
-        done
-    }
-    touch "$REGISTRY"
-    automation_remove "$name"            # a rebuild starts from nothing
-
-    cat > ".decree/machines/${name}.yml" <<YML
-    # Built by develop from notes/automations/${name}.md. Edit that file, not this one.
-    name: ${name}
-    description: $(jq -Rn --arg d "$(sed -n 's/^# //p' <<<"$spec" | head -1)" '$d')
-    data:
-      note_path: { type: string, default: "" }
-      path: { type: string, default: "" }
-      change: { type: string, default: "" }
-    initial: run
-    states:
-      run:
-        invoke: ${name}
-        transitions: { done: done }
-        emits: [notify]
-      done: { final: true }
-      failed: { final: true }
-    YML
-    {
-        printf '#!/usr/bin/env bash\n# Built by develop from notes/automations/%s.md. Edit that file, not this one.\n' "$name"
-        printf '# shellcheck source=../../lib/automations/run.sh\nsource "${DECREE_LIB}/automations/run.sh"\n\n'
-        printf '%s\n\nautomation_run %s\n' "$code" "$name"
-    } > ".decree/scripts/${name}.sh"
-    chmod 755 ".decree/scripts/${name}.sh"
-
-    entry="$(jq -c --arg m "$name" --arg n "$from" --arg s "notes/automations/${name}.md" '{machine: $m} + . + {note: $n, spec: $s}' <<<"$trigger")"
+    # ── The plugin file ──────────────────────────────────────────────────────────
+    plugin="${DECREE_RUN_DIR}/${name}.md"
+    desc="$(sed -n 's/^# //p' <<<"$spec" | head -1)"
+    script="$(printf '#!/usr/bin/env bash\n# Built by develop from notes/automations/%s.md. Edit that file, not this one.\n' "$name"
+              printf '# shellcheck source=../../lib/automations/run.sh\nsource "${DECREE_LIB}/automations/run.sh"\n\n'
+              printf '%s\n\nautomation_run %s\n' "$code" "$name")"
+    n="$name" d="${desc:-$name}" s="$script" yq -n '
+        .machine = "plugin" | .automation = strenv(n) | .project = "automation" | .needs = ["develop"] |
+        .chart = {"description": strenv(d),
+                  "data": {"note_path": {"type": "string", "default": ""}, "path": {"type": "string", "default": ""}, "change": {"type": "string", "default": ""}},
+                  "initial": "run",
+                  "states": {"run": {"invoke": strenv(n), "transitions": {"done": "done"}, "emits": ["notify"]},
+                             "done": {"final": true}, "failed": {"final": true}}} |
+        .scripts[strenv(n)] = strenv(s)' > "${plugin}.yml"
     case "$kind" in
-        note) yq -i ".states.watch.emits = ((.states.watch.emits // []) + [\"${name}\"] | unique)" "$WATCH" ;;
-        file) touch "$HANDLERS"
-              yq -i ". = ((. // []) + [$(jq -c --arg m "$name" '{match: .match, machine: $m, changes: (.changes // ["created"]), quiet: (.quiet // 30)}' <<<"$trigger")])" "$HANDLERS" ;;
-        cron) mkdir -p .decree/cron
-              printf -- '---\ncron: "%s"\nmachine: %s\n---\n\nBuilt by develop from notes/automations/%s.md.\n' \
-                  "$(jq -r .cron <<<"$trigger")" "$name" "$name" > ".decree/cron/${name}.md" ;;
+        note) w="$(jq -r .when <<<"$trigger")" yq -i '.when = strenv(w)' "${plugin}.yml" ;;
+        file) h="$(jq -c '[{match: .match, changes: (.changes // ["created"]), quiet: (.quiet // 30)}]' <<<"$trigger")" yq -i '.handlers = (strenv(h) | from_json)' "${plugin}.yml" ;;
+        cron) n="$name" c="$(printf -- '---\ncron: "%s"\nmachine: %s\n---\n\nBuilt by develop from notes/automations/%s.md.' "$(jq -r .cron <<<"$trigger")" "$name" "$name")" \
+                  yq -i '.cron[strenv(n)] = strenv(c)' "${plugin}.yml" ;;
     esac
-    yq -i ". = ((. // []) + [${entry}])" "$REGISTRY"
+    { printf -- '---\n'; cat "${plugin}.yml"; printf -- '---\n# %s\n\n%s\n\nBuilt by develop from notes/automations/%s.md%s. To change it, edit that file: develop offers it again.\n' \
+        "$name" "${desc:-$name}" "$name" "${from:+ (asked for in ${from})}"; } > "$plugin"
 
-    if ! check="$(decree check --no-color 2>&1)"; then
-        restore
-        fails=("decree check: $( { grep -i "$name" <<<"$check" || printf '%s\n' "$check"; } | head -5 | paste -sd ';')")
+    # ── decree check, in a scratch copy of this project with the plugin installed ──
+    work="${DECREE_RUN_DIR}/build"; rm -rf "$work"; mkdir -p "${work}/.decree"
+    cp -r .decree/machines .decree/scripts "${work}/.decree/"
+    if ! ( cd "$work" && unset DECREE_PROJECT_ROOT && plugin_install "$name" "$plugin" "ai/proposed/${name}.md" ) 2> "${DECREE_RUN_DIR}/install.err"; then
+        fails=("$(paste -sd ';' "${DECREE_RUN_DIR}/install.err" | cut -c1-600)")
         fail_gate
     fi
     rm -f "$errors"
 
-    record_applied
+    # ── The offer ────────────────────────────────────────────────────────────────
+    mkdir -p "${WS}/ai/proposed"
+    cp "$plugin" "${WS}/ai/proposed/${name}.md"
     case "$kind" in
         note) starts="when you write a note that is: $(jq -r .when <<<"$trigger")" ;;
         file) starts="when a file matching $(jq -r .match <<<"$trigger") changes" ;;
         cron) starts="on the schedule $(jq -r .cron <<<"$trigger")" ;;
     esac
-    echo "develop: built ${name}, which starts ${starts}"
-    printf '%s starts %s. Results go to ai/automations/%s/.\n' "$name" "$starts" "$name" |
-        decree emit --machine notify --param ntfy_title="Automation built" --param ntfy_tags=robot >/dev/null
+    echo "develop: built ${name}, which would start ${starts}; offered in ai/proposed/${name}.md"
+    { printf '%s is built and waits for you. It would start %s, and write its results to ai/automations/%s/.\n\n' "$name" "$starts" "$name"
+      plugin_offered "$name"; } |
+        decree emit --machine notify --param ntfy_title="Automation ready to review" --param ntfy_tags=robot >/dev/null
 lib:
   automations/run.sh: |
     #!/usr/bin/env bash
     # automations/run.sh — the frame every accepted automation runs in.
     #
-    # Sourced by .decree/scripts/<name>.sh, which the workspace's develop machine
-    # writes from an accepted automation's migration: this file, then the `steps`
+    # Sourced by the script of every plugin the workspace's develop machine builds
+    # from an accepted automation's spec: this file, then the `steps`
     # function the model wrote, then `automation_run <name>`. Everything but `steps`
     # is here, the same for every automation.
     #
@@ -264,12 +245,4 @@ lib:
 ---
 # develop
 
-Build an accepted automation from its migration (notes/automations/<name>.md) - the machine, its script and its trigger - checked by decree check, or undone.
-
-It needs, on the stack that installs it:
-
-- $DECREE_LIB/agent.sh
-- $DECREE_LIB/automations/registry.sh
-- $DECREE_LIB/automations/run.sh
-- $DECREE_LIB/firecrawl.sh
-- $DECREE_LIB/model.sh
+Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file, checked by decree check, and offer it in ai/proposed/ for you to read and accept on the host. It installs nothing: `./existential.sh run plugin accept <name>` does.

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note-to-automation
+project: automation
 name: Notes become automations
 tagline: Write "next time X, do Y" in a note, accept what is proposed, and it runs
 docs: /docs/flows/note-to-automation

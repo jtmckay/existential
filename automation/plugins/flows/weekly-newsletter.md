@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: weekly-newsletter
+project: automation
 name: Your own newsletter
 tagline: Mondays, at most seven items from only the feeds you picked, judged by a paragraph you wrote
 docs: /docs/flows/newsletter
@@ -16,8 +17,8 @@ cron:
     machine: newsletter
     ---
 
-    This week's issue: new items from `workspace/.decree/lib/newsletter/feeds.txt`, picked
-    and summarised by the chat model against `workspace/.decree/lib/newsletter/taste.md`,
+    This week's issue: new items from `workspace/.decree/store/newsletter/feeds.txt`, picked
+    and summarised by the chat model against `workspace/.decree/store/newsletter/taste.md`,
     written to `workspace/newsletter/<date>.md` with a notification of its first lines.
 
     Edit taste.md — it is the whole judgment. A link is never sent twice: the
@@ -28,6 +29,6 @@ cron:
       docker exec automation decree emit --machine newsletter </dev/null
 ---
 
-List your feeds in workspace/.decree/lib/newsletter/feeds.txt and say what you care about in
-workspace/.decree/lib/newsletter/taste.md. To write an issue now:
+List your feeds in workspace/.decree/store/newsletter/feeds.txt and say what you care about in
+workspace/.decree/store/newsletter/taste.md. To write an issue now:
   echo | docker exec -i automation decree emit --machine newsletter

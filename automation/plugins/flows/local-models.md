@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: local-models
+project: automation
 name: Local models
 tagline: Ollama on this machine pulls the models your VRAM tier names, once, as soon as it is up
 docs: /docs/ai/ollama

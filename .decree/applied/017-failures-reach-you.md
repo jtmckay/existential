@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # A failed or stuck automation tells you on ntfy
 

@@ -10,8 +10,8 @@
   changes: [created, modified]
   quiet: 60
 
-# An automation you accepted (moved from ai/proposed/ into notes/automations/), edited
-# or deleted: build it (develop runs its migration), rebuild it, or remove it.
+# A spec you moved from ai/proposed/ into notes/automations/, or edited there: develop
+# builds it as a plugin file and offers it for review. Nothing is installed from here.
 - match: "notes/automations/*.md"
   machine: reconcile
   quiet: 5

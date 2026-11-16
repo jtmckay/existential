@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Everything you put in lands in one capture stream
 

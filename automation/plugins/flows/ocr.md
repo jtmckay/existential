@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: ocr
+project: automation
 needs:
   - model
 lib:

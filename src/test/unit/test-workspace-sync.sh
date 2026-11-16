@@ -59,7 +59,7 @@ check "a blank domain is a no-op" "[[ \"\$(sync EXIST_NEXTCLOUD_DOMAIN=)\" == ''
 
 mkdir -p "$WS"/{notes,ai,sub,.git,notes/.git,.decree/runs/r1,.decree/scripts}
 for _f in notes/a.md notes/b.md notes/c.md notes/d.md secret.txt ai/out.md sub/keep.md sub/x.tmp \
-          .git/config notes/.git/HEAD .decree/runs/r1/log '.decree/scripts/odd [name].sh'; do
+          .git/config notes/.git/HEAD .decree/runs/r1/log .decree/scripts/mine.sh 'sub/odd [name].md'; do
     echo "$_f" > "${WS}/${_f}"
 done
 printf 'secret.txt\nai/\n' > "${WS}/.gitignore"
@@ -68,22 +68,23 @@ printf 'runs/\n' > "${WS}/.decree/.gitignore"
 
 check "the first run merges" "[[ \"\$(sync)\" == '' ]]"
 check "a workspace file is uploaded" "[[ -f '${REMOTE}/notes/a.md' && -f '${REMOTE}/sub/keep.md' ]]"
-check "a file with glob characters in its name is uploaded" "[[ -f '${REMOTE}/.decree/scripts/odd [name].sh' ]]"
+check "a file with glob characters in its name is uploaded" "[[ -f '${REMOTE}/sub/odd [name].md' ]]"
+check "decree's code is not uploaded" "[[ ! -e '${REMOTE}/.decree/scripts' ]]"
 check "a root .gitignore'd file is not uploaded" "[[ ! -e '${REMOTE}/secret.txt' ]]"
 check "a .gitignore'd directory is not uploaded" "[[ ! -e '${REMOTE}/ai' ]]"
 check "a nested .gitignore is honoured" "[[ ! -e '${REMOTE}/sub/x.tmp' ]]"
 check "decree's run state is not uploaded" "[[ ! -e '${REMOTE}/.decree/runs' ]]"
 check "no .git/ is uploaded, at any depth" "[[ ! -e '${REMOTE}/.git' && ! -e '${REMOTE}/notes/.git' ]]"
 
-# A file and a script created on the remote side come down; the script is executable.
+# A file created on the remote side comes down; a script never does (the host alone installs code).
 put notes/new.md new
 put .decree/scripts/hello.sh '#!/usr/bin/env bash'
 check "the next run syncs" "[[ \"\$(sync)\" == '' ]]"
 check "a remote file appears in the workspace" "[[ \"\$(cat '${WS}/notes/new.md' 2>/dev/null)\" == new ]]"
-check "a script that came down is executable" "[[ -x '${WS}/.decree/scripts/hello.sh' ]]"
+check "a script on the remote does not come down" "[[ ! -e '${WS}/.decree/scripts/hello.sh' ]]"
 
 # Delete most of the workspace: rclone refuses, and the machine asks a person.
-rm -f "$WS"/notes/{a,b,c,d,new}.md "${WS}/sub/keep.md" "${WS}/.decree/scripts/hello.sh"
+rm -f "$WS"/notes/{a,b,c,d,new}.md "${WS}/sub/keep.md"
 check "a large delete ends in too_many_deletes" "[[ \"\$(sync)\" == too_many_deletes ]]"
 check "nothing was deleted remotely" "[[ -f '${REMOTE}/notes/a.md' && -f '${REMOTE}/notes/new.md' ]]"
 check "the hold is recorded" "[[ -e '${STORE}/held' ]]"

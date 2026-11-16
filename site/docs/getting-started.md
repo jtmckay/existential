@@ -47,8 +47,9 @@ The first run asks one thing: what to start with.
 | **Workspace** | code-server (editor + terminal over the work dir) |
 | **Automation** | Decree (the automation daemon), ntfy (where automations report in) |
 
-Four [flows](./flows/index.md) are on by default: the [morning digest](#you-were-here), the
-[look backs](#look-back), run cleanup, and a health check on ntfy.
+Three [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
+run cleanup, and a health check on ntfy. The rest are off until you turn them on, the
+[morning digest](#you-were-here), the [look backs](#look-back) and [capture](#capture) included.
 
 Core ships no backups. Turn on [automation-backup](./decree/automation-backup.md), or put
 `volumes/workspace_data` under git with a remote you choose.
@@ -181,9 +182,10 @@ and notifies you when something breaks or recovers.
 `workspace/` (in `volumes/workspace_data`) is your directory:
 
 - **`notes/`**: your notes, plain markdown. Starts with `my-first-note.md`.
-- **`.decree/`**: your automations, run by the `automation` daemon on the next tick. The repo's
-  machines arrive as [plugins](./plugins/index.md), only the ones you have on, at the version in
-  your checkout. `graph/` draws every machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
+- **`.decree/`**: your automations, run by the `automation` daemon. Its code (`machines/`,
+  `scripts/`, `lib/`) is read-only here and installed only by `./existential.sh` on the host: the
+  repo's [plugins](./plugins/index.md) you have on, and each one made in the workspace that you
+  [accepted](./plugins/offer-and-accept.md). `graph/` draws every machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
 - **`ai/`**: what automations write, indexed like everything else.
 - **`.capture/`**: everything you typed to an agent. See [Capture](#capture).
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under
@@ -205,7 +207,8 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
 
 ### Capture
 
-`workspace/.capture/` keeps what you typed to an agent, one JSON line each (`ts`, `source`,
+Off until `./existential.sh flow on code-server-agents` (or `capture-stream`, for the webhook
+alone). `workspace/.capture/` then keeps what you typed to an agent, one JSON line each (`ts`, `source`,
 `context`, `session`, `text`), one file per writer and month (`2026-10-code-server.jsonl`).
 
 - Only what you typed: never a response, tool output or transcript.
@@ -218,8 +221,8 @@ so `claude` there already knows how to write an automation. Add-ons mount the sa
 
 | Source | On | Off |
 |---|---|---|
-| Claude Code in [code-server](./services/code-server.md) | By default: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
-| opencode in code-server | By default: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
+| Claude Code in [code-server](./services/code-server.md) | With `code-server-agents` on: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
+| opencode in code-server | With `code-server-agents` on: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
 | Claude Code on another computer | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
 | Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh flow off capture-stream` |
 
@@ -239,7 +242,7 @@ curl -X POST https://automation-webhook.<domain>/capture \
 
 ### You were here
 
-Every morning at 7, `you_were_here` writes `workspace/ai/you-were-here.md` and pushes the top of
+Off until `./existential.sh flow on you-were-here`. Then, every morning at 7, `you_were_here` writes `workspace/ai/you-were-here.md` and pushes the top of
 it to ntfy:
 
 - **The picture**: two or three sentences.
@@ -287,8 +290,8 @@ Every item links to its day note.
   when blank); `from`/`to` (`YYYY-MM-DD`) set either end.
 - `scope=work` keeps only what `workspace/ai/you-were-here/scope.md` lists (projects, folders,
   capture sources), and writes `…-work.md` beside the full one.
-- Weekly (Sunday) and monthly (month-end) look backs are on by default
-  (`cron/look-back-weekly.md`, `look-back-monthly.md`). Longer ranges read those instead of
+- `./existential.sh flow on look-back` turns on the weekly (Sunday) and monthly (month-end) look backs
+  (`cron/look-back-weekly.md`, `look-back-monthly.md`), and the digest they read. Longer ranges read those instead of
   every day note.
 - With the webhook: `POST /look-back`, `/look-back/month`, `/look-back/month/work`.
 
@@ -319,8 +322,8 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
 
 - Simplest: keep the vault inside `workspace/`.
 - To edit it on other devices: sync through Nextcloud, see [Obsidian](./services/obsidian.md).
-- To pull it in from elsewhere (with automation-backup on): copy
-  `services/automation-backup/cron.example/notes-pull.md` to `services/automation-backup/cron/`,
+- To pull it in from elsewhere: `./existential.sh flow on notes-pull` (it runs in automation-backup),
+  then in `services/automation-backup/cron/notes-pull.md`
   set `NOTES_PULL_SOURCE` to an rsync-over-SSH path (`user@nas:/path/to/vault/`), and put an SSH
   key at `automation/secrets/notes-pull/id_ed25519`. Pulls are additive unless
   `NOTES_PULL_DELETE=true`. Pulled files fire no Nextcloud events.

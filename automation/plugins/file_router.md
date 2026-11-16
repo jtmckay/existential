@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: file_router
+project: automation
 needs:
   - file_processor
 chart:

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note_watch
+project: automation
 needs:
   - automation_propose
   - model
@@ -30,7 +31,7 @@ scripts:
     #      later, when something occurs ("next time I have a business idea, …")?
     #      A new one becomes an automation_propose run.
     #   2. Is this note the event an automation you accepted is waiting for
-    #      (.decree/automations.yml, kind note)? Each one that matches runs on it.
+    #      (.decree/automations.yml, the ones with a `when:`)? Each one that matches runs on it.
     # No model, or an answer that isn't JSON: nothing happens, and the run is still
     # done, so saving notes on a stack without a model never fills .decree/attention/.
     set -euo pipefail
@@ -52,7 +53,7 @@ scripts:
     installed="$(yq -o=json '. // []' "$REGISTRY")"
     # An automation never triggers on the note that asked for it.
     # Only automations whose event is a note; a file or schedule trigger is not ours.
-    installed="$(jq -c '[.[] | select(.kind == "note")]' <<<"$installed")"
+    installed="$(jq -c '[.[] | select(.when)]' <<<"$installed")"
     triggers="$(jq -r --arg rel "$rel" '.[] | select(.note != $rel) | "- \(.machine): \(.when)"' <<<"$installed")"
 
     system='You read one note from a person'"'"'s notes and answer two questions about it.

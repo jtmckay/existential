@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: code-server-agents
+project: automation
 name: Agents in code-server
 tagline: claude, opencode and pi in code-server's terminal, pi on the stack's own model
 docs: /docs/services/code-server

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: immich_setup
+project: automation
 chart:
   description: Create Immich's admin from EXIST_EMAIL and add the NAS photos as a read-only External Library.
   initial: wait_for_immich

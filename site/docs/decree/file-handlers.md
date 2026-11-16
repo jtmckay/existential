@@ -24,7 +24,7 @@ to run, and optionally which changes it cares about and how long the file must b
 Two ship with the stack, in the `handlers.yml` seeded on first install (yours to edit after):
 `notes/**/*.md` runs `note_watch`, which offers to automate a standing instruction in a note
 ([Note → Automation](../flows/note-to-automation.md)), and `notes/automations/*.md` runs
-`reconcile`, which has `develop` build the ones you accept.
+`reconcile`, which has `develop` build each one as an [offer you accept on the host](../plugins/offer-and-accept.md).
 
 - **A change matching no handler does nothing.** A change matching several runs each of them.
 - **A handler fires once the file has been quiet** for `quiet` seconds: an editor's autosaves

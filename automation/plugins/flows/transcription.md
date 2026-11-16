@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: transcription
+project: automation
 name: Voice memos you actually read
 tagline: A recording synced to Nextcloud gets a speaker-labelled transcript beside it
 docs: /docs/flows/recording-transcription

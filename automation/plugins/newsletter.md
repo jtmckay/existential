@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: newsletter
+project: automation
 needs:
   - model
   - rss
@@ -12,12 +13,14 @@ chart:
     NEWSLETTER_DIR: {type: string, default: /workspace/newsletter}
   store:
     seen.tsv: Links already sent, so an item is never in two issues. gather reads it; deliver appends.
+    feeds.txt: Yours. One RSS or Atom URL per line; gather reads it every run.
+    taste.md: Yours. What you want in an issue; write reads it every run.
   initial: gather
   states:
-    gather: # new items from lib/newsletter/feeds.txt, by link not in seen.tsv -> items.jsonl
+    gather: # new items from store/newsletter/feeds.txt, by link not in seen.tsv -> items.jsonl
       invoke: gather
       transitions: {done: write}
-    write: # the chat model reads lib/newsletter/taste.md and items.jsonl, writes issue.md
+    write: # the chat model reads store/newsletter/taste.md and items.jsonl, writes issue.md
       invoke: write
       transitions: {done: deliver}
     deliver: # issue.md to NEWSLETTER_DIR/<date>.md, its links to seen.tsv, a notify ping
@@ -71,7 +74,7 @@ scripts:
       --param ntfy_title="Newsletter, ${today}" --param ntfy_tags=newspaper >/dev/null
   gather.ts: |
     #!/usr/bin/env tsx
-    // newsletter's gather: the new items of every feed in $DECREE_LIB/newsletter/feeds.txt.
+    // newsletter's gather: the new items of every feed in $DECREE_STORE/feeds.txt.
     //
     // Writes $DECREE_RUN_DIR/items.jsonl, one JSON object per line (title, link, source,
     // published, summary), newest first, at most NEWSLETTER_MAX_ITEMS. An item is new when
@@ -83,11 +86,10 @@ scripts:
     import { fetchFeed } from "../../lib/rss";
 
     async function main(): Promise<number> {
-      const lib = process.env.DECREE_LIB!;
       const runDir = process.env.DECREE_RUN_DIR!;
       const maxItems = Number(process.env.DECREE_DATA_NEWSLETTER_MAX_ITEMS ?? "60");
 
-      const urls = fs.readFileSync(path.join(lib, "newsletter", "feeds.txt"), "utf8")
+      const urls = fs.readFileSync(path.join(process.env.DECREE_STORE!, "feeds.txt"), "utf8")
         .split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
       if (urls.length === 0) {
         console.error("gather: feeds.txt lists no feeds");
@@ -140,7 +142,7 @@ scripts:
   write: |
     #!/usr/bin/env bash
     # newsletter's write: the chat model (EXIST_MODEL_CHAT, on its own endpoint) reads
-    # $DECREE_LIB/newsletter/taste.md and the run's items.jsonl, and picks and summarises
+    # $DECREE_STORE/taste.md and the run's items.jsonl, and picks and summarises
     # the items worth reading. Writes $DECREE_RUN_DIR/issue.md: a title with the date,
     # then the model's picks as markdown links. With no new items it says so, without
     # calling the model.
@@ -148,7 +150,7 @@ scripts:
     # shellcheck source=../../lib/model.sh
     source "${DECREE_LIB}/model.sh"
     items="${DECREE_RUN_DIR}/items.jsonl"
-    taste="${DECREE_LIB}/newsletter/taste.md"
+    taste="${DECREE_STORE}/taste.md"
     issue="${DECREE_RUN_DIR}/issue.md"
     today="$(date +%F)"
     : "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
@@ -176,14 +178,14 @@ scripts:
     printf '# Newsletter, %s\n\n%s\n' "${today}" "${picks}" > "${issue}.tmp"
     mv "${issue}.tmp" "${issue}"
     echo "write: wrote issue.md"
-lib:
-  newsletter/feeds.exist.txt: |
+store:
+  feeds.txt: |
     # One RSS or Atom feed URL per line. Lines starting with # are comments.
     # The newsletter machine reads this every run — edit it, no restart needed.
     https://simonwillison.net/atom/everything/
     https://lwn.net/headlines/rss
     https://hnrss.org/best
-  newsletter/taste.exist.md: |
+  taste.md: |
     # What I want in my newsletter
 
     Edit this. It is the whole judgment: the model reads it every week and picks
@@ -209,4 +211,3 @@ Gather new items from my feeds, pick and summarise the ones that fit my taste, a
 It needs, on the stack that installs it:
 
 - $DECREE_LIB/model.sh
-- $DECREE_LIB/newsletter/taste.md

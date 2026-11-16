@@ -1,6 +1,10 @@
 ---
 machine: plugin
 automation: clean-runs
+project:
+  - automation
+  - backup
+  - host
 name: Clean runs
 tagline: Prune decree's finished run logs after 30 days, so runs/ never fills the disk
 docs: /docs/flows#housekeeping

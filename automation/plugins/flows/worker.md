@@ -8,7 +8,7 @@ project: host
 needs:
   - reporting
 ---
-It runs in a decree daemon on the host (host/.decree): start one, and have it start at boot,
+It runs in a decree daemon on the host (the repo's own .decree): start one, and have it start at boot,
 as https://existential.company/docs/hosting/host-daemon says.
 
 With EXIST_CONTROLLER in .env.shared naming your controller (its tailnet name or 100.x

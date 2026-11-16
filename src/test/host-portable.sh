@@ -93,7 +93,7 @@ if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     cp .env.shared .env.shared.keep; sed -i.bak 's/^\(EXIST_IS_[A-Z0-9_]*\)=true/\1=false/' .env.shared; rm -f .env.shared.bak
     assert_eq "a worker with none skips the engine" "yes" "$(es '_worker_only && echo yes || echo no')"
     mv .env.shared.keep .env.shared
-    rm -rf "${R}/host"
+    rm -rf "${R}/.decree/machines" "${R}/.decree/scripts" "${R}/.decree/lib" "${R}/.decree/cron" "${R}/automation/plugins.yml"
 else
     echo "  (no yq and decree here: the host sync is not run)"
 fi
@@ -117,16 +117,16 @@ echo ""; echo "=== host plugins ==="
 # with awk (no yq here), against a scratch host project, a curl that keeps the
 # push, and a tmux that writes down what it would start (alloy only has to be
 # there). test-reporting.sh covers what it sends; this covers that it runs.
-H="${R}/host"; mkdir -p "${H}/rep" "${H}/.decree/machines"
-touch "${H}/.decree/machines/reporting.yml"
+H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines"
+touch "${R}/.decree/machines/reporting.yml"
 awk '/^  report: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
     automation/plugins/reporting.md > "${H}/report.sh"
-echo '{"loki":"http://loki:3100"}' > "${H}/exist.json"
+echo '{"loki":"http://loki:3100"}' > "${R}/.decree/exist.json"
 printf '#!/bin/sh\nfor a in "$@"; do case "$a" in @*) cp "${a#@}" "%s/body" ;; esac; done\nexit 0\n' "$H" > "${R}/.stub/curl"
 printf '#!/bin/sh\n[ "$1" = has-session ] && exit 1\necho "$*" >> "%s/tmux"\n' "$H" > "${R}/.stub/tmux"
 printf '#!/bin/sh\n' > "${R}/.stub/alloy"
 chmod +x "${R}/.stub/curl" "${R}/.stub/tmux" "${R}/.stub/alloy"
-out="$(cd "$H" && DECREE_STORE="${H}/rep" DECREE_LIB="${H}/lib" "$BASH" report.sh 2>&1)"; rc=$?
+out="$(cd "$R" && DECREE_STORE="${H}/rep" DECREE_LIB="${H}/lib" "$BASH" "${H}/report.sh" 2>&1)"; rc=$?
 assert_eq "reporting runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
 assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'

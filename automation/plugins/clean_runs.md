@@ -1,6 +1,10 @@
 ---
 machine: plugin
 automation: clean_runs
+project:
+  - automation
+  - backup
+  - host
 chart:
   description: Delete this project's finished runs older than OLDER_THAN; Loki keeps the history.
   data:

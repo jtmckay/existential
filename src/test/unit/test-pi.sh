@@ -25,7 +25,7 @@ trap 'rm -rf "$TMP"' EXIT
 export EXIST_MODEL_URL="http://ollama:11434/v1" EXIST_MODEL_URL_CHAT="http://chatbox:11434/v1"
 export EXIST_MODEL_CHAT="gemma4:e2b-it-qat" EXIST_MODEL_CHAT_NUM_CTX=65536
 export PI_CODING_AGENT_DIR="${TMP}/agent"
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack pi "${TMP}/unpacked" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack pi agent_task "${TMP}/unpacked" ) >/dev/null
 # shellcheck source=/dev/null
 . "${TMP}/unpacked/.decree/lib/pi.sh"
 
@@ -78,7 +78,7 @@ case "$(_args "")" in
 esac
 [[ -z "$(_args nosuch 2>/dev/null)" ]] && _ok "an unknown department runs nothing" \
     || _fail "an unknown department runs nothing" "pi was called"
-for _d in "${TMP}"/unpacked/.decree/lib/departments/*.yml; do
+for _d in "${TMP}"/unpacked/.decree/store/agent_task/departments/*.yml; do
     grep -q '^description: .' "$_d" && _ok "$(basename "$_d") has a description" \
         || _fail "$(basename "$_d") has a description"
 done

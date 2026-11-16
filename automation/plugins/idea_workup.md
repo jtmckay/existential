@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: idea_workup
+project: automation
 needs:
   - agent_task
 chart:
@@ -23,7 +24,7 @@ scripts:
     #
     # An alternative to note_develop as TRIAGE_ROUTINE. Where note_develop makes one
     # call and writes one document, this makes none of its own: it emits three
-    # agent_task messages, each in the department (lib/departments/)
+    # agent_task messages, each in the department (store/agent_task/departments/)
     # that owns the tools that question needs.
     #
     #   who else is doing this   → research  (the only department with web access)

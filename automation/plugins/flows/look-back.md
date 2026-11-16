@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: look-back
+project: automation
 name: Look back
 tagline: A week and a month in review, next to your notes, for when someone asks what you did
 docs: /docs/getting-started#look-back

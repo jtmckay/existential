@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note_develop
+project: automation
 needs:
   - firecrawl
   - model

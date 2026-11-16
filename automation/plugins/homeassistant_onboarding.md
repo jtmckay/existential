@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: homeassistant_onboarding
+project: automation
 chart:
   description: Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.
   initial: wait_for_homeassistant

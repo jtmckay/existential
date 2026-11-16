@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # existential.sh refuses to run under sudo
 

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: calendar
+project: automation
 name: Your calendar, readable by agents
 tagline: Nextcloud's calendar app on, and every event mirrored into the workspace as a note
 docs: /docs/storage/nextcloud

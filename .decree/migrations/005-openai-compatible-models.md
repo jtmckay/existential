@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Models are reached through an OpenAI-compatible URL, whatever serves it
 

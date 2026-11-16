@@ -41,7 +41,8 @@ are is up to you: see [Plugins](../plugins/index.md).
 
 ## Claude for machines
 
-You write machines by talking to Claude in code-server's terminal. Machines call AI in two ways:
+You get new machines by talking to Claude in code-server's terminal: it offers each as a plugin
+file, which you [accept on the host](../plugins/offer-and-accept.md). Machines call AI in two ways:
 - `model_chat` (`workspace/.decree/lib/model.sh`) is one answer from the stack's own model endpoint.
 - `agent` (`workspace/.decree/lib/agent.sh`) is Claude Code, which can read and search your workspace.
 

@@ -45,7 +45,8 @@ boot).
 ## AI in the terminal
 
 The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
-automations. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
+automations: it writes one as a file in `ai/proposed/`, and it runs once you
+[accept it on the host](../plugins/offer-and-accept.md). Nothing here can install code itself. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:
@@ -60,8 +61,9 @@ tmx claude                            # attach to it
 **`opencode`** is pointed at the stack's chat model on every boot (`EXIST_MODEL_URL_CHAT`, else
 `EXIST_MODEL_URL`, and `EXIST_MODEL_CHAT`). Your `~/.config/opencode/opencode.json` is merged over it.
 
-**What you type into `claude` and `opencode` is captured** to `workspace/.capture/` (secrets
-redacted, never responses). `CODE_SERVER_CAPTURE=false` turns it off. See
+**With the `code-server-agents` flow on** (`./existential.sh flow on code-server-agents`), pi is
+set up on the stack's model and what you type into `claude` and `opencode` is captured to
+`workspace/.capture/` (secrets redacted, never responses). `CODE_SERVER_CAPTURE=false` turns capture off. See
 [Capture](../getting-started.md#capture).
 
 **No telemetry.** code-server runs with `--disable-telemetry`, Claude Code with

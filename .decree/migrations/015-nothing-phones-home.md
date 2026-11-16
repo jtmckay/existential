@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Existential collects nothing and phones nothing home
 

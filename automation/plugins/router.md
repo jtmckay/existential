@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: router
+project: automation
 needs:
   - agent_task
   - model
@@ -28,7 +29,7 @@ scripts:
     # Decides which department should handle a message, then emits agent_task in
     # that department. It does not do the work itself.
     #
-    # Departments are discovered, not configured: every lib/departments/<name>.yml
+    # Departments are discovered, not configured: every store/agent_task/departments/<name>.yml
     # is a candidate and its `description:` is what the model sees — the same file
     # pi_run takes the department's tools from, so a description is written once.
     # Adding a department is adding a file; nothing here changes.
@@ -43,7 +44,7 @@ scripts:
     #   decree emit --machine router --param source_file=notes/lead.md <<<'<the task>'
     set -euo pipefail
 
-    DEPARTMENTS="${DEPARTMENTS:-${DECREE_LIB}/departments}"
+    DEPARTMENTS="${DEPARTMENTS:-${DECREE_LIB}/../store/agent_task/departments}"
     ROUTER_TIMEOUT="${ROUTER_TIMEOUT:-300}"
     source_file="$DECREE_DATA_SOURCE_FILE"
     output_name="$DECREE_DATA_OUTPUT_NAME"
@@ -53,7 +54,7 @@ scripts:
     _departments=()
     _catalog=""
     for _f in "${DEPARTMENTS}"/*.yml; do
-        [ -f "$_f" ] && [[ "$_f" != *.exist.yml ]] || continue   # an example, not a department
+        [ -f "$_f" ] || continue
         _n="$(basename "$_f" .yml)"
         _d="$(grep -m1 '^description:' "$_f" | sed 's/^description:[[:space:]]*//')"
         _departments+=("$_n")
@@ -143,5 +144,4 @@ Ask the chat model which department fits a task, then hand it to agent_task in t
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/departments
 - $DECREE_LIB/model.sh

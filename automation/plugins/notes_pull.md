@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: notes_pull
+project: backup
 chart:
   description: Rsync-pull an external notes vault into workspace/notes, one way, without --delete unless asked.
   data:
@@ -50,9 +51,9 @@ scripts:
     # A source without a "host:" prefix (a local path, or a share already mounted
     # into this container) skips SSH entirely — rsync copies it directly.
     #
-    # Copy services/automation-backup/cron.example/notes-pull.md to cron/ and set
+    # Turn on the notes-pull flow, then in services/automation-backup/cron/notes-pull.md set
     # NOTES_PULL_SOURCE (and NOTES_PULL_SSH_KEY, if the key isn't at the default
-    # path) to activate. The NOTES_PULL_* knobs are the machine's data.
+    # path). The NOTES_PULL_* knobs are the machine's data.
     set -euo pipefail
 
     WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
@@ -70,9 +71,9 @@ scripts:
         [[ "${NOTES_PULL_SOURCE}" == *:* && "${NOTES_PULL_SOURCE}" != /* ]]
     }
 
-    [[ -n "${NOTES_PULL_SOURCE}" ]] || { echo "NOTES_PULL_SOURCE not set — see cron.example/notes-pull.md" >&2; exit 1; }
+    [[ -n "${NOTES_PULL_SOURCE}" ]] || { echo "NOTES_PULL_SOURCE not set — see cron/notes-pull.md (the notes-pull flow)" >&2; exit 1; }
     if _is_remote_source; then
-        [[ -f "${NOTES_PULL_SSH_KEY}" ]] || { echo "${NOTES_PULL_SSH_KEY} not found — see cron.example/notes-pull.md" >&2; exit 1; }
+        [[ -f "${NOTES_PULL_SSH_KEY}" ]] || { echo "${NOTES_PULL_SSH_KEY} not found — see cron/notes-pull.md (the notes-pull flow)" >&2; exit 1; }
     fi
 
     _target="${WORKSPACE_DIR}/${NOTES_PULL_SUBDIR}"

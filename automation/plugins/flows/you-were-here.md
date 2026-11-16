@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: you-were-here
+project: automation
 name: You were here
 tagline: Every morning, yesterday in one notification, then it ends
 docs: /docs/getting-started#you-were-here

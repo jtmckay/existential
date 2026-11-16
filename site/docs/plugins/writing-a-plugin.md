@@ -70,25 +70,25 @@ Every key, `lib:` and `endpoints:` included: [Plugins](./index.md).
 ## Turning it on
 
 ```bash
-./existential.sh run plugin on my_job        # into plugins.yml, installed now
+./existential.sh run plugin on my_job        # into automation/plugins.yml, installed now
 ./existential.sh run plugin off my_job       # removed, schedule and endpoints included
 ```
 
 `plugin on` installs it, and every `./existential.sh` after installs the file's current
-version. A machine for `automation-backup` is `backup/my_job`; one for the host is `host/my_job`.
+version. Where it is installed is its `project:` key: `automation` (the default to write),
+`backup` for `automation-backup`, or `host` for the host's daemon.
 
 ## Changing it live, then committing
 
-Edit the installed copy in `workspace/.decree/` (`machines/my_job.yml`, `scripts/my_job/`) until a
-run does what you want, then write it back:
+On the host, edit the installed copy in `volumes/workspace_data/.decree/` (`machines/my_job.yml`,
+`scripts/my_job/`) until a run does what you want, then write it back. Inside code-server those
+folders are read-only: from there a plugin is [offered, and accepted on the host](./offer-and-accept.md).
 
 ```bash
 ./existential.sh run plugin export my_job    # → automation/plugins/my_job.md
 ```
 
-Commit and push. Every install that has it on gets the new version on its next pull. A
-machine you only ever write in `workspace/.decree/` works too; it is just never shipped or
-updated.
+Commit and push. Every install that has it on gets the new version on its next pull.
 
 ## The script
 

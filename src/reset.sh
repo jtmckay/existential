@@ -94,9 +94,8 @@ _automation_state_files() {
     done
 }
 
-# Cron and migration templates the user activated by copying them out of
-# cron.example/ and migrations.example/. The examples themselves are tracked and
-# never touched; only the activated copies are.
+# The active crons and migrations a plugin installed (or a person wrote). The
+# plugins themselves are tracked and never touched; only the active copies are.
 _activated_files() {
     local f
     while IFS= read -r f; do

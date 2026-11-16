@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: model
+project: automation
 lib:
   model.sh: |
     #!/usr/bin/env bash

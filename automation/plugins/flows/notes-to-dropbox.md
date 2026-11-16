@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: notes-to-dropbox
+project: automation
 name: Notes to Dropbox
 tagline: Every 10 minutes, your Nextcloud notes compiled, indexed and pushed to Dropbox
 docs: /docs/integrations/rclone

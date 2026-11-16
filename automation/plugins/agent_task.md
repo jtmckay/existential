@@ -1,10 +1,13 @@
 ---
 machine: plugin
 automation: agent_task
+project: automation
 needs:
   - pi
 chart:
   description: Hand a task to pi on the local model (a department picks its tools) and file the answer in workspace/ai/, then notify.
+  store:
+    departments: Yours. One file per department (see its README.md), naming the tools and MCP servers a pi run may reach. run reads it.
   data:
     prompt: {type: string, default: ""}
     department: {type: string, default: ""}
@@ -33,7 +36,7 @@ scripts:
     # instead uses lib/agent.sh. Repo-editing work belongs to a coding agent on the
     # host, not to this stack.
     #
-    # `department` picks which tools it gets (lib/departments/<name>.yml; empty:
+    # `department` picks which tools it gets (store/agent_task/departments/<name>.yml; empty:
     # pi's defaults and every MCP server).
     #
     # The prompt is the `prompt` param, or else the message body:
@@ -130,6 +133,67 @@ scripts:
     Written to workspace/ai/${_name}.md
     EOF
     fi
+store:
+  departments/README.md: |
+    # departments
+
+    **A department is a file here.** Adding one is adding a file — the same move this
+    repo makes for services, flows, cron jobs and e2e checks. Nothing enumerates them.
+
+    A department is what one [pi](https://pi.dev) run may reach: its built-in tools and
+    its MCP servers. `pi_run` (`../pi.sh`) turns the file into pi's `--tools` list, so a
+    department that owns no tool pays for none in its prompt.
+
+    ## The file
+
+    `<name>.yml`, three flat keys, all optional except `description`:
+
+    ```yaml
+    description: When work should come here — the router reads this to choose.
+    tools: read, grep, find, ls
+    mcp: qmd, firecrawl
+    ```
+
+    `description` is the router's catalog entry, so write it as the answer to *"when
+    should work come here?"* rather than as a job title. `tools` are pi's built-ins
+    (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`); `mcp` names servers
+    `pi_configure` registers: `qmd`, `firecrawl`, `playwright`, each only
+    while its add-on is on. Blank means none.
+
+    No department at all (`agent_task` without `department`) is pi's default tools plus
+    every MCP server.
+
+    ## Who reads it
+
+    | Reader | For |
+    |---|---|
+    | `pi_run` (`../pi.sh`) | the tools and servers of one run |
+    | `router` | the catalog it chooses from |
+
+    ## Using one
+
+    ```
+    ---
+    machine: agent_task
+    params:
+      department: research
+      output_name: competition
+    ---
+    <the task>
+    ```
+
+    `router` emits exactly that message after picking a department. Setup and reference:
+    <https://existential.company/docs/decree/routing>.
+  departments/research.yml: |
+    # The only department with web access.
+    description: Investigation, fact-finding, competitive and market analysis, literature review.
+    tools: read, grep, find, ls
+    mcp: qmd, firecrawl
+  departments/sales.yml: |
+    # Anything aimed at winning or keeping a customer.
+    description: Outbound, discovery calls, deal strategy, pricing, and customer-facing writing.
+    tools: read, grep, find, ls
+    mcp: qmd
 ---
 # agent_task
 

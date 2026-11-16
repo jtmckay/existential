@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # The homepage leads with the value proposition
 

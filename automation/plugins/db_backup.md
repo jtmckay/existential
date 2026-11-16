@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: db_backup
+project: backup
 chart:
   description: Dump each listed database (postgres, mariadb, mongo), upload the dumps with rclone under the tier, and prune past retention.
   data:

@@ -11,8 +11,16 @@ Write down how you want something handled next time, and the stack offers to do 
 
 A minute after you stop typing, your phone says: *When I write down a new business idea, I
 can look up competitors; do a market analysis with TAM; say whether it's worth building. To
-build it, move ai/proposed/business_idea_research.md into
-notes/automations/.* Move it, and a moment later: *Automation built.*
+have it built, move ai/proposed/business_idea_research.md into
+notes/automations/.* Move it, and a moment later: *Automation ready to review*, with where to
+read what was built and one command to run on the host:
+
+```bash
+./existential.sh run plugin accept business_idea_research
+```
+
+It shows what the automation starts on and runs, and asks you. Nothing made in the workspace
+runs before that yes: [Offer and Accept](../plugins/offer-and-accept.md).
 
 After that, each business idea you write is researched. Your phone gets the verdict first:
 *favorable*, *unfavorable*, or *already done, by these people*. The full analysis, with sources,
@@ -23,25 +31,26 @@ is in `ai/automations/business_idea_research/`.
 - Reads the web through [Firecrawl](../ai/firecrawl.md) when enabled. Without it, web steps come back
   as "where to look".
 
-## The proposal is a migration
+## The proposal is a spec
 
-`ai/proposed/` gets a decree migration for the `develop` machine: what you want, not code.
+`ai/proposed/` first gets a spec for the `develop` machine: what you want, not code.
 
 - **Overview**: what you asked for
 - **Outcome**: what starts it, what it produces, where results go
 - **Constraints**: what it must not do
 - **Acceptance Criteria**: how you'd know it works
 
-Edit it in plain words before accepting. It stays the automation's desired state.
+Edit it in plain words before moving it. It stays the automation's desired state.
 
 ## How it works
 
 | Step | Machine | What happens |
 |---|---|---|
 | A note settles | `note_watch` | The [file handler](../decree/file-handlers.md) for `notes/**/*.md` runs it a minute after the last save. One model call asks two things: is there a standing instruction here ("next time…", "whenever…"), and is this note the event an automation you accepted is waiting for? |
-| A standing instruction | `automation_propose` | The model writes the migration, and you are told. Nothing is built. |
-| You accept | `reconcile` | Moving the file to `notes/automations/<name>.md` files it as `.decree/migrations/A<stamp>-<name>.md`, which the daemon runs. |
-| It is built | `develop` | The model reads the migration and answers with the trigger and the steps. `develop` writes `.decree/machines/<name>.yml` and `.decree/scripts/<name>.sh` and the trigger: a note event (`note_watch` matches your notes against it), a file handler in `.decree/handlers.yml`, or a schedule in `.decree/cron/<name>.md`. It must pass `decree check` and the trigger's own rules (a file trigger never matches its own output). A failed check is undone and shown to the model once more; a second failure reaches your phone like any failed run. |
+| A standing instruction | `automation_propose` | The model writes the spec, and you are told. Nothing is built. |
+| You say "build this" | `reconcile` | Moving the spec to `notes/automations/<name>.md` hands it to `develop`. |
+| It is built, as an offer | `develop` | The model reads the spec and answers with the trigger and the steps. `develop` writes them as one plugin file: a machine, its script, and the trigger as `when:` (a note event `note_watch` matches your notes against), `handlers:` (a file change) or `cron:` (a schedule). It must pass `decree check`, in a scratch copy, and the trigger's own rules (a file trigger never matches its own output). A failed check is shown to the model once more; a second failure reaches your phone like any failed run. The file goes to `ai/proposed/<name>.md`. **Nothing is installed.** |
+| You accept, on the host | `./existential.sh run plugin accept <name>` | You read the file, the command asks, and only then is it installed and on. |
 | It runs | `<name>` | Its trigger starts it. It writes its results to `ai/automations/<name>/<date>-<note>.md` and sends their first lines to ntfy. |
 
 ## Research on the web, with Firecrawl
@@ -72,20 +81,19 @@ $sources"
   them. With Firecrawl off, `develop` refuses steps that use them.
 - The verdict comes first because the first lines are what reach your phone.
 
-## Plugins: an automation that brings its own machine
+## An automation that arrives already written
 
-An automation can arrive already written: a [plugin](../plugins/index.md), one markdown file whose
-frontmatter holds the whole machine. One offered by another stack waits in `ai/proposed/`;
-accept it the same way, by moving it into `notes/automations/<name>.md`, and the `plugin`
-machine installs it as written, asking no model. It is code that runs with the automation
-container's access, so read it before you accept it. Editing or deleting it reinstalls or
-removes all of it, endpoints included.
+A [plugin](../plugins/index.md) another stack offers, or one an agent in code-server wrote for
+you, also waits in `ai/proposed/`, and is accepted with the same command. Moving a plugin file
+into `notes/automations/` installs nothing.
 
 ## Changing or removing one
 
-- Edit the file in `notes/automations/` and `develop` rebuilds the automation to match.
-- Delete it and the machine, script, trigger and migration are removed.
-- Don't edit `.decree/` directly; it's rebuilt from that file.
+- Edit the spec in `notes/automations/` and `develop` offers a new version to accept.
+- To turn one off: `./existential.sh run plugin off <name>`, on the host. Deleting the spec
+  removes nothing.
+- `.decree/machines/`, `scripts/` and `lib/` are read-only in the workspace; nothing there is
+  edited directly.
 
 ## What it can do, and what to read first
 
@@ -94,8 +102,8 @@ removes all of it, endpoints included.
   model answer), `web_search` and `web_read`, `curl` and `jq`.
 - Steps that need you (pay, sign up, send, decide) come back under "For you".
 - It runs unattended with access to your workspace and the stack's services. Read
-  `.decree/scripts/<name>.sh` in code-server.
-- A name decree already uses is refused, so it can't replace an existing machine.
+  `ai/proposed/<name>.md` in code-server before you accept it.
+- A name the stack ships is refused, so it can't replace an existing machine.
 - `develop` uses Claude when the automation container is
   [signed in](../decree/decree.md#claude-for-machines), otherwise the chat model. Built automations can
   then hand a step to Claude too.

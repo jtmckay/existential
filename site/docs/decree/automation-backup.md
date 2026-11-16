@@ -26,8 +26,10 @@ sed -i 's/^EXIST_IS_SERVICES_AUTOMATION_BACKUP=false/EXIST_IS_SERVICES_AUTOMATIO
 docker compose up -d
 ```
 
-The first run activates triage, clean-runs and workspace-sync. A backup is one more cron file:
-copy it from `services/automation-backup/cron.example/` into `services/automation-backup/cron/`.
+Enabling it schedules only `clean-runs`. Everything else it can do is a flow you turn on:
+`service-triage`, `workspace-sync`, `notes-pull`, and one `backup-<service>` per thing to back
+up (`./existential.sh flow on backup-workspace`). A flow's crons land in
+`services/automation-backup/cron/`, where you can change a schedule.
 Restore with `./existential.sh run backup-restore`.
 
 ```bash

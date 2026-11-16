@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: health-checks
+project: automation
 name: Health checks
 tagline: Probe where your notifications go (or any service) every 15 minutes, and tell your phone when it stops answering
 docs: /docs/flows#housekeeping

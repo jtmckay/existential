@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# automations/registry.sh — what is installed for each automation, and how to
-# take it out again. Sourced by develop (which installs) and reconcile (which
-# removes one whose spec was deleted). Run from the decree project root.
+# automations/registry.sh — what is installed for each plugin, and how to take
+# it out again. Sourced with plugin.sh, by the host's sync (which installs and
+# removes) and by develop (which installs only into a scratch project, to check
+# what it offers). Run from the decree project root.
 #
-# .decree/automations.yml lists every automation develop built:
+# .decree/automations.yml lists every plugin installed:
 #   - machine: business_idea_workup
-#     kind: note | file | cron | plugin
-#     when: <the note event, for kind note>   match/changes/quiet: <kind file>   cron: <kind cron>
-#     endpoints: [<path>, ...]    a plugin's, in .decree/decree-go-rest.yml
-#     crons: [<name>, ...]        a plugin's, in .decree/cron/
-#     libs: [<path>, ...]         a plugin's, in .decree/lib/
-#     default: [<project>, ...]   a plugin's, so export writes it back
-#     note: notes/process.md      the note that asked for it (it never triggers on it)
-#     spec: notes/automations/business_idea_workup.md
-#     migration: A202610250830-business_idea_workup.md
-# Only a machine listed here is ever replaced or removed, so no spec can touch a
-# machine decree ships or you wrote.
+#     kind: plugin
+#     spec: automation/plugins/<name>.md, or automation/plugins/local/<name>.md
+#           for one you accepted
+#     when: <the kind of note that starts it>   so note_watch can match notes
+#     endpoints: [<path>, ...]    in .decree/decree-go-rest.yml
+#     crons: [<name>, ...]        in .decree/cron/
+#     libs: [<path>, ...]         in .decree/lib/
+#     migrations: [<file>, ...]   in .decree/migrations/
+# An entry of kind note, file or cron is an automation an older install's develop
+# built in place: it keeps running and is never rebuilt.
+# Only a machine listed here is ever replaced or removed.
 REGISTRY="${AUTOMATIONS_REGISTRY:-.decree/automations.yml}"
 WATCH=".decree/machines/note_watch.yml"
 HANDLERS=".decree/handlers.yml"

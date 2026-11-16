@@ -106,7 +106,7 @@ _reply "stub reply"
 mkdir -p "${TMP}/run"
 printf '{"title":"t","link":"https://example.test/a"}\n' > "${TMP}/run/items.jsonl"
 _reply "- [t](https://example.test/a): worth it"
-if DECREE_RUN_DIR="${TMP}/run" DECREE_LIB="$LIB" bash "${TMP}/unpacked/.decree/scripts/newsletter/write.sh" >/dev/null 2>"${TMP}/write.err"; then
+if DECREE_RUN_DIR="${TMP}/run" DECREE_STORE="${TMP}/unpacked/.decree/store/newsletter" DECREE_LIB="$LIB" bash "${TMP}/unpacked/.decree/scripts/newsletter/write.sh" >/dev/null 2>"${TMP}/write.err"; then
     assert_contains "newsletter write gets a completion" \
         "worth it" "$(cat "${TMP}/run/issue.md")"
 else

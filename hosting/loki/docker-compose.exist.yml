@@ -27,7 +27,7 @@ services:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       # TSDB index (schema v13) + chunks — must be local; NFS locking is unreliable.
       # TODO: no backup yet — add an opt-in volume-backup cron in
-      # services/automation-backup/cron.example/ (nothing else is needed).
+      # automation/plugins/flows/ (a backup-<service> flow; nothing else is needed).
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
 

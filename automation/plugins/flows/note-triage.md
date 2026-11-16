@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note-triage
+project: automation
 name: The note you meant to come back to
 tagline: Each new note is asked one question, worth doing?, and the few that are get drafted
 docs: /docs/flows/note-to-action

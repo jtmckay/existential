@@ -25,8 +25,8 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 P="${TMP}/project"
 mkdir -p "$P"/.decree/{machines,scripts} "$TMP/bin"
-cp "${REPO_DIR}/automation/machines/notify.yml" "$P/.decree/machines/"
-cp "${REPO_DIR}/automation/scripts/notify.sh" "$P/.decree/scripts/"
+# notify, as the stack installs it (lib/automations/plugin.sh).
+( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack notify "$P" ) >/dev/null
 cat > "$P/.decree/machines/boom.yml" << 'EOF'
 name: boom
 description: Exits 1.

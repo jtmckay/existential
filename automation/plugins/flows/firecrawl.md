@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: firecrawl
+project: automation
 lib:
   firecrawl.sh: |
     #!/usr/bin/env bash

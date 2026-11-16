@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note-connect
+project: automation
 name: Notes that find their own connections
 tagline: A new note is checked against everything you already wrote, and real links come back to you
 docs: /docs/flows/note-connect
@@ -24,7 +25,7 @@ cron:
 
     Different question than note_triage: not "is this worth acting on" but "does anything you
     already know connect to this". The search runs through pi in the `research`
-    department (workspace/.decree/lib/departments/research.yml) so it can search your notes with qmd —
+    department (workspace/.decree/store/agent_task/departments/research.yml) so it can search your notes with qmd —
     a plain completion cannot search the knowledge base.
 
     The first run records the tree as seen WITHOUT scanning, so enabling this over an existing

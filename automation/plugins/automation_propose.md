@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: automation_propose
+project: automation
 needs:
   - firecrawl
   - model
@@ -32,8 +33,8 @@ scripts:
     # results go), constraints and acceptance criteria, all declarative: what is
     # true when it exists, never how to build it. This writes it to
     # ai/proposed/<name>.md and tells you. Nothing is built: moving the
-    # file into notes/automations/ is how you accept it, and then `develop` builds
-    # the machine and its trigger from it (reconcile hands it over).
+    # file into notes/automations/ says "build this", and then `develop` builds it as
+    # a plugin file you review and accept on the host (reconcile hands it over).
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
     source "${DECREE_LIB}/model.sh"
@@ -94,7 +95,7 @@ scripts:
     mv "${out}.tmp" "$out"
     echo "automation_propose: wrote ${out#"${WS}/"}"
 
-    printf 'When %s, I can %s\n\nTo build it, move ai/proposed/%s.md into notes/automations/. Read or edit what it will do first.\n' \
+    printf 'When %s, I can %s\n\nTo have it built, move ai/proposed/%s.md into notes/automations/. Read or edit what it will do first. Nothing runs until you review what is built and accept it on the host.\n' \
         "$when" "$(printf '%s\n' "$steps" | sed 's/^- //' | paste -sd ';' | sed 's/;/; /g')" "$name" |
         decree emit --machine notify --param ntfy_title="An automation you could have" --param ntfy_tags=bulb >/dev/null
 ---

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note_connect
+project: automation
 needs:
   - pi
 chart:
@@ -45,7 +46,7 @@ scripts:
     #
     # The search itself needs qmd, which is a tool, not a plain completion — so this
     # routine hands the note to pi in a department that carries `mcp: qmd`
-    # (CONNECT_DEPARTMENT, default "research", see lib/departments/research.yml)
+    # (CONNECT_DEPARTMENT, default "research", see store/agent_task/departments/research.yml)
     # rather than the plain completion note-triage makes. The department
     # searches the qmd index, proposes at most one connection with a self-scored
     # interestingness, and this routine only acts when that score clears CONNECT_MIN_SCORE.
@@ -61,7 +62,7 @@ scripts:
     # per note. Set CONNECT_BOOTSTRAP=true for one run to scan the backlog.
     #
     # The CONNECT_* knobs a message can set are the machine's data
-    # (automation/machines/note_connect.yml); the rest are container environment.
+    # (automation/plugins/note_connect.md); the rest are container environment.
     #
     # By hand:
     #   docker exec automation decree emit --machine note_connect </dev/null

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: sqlite_backup
+project: backup
 chart:
   description: Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
   data:

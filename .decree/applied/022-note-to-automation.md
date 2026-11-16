@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Write "next time…" in a note, and the stack offers to build that automation
 

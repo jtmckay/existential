@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: you_were_here
+project: automation
 needs:
   - model
   - rss

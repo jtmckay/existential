@@ -44,5 +44,5 @@ email on signup — Appsmith's `admin.emails` property. Comma-separate more than
 
 ## Back it up
 
-Copy `appsmith-volume-backup-{nightly,weekly}.md` from
-`services/automation-backup/cron.example/` into `cron/` and restart `automation-backup`.
+`./existential.sh flow on backup-appsmith` schedules a nightly and a weekly volume backup in
+`automation-backup`.

@@ -92,7 +92,7 @@ This copies `note-triage.md` into `volumes/workspace_data/.decree/cron/`. Its `T
 param picks `note_develop` (default) or `idea_workup`.
 
 The fan-out path uses the `research` and `sales` departments, files in
-`workspace/.decree/lib/departments/`. Nothing to provision.
+`workspace/.decree/store/agent_task/departments/`. Nothing to provision.
 
 ### 2. Watch it do nothing
 

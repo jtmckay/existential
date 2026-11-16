@@ -137,7 +137,7 @@ ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flo
     mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/automation/plugins/flows"
     printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
-    printf -- '---\nmachine: plugin\nautomation: foo\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
+    printf -- '---\nmachine: plugin\nautomation: foo\nproject: automation\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
     echo "$d"
 }
 FLOW_OK=$'name: Foo\ntagline: does foo\ndocs: /docs/ai/foo\nservices:\n  - EXIST_IS_AI_FOO'

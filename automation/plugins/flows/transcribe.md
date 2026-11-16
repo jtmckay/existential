@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: transcribe
+project: automation
 lib:
   file-processors/whisperx-transcribe.sh: |
     #!/usr/bin/env bash

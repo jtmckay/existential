@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Your notes are searchable by meaning and by exact words, from a terminal and from the AI tools you use
 

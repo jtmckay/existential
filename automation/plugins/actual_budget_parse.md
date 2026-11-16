@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: actual_budget_parse
+project: automation
 needs:
   - actual_budget
 chart:

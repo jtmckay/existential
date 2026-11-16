@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: note_triage
+project: automation
 needs:
   - idea_workup
   - model
@@ -47,7 +48,7 @@ scripts:
     # Set TRIAGE_BOOTSTRAP=true for one run if you do want the backlog scanned.
     #
     # The TRIAGE_* knobs a message can set are the machine's data
-    # (automation/machines/note_triage.yml); the rest are container environment.
+    # (automation/plugins/note_triage.md); the rest are container environment.
     #
     # By hand:
     #   docker exec automation decree emit --machine note_triage </dev/null

@@ -80,9 +80,8 @@ Immich rescans nightly. An Immich that already has an admin is left alone. Turne
 `service on` instead, Immich opens on its sign-up page and the library is added by hand under
 **Administration → External Libraries**.
 
-**Backup.** Copy `immich-db-backup-{nightly,weekly}.md` and
-`immich-volume-backup-{nightly,weekly}.md` from `services/automation-backup/cron.example/`
-into `cron/` and restart `automation-backup`. Both reach the data because `automation-backup`
+**Backup.** `./existential.sh flow on backup-immich` schedules the database dump and the
+volume backup, nightly and weekly, in `automation-backup`. Both reach the data because `automation-backup`
 mounts `volumes/` wholesale, and that is where both volumes live. A library on the NAS is not
 under `volumes/`: the volume backup skips it, and the NAS's own snapshots or replication are
 its backup.

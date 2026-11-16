@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Once it has run, the stack starts with the machine until you stop it
 

@@ -8,7 +8,7 @@
 #   again       alloy, already running, is left alone
 #   away        the controller does not answer: the Loki it gave last time is used
 #   nowhere     the controller, naming no Loki: nothing is sent, and the run is still done
-#   controller  no EXIST_CONTROLLER: this is it, and reads host/exist.json itself;
+#   controller  no EXIST_CONTROLLER: this is it, and reads .decree/exist.json itself;
 #               a new Loki restarts alloy
 #   no alloy    still done, and it says the runs are not shipped
 #
@@ -38,7 +38,7 @@ touch "${W}/machines/notify.yml" "${W}/machines/look_back.yml"
 printf '{"type":"transition","machine":"notify"}\n{"type":"run_finished","machine":"notify","state":"done","duration_ms":12}\n' > "${W}/runs/r1/events.jsonl"
 printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.jsonl"
 ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"
-  plugin_unpack reporting "${I}/host" ) >/dev/null
+  plugin_unpack reporting "${I}" ) >/dev/null
 printf 'EXIST_CONTROLLER=ctl\n' > "${I}/.env.shared"
 
 # curl: a GET of the controller prints $TMP/answer (fails without one); a push
@@ -71,8 +71,8 @@ chmod +x "${TMP}/bin/tmux" "${TMP}/bin/alloy"
 printf '#!/bin/sh\n[ "$1" = ps ] && printf "loki grafana/loki:3.5\\nntfy binwiederhier/ntfy:v2\\n"\n' > "${TMP}/bin/podman"
 cp "${TMP}/bin/podman" "${TMP}/bin/docker"; chmod +x "${TMP}/bin/podman" "${TMP}/bin/docker"
 # What plugin sync installed: one plugin in the automation project, the host's own.
-mkdir -p "${W}/applied/plugins" "${I}/host/.decree/applied/plugins"
-touch "${W}/applied/plugins/look_back.md" "${I}/host/.decree/applied/plugins/reporting.md"
+mkdir -p "${W}/applied/plugins" "${I}/.decree/applied/plugins"
+touch "${W}/applied/plugins/look_back.md" "${I}/.decree/applied/plugins/reporting.md"
 # An active cron, as a plugin installs it.
 mkdir -p "${W}/cron"
 printf -- '---\ncron: "0 21 * * SUN"\nmachine: look_back\nparams:\n  period: week\n---\n\nEvery Sunday.\n' > "${W}/cron/look-back-weekly.md"
@@ -81,8 +81,8 @@ cp "${REPO_DIR}/services/automation/decree/tmx.sh" "${I}/services/automation/dec
 
 report() {  # [PATH]
     rm -f "${TMP}/body" "${TMP}/pushed-to"
-    (cd "${I}/host" && PATH="${1:-${TMP}/bin:${PATH}}" DECREE_STORE="${I}/host/.decree/store/reporting" \
-        DECREE_LIB="${I}/host/.decree/lib" bash .decree/scripts/reporting/report.sh 2>&1)
+    (cd "${I}" && PATH="${1:-${TMP}/bin:${PATH}}" DECREE_STORE="${I}/.decree/store/reporting" \
+        DECREE_LIB="${I}/.decree/lib" bash .decree/scripts/reporting/report.sh 2>&1)
 }
 started() { grep -c '^new ' "${TMP}/tmux" 2>/dev/null || true; }
 field() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p"; }
@@ -109,10 +109,10 @@ assert_eq "it starts alloy, once" "1" "$(started)"
 assert_has "...in its own tmux session" "$(cat "${TMP}/tmux")" "-s reporting-alloy"
 assert_has "...shipping to the same Loki" "$(cat "${TMP}/tmux")" "EXIST_LOKI='http://loki-box:3100/loki/api/v1/push'"
 assert_has "...this install's runs" "$(cat "${TMP}/tmux")" "EXIST_REPO='$(cd "$I" && pwd)'"
-assert_has "...with the config the plugin ships" "$(cat "${TMP}/tmux")" "${I}/host/.decree/lib/reporting/decree.alloy"
+assert_has "...with the config the plugin ships" "$(cat "${TMP}/tmux")" "${I}/.decree/lib/reporting/decree.alloy"
 assert_has "it says so" "$out" "runs shipped live by alloy"
 if command -v alloy >/dev/null 2>&1 && [[ "$(command -v alloy)" != "${TMP}/bin/alloy" ]]; then
-    assert_eq "the config is one alloy reads" "0" "$(alloy fmt "${I}/host/.decree/lib/reporting/decree.alloy" >/dev/null 2>&1; echo $?)"
+    assert_eq "the config is one alloy reads" "0" "$(alloy fmt "${I}/.decree/lib/reporting/decree.alloy" >/dev/null 2>&1; echo $?)"
 fi
 
 echo ""; echo "=== again ==="
@@ -126,7 +126,7 @@ report >/dev/null
 assert_eq "an unreachable controller: the Loki it gave last time" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 
 echo ""; echo "=== nowhere ==="
-rm -rf "${I}/host/.decree/store/reporting"
+rm -rf "${I}/.decree/store/reporting"
 printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
 out="$(report)"; rc=$?
 assert_eq "no Loki named: still done" "0" "$rc"
@@ -135,16 +135,16 @@ assert_has "...and it says why" "$out" "no Loki named"
 
 echo ""; echo "=== controller ==="
 printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
-echo '{"loki":"http://127.0.0.1:43100"}' > "${I}/host/exist.json"
+echo '{"loki":"http://127.0.0.1:43100"}' > "${I}/.decree/exist.json"
 report >/dev/null
-assert_eq "a controller reads host/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "a controller reads .decree/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | head -1)"
 assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
 assert_eq "no ntfy here: no notify-relay" "0" "$(grep -c 's notify-relay' "${TMP}/tmux")"
 printf 'EXIST_CONTROLLER=\nEXIST_IS_SERVICES_NTFY=true\n' > "${I}/.env.shared"
 report >/dev/null
 assert_has "the controller with ntfy starts notify-relay" "$(cat "${TMP}/tmux")" "-s notify-relay"
-assert_has "...with the relay the plugin ships" "$(cat "${TMP}/tmux")" "${I}/host/.decree/lib/reporting/relay.sh"
+assert_has "...with the relay the plugin ships" "$(cat "${TMP}/tmux")" "${I}/.decree/lib/reporting/relay.sh"
 
 echo ""; echo "=== no alloy ==="
 rm -f "${TMP}/bin/alloy"

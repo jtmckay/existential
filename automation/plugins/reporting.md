@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: reporting
+project: host
 chart:
   description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
   store:
@@ -20,9 +21,9 @@ scripts:
     #!/usr/bin/env bash
     # report — this host, to the Loki its controller names.
     #
-    # Runs in the host project (host/.decree), so the repo is one up and every
+    # Runs in the host project (the repo's own .decree), so it runs in the repo and every
     # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
-    # asks that controller at http://<controller>:4480, which serves host/exist.json
+    # asks that controller at http://<controller>:4480, which serves .decree/exist.json
     # over the tailnet; blank, this host is the controller and reads that file. The
     # answer is kept in $DECREE_STORE/loki for when the controller is away. No
     # answer is not a failure: nothing is sent and the run ends done.
@@ -35,7 +36,7 @@ scripts:
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
     set -euo pipefail
-    repo="$(cd .. && pwd)"
+    repo="$(pwd)"
     store="${DECREE_STORE:-.decree/store/reporting}"; mkdir -p "$store"
     env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
     loki_of() { sed -n 's/.*"loki"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'; }
@@ -44,7 +45,7 @@ scripts:
     if [[ -n "$ctl" ]]; then
         loki="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null | loki_of || true)"
     else
-        loki="$(loki_of < "${repo}/host/exist.json" 2>/dev/null || true)"
+        loki="$(loki_of < "${repo}/.decree/exist.json" 2>/dev/null || true)"
     fi
     if [[ -n "$loki" ]]; then printf '%s\n' "$loki" > "${store}/loki"
     else loki="$(cat "${store}/loki" 2>/dev/null || true)"; fi
@@ -93,7 +94,7 @@ scripts:
     # Each project's machines, and its plugins: what plugin sync installed there
     # (applied/plugins/), the ones turned on and the ones they need.
     : > "${tmp}/machine"; : > "${tmp}/plugin"; : > "${tmp}/cron"
-    for p in automation:volumes/workspace_data/.decree automation-backup:services/automation-backup host:host/.decree; do
+    for p in automation:volumes/workspace_data/.decree automation-backup:services/automation-backup host:.decree; do
         name="${p%%:*}" dir="${repo}/${p#*:}"
         [[ -d "$dir" ]] || continue
         for m in "$dir"/machines/*.yml; do
@@ -136,6 +137,8 @@ scripts:
     if command -v alloy >/dev/null 2>&1; then
         if [[ "$(cat "${store}/alloy-loki" 2>/dev/null || true)" != "$loki" ]]; then
             tmux kill-session -t "=reporting-alloy" 2>/dev/null || true
+            # alloy takes the session's hangup as "reload" and lives on, holding its port.
+            pkill -f "alloy run ${DECREE_LIB}/reporting/decree.alloy" 2>/dev/null || true
             printf '%s\n' "$loki" > "${store}/alloy-loki"
         fi
         mkdir -p "${store}/alloy"
@@ -231,7 +234,7 @@ lib:
     	targets = [
     		{ __path__ = sys.env("EXIST_REPO") + "/volumes/workspace_data/.decree/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "automation" },
     		{ __path__ = sys.env("EXIST_REPO") + "/services/automation-backup/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "automation-backup" },
-    		{ __path__ = sys.env("EXIST_REPO") + "/host/.decree/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "host" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/.decree/runs/*/events.jsonl", job = "decree", host = sys.env("EXIST_HOST"), project = "host" },
     	]
     	forward_to = [loki.process.decree_events.receiver]
     	file_match {
@@ -268,7 +271,7 @@ lib:
     	targets = [
     		{ __path__ = sys.env("EXIST_REPO") + "/volumes/workspace_data/.decree/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "automation" },
     		{ __path__ = sys.env("EXIST_REPO") + "/services/automation-backup/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "automation-backup" },
-    		{ __path__ = sys.env("EXIST_REPO") + "/host/.decree/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "host" },
+    		{ __path__ = sys.env("EXIST_REPO") + "/.decree/runs/*/[0-9]*.log", job = "decree_script", host = sys.env("EXIST_HOST"), project = "host" },
     	]
     	forward_to = [loki.process.decree_script_output.receiver]
     	file_match {

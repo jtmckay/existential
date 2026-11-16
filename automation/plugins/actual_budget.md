@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: actual_budget
+project: automation
 chart:
   description: Post one transaction to Actual Budget, the amount as the message body.
   data:

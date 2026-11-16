@@ -436,13 +436,13 @@ printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
 assert_eq "no answer keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
 # A controller turns on the host's worker flow (reporting) and keeps Core.
 mkdir -p "$TMP/automation/plugins/flows"
-cp "$_REAL/automation/plugins.host.exist.yml" "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
+cp "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
 cp "$_REAL/automation/plugins/flows/worker.md" "$TMP/automation/plugins/flows/"
 printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
 ( EXIST_ROLE=controller _apply_role ) >/dev/null 2>&1
 assert_eq "a controller keeps Core, and names no controller" "EXIST_IS_AI_X=true EXIST_CONTROLLER=" "$(xargs < "$TMP/.env.shared")"
-assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/host/.decree/plugins.yml")"
-rm -rf "$TMP/host"
+assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/automation/plugins.yml" | grep -x worker)"
+rm -f "$TMP/automation/plugins.yml"
 
 printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
 assert_contains "# DEFAULT: is the literal default when nobody answers" "WHO=admin" "$(render "$TMP/t_default")"

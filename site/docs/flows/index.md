@@ -15,7 +15,7 @@ transcript, a receipt becomes a budget entry.
 ## Turning one on
 
 Each flow is a file in `automation/plugins/flows/`: the services it needs, the automations it
-turns on, and any step only you can do. What you have on is one list, `workspace/.decree/plugins.yml`.
+turns on, and any step only you can do. What you have on is one list, `automation/plugins.yml`.
 
 ```bash
 ./existential.sh flow                 # pick from the list; ✓ marks the ones on
@@ -26,18 +26,18 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 - `docker compose up -d` afterwards starts anything new.
 - A flow that needs another turns that one on too.
 - `off` never deletes a file you changed.
-- `worker`, `auto-update`, `on-boot`, `check-versions` and `update-ubuntu` run on the host itself, in a decree daemon there (`host/.decree`),
+- `worker`, `auto-update`, `on-boot`, `check-versions` and `update-ubuntu` run on the host itself, in a decree daemon there (the checkout's own `.decree`),
   not in a container. `./existential.sh` says so until one runs.
 
 | Flow | What it does | Needs, beyond Core |
 |---|---|---|
-| `you-were-here` | Every morning, yesterday in one notification. **On by default** | a chat model |
-| `look-back` | The week and the month in review, next to your notes. **On by default** | a chat model |
-| `clean-runs` | Prunes decree's finished run logs after 30 days. **On by default** | — |
+| `you-were-here` | Every morning, yesterday in one notification | a chat model |
+| `look-back` | The week and the month in review, next to your notes | a chat model |
+| `clean-runs` | Prunes decree's finished run logs after 30 days, the host daemon's too. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
-| `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), accept what is proposed, and it runs. **On by default** | a chat model |
-| `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/`. **On by default** | — |
-| `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model. **On by default** | — |
+| `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), review what is built, accept it on the host, and it runs. **On by default** | a chat model |
+| `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/` | — |
+| `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model | — |
 | `weekly-newsletter` | [Your own newsletter](./newsletter.md) from only the feeds you picked | a chat model |
 | `search` | Your notes, PDFs and Word files, by meaning and by words ([qmd](../ai/qmd.md)) | qmd |
 | `gmail-inbox` | New mail every 15 minutes, as decree messages ([Gmail](../integrations/gmail.md)) | a Google grant |
@@ -57,15 +57,28 @@ turns on, and any step only you can do. What you have on is one list, `workspace
 | `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
 | `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, CPU, RAM, VRAM, automations, runs, in Grafana | decree on the host |
 | `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
-| `on-boot` | [Your `host/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
+| `on-boot` | [Your `.decree/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
 | `check-versions` | [Fridays at noon, every pinned image with a newer version upstream](../hosting/updates.md#pinned-images), in one notification | decree on the host |
 | `update-ubuntu` | [Keep an Ubuntu host patched](../hosting/updates.md#ubuntu): security updates daily, the rest weekly, a reboot at 02:00 only when one is required | decree on the host, Ubuntu |
+| `plugin-sharing` | [Trade plugins with another stack](../plugins/index.md#between-stacks): ask for one, send yours when asked | automation-webhook |
+| `service-triage` | Every enabled service's own check, run for you; your phone hears when one breaks or recovers | automation-backup |
+| `workspace-sync` | `workspace/` kept the same as one other copy, on your NAS or in Nextcloud | automation-backup |
+| `notes-pull` | An outside notes vault pulled into `workspace/notes/` every 15 minutes | automation-backup |
+| `backup-workspace` | [Your workspace, backed up](../decree/automation-backup.md) nightly and weekly to your rclone remote | automation-backup |
+| `backup-actual-budget` | Actual Budget, backed up nightly and weekly | automation-backup, Actual Budget |
+| `backup-appsmith` | Appsmith, backed up nightly and weekly | automation-backup, Appsmith |
+| `backup-immich` | Immich's database and volume, backed up nightly and weekly | automation-backup, Immich |
+| `backup-lowcoder` | Lowcoder's database and volumes, backed up nightly and weekly | automation-backup, Lowcoder |
+| `backup-mealie` | Mealie's database and volume, backed up nightly and weekly | automation-backup, Mealie |
+| `backup-nextcloud` | Nextcloud's database, backed up nightly and weekly | automation-backup, Nextcloud |
+| `backup-nocodb` | NocoDB's database and volume, backed up nightly and weekly | automation-backup, NocoDB |
+| `backup-uptime-kuma` | Uptime Kuma's database, backed up nightly and weekly | automation-backup, Uptime Kuma |
 
 [Note → Automation](./note-to-automation.md) is part of Core, on whenever a chat model answers.
 
 ### Housekeeping
 
-- **`clean-runs`** prunes `workspace/.decree/runs/` (logs also go to Loki when it's on).
+- **`clean-runs`** prunes finished runs in `workspace/.decree/runs/`, and in automation-backup's and the host daemon's when those run (logs also go to Loki when it's on).
 - **`health-checks`** probes ntfy. For another service, copy its cron in
   `workspace/.decree/cron/` to `health-check-<slug>.md` and set `SERVICE_NAME` and `SERVICE_URL`
   (`http://<container>:<port>/<health path>`).

@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # File handlers: a change to a matching file in the workspace starts an automation
 

@@ -19,6 +19,7 @@ and run `./existential.sh`, and every plugin you have on is the new version.
 ---
 machine: plugin
 automation: gpu_lease
+project: automation     # which decree project runs it: automation, backup or host (or a list)
 needs: [model]          # the plugins it starts, emits to, or whose lib it uses (export writes it)
 chart:                  # the decree machine, without its name
   initial: start
@@ -28,7 +29,10 @@ scripts:                # each becomes scripts/gpu_lease/<script>.sh
     #!/usr/bin/env bash
     …
 lib:                    # each becomes lib/<path>, reached as ${DECREE_LIB}/<path>
-  gpu_lease/feeds.exist.txt: |   # an example of yours: copied once to feeds.txt
+  gpu_lease/helper.sh: |
+    …
+store:                  # yours to edit: each written once to store/gpu_lease/<path>, never overwritten
+  feeds.txt: |
     …
 cron:                   # each becomes cron/<name>.md
   gpu_lease_nightly: |
@@ -47,17 +51,21 @@ What it does and how to use it.
 
 ## Which ones you have
 
-Three decree projects install plugins, each from the same folder:
+Every plugin is in that one folder, and its `project:` says which decree project runs it:
 
-| Project | Where | What it runs |
+| `project:` | Where it is installed | What it runs |
 |---|---|---|
 | `automation` | `workspace/.decree` | everything that reasons, routes or calls a service |
 | `backup` | `services/automation-backup/` | backups, triage, workspace sync |
-| `host` | `host/.decree` | what runs on the host itself, in [the host daemon](../hosting/host-daemon.md): [updates](../hosting/updates.md) |
+| `host` | the repo's own `.decree` | what runs on the host itself, in [the host daemon](../hosting/host-daemon.md): [updates](../hosting/updates.md) |
 
-A project has exactly what its `.decree/plugins.yml` lists under `on:`, and whatever those need.
-That file is yours, never in git, and written the first time from the project's
-`plugins.exist.yml`: what every install starts with.
+What is on is one list for all three, `automation/plugins.yml` (`on:`). That file is yours,
+never in git, and written the first time from `automation/plugins.exist.yml`: what every
+install starts with. Each project installs the entries tagged for it, and whatever those need.
+A project never gets a plugin that is not tagged for it, and the list is outside the workspace:
+nothing the `automation` daemon runs, or a model it calls, can change what `backup` or the
+host runs. The installed copies (`machines/`, `scripts/`, `lib/` in each project) are never
+committed; the plugin's file is the one place it lives.
 
 A plugin with no machine is a **flow**, in `automation/plugins/flows/`: one thing the stack does
 for you, needing the plugins that do it and naming the services they use (turning it on asks before it
@@ -67,16 +75,16 @@ other plugins use (`model`, `pi`, `agent`, `firecrawl`, `rss`) or a file process
 on (`ocr`, `transcribe`, `agent_handoff`). Every helper a script uses is some plugin's, installed into
 `workspace/.decree/lib/` and reached as `${DECREE_LIB}/<path>`.
 
-A file that is yours to edit (the newsletter's feeds and taste, the departments, the
-agent-handoff criteria) ships as an example, `<name>.exist.<ext>`, and is copied to its real
-name once. Your copy is never overwritten, removed or sent to another stack.
+Data that is yours to edit (the newsletter's feeds and taste, pi's departments) is a plugin's
+`store:`, written once to `workspace/.decree/store/<plugin>/` and never overwritten, removed or
+sent to another stack. The store is writable from code-server; `machines/`, `scripts/` and `lib/`
+are read-only in every container, and a plugin made in the workspace runs only after you
+[accept it on the host](./offer-and-accept.md).
 
 ```bash
-./existential.sh run plugin                     # the automation project's: on, installed, what each does
-./existential.sh run plugin list host
-./existential.sh run plugin on gpu_lease        # install it, and keep it current
+./existential.sh run plugin                     # every plugin: on or not, its project, what it does
+./existential.sh run plugin on gpu_lease        # install it where its project: says, and keep it current
 ./existential.sh run plugin off gpu_lease       # remove it, endpoints and schedule included
-./existential.sh run plugin on host/update      # another project's
 ```
 
 `plugins.yml` is `on: [...]` and `auto_update: true`. Turning a plugin off takes it out of `on:`;
@@ -84,8 +92,10 @@ one that something still on needs stays. With `auto_update: false`, a plugin who
 
 ## Changing one
 
-Change the installed machine, scripts and lib in `workspace/.decree/` until it works, then write
-it back and commit:
+On the host, change the installed machine, scripts and lib in its project
+(`volumes/workspace_data/.decree/` for `automation`; read-only inside every container) until it
+works, then write it back and commit. A plugin that `backup` or the host
+runs is exported from there, never from the workspace:
 
 ```bash
 ./existential.sh run plugin export gpu_lease    # → automation/plugins/gpu_lease.md
@@ -95,13 +105,15 @@ Every install that has it on gets the new version on its next pull. A copy someo
 place is kept in `.decree/archive/` before the new version replaces it. Machines you wrote
 yourself, and automations `develop` built from your notes, are never touched.
 
-`notify` and the four `plugin` machines are the plugin system itself. They are not plugins: every
-install has them, at the checkout's version, and no plugin can replace them.
+`notify` and `plugin` are the plugin system itself. They are plugin files like
+the rest, but always installed, whatever is on, and only the repo's files install them: no
+plugin you accept from another stack can replace one. Everything else is off until you turn it on.
 
 ## Between stacks
 
-Another stack can ask yours for a plugin, and yours can ask theirs. Nothing is installed anywhere
-without a person accepting it.
+Off until `./existential.sh flow on plugin-sharing`, which also needs
+[automation-webhook](../decree/automation-webhook.md). With it on, another stack can ask yours for a
+plugin, and yours can ask theirs. Nothing is installed anywhere without a person accepting it.
 
 - `plugin_share`: another stack asks for one of your machines (`POST
   /plugins/<machine>/share/<client>`) and is sent it as a plugin file, at once for a machine you
@@ -114,8 +126,8 @@ without a person accepting it.
   (its webhook's address) with `PLUGIN_PEER_<FROM>_TOKEN` in `automation/.env`, then `POST
   /request/plugins/<from>[/<machine>]`.
 - `plugin_offer`: what comes back, at `/plugins/offer/<from>`. A list goes to your phone, with
-  the line that asks for one; a plugin waits in `ai/proposed/`, and moving it into
-  `notes/automations/` installs it. Read its scripts first: they run with this stack's access.
+  the line that asks for one; a plugin waits in `ai/proposed/` until you
+  [accept it on the host](./offer-and-accept.md). Read its scripts first: they run with this stack's access.
 
 The file a stack sends names what it cannot carry, the `$DECREE_LIB` files its scripts use, which
 the receiving stack has to have.

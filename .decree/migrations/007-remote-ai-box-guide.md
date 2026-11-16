@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # A worked guide for a separate GPU box
 

@@ -10,7 +10,7 @@
 # src/utils/flows.sh for its shape). Turning one on turns on the flows it needs
 # and asks, one at a time, to turn on each service they name that is off (no
 # answer is no; the GPU answer can forbid one), and puts it
-# in the workspace's plugins.yml, the one record of what is on. existential.sh
+# in automation/plugins.yml, the one record of what is on. existential.sh
 # renders and rebuilds after, which installs it with everything it needs.
 set -euo pipefail
 
@@ -113,10 +113,9 @@ flows_pick() {
     done
 }
 
-# An install from before plugins.yml gets one that keeps what it had on (plugin.sh seed).
-if command -v yq >/dev/null 2>&1 && [[ ! -f "${REPO_DIR}/${PLUGINS_YML}" ]] && [[ -d "${REPO_DIR}/${FLOWS_DECREE}" ]]; then
-    env REPO_DIR="$REPO_DIR" bash "${REPO_DIR}/src/lib/plugin.sh" seed automation >/dev/null
-fi
+# automation/plugins.yml, from its example or from what an older install had on.
+if command -v yq >/dev/null 2>&1; then env REPO_DIR="$REPO_DIR" bash "${REPO_DIR}/src/lib/plugin.sh" seed >/dev/null
+else plugins_seed >/dev/null; fi
 
 case "${1:-}" in
     "")   if [[ -t 0 && -t 1 ]]; then flows_pick; else flows_list; exit 3; fi ;;

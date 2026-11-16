@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: gpu_lease
+project: automation
 needs:
   - model
 chart:

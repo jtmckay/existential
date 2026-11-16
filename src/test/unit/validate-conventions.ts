@@ -649,10 +649,13 @@ function main(): number {
     if (!fs.existsSync(catDir)) continue;
     for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (e.isDirectory()) serviceVars.add(varFor(`${cat}/${e.name}`));
   }
-  // The plugin system's machines, which every project has.
-  const kernelMachines = fs.existsSync(path.join(REPO_ROOT, 'automation/machines'))
-    ? fs.readdirSync(path.join(REPO_ROOT, 'automation/machines')).filter(f => f.endsWith('.yml')).map(f => f.replace(/\.yml$/, ''))
-    : [];
+  // The plugin system's machines (PLUGIN_KERNEL in lib/automations/plugin.sh):
+  // plugins too, installed in each project they are tagged for whatever is on.
+  const kernelMachines = ['notify'];
+  // The decree projects a plugin's `project:` may name: workspace/.decree,
+  // services/automation-backup and the repo's own .decree.
+  const PROJECTS = ['automation', 'backup', 'host'];
+  const projectsOf = (pl: {fm: Record<string, unknown>}) => ([] as string[]).concat((pl.fm.project as string | string[] | undefined) ?? []);
   type Plugin = {file: string; where: string; flow: boolean; raw: string; fm: Record<string, unknown>};
   const plugins = new Map<string, Plugin>();
   for (const [dir, flow] of [[pluginsDir, false], [flowsDir, true]] as const) {
@@ -687,6 +690,26 @@ function main(): number {
   for (const [n, pl] of plugins) {
     const needs = ((pl.fm.needs as string[] | undefined) ?? []);
     for (const x of needs) if (!plugins.has(x)) errors.push(`${pl.where}: needs ${x}, which is no plugin`);
+    // Every plugin says which project runs it, and a project installs only what
+    // is tagged for it: so what a plugin needs must be tagged for each of its own.
+    // That tag is the wall between the automation daemon and the other two.
+    const projects = projectsOf(pl);
+    if (!projects.length) errors.push(`${pl.where}: no 'project:' — say which decree project runs it (${PROJECTS.join(', ')})`);
+    for (const p of projects) {
+      if (!PROJECTS.includes(p)) { errors.push(`${pl.where}: project ${p} is none of ${PROJECTS.join(', ')}`); continue; }
+      for (const x of needs) {
+        const dep = plugins.get(x);
+        if (dep && !projectsOf(dep).includes(p)) errors.push(`${pl.where}: runs in ${p} and needs ${x}, which is not tagged for ${p}`);
+      }
+    }
+    if (Array.isArray(pl.fm.project) && fmList(pl.raw, 'project').join(' ') !== projects.join(' ')) {
+      errors.push(`${pl.where}: project: must be one name or a block list (  - x), which the host reads`);
+    }
+    // The host's project is the repo's .decree, whose migrations/ and processed.md
+    // are tracked: a host plugin's migration would dirty every checkout.
+    if (projects.includes('host') && Object.keys((pl.fm.migrations as object | undefined) ?? {}).length) {
+      errors.push(`${pl.where}: a host plugin carries no migrations — .decree/migrations/ is tracked`);
+    }
     if (pl.flow) {
       for (const key of ['services', 'needs']) {
         const want = ((pl.fm[key] as string[] | undefined) ?? []).join(' ');
@@ -712,12 +735,42 @@ function main(): number {
       }
     }
   }
-  // What each project starts with names only plugins there are.
-  for (const seed of ['automation/plugins.exist.yml', 'automation/plugins.host.exist.yml', 'services/automation-backup/plugins.exist.yml']) {
+  // What an install starts with names only plugins there are.
+  for (const seed of ['automation/plugins.exist.yml']) {
     const f = path.join(REPO_ROOT, seed);
     if (!fs.existsSync(f)) continue;
     for (const n of (((yaml.load(fs.readFileSync(f, 'utf8')) as {on?: string[]} | null)?.on) ?? [])) {
       if (!plugins.has(n)) errors.push(`${seed}: turns on ${n}, which is no plugin`);
+    }
+  }
+
+  // Offer and accept: decree's code in the workspace project is installed by the
+  // host alone. A container that mounts the workspace (or its .decree) writable
+  // must mount machines/, scripts/ and lib/ read-only over it, so nothing a
+  // container runs can create or change one (site/docs/plugins/offer-and-accept.md).
+  for (const cat of CATEGORY_DIRS) {
+    const catDir = path.join(REPO_ROOT, cat);
+    if (!fs.existsSync(catDir)) continue;
+    for (const slug of fs.readdirSync(catDir)) {
+      const file = path.join(catDir, slug, 'docker-compose.exist.yml');
+      if (!fs.existsSync(file)) continue;
+      let data: {services?: Record<string, {volumes?: unknown[]}>};
+      try { data = (yaml.load(fs.readFileSync(file, 'utf8')) ?? {}) as typeof data; } catch { continue; }
+      for (const [svc, def] of Object.entries(data.services ?? {})) {
+        const mounts = (def?.volumes ?? []).filter((v): v is string => typeof v === 'string').map(v => v.split(':'));
+        const readOnly = (m: string[]) => (m[2] ?? '').split(',').includes('ro');
+        for (const m of mounts) {
+          if (readOnly(m) || (m[0] !== 'workspace_data' && m[0] !== 'workspace_data/.decree')) continue;
+          const project = m[0] === 'workspace_data' ? `${m[1]}/.decree` : m[1];
+          for (const d of ['machines', 'scripts', 'lib']) {
+            const covered = mounts.some(o => o[0] === `workspace_data/.decree/${d}` && o[1] === `${project}/${d}` && readOnly(o));
+            if (!covered) {
+              errors.push(`${cat}/${slug}/docker-compose.exist.yml: ${svc} mounts ${m[0]} writable at ${m[1]} without ` +
+                `workspace_data/.decree/${d}:${project}/${d}:ro — decree's code is installed by the host alone`);
+            }
+          }
+        }
+      }
     }
   }
 

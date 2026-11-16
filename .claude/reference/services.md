@@ -228,8 +228,8 @@ decree project:
 
 - **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
   the user's project, so machines, scripts, cron, migrations and inbox written there run on the
-  next tick. `services/automation/exist.initial.sh` copies in the plugin system
-  (`automation/machines/`, `scripts/`) every run, installs the plugins it has on at the
+  next tick. `services/automation/exist.initial.sh` installs the plugins that are on and
+  tagged `project: automation`, the plugin system's among them, at the
   checkout's version (`.claude/reference/decree.md`), and copies `.gitignore`,
   `decree-go-rest.yml` and `handlers.yml` only while they are absent, so the user's edits win. `lib/` is `automation/lib/` (the shared part) plus each installed
   plugin's own lib files, copied in the same way;
@@ -245,7 +245,7 @@ decree project:
   `auto` mode included, changes a note; machines write under `workspace/ai/`.
 - **`automation-backup`** wholesale-mounts `services/automation-backup/`, with the
   `machines/`, `scripts/` and `lib/` its plugins install there mounted read-only over its
-  `.decree/`, so nothing a run does changes the code it runs. Its `cron.example/` + `cron/` pair lives there.
+  `.decree/`, so nothing a run does changes the code it runs. Its active `cron/` lives there, written by the flows that are on.
 
 | | `automation` | `automation-backup` |
 |---|---|---|
@@ -280,8 +280,8 @@ This replaced a `<slug>-decree` sidecar per backup-eligible service. Those isola
 to its own volumes and creds, which was stricter — the trade was deliberate: ten sidecars meant a
 `decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
 volume and credential YAML **per service**, against a repo whose whole claim is that adding a
-service is adding a folder. Now a new service's backup is one cron file in
-`services/automation-backup/cron.example/`, because `volumes/` is mounted wholesale and its dir appears there
+service is adding a folder. Now a new service's backup is one flow file,
+`automation/plugins/flows/backup-<slug>.md` (`project: backup`), because `volumes/` is mounted wholesale and its dir appears there
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
 **Migration ordering.** There is no gate. A migration for a service starts with a

@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Claude Code and opencode are ready in code-server, reachable remotely
 

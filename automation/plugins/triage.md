@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: triage
+project: backup
 chart:
   description: Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
   data:

@@ -33,7 +33,7 @@ traffic):
 
 | Address | What it is |
 |---|---|
-| `http://<controller>:4480` | The answer to "where do I report?", `host/exist.json` |
+| `http://<controller>:4480` | The answer to "where do I report?", `.decree/exist.json` |
 | `http://<host>:3100` | Loki's push address, on whichever host has Loki on |
 
 To report to a Loki on another host, set `EXIST_REPORTING_URL=http://<that-host>:3100` in the
@@ -43,7 +43,7 @@ report.
 ## Services a host has off
 
 The controller's answer also names its `EXIST_DOMAIN`. On every other host, each
-`./existential.sh` keeps a copy (`host/controller.json`, the last one while the controller is
+`./existential.sh` keeps a copy (`.decree/controller.json`, the last one while the controller is
 away), and any address in `.env` that names the container of a service that is off on that host
 points at the controller's domain instead: `EXIST_MODEL_URL=http://ollama:11434/v1` becomes
 `https://ollama.<domain>/v1`. An address you set to anything else is left alone. The
@@ -98,7 +98,7 @@ On the new host:
    ```
 
 4. **Check it's reporting.** Within 5 minutes, `./existential.sh` prints what the newest report
-   said, as `Last report:`. So does the run's own log, `host/.decree/runs/<run>/0001-report.log`.
+   said, as `Last report:`. So does the run's own log, `.decree/runs/<run>/0001-report.log`.
 
    | It says | Which means |
    |---|---|
@@ -160,7 +160,7 @@ reporting, sends one ntfy notification: Grafana's `container stopped` alert, on 
 
 Each report also makes sure alloy is shipping this host's decree runs to that Loki, in a tmux
 session, `reporting-alloy` (`tmux attach -t reporting-alloy` shows it): every step of every run
-in `automation`, `automation-backup` and `host/.decree`, as `{job="decree"}`, and each script's
+in `automation`, `automation-backup` and the host's project (the checkout's `.decree`), as `{job="decree"}`, and each script's
 output, as `{job="decree_script"}`, labelled with `host` and `project` ([Loki](./loki.md)). It
 keeps its place in each run's files, so a run that ends while it is down, or while the Loki is
 away, is sent once it is back, within the 7 days Loki accepts. A new Loki address restarts it.

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: ollama_pull
+project: automation
 needs:
   - model
 chart:

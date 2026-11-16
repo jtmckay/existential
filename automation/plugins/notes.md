@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: notes
+project: automation
 chart:
   description: Pull the notes vault from Nextcloud, compile it, index it, and push the result to Dropbox.
   initial: sync

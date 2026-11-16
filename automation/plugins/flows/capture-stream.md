@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: capture-stream
+project: automation
 name: Capture
 tagline: What you type to an agent, and anything you POST, in one stream in workspace/.capture/
 docs: /docs/getting-started#capture

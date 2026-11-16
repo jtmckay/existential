@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # "You were here": a digest that brings back what you already decided
 

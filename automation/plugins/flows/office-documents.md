@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: office-documents
+project: automation
 name: Office documents in Nextcloud
 tagline: Open and edit Word, Excel and PowerPoint files in the browser, through Collabora
 docs: /docs/storage/collabora
@@ -26,7 +27,7 @@ migrations:
     actual Collabora container. And sets `wopi_callback_url` to `http://nextcloud`, so
     Collabora fetches files over the `exist` network, where that allowlist lets
     it in, rather than through the public URL. See
-    automation/scripts/nextcloud_richdocuments.sh for the exact upstream
+    automation/plugins/nextcloud_richdocuments.md for the exact upstream
     behaviour this was verified against.
 
     COLLABORA_URL and the Nextcloud admin credentials come from the decree

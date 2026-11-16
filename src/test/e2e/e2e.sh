@@ -206,12 +206,11 @@ applicable_checks() {
     return 0
 }
 
-# Stage checks BEFORE render and up, into automation/machines/ and scripts/,
-# which exist.initial.sh copies into workspace/.decree on every run (the plugin
-# system's own files, src/lib/plugin.sh):
-#   - a sibling .yml lands in automation/machines/ as <machine>.yml, and a
-#     sibling .sh in automation/scripts/ as <machine>.sh (automation-backup
-#     mounts that scripts/ too), executable because decree runs scripts by path
+# Stage checks BEFORE render and up, into the clone's workspace/.decree, the
+# automation project. The plugin sync never touches a machine that is not a repo
+# plugin, so they are still there once the stack is up:
+#   - a sibling .yml lands in machines/ as <machine>.yml, and a sibling .sh in
+#     scripts/ as <machine>.sh, executable because decree runs scripts by path
 #   - a sibling .stage.sh runs on the host, for config already read at boot
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
@@ -219,15 +218,16 @@ applicable_checks() {
 # shipped in automation/plugins/, which is what a user's install installs: test code has
 # no business in the product tree.
 stage_checks() {
-    local work="$1" md m st
-    [ -d "$work/automation/machines" ] || { log "  (no decree in this unit — no checks to stage)"; return 0; }
+    local work="$1" md m st project="$1/volumes/workspace_data/.decree"
+    [ -d "$work/automation/plugins" ] || { log "  (no decree in this unit — no checks to stage)"; return 0; }
+    mkdir -p "$project/machines" "$project/scripts"
 
     while IFS= read -r md; do
         [ -n "$md" ] || continue
         m="$(e2e_fm_get "$md" machine)"
         if [ -f "${md%.md}.yml" ]; then
-            cp "${md%.md}.yml" "$work/automation/machines/${m}.yml"
-            install -m 755 "${md%.md}.sh" "$work/automation/scripts/${m}.sh"
+            cp "${md%.md}.yml" "$project/machines/${m}.yml"
+            install -m 755 "${md%.md}.sh" "$project/scripts/${m}.sh"
         fi
         st="${md%.md}.stage.sh"
         if [ -f "$st" ]; then
@@ -430,12 +430,12 @@ run_unit() {
             || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
-    # 4. The flow on in the workspace's plugins.yml, as `flow on` does; it and
+    # 4. The flow on in automation/plugins.yml, as `flow on` does; it and
     #    what it needs are installed by exist.initial.sh, below, exactly as on a
     #    real install. Core's flows are the plugins.yml every install starts with.
     if [ "$unit" != core ]; then
         ( REPO_DIR="$WORK"; plugins_turn on "$unit" )
-        log "Turned on ${unit} in the workspace's plugins.yml"
+        log "Turned on ${unit} in automation/plugins.yml"
     fi
 
     # 5. Stage the checks — before the render, because what this touches

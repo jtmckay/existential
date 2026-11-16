@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: look_back
+project: automation
 needs:
   - model
   - you_were_here

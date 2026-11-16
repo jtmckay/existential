@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: gmail
+project: automation
 chart:
   description: File one email from gmail_sync, whole, in the emails directory.
   data:

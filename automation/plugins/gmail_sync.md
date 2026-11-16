@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: gmail_sync
+project: automation
 needs:
   - actual_budget_parse
   - gmail

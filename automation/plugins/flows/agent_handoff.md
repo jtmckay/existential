@@ -1,10 +1,11 @@
 ---
 machine: plugin
 automation: agent_handoff
+project: automation
 needs:
   - agent_task
 lib:
-  file-processors/agent-handoff.exist.sh: |
+  file-processors/agent-handoff.sh: |
     #!/usr/bin/env bash
     # shellcheck disable=SC2034  # PATTERN/CRITERIA/IS_PRE_SIGNED are read out of this
     # file's source by file-router and file-processor, not by sourcing it.

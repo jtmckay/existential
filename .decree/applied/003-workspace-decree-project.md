@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # A fresh install has a workspace: notes/ and a decree project Claude already knows
 

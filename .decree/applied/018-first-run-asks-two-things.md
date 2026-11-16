@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # A Core first run asks two things: a username and a password
 

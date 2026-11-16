@@ -250,7 +250,7 @@ echo 'Read this note and work out what can be settled without the author.' \
 ```
 
 `file_processor` already lists `agent_task` and `router` in its `emits:`, so a
-processor may emit either. `file-processors.example/agent-handoff.sh` is a complete one.
+processor may emit either. `file-processors/agent-handoff.sh` (the `agent_handoff` plugin's) is a complete one.
 
 pi runs its own tool loop, so with no `department` the task gets every MCP server
 of an add-on that is on: qmd search, Firecrawl web search, Playwright. The

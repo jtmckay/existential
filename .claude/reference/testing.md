@@ -157,8 +157,8 @@ in CI):
   fires a one-line canary (`[[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail …`) each suite carries
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
   that canary.**
-- **`decree-check.sh`** (`test decree`, adhoc) — assembles both decree projects from tracked
-  content (the plugin system and every plugin; automation-backup's set) with every shipped cron,
+- **`decree-check.sh`** (`test decree`, adhoc) — assembles each decree project (automation, backup, host)
+  from every plugin tagged for it (`project:`) with every shipped cron,
   migration and inbox template queued, and runs `decree check`, so a template naming a renamed
   machine or an undeclared param fails here rather than as a failed run. Then each plugin alone,
   with only what its `needs:` reach, so a missing `needs:` fails here too.

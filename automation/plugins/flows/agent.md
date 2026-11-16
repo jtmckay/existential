@@ -1,6 +1,9 @@
 ---
 machine: plugin
 automation: agent
+project:
+  - automation
+  - host
 lib:
   agent.sh: |
     #!/usr/bin/env bash

@@ -30,7 +30,7 @@ awk '/^lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.example\/ex
 
 echo "  staged the example file-processor as the probe"
 
-# nextcloud-capture on in the workspace's plugins.yml: exist.initial.sh then
+# nextcloud-capture on in automation/plugins.yml: exist.initial.sh then
 # installs its plugins and queues their migrations (rclone remote, file events).
 # shellcheck source=../../../utils/flows.sh
 # shellcheck disable=SC2034  # REPO_DIR is read by flows.sh

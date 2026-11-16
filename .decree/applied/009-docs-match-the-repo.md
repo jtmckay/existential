@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # The documentation describes the repository as it is
 

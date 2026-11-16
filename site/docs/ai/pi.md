@@ -37,12 +37,12 @@ provider in code-server survives. In code-server the files live on the volume
 
 ## Departments
 
-A machine runs pi in a **department**: a file in `workspace/.decree/lib/departments/` naming the tools and
+A machine runs pi in a **department**: a file in `workspace/.decree/store/agent_task/departments/` naming the tools and
 MCP servers that run may reach. A department that needs no web gets no web, and pays for no tool
 it does not own.
 
 ```yaml
-# workspace/.decree/lib/departments/research.yml
+# workspace/.decree/store/agent_task/departments/research.yml
 description: Investigation, fact-finding, competitive and market analysis, literature review.
 tools: read, grep, find, ls
 mcp: qmd, firecrawl

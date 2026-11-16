@@ -8,3 +8,17 @@ attention/
 process.log
 cache/
 ai-use.md
+# Installed from automation/plugins/ (project: host) by ./existential.sh, never
+# committed: a plugin's file is the one place its machine, scripts and lib live.
+machines/
+scripts/
+lib/
+graph/
+cron/
+archive/
+applied/plugins/
+automations.yml
+# This host's own.
+boot.sh
+exist.json
+controller.json

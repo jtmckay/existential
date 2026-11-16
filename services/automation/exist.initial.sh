@@ -16,7 +16,7 @@ REPO="${SCRIPT_DIR}/../.."
 WORKSPACE_DIR="${REPO}/volumes/workspace_data"
 PROJECT="${WORKSPACE_DIR}/.decree"
 mkdir -p "${REPO}"/automation/secrets \
-         "${PROJECT}"/{inbox,runs,store,cron,migrations,lib,graph}
+         "${PROJECT}"/{inbox,runs,store,cron,migrations,machines,scripts,lib,graph}
 # decree reads .decree/.env; it is bind-mounted from automation/.env so config
 # never lands in the synced workspace. A file mount needs its source to exist.
 touch "${REPO}/automation/.env" "${PROJECT}/.env"
@@ -53,10 +53,11 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
-# The `automation` project is workspace/.decree, where the user (and the agents
-# they direct) write automations. The plugin system and the plugins it has on
-# come from the repo, kept at this checkout's version every run, with lib/: the
-# shared automation/lib/ and each plugin's own lib files. The daemon draws the graphs.
+# The `automation` project is workspace/.decree. Its code (machines/, scripts/,
+# lib/) is installed here, on the host, from automation/plugins/, at this
+# checkout's version every run, and is read-only in every container: what a
+# person or an agent makes in the workspace is an offer in ai/proposed/, accepted
+# with ./existential.sh run plugin accept <name>. The daemon draws the graphs.
 # Yours from their examples, once: what the webhook answers and which file
 # changes start a run. An edit stays.
 [[ -e "${PROJECT}/.gitignore" ]] || cp -p "${REPO}/automation/.gitignore" "${PROJECT}/.gitignore"
@@ -64,9 +65,9 @@ for _f in decree-go-rest handlers; do
     [[ -e "${PROJECT}/${_f}.yml" ]] || cp -p "${REPO}/automation/${_f}.exist.yml" "${PROJECT}/${_f}.yml"
 done
 # The plugin system, then the plugins this install has on (src/lib/plugin.sh),
-# each at the version in this checkout: what plugins.yml has on (the flows and
-# machines; written from automation/plugins.exist.yml the first time) and all
-# they need, their crons and migrations included.
+# each at the version in this checkout: what automation/plugins.yml has on and
+# tags for this project (written from automation/plugins.exist.yml the first
+# time) and all they need, their crons and migrations included.
 # In adhoc, where yq and decree are; a failure is said and the stack still comes up.
 if [[ -n "${IN_CONTAINER:-}" ]]; then
     REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync automation ||
@@ -105,6 +106,9 @@ content — notes, plans, reference material — except:
 - **`notes/`** — your notes, plain markdown. Start with `my-first-note.md`.
 - **`.decree/`** — your automations: the decree project the `automation`
   daemon runs. `graph/` draws every machine and is redrawn when one changes.
+  Its code (`machines/`, `scripts/`, `lib/`) is read-only here: a new automation
+  is offered in `ai/proposed/` and runs once you accept it on the host
+  (`./existential.sh run plugin accept <name>`).
 - **`.claude/`** — the decree skill, so `claude` started here knows how to
   write a machine.
 - **`ai/`** — automation output, not yours to write to. See `ai/README.md`,
@@ -129,8 +133,10 @@ When something should happen on its own — a reminder, a weekly look back,
 tidying a folder — open a terminal here in code-server, start `claude`, and say
 what should happen, in your own words.
 
-Claude writes it as an automation in `.decree/`, the folder next to `notes/`.
-It starts running on its own, and `.decree/graph/` draws what it does.
+Claude writes it as one file in `ai/proposed/` and tells you its name. Read it,
+then on the computer that runs the stack: `./existential.sh run plugin accept <name>`.
+Nothing made in here runs until you have said yes there. After that it runs on
+its own, and `.decree/graph/` draws what it does.
 
 A change to a matching file can start an automation too ("when a PDF lands in
 `inbox/`, file it"); a folder listed in a `.gitignore` never starts one.

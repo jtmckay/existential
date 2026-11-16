@@ -6,51 +6,72 @@ regenerate it on a version bump, never hand-edit it). This file is only what
 existential adds on top. Both daemons run decree **0.5.0**, pinned in
 `services/automation/decree/Dockerfile`; the webhook image bundles the same version.
 
-## Two projects
+## One place, three projects
 
-| | `automation` | `automation-backup` |
-|---|---|---|
-| project (`/work/.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/` |
-| machines, scripts | the plugin system (`automation/machines/`, `scripts/`), plus the plugins its `plugins.yml` has on | `notify`, plus the plugins its `plugins.yml` has on, mounted read-only |
-| lib | the plugin system's `automation/lib/`, plus its installed plugins' lib | the same, mounted read-only |
-| what is on | `workspace/.decree/plugins.yml`, from `automation/plugins.exist.yml` | `services/automation-backup/plugins.yml`, rendered from its `plugins.exist.yml` |
-| crons, migrations | each plugin's own (`cron:`, `migrations:`), in and out with it | its plugins' crons, plus `cron.example/`, copied by hand |
-| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI |
+**Every machine, script, lib file, cron and migration the repo ships is in
+`automation/plugins/`**, and nowhere else. A plugin's `project:` says which decree project
+runs it (one name or a block list); what is on is one list, `automation/plugins.yml`. The
+installed copies (`machines/`, `scripts/`, `lib/`, `cron/` in each project) are gitignored
+everywhere, the repo's own `.decree` included.
+
+| `project:` | `automation` | `backup` | `host` |
+|---|---|---|---|
+| project (`.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/`, mounted as `/work/.decree` | the repo's own `.decree`, run by a decree daemon on the host |
+| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `update`, `reporting`, `boot`, `check_versions`, `ubuntu_upgrade`, and the machines that develop this repo (`repo_develop`, `repo_reconcile`, `repo_infra`, `repo_qa`) |
+| always has | the plugin system: `plugin`, `notify` | `notify` | nothing |
+| crons | each plugin's own (`cron:`), in and out with it | the same: `service-triage`, `workspace-sync`, `notes-pull` and one `backup-<service>` flow per service | each plugin's own |
+| migrations | each plugin's own (`migrations:`) | none | **the repo's**, tracked in `.decree/migrations/` with `applied/` and `processed.md`; a host plugin carries none (validate conventions) |
 
 Each project has its own `inbox/`, `runs/`, `store/`, `cron/` and `processed.md`.
 The seeded `.gitignore` keeps `workspace/.decree`'s run state (runs, store, inbox,
 attention, logs) from syncing; everything else there syncs, and `graph/` is drawn by the
-entrypoint whenever a machine changes; nothing in the repo is a graph. A machine both run
-(`notify`, `clean_runs`) is one definition, installed into both.
-**`/repo` is mounted only into `automation-backup`**: `automation` hands what it
-reads to a model, so what it can read is what a prompt injection can read.
+entrypoint whenever a machine changes; nothing in the repo is a graph. A machine more than
+one project runs (`notify`, `clean_runs`) is one file, tagged for each.
+
+**The tag is the wall.** `automation` hands what it reads to a model, so what it can read
+or write is what a prompt injection can. Three things keep it from `backup` and the host:
+
+- **`/repo` is mounted only into `automation-backup`**, read-only. `automation` mounts the
+  workspace, `automation/.env` and `/secrets`, and nothing else of the repo: not
+  `automation/plugins/`, not `automation/plugins.yml`.
+- **A project installs only what is tagged for it** (`plugin_wanted`), and what a plugin
+  `needs:` must carry each of its own tags (validate conventions), so turning something on
+  never pulls an automation-only plugin into another project.
+- **`run plugin export` reads from the most privileged project that runs the plugin** (host,
+  then backup, then automation: `source_of`). An edit in the workspace can only ever be
+  exported into a plugin that only `automation` runs.
+
+A plugin accepted from another stack (`notes/automations/`, the `plugin` machine) installs
+into the workspace project alone, and cannot take a plugin-system name.
 
 ## Plugins
 
-**A plugin is a file**: `automation/plugins/<name>.md`, everything in its frontmatter (`chart`,
-`scripts`, `lib`, `cron`, `migrations`, `endpoints`, `needs`; `automation/lib/automations/plugin.sh`
+**A plugin is a file**: `automation/plugins/<name>.md`, everything in its frontmatter (`project`,
+`chart`, `scripts`, `lib`, `cron`, `migrations`, `endpoints`, `needs`; `automation/lib/automations/plugin.sh`
 says what each is). With no `chart` it is a **flow**, in `automation/plugins/flows/<name>.md`:
 one curated thing the stack does (`name`, `tagline`, `docs`, `services`, `needs`, `e2e`, then
 `cron`, `migrations`, `examples` and a body of what is left for a person), or, without a tagline,
 lib others need (`model`, `agent` with decree's `ai.sh`, `pi` with `departments/`, `firecrawl`,
-`rss`, the file processors `ocr`, `transcribe`, `agent_handoff`). One name space across both
-folders (validate conventions). Plugins are the only place automation code lives; the installed
-copies are never committed. Every decree project installs from that one folder: `automation`
-(`workspace/.decree`), `automation-backup`, and `host` (`host/.decree`, gitignored, for what runs
-on the host itself: `update`).
+`rss`, `repo`, the file processors `ocr`, `transcribe`, `agent_handoff`). One name space across both
+folders (validate conventions). The installed copies are never committed.
 
-- **What is on is one file per project**: `.decree/plugins.yml` (`on:`, `auto_update`), written
-  the first time from the project's `plugins.exist.yml` (`automation/plugins.exist.yml`,
-  `automation/plugins.host.exist.yml`, `services/automation-backup/plugins.exist.yml`), which
-  is what every install starts with. An install from before it keeps what it had: `plugin.sh
-  seed` turns on each flow whose cron or migration is already there and drops `flows-off`.
-  A project has exactly what `on:` lists plus everything that `needs:`, so a flow another
-  flow that is on needs stays on.
+- **What is on is one file**: `automation/plugins.yml` (`on:`, `auto_update`; gitignored),
+  written the first time from `automation/plugins.exist.yml`, which is what every install
+  starts with: `note-to-automation`, `clean-runs` and `health-checks`, and nothing else.
+  **Opt-in is the rule**: every other flow, in every project, is off until a person turns it
+  on. `clean-runs` is tagged for all three projects; on the host it asks for no daemon
+  (`_host_plugins` does not count it). An
+  install from when each project had its own list (`workspace/.decree/plugins.yml`,
+  `host/.decree/plugins.yml`, `services/automation-backup/plugins.yml`) has them folded in
+  once (`plugins_seed` in `src/utils/flows.sh`, awk: a worker with no engine runs it), and one
+  from before any list keeps what it had (`plugin.sh seed`).
+  A project has exactly what `on:` lists for it plus everything that `needs:`, so a flow
+  another flow that is on needs stays on.
 - **`./existential.sh flow`** is the picker over flows with a tagline (`src/flows.sh`): `on`
   asks, per service, to turn on each that its flows need and is off (`services:`, unless the GPU
   answer forbids one; no answer is no) and adds
   it to `plugins.yml`; `off` takes it out. The build after installs or removes. `run plugin on|off
-  [project/]<name>` is the same list, for any plugin in any project. `src/utils/flows.sh` reads
+  <name>` is the same list, for any plugin, and syncs the projects it is tagged for at once. `src/utils/flows.sh` reads
   flows with awk (e2e and host-portability run on the host), so a flow's first keys stay flat
   scalars and block lists, which validate conventions holds it to.
 - **A plugin turns on its own automations**: validate conventions fails one whose cron or
@@ -75,16 +96,51 @@ on the host itself: `update`).
   file the repo dropped: `.decree/lib/.shared`). Everything else in a project's `.decree/lib/` is
   some plugin's `lib:`, at `${DECREE_LIB}/<path>`; a path another plugin has is refused.
   code-server reads `model.sh`, `pi.sh` and `capture/` from `/workspace/.decree/lib/`.
-- **Yours ships as an example.** A lib file meant to be edited (the newsletter's `feeds.txt`
-  and `taste.md`, the departments, the agent-handoff processor) is `<name>.exist.<ext>` in the
-  plugin, copied to its real name once, never overwritten, removed or exported. So are
-  `automation/handlers.exist.yml` and `decree-go-rest.exist.yml`, copied into the workspace
-  once. Code that lists a lib folder skips `*.exist.*`.
-- **The plugin system is not a plugin**: `plugin`, `plugin_share`, `plugin_offer`,
-  `plugin_request` and `notify` (`PLUGIN_KERNEL`) stay in `automation/machines/` and
-  `scripts/`, copied over every run, and no plugin by those names installs. `plugin` installs
-  one accepted into `notes/automations/` (reconcile files it); the three `plugin_*` ask
-  another stack for a plugin, send one, and take one offered into `ai/proposed/`.
+- **Yours is in the store.** Data a person edits (the newsletter's `feeds.txt` and `taste.md`,
+  pi's departments) is a plugin's `store:`, written once to `.decree/store/<plugin>/<path>`,
+  never overwritten, removed or exported, and writable from every container. What an older
+  install kept beside the code in `lib/` moves over on the next install. Code a person tunes
+  (the agent-handoff processor's CRITERIA) is still code: changed in its plugin file. The
+  project's own config ships as examples copied once: `automation/handlers.exist.yml` and
+  `decree-go-rest.exist.yml`.
+- **Triggers are plugin keys.** `cron:` (a cron file), `handlers:` (entries in
+  `.decree/handlers.yml` for its machine) and `when:` (the kind of note that starts it:
+  kept in the registry, and the machine added to `note_watch`'s `emits`).
+- **The plugin system is one plugin, `notify`** (`PLUGIN_KERNEL`): a file in
+  `automation/plugins/` like the rest, but installed in every project it is tagged for
+  whatever is on, and never replaced by an accepted plugin. Trading plugins with another stack
+  (`plugin_share`, `plugin_offer`, `plugin_request`, with their webhook endpoints) is the
+  `plugin-sharing` flow, off until asked for. There is no machine that installs a plugin.
+- **Offer and accept** is the one way code made in the workspace gets in, and the critical
+  journey to keep whole (`site/docs/plugins/offer-and-accept.md`):
+  1. `machines/`, `scripts/` and `lib/` of `workspace/.decree` are mounted **read-only** in
+     every container that mounts the workspace (`automation`, by both its paths; code-server;
+     Nextcloud and its cron; `automation-backup`), and `workspace_sync` filters them out both
+     ways. validate conventions fails a compose template that mounts the workspace writable
+     without them.
+  2. So everything in a container can only **offer**: one plugin file in
+     `workspace/ai/proposed/<name>.md`. `develop` builds one from an accepted spec
+     (`notes/automations/<name>.md`, handed over by `reconcile`), installs it into a scratch
+     copy of the project to pass `decree check`, and writes the offer; `plugin_offer` writes one
+     another stack sent; an agent in code-server writes one by hand
+     (`automation/lib/skill-notes.md` teaches the decree skill this). Each tells the person
+     through `plugin_offered` (`lib/automations/plugin.sh`): where to read it, and the command.
+  3. `./existential.sh run plugin accept <name>` (`src/lib/plugin.sh`), on the host, is the
+     only installer: it prints what the plugin starts on, needs and runs, requires a terminal
+     and a typed yes, refuses a name the repo ships and a need the automation project does not
+     run, copies the file to `automation/plugins/local/` (gitignored) with `project:
+     automation` forced, turns it on and syncs; a failed install is taken back out.
+     `plugin_wanted` never gives a `local/` plugin to another project.
+  An automation an older install's `develop` built in place (registry `kind: note|file|cron`)
+  keeps running and is never rebuilt.
+- **The repo's own `.decree` is the host project.** Its `repo_develop` (implement → gate, the
+  gate being `.githooks/pre-push`), `repo_reconcile`, `repo_infra` and `repo_qa` are host
+  plugins like `update`, off until `run plugin on repo_reconcile` (and `repo_infra`,
+  `repo_qa`); the steps they share (`clean_tree`, `commit`, `keep`, `record`) are the `repo`
+  flow's lib, and decree's `ai.sh` is `agent`'s, tagged for both. Tracked there: only
+  `migrations/`, `applied/`, `processed.md`, `requirements` (what `repo_infra` declares) and
+  `.gitignore`. To change one of these machines, edit its plugin file or edit the installed
+  copy and `run plugin export`.
 - A plugin script's `# shellcheck source=` is `../../lib/…`, because it is installed at
   `scripts/<name>/<script>.sh`. `test lint` and `test typecheck` unpack plugins that way first.
 - automation-backup bind-mounts its installed `machines/`, `scripts/` and `lib/`: gitignored,
@@ -135,10 +191,10 @@ on the host itself: `update`).
   the `automation` project (read-only, `inbox/` writable). Endpoints are
   `workspace/.decree/decree-go-rest.yml` (seeded from `automation/`); edits load
   without a restart.
-- **Whoever can write `workspace/` can write automations.** That is the point
-  (the user directs agents to), and it means every agent with the workspace
-  mounted can add a script the `automation` daemon runs with
-  its credentials. Keep secrets out of `workspace/` for the same reason.
+- **Whoever can write `workspace/` can write messages, not code.** A cron file, an inbox
+  message or a handler there starts a machine that is already installed, with the params it
+  declares; no agent with the workspace mounted can add or change a script (offer and accept,
+  above). Keep secrets out of `workspace/` all the same.
 - **File handlers:** `automation/lib/file-handlers.ts`, kept running by the `automation`
   entrypoint, watches all of `/workspace` and emits `--param path= --param change=` for every
   entry in `workspace/.decree/handlers.yml` whose glob matches, after the file is `quiet`
@@ -161,11 +217,9 @@ on the host itself: `update`).
   covers only `automation-backup`, so nothing is sent twice. A wait whose `person` state has a
   `timeout` is not sent: it ends without you (a `gpu_lease` in line). Tested by
   `src/test/unit/test-attention-notify.sh`.
-- **Activating a cron** is copying its template into that project's `cron/`.
-  Cron files are re-read every tick, so no restart. The default flows are copied by
-  `services/automation/exist.initial.sh` whenever the active copy is missing. `automation-backup`
-  is off by default; when on, its `exist.initial.sh` does the same for `triage`, `clean-runs` and
-  `workspace-sync`.
-- **Gate:** `./existential.sh test decree` assembles each project (the plugin system and
-  every plugin; automation-backup's set) with every shipped template queued and runs
+- **A cron is active when it is in that project's `cron/`**, written by the sync that
+  installs its plugin. Cron files are re-read every tick, so no restart. `automation-backup`
+  is off by default; when on, it schedules only what is on (`clean-runs`, from the defaults).
+- **Gate:** `./existential.sh test decree` assembles each project (automation, backup,
+  host) from every plugin tagged for it, with every shipped template queued, and runs
   `decree check`, then checks each plugin alone with only what its `needs:` reach.

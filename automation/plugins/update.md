@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: update
+project: host
 chart:
   description: Follow this checkout's upstream - pull it fast-forward only, then run ./existential.sh, which installs every plugin you have on at its new version, then docker compose up -d.
   initial: update
@@ -17,9 +18,9 @@ scripts:
     # The repo is the authority: what lands on its branch is what this install
     # runs. A pull that cannot fast-forward (a local commit, a rewritten
     # upstream) changes nothing, and you are told. Runs in the host project
-    # (host/.decree), so the repo is one up.
+    # (the repo's own .decree), so it runs in the repo.
     set -euo pipefail
-    repo="$(cd .. && git rev-parse --show-toplevel)"
+    repo="$(git rev-parse --show-toplevel)"
     cd "$repo"
     # shellcheck source=/dev/null
     . src/utils/adhoc.sh
@@ -61,6 +62,6 @@ Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, 
 `docker compose up -d`, then deletes the images no container uses any more. Your phone hears when it updated, and when a pull could not
 fast-forward, which changes nothing.
 
-It runs in the host's own decree project, `host/.decree`, so a decree daemon has to be
+It runs in the host's own decree project, the repo's own `.decree`, so a decree daemon has to be
 running there, started at boot: `./existential.sh` says so while it is not. The `auto-update` flow turns it on:
 `./existential.sh flow on auto-update`.

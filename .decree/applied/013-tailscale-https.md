@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Tailscale is part of Core: real HTTPS, nothing to trust by hand
 

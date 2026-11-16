@@ -8,11 +8,11 @@ project: host
 needs:
   - ubuntu_upgrade
 ---
-It runs in a decree daemon on the host (host/.decree): start one, and have it start at boot,
+It runs in a decree daemon on the host (the repo's own .decree): start one, and have it start at boot,
 as https://existential.company/docs/hosting/host-daemon says.
 
 One step needs root, once, after ./existential.sh has installed the flow:
 
-  sudo bash host/.decree/lib/ubuntu_upgrade/setup.sh
+  sudo bash .decree/lib/ubuntu_upgrade/setup.sh
 
 It never upgrades the Ubuntu release: do-release-upgrade stays yours to schedule.

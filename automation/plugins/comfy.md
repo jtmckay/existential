@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: comfy
+project: automation
 chart:
   description: Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workflows/, the message body as the prompt.
   # Every param is a string: empty keeps the workflow's own value, and a binding
@@ -41,7 +42,7 @@ scripts:
     # Generates an image or video via ComfyUI. `type` names a workflow binding in
     # lib/comfy/workflows/ — run with an unknown type to list them. Adding a flow is
     # adding a .json and a .yml there, and declaring any new param in
-    # automation/machines/comfy.yml (decree rejects a param it does not know).
+    # automation/plugins/comfy.md (decree rejects a param it does not know).
     #
     # The message body is the prompt. For a batch flow (one whose binding declares
     # `items`, e.g. image-qwen-angles) the body is instead a YAML list of

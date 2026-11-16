@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # NAS storage: Compose mounts the export, you choose every path
 

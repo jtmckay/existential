@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: workspace_sync
+project: backup
 chart:
   description: Two-way sync workspace/ with a folder on the NAS or in Nextcloud, newest edit winning, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
   store:
@@ -112,9 +113,6 @@ scripts:
         remote=":webdav:${EXIST_NEXTCLOUD_WORKSPACE_DIR:-workspace}"
     fi
 
-    # WebDAV drops file modes, and decree runs only executable scripts.
-    trap '[[ ! -d "$WORKSPACE/.decree/scripts" ]] || find "$WORKSPACE/.decree/scripts" -type f ! -perm -u+x -exec chmod +x {} +' EXIT
-
     # The filter: .git/ anywhere, then every path git ignores, as rclone excludes
     # (anchored, glob characters escaped). An empty repository outside workspace/
     # lets git read workspace/'s .gitignore files whether or not it is a repo.
@@ -122,6 +120,10 @@ scripts:
     git init -q "$DECREE_RUN_DIR/git"
     {
         echo '- .git/**'
+        # decree's code is installed by the host alone: no other copy of the
+        # workspace ever brings a machine, a script or lib in (they are read-only
+        # here too), and none is sent out.
+        printf -- '- /.decree/%s/**\n' machines scripts lib
         git --git-dir="$DECREE_RUN_DIR/git/.git" --work-tree="$WORKSPACE" -C "$WORKSPACE" \
             ls-files -z --others --ignored --exclude-standard --directory \
             | while IFS= read -r -d '' _path; do

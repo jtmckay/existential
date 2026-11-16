@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: rss
+project: automation
 lib:
   rss.ts: |
     // Fetch and parse an RSS or Atom feed into a flat list of items.

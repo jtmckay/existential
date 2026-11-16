@@ -81,7 +81,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 
 - `workspace/` indexed by [qmd](../ai/qmd.md) (the `search` flow).
 - A `research` department whose `mcp:` names `qmd`. One copied before 2026-11 names `openviking`;
-  change it in `workspace/.decree/lib/departments/research.yml`.
+  change it in `workspace/.decree/store/agent_task/departments/research.yml`.
 - A chat model with ollama's `tools` capability; pi ships in the image.
 
 ## Settings reference

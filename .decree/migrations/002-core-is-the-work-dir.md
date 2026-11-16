@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Core is "open the work dir, talk to an AI, have decree automate it": three services
 

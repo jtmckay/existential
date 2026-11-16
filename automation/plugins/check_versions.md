@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: check_versions
+project: host
 chart:
   description: Compare every pinned image tag and base image against upstream, and notify once when any has an update.
   initial: check
@@ -20,14 +21,9 @@ scripts:
     # that is behind or no longer pullable. Silent when all are current.
     #
     # The pins are the checkout's templates, so this runs in the host project
-    # (host/.decree), the repo one up. On the host, so bash 3.2 on a Mac.
+    # (the repo's own .decree), in the repo. On the host, so bash 3.2 on a Mac.
     set -euo pipefail
-    repo="$(cd .. && pwd)"
-    [ -f "${repo}/existential.sh" ] || {
-        echo "check_versions: this is a host flow now. On the host:" >&2
-        echo "  ./existential.sh run plugin off automation/check-versions && ./existential.sh flow on check-versions" >&2
-        exit 1
-    }
+    repo="$(pwd)"
     # shellcheck source=/dev/null
     . "${repo}/src/utils/adhoc.sh"
     adhoc_detect_runtime
@@ -50,4 +46,4 @@ scripts:
 
 Compare every pinned image tag and base image against upstream, and notify once when any has
 an update. The checker is the repo's own, `./existential.sh run check-versions`, so it runs in
-the host's decree project, `host/.decree`. The `check-versions` flow turns it on.
+the host's decree project, the repo's own `.decree`. The `check-versions` flow turns it on.

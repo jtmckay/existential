@@ -60,8 +60,8 @@ have is a `failed` run whose events say `invalid_message`.
 ## The sibling `.yml` and `.sh`
 
 A check with neither reuses a machine the stack already ships. A check with
-them gets `<name>.yml` staged as the clone's `automation/machines/<machine>.yml`
-and `<name>.sh` as `automation/scripts/<machine>.sh`, so test code never
+them gets `<name>.yml` staged into the clone's `workspace/.decree/machines/<machine>.yml`
+and `<name>.sh` into its `scripts/<machine>.sh`, so test code never
 appears in a user's project. Write the machine as one state that invokes the
 script, and the script as any other: `set -euo pipefail`, non-zero to fail.
 

@@ -184,7 +184,7 @@ _ensure_host_access() {
 #
 # Reporting rides the same tailnet, as plain http (WireGuard already encrypts it,
 # and a worker may know its controller by 100.x address, which no cert names): a
-# controller serves host/exist.json on 4480, the answer to "where do I report?",
+# controller serves .decree/exist.json on 4480, the answer to "where do I report?",
 # and any machine with Loki on serves its push port on 3100.
 #
 # Never sudo, never fail: whatever is missing is printed as the next step and the
@@ -196,9 +196,9 @@ _tailscale_serve_core() {
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("https 8443 http://127.0.0.1:44680")
     grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null && serves+=("http 3100 http://127.0.0.1:43100")
     if _is_controller; then
-        mkdir -p "${SCRIPT_DIR}/host"
-        [[ -f "${SCRIPT_DIR}/host/exist.json" ]] || echo '{}' > "${SCRIPT_DIR}/host/exist.json"
-        serves+=("http 4480 ${SCRIPT_DIR}/host/exist.json")
+        mkdir -p "${SCRIPT_DIR}/.decree"
+        [[ -f "${SCRIPT_DIR}/.decree/exist.json" ]] || echo '{}' > "${SCRIPT_DIR}/.decree/exist.json"
+        serves+=("http 4480 ${SCRIPT_DIR}/.decree/exist.json")
     fi
     [[ ${#serves[@]} -gt 0 ]] || return 0
 
@@ -252,16 +252,18 @@ _tailscale_serve_core() {
 
 # A worker is a machine whose host runs decree with the worker flow on (reporting).
 # Its EXIST_CONTROLLER names the controller it reports to; blank, it is the
-# controller. Read from host/.decree/plugins.yml, what is wanted, so the first
-# run knows before the host sync has installed anything.
+# controller. Read from automation/plugins.yml, what is wanted, so the first run
+# knows before the host sync has installed anything (host/.decree/plugins.yml is
+# where an older install said so, until the sync folds it in).
 _is_worker() {
-    grep -qE '^[[:space:]]+-[[:space:]]+worker[[:space:]]*$|^on:.*[[ ,]worker[], ]' "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
+    grep -qhE '^[[:space:]]+-[[:space:]]+worker[[:space:]]*$|^on:.*[[ ,]worker[], ]' \
+        "${SCRIPT_DIR}/automation/plugins.yml" "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
 }
 _is_controller() {
     _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
 }
 
-# The controller's answer to "where do I report?", host/exist.json, served on 4480
+# The controller's answer to "where do I report?", .decree/exist.json, served on 4480
 # (_tailscale_serve_core) and read by the reporting plugin on every worker:
 # EXIST_REPORTING_URL, else this host's Loki when it is on, else nowhere.
 _controller_answer() {
@@ -274,19 +276,19 @@ _controller_answer() {
     fi
     # Its domain: where a service another host has off is found (https://<slug>.<domain>).
     domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2-) || true
-    mkdir -p "${SCRIPT_DIR}/host"
-    printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/host/exist.json"
+    mkdir -p "${SCRIPT_DIR}/.decree"
+    printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
 }
 
-# Another host's copy of its controller's answer, host/controller.json, for
-# generate-compose's .env (the controller reads its own host/exist.json). The
+# Another host's copy of its controller's answer, .decree/controller.json, for
+# generate-compose's .env (the controller reads its own .decree/exist.json). The
 # last answer stays while the controller is away.
 _controller_fetch() {
     local ctl ans
     ctl=$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
     [[ -n "$ctl" ]] || return 0
     ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null)" || true
-    if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/host"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/host/controller.json"
+    if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/.decree"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/.decree/controller.json"
     else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480; using its last answer, if any."; fi
 }
 
@@ -334,7 +336,40 @@ _start_on_boot() {
     return 0
 }
 
-# The host's own plugins (host/.decree: none, by default) at this checkout's
+# The host's project was host/.decree, and is the repo's own .decree now. What an
+# older install has there moves over once (its list of what is on first, into
+# automation/plugins.yml), and the rest of host/ is kept in archive/.
+_host_move() {
+    local old="${SCRIPT_DIR}/host" new="${SCRIPT_DIR}/.decree" d f
+    [[ -d "$old" ]] || return 0
+    ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_seed )
+    mkdir -p "$new"
+    for f in boot.sh exist.json controller.json; do
+        if [[ -e "${old}/${f}" && ! -e "${new}/${f}" ]]; then mv "${old}/${f}" "${new}/${f}"; fi
+    done
+    for d in inbox runs store attention; do
+        [[ -d "${old}/.decree/${d}" ]] || continue
+        mkdir -p "${new}/${d}"
+        for f in "${old}/.decree/${d}"/*; do
+            if [[ -e "$f" && ! -e "${new}/${d}/${f##*/}" ]]; then mv "$f" "${new}/${d}/"; fi
+        done
+    done
+    # Its daemon would go on running the old project from archive/: stopped here, and
+    # _host_plugins says how to start it in the repo.
+    if [[ "$(tmux display-message -p -t '=existential-host:' '#{session_path}' 2>/dev/null)" == */host ]]; then
+        tmux kill-session -t '=existential-host' 2>/dev/null || true
+        # What reporting started from the old lib and store; its next run starts them again.
+        # alloy takes the hangup a closing session sends as "reload", so it is killed by name.
+        tmux kill-session -t '=reporting-alloy' 2>/dev/null || true
+        pkill -f "alloy run ${old}/" 2>/dev/null || true
+        tmux kill-session -t '=notify-relay' 2>/dev/null || true
+    fi
+    d="${SCRIPT_DIR}/archive/host-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "${SCRIPT_DIR}/archive" && mv "$old" "$d"
+    echo "  The host's decree project moved from host/.decree to .decree (boot.sh too); what was left of host/ is in ${d#"${SCRIPT_DIR}/"}/."
+}
+
+# The host's plugins (the repo's own .decree: none, by default) at this checkout's
 # version, then whether a decree daemon is there to run them. Nothing starts one
 # for you: it has to start at boot, which is the host's to set up.
 _host_plugins() {
@@ -343,7 +378,8 @@ _host_plugins() {
     else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" sync host; fi \
         || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh tries again."
     local on
-    on="$(cd "${SCRIPT_DIR}/host/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | xargs)"
+    # clean_runs alone asks for no daemon: it only prunes the runs one leaves.
+    on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | grep -vx clean_runs | xargs)"
     [[ -n "$on" ]] || return 0
     # Every step still to do, in one go, so one fix-and-retry covers them all.
     local todo=false
@@ -352,19 +388,19 @@ _host_plugins() {
         _install_steps decree; todo=true
     fi
     if ! tmux has-session -t "=existential-host" 2>/dev/null; then
-        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs host/.decree. Start one:"
-        echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}/host' decree daemon"
-        echo "     and have it start at boot: https://existential.company/docs/hosting/host-daemon"
+        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs here. Start one:"
+        echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}' decree daemon"
+        echo "     and have it start at boot, in this folder (it was host/ before): https://existential.company/docs/hosting/host-daemon"
         todo=true
     fi
-    $todo && echo "     Or turn one off:  ./existential.sh run plugin off host/<name>"
+    $todo && echo "     Or turn one off:  ./existential.sh run plugin off <name>"
     if [[ " ${on} " == *" reporting "* ]] && ! command -v alloy >/dev/null 2>&1; then
         echo "  ⚠  reporting ships this host's decree runs with alloy, and alloy is not here:"
         _install_steps alloy; todo=true
     fi
     if ! $todo && [[ " ${on} " == *" reporting "* ]]; then
         # The answer to "is this host reporting?": what its newest report said.
-        local runs="${SCRIPT_DIR}/host/.decree/runs" r last=""
+        local runs="${SCRIPT_DIR}/.decree/runs" r last=""
         for r in $(ls -t "$runs" 2>/dev/null | head -20); do
             last="$(grep -m1 '^reporting:' "${runs}/${r}/0001-report.log" 2>/dev/null)" && break
         done
@@ -480,7 +516,7 @@ _ask_role() {
 # plugins run in a decree daemon on the host. The two steps that run in adhoc
 # elsewhere run here instead: .env.shared is written with every service off and
 # the controller asked (a later run with an engine appends the rest of its keys),
-# and _host_plugins syncs host/.decree with the host's yq and decree.
+# and _host_plugins syncs the host project (.decree) with the host's yq and decree.
 _worker_without_engine() {
     local f="${SCRIPT_DIR}/.env.shared" ctl=""
     [[ -f "$f" ]] || echo "A worker runs no containers: this host reports itself to a controller, with its own tools."
@@ -1007,6 +1043,7 @@ _nas_read_only() {
 
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
+    _host_move
     _offer_image_updates
     _ensure_host_ids
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
@@ -1014,7 +1051,7 @@ _build() {
         _host_plugins
         if _is_worker; then
             _controller_answer
-            echo "A worker with no services, so nothing for docker compose. The host's decree daemon (host/.decree)"
+            echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
             echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'the Loki this host names, as the controller')."
         else
             echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: nextcloud_rclone_remote
+project: automation
 chart:
   description: Configure the nextcloud rclone remote (WebDAV, admin credentials) that file_processor downloads through.
   initial: wait_for_nextcloud

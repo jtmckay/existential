@@ -26,26 +26,31 @@ probe_service "code-server /healthz" code-server 8080 /healthz 200
 env_var_set "code-server password" CODE_SERVER_PASSWORD
 probe_service "code-server auth gate" code-server 8080 / 302
 
+# The code-server-agents flow (off unless turned on) is what configures the agents:
 # model.sh and pi.sh (sourced to configure opencode and pi) and the capture hook
 # and plugin are read from the workspace's decree lib, where the model, pi and
 # capture plugins install them. A missing one only makes the entrypoint warn, so
 # check them on disk.
-for _src in model.sh pi.sh capture/capture.sh capture/opencode.ts; do
-    if [ -f "/repo/volumes/workspace_data/.decree/lib/${_src}" ]; then
-        ok "code-server lib/${_src} installed"
-    else
-        fail "code-server lib/${_src} installed" "workspace/.decree/lib/${_src} is missing" \
-             "./existential.sh flow on code-server-agents"
-    fi
-done
-
-# pi in the terminal answers from the chat role: pi_configure wrote that provider.
-_pi_models=/repo/volumes/code_server_data/home/.pi/agent/models.json
-if [ -n "$(jq -r '.providers.existential.baseUrl // empty' "$_pi_models" 2>/dev/null)" ]; then
-    ok "code-server pi has the chat model"
+if ! grep -qxE '[[:space:]]*-[[:space:]]*code-server-agents' /repo/automation/plugins.yml 2>/dev/null; then
+    skip "code-server agents" "the code-server-agents flow is off"
 else
-    fail "code-server pi has the chat model" "${_pi_models} has no existential provider" \
-         "docker logs code-server | grep pi; then docker compose up -d --force-recreate code-server"
+    for _src in model.sh pi.sh capture/capture.sh capture/opencode.ts; do
+        if [ -f "/repo/volumes/workspace_data/.decree/lib/${_src}" ]; then
+            ok "code-server lib/${_src} installed"
+        else
+            fail "code-server lib/${_src} installed" "workspace/.decree/lib/${_src} is missing" \
+                 "./existential.sh flow on code-server-agents"
+        fi
+    done
+
+    # pi in the terminal answers from the chat role: pi_configure wrote that provider.
+    _pi_models=/repo/volumes/code_server_data/home/.pi/agent/models.json
+    if [ -n "$(jq -r '.providers.existential.baseUrl // empty' "$_pi_models" 2>/dev/null)" ]; then
+        ok "code-server pi has the chat model"
+    else
+        fail "code-server pi has the chat model" "${_pi_models} has no existential provider" \
+             "docker logs code-server | grep pi; then docker compose up -d --force-recreate code-server"
+    fi
 fi
 
 # Search (ai/qmd): with the add-on on, entrypoint.sh registers qmd with Claude

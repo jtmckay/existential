@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: file_processor
+project: automation
 needs:
   - agent_task
   - model
@@ -21,7 +22,7 @@ chart:
       invoke:
         script: {name: file_processor, attempts: 3}
       transitions: {done: done}
-      # A processor may hand its file to an agent (file-processors.example/agent-handoff.sh).
+      # A processor may hand its file to an agent (file-processors/agent-handoff.sh, the agent_handoff plugin).
       emits: [agent_task, router]
     done: {final: true}
     failed: {final: true}

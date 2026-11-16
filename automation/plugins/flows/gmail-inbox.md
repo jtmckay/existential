@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: gmail-inbox
+project: automation
 name: Gmail
 tagline: New mail every 15 minutes, as decree messages other flows act on
 docs: /docs/integrations/gmail

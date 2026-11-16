@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: nextcloud_file_events
+project: automation
 chart:
   description: Register Nextcloud's file-event webhooks (written, deleted, renamed) against automation-webhook's /files.
   initial: wait_for_nextcloud

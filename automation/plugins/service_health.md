@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: service_health
+project: automation
 chart:
   description: Probe one service's HTTP endpoint and fail unless it answers with the expected status.
   data:

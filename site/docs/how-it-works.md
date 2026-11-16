@@ -63,7 +63,7 @@ flowchart TB
    ([Capture](./getting-started.md#capture)). code-server opens it with `claude` and `opencode` in
    the terminal. [Nextcloud](./storage/nextcloud.md) can sync it to other devices.
 2. **decree runs it.** Machines in `workspace/.decree/` run on a schedule, an inbox message or a
-   webhook, and report through ntfy. Defaults include a daily
+   webhook, and report through ntfy. [Flows](./flows/index.md) you turn on add a daily
    [digest](./getting-started.md#you-were-here) and weekly and monthly
    [look backs](./getting-started.md#look-back). With Monitoring, run logs go to Loki.
 3. **A model is a URL.** Everything that needs one uses an OpenAI-compatible `/v1` address:

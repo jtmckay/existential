@@ -229,7 +229,6 @@ assert_eq "the weekly cron runs this machine" "look_back" "$(cron look-back-week
 assert_eq "...for the week" "week" "$(cron look-back-weekly.md period)"
 assert_eq "the monthly cron runs this machine" "look_back" "$(cron look-back-monthly.md machine)"
 assert_eq "...only at month-end" "true" "$(cron look-back-monthly.md period_end_only)"
-assert_has "both are a flow on in every install" "$(cat "${REPO_DIR}/automation/plugins.exist.yml")" "- look-back"
 assert_eq "POST /look-back, which the plugin brings, queues this machine" "look_back" \
     "$(yq -r '.endpoints[] | select(.path == "/look-back") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
 

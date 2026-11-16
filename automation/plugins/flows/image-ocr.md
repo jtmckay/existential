@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: image-ocr
+project: automation
 name: Photograph it, and the text is yours
 tagline: An image synced to Nextcloud gets its text written beside it by a vision model
 docs: /docs/flows/image-ocr

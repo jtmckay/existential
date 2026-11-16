@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: search
+project: automation
 name: Search
 tagline: Your notes, PDFs and Word files, by meaning and by exact words, from Claude or a terminal
 docs: /docs/ai/qmd

@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # workspace/ can sync with a Nextcloud, optionally
 

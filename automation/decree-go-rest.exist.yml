@@ -31,36 +31,3 @@ endpoints:
 
   # Every other endpoint comes with the plugin whose machine it starts
   # (automation/plugins/<name>.md), added here when that plugin is installed.
-
-  # The plugin system: another stack asks for, offers, or is asked for a plugin.
-  # site/docs/decree/plugins.md
-  - path: /plugins/share/{client}
-    patterns: {client: "[a-z0-9_-]{1,40}"}
-    body: optional
-    message:
-      machine: plugin_share
-      params: {client: "{{client}}"}
-  - path: /plugins/{machine}/share/{client}
-    patterns: {machine: "[a-z][a-z0-9_]{0,40}", client: "[a-z0-9_-]{1,40}"}
-    body: optional
-    message:
-      machine: plugin_share
-      params: {machine: "{{machine}}", client: "{{client}}"}
-  - path: /plugins/offer/{from}
-    patterns: {from: "[a-z0-9_-]{1,40}"}
-    body: required
-    message:
-      machine: plugin_offer
-      params: {from: "{{from}}"}
-  - path: /request/plugins/{from}
-    patterns: {from: "[a-z0-9_-]{1,40}"}
-    body: optional
-    message:
-      machine: plugin_request
-      params: {from: "{{from}}"}
-  - path: /request/plugins/{from}/{machine}
-    patterns: {from: "[a-z0-9_-]{1,40}", machine: "[a-z][a-z0-9_]{0,40}"}
-    body: optional
-    message:
-      machine: plugin_request
-      params: {from: "{{from}}", machine: "{{machine}}"}

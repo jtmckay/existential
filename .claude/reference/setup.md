@@ -65,7 +65,7 @@ The first run asks one thing: core, controller, worker or nothing (`_ask_role` i
 reaches `src/templates.sh` as `EXIST_ROLE`, where `_apply_role` acts on `none` and `controller`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
 keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing is on yet".
 Controller is Core plus the host flow `worker`; worker is nothing plus `worker`, and asks
-`EXIST_CONTROLLER`. A worker is any machine whose `host/.decree/plugins.yml` has `worker` on
+`EXIST_CONTROLLER`. A worker is any host whose `automation/plugins.yml` has `worker` on
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 `_build` syncs the host plugins even with nothing on.
 A worker picked there, a host with neither docker nor podman (`adhoc_find_runtime` fails), and
@@ -76,10 +76,10 @@ printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false`
 `EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), turns
 `worker` on, and runs `_build`, whose `_host_plugins` runs `src/lib/plugin.sh sync host` on the
 host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
-bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `host/exist.json`
+bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
 and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts 43100 on the LAN and each host names it in its own `EXIST_REPORTING_URL`. A flow with
-`project: host` (`worker`, `auto-update`) is turned on in the host's `plugins.yml`. `EXIST_USERNAME`, `EXIST_PASSWORD`
+`project: host` (`worker`, `auto-update`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
 and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
 renders, so Core asks for a login and none asks nothing.
 
@@ -107,9 +107,9 @@ block lists of plain values) or the reader will not see them.
 `flow on <name>` asks, one service at a time, before it sets any flag the flows it needs name
 (`services:`, through `needs:`, depth first; only a typed `y` sets it, and no terminal is no; a
 service left off is printed with its `service on` line), skips one the GPU answer forbids (`vendor_forbids_service`: a local ollama under
-`external`), adds it to `workspace/.decree/plugins.yml` (the one record of what is on), and
+`external`), adds it to `automation/plugins.yml` (the one record of what is on, for every project), and
 prints the body: only what is left for a person. Then `existential.sh` renders and builds, and
-automation's `exist.initial.sh` installs it and all it needs. `flow off` takes it out of
+the sync of the project its `project:` names installs it and all it needs. `flow off` takes it out of
 `plugins.yml` and never touches services. `src/flows.sh` exits 3 for "nothing
 changed" (a list, an empty pick), which skips the rebuild. `service [list|on|off]` (`src/services.sh`) is
 the same shape for one service's `EXIST_IS_*` flag, with the same GPU check and exit 3.

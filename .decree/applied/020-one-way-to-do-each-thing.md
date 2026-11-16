@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # One way to do each thing: no second Caddy, no hand-made network, no spare settings
 

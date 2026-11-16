@@ -10,36 +10,50 @@
 #   scripts:    <script>: <its text>, each to .decree/scripts/<name>/<script>.sh
 #   lib:        <path>: <its text>, each to .decree/lib/<path>, where any script
 #               reaches it as ${DECREE_LIB}/<path>; executable when it starts #!.
-#               A <x>.exist.<ext> is an example of something that is yours: it is
-#               also copied to <x>.<ext> once, which is never overwritten,
-#               removed or exported. The repo's automation/lib/ is only the
-#               plugin system's; all other code is in a plugin
+#               The repo's automation/lib/ is only the plugin system's; all
+#               other code is in a plugin
+#   store:      <path>: <its text>, each to .decree/store/<name>/<path> once: data
+#               that is yours to edit (feeds, taste, departments), which is never
+#               overwritten or removed. machines/, scripts/ and lib/ are read-only
+#               in every container; store/ is where a person's data goes
+#   handlers:   file-change triggers, [{match, changes, quiet}], each added to
+#               .decree/handlers.yml for this machine
+#   when:       the kind of note that starts it, in plain words: note_watch asks
+#               the model whether a note is that, and emits to this machine
 #   cron:       <cron>: <a cron message>, each to .decree/cron/<cron>.md
 #   endpoints:  decree-go-rest endpoints, added to .decree/decree-go-rest.yml;
 #               each emits to <name> and nothing else
 #   needs:      the other plugins it runs or whose lib it uses (export writes it)
 #   migrations: <file>: <a migration>, each to .decree/migrations/<file>.md once,
 #               after every machine is in, unless it has run
+#   project:    which decree project runs it: automation, backup or host, or a
+#               list of them. A project installs only what is tagged for it, so
+#               nothing the automation daemon can reach ever lands in the others
 #   name, tagline, docs, services, e2e, examples: a flow's, read by ./existential.sh
 #               flow (services it turns on) and the gates; nothing installs them
 # The body says what it is for.
 #
-# Two ways in. The repo's automation/plugins/ is the one source: plugin_sync
-# installs what a project has on, and the new version when the file changes.
-# A plugin from another stack is accepted by moving it into notes/automations/,
-# which is the sign-off: it is code the daemon runs, with its credentials.
-# The plugin system itself (PLUGIN_KERNEL) is never a plugin, so no plugin can
-# replace it.
+# One way in. The repo's automation/plugins/ is the one source, and plugin_sync,
+# run on the host by ./existential.sh, is the only thing that installs: every
+# container that mounts the workspace has machines/, scripts/ and lib/ read-only.
+# A plugin made in the workspace (by develop from a note, by an agent, by another
+# stack) is an offer, a file in workspace/ai/proposed/. A person reads it and
+# accepts it on the host (./existential.sh run plugin accept <name>), which puts
+# it in automation/plugins/local/ (never in git), for the automation project only.
+# The plugin system itself (PLUGIN_KERNEL) is a plugin like any other, in every
+# project it is tagged for whatever is on, and no accepted plugin can replace it.
 # Sourced after registry.sh (REGISTRY, REST, automation_remove). Run from the
 # decree project root.
 
-# notify too: every machine tells you things, and decree check fails an emits:
-# that names a machine the project lacks.
-PLUGIN_KERNEL=" plugin plugin_share plugin_offer plugin_request notify "
+# notify: every machine tells you things, and decree check fails an emits: that
+# names a machine the project lacks.
+PLUGIN_KERNEL=" notify "
 
-# plugin_src <dir> <name>: the plugin's file, a machine's or a flow's.
+# plugin_src <dir> <name>: the plugin's file: a machine's, a flow's, or one you
+# accepted (local/, never in git; a shipped plugin by the same name wins).
 plugin_src() {
-    if [[ -f "$1/$2.md" ]]; then echo "$1/$2.md"; elif [[ -f "$1/flows/$2.md" ]]; then echo "$1/flows/$2.md"; else return 1; fi
+    if [[ -f "$1/$2.md" ]]; then echo "$1/$2.md"; elif [[ -f "$1/flows/$2.md" ]]; then echo "$1/flows/$2.md"
+    elif [[ -f "$1/local/$2.md" ]]; then echo "$1/local/$2.md"; else return 1; fi
 }
 
 plugin_is() {  # <message>: true when it carries a chart
@@ -50,19 +64,20 @@ plugin_is() {  # <message>: true when it carries a chart
 # decree check runs after and any failure puts back what was there; either way a
 # failure prints why on stderr.
 plugin_install() {  # <name> <message> [spec, as the registry records it] [nocheck]
-    local name="$1" msg="$2" spec="${3:-notes/automations/$1.md}" nocheck="${4:-}" fm k f p fails=()
+    local name="$1" msg="$2" spec="${3:-notes/automations/$1.md}" nocheck="${4:-}" fm k e f p fails=()
     fm="${DECREE_RUN_DIR:-${TMPDIR:-/tmp}}/plugin-${name}.yml"
     yq --front-matter=extract '.' "$msg" > "$fm"
 
     # ── The gate, before anything is written ──────────────────────────────────
-    [[ "$PLUGIN_KERNEL" != *" ${name} "* ]] || fails+=("${name} is part of the plugin system, which no plugin replaces")
+    [[ "$PLUGIN_KERNEL" != *" ${name} "* ]] || [[ "$spec" == automation/plugins/* && "$spec" != automation/plugins/local/* ]] ||
+        fails+=("${name} is part of the plugin system, which no plugin replaces")
     if [[ "$(yq 'has("chart")' "$fm")" == true ]]; then
         [[ "$(yq '(.chart | tag == "!!map") and (.chart | has("states"))' "$fm")" == true ]] || fails+=("chart must be a machine with states")
     else
         [[ "$(yq '(.scripts // {} | length) == 0 and (.endpoints // [] | length) == 0' "$fm")" == true ]] ||
             fails+=("with no chart it is a flow: no scripts or endpoints, which are a machine's")
     fi
-    for p in scripts lib cron migrations; do
+    for p in scripts lib store cron migrations; do
         [[ "$(p="$p" yq '.[strenv(p)] // {} | tag' "$fm")" == '!!map' ]] || fails+=("${p} must be a map of name: text")
     done
     for k in $(yq -r '.scripts // {} | keys | .[]' "$fm"); do
@@ -71,10 +86,18 @@ plugin_install() {  # <name> <message> [spec, as the registry records it] [noche
     for k in $(yq -r '((.cron // {}), (.migrations // {})) | keys | .[]' "$fm"); do
         [[ "$k" =~ ^[a-z0-9][a-z0-9_-]{0,60}$ ]] || fails+=("cron or migration name '${k}' is not a plain file name")
     done
+    for k in $(yq -r '.store // {} | keys | .[]' "$fm"); do
+        [[ "$k" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$ ]] || fails+=("store path '${k}' is not a plain relative path")
+    done
+    [[ "$(yq '(.handlers // []) | ((tag == "!!seq") and all_c(has("match") and (has("machine") | not)))' "$fm")" == true ]] ||
+        fails+=("handlers must be a list of {match, changes, quiet}; the machine is ${name}")
+    [[ "$(yq '.when // "" | tag' "$fm")" == '!!str' ]] || fails+=("when must be one line of text")
     for k in $(yq -r '.lib // {} | keys | .[]' "$fm"); do
         [[ "$k" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$ ]] || { fails+=("lib path '${k}' is not a plain relative path"); continue; }
         # lib/ is shared: a file there that is not this plugin's is someone else's.
-        [[ ! -e ".decree/lib/${k}" ]] || k="$k" n="$name" yq -e '.[] | select(.machine == strenv(n)) | .libs[] | select(. == strenv(k))' "$REGISTRY" >/dev/null 2>&1 ||
+        # (or its <x>.exist.<ext> example, which is how a file of yours shipped before store:)
+        e="${k%.*}.exist.${k##*.}"
+        [[ ! -e ".decree/lib/${k}" ]] || k="$k" e="$e" n="$name" yq -e '.[] | select(.machine == strenv(n)) | .libs[] | select(. == strenv(k) or . == strenv(e))' "$REGISTRY" >/dev/null 2>&1 ||
             fails+=("lib/${k} is already there, and not this plugin's")
     done
     if [[ "$(yq '.endpoints // [] | length' "$fm")" != 0 ]]; then
@@ -89,7 +112,7 @@ plugin_install() {  # <name> <message> [spec, as the registry records it] [noche
     if [[ ${#fails[@]} -gt 0 ]]; then printf -- '- %s\n' "${fails[@]}" >&2; return 1; fi
 
     # ── Install, keeping what was there so a failed check puts it back ────────
-    local backup="${fm%.yml}.previous" touched=(".decree/machines/${name}.yml" ".decree/scripts/${name}" "$REGISTRY" "$REST")
+    local backup="${fm%.yml}.previous" touched=(".decree/machines/${name}.yml" ".decree/scripts/${name}" "$REGISTRY" "$REST" "$HANDLERS" "$WATCH")
     for k in $(yq -r '.cron // {} | keys | .[]' "$fm"); do touched+=(".decree/cron/${k}.md"); done
     for k in $(yq -r '.lib // {} | keys | .[]' "$fm"); do touched+=(".decree/lib/${k}"); done
     rm -rf "$backup"; mkdir -p "$backup"
@@ -114,11 +137,31 @@ plugin_install() {  # <name> <message> [spec, as the registry records it] [noche
     }
     _plugin_write scripts ".decree/scripts/${name}" .sh 755
     _plugin_write lib ".decree/lib" "" shebang
-    # Yours, from its example, once: feeds.exist.txt becomes feeds.txt.
-    for k in $(yq -r '.lib // {} | keys | .[] | select(test("\\.exist(\\.|$)"))' "$fm"); do
-        f=".decree/lib/${k/.exist/}"
-        [[ -e "$f" ]] || cp -p ".decree/lib/${k}" "$f"
+    # Yours, once: store/<name>/<path>. What an older install kept in lib/ (when
+    # this data was lib/<path> or lib/<name>/<path>) moves over instead.
+    for k in $(yq -r '.store // {} | keys | .[]' "$fm"); do
+        f=".decree/store/${name}/${k}"
+        [[ -e "$f" ]] && continue
+        mkdir -p "$(dirname "$f")"
+        if [[ -f ".decree/lib/${name}/${k}" ]]; then mv ".decree/lib/${name}/${k}" "$f"
+        elif [[ -f ".decree/lib/${k}" ]]; then mv ".decree/lib/${k}" "$f"
+        else printf '%s\n' "$(k="$k" yq -r '.store[strenv(k)]' "$fm")" > "$f"; fi
     done
+    # ...and so does whatever else of yours sat beside it there (a department you added).
+    for k in $(yq -r '.store // {} | keys | .[] | select(test("/")) | sub("/[^/]*$"; "")' "$fm" | sort -u); do
+        for f in ".decree/lib/${k}"/*; do
+            [[ -f "$f" && "$f" != *.exist.* && ! -e ".decree/store/${name}/${k}/${f##*/}" ]] || continue
+            yq -e ".[] | .libs[]? | select(. == \"${k}/${f##*/}\")" "$REGISTRY" >/dev/null 2>&1 || mv "$f" ".decree/store/${name}/${k}/"
+        done
+    done
+    # Its triggers: file changes (handlers.yml) and the kind of note (note_watch).
+    if [[ "$(yq '.handlers // [] | length' "$fm")" != 0 ]]; then
+        touch "$HANDLERS"
+        n="$name" yq -i ". = ((. // []) + (load(\"${fm}\").handlers | map({\"match\": .match, \"machine\": strenv(n), \"changes\": (.changes // [\"created\"]), \"quiet\": (.quiet // 30)})))" "$HANDLERS"
+    fi
+    if [[ -n "$(yq -r '.when // ""' "$fm")" && -f "$WATCH" ]]; then
+        n="$name" yq -i '.states.watch.emits = ((.states.watch.emits // []) + [strenv(n)] | unique)' "$WATCH"
+    fi
     _plugin_write cron ".decree/cron" .md 644
     [[ "$(yq '.endpoints // [] | length' "$fm")" == 0 ]] || yq -i ".endpoints += load(\"${fm}\").endpoints" "$REST"
     n="$name" s="$spec" yq -i \
@@ -126,7 +169,8 @@ plugin_install() {  # <name> <message> [spec, as the registry records it] [noche
             \"endpoints\": (load(\"${fm}\").endpoints // [] | map(.path)),
             \"crons\": (load(\"${fm}\").cron // {} | keys),
             \"libs\": (load(\"${fm}\").lib // {} | keys),
-            \"migrations\": (load(\"${fm}\").migrations // {} | keys)}])" "$REGISTRY"
+            \"migrations\": (load(\"${fm}\").migrations // {} | keys)}
+            + (load(\"${fm}\") | pick([\"when\"]))])" "$REGISTRY"
 
     [[ -z "$nocheck" ]] || return 0
     local check
@@ -152,7 +196,7 @@ plugin_export() {  # <name>
     n="$name" m="$m" yq -n '.machine = "plugin" | .automation = strenv(n)' > "$out"
     # A flow's own words and what it turns on are not installed: they come from what it was installed from.
     if [[ -f ".decree/applied/plugins/${name}.md" ]]; then
-        yq --front-matter=extract 'pick(["name", "tagline", "docs", "services", "e2e", "examples"])' ".decree/applied/plugins/${name}.md" > "${out}.meta"
+        yq --front-matter=extract 'pick(["project", "name", "tagline", "docs", "services", "e2e", "examples", "store", "when"])' ".decree/applied/plugins/${name}.md" > "${out}.meta"
         mt="${out}.meta" yq -i '. + load(strenv(mt))' "$out"
     fi
     for k in $( [[ ! -f "$m" ]] || yq -r '[.. | select(tag == "!!map") | ((.invoke | select(tag == "!!str")), (.invoke.script | select(tag == "!!str")),
@@ -188,13 +232,15 @@ plugin_export() {  # <name>
                 k="$(basename "$f" .md)" f="$f" yq -i '.cron[strenv(k)] = load_str(strenv(f))' "$out"
         done
     fi
+    [[ -f "$HANDLERS" ]] && n="$name" r="$HANDLERS" yq -i \
+        '.handlers = [(load(strenv(r)) // [])[] | select(.machine == strenv(n)) | del(.machine)] | del(.handlers | select(length == 0))' "$out"
     [[ -f "$REST" ]] && n="$name" r="$REST" yq -i \
         '.endpoints = [load(strenv(r)).endpoints[] | select((.action // "emit") == "emit" and .message.machine == strenv(n))] | del(.endpoints | select(length == 0))' "$out"
-    # The chart, less the automations this install built itself (develop adds each
-    # one with a note trigger to note_watch's emits): they are not the plugin's.
+    # The chart, less the machines a note starts (each plugin with a `when:` is
+    # added to note_watch's emits when it is installed): they are not the plugin's.
     [[ ! -f "$m" ]] || m="$m" yq -i '.chart = (load(strenv(m)) | del(.name))' "$out"
-    [[ ! -f "$REGISTRY" ]] || r="$REGISTRY" yq -i \
-        '(.chart | .. | select(tag == "!!map" and has("emits")) | .emits) -= [load(strenv(r))[] | select(.kind != "plugin") | .machine]' "$out"
+    [[ ! -f "$REGISTRY" || "$name" != note_watch ]] || r="$REGISTRY" yq -i \
+        '(.chart | .. | select(tag == "!!map" and has("emits")) | .emits) -= [load(strenv(r))[] | select(.when) | .machine]' "$out"
     # What it starts or emits to, less itself and the plugin system, which every project has.
     # And every plugin whose lib it uses: ${DECREE_LIB}/model.sh, lib/rss, ../you-were-here/digest.
     # A flow's needs are what it turns on, which nothing here can work out: kept as installed.
@@ -208,7 +254,7 @@ plugin_export() {  # <name>
               if [[ -f "$m" ]]; then sort -u; else awk '!seen[$0]++'; fi || true)"
     [[ -z "$needs" ]] || v="$(paste -sd, - <<<"$needs")" yq -i '.needs = (strenv(v) | split(","))' "$out"
     # In reading order: what it is, the machine, what the machine runs, how it is reached.
-    yq -i 'pick(["machine", "automation", "name", "tagline", "docs", "services", "needs", "e2e", "chart", "scripts", "lib", "cron", "migrations", "endpoints", "examples"])
+    yq -i 'pick(["machine", "automation", "project", "name", "tagline", "docs", "services", "needs", "e2e", "when", "chart", "scripts", "lib", "store", "cron", "handlers", "migrations", "endpoints", "examples"])
         | with_entries(select(.value != null))' "$out"
     libs="$(yq -r '.scripts[]?' "$out" | grep -o 'DECREE_LIB}/[A-Za-z0-9_./-]*' | while read -r f; do [[ "$(yq -r ".lib[\"${f#DECREE_LIB}/}\"] // \"\"" "$out")" ]] || echo "$f"; done | sed 's#^DECREE_LIB}/#- $DECREE_LIB/#' | sort -u || true)"
     printf -- '---\n'; cat "$out"; printf -- '---\n'
@@ -230,6 +276,15 @@ _plugin_lib_users() {
         grep -qE "(LIB\}?|lib|\.|\))/(${path//./\\.}|${stem//./\\.})([^A-Za-z0-9_./-]|$)" <<<"$text" && echo "$owner"
     done < <(yq -r '.[] | select(.kind == "plugin") | .machine as $m | .libs[]? | [$m, .] | @tsv' "$REGISTRY")
     return 0
+}
+
+# plugin_offered <name>: what a person is told about an offer in
+# workspace/ai/proposed/: where to read it, and the one command, on the host, that
+# installs it. Nothing in a container can.
+plugin_offered() {
+    local at="workspace/ai/proposed/$1.md"
+    [[ -z "${EXIST_TAILNET_NAME:-}" ]] || at="ai/proposed/$1.md, in https://${EXIST_TAILNET_NAME}"
+    printf 'Read it first: its scripts would run with this stack'"'"'s credentials.\n  %s\nThen, on the host:\n  ./existential.sh run plugin accept %s\n' "$at" "$1"
 }
 
 # plugin_unpack <name>... <project root>: the repo's plugins, and all they need,
@@ -254,28 +309,41 @@ plugin_unpack() {
 # What a plugin installs, as one line of sorted JSON: two files that would
 # install the same thing compare equal.
 plugin_canon() {  # <file>
-    yq --front-matter=extract -o=json -I=0 'pick(["chart", "scripts", "lib", "cron", "migrations", "endpoints"]) | sort_keys(..)' "$1"
+    yq --front-matter=extract -o=json -I=0 'pick(["chart", "scripts", "lib", "cron", "handlers", "when", "migrations", "endpoints"]) | sort_keys(..)' "$1"
 }
 
 # ── The repo's plugins: what a project has on, kept current ───────────────────
 #
-# A project's own .decree/plugins.yml (never in git) is the one record of what it
-# has on, written from its plugins.exist.yml the first time (src/lib/plugin.sh):
+# <dir>/../plugins.yml (automation/plugins.yml, never in git; PLUGINS_ON names
+# another) is the one record of what is on, for every project, written from
+# plugins.exist.yml the first time (src/utils/flows.sh):
 #   on: [name, ...]        machines and flows; what they need comes with them
 #   auto_update: true      false: a changed plugin is listed, not installed
 
+# plugin_tags <file>: the projects that run it, one per line (none: automation).
+plugin_tags() { yq --front-matter=extract -r '[.project // "automation"] | flatten | .[]' "$1"; }
+
 # plugin_wanted <dir> <project> [name...]: every plugin the project should have,
-# each once: what its plugins.yml turns on, the names given, and all they need.
+# each once: what is on, the plugin system and the names given, and all they
+# need, less whatever is not tagged for this project. Project `none` is a scratch
+# project: the names given and all they need, whatever their tags.
 plugin_wanted() {
-    local dir="$1" cfg=".decree/plugins.yml" f n src seen=" " queue=()
+    local dir="$1" project="$2" cfg="${PLUGINS_ON:-$1/../plugins.yml}" f n src seen=" " queue=()
     shift 2
-    [[ -f "$cfg" ]] && while IFS= read -r n; do [[ -n "$n" ]] && queue+=("$n"); done < <(yq -r '.on // [] | .[]' "$cfg")
+    if [[ "$project" != none ]]; then
+        [[ -f "$cfg" ]] && while IFS= read -r n; do [[ -n "$n" ]] && queue+=("$n"); done < <(yq -r '.on // [] | .[]' "$cfg")
+        for n in $PLUGIN_KERNEL; do plugin_src "$dir" "$n" >/dev/null && queue+=("$n"); done
+    fi
     queue+=("$@")
     while [[ ${#queue[@]} -gt 0 ]]; do
         n="${queue[0]}"; queue=("${queue[@]:1}")
         [[ "$seen" == *" ${n} "* ]] && continue
         src="$(plugin_src "$dir" "$n")" || { echo "plugin: no plugin ${n} in ${dir}" >&2; continue; }
-        seen+="${n} "; echo "$n"
+        seen+="${n} "
+        [[ "$project" == none ]] || plugin_tags "$src" | grep -qxF "$project" || continue
+        # One you accepted from the workspace runs in the automation project and nowhere else.
+        [[ "$src" != */local/* || "$project" == automation || "$project" == none ]] || continue
+        echo "$n"
         while IFS= read -r f; do [[ -n "$f" ]] && queue+=("$f"); done < <(yq --front-matter=extract -r '.needs // [] | .[]' "$src")
     done
 }
@@ -291,7 +359,7 @@ plugin_sync() {
     shift 2
     wanted=" $(plugin_wanted "$dir" "$project" "$@" | tr '\n' ' ') "
     # Not `// true`: yq's alternative treats false as missing.
-    auto="$(yq '.auto_update' .decree/plugins.yml 2>/dev/null || echo true)"
+    auto="$(yq '.auto_update' "${PLUGINS_ON:-${dir}/../plugins.yml}" 2>/dev/null || echo true)"
     keep=".decree/archive/$(date +%Y%m%d-%H%M%S)"
     mkdir -p .decree/applied/plugins .decree/machines .decree/scripts .decree/cron .decree/archive
     touch "$REGISTRY"
@@ -323,9 +391,9 @@ plugin_sync() {
         fi
     done
     rm -f "${keep}.export"
-    # A note_watch installed again: the automations develop built on notes are put back in its emits.
+    # A note_watch installed again: every installed plugin a note starts is put back in its emits.
     [[ ! -f "$WATCH" ]] || r="$REGISTRY" yq -i \
-        '.states.watch.emits = ((.states.watch.emits // []) + [load(strenv(r))[] | select(.kind == "note") | .machine] | unique)' "$WATCH"
+        '.states.watch.emits = ((.states.watch.emits // []) + [load(strenv(r))[] | select(.when) | .machine] | unique)' "$WATCH"
     # Migrations last, once every machine is in: a daemon that sees one before its
     # machine fails it. Each is written once and never again after it has run.
     for n in $wanted; do

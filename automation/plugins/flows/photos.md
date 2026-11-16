@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: photos
+project: automation
 name: Photos
 tagline: Immich with its admin made and your NAS photos already in it, read-only
 docs: /docs/services/immich

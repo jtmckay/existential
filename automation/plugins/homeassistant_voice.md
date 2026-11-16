@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: homeassistant_voice
+project: automation
 needs:
   - model
 chart:

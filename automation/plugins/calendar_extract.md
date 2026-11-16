@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: calendar_extract
+project: automation
 chart:
   description: Mirror Nextcloud Calendar events in a window around today into workspace/ai/calendar/ as one note per event.
   data:

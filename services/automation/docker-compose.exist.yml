@@ -110,11 +110,18 @@ services:
       # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
       - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
     volumes:
-      # workspace/.decree IS the project: machines, scripts, cron, migrations
-      # and inbox the user (or an agent they direct) writes there run on the
-      # next tick. exist.initial.sh installs the plugin system, the shared lib and
-      # the plugins it has on there, at the checkout's version, every run.
+      # workspace/.decree IS the project. Its messages (cron, inbox, migrations),
+      # handlers and store are written here and run on the next tick.
       - workspace_data/.decree:/work/.decree:z
+      # Its CODE is not: machines, scripts and lib are installed by the host alone
+      # (./existential.sh, from automation/plugins/), and read-only in every
+      # container that mounts the workspace. Nothing this container runs, and no
+      # model it calls, can write or change one: it can only offer a plugin file in
+      # workspace/ai/proposed/, which a person accepts on the host
+      # (./existential.sh run plugin accept <name>). Do not make these writable.
+      - workspace_data/.decree/machines:/work/.decree/machines:ro,z
+      - workspace_data/.decree/scripts:/work/.decree/scripts:ro,z
+      - workspace_data/.decree/lib:/work/.decree/lib:ro,z
       # Config, never secrets, and outside the synced workspace (decree reads
       # .decree/.env). exist.initial.sh creates it.
       - ../../automation/.env:/work/.decree/.env:ro,z
@@ -143,6 +150,10 @@ services:
       # Your notes are what you tell the stack to do: an automation, or the Claude
       # it calls, reads them and never changes them. What it makes goes in ai/.
       - workspace_data/notes:/workspace/notes:ro,z
+      # The same code, by its other path: read-only here too.
+      - workspace_data/.decree/machines:/workspace/.decree/machines:ro,z
+      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro,z
+      - workspace_data/.decree/lib:/workspace/.decree/lib:ro,z
     tty: false
 
 x-exist-volumes:

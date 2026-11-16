@@ -55,6 +55,10 @@ services:
       - ../../volumes:/volumes:z
       # notes_pull rsyncs an external vault into workspace/notes/.
       - workspace_data:/workspace:z
+      # workspace_sync and notes_pull bring other copies in: never decree's code.
+      - workspace_data/.decree/machines:/workspace/.decree/machines:ro,z
+      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro,z
+      - workspace_data/.decree/lib:/workspace/.decree/lib:ro,z
       # workspace_sync's other end when it is on the NAS: the one persisted copy
       # of workspace/, synced both ways every minute.
       - workspace_share:/workspace-nas

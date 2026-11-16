@@ -1,5 +1,5 @@
 ---
-machine: develop
+machine: repo_develop
 ---
 # Copy is written for one audience, recorded in .claude/reference/audience.md
 

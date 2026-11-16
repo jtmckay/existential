@@ -30,6 +30,5 @@ type *ntfy*, server URL `http://ntfy:80`, and the topic you want.
 ## Backups
 
 v2 removed *Settings → Backup & Restore*, so the whole configuration lives in
-`volumes/uptime_kuma_data/kuma.db` and nowhere else. Activate a backup by copying
-`services/automation-backup/cron.example/uptime-kuma-sqlite-backup-*.md` into
-`services/automation-backup/cron/` and restarting `automation-backup`.
+`volumes/uptime_kuma_data/kuma.db` and nowhere else. Turn its backup on with
+`./existential.sh flow on backup-uptime-kuma` ([automation-backup](../decree/automation-backup.md)).

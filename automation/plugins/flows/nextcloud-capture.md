@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: nextcloud-capture
+project: automation
 name: Files from your phone start work
 tagline: A file uploaded through Nextcloud runs every file processor whose pattern matches it
 docs: /docs/decree/file-change-processing

@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: nextcloud_calendar
+project: automation
 chart:
   description: Install and enable Nextcloud's Calendar app.
   initial: wait_for_nextcloud

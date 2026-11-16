@@ -32,20 +32,20 @@ U="${TMP}/author"; git clone -q "${TMP}/upstream.git" "$U" 2>/dev/null
 mkdir -p "${U}/src/utils"; cp "${REPO_DIR}/src/utils/adhoc.sh" "${U}/src/utils/"
 # A worker with no services (the no-services file) gets no docker-compose.yml.
 printf '#!/usr/bin/env bash\necho ran >> "%s/existential-ran"\n[[ -f "%s/no-services" ]] || touch docker-compose.yml\n' "$TMP" "$TMP" > "${U}/existential.sh"; chmod +x "${U}/existential.sh"
-printf 'host/\ndocker-compose.yml\n' > "${U}/.gitignore"
+printf '.decree/\ndocker-compose.yml\n' > "${U}/.gitignore"
 (cd "$U" && git add -A && git commit -qm one && git push -q origin HEAD 2>/dev/null)
 I="${TMP}/install"; git clone -q "${TMP}/upstream.git" "$I"
 
 # The plugin, unpacked into the install's host project as the stack installs it.
 ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"
-  plugin_unpack update "${I}/host" ) >/dev/null
-UPDATE="${I}/host/.decree/scripts/update/update.sh"
+  plugin_unpack update "${I}" ) >/dev/null
+UPDATE="${I}/.decree/scripts/update/update.sh"
 
 # docker: `info` answers, everything else is written down.
 mkdir -p "${TMP}/bin"
 printf '#!/usr/bin/env bash\n[[ "$1" == --version || "$1" == info ]] && exit 0\necho "$*" >> "%s/docker"; cat >> "%s/told" 2>/dev/null || true\n' "$TMP" "$TMP" > "${TMP}/bin/docker"
 chmod +x "${TMP}/bin/docker"
-run() { (cd "${I}/host" && env PATH="${TMP}/bin:${PATH}" bash "$UPDATE") > "${TMP}/log" 2>&1; echo $?; }
+run() { (cd "${I}" && env PATH="${TMP}/bin:${PATH}" bash "$UPDATE") > "${TMP}/log" 2>&1; echo $?; }
 reset() { rm -f "${TMP}/existential-ran" "${TMP}/docker" "${TMP}/told" "${I}/docker-compose.yml"; }
 
 echo ""; echo "=== current ==="

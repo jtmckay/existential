@@ -1,6 +1,7 @@
 ---
 machine: plugin
 automation: budget
+project: automation
 name: Bank alerts become budget entries
 tagline: The alert email your bank sends for each charge becomes an Actual Budget transaction
 docs: /docs/flows/transaction-gmail-actual-budget

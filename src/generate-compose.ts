@@ -595,11 +595,11 @@ function merge(
 
 // ── Master .env generation ─────────────────────────────────────────────────────
 
-// The controller's answer (host/exist.json, served on :4480): another host's copy
-// is host/controller.json, the controller's own is host/exist.json.
+// The controller's answer (.decree/exist.json, served on :4480): another host's copy
+// is .decree/controller.json, the controller's own is .decree/exist.json.
 function controllerAnswer(repoRoot: string): { loki?: string; domain?: string } {
   for (const f of ['controller.json', 'exist.json']) {
-    try { return JSON.parse(fs.readFileSync(path.join(repoRoot, 'host', f), 'utf8')); } catch { /* next */ }
+    try { return JSON.parse(fs.readFileSync(path.join(repoRoot, '.decree', f), 'utf8')); } catch { /* next */ }
   }
   return {};
 }
