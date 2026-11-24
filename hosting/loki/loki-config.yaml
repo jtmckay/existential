@@ -3,6 +3,9 @@ auth_enabled: false
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
+  # loki-alloy ships every container's log to loki, loki's own included, so each
+  # info line loki writes about its work came back to it as more work.
+  log_level: warn
 
 common:
   instance_addr: 127.0.0.1

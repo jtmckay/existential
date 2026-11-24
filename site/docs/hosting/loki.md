@@ -44,6 +44,14 @@ Grafana's [Decree Overview](./grafana.md#decree-overview-dashboard) and its aler
 
 Single-node filesystem storage under `/loki` in the volume `loki_data`, TSDB index on schema v13. Old samples beyond 168h (7 days) are rejected on ingest, and the compactor deletes anything older than 720h (30 days). The embedded query cache is capped at 100 MB.
 
+`loki_data` is on this host's own disk, never the NAS: Loki's index needs file locking NFS does
+not give it reliably. What bounds it is the 30 days.
+
+Docker's own copy of each container's output, the `json-file` log that `loki-alloy` reads, is
+capped at three 10 MB files per container (`./existential.sh` writes that into every service in
+`docker-compose.yml`), so a noisy container cannot fill the disk. Loki logs only warnings and
+errors (`log_level` in `loki-config.yaml`): its own log is one of the ones it ingests.
+
 ## Querying
 
 Loki is not meant to be queried directly. Use [Grafana](./grafana.md) with the pre-configured Loki datasource and LogQL:

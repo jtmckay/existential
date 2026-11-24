@@ -271,6 +271,9 @@ from the repo root against the generated `docker-compose.yml`.
   container gets its limit in RAM *plus the same again in swap* before anything is killed. The
   limit is where swapping starts, not a ceiling. `./existential.sh run footprint` compares limits
   against live usage. Model servers are the exception — there the limit *is* the model.
+- **Every container's log is capped** (json-file, 3 × 10 MB): `generate-compose.ts` writes
+  it into each service, because docker never trims one. A template sets `logging:` only to
+  differ; it stays `json-file`, which `loki-alloy` reads.
 - **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
   `volumes/<name>`, referenced by bare name (optionally with a subpath into it,
   `workspace_data/notes`) and declared in the service's top-level `x-exist-volumes:` block

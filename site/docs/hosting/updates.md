@@ -12,7 +12,8 @@ turn it on, runs on the host every 15 minutes:
 2. `./existential.sh`, which installs the new version of every plugin you have on, and moves
    your rendered compose files to every image the pull changed (in a terminal it asks first).
 3. `docker compose up -d`, then `docker image prune -a`: every image no container uses, old
-   versions included, is deleted. A worker with neither docker nor podman skips this step.
+   versions included, is deleted, and so is the build cache the decree image leaves. A worker
+   with neither docker nor podman skips this step.
 
 Your phone hears each update, with the commit it landed on (an install with no engine has no
 notify to tell it). The repo is the authority: what is
@@ -50,7 +51,7 @@ It is a host flow too. When a notification arrives:
 ```bash
 ./existential.sh run check-versions --update     # moves the pins in the templates
 ./existential.sh && docker compose up -d         # offers them to your rendered files, pulls, restarts
-docker image prune -a                            # deletes the old versions, which keep their tags
+docker image prune -a && docker builder prune -a  # deletes the old versions, which keep their tags
 ```
 
 For another day or time, edit `cron:` in `.decree/machines/flow_check_versions/cron/check-versions.md`.

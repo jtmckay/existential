@@ -568,7 +568,7 @@ function merge(
     const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsAddress, env, nfsPaths, repoRoot, gpuVendor };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
-      services[name] = adjustServicePaths(svc ?? {}, ctx);
+      services[name] = { logging: LOG_CAP, ...adjustServicePaths(svc ?? {}, ctx) };
     }
     for (const [name, net] of Object.entries((config['networks'] ?? {}) as Record<string, unknown>)) {
       if (!(name in networks)) networks[name] = net;
@@ -592,6 +592,11 @@ function merge(
   }
   return result;
 }
+
+// docker keeps every container's stdout in /var/lib/docker/containers/<id>/*-json.log,
+// and never trims it: so each is capped (json-file, which loki-alloy reads), unless
+// a service template says otherwise.
+const LOG_CAP = { driver: 'json-file', options: { 'max-size': '10m', 'max-file': '3' } };
 
 // ── Master .env generation ─────────────────────────────────────────────────────
 

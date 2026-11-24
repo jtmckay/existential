@@ -30,6 +30,7 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); }
 
+assert_eq()           { if [[ "$2" == "$3" ]]; then _ok "$1"; else _fail "$1" "expected=$2 got=$3"; fi; }
 assert_contains()     { if grep -qF -- "$2" <<<"$3"; then _ok "$1"; else _fail "$1" "missing: $2"; fi; }
 assert_not_contains() { if grep -qF -- "$2" <<<"$3"; then _fail "$1" "unexpected: $2"; else _ok "$1"; fi; }
 assert_file()         { if [[ -f "$2" ]]; then _ok "$1"; else _fail "$1" "no such file: $2"; fi; }
@@ -77,6 +78,8 @@ assert_not_contains "no volume spec keys survive" "nfs: true" "$compose"
 # Top-level volumes section is dropped entirely (no Docker-managed volumes).
 assert_not_contains "top-level named_vol declaration removed" "named_vol: {}" "$compose"
 assert_contains "default network is a bridge" "driver: bridge" "$compose"
+assert_eq "every container's log is capped" "json-file 10m 3" \
+    "$(yq -r '.services.foo.logging | [.driver, .options["max-size"], .options["max-file"]] | join(" ")' "$repo/docker-compose.yml")"
 # The local bind directory is created (as the host user) so Docker doesn't make it as root.
 assert_dir() { if [[ -d "$2" ]]; then _ok "$1"; else _fail "$1" "no such dir: $2"; fi; }
 assert_dir "local bind dir created for named volume" "$repo/volumes/named_vol"

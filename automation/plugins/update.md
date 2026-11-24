@@ -44,6 +44,8 @@ scripts:
         # Every container is on its new image now, so an image none uses is an old
         # version (a moved pin keeps its old tag, so it is never "dangling").
         $DOCKER_CMD image prune -af >/dev/null || true
+        # And the decree image's old build layers, which no prune of images reaches.
+        $DOCKER_CMD builder prune -af >/dev/null 2>&1 || true
     fi
     tell "Updated" "$(hostname) is at $(git log -1 --format='%h %s')."
     echo "update: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
