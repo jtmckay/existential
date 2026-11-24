@@ -34,7 +34,7 @@ once, and have it start at boot. `./existential.sh` says so until one runs.
 
 Then you pull and run `./existential.sh` yourself, as before.
 
-## Pinned images {#pinned-images}
+## Pinned images
 
 Every image the stack runs is pinned to a tag in the repo, so nothing moves until the pin does.
 The `check-versions` flow says when one is behind: Fridays at noon it runs
@@ -56,7 +56,7 @@ docker image prune -a && docker builder prune -a  # deletes the old versions, wh
 
 For another day or time, edit `cron:` in `.decree/machines/flow_check_versions/cron/check-versions.md`.
 
-## Ubuntu {#ubuntu}
+## Ubuntu
 
 `auto-update` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu
 host under it, also from [the host daemon](./host-daemon.md):
