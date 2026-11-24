@@ -82,7 +82,7 @@ scripts:
     // skipped; every feed failing is an error.
     import * as fs from "node:fs";
     import * as path from "node:path";
-    import { fetchFeed } from "../../lib/rss";
+    import { fetchFeed } from "../../../lib/rss";
 
     async function main(): Promise<number> {
       const runDir = process.env.DECREE_RUN_DIR!;

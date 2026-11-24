@@ -92,7 +92,7 @@ OUT="$(_tsc_in_container)"
 # allowlist of the three roots tsconfig actually includes cannot drift from it.
 OURS="$(printf '%s\n' "$OUT" \
     | grep -E '^(src|automation|services/automation/src)/[^ ]*\.tsx?\([0-9]+,[0-9]+\): error TS' \
-    | sed -E "s#^${_PLUGINS_TS}/decree/(scripts/[^/]+|lib)/#(an installed plugin) \\1/#" \
+    | sed -E "s#^${_PLUGINS_TS}/decree/(machines/[^/]+/scripts|lib)/#(an installed plugin) \\1/#" \
     || true)"
 
 # `git ls-files 'src/**/*.ts'` misses src/generate-compose.ts — a pathspec ** in
