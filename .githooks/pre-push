@@ -74,6 +74,14 @@ if ! adhoc_find_runtime; then
     exit 0
 fi
 
+# The docs site builds as Cloudflare builds it: MDX is stricter than Markdown, and a
+# broken link throws.
+if ! ./existential.sh test site; then
+    echo "" >&2
+    echo "pre-push blocked: the docs site does not build (see above)." >&2
+    exit 1
+fi
+
 # Both decree projects as a fresh install has them: machines, scripts, every
 # shipped cron/migration/inbox template, and the committed graphs.
 if ! ./existential.sh test decree; then

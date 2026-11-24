@@ -1,6 +1,6 @@
 # Testing
 
-Entry point: `./existential.sh test [lint|host|secrets|guards|harness|selfcheck|unit|integration|services]`
+Entry point: `./existential.sh test [lint|host|typecheck|site|secrets|guards|harness|selfcheck|unit|integration|services]`
 (bare `test` runs them all).
 
 `src/test/` splits into `unit/` (no live services), `integration/` (live creds/containers),
@@ -202,6 +202,13 @@ Docker-free self-tests. On a host with neither docker nor podman (a worker), it,
 and the container suites in `test` (all) and `pre-push` skip with a note, like `host-portable.sh`'s bash 3.2
 leg; CI always has docker and runs them.
 
+## Docs site
+
+`src/test/site-build.sh` (`test site`) runs `npm run build` in `site/Dockerfile`'s image, as
+Cloudflare builds the site: MDX reads `{` as an expression (a `{#id}` after a heading broke a
+deploy once), and `onBrokenLinks: 'throw'` fails a link that lands nowhere. The source is
+copied into the container, so the checkout is untouched; with no engine it skips, like lint.
+
 ## TypeScript
 
 `src/test/typecheck-ts.sh` (`test typecheck`) runs `tsc --noEmit -p tsconfig.json` in the adhoc
@@ -244,7 +251,7 @@ patterns), which is deliberately older than what builds the binary.
 - **`pre-commit`** blocks secrets from entering the public repo — lean/fast, the one
   irreversible failure.
 - **`pre-push`** runs the host-side opposites first (`test guards`, `test secrets`,
-  `test harness` — cheap, no Docker, fail fast) then `test lint`, `test host`, `test typecheck`, `test unit`,
+  `test harness` — cheap, no Docker, fail fast) then `test lint`, `test host`, `test typecheck`, `test site`, `test decree`, `test unit`,
   `test selfcheck`, and `validate conventions` (heavier, needs Docker — gated once per push,
   not per commit).
 
@@ -257,8 +264,9 @@ pull request. It exists because a hook is local-only, is installed as a side eff
 first `./existential.sh` run, is bypassable with `--no-verify`, and never sees a PR — so the
 gates ran on one host and nowhere else.
 
-Five jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`
+Six jobs: `guards` (the Docker-free trio, with full git history for the index scan), `lint`
 (shellcheck, then `test host`), `macos` (`host-portable.sh` under a Mac's `/bin/bash`),
+`site` (`test site`),
 `go` (the webhook module's `go vet` + `go test`, which nothing else triggers — see below), and
 `unit` (builds the adhoc image, then `test unit`, `test selfcheck`, `validate conventions`).
 

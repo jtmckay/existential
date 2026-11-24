@@ -1127,7 +1127,7 @@ Actions:
                          run already does that for every project.
   run <slug> [action] [args]
                          A service's exist.<action>.sh (action defaults to initial).
-  test [name]            all (default); secrets, guards, harness, lint, typecheck,
+  test [name]            all (default); secrets, guards, harness, lint, typecheck, site,
                          decree, selfcheck, unit, integration or services; any
                          unit or integration suite by name; or a service slug.
                          host: what runs on the host also runs on a Mac.
@@ -1236,6 +1236,8 @@ case "$action" in
                     echo "  (no docker or podman: container suites skipped; CI runs them)"
                     exit "$_rc"
                 fi
+                # The docs site builds as Cloudflare builds it (MDX, broken links).
+                bash "${SCRIPT_DIR}/src/test/site-build.sh" || _rc=1
                 # Both decree projects, with every shipped message template.
                 run_adhoc bash /src/test/decree-check.sh || _rc=1
                 # Host-side container-state gate next (adhoc has no docker socket,
@@ -1251,6 +1253,7 @@ case "$action" in
             lint)        bash "${SCRIPT_DIR}/src/test/lint-shell.sh" ;;
             host)        bash "${SCRIPT_DIR}/src/test/host-portable.sh" ;;
             typecheck)   bash "${SCRIPT_DIR}/src/test/typecheck-ts.sh" ;;
+            site)        bash "${SCRIPT_DIR}/src/test/site-build.sh" ;;
             decree)      run_adhoc bash /src/test/decree-check.sh ;;
             selfcheck)   run_adhoc bash /src/test/run-all.sh selfcheck ;;
             unit)        run_adhoc bash /src/test/run-all.sh unit ;;
