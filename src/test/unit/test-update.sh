@@ -37,7 +37,7 @@ printf '.decree/\ndocker-compose.yml\n' > "${U}/.gitignore"
 I="${TMP}/install"; git clone -q "${TMP}/upstream.git" "$I"
 
 # The plugin, unpacked into the install's host project as the stack installs it.
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+( source "${REPO_DIR}/automation/lib/plugin.sh"
   plugin_unpack update "${I}" ) >/dev/null
 UPDATE="${I}/.decree/machines/update/scripts/update.sh"
 

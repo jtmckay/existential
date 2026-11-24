@@ -37,7 +37,7 @@ mkdir -p "${W}/machines/notify" "${W}/machines/look_back" "${W}/runs/r1" "${W}/r
 touch "${W}/machines/notify/machine.yml" "${W}/machines/look_back/machine.yml"
 printf '{"type":"transition","machine":"notify"}\n{"type":"run_finished","machine":"notify","state":"done","duration_ms":12}\n' > "${W}/runs/r1/events.jsonl"
 printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.jsonl"
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+( source "${REPO_DIR}/automation/lib/plugin.sh"
   plugin_unpack reporting "${I}" ) >/dev/null
 printf 'EXIST_CONTROLLER=ctl\n' > "${I}/.env.shared"
 

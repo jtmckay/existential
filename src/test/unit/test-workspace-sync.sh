@@ -24,8 +24,8 @@ for _bin in rclone git; do
 done
 
 TMP="$(mktemp -d)"
-# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack workspace_sync "${TMP}/unpacked" ) >/dev/null
+# The plugin under test, unpacked as the stack installs it (lib/plugin.sh).
+( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack workspace_sync "${TMP}/unpacked" ) >/dev/null
 SYNC="${TMP}/unpacked/.decree/machines/workspace_sync/scripts/workspace_sync.sh"
 trap 'kill "$DAV_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 WS="${TMP}/workspace"

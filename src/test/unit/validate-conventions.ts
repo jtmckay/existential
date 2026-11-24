@@ -665,10 +665,10 @@ function main(): number {
     if (!fs.existsSync(catDir)) continue;
     for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (e.isDirectory()) serviceVars.add(varFor(`${cat}/${e.name}`));
   }
-  // The plugin system's machines (PLUGIN_KERNEL in lib/automations/plugin.sh):
+  // The plugin system's machines (PLUGIN_KERNEL in lib/plugin.sh):
   // plugins too, installed in each project they are tagged for whatever is on.
   const kernelMachines = ['notify', 'skill'];
-  // decree's official plugins are decree_*, which decree adds (lib/automations/plugin.sh):
+  // decree's official plugins are decree_*, which decree adds (lib/plugin.sh):
   // a plugin here may need or extend one, and never takes the prefix.
   const official = (n: string) => n.startsWith('decree_');
   // Every plugin a plugin relies on: what it extends, and each need ({need: plugin}: both).

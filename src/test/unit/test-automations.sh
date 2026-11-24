@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test-automations.sh — a note asks for an automation; it is proposed as a spec,
 # built by develop as a plugin file and OFFERED, and only the host installs it.
-# note_watch, automation_propose, reconcile, develop and lib/automations/, with
+# note_watch, automation_propose, reconcile, develop and lib/automations/run.sh, with
 # the model and, while their scripts run, `decree` stubbed:
 #
 #   watch     a standing instruction becomes one automation_propose, once; with no
@@ -104,12 +104,12 @@ reset_emits() { rm -f "${TMP}"/emits/*; }
 
 # ── The workspace, which is also the decree project root ─────────────────────
 # The plugins under test, installed with the real decree as the stack installs
-# them (lib/automations/plugin.sh); their scripts then run there with the stub
+# them (lib/plugin.sh); their scripts then run there with the stub
 # decree first on PATH.
 command -v decree >/dev/null || { echo "automations: needs decree (run it through ./existential.sh test unit)"; exit 1; }
 W="${TMP}/ws"
 mkdir -p "$W/notes/ideas" "$W/notes/automations"
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+( source "${REPO_DIR}/automation/lib/plugin.sh"
   plugin_unpack notify note_watch automation_propose reconcile develop plugin_share plugin_offer plugin_request "$W" ) >/dev/null
 
 run() {  # run <script> [VAR=value...]: one decree run of a shipped script, in the workspace
@@ -303,7 +303,7 @@ host_install() {  # <name>: what accept does once you say yes (run in $(), so th
     cp "$(offer "$1")" "${PD0}/local/$1.md"
     n="$1" yq -i '.on += [strenv(n)]' "${TMP}/plugins.yml"
     ( cd "$W" && PLUGINS_ON="${TMP}/plugins.yml" bash -c 'source "$1"; plugin_sync "$2" automation' _ \
-        "${REPO_DIR}/automation/lib/automations/plugin.sh" "$PD0" ) > "${TMP}/last.log" 2>&1; echo $?
+        "${REPO_DIR}/automation/lib/plugin.sh" "$PD0" ) > "${TMP}/last.log" 2>&1; echo $?
 }
 assert_eq "the host installs the offer" "0" "$(host_install $NAME)"
 assert_eq "...its script in machines/<name>/scripts/, executable" "yes" "$([[ -x "$W/.decree/machines/${NAME}/scripts/${NAME}.sh" ]] && echo yes || echo no)"
@@ -407,7 +407,7 @@ echo ""; echo "=== share ==="
 # was installed from, and one offered by another stack waits in ai/proposed/ like any offer.
 reset_emits
 PLUGIN=gpu_lease
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$PLUGIN" "$W" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack "$PLUGIN" "$W" ) >/dev/null
 script_of() { echo "$W/.decree/machines/$1/scripts/$2.sh"; }
 rm -f "${TMP}/posted"
 assert_eq "an installed plugin is sent" "0" "$(run "$(script_of plugin_share send)" DECREE_DATA_CLIENT=garage-box DECREE_DATA_MACHINE="$PLUGIN" \
@@ -495,7 +495,7 @@ yq --front-matter=process -i '.cron["gamma_hourly.md"] = "---\nmachine: gamma\nc
 S="${TMP}/sp"; mkdir -p "$S/.decree"
 psync() {  # psync [name...]: one plugin_sync of the automation project; its output in $TMP/sync.log
     ( cd "$S" && PLUGINS_ON="$S/plugins.yml" bash -c 'source "$1"; shift; plugin_sync "$@"' \
-        _ "${REPO_DIR}/automation/lib/automations/plugin.sh" "$PD" automation "$@" ) > "${TMP}/sync.log" 2>&1
+        _ "${REPO_DIR}/automation/lib/plugin.sh" "$PD" automation "$@" ) > "${TMP}/sync.log" 2>&1
     echo $?
 }
 installed() { (cd "$S/.decree/machines" 2>/dev/null && ls -d -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | sort | paste -sd' '); }

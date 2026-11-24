@@ -42,8 +42,8 @@ assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found:
 section() { awk -v h="## $2" '$0 == h {f=1; next} f && /^## /{exit} f' "$1"; }
 
 TMP="$(mktemp -d)"
-# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack look_back "${TMP}/unpacked" ) >/dev/null
+# The plugin under test, unpacked as the stack installs it (lib/plugin.sh).
+( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack look_back "${TMP}/unpacked" ) >/dev/null
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 

@@ -23,8 +23,8 @@ scripts:
     # on the host (./existential.sh run plugin accept <name>).
     # A list of machines (catalog: true) is only sent to your phone.
     set -euo pipefail
-    # shellcheck source=../../lib/automations/plugin.sh
-    source ".decree/lib/automations/plugin.sh"
+    # shellcheck source=../../lib/plugin.sh
+    source ".decree/lib/plugin.sh"
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     from="${DECREE_DATA_FROM:-}"
     file="${DECREE_RUN_DIR}/offer.md"

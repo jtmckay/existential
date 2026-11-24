@@ -22,7 +22,7 @@
 # (services/automation-backup) or host (the repo's own .decree, run by a daemon
 # on the host). on/off edit the list; sync writes, into one project's
 # .decree/plugins/, what is on and tagged for it and what that needs, and `decree
-# install` installs it (lib/automations/plugin.sh). A flow is a plugin in
+# install` installs it (lib/plugin.sh). A flow is a plugin in
 # automation/plugins/flows/; ./existential.sh flow is the same list, for flows.
 # export writes an installed plugin back to its file (`decree export`), from the
 # most privileged project that runs it (host, then backup, then automation):
@@ -33,8 +33,8 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/repo}"
 PLUGINS="${REPO_DIR}/automation/plugins"
-# shellcheck source=../../automation/lib/automations/plugin.sh
-. "${REPO_DIR}/automation/lib/automations/plugin.sh"
+# shellcheck source=../../automation/lib/plugin.sh
+. "${REPO_DIR}/automation/lib/plugin.sh"
 # shellcheck source=../utils/flows.sh
 . "${REPO_DIR}/src/utils/flows.sh"
 

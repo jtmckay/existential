@@ -44,8 +44,8 @@ scripts:
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
     source ".decree/lib/model.sh"
-    # shellcheck source=../../lib/automations/plugin.sh
-    source ".decree/lib/automations/plugin.sh"
+    # shellcheck source=../../lib/plugin.sh
+    source ".decree/lib/plugin.sh"
     # shellcheck source=../../lib/firecrawl.sh
     source ".decree/lib/firecrawl.sh"
     # shellcheck source=../../lib/agent.sh

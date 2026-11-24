@@ -29,8 +29,8 @@ assert_eq() { if [[ "$2" == "$3" ]]; then _ok "$1"; else _fail "$1" "expected=$2
 assert_contains() { if [[ "$3" == *"$2"* ]]; then _ok "$1"; else _fail "$1" "missing: $2"; fi; }
 
 TMP="$(mktemp -d)"
-# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-for _p in newsletter ollama_pull ocr; do ( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
+# The plugin under test, unpacked as the stack installs it (lib/plugin.sh).
+for _p in newsletter ollama_pull ocr; do ( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
 LIB="${TMP}/unpacked/.decree/lib"
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT

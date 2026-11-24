@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# automations/plugin.sh — which of the repo's plugins a decree project has, written
+# plugin.sh — which of the repo's plugins a decree project has, written
 # into its .decree/plugins/ for `decree install`, which installs them.
 #
 # A plugin is a decree plugin file (name, machine, scripts, cron, state, order,
@@ -328,7 +328,7 @@ plugin_offered() {
 # project. A plugin's scripts are then <root>/.decree/machines/<name>/scripts/.
 plugin_unpack() {
     local root="${!#}" lib dir n names
-    lib="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; dir="$(cd "${lib}/../plugins" && pwd)"
+    lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dir="$(cd "${lib}/../plugins" && pwd)"
     mkdir -p "${root}/.decree/lib" "${root}/.decree/plugins"
     cp -rp "${lib}/." "${root}/.decree/lib/"
     ( cd "$root" && { [[ -f "$REST" ]] || echo 'endpoints: []' > "$REST"; }

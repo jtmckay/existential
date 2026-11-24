@@ -26,8 +26,8 @@ check() {  # <name> <project root>; graphs are drawn by the install, so their wa
     grep -v '^warning: .*\(graph\.md\|system\.md\|state_files\)' <<<"$out" || true
 }
 
-# shellcheck source=../../automation/lib/automations/plugin.sh
-. "${REPO}/automation/lib/automations/plugin.sh"
+# shellcheck source=../../automation/lib/plugin.sh
+. "${REPO}/automation/lib/plugin.sh"
 DIR="${REPO}/automation/plugins"
 unpack() {  # <project root> <name>...: each plugin installed there, as the stack installs it
     local root="$1"; shift

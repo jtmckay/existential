@@ -31,8 +31,8 @@ assert_has()  { if [[ "$2" == *"$3"* ]]; then _ok "$1"; else _fail "$1" "missing
 assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found: $3"; fi; }
 
 TMP="$(mktemp -d)"
-# The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack capture "${TMP}/unpacked" ) >/dev/null
+# The plugin under test, unpacked as the stack installs it (lib/plugin.sh).
+( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack capture "${TMP}/unpacked" ) >/dev/null
 CAPTURE="${TMP}/unpacked/.decree/lib/capture/capture.sh"
 trap 'rm -rf "$TMP"' EXIT
 

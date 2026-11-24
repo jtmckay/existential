@@ -49,7 +49,7 @@ fi
 # volume via ComfyUI Manager, not in the image, and so are absent on a fresh host.
 # They are the comfy plugin's lib (automation/plugins/comfy.md), unpacked here to read.
 _unpacked="$(mktemp -d)"; trap 'rm -rf "$_unpacked"' EXIT
-( . /repo/automation/lib/automations/registry.sh; . /repo/automation/lib/automations/plugin.sh
+( . /repo/automation/lib/plugin.sh
   plugin_unpack comfy "$_unpacked" ) >/dev/null
 WORKFLOWS="${_unpacked}/.decree/lib/comfy/workflows"
 NEEDED=$(jq -s -r '[ .[] | (.prompt // .) | .[].class_type ] | unique' "$WORKFLOWS"/*.json)

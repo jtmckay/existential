@@ -60,7 +60,7 @@ check "handlers.yml is seeded, watching notes" "grep -q 'machine: note_watch' '$
 for _d in runs/ store/ inbox/ attention/ '*.log' '.env*'; do
     check ".gitignore ignores ${_d}" "grep -qxF '${_d}' '${P}/.gitignore'"
 done
-check "lib/ holds the plugin system's lib" "cmp -s '${R}/automation/lib/automations/plugin.sh' '${P}/lib/automations/plugin.sh'"
+check "lib/ holds the plugin system's lib" "cmp -s '${R}/automation/lib/plugin.sh' '${P}/lib/plugin.sh'"
 check "...and the lib of plugins that are on (note-to-automation: model)" "[[ -f '${P}/lib/model.sh' ]]"
 check "...and no plugin's lib that is not on" "[[ ! -e '${P}/lib/comfy' ]]"
 check "an old install's cron moves over" "[[ -f '${P}/cron/old.md' && ! -e '${R}/automation/cron/old.md' ]]"
@@ -104,7 +104,7 @@ check "skill writes decree's skill to the workspace root, not this project's" "g
 # the installed copy with machines/ read-only, as in the automation container; a
 # client's release reaches a gpu_lease run and nothing else.
 G="${TMP}/gl"; mkdir -p "${G}"
-( cd "${G}" && git init -q && source "${REPO_DIR}/automation/lib/automations/plugin.sh" && plugin_unpack gpu_lease "${G}" ) >/dev/null 2>&1
+( cd "${G}" && git init -q && source "${REPO_DIR}/automation/lib/plugin.sh" && plugin_unpack gpu_lease "${G}" ) >/dev/null 2>&1
 check "gpu_lease installs on decree_lease, with gpu_release" "[[ -f '${G}/.decree/machines/decree_lease/machine.yml' && -x '${G}/.decree/machines/gpu_lease/scripts/swap/gpu.sh' && -f '${G}/.decree/machines/gpu_release/machine.yml' ]]"
 chmod -R a-w "${G}/.decree/machines/gpu_lease/scripts" "${G}/.decree/machines/decree_lease/scripts"
 _id="$(cd "${G}" && echo | decree emit --machine gpu_lease --param resource=gpu --param mode=llm --param holder=box)"

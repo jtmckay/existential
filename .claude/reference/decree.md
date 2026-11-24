@@ -47,7 +47,7 @@ or write is what a prompt injection can. Three things keep it from `backup` and 
 **A plugin is a file**: `automation/plugins/<name>.md`, decree's plugin file (`name`, `extends`,
 `needs`, `machine`, `scripts`, `cron`, `state`, `order`) with existential's keys beside them, each
 `x-exist-<key>`, which decree ignores and `decree export` keeps (`project`, `lib`, `handlers`,
-`when`, `endpoints`; `automation/lib/automations/plugin.sh` says what each is). Validate
+`when`, `endpoints`; `automation/lib/plugin.sh` says what each is). Validate
 conventions fails any other key. With no `machine` (and no `extends`) it is a **flow**, in
 `automation/plugins/flows/<name>.md`: one curated thing the stack does (`x-exist-title`,
 `-tagline`, `-docs`, `-services`, `-e2e`, `needs`, then `cron`, `order`, `x-exist-examples`
@@ -157,7 +157,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
      copy of the project to pass `decree check` (`plugin_try`), and writes the offer;
      `plugin_offer` writes one another stack sent; an agent in code-server writes one by hand
      (`automation/lib/skill-notes.md`, the workspace's `existential` skill, teaches it). Each
-     tells the person through `plugin_offered` (`lib/automations/plugin.sh`): where to read
+     tells the person through `plugin_offered` (`lib/plugin.sh`): where to read
      it, and the command.
   3. `./existential.sh run plugin accept <name>` (`src/lib/plugin.sh`), on the host, is the
      only installer: it prints what the plugin starts on, needs and runs, requires a terminal
