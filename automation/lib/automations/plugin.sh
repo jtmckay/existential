@@ -155,6 +155,7 @@ plugin_sync() {
     # Named, so decree adds each official plugin they need, recorded as a need; then bare,
     # which removes a deleted plugin's copy and each need nothing needs any more (decree_order
     # never outlives the repo flow on a host). A plugin's cron files install once, then are yours.
+    # shellcheck disable=SC2046  # one plugin name per line, split on purpose (bash 3.2: no mapfile)
     if ! check="$( { decree install --no-color $(cat "$MANIFEST") && decree install --no-color; } 2>&1)"; then rc=1; fi
     grep -v '^installed ' <<<"$check" || true
     plugin_state_links "$project"   # and each official plugin decree just added

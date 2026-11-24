@@ -137,20 +137,20 @@ ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flo
     mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/automation/plugins/flows"
     printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
-    printf -- '---\nmachine: plugin\nautomation: foo\nproject: automation\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
+    printf -- '---\nname: foo\nx-exist-project: automation\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
     echo "$d"
 }
-FLOW_OK=$'name: Foo\ntagline: does foo\ndocs: /docs/ai/foo\nservices:\n  - EXIST_IS_AI_FOO'
+FLOW_OK=$'x-exist-title: Foo\nx-exist-tagline: does foo\nx-exist-docs: /docs/ai/foo\nx-exist-services:\n  - EXIST_IS_AI_FOO'
 expect_pass "conventions: accepts a flow whose names all resolve" tsx "$CONV" "$(ffix "$FLOW_OK")"
-expect_fail "conventions: rejects a flow you pick with no docs" tsx "$CONV" "$(ffix $'name: Foo\ntagline: does foo')"
+expect_fail "conventions: rejects a flow you pick with no docs" tsx "$CONV" "$(ffix $'x-exist-title: Foo\nx-exist-tagline: does foo')"
 expect_fail "conventions: rejects a flow whose docs page does not exist" tsx "$CONV" "$(ffix "${FLOW_OK/ai\/foo/ai\/bar}")"
 expect_fail "conventions: rejects a flow naming a service with no folder" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\n  - EXIST_IS_AI_BAR')"
 expect_fail "conventions: rejects a flow needing a plugin that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nneeds:\n  - bar')"
-expect_fail "conventions: rejects a flow with a machine (it belongs in plugins/)" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nchart:\n  initial: go')"
+expect_fail "conventions: rejects a flow with a machine (it belongs in plugins/)" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nmachine:\n  initial: go')"
 expect_fail "conventions: rejects a flow whose cron runs a machine it does not need" tsx "$CONV" \
-    "$(ffix "${FLOW_OK}"$'\ncron:\n  foo-daily: |\n    ---\n    machine: bar\n    ---')"
+    "$(ffix "${FLOW_OK}"$'\ncron:\n  foo-daily.md: |\n    ---\n    machine: bar\n    ---')"
 clash="$(ffix "$FLOW_OK")"
-printf -- '---\nmachine: plugin\nautomation: foo\nchart:\n  initial: go\n---\n' > "$clash/automation/plugins/foo.md"
+printf -- '---\nname: foo\nx-exist-project: automation\nmachine:\n  initial: go\n---\n' > "$clash/automation/plugins/foo.md"
 expect_fail "conventions: rejects a machine and a flow sharing a name" tsx "$CONV" "$clash"
 
 # ── Docs: a page per service, links that land, Core's list ───────────────────

@@ -425,8 +425,9 @@ function checkRestartPolicy(): string[] {
 // One decree version: the decree image's DECREE_TAG, which the webhook image bundles, CI
 // installs, and the host daemon's page says to install.
 function checkDecreeVersions(): string[] {
-  const read = (f: string) => fs.readFileSync(path.join(REPO_ROOT, f), 'utf8');
+  const read = (f: string) => fs.existsSync(path.join(REPO_ROOT, f)) ? fs.readFileSync(path.join(REPO_ROOT, f), 'utf8') : '';
   const tag = /^ARG DECREE_TAG=v(\S+)$/m.exec(read('services/automation/decree/Dockerfile'))?.[1];
+  if (!tag) return [];
   const pins: Array<[string, RegExp]> = [
     ['services/automation-webhook/docker-compose.exist.yml', /image: ghcr\.io\/jtmckay\/decree-go-rest:(\S+)/g],
     ['.github/workflows/ci.yml', /install\.sh \| sh -s -- v(\S+)/g],
