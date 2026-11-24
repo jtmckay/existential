@@ -1,17 +1,16 @@
 ---
-machine: plugin
-automation: note-triage
-project: automation
-name: The note you meant to come back to
-tagline: Each new note is asked one question, worth doing?, and the few that are get drafted
-docs: /docs/flows/note-to-action
-services:
+name: note-triage
+x-exist-project: automation
+x-exist-title: The note you meant to come back to
+x-exist-tagline: Each new note is asked one question, worth doing?, and the few that are get drafted
+x-exist-docs: /docs/flows/note-to-action
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
   - EXIST_IS_NAS_NEXTCLOUD
 needs:
   - note_triage
 cron:
-  note-triage: |
+  note-triage.md: |
     ---
     cron: "0 * * * *"
     machine: note_triage
@@ -46,7 +45,7 @@ cron:
 ---
 
 The first run records your notes as seen without judging them, so a big vault costs
-nothing. TRIAGE_CRITERIA in volumes/workspace_data/.decree/cron/note-triage.md is the
+nothing. TRIAGE_CRITERIA in volumes/workspace_data/.decree/machines/flow_note_triage/cron/note-triage.md is the
 whole judgment: point it at what you actually want chased down, and run with
 TRIAGE_DRY_RUN: true for a few days first. To judge the backlog once:
   echo | docker exec -i automation decree emit --machine note_triage --param TRIAGE_BOOTSTRAP=true

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # e2e_file_handlers — the workspace → file-handlers → decree chain.
 #
-# Staged into the clone's scripts/ by e2e.sh, with 20-file-handlers.yml as its
+# Staged into the clone's machines/<machine>/ by e2e.sh, with 20-file-handlers.yml as its
 # machine. Two jobs, told apart by the `path` param:
 #   no path   the check: register a handler, write files, assert what got queued
 #   a path    the probe: the run that handler queued; assert its params

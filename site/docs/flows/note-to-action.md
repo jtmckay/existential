@@ -88,7 +88,7 @@ They're written beside the original note. Answer them and the next run picks up 
 ./existential.sh flow on note-triage
 ```
 
-This copies `note-triage.md` into `volumes/workspace_data/.decree/cron/`. Its `TRIAGE_ROUTINE`
+This installs `note-triage.md` in `volumes/workspace_data/.decree/machines/flow_note_triage/cron/`. Its `TRIAGE_ROUTINE`
 param picks `note_develop` (default) or `idea_workup`.
 
 The fan-out path uses the `research` and `sales` departments, files in

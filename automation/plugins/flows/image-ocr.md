@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: image-ocr
-project: automation
-name: Photograph it, and the text is yours
-tagline: An image synced to Nextcloud gets its text written beside it by a vision model
-docs: /docs/flows/image-ocr
+name: image-ocr
+x-exist-project: automation
+x-exist-title: Photograph it, and the text is yours
+x-exist-tagline: An image synced to Nextcloud gets its text written beside it by a vision model
+x-exist-docs: /docs/flows/image-ocr
 needs:
   - ocr
   - nextcloud-capture

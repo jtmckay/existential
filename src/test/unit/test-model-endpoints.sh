@@ -26,7 +26,7 @@ TEMPLATES="${SRC_DIR}/templates.sh"
 SHIPPED="${REPO_DIR}/.env.exist.shared"
 # model.sh is the model plugin's lib, unpacked as the stack installs it.
 _U="$(mktemp -d)"; trap 'rm -rf "$_U"' EXIT
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack model "$_U" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack model "$_U" ) >/dev/null
 MODEL_LIB="${_U}/.decree/lib/model.sh"
 OPEN_WEBUI="${REPO_DIR}/ai/open-webui/docker-compose.exist.yml"
 DEFAULT_URL="http://ollama:11434/v1"

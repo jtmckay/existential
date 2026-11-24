@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: health-checks
-project: automation
-name: Health checks
-tagline: Probe where your notifications go (or any service) every 15 minutes, and tell your phone when it stops answering
-docs: /docs/flows#housekeeping
-services:
+name: health-checks
+x-exist-project: automation
+x-exist-title: Health checks
+x-exist-tagline: Probe where your notifications go (or any service) every 15 minutes, and tell your phone when it stops answering
+x-exist-docs: /docs/flows#housekeeping
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - service_health
 cron:
-  health-checks: |
+  health-checks.md: |
     ---
     cron: "*/15 * * * *"
     machine: service_health
@@ -48,5 +47,6 @@ cron:
 ---
 
 It probes where notifications go: this host's ntfy, or the controller's Loki. To probe another service, copy
-volumes/workspace_data/.decree/cron/health-checks.md to health-check-<slug>.md and set
-SERVICE_NAME and SERVICE_URL (http://<container>:<port>/<health path>) in its params.
+volumes/workspace_data/.decree/machines/flow_health_checks/cron/health-checks.md into a
+schedules plugin of your own as health-check-<slug>.md, set SERVICE_NAME and SERVICE_URL
+(http://<container>:<port>/<health path>) in its params, and accept it.

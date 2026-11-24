@@ -37,9 +37,9 @@ printf '.decree/\ndocker-compose.yml\n' > "${U}/.gitignore"
 I="${TMP}/install"; git clone -q "${TMP}/upstream.git" "$I"
 
 # The plugin, unpacked into the install's host project as the stack installs it.
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
   plugin_unpack update "${I}" ) >/dev/null
-UPDATE="${I}/.decree/scripts/update/update.sh"
+UPDATE="${I}/.decree/machines/update/scripts/update.sh"
 
 # docker: `info` answers, everything else is written down.
 mkdir -p "${TMP}/bin"
@@ -78,6 +78,13 @@ assert_eq "an install with a commit of its own does not update" "1" "$(run)"
 assert_eq "...nothing changes" "$mine" "$(git -C "$I" rev-parse HEAD)"
 assert_eq "...nothing runs" "no" "$([[ -e "${TMP}/existential-ran" ]] && echo yes || echo no)"
 assert_has "...and you are told" "$(cat "${TMP}/docker" 2>/dev/null)" "ntfy_title=Update stopped"
+
+echo ""; echo "=== ubuntu_upgrade ==="
+# Its root half is compared with the installed copy, so a wrong path means "set it up again" every week.
+U="${REPO_DIR}/automation/plugins/ubuntu_upgrade.md"
+assert_eq "ubuntu_upgrade reads its root half where the sync writes it" \
+    ".decree/lib/$(yq --front-matter=extract -r '.["x-exist-lib"] | keys | .[] | select(test("upgrade.sh$"))' "$U")" \
+    "$(yq --front-matter=extract -r '.scripts["upgrade.sh"]' "$U" | sed -n 's/^lib="\(.*\)"$/\1/p')/upgrade.sh"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 

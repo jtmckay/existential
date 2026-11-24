@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: gmail-inbox
-project: automation
-name: Gmail
-tagline: New mail every 15 minutes, as decree messages other flows act on
-docs: /docs/integrations/gmail
-services:
+name: gmail-inbox
+x-exist-project: automation
+x-exist-title: Gmail
+x-exist-tagline: New mail every 15 minutes, as decree messages other flows act on
+x-exist-docs: /docs/integrations/gmail
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - gmail_sync
 cron:
-  gmail-sync: |
+  gmail-sync.md: |
     ---
     cron: "*/15 * * * *"
     machine: gmail_sync

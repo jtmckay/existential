@@ -226,7 +226,7 @@ files. Delete these lines if present:
 
 - **A Caddyfile missing a newly enabled service's block:** copy the block from
   `Caddyfile.exist.Caddyfile`, or run `./existential.sh reset`.
-- **`reset`** archives every rendered file plus decree's run logs and migration ledger, lists what
+- **`reset`** archives every rendered file plus decree's run logs, cron files and record of what ran, lists what
   it will move, and asks first. It never touches `_data` or `_backup` volumes; it offers to
   delete `_cache` ones.
 - **`Permission denied`:** Docker created a missing bind-mount directory as root, usually from

@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: plugin-sharing
-project: automation
-name: Plugin sharing
-tagline: Ask another stack for one of its plugins, and send yours when asked, over the webhook
-docs: /docs/plugins
-services:
+name: plugin-sharing
+x-exist-project: automation
+x-exist-title: Plugin sharing
+x-exist-tagline: Ask another stack for one of its plugins, and send yours when asked, over the webhook
+x-exist-docs: /docs/plugins
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
   - EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
 needs:

@@ -30,8 +30,8 @@ service, decide which side it is on and wire it accordingly.
   2. exist.initial.sh Pre-startup, idempotent, every run. No sentinels — check state, skip if done.
 docker compose up -d  (user runs)
   3. entrypoint.sh    Inside the container, before the service starts. Trues up config it owns.
-  4. decree daemon    Runs pending one-time migrations from workspace/.decree/migrations/, in order,
-                       each waiting on its service (the automation daemon only)
+  4. decree daemon    At start, runs each plugin's order files that have not run (decree's
+                       `decree_order` plugin), in order, each waiting on its service (the automation daemon only)
 On demand:
   exist.<action>.sh   ./existential.sh run <slug> <action> — interactive/manual, documented on the service's docs page
   exist.test.sh       ./existential.sh run <slug> test — read-only validation
@@ -42,9 +42,9 @@ On demand:
 | `exist.initial.sh` | Files/dirs/system config needed before container start. Idempotent. |
 | `entrypoint.sh` | Config the service owns, seeds at first boot, and re-reads only at startup — see below. |
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
-| migration `migrations/<name>.md` | Post-startup setup (API calls, user creation, seeds). Runs once. |
+| order file (a plugin's `order:`) | Post-startup setup (API calls, user creation, seeds). Runs once, and again if edited. |
 | `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or in a flow's body. |
-| `exist.test.sh` | Every service with a container ships one. Also what triage and the migration gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
+| `exist.test.sh` | Every service with a container ships one. Also what triage and the order-file gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
 then `exec`s the image's real entrypoint. Reach for this when a setting is *derived from
@@ -227,29 +227,31 @@ Adhoc disables the healthcheck. What a machine is and how the two projects are l
 decree project:
 
 - **`automation`** mounts `workspace/.decree` (`workspace_data/.decree`) as `/work/.decree`:
-  the user's project, so machines, scripts, cron, migrations and inbox written there run on the
-  next tick. `services/automation/exist.initial.sh` installs the plugins that are on and
-  tagged `project: automation`, the plugin system's among them, at the
-  checkout's version (`.claude/reference/decree.md`), and copies `.gitignore`,
-  `decree-go-rest.yml` and `handlers.yml` only while they are absent, so the user's edits win. `lib/` is `automation/lib/` (the shared part) plus each installed
-  plugin's own lib files, copied in the same way;
+  the user's project, so cron files, inbox messages and handlers written there run on the
+  next tick. `services/automation/exist.initial.sh` writes its `plugins/` from the plugins
+  that are on and tagged `x-exist-project: automation`, the plugin system's among them, at the
+  checkout's version, and `decree install` installs them (`.claude/reference/decree.md`); it
+  copies `.gitignore`, `decree-go-rest.yml` and `handlers.yml` only while they are absent, so
+  the user's edits win. `lib/` is `automation/lib/` (the shared part) plus each installed
+  plugin's `x-exist-lib`, copied in the same way;
   `.env` (`automation/.env`) and `/secrets` (`automation/secrets/`) are mounted from the repo
-  so nothing secret is ever written under `workspace/`. With `GRAPH_WATCH=1` the entrypoint
-  redraws `graph/` whenever a machine or cron file changes, and writes the decree skill to
-  `workspace/.claude/skills/decree/`, with `automation/lib/skill-notes.md` appended, whenever
-  the image's decree version or those notes change (stamped in `/data`). With
+  so nothing secret is ever written under `workspace/`. With `FILE_HANDLERS=1` the entrypoint
+  writes the decree skill a `decree init` writes to `workspace/.claude/skills/decree/`, and
+  `automation/lib/skill-notes.md` beside it as `workspace/.claude/skills/existential/`,
+  whenever the image's decree version or those notes change (stamped in `/data`). With
   `FILE_HANDLERS=1` it keeps `automation/lib/file-handlers.ts` running (plain `node`, not
   `tsx`: it never exits, and tsx holds a second node beside it), which watches `/workspace`
   and emits the machines `handlers.yml` names. `exist.initial.sh` writes `workspace/notes/my-first-note.md` once.
   `workspace/notes/` is mounted read-only over `/workspace`, so nothing it runs, Claude in
   `auto` mode included, changes a note; machines write under `workspace/ai/`.
 - **`automation-backup`** wholesale-mounts `services/automation-backup/`, with the
-  `machines/`, `scripts/` and `lib/` its plugins install there mounted read-only over its
-  `.decree/`, so nothing a run does changes the code it runs. Its active `cron/` lives there, written by the flows that are on.
+  `plugins/`, `machines/` and `lib/` its plugins install there mounted read-only over its
+  `.decree/`, so nothing a run does changes the code it runs; each machine's `state/` is a
+  link to its writable `store/`. Its cron files are the flows' that are on, in their machines' folders.
 
 | | `automation` | `automation-backup` |
 |---|---|---|
-| Runs | routing, notes, file_router, agent_task, **every migration** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `clean_runs`, **`triage`** (+ `notes_pull`, opt-in) |
+| Runs | routing, notes, file_router, agent_task, **every order file** | `volume_backup`, `db_backup`, `sqlite_backup`, `notify`, `prune`, **`triage`** (+ `notes_pull`, opt-in) |
 | Sees | `automation/lib` read-only, `/workspace` read-write but `notes/` read-only, `decree_data` | **`/repo` read-only**, `volumes/` read-write, `/workspace` read-write, `/secrets` read-only, `decree_data` |
 | Credentials | enumerated, only the keys its scripts use | the **master `.env`** via `env_file` |
 | Model access | the role's OpenAI-compatible `/v1` URL (`lib/model.sh`), and pi on it with tools (`lib/pi.sh`) | none — nothing here reasons |
@@ -281,14 +283,14 @@ to its own volumes and creds, which was stricter — the trade was deliberate: t
 `decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
 volume and credential YAML **per service**, against a repo whose whole claim is that adding a
 service is adding a folder. Now a new service's backup is one flow file,
-`automation/plugins/flows/backup-<slug>.md` (`project: backup`), because `volumes/` is mounted wholesale and its dir appears there
+`automation/plugins/flows/backup-<slug>.md` (`x-exist-project: backup`), because `volumes/` is mounted wholesale and its dir appears there
 the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
-**Migration ordering.** There is no gate. A migration for a service starts with a
-`wait_for_<service>` state (`script: { name: wait_for_<service>, timeout: 10m }`) that polls
-until the service answers, so a slow starter holds back only its own migrations, in order. A
-migration that fails blocks the ones after it until `decree process --retry`. Add a migration for
-a new service and you add its `wait_for_*` script.
+**Order-file ordering.** There is no gate. An order file for a service runs a machine that starts
+with a `wait_for_<service>` state (`script: { name: wait_for_<service>, timeout: 10m }`) that
+polls until the service answers, so a slow starter holds back only what comes after it, in
+order. An order file that fails stops the ones after it until `decree retry <id>` (or the next
+daemon start). Add an order file for a new service and you add its `wait_for_*` script.
 
 **`automation-webhook` does not use this image**, and is its own service folder
 (`services/automation-webhook/`, its own flag, outside Core). It is decree-go-rest

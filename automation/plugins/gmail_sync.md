@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: gmail_sync
-project: automation
+name: gmail_sync
+x-exist-project: automation
 needs:
   - actual_budget_parse
   - gmail
-chart:
+machine:
   description: Fetch new Gmail messages under one label and emit each to GMAIL_ROUTINE, headers as params and body as body.
   data:
     GMAIL_LABEL_FILTER: {type: string, default: INBOX}
@@ -24,13 +23,13 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  gmail_sync: |
+  gmail_sync.sh: |
     #!/usr/bin/env bash
     # gmail_sync
     #
     # Fetches new Gmail messages via the Gmail REST API and emits each one to
     # GMAIL_ROUTINE (gmail, or actual_budget_parse): the email body as the message
-    # body, its headers as params. Triggered by volumes/workspace_data/.decree/cron/gmail-sync.md.
+    # body, its headers as params. Triggered by volumes/workspace_data/.decree/machines/flow_gmail_inbox/cron/gmail-sync.md.
     #
     # GMAIL_FORWARD carries extra params to every emitted message, one key=value
     # per line — how a bank-label cron hands actual_budget_parse its parse_script

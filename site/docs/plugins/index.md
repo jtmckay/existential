@@ -12,48 +12,54 @@ examples. [Writing a Plugin](./writing-a-plugin.md) is the how-to;
 
 Every machine the stack ships is a plugin: one file in `automation/plugins/<name>.md` holding
 the machine, its scripts, the webhook endpoints that start it and, if it has one, its schedule.
+It is a [decree plugin file](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md),
+which `decree install` installs, with this stack's own keys beside decree's, each `x-exist-…`.
 An install has only the plugins it turned on, each at the version in its checkout. Pull the repo
 and run `./existential.sh`, and every plugin you have on is the new version.
 
 ```markdown
 ---
-machine: plugin
-automation: gpu_lease
-project: automation     # which decree project runs it: automation, backup or host (or a list)
-needs: [model]          # the plugins it starts, emits to, or whose lib it uses (export writes it)
-chart:                  # the decree machine, without its name
+name: my_plugin
+needs: [model]          # the plugins it starts, emits to, or whose lib it uses
+machine:                # the decree machine, without its name
   initial: start
   states: { … }
-scripts:                # each becomes scripts/gpu_lease/<script>.sh
-  start: |
+scripts:                # each becomes machines/my_plugin/scripts/<file>
+  start.sh: |
     #!/usr/bin/env bash
     …
-lib:                    # each becomes lib/<path>, reached as ${DECREE_LIB}/<path>
-  gpu_lease/helper.sh: |
-    …
-store:                  # yours to edit: each written once to store/gpu_lease/<path>, never overwritten
+state:                  # yours to edit: each written once to store/my_plugin/<path>, never overwritten
   feeds.txt: |
     …
-cron:                   # each becomes cron/<name>.md
-  gpu_lease_nightly: |
+cron:                   # each becomes machines/my_plugin/cron/<file>, installed once
+  my_plugin_nightly.md: |
     ---
-    machine: gpu_lease
     cron: "0 3 * * *"
     ---
-endpoints:              # added to the webhook while it is installed
-  - path: /gpu/{mode}/{client}
-    message: { machine: gpu_lease, params: { … } }
+x-exist-project: automation   # which decree project runs it: automation, backup or host (or a list)
+x-exist-lib:            # each becomes .decree/lib/<path>, which its scripts source by that path
+  my_plugin/helper.sh: |
+    …
+x-exist-endpoints:      # added to the webhook while it is installed
+  - path: /my/{thing}
+    message: { machine: my_plugin, params: { … } }
 ---
-# GPU lease
+# My plugin
 
 What it does and how to use it.
 ```
 
+A plugin can also be one of [decree's own](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md#official-plugins)
+with your changes: `extends: decree_lease` and only the files it changes. That is how
+`gpu_lease` is decree's `decree_lease` with this stack's GPU rules and swap script, and
+`repo_develop` is decree's `decree_develop` with this repo's gate. decree's own plugins are
+never edited in place; a plugin that extends one keeps your changes through every decree upgrade.
+
 ## Which ones you have
 
-Every plugin is in that one folder, and its `project:` says which decree project runs it:
+Every plugin is in that one folder, and its `x-exist-project` says which decree project runs it:
 
-| `project:` | Where it is installed | What it runs |
+| `x-exist-project` | Where it is installed | What it runs |
 |---|---|---|
 | `automation` | `workspace/.decree` | everything that reasons, routes or calls a service |
 | `backup` | `services/automation-backup/` | backups, triage, workspace sync |
@@ -61,29 +67,35 @@ Every plugin is in that one folder, and its `project:` says which decree project
 
 What is on is one list for all three, `automation/plugins.yml` (`on:`). That file is yours,
 never in git, and written the first time from `automation/plugins.exist.yml`: what every
-install starts with. Each project installs the entries tagged for it, and whatever those need.
-A project never gets a plugin that is not tagged for it, and the list is outside the workspace:
-nothing the `automation` daemon runs, or a model it calls, can change what `backup` or the
-host runs. The installed copies (`machines/`, `scripts/`, `lib/` in each project) are never
-committed; the plugin's file is the one place it lives.
+install starts with. Each project's `.decree/plugins/` gets the entries tagged for it, and
+whatever those need, and `decree install` installs them. A project never gets a plugin that is
+not tagged for it, and the list is outside the workspace: nothing the `automation` daemon runs,
+or a model it calls, can change what `backup` or the host runs. The installed copies
+(`plugins/`, `machines/`, `lib/` in each project) are never committed; the plugin's file in
+the repo is the one place it lives.
 
 A plugin with no machine is a **flow**, in `automation/plugins/flows/`: one thing the stack does
 for you, needing the plugins that do it and naming the services they use (turning it on asks before it
 turns each on). Those with a
 tagline are the ones [`./existential.sh flow`](../flows/index.md) offers; the rest are libraries, code
 other plugins use (`model`, `pi`, `agent`, `firecrawl`, `rss`) or a file processor a flow turns
-on (`ocr`, `transcribe`, `agent_handoff`). Every helper a script uses is some plugin's, installed into
-`workspace/.decree/lib/` and reached as `${DECREE_LIB}/<path>`.
+on (`ocr`, `transcribe`, `agent_handoff`). decree installs a flow as `flow_<name>`, so its
+schedule has a folder. Every helper a script uses is some plugin's `x-exist-lib`, installed into
+`workspace/.decree/lib/` and sourced as `.decree/lib/<path>` (a script runs in the project's
+root). A plugin may also need one of [decree's own](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md#official-plugins),
+named `decree_*`: `decree_order` (runs a plugin's one-time setup), `decree_ai` (Claude Code, for
+`agent`) and `decree_prune` (the `clean-runs` flow).
 
 Data that is yours to edit (the newsletter's feeds and taste, pi's departments) is a plugin's
-`store:`, written once to `workspace/.decree/store/<plugin>/` and never overwritten, removed or
-sent to another stack. The store is writable from code-server; `machines/`, `scripts/` and `lib/`
-are read-only in every container, and a plugin made in the workspace runs only after you
-[accept it on the host](./offer-and-accept.md).
+`state:`, written once to `workspace/.decree/store/<plugin>/` (each machine's `state/` is that
+folder) and never overwritten, removed or sent to another stack. The store is writable from
+code-server; `plugins/`, `machines/` and `lib/` are read-only in every container, and a plugin
+made in the workspace runs only after you [accept it on the host](./offer-and-accept.md). A
+schedule of your own is a plugin too, one with only `cron:` files, accepted the same way.
 
 ```bash
 ./existential.sh run plugin                     # every plugin: on or not, its project, what it does
-./existential.sh run plugin on gpu_lease        # install it where its project: says, and keep it current
+./existential.sh run plugin on gpu_lease        # install it where its x-exist-project says, and keep it current
 ./existential.sh run plugin off gpu_lease       # remove it, endpoints and schedule included
 ```
 
@@ -92,9 +104,9 @@ one that something still on needs stays. With `auto_update: false`, a plugin who
 
 ## Changing one
 
-On the host, change the installed machine, scripts and lib in its project
-(`volumes/workspace_data/.decree/` for `automation`; read-only inside every container) until it
-works, then write it back and commit. A plugin that `backup` or the host
+On the host, change the installed machine and scripts in its project
+(`volumes/workspace_data/.decree/machines/<name>/` for `automation`; read-only inside every
+container) until it works, then write it back (`decree export`) and commit. A plugin that `backup` or the host
 runs is exported from there, never from the workspace:
 
 ```bash
@@ -102,12 +114,13 @@ runs is exported from there, never from the workspace:
 ```
 
 Every install that has it on gets the new version on its next pull. A copy someone edited in
-place is kept in `.decree/archive/` before the new version replaces it. Machines you wrote
+place is kept in `.decree/archive/<name>/` (decree does that) before the new version replaces
+it. A schedule you edited in place is kept: decree installs a plugin's cron files once. Machines you wrote
 yourself, and automations `develop` built from your notes, are never touched.
 
-`notify` and `plugin` are the plugin system itself. They are plugin files like
+`notify` is the plugin system itself. It is a plugin file like
 the rest, but always installed, whatever is on, and only the repo's files install them: no
-plugin you accept from another stack can replace one. Everything else is off until you turn it on.
+plugin you accept from another stack can replace it, nor one of decree's. Everything else is off until you turn it on.
 
 ## Between stacks
 
@@ -119,6 +132,7 @@ plugin, and yours can ask theirs. Nothing is installed anywhere without a person
   /plugins/<machine>/share/<client>`) and is sent it as a plugin file, at once for a machine you
   list in `PLUGIN_SHARE_ALLOW`, otherwise once you say yes on your phone. Asked for no machine
   (`POST /plugins/share/<client>`), it sends the list of your machines, each marked free or asks.
+  A machine is sent as the plugin file it was installed from.
   Only clients with a `PLUGIN_SHARE_CALLBACK_<CLIENT>` in `automation/.env` (and its `_TOKEN`)
   can be sent anything.
 - `plugin_request`: you ask another stack for its list, or for one machine. Set
@@ -129,5 +143,5 @@ plugin, and yours can ask theirs. Nothing is installed anywhere without a person
   the line that asks for one; a plugin waits in `ai/proposed/` until you
   [accept it on the host](./offer-and-accept.md). Read its scripts first: they run with this stack's access.
 
-The file a stack sends names what it cannot carry, the `$DECREE_LIB` files its scripts use, which
-the receiving stack has to have.
+A plugin sent from another stack `needs:` the plugins it uses, which the receiving stack has to
+have on: accepting it says which.

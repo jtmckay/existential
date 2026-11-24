@@ -81,27 +81,28 @@ _generated_files() {
     done < <(find "$REPO_DIR" -maxdepth 1 -name 'docker-compose-*.yml' 2>/dev/null | sort)
 }
 
-# decree's own runtime state: every run's logs (workspace/.decree/runs/)
-# and the migration ledger (workspace/.decree/processed.md). Neither is
-# rendered from a template — they're gitignored runtime output
-# that piles up the same way rendered config does, and a reset that leaves them
-# behind means the next fresh install starts with someone else's run history and
-# a processed.md that skips migrations decree hasn't actually run yet here.
-_automation_state_files() {
-    local f
-    for f in volumes/workspace_data/.decree/runs volumes/workspace_data/.decree/processed.md; do
-        [[ -e "${REPO_DIR}/${f}" ]] && printf '%s\n' "$f"
+# decree's own runtime state: every run's logs (workspace/.decree/runs/), the
+# record of which order files ran (each machine's state/order.git.txt, in
+# store/), and decree's record of what it installed (cache/). None is rendered
+# from a template — they're gitignored runtime output that piles up the same way
+# rendered config does, and a reset that leaves them behind means the next fresh
+# install starts with someone else's run history, skips order files decree
+# hasn't actually run here, and never installs a plugin's cron files again.
+_automation_state_files() (
+    cd "$REPO_DIR" || exit 0
+    for f in volumes/workspace_data/.decree/runs volumes/workspace_data/.decree/cache \
+             services/automation-backup/cache volumes/workspace_data/.decree/store/*/order.git.txt; do
+        [[ -e "$f" ]] && printf '%s\n' "$f"
     done
-}
+)
 
-# The active crons and migrations a plugin installed (or a person wrote). The
-# plugins themselves are tracked and never touched; only the active copies are.
+# The active cron files a plugin installed (each machine's cron/). The plugins
+# themselves are tracked and never touched; only the active copies are.
 _activated_files() {
     local f
     while IFS= read -r f; do
         printf '%s\n' "${f#"$REPO_DIR/"}"
-    done < <(find "$REPO_DIR" \( -path '*/workspace_data/.decree/cron/*' -o -path '*/workspace_data/.decree/migrations/*' \
-                                -o -path '*/automation-backup/cron/*' \) \
+    done < <(find "$REPO_DIR" \( -path '*/workspace_data/.decree/machines/*/cron/*' -o -path '*/automation-backup/machines/*/cron/*' \) \
                  -name '*.md' -type f \
                  -not -path '*/node_modules/*' 2>/dev/null | sort)
 }

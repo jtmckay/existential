@@ -30,7 +30,7 @@ assert_contains() { if [[ "$3" == *"$2"* ]]; then _ok "$1"; else _fail "$1" "mis
 
 TMP="$(mktemp -d)"
 # The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-for _p in newsletter ollama_pull ocr; do ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
+for _p in newsletter ollama_pull ocr; do ( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "${TMP}/unpacked" ) >/dev/null; done
 LIB="${TMP}/unpacked/.decree/lib"
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
@@ -106,7 +106,8 @@ _reply "stub reply"
 mkdir -p "${TMP}/run"
 printf '{"title":"t","link":"https://example.test/a"}\n' > "${TMP}/run/items.jsonl"
 _reply "- [t](https://example.test/a): worth it"
-if DECREE_RUN_DIR="${TMP}/run" DECREE_STORE="${TMP}/unpacked/.decree/store/newsletter" DECREE_LIB="$LIB" bash "${TMP}/unpacked/.decree/scripts/newsletter/write.sh" >/dev/null 2>"${TMP}/write.err"; then
+# As decree runs it: in the project root, where .decree/lib/ is.
+if (cd "${TMP}/unpacked" && DECREE_RUN_DIR="${TMP}/run" DECREE_STATE_DIR="${TMP}/unpacked/.decree/machines/newsletter/state" bash .decree/machines/newsletter/scripts/write.sh) >/dev/null 2>"${TMP}/write.err"; then
     assert_contains "newsletter write gets a completion" \
         "worth it" "$(cat "${TMP}/run/issue.md")"
 else
@@ -129,7 +130,7 @@ assert_eq "ocr.ts sends the vision tag" "vision-model" "$(_body | jq -r .model)"
 # ── ollama-only steps stay away when ollama is off ────────────────────────────
 
 _before="$(wc -l < "${TMP}/requests.log")"
-_out="$(EXIST_IS_AI_OLLAMA=false DECREE_LIB="$LIB" timeout 20 bash "${TMP}/unpacked/.decree/scripts/ollama_pull/ollama_pull.sh" 2>&1)"; _rc=$?
+_out="$(cd "${TMP}/unpacked" && EXIST_IS_AI_OLLAMA=false timeout 20 bash .decree/machines/ollama_pull/scripts/ollama_pull.sh 2>&1)"; _rc=$?
 assert_eq "ollama_pull is a clean no-op without ollama" "0" "$_rc"
 assert_eq "ollama_pull sent nothing to the server" "$_before" "$(wc -l < "${TMP}/requests.log")"
 

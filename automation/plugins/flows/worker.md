@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: worker
-name: Worker
-tagline: This host's disks, CPU, RAM, VRAM, plugins and containers every 5 minutes, and every decree run as it happens, reported to your controller for Grafana
-docs: /docs/hosting/controller-and-workers
-project: host
+name: worker
+x-exist-title: Worker
+x-exist-tagline: This host's disks, CPU, RAM, VRAM, plugins and containers every 5 minutes, and every decree run as it happens, reported to your controller for Grafana
+x-exist-docs: /docs/hosting/controller-and-workers
+x-exist-project: host
 needs:
   - reporting
 ---

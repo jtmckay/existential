@@ -21,7 +21,7 @@ ARG YQ_SHA256=a2c097180dd884a8d50c956ee16a9cec070f30a7947cf4ebf87d5f36213e9ed7
 # Pinned by tag: bump it deliberately, and keep it equal to the
 # decree inside automation-webhook's image (../../automation-webhook/docker-compose.exist.yml). The
 # release's own install.sh fetches its static binary and checks its sha256.
-ARG DECREE_TAG=v0.5.0
+ARG DECREE_TAG=v0.6.0
 # Claude Code, which `ai` in lib/ai.sh calls: machines that need an agent
 # use it (lib/agent.sh). Pinned, and its updater is off below, so a
 # run never changes the CLI under it; bump it here.

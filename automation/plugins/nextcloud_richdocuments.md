@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: nextcloud_richdocuments
-project: automation
-chart:
+name: nextcloud_richdocuments
+x-exist-project: automation
+machine:
   description: Install richdocuments and point it at Collabora, with the WOPI allowlist set to the exist bridge.
   data:
     WOPI_ALLOWLIST: {type: string, default: 172.16.0.0/12}
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  nextcloud_richdocuments: |
+  nextcloud_richdocuments.sh: |
     #!/usr/bin/env bash
     # nextcloud-richdocuments — install richdocuments and point it at Collabora,
     # and Collabora back at Nextcloud over the exist network.
@@ -112,7 +111,7 @@ scripts:
         || { echo "Could not set wopi_allowlist." >&2; exit 1; }
 
     echo "richdocuments configured: wopi_url=${COLLABORA_URL} wopi_callback_url=http://nextcloud wopi_allowlist=${WOPI_ALLOWLIST}"
-  wait_for_nextcloud: |
+  wait_for_nextcloud.sh: |
     #!/usr/bin/env bash
     # wait_for_nextcloud — the first state of every Nextcloud migration machine.
     #

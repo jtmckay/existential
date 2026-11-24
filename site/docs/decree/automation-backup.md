@@ -29,7 +29,7 @@ docker compose up -d
 Enabling it schedules only `clean-runs`. Everything else it can do is a flow you turn on:
 `service-triage`, `workspace-sync`, `notes-pull`, and one `backup-<service>` per thing to back
 up (`./existential.sh flow on backup-workspace`). A flow's crons land in
-`services/automation-backup/cron/`, where you can change a schedule.
+`services/automation-backup/machines/flow_<name>/cron/`, where you can change a schedule.
 Restore with `./existential.sh run backup-restore`.
 
 ```bash

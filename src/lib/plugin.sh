@@ -10,31 +10,29 @@
 #   ./existential.sh run plugin accept <name>     read one, say yes, and it is installed
 #
 # accept is the only way anything made in the workspace becomes a machine: every
-# container that mounts the workspace has machines/, scripts/ and lib/ read-only,
-# so develop, an agent in code-server or another stack can only offer a plugin
-# file (workspace/ai/proposed/<name>.md). A person reads it and accepts it here,
-# on the host, at a terminal. It is kept in automation/plugins/local/ (never in
-# git), for the automation project alone.
+# container that mounts the workspace has .decree/plugins/, machines/ and lib/
+# read-only, so develop, an agent in code-server or another stack can only offer
+# a plugin file (workspace/ai/proposed/<name>.md). A person reads it and accepts
+# it here, on the host, at a terminal. It is kept in automation/plugins/local/
+# (never in git), for the automation project alone.
 #
 # automation/plugins.yml is the one record of what is on, written from
-# automation/plugins.exist.yml the first time. A plugin's `project:` says which
-# decree project runs it: automation (workspace/.decree), backup
+# automation/plugins.exist.yml the first time. A plugin's x-exist-project says
+# which decree project runs it: automation (workspace/.decree), backup
 # (services/automation-backup) or host (the repo's own .decree, run by a daemon
-# on the host). on/off edit the list; sync installs, into one project, what is on
-# and tagged for it and what that needs, the new version of what changed, and
-# removes what is no longer wanted (lib/automations/plugin.sh). A flow is a
-# plugin in automation/plugins/flows/; ./existential.sh flow is the same list,
-# for flows. export writes an installed plugin back to its file, from the most
-# privileged project that runs it (host, then backup, then automation): nothing
-# changed in the workspace is ever exported into what backup or the host runs.
-# existential.sh runs it inside adhoc, where yq and decree are; on a host with
-# neither docker nor podman, on the host, with the host's own.
+# on the host). on/off edit the list; sync writes, into one project's
+# .decree/plugins/, what is on and tagged for it and what that needs, and `decree
+# install` installs it (lib/automations/plugin.sh). A flow is a plugin in
+# automation/plugins/flows/; ./existential.sh flow is the same list, for flows.
+# export writes an installed plugin back to its file (`decree export`), from the
+# most privileged project that runs it (host, then backup, then automation):
+# nothing changed in the workspace is ever exported into what backup or the host
+# runs. existential.sh runs it inside adhoc, where yq and decree are; on a host
+# with neither docker nor podman, on the host, with the host's own.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/repo}"
 PLUGINS="${REPO_DIR}/automation/plugins"
-# shellcheck source=../../automation/lib/automations/registry.sh
-. "${REPO_DIR}/automation/lib/automations/registry.sh"
 # shellcheck source=../../automation/lib/automations/plugin.sh
 . "${REPO_DIR}/automation/lib/automations/plugin.sh"
 # shellcheck source=../utils/flows.sh
@@ -55,13 +53,12 @@ enter() {  # <project> [ro: only look, so a missing project is an empty one]
                     cd "$root" ;;
         *) echo "plugin: no project '$1' (automation, backup or host)" >&2; exit 2 ;;
     esac
-    export DECREE_RUN_DIR; DECREE_RUN_DIR="$(mktemp -d)"
 }
 
 # automation/plugins.yml, once (plugins_seed). An install from before any
 # plugins.yml keeps what it had: a flow whose cron or migration is already in the
 # workspace is on, and a default flow it had turned off (flows-off) stays off.
-seed() {  # <project>
+seed() {
     local cfg="${REPO_DIR}/${PLUGINS_YML}" d="${REPO_DIR}/${FLOWS_DECREE}" f n k
     [[ -f "$cfg" ]] && return 0
     local listed=false; [[ -f "${d}/plugins.yml" ]] && listed=true
@@ -69,7 +66,7 @@ seed() {  # <project>
     $listed || [[ ! -d "$d" ]] && return 0
     for f in "$PLUGINS"/flows/*.md; do
         n="$(basename "$f" .md)"
-        for k in $(yq --front-matter=extract -r '((.cron // {}) | keys | .[] | "cron/" + . + ".md"), ((.migrations // {}) | keys | .[] | "migrations/" + . + ".md")' "$f"); do
+        for k in $(yq --front-matter=extract -r '((.cron // {}) | keys | .[] | "cron/" + .), ((.order // {}) | keys | .[] | "migrations/" + .)' "$f"); do
             if [[ -e "${d}/${k}" ]] || grep -qxF "${k#migrations/}" "${d}/processed.md" 2>/dev/null; then
                 n="$n" yq -i '.on = ((.on // []) + [strenv(n)] | unique)' "$cfg"; break
             fi
@@ -84,7 +81,7 @@ seed() {  # <project>
 # The projects a plugin's changes reach here: backup only while it is enabled
 # (its exist.initial.sh has made the project's folders).
 here() {  # <project>
-    [[ "$1" != backup || -d "${REPO_DIR}/services/automation-backup/machines" ]]
+    [[ "$1" != backup || -d "${REPO_DIR}/services/automation-backup/plugins" ]]
 }
 # The most privileged project that runs it: where export reads it from.
 source_of() {  # <name>
@@ -94,9 +91,8 @@ source_of() {  # <name>
 }
 
 # automation/lib/ is what more than one plugin uses, so every project gets all
-# of it, kept equal to the checkout: a file gone from the repo (a file processor
-# whose flow went off) goes from lib/ too. A plugin's own lib files are not in
-# it, so this never touches them.
+# of it, kept equal to the checkout: a file gone from the repo goes from lib/
+# too. A plugin's own lib files are not in it, so this never touches them.
 shared_lib() {
     local list=".decree/lib/.shared" f
     mkdir -p .decree/lib
@@ -115,7 +111,6 @@ shared_lib() {
 # the automation container.
 kernel() {  # <project>
     local path
-    mkdir -p .decree/machines .decree/scripts
     [[ "$1" != host ]] || return 0
     shared_lib
     [[ "$1" == automation && -f "$REST" ]] || return 0
@@ -141,7 +136,8 @@ case "$cmd" in
             [[ -f "$f" ]] || continue
             n="$(basename "$f" .md)"
             mark="  "; [[ "$on" == *" ${n} "* ]] && mark="on"
-            printf '  %-3s %-28s %-18s %s\n' "$mark" "$n" "$(plugin_projects "$n" | paste -sd, -)" "$(yq --front-matter=extract -r '.tagline // .chart.description // ""' "$f" | cut -c1-80)"
+            printf '  %-3s %-28s %-18s %s\n' "$mark" "$n" "$(plugin_projects "$n" | paste -sd, -)" \
+                "$(yq --front-matter=extract -r '.["x-exist-tagline"] // .machine.description // (.extends | select(.) | "decree'"'"'s " + . + ", extended") // ""' "$f" | cut -c1-80)"
         done
         echo ""; echo "Turn one on:  ./existential.sh run plugin on <name>   (what it needs comes with it)" ;;
     on|off)
@@ -155,16 +151,27 @@ case "$cmd" in
     export)
         [[ -n "${1:-}" ]] || { echo "usage: plugin export <name>" >&2; exit 2; }
         n="${1##*/}"; p="$(source_of "$n")"
-        enter "$p"
         dst="$(plugin_src "$PLUGINS" "$n" || echo "${PLUGINS}/${n}.md")"
-        out="$(mktemp)"; plugin_export "$n" > "$out"
+        [[ "$dst" != */flows/* ]] || { echo "plugin: ${n} is a flow, which has no machine to export: edit ${dst#"${REPO_DIR}/"}" >&2; exit 1; }
+        enter "$p"
+        decree export --no-color "$n" >/dev/null
+        out="$(mktemp)"; cp ".decree/plugins/${n}.md" "$out"
+        # Its needs by the repo's names (a flow's is flow_<name> to decree), and none
+        # of the machines a note starts, which the sync adds to note_watch.
+        for f in "$PLUGINS"/flows/*.md; do
+            a="flow_$(basename "$f" .md | tr - _)" b="$(basename "$f" .md)" yq --front-matter=process -i '(.needs[]? | select(. == strenv(a))) = strenv(b)' "$out"
+        done
+        if [[ "$n" == note_watch ]]; then
+            yq --front-matter=extract '.machine.states.watch.emits' "$dst" > "${out}.e"
+            e="${out}.e" yq --front-matter=process -i '.machine.states.watch.emits = load(strenv(e))' "$out"; rm -f "${out}.e"
+        fi
         mv "$out" "$dst"; chmod 644 "$dst"
         echo "Wrote ${dst#"${REPO_DIR}/"} from the ${p} project — commit it, and every install that has it on gets it on its next pull." ;;
     offers)
         d="${REPO_DIR}/${FLOWS_DECREE%/.decree}/ai/proposed"; any=false
         for f in "$d"/*.md; do
             [[ -f "$f" ]] || continue; any=true; n="$(basename "$f" .md)"
-            if plugin_is "$f"; then printf '  %-28s %s\n' "$n" "$(yq --front-matter=extract -r '.chart.description // ""' "$f" | cut -c1-90)"
+            if plugin_is "$f"; then printf '  %-28s %s\n' "$n" "$(yq --front-matter=extract -r '.machine.description // ""' "$f" | cut -c1-90)"
             else printf '  %-28s %s\n' "$n" "a spec, not built yet: move it into notes/automations/ to have it built"; fi
         done
         if $any; then echo ""; echo "Read one in workspace/ai/proposed/, then:  ./existential.sh run plugin accept <name>"
@@ -176,26 +183,33 @@ case "$cmd" in
         [[ "$n" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || die "'${n}' is not a machine name"
         [[ -f "$f" ]] || die "nothing is offered as workspace/ai/proposed/${n}.md"
         plugin_is "$f" || die "${n} is a spec, not a plugin: move it into notes/automations/ and develop builds it for review"
-        [[ "$(yq --front-matter=extract -r '.automation // ""' "$f")" == "$n" ]] || die "the file says 'automation: $(yq --front-matter=extract -r '.automation // ""' "$f")', not ${n}"
-        [[ ! -f "${PLUGINS}/${n}.md" && ! -f "${PLUGINS}/flows/${n}.md" && "$PLUGIN_KERNEL" != *" ${n} "* ]] ||
-            die "${n} is a plugin the repo ships, which nothing from the workspace replaces"
-        for k in $(yq --front-matter=extract -r '.needs // [] | .[]' "$f"); do
-            plugin_src "$PLUGINS" "$k" >/dev/null || die "it needs ${k}, which is no plugin here"
-            plugin_in automation "$k" || die "it needs ${k}, which the automation project does not run"
+        [[ "$(yq --front-matter=extract -r '.name // ""' "$f")" == "$n" ]] || die "the file says 'name: $(yq --front-matter=extract -r '.name // ""' "$f")', not ${n}"
+        [[ ! -f "${PLUGINS}/${n}.md" && ! -f "${PLUGINS}/flows/${n}.md" && "$PLUGIN_KERNEL" != *" ${n} "* ]] &&
+            [[ "$n" != decree_* ]] || die "${n} is a plugin the repo or decree ships, which nothing from the workspace replaces"
+        # An endpoint answers one machine, its own: one that emits elsewhere would let a
+        # POST start any machine here.
+        while IFS=$'\t' read -r k m; do
+            [[ -n "$k$m" ]] || continue
+            [[ "$m" == "$n" ]] || die "its endpoint ${k} must emit to ${n}, not '${m}'"
+        done < <(yq --front-matter=extract -r '.["x-exist-endpoints"][]? | [.path // "", (.action // "emit") as $a | (select($a == "emit") | .message.machine // "") // ("an " + $a + " action")] | @tsv' "$f")
+        for k in $(plugin_needs "$f"); do
+            [[ "$k" == decree_* ]] || plugin_src "$PLUGINS" "$k" >/dev/null || die "it needs ${k}, which is no plugin here"
+            plugin_src "$PLUGINS" "$k" >/dev/null && ! plugin_in automation "$k" && die "it needs ${k}, which the automation project does not run"
         done
         echo ""
-        echo "  ${n}: $(yq --front-matter=extract -r '.chart.description // ""' "$f")"
+        echo "  ${n}: $(yq --front-matter=extract -r '.machine.description // ("decree'"'"'s " + .extends + ", with what this file changes")' "$f")"
         yq --front-matter=extract -r '
-            "  starts     " + ([(.when | select(.) | "on a note that is: " + .), (.handlers[]? | "when " + .match + " changes"),
-                               (.cron // {} | keys | .[] | "cron " + .), (.endpoints[]? | "POST " + .path)] | join("; ") | select(. != "") // "only when something emits to it"),
-            "  needs      " + ((.needs // []) | join(", ") | select(. != "") // "nothing"),
+            "  starts     " + ([(.["x-exist-when"] | select(.) | "on a note that is: " + .), (.["x-exist-handlers"][]? | "when " + .match + " changes"),
+                               (.cron // {} | keys | .[] | "cron " + .), (.["x-exist-endpoints"][]? | "POST " + .path)] | join("; ") | select(. != "") // "only when something emits to it"),
+            "  extends    " + (.extends // "nothing"),
+            "  needs      " + ((.needs // []) | map(select(tag == "!!map") |= (to_entries | .[0] | .key + " met by " + .value)) | join(", ") | select(. != "") // "nothing"),
             "  scripts    " + ((.scripts // {}) | to_entries | map(.key + " (" + (.value | split("\n") | length | tostring) + " lines)") | join(", ")),
-            "  lib        " + ((.lib // {}) | keys | join(", ") | select(. != "") // "none"),
-            "  migrations " + ((.migrations // {}) | keys | join(", ") | select(. != "") // "none")' "$f"
+            "  lib        " + ((.["x-exist-lib"] // {}) | keys | join(", ") | select(. != "") // "none"),
+            "  order      " + ((.order // {}) | keys | join(", ") | select(. != "") // "none")' "$f"
         echo "  the file   workspace/ai/proposed/${n}.md"
         if [[ -f "${PLUGINS}/local/${n}.md" ]]; then
             echo ""; echo "  You accepted a ${n} before. What changes:"
-            diff <(plugin_canon "${PLUGINS}/local/${n}.md" | yq -P) <(plugin_canon "$f" | yq -P) | sed 's/^/    /' | head -60 || true
+            diff "${PLUGINS}/local/${n}.md" "$f" | sed 's/^/    /' | head -60 || true
         fi
         echo ""
         echo "  Its scripts run in the automation container, with that container's credentials."
@@ -205,9 +219,10 @@ case "$cmd" in
         [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]] || { echo "  Not installed."; exit 0; }
         mkdir -p "${PLUGINS}/local"
         cp "$f" "${PLUGINS}/local/${n}.md"; chmod 644 "${PLUGINS}/local/${n}.md"
-        yq --front-matter=process -i '.project = "automation"' "${PLUGINS}/local/${n}.md"
+        yq --front-matter=process -i '.["x-exist-project"] = "automation"' "${PLUGINS}/local/${n}.md"
         seed; plugins_turn on "$n"
-        if ( sync_project automation ); then
+        # --cron: what you just read is what runs, its cron files too (a sync installs those once).
+        if ( sync_project automation && decree install --cron --no-color "$n" >/dev/null ); then
             rm -f "$f"
             echo "  ${n} is installed and on. Off again:  ./existential.sh run plugin off ${n}"
         else

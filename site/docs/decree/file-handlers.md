@@ -59,7 +59,7 @@ for `notes/**`).
 ## Asking Claude for one
 
 Say "when a PDF lands in `inbox/`, file it by vendor" in code-server's terminal and Claude
-writes the machine and the handler. The decree skill in the workspace carries this page's
+offers the machine and its handler as one plugin. The workspace's `existential` skill carries this page's
 rules, and it suggests a folder or pattern that keeps the handler off files you are not ready
 for.
 

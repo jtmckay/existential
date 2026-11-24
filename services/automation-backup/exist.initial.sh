@@ -21,9 +21,9 @@ for _f in cron inbox runs store processed.md; do
 done
 
 # A missing bind-mount source is created root-owned by Docker.
-mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,cron,lib,machines,scripts} "${REPO}/automation/secrets"
+mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,lib,machines,plugins} "${REPO}/automation/secrets"
 
-# Its machines are plugins (automation/plugins/, project: backup), installed
+# Its machines are plugins (automation/plugins/, x-exist-project: backup), installed
 # at this checkout's version every run, in adhoc where yq and decree are.
 if [[ -n "${IN_CONTAINER:-}" ]]; then
     REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync backup ||

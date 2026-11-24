@@ -1,7 +1,7 @@
 # kind	lex (keywords, as the recall skill writes them)	vec (the question in plain words)	expected: groups separated by spaces, alternatives by |
 # Paths are relative to the eval workspace: this fixture at the root, plus the repo's
 # own docs copied in as distractors (docs/ = site/docs, reference/ = .claude/reference
-# and CLAUDE.md, migrations/ = .decree/migrations).
+# and CLAUDE.md, migrations/ = .decree/machines/repo_develop/order).
 exact	"restic forget"	how long do I keep old backup snapshots	notes/projects/homelab-backups.md
 exact	exist-alerts	which topic do my alerts go to	notes/projects/ntfy-alerts.md
 exact	"Priya Raman"	who is Priya	notes/people.md

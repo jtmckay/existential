@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: notes_pull
-project: backup
-chart:
+name: notes_pull
+x-exist-project: backup
+machine:
   description: Rsync-pull an external notes vault into workspace/notes, one way, without --delete unless asked.
   data:
     # user@host:/path over SSH, or a local path. Required.
@@ -21,7 +20,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  notes_pull: |
+  notes_pull.sh: |
     #!/usr/bin/env bash
     # Notes Pull
     #
@@ -51,7 +50,7 @@ scripts:
     # A source without a "host:" prefix (a local path, or a share already mounted
     # into this container) skips SSH entirely — rsync copies it directly.
     #
-    # Turn on the notes-pull flow, then in services/automation-backup/cron/notes-pull.md set
+    # Turn on the notes-pull flow, then in services/automation-backup/machines/flow_notes_pull/cron/notes-pull.md set
     # NOTES_PULL_SOURCE (and NOTES_PULL_SSH_KEY, if the key isn't at the default
     # path). The NOTES_PULL_* knobs are the machine's data.
     set -euo pipefail

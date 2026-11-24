@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: workspace-sync
-project: backup
-name: Workspace sync
-tagline: workspace/ kept the same as one other copy, on your NAS or in Nextcloud, every minute
-docs: /docs/decree/automation-backup
-services:
+name: workspace-sync
+x-exist-project: backup
+x-exist-title: Workspace sync
+x-exist-tagline: workspace/ kept the same as one other copy, on your NAS or in Nextcloud, every minute
+x-exist-docs: /docs/decree/automation-backup
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
 needs:
   - workspace_sync
 cron:
-  workspace-sync: |
+  workspace-sync.md: |
     ---
     cron: "* * * * *"
     machine: workspace_sync

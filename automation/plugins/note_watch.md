@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: note_watch
-project: automation
+name: note_watch
+x-exist-project: automation
 needs:
   - automation_propose
   - model
-chart:
+machine:
   description: Read one changed note; propose an automation for a standing instruction in it, and start every accepted automation whose trigger it is.
   data:
     path: {type: string, default: ""}
     change: {type: string, default: ""}
-  store:
+  state_files:
     proposed.tsv: Instructions already proposed (note path and automation name), so one note gets one proposal. note_watch reads and appends.
   initial: watch
   states:
@@ -22,7 +21,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  note_watch: |
+  note_watch.sh: |
     #!/usr/bin/env bash
     # note_watch — one changed note, two questions, one model call.
     #
@@ -31,15 +30,14 @@ scripts:
     #      later, when something occurs ("next time I have a business idea, …")?
     #      A new one becomes an automation_propose run.
     #   2. Is this note the event an automation you accepted is waiting for
-    #      (.decree/automations.yml, the ones with a `when:`)? Each one that matches runs on it.
+    #      (an installed plugin with an x-exist-when)? Each one that matches runs on it.
     # No model, or an answer that isn't JSON: nothing happens, and the run is still
     # done, so saving notes on a stack without a model never fills .decree/attention/.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
-    REGISTRY="${AUTOMATIONS_REGISTRY:-.decree/automations.yml}"
     rel="${DECREE_DATA_PATH:?run by the notes file handler, with a path}"
 
     # An automation spec is reconcile's, not an instruction.
@@ -49,12 +47,11 @@ scripts:
     [[ -s "${WS}/${rel}" ]] || { echo "note_watch: ${rel} is empty or gone"; exit 0; }
     text="$(head -c 6000 "${WS}/${rel}")"
 
-    touch "$REGISTRY"
-    installed="$(yq -o=json '. // []' "$REGISTRY")"
-    # An automation never triggers on the note that asked for it.
     # Only automations whose event is a note; a file or schedule trigger is not ours.
-    installed="$(jq -c '[.[] | select(.when)]' <<<"$installed")"
-    triggers="$(jq -r --arg rel "$rel" '.[] | select(.note != $rel) | "- \(.machine): \(.when)"' <<<"$installed")"
+    installed="$(for f in .decree/plugins/*.md; do [[ -f "$f" ]] &&
+                     yq --front-matter=extract -o=json -I=0 '{"machine": .name, "when": (.["x-exist-when"] // "")}' "$f"
+                 done | jq -sc 'map(select(.when != ""))')"
+    triggers="$(jq -r '.[] | "- \(.machine): \(.when)"' <<<"$installed")"
 
     system='You read one note from a person'"'"'s notes and answer two questions about it.
     Reply with one JSON object and no other text:
@@ -77,11 +74,11 @@ scripts:
         exit 0
     fi
 
-    # 2. Accepted automations this note is the trigger of. Only names the registry
-    #    has, so a model answer can only start what you accepted.
+    # 2. Accepted automations this note is the trigger of. Only names installed
+    #    with a `when`, so a model answer can only start what you accepted.
     while IFS= read -r m; do
         [[ -n "$m" ]] || continue
-        if jq -e --arg m "$m" --arg rel "$rel" 'any(.[]; .machine == $m and .note != $rel)' <<<"$installed" >/dev/null; then
+        if jq -e --arg m "$m" 'any(.[]; .machine == $m)' <<<"$installed" >/dev/null; then
             decree emit --machine "$m" --param note_path="$rel" </dev/null >/dev/null
             echo "note_watch: ${rel} is the trigger of ${m}; started it"
         fi
@@ -94,8 +91,8 @@ scripts:
     when="$(jq -r '.instruction.when // ""' <<<"$answer")"
     steps="$(jq -r '.instruction.steps // [] | map("- " + tostring) | join("\n")' <<<"$answer")"
     [[ -n "$when" && -n "$steps" ]] || { echo "note_watch: an instruction with no event or no steps; not proposed"; exit 0; }
-    ledger="${DECREE_STORE}/proposed.tsv"
-    mkdir -p "$DECREE_STORE"; touch "$ledger"
+    ledger="${DECREE_STATE_DIR}/proposed.tsv"
+    mkdir -p "$DECREE_STATE_DIR"; touch "$ledger"
     if grep -qxF "${rel}	${name}" "$ledger"; then
         echo "note_watch: ${rel} already has a proposal for ${name}"
         exit 0
@@ -111,4 +108,4 @@ Read one changed note; propose an automation for a standing instruction in it, a
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
+- .decree/lib/model.sh

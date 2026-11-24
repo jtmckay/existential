@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: plugin_request
-project: automation
-chart:
+name: plugin_request
+x-exist-project: automation
+machine:
   description: Ask another stack for one of its machines, or with no machine for the list of them; what it sends comes back to plugin_offer.
   data:
     from: {type: string, default: ""}
@@ -15,7 +14,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  request: |
+  request.sh: |
     #!/usr/bin/env bash
     # POST <PLUGIN_PEER_<FROM>>/plugins/[<machine>/]share/<PLUGIN_SHARE_NAME>, with
     # PLUGIN_PEER_<FROM>_TOKEN as its bearer if set (all in automation/.env).
@@ -29,7 +28,7 @@ scripts:
     auth=(); [[ -z "${!tok:-}" ]] || auth=(-H "Authorization: Bearer ${!tok}")
     curl -fsS --max-time 30 --retry 3 -X POST "${!var%/}/plugins/${m:+${m}/}share/${me}" "${auth[@]}" >/dev/null
     echo "plugin_request: asked ${f} for ${m:-the list of its machines}"
-endpoints:
+x-exist-endpoints:
   - path: /request/plugins/{from}
     patterns: {from: "[a-z0-9_-]{1,40}"}
     body: optional

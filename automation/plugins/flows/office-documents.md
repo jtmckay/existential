@@ -1,18 +1,18 @@
 ---
-machine: plugin
-automation: office-documents
-project: automation
-name: Office documents in Nextcloud
-tagline: Open and edit Word, Excel and PowerPoint files in the browser, through Collabora
-docs: /docs/storage/collabora
-services:
+name: office-documents
+x-exist-project: automation
+x-exist-title: Office documents in Nextcloud
+x-exist-tagline: Open and edit Word, Excel and PowerPoint files in the browser, through Collabora
+x-exist-docs: /docs/storage/collabora
+x-exist-services:
   - EXIST_IS_NAS_NEXTCLOUD
   - EXIST_IS_NAS_COLLABORA
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - nextcloud_richdocuments
-migrations:
-  22-nextcloud-richdocuments: |
+  - decree_order
+order:
+  22-nextcloud-richdocuments.md: |
     ---
     machine: nextcloud_richdocuments
     ---

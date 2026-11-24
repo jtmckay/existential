@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: note-to-automation
-project: automation
-name: Notes become automations
-tagline: Write "next time X, do Y" in a note, accept what is proposed, and it runs
-docs: /docs/flows/note-to-automation
-services:
+name: note-to-automation
+x-exist-project: automation
+x-exist-title: Notes become automations
+x-exist-tagline: Write "next time X, do Y" in a note, accept what is proposed, and it runs
+x-exist-docs: /docs/flows/note-to-automation
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - note_watch

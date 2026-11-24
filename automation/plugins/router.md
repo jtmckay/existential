@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: router
-project: automation
+name: router
+x-exist-project: automation
 needs:
   - agent_task
   - model
-chart:
+machine:
   description: Ask the chat model which department fits a task, then hand it to agent_task in that department.
   data:
     source_file: {type: string, default: ""}
@@ -22,7 +21,7 @@ chart:
     not_routed: {final: true}
     failed: {final: true}
 scripts:
-  router: |
+  router.sh: |
     #!/usr/bin/env bash
     # Router
     #
@@ -44,7 +43,7 @@ scripts:
     #   decree emit --machine router --param source_file=notes/lead.md <<<'<the task>'
     set -euo pipefail
 
-    DEPARTMENTS="${DEPARTMENTS:-${DECREE_LIB}/../store/agent_task/departments}"
+    DEPARTMENTS="${DEPARTMENTS:-.decree/lib/../store/agent_task/departments}"
     ROUTER_TIMEOUT="${ROUTER_TIMEOUT:-300}"
     source_file="$DECREE_DATA_SOURCE_FILE"
     output_name="$DECREE_DATA_OUTPUT_NAME"
@@ -95,7 +94,7 @@ scripts:
     no punctuation. If no department is a clear match, respond with: none"
 
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
 
     _system="You route work to departments. You reply with one department name and nothing else."
 
@@ -144,4 +143,4 @@ Ask the chat model which department fits a task, then hand it to agent_task in t
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
+- .decree/lib/model.sh

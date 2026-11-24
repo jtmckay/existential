@@ -1,34 +1,34 @@
 # e2e checks
 
 **An e2e check is a markdown file.** Adding one is adding a file here — the same
-move this repo already made for services, cron jobs and migrations. Nothing
+move this repo already made for services, cron jobs and order files. Nothing
 enumerates them.
 
-A check has the same shape as a decree migration: YAML frontmatter naming a
+A check has the same shape as a decree order file: YAML frontmatter naming a
 machine, then prose explaining what it proves. It is delivered as a decree
-**message**, not a migration — `e2e.sh` drops the applicable ones into the
+**message**, not an order file — `e2e.sh` drops the applicable ones into the
 inbox of the daemon whose project has their machine (see [Which daemon runs
 it](#which-daemon-runs-it)) **after** the container-health gate and after both
-daemons have finished their migrations. The daemon runs them and writes
+daemons have finished their order files. The daemon runs them and writes
 `runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log}` for each, and
 `e2e.sh` copies that out to `e2e-out/` and grades it.
 
 Checks are dropped in rather than shipped in `automation/plugins/` — that is what
 a user's install installs from, and test code has no business in the product tree.
 
-## Why messages, and why after the migrations
+## Why messages, and why after the order files
 
-A failed migration blocks every migration after it, so as migrations the first
+A failed order file stops every one after it, so as order files the first
 failing check would hide every later one. The one that actually bit us is
-timing: **migrations run as the daemon boots**, so a check written as a
-migration judges a stack that is still starting. Run that way, `00-services`
+timing: **order files run as the daemon boots**, so a check written as one
+judges a stack that is still starting. Run that way, `00-services`
 failed open-webui, appsmith, lowcoder, nocodb and nextcloud across four runs whose
 containers the health gate then found perfectly healthy.
 
-And each decree pass drains the inbox *before* it runs migrations, so a check
-dropped too early runs ahead of the setup it verifies. `e2e.sh` waits until
-`decree status` shows no migration left to run (or one blocked behind a failed
-one) before dropping anything.
+And decree's `decree_order` plugin runs the next order file only once the inbox is
+empty, so a check dropped too early runs ahead of the setup it verifies. `e2e.sh`
+waits until `decree status` shows nothing running, queued, or an `order` run
+waiting for its turn before dropping anything.
 
 ## Frontmatter
 
@@ -43,7 +43,7 @@ one) before dropping anything.
 
 There are two, they do not have the same mounts, and a check goes to the one
 that can run it. **This is derived from `machine:`, never declared** — whichever
-daemon's project has `machines/<machine>.yml`, asking `automation` first, so a
+daemon's project has `machines/<machine>/machine.yml`, asking `automation` first, so a
 machine both have stays where it has always run:
 
 | | `automation` | `automation-backup` |
@@ -60,9 +60,9 @@ have is a `failed` run whose events say `invalid_message`.
 ## The sibling `.yml` and `.sh`
 
 A check with neither reuses a machine the stack already ships. A check with
-them gets `<name>.yml` staged into the clone's `workspace/.decree/machines/<machine>.yml`
-and `<name>.sh` into its `scripts/<machine>.sh`, so test code never
-appears in a user's project. Write the machine as one state that invokes the
+them gets `<name>.yml` staged into the clone's `workspace/.decree/machines/<machine>/machine.yml`
+and `<name>.sh` into `machines/<machine>/scripts/<machine>.sh` (a machine folder no
+plugin names, which decree never touches), so test code never appears in a user's project. Write the machine as one state that invokes the
 script, and the script as any other: `set -euo pipefail`, non-zero to fail.
 
 **It runs inside a decree container** — `automation` unless the section above

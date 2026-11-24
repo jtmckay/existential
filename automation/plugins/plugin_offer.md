@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: plugin_offer
-project: automation
+name: plugin_offer
+x-exist-project: automation
 needs:
   - plugin_request
-chart:
+machine:
   description: Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you accept it on the host (run plugin accept), or sends the list of its machines, which goes to your phone.
   data:
     from: {type: string, default: ""}
@@ -17,17 +16,15 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  offer: |
+  offer.sh: |
     #!/usr/bin/env bash
     # The body is a plugin file. Once it reads as one, it is written to
     # ai/proposed/<name>.md and you are told; nothing is installed until you accept it
     # on the host (./existential.sh run plugin accept <name>).
     # A list of machines (catalog: true) is only sent to your phone.
     set -euo pipefail
-    # shellcheck source=../../lib/automations/registry.sh
-    source "${DECREE_LIB}/automations/registry.sh"
     # shellcheck source=../../lib/automations/plugin.sh
-    source "${DECREE_LIB}/automations/plugin.sh"
+    source ".decree/lib/automations/plugin.sh"
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     from="${DECREE_DATA_FROM:-}"
     file="${DECREE_RUN_DIR}/offer.md"
@@ -41,17 +38,17 @@ scripts:
         } | "${DECREE:-decree}" emit --machine notify --param ntfy_title="Machines ${from:-a stack} shares" --param ntfy_tags=package >/dev/null
         echo "plugin_offer: sent ${from:-their} list of machines to your phone"; exit 0
     fi
-    name="$(fm '.automation // ""')"
-    [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ && "$(fm '.machine')" == plugin && "$(fm '.chart | tag')" == '!!map' ]] ||
+    name="$(fm '.name // ""')"
+    [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] && plugin_is "$file" ||
         { echo "plugin_offer: what ${DECREE_DATA_FROM:-it} sent is not a plugin file" >&2; exit 1; }
     out="${WS}/ai/proposed/${name}.md"
     mkdir -p "$(dirname "$out")"
     cp "$file" "${out}.tmp" && mv "${out}.tmp" "$out"
     echo "plugin_offer: wrote ai/proposed/${name}.md"
-    if [[ -e ".decree/machines/${name}.yml" ]]; then had=" It would replace the ${name} you have."; else had=""; fi
+    if [[ -e ".decree/machines/${name}/machine.yml" ]]; then had=" It would replace the ${name} you have."; else had=""; fi
     { printf '%s offers the machine %s.%s\n\n' "${DECREE_DATA_FROM:-Another stack}" "$name" "$had"; plugin_offered "$name"; } |
         "${DECREE:-decree}" emit --machine notify --param ntfy_title="A machine offered to you" --param ntfy_tags=package >/dev/null
-endpoints:
+x-exist-endpoints:
   - path: /plugins/offer/{from}
     patterns: {from: "[a-z0-9_-]{1,40}"}
     body: required

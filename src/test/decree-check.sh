@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # decree-check.sh — `decree check` each decree project with every plugin tagged
-# for it in place, every message template queued, and each plugin on its own.
+# for it installed, every message template queued, and each plugin on its own.
 #
-# No project is checkable as it sits: machines, scripts and lib are installed
-# from automation/plugins/, and cron/, migrations/ and inbox/ are the user's
-# active sets. So each (automation, backup, host) is assembled in a temp dir from
-# every plugin whose project: names it, with their migrations queued and every
-# flow's examples in the inbox — that is what makes M1-M3 validate the
-# templates' machine and params against the machines' data, which is the mistake
-# a rename or a new param makes. Then each plugin is checked again alone with the
-# plugins its needs: names, so a needs: that misses one fails here, not on the
-# install that turns it on.
+# No project is checkable as it sits: its plugins are written from
+# automation/plugins/, and inbox/ and cron/ are the user's. So each (automation,
+# backup, host) is assembled in a temp dir from every plugin whose x-exist-project
+# names it, with their order files and every flow's examples in the inbox: that is
+# what makes decree check validate the templates' machine and params against the
+# machines' data, which is the mistake a rename or a new param makes. Then each
+# plugin is checked again alone with the plugins its needs: names, so a needs: that
+# misses one fails here, not on the install that turns it on.
 #
 # Runs in adhoc (decree and yq on PATH): ./existential.sh test decree. Read-only.
 set -euo pipefail
@@ -20,58 +19,48 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 rc=0
 
-check() {  # <name> <project root>; the daemon draws graph/, so its warnings are noise here
+check() {  # <name> <project root>; graphs are drawn by the install, so their warnings are noise here
     local out
     echo "=== decree check: $1 ==="
     out="$(cd "$2" && decree check --no-color 2>&1)" || rc=1
-    grep -v '^warning: graph/' <<<"$out" || true
+    grep -v '^warning: .*\(graph\.md\|system\.md\|state_files\)' <<<"$out" || true
 }
 
-# shellcheck source=../../automation/lib/automations/registry.sh
-. "${REPO}/automation/lib/automations/registry.sh"
 # shellcheck source=../../automation/lib/automations/plugin.sh
 . "${REPO}/automation/lib/automations/plugin.sh"
+DIR="${REPO}/automation/plugins"
 unpack() {  # <project root> <name>...: each plugin installed there, as the stack installs it
-    local root="$1" n; shift
-    for n in "$@"; do plugin_unpack "$n" "$root" >/dev/null || { echo "FAIL  automation/plugins/${n}.md does not install" >&2; rc=1; }; done
+    local root="$1"; shift
+    plugin_unpack "$@" "$root" >/dev/null || { echo "FAIL  $* does not install" >&2; rc=1; }
 }
-PLUGINS="$(cd "${REPO}/automation/plugins" && ls -- *.md flows/*.md | sed 's#^flows/##; s/\.md$//')"
+PLUGINS="$(cd "$DIR" && ls -- *.md flows/*.md | sed 's#^flows/##; s/\.md$//')"
 
-# messages <dir> <name>...: each plugin's migrations into <dir>/migrations, and
-# its examples (messages for reading, never installed) into <dir>/inbox.
+# messages <dir> <name>...: each plugin's order files and examples (messages for
+# reading, never installed) into <dir>/inbox, where decree check reads them.
 messages() {
     local dir="$1" n src k; shift
-    mkdir -p "${dir}/migrations" "${dir}/inbox"
+    mkdir -p "${dir}/inbox"
     for n in "$@"; do
-        src="$(plugin_src "${REPO}/automation/plugins" "$n")"
-        for k in $(yq --front-matter=extract -r '.migrations // {} | keys | .[]' "$src"); do
-            printf '%s\n' "$(k="$k" yq --front-matter=extract -r '.migrations[strenv(k)]' "$src")" > "${dir}/migrations/${k}.md"
-        done
-        for k in $(yq --front-matter=extract -r '.examples // {} | keys | .[]' "$src"); do
-            printf '%s\n' "$(k="$k" yq --front-matter=extract -r '.examples[strenv(k)]' "$src")" > "${dir}/inbox/${k}.md"
+        src="$(plugin_src "$DIR" "$n")" || continue
+        for k in $(yq --front-matter=extract -r '((.order // {}) | keys | .[]), ((.["x-exist-examples"] // {}) | keys | .[] | "x:" + .)' "$src"); do
+            if [[ "$k" == x:* ]]; then k="${k#x:}"; printf '%s\n' "$(k="$k" yq --front-matter=extract -r '.["x-exist-examples"][strenv(k)]' "$src")" > "${dir}/inbox/${n}-${k}.md"
+            else printf '%s\n' "$(k="$k" yq --front-matter=extract -r '.order[strenv(k)]' "$src")" > "${dir}/inbox/${n}-${k}"; fi
         done
     done
 }
 
-# Two plugins shipping one cron or migration name would have one overwrite the
-# other on a real install, so that fails here.
-dups="$(cd "${REPO}/automation/plugins" && for f in *.md flows/*.md; do
-          yq --front-matter=extract -r '((.cron // {}) | keys | .[] | "cron/" + .), ((.migrations // {}) | keys | .[] | "migrations/" + .)' "$f"
-        done | sort | uniq -d)"
-[[ -z "$dups" ]] || { echo "FAIL  two plugins ship the same: $(paste -sd' ' <<<"$dups")" >&2; rc=1; }
+# Two plugins shipping one lib path would have one overwrite the other.
+dups="$(cd "$DIR" && for f in *.md flows/*.md; do yq --front-matter=extract -r '.["x-exist-lib"] // {} | keys | .[]' "$f"; done | sort | uniq -d)"
+[[ -z "$dups" ]] || { echo "FAIL  two plugins ship the same lib file: $(paste -sd' ' <<<"$dups")" >&2; rc=1; }
 
-KERNEL="${PLUGIN_KERNEL}"
-tagged() {  # <project>: every plugin whose project: names it
+tagged() {  # <project>: every plugin whose x-exist-project names it
     local n
-    for n in $PLUGINS; do
-        plugin_tags "$(plugin_src "${REPO}/automation/plugins" "$n")" | grep -qxF "$1" && echo "$n"
-    done
+    for n in $PLUGINS; do plugin_tags "$(plugin_src "$DIR" "$n")" | grep -qxF "$1" && echo "$n"; done
 }
 
-# Each project, with every plugin tagged for it, its crons with it.
+# Each project, with every plugin tagged for it.
 for project in automation backup host; do
-    p="${TMP}/${project}"; mkdir -p "${p}/.decree/cron"
-    cp "${REPO}/automation/.gitignore" "${p}/.decree/"
+    p="${TMP}/${project}"; mkdir -p "${p}/.decree"
     [[ "$project" != automation ]] || cp "${REPO}/automation/decree-go-rest.exist.yml" "${p}/.decree/decree-go-rest.yml"
     # shellcheck disable=SC2046
     unpack "$p" $(tagged "$project")
@@ -85,10 +74,9 @@ done
 for n in $PLUGINS; do
     q="${TMP}/alone-${n}"; mkdir -p "${q}/.decree"
     cp "${REPO}/automation/decree-go-rest.exist.yml" "${q}/.decree/decree-go-rest.yml"
-    # shellcheck disable=SC2046,SC2086
-    unpack "$q" $(cd "$q" && plugin_wanted "${REPO}/automation/plugins" none $KERNEL "$n")
-    # shellcheck disable=SC2046
-    messages "${q}/.decree" $(cd "$q" && plugin_wanted "${REPO}/automation/plugins" none "$n")
+    # shellcheck disable=SC2086
+    unpack "$q" $PLUGIN_KERNEL "$n"
+    messages "${q}/.decree" "$n"
     if (cd "$q" && decree check --no-color >/dev/null 2>&1); then
         echo "PASS  ${n} passes decree check with only what it needs"
     else
@@ -96,17 +84,5 @@ for n in $PLUGINS; do
         (cd "$q" && decree check --no-color 2>&1 | grep -v '^warning' | head -5) >&2; rc=1
     fi
 done
-
-# The agent plugin's lib/ai.sh is decree's own `ai` helper, never edited: it must
-# be what this image's decree writes, apart from the shellcheck line on top.
-mkdir -p "${TMP}/init" && (cd "${TMP}/init" && decree init --ai claude >/dev/null 2>&1) || true
-unpack "${TMP}/agent" agent
-if [[ ! -f "${TMP}/init/.decree/lib/ai.sh" ]]; then
-    echo "FAIL  decree init wrote no lib/ai.sh to compare the agent plugin's with" >&2; rc=1
-elif ! diff <(grep -vx '# shellcheck shell=bash' "${TMP}/agent/.decree/lib/ai.sh") "${TMP}/init/.decree/lib/ai.sh" >/dev/null; then
-    echo "FAIL  the agent plugin's lib/ai.sh differs from decree's own — copy .decree/lib/ai.sh from a fresh decree init into automation/plugins/agent.md" >&2; rc=1
-else
-    echo "PASS  the agent plugin's lib/ai.sh is decree's own ai helper"
-fi
 
 exit "$rc"

@@ -51,7 +51,7 @@ file event"] -->|POST /files| B
 ### 1. Nextcloud fires the event
 
 Nextcloud's built-in `webhook_listeners` app does the sending. The `nextcloud-file-events`
-migration registers three webhooks against `http://automation-webhook:8801/files`, and every
+order file registers three webhooks against `http://automation-webhook:8801/files`, and every
 upload through Nextcloud — desktop client, web UI, mobile app, WebDAV, rclone — queues one:
 
 ```json
@@ -170,8 +170,8 @@ Decree picks up the new file immediately — no restart needed.
 
 ## Setup
 
-`./existential.sh flow on nextcloud-capture` asks to turn on Nextcloud and automation-webhook, and copies
-the two decree migrations below into `volumes/workspace_data/.decree/migrations/`. Core does not
+`./existential.sh flow on nextcloud-capture` asks to turn on Nextcloud and automation-webhook, and installs
+the two one-time decree order files below, which run once, as soon as they are installed. Core does not
 include Nextcloud, so this is always a step you take. The flows built on it (`image-ocr`,
 `transcription`, `workspace-agent`) turn it on themselves and copy their processor in:
 

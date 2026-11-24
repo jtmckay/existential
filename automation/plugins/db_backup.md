@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: db_backup
-project: backup
-chart:
+name: db_backup
+x-exist-project: backup
+machine:
   description: Dump each listed database (postgres, mariadb, mongo), upload the dumps with rclone under the tier, and prune past retention.
   data:
     TIER: {type: string, enum: [nightly, weekly], default: nightly}
@@ -16,13 +15,13 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  db_backup: |
+  db_backup.sh: |
     #!/usr/bin/env bash
     # db_backup — dump every database listed in $TARGETS, rclone the dumps to
     # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
     # than the tier's retention window.
     #
-    # Triggered by cron files in services/automation-backup/cron/, whose params
+    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/, whose params
     # (TIER, TARGETS) are this machine's data. Credential vars
     # come from automation-backup's environment, which is the master .env.
     #

@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: transcribe
-project: automation
-lib:
+name: transcribe
+x-exist-project: automation
+x-exist-lib:
   file-processors/whisperx-transcribe.sh: |
     #!/usr/bin/env bash
     # shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with

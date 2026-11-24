@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: comfyui
-project: automation
-name: Images and video on your own card
-tagline: ComfyUI workflows a decree message can run, the prompt in its body
-docs: /docs/ai/comfyui
-services:
+name: comfyui
+x-exist-project: automation
+x-exist-title: Images and video on your own card
+x-exist-tagline: ComfyUI workflows a decree message can run, the prompt in its body
+x-exist-docs: /docs/ai/comfyui
+x-exist-services:
   - EXIST_IS_AI_COMFYUI
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - comfy
-examples:
+x-exist-examples:
   comfy-image-qwen-angles: |
     ---
     # Qwen-Image-Edit 2511 batch: one input image, up to eight edits of it queued at

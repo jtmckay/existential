@@ -79,7 +79,7 @@ host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources
 bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
 and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts 43100 on the LAN and each host names it in its own `EXIST_REPORTING_URL`. A flow with
-`project: host` (`worker`, `auto-update`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
+`x-exist-project: host` (`worker`, `auto-update`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
 and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
 renders, so Core asks for a login and none asks nothing.
 
@@ -109,7 +109,7 @@ block lists of plain values) or the reader will not see them.
 service left off is printed with its `service on` line), skips one the GPU answer forbids (`vendor_forbids_service`: a local ollama under
 `external`), adds it to `automation/plugins.yml` (the one record of what is on, for every project), and
 prints the body: only what is left for a person. Then `existential.sh` renders and builds, and
-the sync of the project its `project:` names installs it and all it needs. `flow off` takes it out of
+the sync of the project its `x-exist-project` names installs it and all it needs. `flow off` takes it out of
 `plugins.yml` and never touches services. `src/flows.sh` exits 3 for "nothing
 changed" (a list, an empty pick), which skips the rebuild. `service [list|on|off]` (`src/services.sh`) is
 the same shape for one service's `EXIST_IS_*` flag, with the same GPU check and exit 3.

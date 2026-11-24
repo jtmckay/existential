@@ -2,7 +2,8 @@
 # decree — Gmail → Actual Budget cron generator
 #
 # Walks through selecting a Gmail label, a parse script, and an Actual Budget
-# account, then writes workspace/.decree/cron/gmail-transactions-<label>.md.
+# account, then offers gmail_transactions (ai/proposed/), your schedules, with
+# a cron file for that label: ./existential.sh run plugin accept installs it.
 #
 # Run via: ./existential.sh run automation gmail-transactions-cron
 # Requires: `./existential.sh run automation gmail-sync` + `./existential.sh run
@@ -17,7 +18,8 @@ adhoc_self_elevate "${BASH_SOURCE[0]}"
 SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
-CRON_DIR="/repo/volumes/workspace_data/.decree/cron"
+OFFER="/repo/volumes/workspace_data/ai/proposed/gmail_transactions.md"
+ACCEPTED="/repo/automation/plugins/local/gmail_transactions.md"
 # Installed by the actual_budget_parse plugin (the budget flow), with any parser of yours beside it.
 PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/volumes/workspace_data/.decree/lib/actual-budget}"
 DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
@@ -59,7 +61,7 @@ echo "  Selected label: ${GMAIL_LABEL}"
 echo ""
 
 _label_slug=$(printf '%s' "$GMAIL_LABEL" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/_*$//')
-CRON_FILE="${CRON_DIR}/gmail-transactions-${_label_slug}.md"
+CRON_NAME="gmail-transactions-${_label_slug}.md"
 
 # ── Select parse script ───────────────────────────────────────────────────────
 
@@ -119,10 +121,32 @@ echo ""
 read -rp "  Cron schedule [*/5 * * * *]: " INPUT_CRON
 CRON_SCHEDULE="${INPUT_CRON:-*/5 * * * *}"
 
-# ── Write cron file ───────────────────────────────────────────────────────────
+# ── Offer the schedule ────────────────────────────────────────────────────────
+#
+# Your schedules are one plugin of yours, gmail_transactions: one cron file per
+# label. This adds this label's to it (starting from the one you accepted) and
+# offers it in ai/proposed/; accepting it is what installs it.
 
-if [ -f "$CRON_FILE" ]; then
-    read -rp "  ${CRON_FILE##"$REPO_DIR/"} already exists. Replace? (y/N): " answer
+if [ -f "$OFFER" ]; then :
+elif [ -f "$ACCEPTED" ]; then cp "$ACCEPTED" "$OFFER"
+else
+    mkdir -p "${OFFER%/*}"
+    cat > "$OFFER" << 'EOF'
+---
+name: gmail_transactions
+needs: [gmail_sync, actual_budget_parse]
+cron: {}
+---
+# gmail_transactions
+
+Your Gmail → Actual Budget schedules, one cron file per bank label: each runs gmail_sync on
+that label and hands every email to actual_budget_parse. Written by
+`./existential.sh run automation gmail-transactions-cron`.
+EOF
+fi
+
+if n="$CRON_NAME" yq --front-matter=extract -e '.cron | has(strenv(n))' "$OFFER" >/dev/null 2>&1; then
+    read -rp "  ${CRON_NAME} is already scheduled. Replace? (y/N): " answer
     [[ "${answer,,}" == "y" ]] || { echo "Skipping."; exit 0; }
 fi
 
@@ -130,7 +154,7 @@ fi
 # escape single-quoted YAML has.
 _q() { printf "'%s'" "${1//\'/\'\'}"; }
 
-cat > "$CRON_FILE" << EOF
+CRON_BODY="$(cat << EOF
 ---
 cron: "${CRON_SCHEDULE}"
 machine: gmail_sync
@@ -147,15 +171,15 @@ params:
 Fetch transaction alert emails from label '${GMAIL_LABEL}' and route each to
 actual_budget_parse for import into Actual Budget (${ACCOUNT_NAME}).
 EOF
+)"
+n="$CRON_NAME" c="$CRON_BODY" yq --front-matter=process -i '.cron[strenv(n)] = strenv(c)' "$OFFER"
 
 echo ""
 hr
 echo ""
-echo "  Created: workspace/.decree/cron/gmail-transactions-${_label_slug}.md"
+echo "  Offered: workspace/ai/proposed/gmail_transactions.md (${CRON_NAME})"
 echo "  Label:   ${GMAIL_LABEL}"
 echo "  Parser:  ${PARSE_SCRIPT_NAME}"
 echo "  Account: ${ACCOUNT_NAME}"
 echo ""
-echo "  The cron will fire on schedule '${CRON_SCHEDULE}' automatically."
-echo "  No restart needed — Decree picks up new cron files on next tick."
-echo ""
+echo "  Read it, then on the host: ./existential.sh run plugin accept gmail_transactions"

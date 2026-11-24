@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: ubuntu_upgrade
-project: host
-chart:
+name: ubuntu_upgrade
+x-exist-project: host
+machine:
   description: Once a week, install every Ubuntu package update that is not a release upgrade, and reboot at the configured time only if one of them requires it. Ubuntu's own unattended-upgrades does the daily security updates.
   initial: upgrade
   states:
@@ -14,7 +13,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  upgrade: |
+  upgrade.sh: |
     #!/usr/bin/env bash
     # upgrade — the weekly maintenance window: run the root half, which setup.sh
     # installed, and tell your phone when it failed or a reboot is coming. Nothing
@@ -22,7 +21,7 @@ scripts:
     # host project (the repo's own .decree), so it runs in the repo.
     set -euo pipefail
     repo="$(pwd)"
-    lib="${DECREE_LIB:-${PWD}/.decree/lib}/ubuntu_upgrade"
+    lib=".decree/lib/ubuntu_upgrade"
     root=/usr/local/sbin/existential-ubuntu-upgrade
     # shellcheck source=/dev/null
     . "${repo}/src/utils/adhoc.sh"
@@ -46,7 +45,7 @@ scripts:
     printf '%s\n' "$out"
     reboot="$(printf '%s\n' "$out" | grep '^reboot: ' || true)"
     [[ -z "$reboot" ]] || tell "Ubuntu upgraded" "$(hostname) ${reboot}"
-lib:
+x-exist-lib:
   ubuntu_upgrade/upgrade.sh: |
     #!/usr/bin/env bash
     # The root half of ubuntu_upgrade, installed by setup.sh as
@@ -106,7 +105,7 @@ lib:
     install -o root -g root -m 440 "$tmp" /etc/sudoers.d/existential-ubuntu-upgrade
     echo "set up: security updates daily, everything else Sundays at 01:00, reboots per ${conf}"
 cron:
-  ubuntu-upgrade: |
+  ubuntu-upgrade.md: |
     ---
     machine: ubuntu_upgrade
     cron: "0 1 * * SUN"

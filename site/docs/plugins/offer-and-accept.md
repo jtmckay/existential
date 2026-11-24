@@ -22,10 +22,11 @@ The `automation` container hands what it reads (your notes, web pages, email) to
 code-server runs agents with a shell. Either can be talked into writing something you did not
 ask for. So decree's code is out of their reach:
 
-- `workspace/.decree/machines/`, `scripts/` and `lib/` are **read-only in every container that
+- `workspace/.decree/plugins/`, `machines/` and `lib/` are **read-only in every container that
   mounts the workspace**: `automation`, code-server, Nextcloud (so a synced desktop cannot change
   them either) and `automation-backup`. `workspace-sync` never carries them in or out.
-- Only `./existential.sh`, on the host, installs into them, and only from `automation/plugins/`.
+- Only `./existential.sh`, on the host, installs into them (`decree install`), and only from
+  `automation/plugins/`. decree never installs on its own.
 - What a container *can* write is data and messages: notes, `ai/`, a cron file or inbox message
   for a machine that is already installed, a handler, and `.decree/store/` (your feeds, your
   departments). None of those is code.
@@ -57,11 +58,11 @@ ask for. So decree's code is out of their reach:
 
 ## What accept will not do
 
-- Install into `automation-backup` or the host: an accepted plugin is `project: automation`,
+- Install into `automation-backup` or the host: an accepted plugin is `x-exist-project: automation`,
   whatever the file says.
-- Replace a plugin the repo ships, or `notify`.
-- Keep a plugin that fails its checks (an endpoint that starts another machine, a lib file
-  another plugin owns, a failed `decree check`): it is put back out and the offer stays.
+- Replace a plugin the repo ships, one of decree's, or `notify`.
+- Keep a plugin that fails its checks (an endpoint that starts another machine, a failed
+  `decree install` or `decree check`): it is put back out and the offer stays.
 
 ## Changing or removing one
 

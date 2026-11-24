@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: notes-pull
-project: backup
-name: Notes pull
-tagline: An outside notes vault (Obsidian on a NAS, another box) pulled into workspace/notes/ every 15 minutes
-docs: /docs/getting-started
-services:
+name: notes-pull
+x-exist-project: backup
+x-exist-title: Notes pull
+x-exist-tagline: An outside notes vault (Obsidian on a NAS, another box) pulled into workspace/notes/ every 15 minutes
+x-exist-docs: /docs/getting-started
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
 needs:
   - notes_pull
 cron:
-  notes-pull: |
+  notes-pull.md: |
     ---
     cron: "*/15 * * * *"
     machine: notes_pull
@@ -64,5 +63,5 @@ cron:
     into the container some other way — skips SSH entirely; rsync just copies it.
 ---
 
-After turning it on, set NOTES_PULL_SOURCE in services/automation-backup/cron/notes-pull.md to your
+After turning it on, set NOTES_PULL_SOURCE in services/automation-backup/machines/flow_notes_pull/cron/notes-pull.md to your
 real user@host:/path/, and add the key it describes. Until then every run fails and says so.

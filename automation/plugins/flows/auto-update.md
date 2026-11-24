@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: auto-update
-name: Auto-update
-tagline: Every 15 minutes, git pull, ./existential.sh and docker compose up -d, so this install follows its branch
-docs: /docs/hosting/updates
-project: host
+name: auto-update
+x-exist-title: Auto-update
+x-exist-tagline: Every 15 minutes, git pull, ./existential.sh and docker compose up -d, so this install follows its branch
+x-exist-docs: /docs/hosting/updates
+x-exist-project: host
 needs:
   - update
 ---

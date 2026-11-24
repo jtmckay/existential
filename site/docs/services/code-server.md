@@ -38,7 +38,7 @@ can edit the same files at once.
 
 ## Seeing your flows
 
-Open any graph in `.decree/graph/` and run **Markdown: Open Preview** to see it as a diagram
+Open any machine's `.decree/machines/<name>/graph.md` and run **Markdown: Open Preview** to see it as a diagram
 ([Mermaid extension](https://open-vsx.org/extension/bierner/markdown-mermaid), installed on
 boot).
 

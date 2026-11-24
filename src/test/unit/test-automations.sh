@@ -2,7 +2,7 @@
 # test-automations.sh — a note asks for an automation; it is proposed as a spec,
 # built by develop as a plugin file and OFFERED, and only the host installs it.
 # note_watch, automation_propose, reconcile, develop and lib/automations/, with
-# the model and `decree` stubbed:
+# the model and, while their scripts run, `decree` stubbed:
 #
 #   watch     a standing instruction becomes one automation_propose, once; with no
 #             model reachable nothing happens and the run still succeeds
@@ -16,20 +16,22 @@
 #             you where to read it and the host command that accepts it; a
 #             failed gate offers nothing and keeps its errors for the next attempt
 #   claude    signed in, develop builds with Claude and may use agent
-#   accepted  the offer, installed as the host does: script, registry, note_watch,
-#             handler, cron; and it exports with its trigger
+#   accepted  the offer, installed as the host does (the sync writes it to
+#             plugins/, decree installs it): script, note_watch, handler, cron;
+#             and decree exports it with its trigger
 #   trigger   a later note the model matches starts it, and only an installed one
 #   edit      a changed spec is offered again; remove: deleting it removes nothing
 #   accept    ./existential.sh run plugin accept: says what it would run, needs a
-#             terminal and a yes, forces project: automation, keeps it in
+#             terminal and a yes, forces x-exist-project: automation, keeps it in
 #             automation/plugins/local/, never in another project, and refuses a
-#             name the repo ships, a spec, and a plugin that fails its gate
-#   share     an installed plugin exports as its file; one another stack offers
+#             name the repo or decree ships, a spec, and an endpoint for another machine
+#   share     an installed plugin is sent as its file; one another stack offers
 #             waits in ai/proposed/; lists and requests between stacks
-#   sync      the repo's plugins dir: a project gets what is on and what that
-#             needs; a changed file is installed again, a hand-edited copy kept
-#             first; auto_update off only names it; one no longer wanted goes,
-#             cron and lib too; the plugin system is never replaced
+#   sync      the repo's plugins dir: a project's plugins/ is what is on and what
+#             that needs, and decree installs it; a changed file is installed
+#             again, an edited copy archived by decree first; auto_update off only
+#             names it; one no longer wanted goes, cron and lib too; a flow brings
+#             its order files; decree 0.5's copies are converted
 #
 # Everything is written under a temp dir, removed in the trap.
 set -uo pipefail
@@ -101,28 +103,26 @@ emits() { cat "${TMP}"/emits/*.args 2>/dev/null; }
 reset_emits() { rm -f "${TMP}"/emits/*; }
 
 # ── The workspace, which is also the decree project root ─────────────────────
+# The plugins under test, installed with the real decree as the stack installs
+# them (lib/automations/plugin.sh); their scripts then run there with the stub
+# decree first on PATH.
+command -v decree >/dev/null || { echo "automations: needs decree (run it through ./existential.sh test unit)"; exit 1; }
 W="${TMP}/ws"
-mkdir -p "$W/.decree/machines" "$W/.decree/scripts" "$W/.decree/migrations" "$W/notes/ideas" "$W/notes/automations"
-# The plugins under test, unpacked as the stack installs them (lib/automations/plugin.sh).
-P="${TMP}/unpacked"; mkdir -p "$P"
-for _p in note_watch automation_propose reconcile develop plugin_share plugin_offer plugin_request; do
-    ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$_p" "$P" ) >/dev/null
-done
-cp "$P/.decree/machines/note_watch.yml" "$W/.decree/machines/"
-printf 'name: notify\n' > "$W/.decree/machines/notify.yml"
+mkdir -p "$W/notes/ideas" "$W/notes/automations"
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+  plugin_unpack notify note_watch automation_propose reconcile develop plugin_share plugin_offer plugin_request "$W" ) >/dev/null
 
 run() {  # run <script> [VAR=value...]: one decree run of a shipped script, in the workspace
     local script="$1"; shift
     mkdir -p "${TMP}/run" "${TMP}/store"
-    ( cd "$W" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" DECREE_LIB="${P}/.decree/lib" \
-        DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="${TMP}/run" AUTOMATIONS_WORKSPACE="$W" \
+    ( cd "$W" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" \
+        DECREE_STATE_DIR="${TMP}/store" DECREE_RUN_DIR="${TMP}/run" AUTOMATIONS_WORKSPACE="$W" \
         HOME="${TMP}/home" DECREE_STATE=run ANTHROPIC_API_KEY= CLAUDE_CODE_OAUTH_TOKEN= \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST:-$MODEL}" EXIST_MODEL_CHAT=test-model FIRECRAWL_URL="$STUB" "$@" \
         bash "$script" ) > "${TMP}/last.log" 2>&1
     echo $?
 }
-SCRIPTS="${P}/.decree/scripts"     # the plugin system's, unpacked like any plugin
-plugin_script() { echo "$P/.decree/scripts/$1/$1.sh"; }
+plugin_script() { echo "$W/.decree/machines/$1/scripts/$1.sh"; }
 NAME=business_idea_workup
 
 echo ""; echo "=== watch ==="
@@ -189,7 +189,7 @@ assert_lacks "...and develop is not asked" "$(emits)" "--machine develop"
 rm -f "$W/notes/automations/gpu_lease.md"
 
 echo ""; echo "=== web ==="
-web() { ( export FIRECRAWL_URL="$1"; source "${P}/.decree/lib/firecrawl.sh"; shift; "$@" ) 2>&1; }
+web() { ( export FIRECRAWL_URL="$1"; source "${W}/.decree/lib/firecrawl.sh"; shift; "$@" ) 2>&1; }
 SOURCES="$(web "$STUB" web_search "dog walking subscriptions")"
 assert_has "web_search gives each result as a source with its URL" "$SOURCES" '<source url="https://walkies.example/plans">'
 assert_has "...its title" "$SOURCES" "# Walkies: dog walking plans"
@@ -205,13 +205,7 @@ SPEC="$W/notes/automations/${NAME}.md"
 develop() { run "$(plugin_script develop)" DECREE_MESSAGE="$SPEC" DECREE_DATA_AUTOMATION="$1" DECREE_DATA_FROM=notes/process.md "${@:2}"; }
 offer() { echo "$W/ai/proposed/$1.md"; }
 in_offer() { yq --front-matter=extract -r "$2" "$(offer "$1")" 2>/dev/null; }
-# What only the host does (./existential.sh run plugin accept): the offer, installed.
-host_install() {
-    ( cd "$W" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" DECREE_RUN_DIR="${TMP}/run" \
-        bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_install "$2" "$3" "automation/plugins/local/$2.md"' \
-        _ "${P}/.decree/lib" "$1" "$(offer "$1")" ) > "${TMP}/last.log" 2>&1; echo $?
-}
-before="$(cd "$W/.decree" && find machines scripts -type f | sort | xargs cksum)"
+before="$(cd "$W/.decree" && find machines plugins -type f | sort | xargs cksum)"
 cat > "${TMP}/build-reply" <<'BUILD'
 TRIGGER: {"kind": "note", "when": "a new business idea"}
 steps() {
@@ -230,13 +224,12 @@ BUILD
 assert_eq "develop builds it" "0" "$(develop $NAME EXIST_TAILNET_NAME=box.ts.net)"
 assert_has "with Firecrawl on, the model is told to put a verdict first" "$(cat "${TMP}/build-system" 2>/dev/null)" '"## Verdict"'
 assert_has "...through web_search" "$(cat "${TMP}/build-system" 2>/dev/null)" 'web_search "<query>"'
-assert_eq "what it built is one plugin file, offered in ai/proposed/" "plugin ${NAME} automation" "$(in_offer $NAME '[.machine, .automation, .project] | join(" ")')"
-assert_eq "...whose machine invokes its script" "$NAME" "$(in_offer $NAME '.chart.states.run.invoke')"
-assert_has "...which runs the built steps inside the shared frame" "$(in_offer $NAME ".scripts.${NAME}")" 'source "${DECREE_LIB}/automations/run.sh"'
-assert_eq "...whose note trigger is its when:" "a new business idea" "$(in_offer $NAME '.when')"
+assert_eq "what it built is one plugin file, offered in ai/proposed/" "${NAME} automation" "$(in_offer $NAME '[.name, .["x-exist-project"]] | join(" ")')"
+assert_eq "...whose machine invokes its script" "$NAME" "$(in_offer $NAME '.machine.states.run.invoke')"
+assert_has "...which runs the built steps inside the shared frame" "$(in_offer $NAME ".scripts[\"${NAME}.sh\"]")" 'source ".decree/lib/automations/run.sh"'
+assert_eq "...whose note trigger is its x-exist-when" "a new business idea" "$(in_offer $NAME '.["x-exist-when"]')"
 assert_eq "...and which needs develop, whose frame it runs in" "develop" "$(in_offer $NAME '.needs | join(" ")')"
-assert_eq "NOTHING is installed: machines/ and scripts/ are as they were" "$before" "$(cd "$W/.decree" && find machines scripts -type f | sort | xargs cksum)"
-assert_lacks "...and the registry does not list it" "$(cat "$W/.decree/automations.yml" 2>/dev/null)" "$NAME"
+assert_eq "NOTHING is installed: machines/ and plugins/ are as they were" "$before" "$(cd "$W/.decree" && find machines plugins -type f | sort | xargs cksum)"
 assert_has "you are told it is ready to review" "$(emits)" "ntfy_title=Automation ready to review"
 assert_has "...where to read it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "ai/proposed/${NAME}.md, in https://box.ts.net"
 assert_has "...and the one command, on the host, that accepts it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin accept ${NAME}"
@@ -244,10 +237,10 @@ assert_has "...and the one command, on the host, that accepts it" "$(cat "${TMP}
 # A file trigger and a cron trigger, each on a scratch name.
 printf 'TRIGGER: {"kind": "file", "match": "inbox/*.pdf", "changes": ["created"], "quiet": 10}\nsteps() { echo "## Filed"; }\n' > "${TMP}/build-reply"
 assert_eq "a file trigger builds" "0" "$(develop pdf_filer)"
-assert_eq "...as a handlers: entry" "inbox/*.pdf 10" "$(in_offer pdf_filer '.handlers[0] | [.match, .quiet] | join(" ")')"
+assert_eq "...as an x-exist-handlers entry" "inbox/*.pdf 10" "$(in_offer pdf_filer '.["x-exist-handlers"][0] | [.match, .quiet] | join(" ")')"
 printf 'TRIGGER: {"kind": "cron", "cron": "0 8 * * MON"}\nsteps() { echo "## Weekly"; }\n' > "${TMP}/build-reply"
 assert_eq "a cron trigger builds" "0" "$(develop weekly_thing)"
-assert_has "...as a cron: entry" "$(in_offer weekly_thing '.cron.weekly_thing')" 'cron: "0 8 * * MON"'
+assert_has "...as a cron file" "$(in_offer weekly_thing '.cron["weekly_thing.md"]')" 'cron: "0 8 * * MON"'
 # A trigger that would run on its own output fails the gate, offers nothing, and is shown next time.
 printf 'TRIGGER: {"kind": "file", "match": "ai/automations/*.md"}\nsteps() { echo "## x"; }\n' > "${TMP}/build-reply"
 assert_eq "a trigger on its own output fails the gate" "1" "$(develop loop_thing)"
@@ -286,9 +279,9 @@ assert_has "...asking it to build the automation" "$(cat "${TMP}/claude-prompt" 
 assert_has "...with the spec" "$(cat "${TMP}/claude-prompt" 2>/dev/null)" "The spec:"
 assert_has "...and telling it about agent" "$(cat "${TMP}/claude-prompt" 2>/dev/null)" 'agent "<task>"'
 assert_eq "...and the chat model is not asked" "no" "$([[ -e "${TMP}/build-system" ]] && echo yes || echo no)"
-assert_has "the built steps can call agent" "$(in_offer file_reader '.scripts.file_reader')" 'agent "find my notes about x"'
-assert_lacks "...and words after the function are no part of it" "$(in_offer file_reader '.scripts.file_reader')" "That is the function"
-printf 'source "${DECREE_LIB}/agent.sh"\nagent "hello"\n' > "${TMP}/agent-call.sh"
+assert_has "the built steps can call agent" "$(in_offer file_reader '.scripts["file_reader.sh"]')" 'agent "find my notes about x"'
+assert_lacks "...and words after the function are no part of it" "$(in_offer file_reader '.scripts["file_reader.sh"]')" "That is the function"
+printf 'source ".decree/lib/agent.sh"\nagent "hello"\n' > "${TMP}/agent-call.sh"
 assert_eq "agent answers when signed in" "0" "$(run "${TMP}/agent-call.sh" "$SIGNED_IN")"
 assert_has "...with Claude's reply" "$(cat "${TMP}/last.log")" "That is the function"
 assert_has "...and the call is logged" "$(cat "$W/.decree/ai-use.md" 2>/dev/null)" "| claude |"
@@ -301,17 +294,27 @@ assert_lacks "...and the chat model was not offered agent" "$(cat "${TMP}/build-
 rm -f "${TMP}/run/gate.err"
 
 echo ""; echo "=== accepted ==="
-# Installed by the host (the accept command's own checks are in the accept section).
+# Installed by the host: accept keeps the offer in automation/plugins/local/ and
+# turns it on, the sync writes it to plugins/, and decree installs it (the accept
+# command's own checks are in the accept section).
+PD0="${TMP}/repo-plugins"; mkdir -p "$PD0"; cp -r "${REPO_DIR}/automation/plugins/." "$PD0/"; rm -rf "${PD0}/local"; mkdir -p "${PD0}/local"
+printf 'on: [note_watch, automation_propose, reconcile, develop, plugin_share, plugin_offer, plugin_request]\n' > "${TMP}/plugins.yml"
+host_install() {  # <name>: what accept does once you say yes (run in $(), so the list is a file)
+    cp "$(offer "$1")" "${PD0}/local/$1.md"
+    n="$1" yq -i '.on += [strenv(n)]' "${TMP}/plugins.yml"
+    ( cd "$W" && PLUGINS_ON="${TMP}/plugins.yml" bash -c 'source "$1"; plugin_sync "$2" automation' _ \
+        "${REPO_DIR}/automation/lib/automations/plugin.sh" "$PD0" ) > "${TMP}/last.log" 2>&1; echo $?
+}
 assert_eq "the host installs the offer" "0" "$(host_install $NAME)"
-assert_eq "...its script in scripts/<name>/, executable" "yes" "$([[ -x "$W/.decree/scripts/${NAME}/${NAME}.sh" ]] && echo yes || echo no)"
-assert_eq "...its note trigger in the registry" "a new business idea" "$(yq -r ".[] | select(.machine == \"${NAME}\") | .when" "$W/.decree/automations.yml")"
-assert_has "...and note_watch may start it" "$(yq -r '.states.watch.emits | join(" ")' "$W/.decree/machines/note_watch.yml")" "$NAME"
+assert_eq "...its script in machines/<name>/scripts/, executable" "yes" "$([[ -x "$W/.decree/machines/${NAME}/scripts/${NAME}.sh" ]] && echo yes || echo no)"
+assert_eq "...from its plugin file, which keeps its note trigger" "a new business idea" "$(yq --front-matter=extract -r '.["x-exist-when"]' "$W/.decree/plugins/${NAME}.md")"
+assert_has "...and note_watch may start it" "$(yq -r '.states.watch.emits | join(" ")' "$W/.decree/machines/note_watch/machine.yml")" "$NAME"
 assert_eq "a file trigger installs" "0" "$(host_install pdf_filer)"
 assert_eq "...as a file handler for its machine" "inbox/*.pdf" "$(yq -r '.[] | select(.machine == "pdf_filer") | .match' "$W/.decree/handlers.yml")"
 assert_eq "a cron trigger installs" "0" "$(host_install weekly_thing)"
-assert_has "...as a cron file" "$(cat "$W/.decree/cron/weekly_thing.md" 2>/dev/null)" 'cron: "0 8 * * MON"'
-( cd "$W" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_export "$2"' _ "${P}/.decree/lib" pdf_filer ) > "${TMP}/pdf-exported.md" 2>/dev/null
-assert_eq "an installed one exports with its trigger" "inbox/*.pdf" "$(yq --front-matter=extract -r '.handlers[0].match' "${TMP}/pdf-exported.md")"
+assert_has "...as a cron file" "$(cat "$W/.decree/machines/weekly_thing/cron/weekly_thing.md" 2>/dev/null)" 'cron: "0 8 * * MON"'
+( cd "$W" && decree export --no-color pdf_filer ) >/dev/null 2>&1
+assert_eq "an installed one exports with its trigger" "inbox/*.pdf" "$(yq --front-matter=extract -r '.["x-exist-handlers"][0].match' "$W/.decree/plugins/pdf_filer.md")"
 
 echo ""; echo "=== trigger ==="
 reset_emits
@@ -322,7 +325,7 @@ assert_has "the automation whose event it is starts on it" "$(emits)" "--machine
 assert_lacks "a matched name that was never accepted starts nothing" "$(emits)" "--machine notify"
 assert_lacks "...nor one whose trigger is not a note" "$(emits)" "--machine pdf_filer"
 reset_emits
-assert_eq "the automation runs" "0" "$(run "$W/.decree/scripts/${NAME}/${NAME}.sh" DECREE_DATA_NOTE_PATH=notes/ideas/dog-walking.md)"
+assert_eq "the automation runs" "0" "$(run "$W/.decree/machines/${NAME}/scripts/${NAME}.sh" DECREE_DATA_NOTE_PATH=notes/ideas/dog-walking.md)"
 RESULT="$(cat "$W/ai/automations/${NAME}/"*-dog-walking.md 2>/dev/null)"
 assert_has "its results are written to ai/automations/<name>/" "$RESULT" "## One-page plan"
 assert_has "...with what the model answered for each step" "$RESULT" "ANSWER to Draft a one-page pla"
@@ -346,7 +349,7 @@ echo ""; echo "=== remove ==="
 reset_emits
 rm "$SPEC"
 assert_eq "deleting the spec reconciles" "0" "$(run "$(plugin_script reconcile)" DECREE_DATA_PATH="notes/automations/${NAME}.md" DECREE_DATA_CHANGE=deleted)"
-assert_eq "...and removes nothing: only the host does" "yes" "$([[ -e "$W/.decree/machines/${NAME}.yml" ]] && echo yes || echo no)"
+assert_eq "...and removes nothing: only the host does" "yes" "$([[ -e "$W/.decree/machines/${NAME}/machine.yml" ]] && echo yes || echo no)"
 assert_has "...you are told how to turn it off there" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin off ${NAME}"
 
 echo ""; echo "=== accept ==="
@@ -358,34 +361,41 @@ cp -r "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${A}/automa
 cp "${REPO_DIR}/automation/plugins.exist.yml" "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${A}/automation/"
 cp "${REPO_DIR}/src/lib/plugin.sh" "${A}/src/lib/"; cp "${REPO_DIR}/src/utils/flows.sh" "${A}/src/utils/"
 cp "${A}/automation/decree-go-rest.exist.yml" "${AW}/.decree/decree-go-rest.yml"
-plug() { env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" REPO_DIR="$A" bash "${A}/src/lib/plugin.sh" "$@" 2>&1; }
-say_yes() { env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" REPO_DIR="$A" script -qec "bash '${A}/src/lib/plugin.sh' accept $1" /dev/null <<<"${2:-y}" 2>&1; }
+plug() { env REPO_DIR="$A" bash "${A}/src/lib/plugin.sh" "$@" 2>&1; }
+say_yes() { env REPO_DIR="$A" script -qec "bash '${A}/src/lib/plugin.sh' accept $1" /dev/null <<<"${2:-y}" 2>&1; }
 plug sync automation >/dev/null
 cp "$(offer pdf_filer)" "${AW}/ai/proposed/pdf_filer.md"
-yq --front-matter=process -i '.project = "host"' "${AW}/ai/proposed/pdf_filer.md"     # an offer that asks for the host
+yq --front-matter=process -i '.["x-exist-project"] = "host"' "${AW}/ai/proposed/pdf_filer.md"     # an offer that asks for the host
 assert_has "offers lists what waits" "$(plug offers)" "pdf_filer"
 out="$(plug accept pdf_filer </dev/null)"
 assert_has "accept says what it would run" "$out" "when inbox/*.pdf changes"
 assert_has "...and, without a terminal, installs nothing" "$out" "needs a terminal"
-assert_eq "...nothing at all" "no" "$([[ -e "${A}/automation/plugins/local/pdf_filer.md" || -e "${AW}/.decree/machines/pdf_filer.yml" ]] && echo yes || echo no)"
+assert_eq "...nothing at all" "no" "$([[ -e "${A}/automation/plugins/local/pdf_filer.md" || -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
 if command -v script >/dev/null 2>&1; then
     assert_has "a no installs nothing" "$(say_yes pdf_filer n)" "Not installed"
-    assert_eq "...nothing at all" "no" "$([[ -e "${AW}/.decree/machines/pdf_filer.yml" ]] && echo yes || echo no)"
+    assert_eq "...nothing at all" "no" "$([[ -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
     assert_has "a yes at a terminal installs it" "$(say_yes pdf_filer)" "pdf_filer is installed and on"
-    assert_eq "...into the workspace project" "yes" "$([[ -e "${AW}/.decree/machines/pdf_filer.yml" ]] && echo yes || echo no)"
-    assert_eq "...kept in automation/plugins/local/, for the automation project whatever it asked for" "automation" "$(yq --front-matter=extract -r .project "${A}/automation/plugins/local/pdf_filer.md")"
+    assert_eq "...into the workspace project" "yes" "$([[ -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
+    assert_eq "...kept in automation/plugins/local/, for the automation project whatever it asked for" "automation" "$(yq --front-matter=extract -r '.["x-exist-project"]' "${A}/automation/plugins/local/pdf_filer.md")"
     assert_has "...and on" "$(yq -r '.on | join(" ")' "${A}/automation/plugins.yml")" "pdf_filer"
     assert_eq "...the offer gone from ai/proposed/" "no" "$([[ -e "${AW}/ai/proposed/pdf_filer.md" ]] && echo yes || echo no)"
     plug sync host >/dev/null
-    assert_eq "...and never in the host's project" "no" "$([[ -e "${A}/.decree/machines/pdf_filer.yml" ]] && echo yes || echo no)"
+    assert_eq "...and never in the host's project" "no" "$([[ -e "${A}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
     cp "${REPO_DIR}/automation/plugins/notify.md" "${AW}/ai/proposed/notify.md"
     assert_has "a name the repo ships is refused" "$(say_yes notify)" "nothing from the workspace replaces"
     cp "${REPO_DIR}/automation/plugins/update.md" "${AW}/ai/proposed/update.md"
     assert_has "...a host plugin's too" "$(say_yes update)" "nothing from the workspace replaces"
-    sed 's/^automation: gpu_lease$/automation: sneaky_plugin/' "${REPO_DIR}/automation/plugins/gpu_lease.md" | sed 's/^      machine: gpu_lease$/      machine: develop/' > "${AW}/ai/proposed/sneaky_plugin.md"
+    sed 's/^name: gpu_lease$/name: decree_order/' "${REPO_DIR}/automation/plugins/gpu_lease.md" > "${AW}/ai/proposed/decree_order.md"
+    assert_has "...and one of decree's" "$(say_yes decree_order)" "nothing from the workspace replaces"
+    sed 's/^name: gpu_lease$/name: sneaky_plugin/' "${REPO_DIR}/automation/plugins/gpu_lease.md" | sed 's/^      machine: gpu_lease$/      machine: develop/' > "${AW}/ai/proposed/sneaky_plugin.md"
     out="$(say_yes sneaky_plugin)"
     assert_has "an endpoint that reaches another machine does not install" "$out" "must emit to sneaky_plugin"
-    assert_eq "...and is not kept" "no" "$([[ -e "${A}/automation/plugins/local/sneaky_plugin.md" || -e "${AW}/.decree/machines/sneaky_plugin.yml" ]] && echo yes || echo no)"
+    assert_eq "...and is not kept" "no" "$([[ -e "${A}/automation/plugins/local/sneaky_plugin.md" || -e "${AW}/.decree/machines/sneaky_plugin/machine.yml" ]] && echo yes || echo no)"
+    printf -- '---\nname: my_schedules\nneeds: [notify]\ncron:\n  ping.md: |\n    ---\n    cron: "0 9 * * *"\n    machine: notify\n    ---\n---\n# my_schedules\n' > "${AW}/ai/proposed/my_schedules.md"
+    assert_has "your schedules are a plugin of cron files only, accepted like any other" "$(say_yes my_schedules)" "my_schedules is installed and on"
+    assert_eq "...into its machine folder, where decree reads them" "notify" "$(yq --front-matter=extract -r .machine "${AW}/.decree/machines/my_schedules/cron/ping.md" 2>/dev/null)"
+    sed 's/0 9 \* \* \*/30 9 * * */' "${A}/automation/plugins/local/my_schedules.md" > "${AW}/ai/proposed/my_schedules.md"; say_yes my_schedules >/dev/null
+    assert_eq "...and accepting a new schedule puts it in, not only the first" "30 9 * * *" "$(yq --front-matter=extract -r .cron "${AW}/.decree/machines/my_schedules/cron/ping.md" 2>/dev/null)"
 else
     echo "  (no script(1) here: the yes path is not run)"
 fi
@@ -393,19 +403,22 @@ printf -- '---\nmachine: develop\nautomation: some_spec\n---\n# x\n' > "${AW}/ai
 assert_has "a spec is not a plugin: it is built first" "$(plug accept some_spec </dev/null)" "move it into notes/automations/"
 
 echo ""; echo "=== share ==="
-# Plugins move between stacks as files: an installed one exports as the file it
-# came from, and one offered by another stack waits in ai/proposed/ like any offer.
+# Plugins move between stacks as files: an installed one is sent as the file it
+# was installed from, and one offered by another stack waits in ai/proposed/ like any offer.
 reset_emits
 PLUGIN=gpu_lease
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$PLUGIN" "$W" ) >/dev/null
-( cd "$W" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_export "$2"' \
-    _ "${REPO_DIR}/automation/lib" "$PLUGIN" ) > "${TMP}/exported.md" 2>"${TMP}/last.log"
-shape() { yq --front-matter=extract -o json -I0 '[.machine, .automation, .chart, .scripts, .endpoints]' "$1" | jq -cS .; }   # key order aside
-assert_eq "an installed plugin exports as the file it came from" "$(shape "${REPO_DIR}/automation/plugins/${PLUGIN}.md")" "$(shape "${TMP}/exported.md")"
-assert_eq "a machine that is not there is not exported" "1" \
-    "$( cd "$W" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_export no_such' _ "${REPO_DIR}/automation/lib" >/dev/null 2>&1; echo $?)"
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack "$PLUGIN" "$W" ) >/dev/null
+script_of() { echo "$W/.decree/machines/$1/scripts/$2.sh"; }
+rm -f "${TMP}/posted"
+assert_eq "an installed plugin is sent" "0" "$(run "$(script_of plugin_share send)" DECREE_DATA_CLIENT=garage-box DECREE_DATA_MACHINE="$PLUGIN" \
+    PLUGIN_SHARE_CALLBACK_GARAGE_BOX="${STUB}/cb/offer/home")"
+tail -n +3 "${TMP}/posted" > "${TMP}/exported.md" 2>/dev/null
+assert_eq "...as the file it was installed from" "$(cat "$W/.decree/plugins/${PLUGIN}.md")" "$(cat "${TMP}/exported.md")"
+assert_eq "a machine no plugin installed is not sent" "1" "$(run "$(script_of plugin_share send)" DECREE_DATA_CLIENT=garage-box DECREE_DATA_MACHINE=no_such \
+    PLUGIN_SHARE_CALLBACK_GARAGE_BOX="${STUB}/cb/offer/home")"
+shape() { yq --front-matter=extract -o json -I0 '[.name, .machine, .scripts, .["x-exist-endpoints"]]' "$1" | jq -cS .; }   # key order aside
 # Offered by another stack, it waits in ai/proposed/ for you.
-cp "$SCRIPTS/plugin_offer/offer.sh" "${TMP}/offer.sh"
+cp "$(script_of plugin_offer offer)" "${TMP}/offer.sh"
 { printf -- '---\nmachine: plugin_offer\n---\n\n'; cat "${TMP}/exported.md"; } > "${TMP}/offer-msg.md"
 rm -f "$W/ai/proposed/${PLUGIN}.md"; reset_emits
 assert_eq "an offered plugin file is taken" "0" "$(run "${TMP}/offer.sh" DECREE_MESSAGE="${TMP}/offer-msg.md" DECREE_DATA_FROM=garage-box)"
@@ -416,7 +429,6 @@ printf -- '---\nmachine: plugin_offer\n---\n\nsomething else entirely\n' > "${TM
 assert_eq "an offer that is not a plugin file fails" "1" "$(run "${TMP}/offer.sh" DECREE_MESSAGE="${TMP}/offer-junk.md" DECREE_DATA_FROM=garage-box)"
 rm -f "$W/ai/proposed/"*.md
 # Asked for no machine, a stack sends the list of its machines, and the asker's phone shows it.
-script_of() { echo "$SCRIPTS/$1/$2.sh"; }   # a kernel machine's script
 : > "${TMP}/event"
 assert_eq "a request for the list needs no yes" "0" "$(run "$(script_of plugin_share permit)" DECREE_DATA_CLIENT=garage-box DECREE_DATA_MACHINE= \
     PLUGIN_SHARE_CALLBACK_GARAGE_BOX="${STUB}/cb/offer/home" DECREE_EVENT_FILE="${TMP}/event")"
@@ -426,7 +438,7 @@ assert_eq "the list is sent" "0" "$(run "$(script_of plugin_share send)" DECREE_
     PLUGIN_SHARE_CALLBACK_GARAGE_BOX="${STUB}/cb/offer/home" PLUGIN_SHARE_CALLBACK_GARAGE_BOX_TOKEN=s3 PLUGIN_SHARE_ALLOW=notify,${PLUGIN})"
 assert_has "...to the client's callback, with its token" "$(head -2 "${TMP}/posted" 2>/dev/null)" "/cb/offer/home
 Bearer s3"
-assert_has "...naming each machine, free or asking, with what it does" "$(cat "${TMP}/posted" 2>/dev/null)" "- ${PLUGIN} (free): One GPU, one holder"
+assert_has "...naming each machine, free or asking, with what it does" "$(cat "${TMP}/posted" 2>/dev/null)" "- ${PLUGIN} (free): One mode per resource at a time"
 assert_has "...one not shared freely asks" "$(cat "${TMP}/posted" 2>/dev/null)" "- note_watch (asks)"
 { printf -- '---\nmachine: plugin_offer\n---\n\n'; tail -n +3 "${TMP}/posted"; } > "${TMP}/list-msg.md"
 reset_emits
@@ -446,126 +458,118 @@ assert_eq "without PLUGIN_SHARE_NAME it fails" "1" "$(run "$REQ" DECREE_DATA_FRO
 assert_has "...saying what to set" "$(cat "${TMP}/last.log")" "set PLUGIN_SHARE_NAME"
 
 echo ""; echo "=== sync ==="
-# The repo's plugins dir is the one source: a project gets its defaults, what it
-# turned on and what those need; a changed file is installed again, an edited
-# copy kept first; one no longer wanted is removed; the plugin system is never one.
+# The repo's plugins dir is the one source: a project's plugins/ is what is on
+# and what that needs, and decree installs it; a changed file is installed
+# again, and decree archives a copy edited in place first; auto_update off only
+# names it; one no longer wanted goes, its cron and lib with it, but not what is
+# yours; a flow brings what it needs and its order files; decree 0.5's copies go.
 PD="${TMP}/plugins"; mkdir -p "$PD"
-mkplugin() {  # <name> <unused> <needs list> [script body]
+mkplugin() {  # <name> <needs list> [script body]
     cat > "${PD}/$1.md" <<EOF
 ---
-machine: develop
-automation: $1
-needs: $3
-chart:
+name: $1
+x-exist-project: automation
+needs: $2
+machine:
+  description: $1, for the test.
   initial: go
   states:
     go: { invoke: go, transitions: { done: done } }
     done: { final: true }
+    failed: { final: true }
 scripts:
-  go: |
+  go.sh: |
     #!/usr/bin/env bash
-    ${4:-echo $1}
+    ${3:-echo $1}
 ---
 # $1
 EOF
 }
-mkplugin alpha '[automation]' '[beta]' 'echo | decree emit --machine beta'
-mkplugin beta '[]' '[]'
-mkplugin gamma '[]' '[]'
-mkplugin delta '[automation]' '[]'
-mkplugin hostonly '[host]' '[]'
-# A cron of its own, and a helper in lib.
-yq --front-matter=process -i '.cron.gamma_hourly = "---\nmachine: gamma\ncron: \"0 * * * *\"\n---\n" | .lib["gamma/helper.sh"] = "echo helped\n" | .store["conf.txt"] = "shipped\n"' "${PD}/gamma.md"
+mkplugin alpha '[beta]' 'echo | decree emit --machine beta'
+mkplugin beta '[]'
+mkplugin gamma '[]'
+mkplugin delta '[]'
+mkplugin hostonly '[]'; yq --front-matter=process -i '.["x-exist-project"] = "host"' "${PD}/hostonly.md"
+# A cron of its own, a helper in lib, and a file that is yours once written.
+yq --front-matter=process -i '.cron["gamma_hourly.md"] = "---\nmachine: gamma\ncron: \"0 * * * *\"\n---\n" | .["x-exist-lib"]["gamma/helper.sh"] = "echo helped\n" | .state["conf.txt"] = "shipped\n"' "${PD}/gamma.md"
 S="${TMP}/sp"; mkdir -p "$S/.decree"
 psync() {  # psync [name...]: one plugin_sync of the automation project; its output in $TMP/sync.log
-    ( cd "$S" && env PATH="${TMP}/bin:${PATH}" STUBDIR="$TMP" DECREE_RUN_DIR="${TMP}/run" PLUGINS_ON="$S/.decree/plugins.yml" \
-        bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; shift; plugin_sync "$@"' \
-        _ "${REPO_DIR}/automation/lib" "$PD" automation "$@" ) > "${TMP}/sync.log" 2>&1
+    ( cd "$S" && PLUGINS_ON="$S/plugins.yml" bash -c 'source "$1"; shift; plugin_sync "$@"' \
+        _ "${REPO_DIR}/automation/lib/automations/plugin.sh" "$PD" automation "$@" ) > "${TMP}/sync.log" 2>&1
     echo $?
 }
-installed() { (cd "$S/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | sort | paste -sd' '); }
-printf 'on: [alpha]\n' > "$S/.decree/plugins.yml"
+installed() { (cd "$S/.decree/machines" 2>/dev/null && ls -d -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | sort | paste -sd' '); }
+copies() { (cd "$S/.decree" && find machines -type f | sort | xargs cksum); }
+printf 'on: [alpha]\n' > "$S/plugins.yml"
 assert_eq "a sync runs" "0" "$(psync)"
 assert_eq "...installs what plugins.yml has on and what that needs, and nothing else" "alpha beta" "$(installed)"
-assert_eq "...each as written" "echo beta" "$(tail -1 "$S/.decree/scripts/beta/go.sh")"
-assert_eq "...and an unchanged one again does nothing" "" "$(psync >/dev/null; grep installed "${TMP}/sync.log")"
-printf 'on: [alpha, gamma]\n' > "$S/.decree/plugins.yml"
+assert_eq "...each as written" "echo beta" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
+assert_eq "...from its file in plugins/, which decree installs" "yes" "$(cmp -s "${PD}/beta.md" "$S/.decree/plugins/beta.md" && echo yes || echo no)"
+before="$(copies)"
+assert_eq "...and an unchanged one again changes nothing" "$before" "$(psync >/dev/null; copies)"
+printf 'on: [alpha, gamma]\n' > "$S/plugins.yml"
 psync >/dev/null
 assert_eq "one turned on is installed" "alpha beta gamma" "$(installed)"
-assert_eq "...with its cron" "gamma" "$(yq --front-matter=extract -r .machine "$S/.decree/cron/gamma_hourly.md" 2>/dev/null)"
+assert_eq "...with its cron" "gamma" "$(yq --front-matter=extract -r .machine "$S/.decree/machines/gamma/cron/gamma_hourly.md" 2>/dev/null)"
 assert_eq "...and its lib, where its scripts reach it" "echo helped" "$(cat "$S/.decree/lib/gamma/helper.sh" 2>/dev/null)"
-assert_eq "what is yours (store:) is written to its store, once" "shipped" "$(cat "$S/.decree/store/gamma/conf.txt" 2>/dev/null)"
+assert_eq "what is yours (state:) is written to its store, once" "shipped" "$(cat "$S/.decree/store/gamma/conf.txt" 2>/dev/null)"
+assert_eq "...which is the machine's state/" "shipped" "$(cat "$S/.decree/machines/gamma/state/conf.txt" 2>/dev/null)"
 echo mine > "$S/.decree/store/gamma/conf.txt"
-yq --front-matter=process -i '.store["conf.txt"] = "shipped two\n"' "${PD}/gamma.md"
+yq --front-matter=process -i '.state["conf.txt"] = "shipped two\n"' "${PD}/gamma.md"
 psync >/dev/null
 assert_eq "...and never overwritten" "mine" "$(cat "$S/.decree/store/gamma/conf.txt")"
-assert_lacks "...nor exported" "$( (cd "$S" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_export gamma' _ "${REPO_DIR}/automation/lib") 2>/dev/null)" "mine"
-assert_eq "a name given is installed too" "alpha beta gamma hostonly" "$(psync hostonly >/dev/null; installed)"
-# A flow: no machine, in plugins/flows/; it needs a machine and queues that machine's migration.
+mkdir -p "$S/.decree/cron"; printf -- '---\nmachine: gamma\ncron: "* * * * *"\n---\n' > "$S/.decree/cron/mine.md"
+assert_has "a cron file in .decree/cron/ is not read, and the sync says so" "$(psync >/dev/null; cat "${TMP}/sync.log")" ".decree/cron/ is not read"
+rm -rf "$S/.decree/cron"
+assert_eq "a name given that is tagged for another project is not installed" "alpha beta gamma" "$(psync hostonly >/dev/null; installed)"
+# A flow: no machine, in plugins/flows/; it needs a machine, and an order file runs that machine once.
 mkdir -p "${PD}/flows"
-printf -- '---\nmachine: plugin\nautomation: epsilon\nname: Epsilon\ntagline: delta, set up once\nneeds:\n  - delta\nmigrations:\n  epsilon-setup: |\n    ---\n    machine: delta\n    ---\n---\n' > "${PD}/flows/epsilon.md"
-assert_eq "a flow brings the plugins it needs" "alpha beta delta gamma" "$(psync epsilon >/dev/null; installed)"
-assert_eq "...and queues its migration" "delta" "$(yq --front-matter=extract -r .machine "$S/.decree/migrations/epsilon-setup.md" 2>/dev/null)"
-assert_eq "...after the machines are in" "delta installed,epsilon's migration" "$(grep -oE "delta installed|epsilon's migration" "${TMP}/sync.log" | paste -sd,)"
-psync >/dev/null
-assert_eq "...and a migration that never ran goes with it" "no" "$([[ -e "$S/.decree/migrations/epsilon-setup.md" ]] && echo yes || echo no)"
+printf -- '---\nname: epsilon\nx-exist-project: automation\nx-exist-title: Epsilon\nx-exist-tagline: delta, set up once\nneeds:\n  - delta\n  - decree_order\norder:\n  epsilon-setup.md: |\n    ---\n    machine: delta\n    ---\n---\n' > "${PD}/flows/epsilon.md"
+assert_eq "a flow brings the plugins it needs, decree's decree_order among them" "alpha beta decree_order delta gamma" "$(psync epsilon >/dev/null; installed)"
+assert_eq "...as flow_<name>, whose order file is in" "delta" "$(yq --front-matter=extract -r .machine "$S/.decree/machines/flow_epsilon/order/epsilon-setup.md" 2>/dev/null)"
+assert_has "...and queued to run now, not at the next start" "$(cat "${TMP}/sync.log")" "order files are queued to run"
 psync >/dev/null
 assert_eq "...and removed when nothing wants them" "alpha beta gamma" "$(installed)"
-mkplugin beta '[]' '[]' 'echo beta two'
+# One that extends decree's: its base, and what decree adds for that, come and go with it.
+printf -- '---\nname: zeta\nextends: decree_develop\nx-exist-project: automation\nscripts:\n  gate.sh: |\n    echo pass > "$DECREE_EVENT_FILE"\n---\n' > "${PD}/zeta.md"
+printf 'on: [alpha, gamma, zeta]\n' > "$S/plugins.yml"
+assert_eq "one that extends decree's installs with its base and that base's needs" "alpha beta decree_develop decree_infra decree_order gamma zeta" "$(psync >/dev/null; installed)"
+assert_eq "...its own file over the base's" 'echo pass > "$DECREE_EVENT_FILE"' "$(tail -1 "$S/.decree/machines/zeta/scripts/gate.sh" 2>/dev/null)"
+printf 'on: [alpha, gamma]\n' > "$S/plugins.yml"
+assert_eq "...and all of it goes with it, decree_order included" "alpha beta gamma" "$(psync >/dev/null; installed)"
+rm -f "${PD}/zeta.md"
+mkplugin beta '[]' 'echo beta two'
 psync >/dev/null
-assert_eq "a changed plugin is installed again" "echo beta two" "$(tail -1 "$S/.decree/scripts/beta/go.sh")"
-assert_eq "...without keeping a copy nobody edited" "" "$(ls "$S/.decree/archive" 2>/dev/null)"
-echo 'echo mine' >> "$S/.decree/scripts/beta/go.sh"
-mkplugin beta '[]' '[]' 'echo beta three'
+assert_eq "a changed plugin is installed again" "echo beta two" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
+assert_eq "...without keeping a copy nobody edited" "" "$(ls "$S/.decree/archive/beta" 2>/dev/null)"
+echo 'echo mine' >> "$S/.decree/machines/beta/scripts/go.sh"
+mkplugin beta '[]' 'echo beta three'
 psync >/dev/null
-assert_eq "an edited copy is replaced" "echo beta three" "$(tail -1 "$S/.decree/scripts/beta/go.sh")"
-assert_has "...and kept first" "$(cat "$S"/.decree/archive/*/scripts/beta/go.sh 2>/dev/null)" "echo mine"
-assert_has "...which you are told" "$(cat "${TMP}/sync.log")" "your edit of beta is replaced"
-printf 'on: [alpha, gamma]\nauto_update: false\n' > "$S/.decree/plugins.yml"
-mkplugin beta '[]' '[]' 'echo beta four'
+assert_eq "an edited copy is replaced" "echo beta three" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
+assert_has "...and decree archives it first" "$(cat "$S"/.decree/archive/beta/*.md 2>/dev/null)" "echo mine"
+printf 'on: [alpha, gamma]\nauto_update: false\n' > "$S/plugins.yml"
+mkplugin beta '[]' 'echo beta four'
 psync >/dev/null
-assert_eq "with auto_update off a change is not installed" "echo beta three" "$(tail -1 "$S/.decree/scripts/beta/go.sh")"
+assert_eq "with auto_update off a change is not installed" "echo beta three" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
 assert_has "...only named" "$(cat "${TMP}/sync.log")" "beta has a new version"
-printf 'on: [alpha]\n' > "$S/.decree/plugins.yml"
+printf 'on: [alpha]\n' > "$S/plugins.yml"
 psync >/dev/null
 assert_eq "one turned off again is removed" "alpha beta" "$(installed)"
-assert_eq "...its cron and lib with it" "no" "$([[ -e "$S/.decree/cron/gamma_hourly.md" || -e "$S/.decree/lib/gamma/helper.sh" ]] && echo yes || echo no)"
+assert_eq "...its cron and lib with it" "no" "$([[ -e "$S/.decree/machines/gamma/cron/gamma_hourly.md" || -e "$S/.decree/lib/gamma/helper.sh" ]] && echo yes || echo no)"
 assert_eq "...but not what is yours" "mine" "$(cat "$S/.decree/store/gamma/conf.txt" 2>/dev/null)"
-rm -rf "$S/.decree/lib/gamma"
-# A machine copied in before plugins, with its endpoint already in the webhook's file.
-rm -rf "$S/.decree/machines/alpha.yml" "$S/.decree/scripts/alpha" "$S/.decree/applied/plugins/alpha.md"
-yq -i 'del(.[] | select(.machine == "alpha"))' "$S/.decree/automations.yml"
-printf 'name: alpha\ninitial: go\nstates:\n  go: { invoke: go, transitions: { done: done } }\n  done: { final: true }\n' > "$S/.decree/machines/alpha.yml"
-printf '#!/usr/bin/env bash\necho old alpha\n' > "$S/.decree/scripts/alpha.sh"
-printf 'endpoints:\n  - path: /alpha\n    message: { machine: alpha }\n' > "$S/.decree/decree-go-rest.yml"
-yq --front-matter=process -i '.endpoints = [{"path": "/alpha", "message": {"machine": "alpha"}}]' "${PD}/alpha.md"
-assert_eq "a machine copied in before plugins is taken over" "0" "$(psync)"
-assert_eq "...as the plugin" "echo | decree emit --machine beta" "$(tail -1 "$S/.decree/scripts/alpha/go.sh")"
-assert_eq "...its old script gone" "no" "$([[ -e "$S/.decree/scripts/alpha.sh" ]] && echo yes || echo no)"
-assert_eq "...its endpoint once, now the plugin's" "1" "$(yq '[.endpoints[] | select(.path == "/alpha")] | length' "$S/.decree/decree-go-rest.yml")"
-assert_has "...and the old copy kept" "$(cat "$S"/.decree/archive/*/scripts/alpha.sh 2>/dev/null)" "old alpha"
+mkdir -p "$S/.decree/machines/mine"
+printf 'name: mine\ndescription: Mine.\ninitial: done\nstates:\n  done: { final: true }\n  failed: { final: true }\n' > "$S/.decree/machines/mine/machine.yml"
+psync >/dev/null
+assert_eq "a machine of yours is never touched" "yes" "$([[ -e "$S/.decree/machines/mine/machine.yml" ]] && echo yes || echo no)"
+# decree 0.5's copies: a plugin's goes (the plugin is installed again), one of yours moves to its folder.
 printf 'name: gamma\n' > "$S/.decree/machines/gamma.yml"
+printf 'name: old\ndescription: Old.\ninitial: done\nstates:\n  done: { final: true }\n  failed: { final: true }\n' > "$S/.decree/machines/old.yml"
 psync >/dev/null
-assert_eq "one copied in before plugins that nothing wants is removed" "no" "$([[ -e "$S/.decree/machines/gamma.yml" ]] && echo yes || echo no)"
-assert_eq "...and kept" "yes" "$(ls "$S"/.decree/archive/*/gamma.yml >/dev/null 2>&1 && echo yes || echo no)"
-printf 'name: mine\n' > "$S/.decree/machines/mine.yml"
-psync >/dev/null
-assert_eq "a machine of yours is never touched" "yes" "$([[ -e "$S/.decree/machines/mine.yml" ]] && echo yes || echo no)"
-mkdir -p "$S/.decree/lib/gamma"; echo theirs > "$S/.decree/lib/gamma/helper.sh"
-printf 'on: [alpha, gamma]\n' > "$S/.decree/plugins.yml"
-psync >/dev/null
-assert_has "a lib file another install owns is not overwritten" "$(cat "${TMP}/sync.log")" "lib/gamma/helper.sh is already there"
-assert_eq "...it stays theirs" "theirs" "$(cat "$S/.decree/lib/gamma/helper.sh")"
-rm -rf "$S/.decree/lib/gamma"; printf 'on: [alpha]\n' > "$S/.decree/plugins.yml"
-cp "${PD}/alpha.md" "${TMP}/notify.md"
-assert_eq "the plugin system is never a plugin" "1" "$( (cd "$S" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_install notify "$2"' _ "${REPO_DIR}/automation/lib" "${TMP}/notify.md" >/dev/null 2>&1); echo $?)"
-# What sync installed exports as the file it came from: export, commit, and every box gets it.
-_roundtrip() { yq --front-matter=extract -o=json -I=0 'del(.machine, .automation) | del(.default | select(length == 0)) | del(.needs | select(length == 0)) | sort_keys(..)' "$1"; }
-for _p in alpha beta; do
-    ( cd "$S" && DECREE_RUN_DIR="${TMP}/run" bash -c 'source "$1/automations/registry.sh"; source "$1/automations/plugin.sh"; plugin_export "$2"' \
-        _ "${REPO_DIR}/automation/lib" "$_p" ) > "${TMP}/rt.md" 2>/dev/null
-    assert_eq "${_p} exports as its plugin file" "$(_roundtrip "${PD}/${_p}.md")" "$(_roundtrip "${TMP}/rt.md")"
-done
+assert_eq "decree 0.5's copy of a plugin goes" "no" "$([[ -e "$S/.decree/machines/gamma.yml" ]] && echo yes || echo no)"
+assert_eq "...and a machine of yours moves to machines/<name>/" "yes" "$([[ -f "$S/.decree/machines/old/machine.yml" && ! -e "$S/.decree/machines/old.yml" ]] && echo yes || echo no)"
+( cd "$S" && decree export --no-color alpha ) >/dev/null 2>&1
+assert_eq "decree export keeps existential's keys" "automation" "$(yq --front-matter=extract -r '.["x-exist-project"]' "$S/.decree/plugins/alpha.md")"
+
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven (run-all.sh selfcheck).

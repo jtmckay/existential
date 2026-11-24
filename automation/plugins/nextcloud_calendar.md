@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: nextcloud_calendar
-project: automation
-chart:
+name: nextcloud_calendar
+x-exist-project: automation
+machine:
   description: Install and enable Nextcloud's Calendar app.
   initial: wait_for_nextcloud
   states:
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  nextcloud_calendar: |
+  nextcloud_calendar.sh: |
     #!/usr/bin/env bash
     # nextcloud-calendar — install/enable Nextcloud's Calendar app.
     #
@@ -59,7 +58,7 @@ scripts:
     rm -f "${_body}"
 
     echo "calendar app installed and enabled — see https://<nextcloud domain>/apps/calendar"
-  wait_for_nextcloud: |
+  wait_for_nextcloud.sh: |
     #!/usr/bin/env bash
     # wait_for_nextcloud — the first state of every Nextcloud migration machine.
     #

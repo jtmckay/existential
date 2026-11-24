@@ -32,10 +32,10 @@ You need [decree](https://github.com/jtmckay/decree) on the host (the version
 `services/automation/decree/Dockerfile` pins), and `tmux`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.0
 ```
 
-It installs to `~/.local/bin`. If `decree --version` isn't found, that folder isn't on your
+`./existential.sh` prints this line with the version it pins. It installs to `~/.local/bin`. If `decree --version` isn't found, that folder isn't on your
 `PATH`: `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc`, then open a new shell.
 
 ## Start it
@@ -62,8 +62,7 @@ KillMode=process
 WorkingDirectory=%h/existential
 # Where decree, git and docker are: systemd does not read your shell's PATH.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-# The emit runs .decree/boot.sh once (the on-boot flow); without that flow it does nothing.
-ExecStart=/usr/bin/tmux new -d -s existential-host "echo | decree emit --machine boot >/dev/null 2>&1; exec decree daemon"
+ExecStart=/usr/bin/tmux new -d -s existential-host "exec decree daemon"
 ExecStop=/usr/bin/tmux kill-session -t existential-host
 
 [Install]
@@ -82,6 +81,17 @@ An install from before the host's project was the checkout's `.decree` ran this 
 `host/`. `./existential.sh` moves what was there, stops that daemon and says so: start it
 again as above, and change `WorkingDirectory` in the unit to the checkout.
 
+## When decree's version changes
+
+A pull that pins a new decree leaves the host's `.decree` as it is, so the daemon you have
+keeps running what it runs (`auto-update` included), and `./existential.sh` prints the steps
+until you take them: install that version as above, run `./existential.sh`, then restart the
+daemon:
+
+```bash
+tmux kill-session -t existential-host; tmux new -d -s existential-host -c "$PWD" decree daemon
+```
+
 ## Check it's working
 
 ```bash
@@ -96,11 +106,13 @@ Each run ends in a line like `✓ <run> done in 0s`. A flow's own output is in
 
 With the unit above, the daemon is the one thing started at boot, and it can start the rest.
 `./existential.sh flow on on-boot`, then write `.decree/boot.sh`. It runs once each time the
-daemon starts, with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
+daemon starts (a cron file of the `boot` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
 in reach, so each process gets its own tmux session and is left alone if it already runs:
 
 ```bash
 tmx -d comfyui 'cd ~/ComfyUI && exec .venv/bin/python main.py --listen 0.0.0.0'
 ```
 
-Its output is in `.decree/runs/`; `tmux attach -t comfyui` shows the process itself.
+Its output is in `.decree/runs/`; `tmux attach -t comfyui` shows the process itself. A unit
+from before decree 0.6 emitted `boot` itself before `decree daemon`: drop that, or `boot.sh` runs
+twice at each start (which `tmx -d` makes harmless).

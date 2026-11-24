@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: reporting
-project: host
-chart:
+name: reporting
+x-exist-project: host
+machine:
   description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
-  store:
+  state_files:
     loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
     alloy-loki: The Loki address the running alloy was started with; a new one restarts it. report reads and writes it.
     alloy: alloy's own state, its read position in each run's files. alloy writes it.
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  report: |
+  report.sh: |
     #!/usr/bin/env bash
     # report — this host, to the Loki its controller names.
     #
@@ -25,7 +24,7 @@ scripts:
     # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
     # asks that controller at http://<controller>:4480, which serves .decree/exist.json
     # over the tailnet; blank, this host is the controller and reads that file. The
-    # answer is kept in $DECREE_STORE/loki for when the controller is away. No
+    # answer is kept in $DECREE_STATE_DIR/loki for when the controller is away. No
     # answer is not a failure: nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
@@ -37,7 +36,7 @@ scripts:
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
     set -euo pipefail
     repo="$(pwd)"
-    store="${DECREE_STORE:-.decree/store/reporting}"; mkdir -p "$store"
+    store="${DECREE_STATE_DIR:-.decree/machines/reporting/state}"; mkdir -p "$store"
     env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
     loki_of() { sed -n 's/.*"loki"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'; }
 
@@ -91,22 +90,22 @@ scripts:
     fi
     echo "$mem" | awk -v c="$cpu" -v v="$vram" '{ printf "{\"cpu_pct\":%s,\"mem_used_kb\":%d,\"mem_total_kb\":%d%s}\n", c, $1, $2, v }' > "${tmp}/load"
 
-    # Each project's machines, and its plugins: what plugin sync installed there
-    # (applied/plugins/), the ones turned on and the ones they need.
+    # Each project's machines, and its plugins: what decree installed there from
+    # plugins/ (the ones turned on and the ones they need).
     : > "${tmp}/machine"; : > "${tmp}/plugin"; : > "${tmp}/cron"
     for p in automation:volumes/workspace_data/.decree automation-backup:services/automation-backup host:.decree; do
         name="${p%%:*}" dir="${repo}/${p#*:}"
         [[ -d "$dir" ]] || continue
-        for m in "$dir"/machines/*.yml; do
+        for m in "$dir"/machines/*/machine.yml; do
             [[ -f "$m" ]] || continue
-            printf '{"project":"%s","machine":"%s"}\n' "$name" "$(basename "$m" .yml)" >> "${tmp}/machine"
+            printf '{"project":"%s","machine":"%s"}\n' "$name" "$(basename "$(dirname "$m")")" >> "${tmp}/machine"
         done
-        for m in "$dir"/applied/plugins/*.md; do
+        for m in "$dir"/plugins/*.md; do
             [[ -f "$m" ]] || continue
             printf '{"project":"%s","plugin":"%s"}\n' "$name" "$(basename "$m" .md)" >> "${tmp}/plugin"
         done
-        # Each active cron (cron/, what the daemon fires): its schedule and machine.
-        for m in "$dir"/cron/*.md; do
+        # Each active cron (each machine's cron/, what the daemon fires): its schedule and machine.
+        for m in "$dir"/machines/*/cron/*.md; do
             [[ -f "$m" ]] || continue
             awk -v p="$name" -v n="$(basename "$m" .md)" '
                 NR == 1 && /^---/ { fm = 1; next }
@@ -138,11 +137,11 @@ scripts:
         if [[ "$(cat "${store}/alloy-loki" 2>/dev/null || true)" != "$loki" ]]; then
             tmux kill-session -t "=reporting-alloy" 2>/dev/null || true
             # alloy takes the session's hangup as "reload" and lives on, holding its port.
-            pkill -f "alloy run ${DECREE_LIB}/reporting/decree.alloy" 2>/dev/null || true
+            pkill -f "alloy run .decree/lib/reporting/decree.alloy" 2>/dev/null || true
             printf '%s\n' "$loki" > "${store}/alloy-loki"
         fi
         mkdir -p "${store}/alloy"
-        tmx -d reporting-alloy "EXIST_REPO='${repo}' EXIST_HOST='${host}' EXIST_LOKI='${loki%/}/loki/api/v1/push' exec alloy run '${DECREE_LIB}/reporting/decree.alloy' --storage.path='$(cd "${store}/alloy" && pwd)' --server.http.listen-addr=127.0.0.1:12346 --disable-reporting"
+        tmx -d reporting-alloy "EXIST_REPO='${repo}' EXIST_HOST='${host}' EXIST_LOKI='${loki%/}/loki/api/v1/push' exec alloy run '.decree/lib/reporting/decree.alloy' --storage.path='$(cd "${store}/alloy" && pwd)' --server.http.listen-addr=127.0.0.1:12346 --disable-reporting"
         runs="runs shipped live by alloy (tmux attach -t reporting-alloy)"
     else
         runs="no runs shipped: alloy is not on PATH"
@@ -153,7 +152,7 @@ scripts:
     # notify-relay (lib/reporting/relay.sh). It reads the Loki address from the
     # store each time, so a new one needs no restart.
     if [[ -z "$ctl" ]] && grep -q '^EXIST_IS_SERVICES_NTFY=true' "${repo}/.env.shared" 2>/dev/null; then
-        tmx -d notify-relay "exec bash '${DECREE_LIB}/reporting/relay.sh' '$(cd "$store" && pwd)' '${repo}'"
+        tmx -d notify-relay "exec bash '.decree/lib/reporting/relay.sh' '$(cd "$store" && pwd)' '${repo}'"
     fi
 
     # One Loki push: a stream per kind, each line a JSON string. The timestamp is
@@ -176,7 +175,7 @@ scripts:
     curl -fsS --max-time 20 -H 'Content-Type: application/json' \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
     echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, ${runs}"
-lib:
+x-exist-lib:
   reporting/relay.sh: |
     #!/usr/bin/env bash
     # notify-relay <store> <repo> — on the controller: every message another host's
@@ -222,7 +221,7 @@ lib:
   reporting/decree.alloy: |
     // Every decree run on this host, live, into the Loki its controller names.
     // report starts it (tmux session reporting-alloy) with EXIST_REPO, EXIST_HOST
-    // and EXIST_LOKI set. decree 0.5 writes each run's record as
+    // and EXIST_LOKI set. decree 0.6 writes each run's record as
     // runs/<id>/events.jsonl and each script's output as
     // runs/<id>/<NNNN>-<state>-<script>.log; the event log is the telemetry.
     // The projects are existential's own, the ones report lists machines for.
@@ -302,7 +301,7 @@ lib:
     	}
     }
 cron:
-  reporting: |
+  reporting.md: |
     ---
     machine: reporting
     cron: "*/5 * * * *"

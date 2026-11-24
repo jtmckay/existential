@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# automation — pre-startup init: the projects' runtime dirs, the triage cron, and
-# the one-time move of an existing install's active files to decree 0.5.
+# automation — pre-startup init: the project's runtime dirs, its plugins, and the
+# one-time move of an older install's active files (decree 0.4, then 0.5: the
+# plugin sync converts that).
 #
 # Runs on the host (and in adhoc — it is a plain file copy inside the repo).
 # Called every `./existential.sh` for an enabled decree; idempotent.
@@ -16,7 +17,7 @@ REPO="${SCRIPT_DIR}/../.."
 WORKSPACE_DIR="${REPO}/volumes/workspace_data"
 PROJECT="${WORKSPACE_DIR}/.decree"
 mkdir -p "${REPO}"/automation/secrets \
-         "${PROJECT}"/{inbox,runs,store,cron,migrations,machines,scripts,lib,graph}
+         "${PROJECT}"/{inbox,runs,store,machines,plugins,lib}
 # decree reads .decree/.env; it is bind-mounted from automation/.env so config
 # never lands in the synced workspace. A file mount needs its source to exist.
 touch "${REPO}/automation/.env" "${PROJECT}/.env"
@@ -53,11 +54,23 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
-# The `automation` project is workspace/.decree. Its code (machines/, scripts/,
+# The `automation` project is workspace/.decree. Its code (plugins/, machines/,
 # lib/) is installed here, on the host, from automation/plugins/, at this
 # checkout's version every run, and is read-only in every container: what a
 # person or an agent makes in the workspace is an offer in ai/proposed/, accepted
-# with ./existential.sh run plugin accept <name>. The daemon draws the graphs.
+# with ./existential.sh run plugin accept <name>. `decree install` draws the graphs.
+#
+# An install from before this keeps its active crons and migrations, and its
+# record of which migrations ran, in automation/. Each moves over once, unless
+# the workspace already has that file; the sync then converts them (decree 0.6:
+# a migration that ran is an order file that ran; your crons are not read, and it says so).
+for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/processed.md"; do
+    _dst="${PROJECT}/${_f#"${REPO}/automation/"}"
+    if [[ -f "$_f" && ! -e "$_dst" ]]; then
+        mkdir -p "${_dst%/*}"; mv "$_f" "$_dst"
+        echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
+    fi
+done
 # Yours from their examples, once: what the webhook answers and which file
 # changes start a run. An edit stays.
 [[ -e "${PROJECT}/.gitignore" ]] || cp -p "${REPO}/automation/.gitignore" "${PROJECT}/.gitignore"
@@ -67,7 +80,7 @@ done
 # The plugin system, then the plugins this install has on (src/lib/plugin.sh),
 # each at the version in this checkout: what automation/plugins.yml has on and
 # tags for this project (written from automation/plugins.exist.yml the first
-# time) and all they need, their crons and migrations included.
+# time) and all they need, their cron and order files included.
 # In adhoc, where yq and decree are; a failure is said and the stack still comes up.
 if [[ -n "${IN_CONTAINER:-}" ]]; then
     REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync automation ||
@@ -78,16 +91,6 @@ else
     ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync automation ) ||
         echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync tries again."
 fi
-# An install from before this keeps its active crons and migrations, and its
-# record of which migrations ran, in automation/. Each moves over once, unless
-# the workspace already has that file.
-for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/processed.md"; do
-    _dst="${PROJECT}/${_f#"${REPO}/automation/"}"
-    if [[ -f "$_f" && ! -e "$_dst" ]]; then
-        mv "$_f" "$_dst"
-        echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
-    fi
-done
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/
 # (pi, in a department without bash) has no other way to discover that ai/ is special: a bare directory
@@ -105,8 +108,9 @@ content — notes, plans, reference material — except:
 
 - **`notes/`** — your notes, plain markdown. Start with `my-first-note.md`.
 - **`.decree/`** — your automations: the decree project the `automation`
-  daemon runs. `graph/` draws every machine and is redrawn when one changes.
-  Its code (`machines/`, `scripts/`, `lib/`) is read-only here: a new automation
+  daemon runs. `machines/<name>/graph.md` draws each machine, and
+  `store/<name>/` holds what it keeps (yours to edit: feeds, departments).
+  Its code (`plugins/`, `machines/`, `lib/`) is read-only here: a new automation
   is offered in `ai/proposed/` and runs once you accept it on the host
   (`./existential.sh run plugin accept <name>`).
 - **`.claude/`** — the decree skill, so `claude` started here knows how to
@@ -136,7 +140,7 @@ what should happen, in your own words.
 Claude writes it as one file in `ai/proposed/` and tells you its name. Read it,
 then on the computer that runs the stack: `./existential.sh run plugin accept <name>`.
 Nothing made in here runs until you have said yes there. After that it runs on
-its own, and `.decree/graph/` draws what it does.
+its own, and `.decree/machines/<name>/graph.md` draws what it does.
 
 A change to a matching file can start an automation too ("when a PDF lands in
 `inbox/`, file it"); a folder listed in a `.gitignore` never starts one.

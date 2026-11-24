@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: gmail
-project: automation
-chart:
+name: gmail
+x-exist-project: automation
+machine:
   description: File one email from gmail_sync, whole, in the emails directory.
   data:
     gmail_id: {type: string, default: ""}
@@ -21,7 +20,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  gmail: |
+  gmail.sh: |
     #!/usr/bin/env bash
     # gmail — file each email gmail_sync emits, whole, in EMAIL_DIR.
     #

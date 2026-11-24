@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: ollama_pull
-project: automation
+name: ollama_pull
+x-exist-project: automation
 needs:
   - model
-chart:
+machine:
   description: Pull an Ollama model by role (or tag), or rebuild it with a context window; idempotent.
   data:
     OLLAMA_ROLE: {type: string, enum: ["", chat, chat-ctx, vision], default: ""}
@@ -20,7 +19,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  ollama_pull: |
+  ollama_pull.sh: |
     #!/usr/bin/env bash
     # ollama_pull — pull an Ollama model or create one from a Modelfile via HTTP API.
     # Used by the decree daemon's ollama migrations; idempotent on pull and create.
@@ -68,7 +67,7 @@ scripts:
     fi
 
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
 
     OLLAMA_ROLE="$DECREE_DATA_OLLAMA_ROLE"
     OLLAMA_MODEL="$DECREE_DATA_OLLAMA_MODEL"
@@ -159,7 +158,7 @@ scripts:
     #
     # On a fresh install this is the first migration, run the moment the daemon
     # starts, so ollama may still be booting. Ten minutes, then fail: a failed
-    # migration blocks the rest until `decree process --retry`.
+    # migration blocks the rest until `decree retry`.
 
     echo "Waiting for ollama at ${OLLAMA_URL}..."
     for i in $(seq 1 120); do
@@ -233,4 +232,4 @@ Pull an Ollama model by role (or tag), or rebuild it with a context window; idem
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
+- .decree/lib/model.sh

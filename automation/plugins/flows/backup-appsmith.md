@@ -1,17 +1,16 @@
 ---
-machine: plugin
-automation: backup-appsmith
-project: backup
-name: Back up Appsmith
-tagline: Appsmith, backed up nightly and weekly to your rclone remote
-docs: /docs/decree/automation-backup
-services:
+name: backup-appsmith
+x-exist-project: backup
+x-exist-title: Back up Appsmith
+x-exist-tagline: Appsmith, backed up nightly and weekly to your rclone remote
+x-exist-docs: /docs/decree/automation-backup
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
   - EXIST_IS_SERVICES_APPSMITH
 needs:
   - volume_backup
 cron:
-  appsmith-volume-backup-nightly: |
+  appsmith-volume-backup-nightly.md: |
     ---
     cron: "30 2 * * *"
     machine: volume_backup
@@ -23,7 +22,7 @@ cron:
 
     Tar appsmith_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/appsmith_data/.
     Files older than 7 days are pruned at the end of the run.
-  appsmith-volume-backup-weekly: |
+  appsmith-volume-backup-weekly.md: |
     ---
     cron: "30 3 * * SUN"
     machine: volume_backup
@@ -38,4 +37,4 @@ cron:
 
 Backups go to the rclone remote in EXIST_BACKUP_RCLONE_REMOTE (.env.shared); add it once with
 ./existential.sh run rclone. Restore with ./existential.sh run backup-restore. For another
-schedule, edit the cron files in services/automation-backup/cron/.
+schedule, edit the cron files in services/automation-backup/machines/flow_backup_appsmith/cron/.

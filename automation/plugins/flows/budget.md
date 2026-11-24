@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: budget
-project: automation
-name: Bank alerts become budget entries
-tagline: The alert email your bank sends for each charge becomes an Actual Budget transaction
-docs: /docs/flows/transaction-gmail-actual-budget
-services:
+name: budget
+x-exist-project: automation
+x-exist-title: Bank alerts become budget entries
+x-exist-tagline: The alert email your bank sends for each charge becomes an Actual Budget transaction
+x-exist-docs: /docs/flows/transaction-gmail-actual-budget
+x-exist-services:
   - EXIST_IS_SERVICES_ACTUAL_BUDGET
 needs:
   - actual_budget_parse

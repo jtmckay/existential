@@ -1,17 +1,17 @@
 ---
-machine: plugin
-automation: photos
-project: automation
-name: Photos
-tagline: Immich with its admin made and your NAS photos already in it, read-only
-docs: /docs/services/immich
-services:
+name: photos
+x-exist-project: automation
+x-exist-title: Photos
+x-exist-tagline: Immich with its admin made and your NAS photos already in it, read-only
+x-exist-docs: /docs/services/immich
+x-exist-services:
   - EXIST_IS_SERVICES_IMMICH
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - immich_setup
-migrations:
-  28-immich-setup: |
+  - decree_order
+order:
+  28-immich-setup.md: |
     ---
     machine: immich_setup
     ---

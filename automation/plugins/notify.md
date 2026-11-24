@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: notify
-project:
+name: notify
+x-exist-project:
   - automation
   - backup
-chart:
+machine:
   description: Send the message body to ntfy.
   data:
     ntfy_topic: {type: string, default: decree}
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  notify: |
+  notify.sh: |
     #!/usr/bin/env bash
     # Notify
     #

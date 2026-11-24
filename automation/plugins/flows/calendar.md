@@ -1,18 +1,18 @@
 ---
-machine: plugin
-automation: calendar
-project: automation
-name: Your calendar, readable by agents
-tagline: Nextcloud's calendar app on, and every event mirrored into the workspace as a note
-docs: /docs/storage/nextcloud
-services:
+name: calendar
+x-exist-project: automation
+x-exist-title: Your calendar, readable by agents
+x-exist-tagline: Nextcloud's calendar app on, and every event mirrored into the workspace as a note
+x-exist-docs: /docs/storage/nextcloud
+x-exist-services:
   - EXIST_IS_NAS_NEXTCLOUD
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - calendar_extract
   - nextcloud_calendar
+  - decree_order
 cron:
-  calendar-extract: |
+  calendar-extract.md: |
     ---
     cron: "*/30 * * * *"
     machine: calendar_extract
@@ -41,8 +41,8 @@ cron:
     the calendar flow's `24-nextcloud-calendar.md` migration does that once.
 
     `./existential.sh flow on calendar` activates it.
-migrations:
-  24-nextcloud-calendar: |
+order:
+  24-nextcloud-calendar.md: |
     ---
     machine: nextcloud_calendar
     ---
@@ -68,5 +68,5 @@ migrations:
     `./existential.sh flow on calendar` activates it.
 ---
 
-Set CALENDAR_EXTRACT_TZ in volumes/workspace_data/.decree/cron/calendar-extract.md to
+Set CALENDAR_EXTRACT_TZ in volumes/workspace_data/.decree/machines/flow_calendar/cron/calendar-extract.md to
 your own zone (e.g. America/Denver) so times read right.

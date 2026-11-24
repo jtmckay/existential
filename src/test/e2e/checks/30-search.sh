@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # e2e_search — a note written now is findable now, from every client.
 #
-# Staged into the clone's scripts/ by e2e.sh, with 30-search.yml as its machine.
+# Staged into the clone's machines/<machine>/ by e2e.sh, with 30-search.yml as its machine.
 # Runs inside the `automation` daemon, which writes /workspace and reaches qmd
 # over the exist bridge. Every write lands in the disposable e2e clone.
 set -euo pipefail
@@ -78,6 +78,6 @@ got=$(mcp tools/call "{\"name\":\"get\",\"arguments\":{\"file\":\"qmd://workspac
 grep -q "$TOKEN" <<<"$got" || fail "MCP get did not return the note: ${got:0:200}"
 say "ok    MCP get returned the note"
 
-out=$(QMD_URL="$QMD" "${DECREE_LIB:-/work/.decree/lib}/recall/search.sh" "$TOKEN" 2>&1) || fail "search command failed: $out"
+out=$(QMD_URL="$QMD" ".decree/lib/recall/search.sh" "$TOKEN" 2>&1) || fail "search command failed: $out"
 grep -q "$NOTE" <<<"$out" || fail "search command did not print $NOTE: ${out:0:300}"
 say "ok    the search command prints $NOTE"

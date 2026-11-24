@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: service_health
-project: automation
-chart:
+name: service_health
+x-exist-project: automation
+machine:
   description: Probe one service's HTTP endpoint and fail unless it answers with the expected status.
   data:
     SERVICE_NAME: {type: string, default: ""}
@@ -18,7 +17,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  service_health: |
+  service_health.sh: |
     #!/usr/bin/env bash
     # service_health — HTTP probe for a single service endpoint.
     #

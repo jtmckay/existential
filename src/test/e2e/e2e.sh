@@ -5,7 +5,7 @@
 # answers: `triage` already runs every enabled service's exist.test.sh on the
 # real stack every five minutes, so per-service health needs no second home
 # here. What triage cannot see is a first install — templates rendering,
-# migrations running, one service reaching another for the first time.
+# order files running, one service reaching another for the first time.
 #
 # Per unit, Core and then each flow marked `e2e: true`: copy the WORKING TREE
 # into a throwaway clone (tracked files plus untracked-but-not-ignored ones, so
@@ -149,7 +149,7 @@ wait_settled() {
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 #
-# A check is a decree MESSAGE in checks/ (see checks/README.md) — NOT a migration,
+# A check is a decree MESSAGE in checks/ (see checks/README.md) — NOT an order file,
 # and the three docs that say so are right: converting them was tried and reverted.
 # Its frontmatter is read with e2e_fm_get — the same data decree reads, so the
 # two cannot disagree about what the file says.
@@ -160,8 +160,8 @@ wait_settled() {
 # is how 00-services once failed every run after triage moved projects.
 #
 # The daemon is DERIVED, never listed: a check names a machine, and the daemon
-# that owns it is whichever project has machines/<machine>.yml. `automation` is
-# asked first, so a machine both have (notify, clean_runs) runs where it always
+# that owns it is whichever project has machines/<machine>/machine.yml. `automation` is
+# asked first, so a machine both have (notify, prune) runs where it always
 # has, and a check's staged sibling machine lands there too, which is where the
 # service credentials and the read-write /secrets are. Nothing here enumerates
 # checks or machines.
@@ -182,7 +182,7 @@ check_daemon() {
     machine="$(e2e_fm_get "$2" machine)"
     if [ -n "$machine" ]; then
         for d in $E2E_DAEMONS; do
-            [ -f "$(_daemon_dir "$d" "$work")/machines/${machine}.yml" ] \
+            [ -f "$(_daemon_dir "$d" "$work")/machines/${machine}/machine.yml" ] \
                 && { echo "$d"; return 0; }
         done
     fi
@@ -207,27 +207,28 @@ applicable_checks() {
 }
 
 # Stage checks BEFORE render and up, into the clone's workspace/.decree, the
-# automation project. The plugin sync never touches a machine that is not a repo
-# plugin, so they are still there once the stack is up:
-#   - a sibling .yml lands in machines/ as <machine>.yml, and a sibling .sh in
-#     scripts/ as <machine>.sh, executable because decree runs scripts by path
+# automation project. decree never touches a machine folder no plugin names, so
+# they are still there once the stack is up:
+#   - a sibling .yml lands as machines/<machine>/machine.yml, and a sibling .sh as
+#     machines/<machine>/scripts/<machine>.sh, executable because decree runs scripts by path
 #   - a sibling .stage.sh runs on the host, for config already read at boot
 #
 # The check itself is dropped in later, by drop_checks, once the stack is up —
-# it is a message, not a migration. It is COPIED from checks/ rather than
+# it is a message, not an order file. It is COPIED from checks/ rather than
 # shipped in automation/plugins/, which is what a user's install installs: test code has
 # no business in the product tree.
 stage_checks() {
     local work="$1" md m st project="$1/volumes/workspace_data/.decree"
     [ -d "$work/automation/plugins" ] || { log "  (no decree in this unit — no checks to stage)"; return 0; }
-    mkdir -p "$project/machines" "$project/scripts"
+    mkdir -p "$project/machines"
 
     while IFS= read -r md; do
         [ -n "$md" ] || continue
         m="$(e2e_fm_get "$md" machine)"
         if [ -f "${md%.md}.yml" ]; then
-            cp "${md%.md}.yml" "$project/machines/${m}.yml"
-            install -m 755 "${md%.md}.sh" "$project/scripts/${m}.sh"
+            mkdir -p "$project/machines/${m}/scripts"
+            cp "${md%.md}.yml" "$project/machines/${m}/machine.yml"
+            install -m 755 "${md%.md}.sh" "$project/machines/${m}/scripts/${m}.sh"
         fi
         st="${md%.md}.stage.sh"
         if [ -f "$st" ]; then
@@ -238,15 +239,15 @@ stage_checks() {
     return 0
 }
 
-# _settled <daemon> — true once nothing is running or queued in that daemon
-# except a migration that a failed one blocks. A blocked migration is settled,
-# not stuck: it will never run, and its failed run is graded like any other.
+# _settled <daemon> — true once nothing is running or queued in that daemon and
+# no `decree_order` run is waiting for its turn (order files run at the daemon's start,
+# one at a time). An order file that failed ends its order run: settled, not
+# stuck, and its failed run is graded like any other.
 _settled() {
     docker exec -w /work "$1" sh -c 'decree status --format json | jq -e "
-        ([(.runs.finished.failed // [])[].id | . + \".md\"]) as \$failed
-        | (.runs.active + .runs.pending | length) == 0
+        (.runs.active + .runs.pending | length) == 0
           and (.queued.inbox | length) == 0
-          and ((.queued.migrations | length) == 0 or (.queued.migrations[0] as \$m | \$failed | index(\$m)))
+          and ([.runs.waiting[]? | select(.machine == \"decree_order\")] | length) == 0
     "' >/dev/null 2>&1
 }
 
@@ -269,11 +270,11 @@ drop_checks() {
     local work="$1" md d inbox n=0
     [ -d "$(_daemon_dir automation "$work")/inbox" ] || { log "  (no decree inbox — skipping checks)"; return 1; }
 
-    # Wait for the migrations first. Each decree pass drains the inbox BEFORE
-    # it runs migrations, so a check dropped now would run ahead of the setup
-    # it verifies — 10-file-processing before nextcloud-file-events has
+    # Wait for the order files first. `decree_order` runs the next file only once the
+    # inbox is empty, so a check dropped now would run ahead of the setup it
+    # verifies — 10-file-processing before nextcloud-file-events has
     # registered the webhook it probes.
-    log "Waiting for migrations to finish (up to ${E2E_CHECK_TIMEOUT:-900}s)..."
+    log "Waiting for order files to finish (up to ${E2E_CHECK_TIMEOUT:-900}s)..."
     _wait_settled "${E2E_CHECK_TIMEOUT:-900}" || return 1
 
     while IFS= read -r md; do
@@ -439,7 +440,7 @@ run_unit() {
     fi
 
     # 5. Stage the checks — before the render, because what this touches
-    #    (machines/ and scripts/, seeded by exist.initial.sh, and the webhook route table) is read at boot.
+    #    (plugins/ and machines/, installed by exist.initial.sh, and the webhook route table) is read at boot.
     log "Staging checks..."
     stage_checks "$WORK"
 
@@ -467,8 +468,8 @@ run_unit() {
     #     not the exit code) and the notify it queues follows it. What a cron
     #     does on a schedule is triage's job on the real stack, continuously —
     #     which is exactly why e2e stopped running a per-service tier at all.
-    rm -f "$(_daemon_dir automation "$WORK")/cron/"*.md \
-          "$WORK/services/automation-backup/cron/"*.md
+    rm -f "$(_daemon_dir automation "$WORK")/machines/"*/cron/*.md \
+          "$WORK/services/automation-backup/machines/"*/cron/*.md
 
     # 7. $WORK is passed as the host-side repo root so the generated bind-mount
     #    paths resolve on the host, not inside adhoc.
@@ -492,7 +493,7 @@ run_unit() {
 
     # 10. The checks, dropped now and not earlier: a check asks whether the
     #     stack WORKS, and that question is only meaningful once it has finished
-    #     starting. Run as migrations (during decree's boot) they failed open-webui,
+    #     starting. Run as order files (during decree's boot) they failed open-webui,
     #     appsmith, lowcoder, nocodb and nextcloud on stacks the health gate
     #     then found healthy. An unhealthy container does not skip them — the
     #     rest still have results worth collecting.

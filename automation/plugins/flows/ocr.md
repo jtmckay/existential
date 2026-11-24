@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: ocr
-project: automation
+name: ocr
+x-exist-project: automation
 needs:
   - model
-lib:
+x-exist-lib:
   file-processors/ollama-ocr.sh: |
     #!/usr/bin/env bash
     # shellcheck disable=SC2034  # PATTERN and IS_PRE_SIGNED are this file's contract with

@@ -8,7 +8,7 @@
 #             `tmx -d claude claude remote-control` is safe to re-run.
 #   search    with search on, opencode gets qmd as a remote MCP server; without, none.
 #   mermaid   DEFAULT_EXTENSIONS must include a mermaid-rendering markdown
-#             preview, so .decree/graph/<machine>.md shows as a diagram.
+#             preview, so .decree/machines/<machine>/graph.md shows as a diagram.
 #
 # entrypoint.sh cannot be sourced (its top level installs and execs code-server),
 # so the helper is extracted by name. The tmx half

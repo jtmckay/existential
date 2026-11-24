@@ -24,7 +24,7 @@ REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 # The bindings and graphs are the comfy plugin's lib, unpacked as the stack installs them.
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 if command -v yq >/dev/null 2>&1; then
-    ( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"
+    ( source "${REPO_DIR}/automation/lib/automations/plugin.sh"
       plugin_unpack comfy "$TMP" ) >/dev/null
 fi
 WORKFLOWS="${TMP}/.decree/lib/comfy/workflows"

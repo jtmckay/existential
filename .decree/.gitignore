@@ -1,24 +1,32 @@
 inbox/
 runs/
-store/
 schema/
 .env*
 !.env.example
 attention/
 process.log
 cache/
-ai-use.md
-# Installed from automation/plugins/ (project: host) by ./existential.sh, never
-# committed: a plugin's file is the one place its machine, scripts and lib live.
-machines/
-scripts/
-lib/
-graph/
-cron/
 archive/
-applied/plugins/
+ai-use.md
+# Written from automation/plugins/ (x-exist-project: host) by ./existential.sh,
+# never committed: a plugin's file is the one place its machine and scripts live.
+plugins/
+# Installed from plugins/ by decree; a machine's order/ and any *.git.* file
+# (order.git.txt) are committed. Not graph.md: it is whatever this host has on.
+machines/**
+!machines/**/
+!machines/*/order/**
+!machines/**/*.git.*
+system.md
+# What decree 0.5 installed (the first sync archives it), and the plugin system's lib.
+scripts/
+graph/
+applied/
+lib/
+store/
 automations.yml
-# This host's own.
+# This host's own: boot.sh, the controller's answer; cron/ is where decree 0.5 read yours.
+cron/
 boot.sh
 exist.json
 controller.json

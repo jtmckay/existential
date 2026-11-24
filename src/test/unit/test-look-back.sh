@@ -43,7 +43,7 @@ section() { awk -v h="## $2" '$0 == h {f=1; next} f && /^## /{exit} f' "$1"; }
 
 TMP="$(mktemp -d)"
 # The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack look_back "${TMP}/unpacked" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack look_back "${TMP}/unpacked" ) >/dev/null
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
@@ -82,6 +82,7 @@ pushes() { find "${TMP}/pushes" -name '*.args' | wc -l | tr -d ' '; }
 
 # ── The archive ───────────────────────────────────────────────────────────────
 W="${TMP}/workspace"
+mkdir -p "$W/.decree"; ln -s "${TMP}/unpacked/.decree/lib" "$W/.decree/lib"   # the install's lib, where its scripts reach it
 A="$W/ai/you-were-here"
 # daynote <date> <decisions line or ""> <Done lines...>: an archived day, links as the digest rebases them.
 daynote() {
@@ -105,7 +106,7 @@ daynote 2026-07-06 "- [Use cedar](${R}notes/decisions/cedar.md)" \
     "Worked on **garden**: 1 prompt via opencode ([capture](${R}.capture/2026-07-box.jsonl))"
 daynote 2026-08-12 "- [Use cedar](${R}notes/decisions/cedar.md)" \
     "Ticked: water the beds ([note](${R}notes/garden/beds.md))" \
-    "New machine: **look_back** ([machine](${R}.decree/machines/look_back.yml))" \
+    "New machine: **look_back** ([machine](${R}.decree/machines/look_back/machine.yml))" \
     "Migration landed: 012-look-back.md ([run](${R}.decree/runs/r2/message.md))" \
     "Worked on **shed**: 2 prompts via claude-code ([capture](${R}.capture/2026-08-box.jsonl))"
 daynote 2026-09-14 "" \
@@ -123,12 +124,12 @@ run_lb() {
     local -A p=([period]=year [from]="" [to]="" [scope]=all [period_end_only]=false)
     for kv in "$@"; do p[${kv%%=*}]="${kv#*=}"; done
     ( cd "$W" && PATH="${TMP}/bin:$(dirname "$TSX"):${PATH}" TZ=UTC PUSHES="${TMP}/pushes" \
-        DECREE_LIB="${TMP}/unpacked/.decree/lib" DECREE_RUN_DIR="$run" \
+        DECREE_RUN_DIR="$run" \
         DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_PERIOD="${p[period]}" \
         DECREE_DATA_FROM="${p[from]}" DECREE_DATA_TO="${p[to]}" DECREE_DATA_SCOPE="${p[scope]}" \
         DECREE_DATA_PERIOD_END_ONLY="${p[period_end_only]}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model LOOK_BACK_NOW="$now" \
-        bash "${TMP}/unpacked/.decree/scripts/look_back/look_back.sh" ) > "${run}.log" 2>&1
+        bash "${TMP}/unpacked/.decree/machines/look_back/scripts/look_back.sh" ) > "${run}.log" 2>&1
     echo $?
 }
 lastlog() { cat "$(cat "${TMP}/last").log"; }
@@ -224,7 +225,7 @@ assert_eq "a bad date fails the run" "1" "$(run_lb 2026-10-02T09:00:00Z from=202
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 # The look-back flow's crons, as it ships them (automation/plugins/flows/look-back.md).
-cron() { k="${1%.md}" yq --front-matter=extract -r '.cron[strenv(k)]' "${REPO_DIR}/automation/plugins/flows/look-back.md" | awk -v k="$2:" '$1 == k {print $2; exit}'; }
+cron() { k="$1" yq --front-matter=extract -r '.cron[strenv(k)]' "${REPO_DIR}/automation/plugins/flows/look-back.md" | awk -v k="$2:" '$1 == k {print $2; exit}'; }
 assert_eq "the weekly cron runs this machine" "look_back" "$(cron look-back-weekly.md machine)"
 assert_eq "...for the week" "week" "$(cron look-back-weekly.md period)"
 assert_eq "the monthly cron runs this machine" "look_back" "$(cron look-back-monthly.md machine)"

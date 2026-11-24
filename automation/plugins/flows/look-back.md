@@ -1,15 +1,14 @@
 ---
-machine: plugin
-automation: look-back
-project: automation
-name: Look back
-tagline: A week and a month in review, next to your notes, for when someone asks what you did
-docs: /docs/getting-started#look-back
+name: look-back
+x-exist-project: automation
+x-exist-title: Look back
+x-exist-tagline: A week and a month in review, next to your notes, for when someone asks what you did
+x-exist-docs: /docs/getting-started#look-back
 needs:
   - look_back
   - you-were-here
 cron:
-  look-back-monthly: |
+  look-back-monthly.md: |
     ---
     cron: "0 21 28-31 * *"
     machine: look_back
@@ -26,7 +25,7 @@ cron:
     period_end_only writes only on the one that is the last.
 
     On by default (a default flow); `./existential.sh flow off look-back` turns it off.
-  look-back-weekly: |
+  look-back-weekly.md: |
     ---
     cron: "0 21 * * SUN"
     machine: look_back

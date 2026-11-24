@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: pi
-project: automation
+name: pi
+x-exist-project: automation
 needs:
   - model
-lib:
+x-exist-lib:
   pi.sh: |
     #!/usr/bin/env bash
     # pi.sh — pi (https://pi.dev) on the stack's own chat model, with tools.
@@ -13,7 +12,7 @@ lib:
     # agent.sh is Claude Code; this is the third way to reach a model: an agent
     # with tools that answers from the local model, so nothing leaves the box.
     #
-    #   source "${DECREE_LIB}/pi.sh"
+    #   source ".decree/lib/pi.sh"
     #
     #   pi_configure                       write pi's provider and MCP servers (entrypoints)
     #   pi_run <department> <system> <prompt>   the answer on stdout; "" = every tool
@@ -95,4 +94,4 @@ lib:
 ---
 # pi
 
-pi with tools on the stack's own chat model, nothing leaving the box: pi_run and pi_configure (${DECREE_LIB}/pi.sh). A department, departments/<name>.yml, is what one run may reach; the two here are examples, copied once to yours.
+pi with tools on the stack's own chat model, nothing leaving the box: pi_run and pi_configure (.decree/lib/pi.sh). A department, departments/<name>.yml, is what one run may reach; the two here are examples, copied once to yours.

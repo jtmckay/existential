@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: capture
-project: automation
-chart:
+name: capture
+x-exist-project: automation
+machine:
   description: Append the message body (JSON {source, text} or plain text) to the capture stream, workspace/.capture/.
   data:
     source: {type: string, default: webhook}
@@ -14,7 +13,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  capture: |
+  capture.sh: |
     #!/usr/bin/env bash
     # Capture
     #
@@ -32,8 +31,8 @@ scripts:
 
     # Waits, unlike the hooks, so this run's log holds the write and any failure.
     CAPTURE_DIR="${CAPTURE_DIR:-/workspace/.capture}" CAPTURE_HOST=automation CAPTURE_WAIT=1 \
-        bash "${DECREE_LIB}/capture/capture.sh" "${DECREE_DATA_SOURCE:-webhook}" <<<"$body"
-lib:
+        bash ".decree/lib/capture/capture.sh" "${DECREE_DATA_SOURCE:-webhook}" <<<"$body"
+x-exist-lib:
   capture/capture.sh: |
     #!/usr/bin/env bash
     # capture.sh — append what a person typed to the capture stream, workspace/.capture/.
@@ -197,7 +196,7 @@ lib:
         }
       },
     });
-endpoints:
+x-exist-endpoints:
   # The capture stream, workspace/.capture/: a phone shortcut or any tool adds a
   # line. The body is {"source": "...", "text": "..."} or plain text. Delete this
   # entry, or `./existential.sh run plugin off capture`, to turn webhook capture off.
@@ -211,4 +210,4 @@ Append the message body (JSON {source, text} or plain text) to the capture strea
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/capture/capture.sh
+- .decree/lib/capture/capture.sh

@@ -26,8 +26,8 @@ done
 TMP="$(mktemp -d)"
 trap 'kill "$WATCH_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 WS="${TMP}/workspace"
-mkdir -p "$WS"/.decree/{machines,scripts,inbox} "$WS"/notes/to-process "$WS"/repo/.git "$WS"/scratch
-cat > "$WS/.decree/machines/on_file.yml" << 'EOF'
+mkdir -p "$WS"/.decree/{machines/on_file/scripts,inbox} "$WS"/notes/to-process "$WS"/repo/.git "$WS"/scratch
+cat > "$WS/.decree/machines/on_file/machine.yml" << 'EOF'
 name: on_file
 description: Test machine for file handlers.
 data:
@@ -41,8 +41,8 @@ states:
   done: { final: true }
   failed: { final: true }
 EOF
-printf '#!/usr/bin/env bash\n' > "$WS/.decree/scripts/on_file.sh"
-chmod +x "$WS/.decree/scripts/on_file.sh"
+printf '#!/usr/bin/env bash\n' > "$WS/.decree/machines/on_file/scripts/on_file.sh"
+chmod +x "$WS/.decree/machines/on_file/scripts/on_file.sh"
 printf 'inbox/\n' > "$WS/.decree/.gitignore"
 cat > "$WS/.decree/handlers.yml" << 'EOF'
 - match: notes/to-process/*.md
@@ -114,11 +114,11 @@ echo b2 > "$WS/notes/b.md"
 sleep 2
 check "a second change to a known file is change=modified" "[[ \$(runs notes/b.md modified) == 1 ]]"
 
-# Claude in the workspace is told how to write one (entrypoint.sh appends the notes to the decree skill).
+# Claude in the workspace is told how to write one (entrypoint.sh puts the notes beside the decree skill).
 NOTES="${REPO_DIR}/automation/lib/skill-notes.md"
 check "the skill notes describe handlers.yml" "grep -qF 'handlers.yml' '$NOTES' && grep -qF 'keeps a folder out of every handler' '$NOTES'"
-check "the entrypoint appends the notes to the skill" \
-    "grep -qF 'cat .decree/lib/skill-notes.md >> /workspace/.claude/skills/decree/SKILL.md' '${REPO_DIR}/services/automation/decree/entrypoint.sh'"
+check "the entrypoint writes the notes as a skill of their own" \
+    "grep -qF 'cp .decree/lib/skill-notes.md /workspace/.claude/skills/existential/SKILL.md' '${REPO_DIR}/services/automation/decree/entrypoint.sh'"
 check "the automation container starts the watcher" "grep -qx '      - FILE_HANDLERS=1' '${REPO_DIR}/services/automation/docker-compose.exist.yml'"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

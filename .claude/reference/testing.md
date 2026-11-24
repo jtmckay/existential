@@ -50,17 +50,17 @@ the same filter that keeps them out of a commit. One consequence: an untracked f
 gitignored now lands in the clone.
 
 **A check is a markdown file in `src/test/e2e/checks/`** — a decree **message** naming a machine,
-dropped into the clone's inbox *after* the container-health gate and the migrations, and run by
+dropped into the clone's inbox *after* the container-health gate and the order files, and run by
 the daemon.
 Adding a check is adding a file. Full contract in that directory's `README.md`; the short version:
 
 - **Which of the two daemons runs it is derived from `machine:`** — whichever project has
-  `machines/<machine>.yml`, `automation` asked first; a staged sibling machine lands in
+  `machines/<machine>/machine.yml`, `automation` asked first; a staged sibling machine lands in
   `automation`. `e2e.sh` waits on and grades both projects. Get it wrong and the run fails with
   `invalid_message` — which is how `00-services` once failed every unit after `triage` moved.
 
 - `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
-  unit with no migrations and no object store verifies **nothing**: most flows add only cron
+  unit with no order files and no object store verifies **nothing**: most flows add only cron
   files, none of which can fire inside a run
   that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
 - A check with a sibling `.yml` and `.sh` gets them staged into the clone's `machines/` and
@@ -69,13 +69,13 @@ Adding a check is adding a file. Full contract in that directory's `README.md`; 
   container — but no Docker socket, and in `automation` no `/repo` either (that mount is
   `automation-backup`'s). A script that needs the rendered stack either runs there or has its
   `.stage.sh` read the file host-side and leave the answer in `/secrets`.
-- **Messages, not migrations, and dropped after them.** A failed migration blocks every one after
-  it, so migrations would let one failure hide the rest. The reason that actually bit us is
-  timing: migrations run as the daemon **boots**, so a check written as one judges a stack
+- **Messages, not order files, and dropped after them.** A failed order file stops every one
+  after it, so order files would let one failure hide the rest. The reason that actually bit us is
+  timing: order files run as the daemon **boots**, so a check written as one judges a stack
   that is still starting — it failed open-webui, appsmith, lowcoder, nocodb and nextcloud on four
-  runs the health gate then found healthy. Migrations are setup; checks are verification. And
-  each decree pass drains the inbox *before* migrations, so `e2e.sh` waits until `decree status`
-  shows none left (or one blocked behind a failure) before dropping a check.
+  runs the health gate then found healthy. Order files are setup; checks are verification. And
+  decree's `decree_order` runs the next file only once the inbox is empty, so `e2e.sh` waits until
+  `decree status` shows nothing running, queued, or an `order` run waiting, before dropping a check.
 - decree runs **one message at a time** *per daemon*, and a check *is* that message — so a check can prove work
   was enqueued but can never wait for work it triggered. Push those assertions down (a probe
   processor that validates its own inputs); `e2e.sh` waits until both daemons have nothing queued
@@ -95,7 +95,7 @@ containers, networks, volumes and work dirs from a crashed run.
 
 Verdict: decree mirrors each run's final state into its `message.md`; `state: done` passes,
 anything else fails. A unit also fails on the container-state gate, on the daemons never
-settling (their migrations never finished), and on producing **no** runs at all — a run that verified
+settling (their order files never finished), and on producing **no** runs at all — a run that verified
 nothing must not read green.
 
 Its opposite lives in `harness-selftest.sh` (below): `collect_results` driven against a fabricated
@@ -111,8 +111,8 @@ Each of these was tried, shipped, and reverted. They all look like simplificatio
   left those with nothing gradable at all (a guaranteed `0 of 0` = fail), and running checks
   as migrations passed Core only because the 0.4 migration gate held its slow starter back. Run the
   sweep, not `e2e core`.
-- **Don't convert checks into migrations.** It is the obvious consolidation and it is a phase
-  error — see "Messages, not migrations" above. The rationale is written into
+- **Don't convert checks into order files.** It is the obvious consolidation and it is a phase
+  error — see "Messages, not order files" above. The rationale is written into
   `checks/README.md` and `results.sh` as well; if you find yourself proposing it, all three
   already say no.
 - **Don't collapse two env flags because they look redundant.** `DECREE_SIDECAR` and
@@ -158,8 +158,8 @@ in CI):
   just before its tally; asserts each suite then exits non-zero. **Every unit suite must carry
   that canary.**
 - **`decree-check.sh`** (`test decree`, adhoc) — assembles each decree project (automation, backup, host)
-  from every plugin tagged for it (`project:`) with every shipped cron,
-  migration and inbox template queued, and runs `decree check`, so a template naming a renamed
+  from every plugin tagged for it (`x-exist-project`), installed by decree, with every shipped
+  order file and example queued, and runs `decree check`, so a template naming a renamed
   machine or an undeclared param fails here rather than as a failed run. Then each plugin alone,
   with only what its `needs:` reach, so a missing `needs:` fails here too.
 - **`lint-shell.sh`** (`test lint`, host) also writes each plugin's scripts out with awk, where

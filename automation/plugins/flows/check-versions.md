@@ -1,14 +1,13 @@
 ---
-machine: plugin
-automation: check-versions
-name: Version updates
-tagline: Fridays at noon, a notification listing every pinned image with a newer version upstream
-docs: /docs/hosting/updates#pinned-images
-project: host
+name: check-versions
+x-exist-title: Version updates
+x-exist-tagline: Fridays at noon, a notification listing every pinned image with a newer version upstream
+x-exist-docs: /docs/hosting/updates#pinned-images
+x-exist-project: host
 needs:
   - check_versions
 cron:
-  check-versions: |
+  check-versions.md: |
     ---
     cron: "0 12 * * FRI"
     machine: check_versions

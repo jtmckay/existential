@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: check_versions
-project: host
-chart:
+name: check_versions
+x-exist-project: host
+machine:
   description: Compare every pinned image tag and base image against upstream, and notify once when any has an update.
   initial: check
   states:
@@ -13,7 +12,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  check_versions: |
+  check_versions.sh: |
     #!/usr/bin/env bash
     # check_versions — run the repo's one version checker
     # (./existential.sh run check-versions, src/lib/check-versions.sh: its table

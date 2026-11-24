@@ -13,6 +13,6 @@ exist_test_init "automation-backup" EXIST_IS_SERVICES_AUTOMATION_BACKUP
 skip_if_disabled
 
 file_present "decree inbox present" /repo/services/automation-backup/inbox
-file_present "triage cron active" /repo/services/automation-backup/cron/triage.md
+file_present "its plugins installed" /repo/services/automation-backup/machines/notify/machine.yml
 
 finish

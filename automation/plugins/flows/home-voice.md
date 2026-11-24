@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: home-voice
-project: automation
-name: Talk to the house
-tagline: Home Assistant with speech in and out on CPU, and your own chat model answering what you ask
-docs: /docs/services/homeassistant
-services:
+name: home-voice
+x-exist-project: automation
+x-exist-title: Talk to the house
+x-exist-tagline: Home Assistant with speech in and out on CPU, and your own chat model answering what you ask
+x-exist-docs: /docs/services/homeassistant
+x-exist-services:
   - EXIST_IS_SERVICES_HOMEASSISTANT
   - EXIST_IS_AI_WYOMING_WHISPER
   - EXIST_IS_AI_WYOMING_PIPER
@@ -13,8 +12,9 @@ services:
 needs:
   - homeassistant_onboarding
   - homeassistant_voice
-migrations:
-  25-homeassistant-onboarding: |
+  - decree_order
+order:
+  25-homeassistant-onboarding.md: |
     ---
     machine: homeassistant_onboarding
     ---
@@ -27,7 +27,7 @@ migrations:
 
     Safe to re-run — an instance that already has a user (onboarded by this
     migration or by hand) is left alone. `./existential.sh flow on home-voice` activates it.
-  26-homeassistant-voice: |
+  26-homeassistant-voice.md: |
     ---
     machine: homeassistant_voice
     ---

@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: look_back
-project: automation
+name: look_back
+x-exist-project: automation
 needs:
   - model
   - you_were_here
-chart:
+machine:
   description: A look back over a range of the "you were here" archive, written to workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
   data:
     workspace: {type: string, default: /workspace}
@@ -28,7 +27,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  look_back: |
+  look_back.sh: |
     #!/usr/bin/env bash
     # Look back
     #
@@ -43,8 +42,8 @@ scripts:
     # automation-webhook's POST /look-back runs it on demand.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
-    look_back="${DECREE_LIB}/look-back/look-back.ts"
+    source ".decree/lib/model.sh"
+    look_back=".decree/lib/look-back/look-back.ts"
 
     # A retry reuses the run dir: nothing from an earlier attempt may be read as this one.
     rm -f "${DECREE_RUN_DIR}"/{facts.json,model.json,ntfy.md}
@@ -74,7 +73,7 @@ scripts:
     decree emit --machine notify --param ntfy_topic="$DECREE_DATA_NTFY_TOPIC" \
         --param ntfy_title="Look back" --param ntfy_tags=calendar <"${DECREE_RUN_DIR}/ntfy.md" >/dev/null
     echo "look_back: pushed"
-lib:
+x-exist-lib:
   look-back/look-back.ts: |
     #!/usr/bin/env tsx
     // look_back's data half. Two steps, with the model call between them in bash
@@ -398,7 +397,7 @@ lib:
       console.error(`look-back: ${(e as Error).message}`);
       process.exit(1);
     }
-endpoints:
+x-exist-endpoints:
   # A look back over the "you were here" archive: year to date by default, or the
   # week, month, quarter or year so far, optionally work only (scope.md in
   # ai/you-were-here/). Any other range: the machine from the work dir.
@@ -425,5 +424,5 @@ A look back over a range of the "you were here" archive, written to workspace/ai
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/look-back/look-back.ts
-- $DECREE_LIB/model.sh
+- .decree/lib/look-back/look-back.ts
+- .decree/lib/model.sh

@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: reconcile
-project: automation
+name: reconcile
+x-exist-project: automation
 needs:
   - develop
-chart:
+machine:
   description: An automation spec in notes/automations/ was accepted or edited; have develop build it as an offer. Nothing is installed or removed here.
   data:
     path: {type: string, default: ""}
@@ -18,7 +17,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  reconcile: |
+  reconcile.sh: |
     #!/usr/bin/env bash
     # reconcile — notes/automations/<name>.md is what one automation should do.
     #
@@ -28,8 +27,8 @@ scripts:
     #                     ai/proposed/<name>.md. You read that and accept it on the
     #                     host; an edit means a new offer to accept
     #   deleted           you are told how to turn it off, on the host
-    # Nothing is installed or removed here, and nothing here could: machines/,
-    # scripts/ and lib/ are read-only in every container.
+    # Nothing is installed or removed here, and nothing here could: plugins/,
+    # machines/ and lib/ are read-only in every container.
     set -euo pipefail
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
@@ -44,14 +43,14 @@ scripts:
     [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { say "Automation not built" "${rel}: '${name}' is not a machine name (lowercase, digits and _)."; exit 1; }
 
     if [[ "$change" == deleted ]]; then
-        [[ ! -e ".decree/machines/${name}.yml" ]] ||
+        [[ ! -e ".decree/machines/${name}/machine.yml" ]] ||
             say "Automation still on" "${rel} was deleted, and ${name} still runs. To turn it off, on the host: ./existential.sh run plugin off ${name}"
         exit 0
     fi
 
     spec="${WS}/${rel}"
     fm() { sed -n "2,/^---\$/s/^$1: *//p" "$spec" | head -1; }
-    if [[ "$(fm machine)" == plugin ]]; then
+    if [[ "$(fm name)" == "$name" ]]; then   # a plugin file names itself; a spec names its automation
         say "Not installed" "${rel} is a plugin file, and moving it here installs nothing. Put it back in ai/proposed/ and, on the host: ./existential.sh run plugin accept ${name}"
         exit 0
     fi

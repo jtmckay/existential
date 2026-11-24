@@ -56,7 +56,7 @@ Give each bank its own distinct label — the label is how Decree knows which em
 
 ### 1. Cron trigger
 
-`volumes/workspace_data/.decree/cron/gmail-transactions-<label>.md` fires the `gmail_sync` machine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual_budget_parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
+The cron file `gmail-transactions-<label>.md`, in your `gmail_transactions` plugin, fires the `gmail_sync` machine every 5 minutes. It sets `GMAIL_LABEL_FILTER` to your bank's alert label and `GMAIL_ROUTINE` to `actual_budget_parse`. Fields prefixed `fwd_` are forwarded into each child message — this is how `parse_script` and `account_id` travel down the chain.
 
 ### 2. gmail_sync
 
@@ -115,9 +115,9 @@ An interactive prompt will:
 2. List available parse scripts — select the one matching your bank
 3. List your open Actual Budget accounts — select the one to post transactions to
 4. Confirm the schedule (default: `*/5 * * * *`)
-5. Write `volumes/workspace_data/.decree/cron/gmail-transactions-<label>.md`
+5. Add `gmail-transactions-<label>.md` to `gmail_transactions`, your schedules plugin, and offer it in `workspace/ai/proposed/`
 
-No restart needed — Decree picks up new cron files on the next tick.
+Read it, then accept it on the host: `./existential.sh run plugin accept gmail_transactions`. No restart needed.
 
 ## Verifying
 

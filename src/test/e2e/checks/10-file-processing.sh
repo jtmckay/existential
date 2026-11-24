@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # e2e_file_processing — the Nextcloud → webhook → router → processor chain.
 #
-# Staged into the clone's scripts/ by e2e.sh, with 10-file-processing.yml as
+# Staged into the clone's machines/<machine>/ by e2e.sh, with 10-file-processing.yml as
 # its machine, and triggered by the message in 10-file-processing.md. Runs inside
 # the `automation` daemon, so it reaches Nextcloud over the exist bridge. Every
 # write lands in the disposable e2e clone.

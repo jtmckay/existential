@@ -32,7 +32,7 @@ assert_lacks() { if [[ "$2" != *"$3"* ]]; then _ok "$1"; else _fail "$1" "found:
 
 TMP="$(mktemp -d)"
 # The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack capture "${TMP}/unpacked" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack capture "${TMP}/unpacked" ) >/dev/null
 CAPTURE="${TMP}/unpacked/.decree/lib/capture/capture.sh"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -139,11 +139,11 @@ unset CLAUDE_CONFIG_DIR
 # ── webhook ───────────────────────────────────────────────────────────────────
 assert_eq "POST /capture, which the plugin brings, queues the capture machine" "capture" \
     "$(yq -r '.endpoints[] | select(.path == "/capture") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
-W="${TMP}/w"; mkdir -p "${W}/lib"
-cp -r "${TMP}/unpacked/.decree/lib/capture" "${W}/lib/"
+W="${TMP}/w"; mkdir -p "$W"
 printf -- '---\nmachine: capture\n---\n{"source":"phone","text":"buy filters"}\n' > "${W}/message.md"
-DECREE_MESSAGE="${W}/message.md" DECREE_LIB="${W}/lib" DECREE_DATA_SOURCE=webhook CAPTURE_DIR="${W}/cap" \
-    bash "${TMP}/unpacked/.decree/scripts/capture/capture.sh"
+# As decree runs it: in the project root, where .decree/lib/ is.
+( cd "${TMP}/unpacked" && DECREE_MESSAGE="${W}/message.md" DECREE_DATA_SOURCE=webhook CAPTURE_DIR="${W}/cap" \
+    bash .decree/machines/capture/scripts/capture.sh )
 assert_eq "the posted source and text are appended" "phone buy filters" \
     "$(jq -r '"\(.source) \(.text)"' "${W}"/cap/*-automation.jsonl 2>/dev/null)"
 

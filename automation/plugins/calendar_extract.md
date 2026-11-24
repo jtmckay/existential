@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: calendar_extract
-project: automation
-chart:
+name: calendar_extract
+x-exist-project: automation
+machine:
   description: Mirror Nextcloud Calendar events in a window around today into workspace/ai/calendar/ as one note per event.
   data:
     CALENDAR_EXTRACT_PAST_DAYS: {type: int, default: 7}
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  calendar_extract: |
+  calendar_extract.sh: |
     #!/usr/bin/env bash
     # calendar_extract — mirror upcoming (and recently past) Nextcloud Calendar
     # events into workspace/ai/calendar/ as plain notes, so qmd indexes
@@ -89,7 +88,7 @@ scripts:
 
     _events_file=$(mktemp)
     trap 'rm -f "${_events_file}"' EXIT
-    if ! tsx "${DECREE_LIB}/caldav.ts" > "${_events_file}"; then
+    if ! tsx ".decree/lib/caldav.ts" > "${_events_file}"; then
         echo "caldav.ts failed — see output above" >&2
         exit 1
     fi
@@ -180,7 +179,7 @@ scripts:
     mv "${_new_manifest}" "${MANIFEST}"
 
     echo "calendar-extract: ${_written} note(s) written, ${_skipped} skipped (cancelled/malformed), ${_removed} removed (out of window)."
-lib:
+x-exist-lib:
   caldav.ts: |
     // Discover CalDAV calendars and fetch events from Nextcloud (or any CalDAV
     // server) as flat, parsed objects. Same house style as rss.ts: hand-rolled

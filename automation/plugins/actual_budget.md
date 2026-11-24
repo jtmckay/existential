@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: actual_budget
-project: automation
-chart:
+name: actual_budget
+x-exist-project: automation
+machine:
   description: Post one transaction to Actual Budget, the amount as the message body.
   data:
     account_id: {type: string, default: ""}
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  actual_budget: |
+  actual_budget.sh: |
     #!/usr/bin/env bash
     # actual_budget
     #
@@ -63,10 +62,10 @@ scripts:
     TXN_NOTES="$notes" \
     TXN_CATEGORY_ID="$category_id" \
     TXN_AMOUNT="$amount_raw" \
-        "$TSX" "$DECREE_LIB/actual-budget/post-transaction.ts"
+        "$TSX" ".decree/lib/actual-budget/post-transaction.ts"
 
     echo "Posted ${amount_raw} → ${payee_name} (account: ${account_id})"
-lib:
+x-exist-lib:
   actual-budget/post-transaction.ts: |
     #!/usr/bin/env tsx
     // Posts a single transaction to Actual Budget.

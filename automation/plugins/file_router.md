@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: file_router
-project: automation
+name: file_router
+x-exist-project: automation
 needs:
   - file_processor
-chart:
+machine:
   description: Route one Nextcloud file event to every file processor whose PATTERN matches its path.
   data:
     rclone_src: {type: string, default: nextcloud}
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  file_router: |
+  file_router.sh: |
     #!/usr/bin/env bash
     # File Router
     #
@@ -101,7 +100,7 @@ scripts:
             ;;
     esac
 
-    _processors_dir="${DECREE_LIB}/file-processors"
+    _processors_dir=".decree/lib/file-processors"
     _matched=0
 
     for _pair in "${_pairs[@]}"; do
@@ -148,7 +147,7 @@ scripts:
     else
         echo "Routed to $_matched processor(s)."
     fi
-endpoints:
+x-exist-endpoints:
   # Nextcloud's file events (webhook_listeners), registered against this path
   # with its own bearer token by the nextcloud_file_events migration. The body
   # is the event JSON; file_router matches its path against every processor in
@@ -165,4 +164,4 @@ Route one Nextcloud file event to every file processor whose PATTERN matches its
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/file-processors
+- .decree/lib/file-processors

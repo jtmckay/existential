@@ -1,12 +1,11 @@
 ---
-machine: plugin
-automation: agent_task
-project: automation
+name: agent_task
+x-exist-project: automation
 needs:
   - pi
-chart:
+machine:
   description: Hand a task to pi on the local model (a department picks its tools) and file the answer in workspace/ai/, then notify.
-  store:
+  state_files:
     departments: Yours. One file per department (see its README.md), naming the tools and MCP servers a pi run may reach. run reads it.
   data:
     prompt: {type: string, default: ""}
@@ -23,7 +22,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  agent_task: |
+  agent_task.sh: |
     #!/usr/bin/env bash
     # Agent Task
     #
@@ -61,7 +60,7 @@ scripts:
     fi
 
     # shellcheck source=../../lib/pi.sh
-    source "${DECREE_LIB}/pi.sh"
+    source ".decree/lib/pi.sh"
 
     # --- Build the full prompt -------------------------------------------------
 
@@ -133,7 +132,7 @@ scripts:
     Written to workspace/ai/${_name}.md
     EOF
     fi
-store:
+state:
   departments/README.md: |
     # departments
 
@@ -201,4 +200,4 @@ Hand a task to pi on the local model (a department picks its tools) and file the
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/pi.sh
+- .decree/lib/pi.sh

@@ -1,17 +1,16 @@
 ---
-machine: plugin
-automation: you-were-here
-project: automation
-name: You were here
-tagline: Every morning, yesterday in one notification, then it ends
-docs: /docs/getting-started#you-were-here
-services:
+name: you-were-here
+x-exist-project: automation
+x-exist-title: You were here
+x-exist-tagline: Every morning, yesterday in one notification, then it ends
+x-exist-docs: /docs/getting-started#you-were-here
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
   - EXIST_IS_SERVICES_NTFY
 needs:
   - you_were_here
 cron:
-  you-were-here: |
+  you-were-here.md: |
     ---
     cron: "0 7 * * *"
     machine: you_were_here
@@ -23,7 +22,7 @@ cron:
     changed since the last one.
 
     On by default (a default flow). Edit the active copy in
-    volumes/workspace_data/.decree/cron/ to change the time; `./existential.sh flow off
+    volumes/workspace_data/.decree/machines/flow_you_were_here/cron/ to change the time; `./existential.sh flow off
     you-were-here` turns it off. To write one now:
 
       docker exec automation decree emit --machine you_were_here </dev/null

@@ -80,12 +80,14 @@ services/automation-backup/runs/*
 services/automation-backup/store/
 services/automation-backup/processed.md
 services/automation-backup/process.log
-# automation-backup's installed plugins and shared lib (src/lib/plugin.sh).
+# automation-backup's plugins, as decree installed them, and the shared lib (src/lib/plugin.sh).
 services/automation-backup/lib/
+services/automation-backup/plugins/
 services/automation-backup/machines/
-services/automation-backup/scripts/
-services/automation-backup/automations.yml
-services/automation-backup/applied/
+services/automation-backup/system.md
+services/automation-backup/schema/
+services/automation-backup/cache/
+services/automation-backup/attention/
 services/automation-backup/archive/
 # decree 0.4 leftovers exist.initial.sh cannot always remove: the Go webhook's
 # root-owned binary, and the old shared_routines/ and outbox/ mount points.

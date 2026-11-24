@@ -86,14 +86,14 @@ if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
     out="$(REPO_DIR="$R" "$BASH" src/lib/plugin.sh sync host 2>&1)"; rc=$?
     assert_eq "the host's plugins sync without adhoc" "0" "$rc"
-    assert_has "...installing the worker's reporting" "$out" "reporting installed"
+    assert_eq "...installing the worker's reporting" "yes" "$([[ -f "${R}/.decree/machines/reporting/machine.yml" ]] && echo yes || echo no)"
     # A worker with no services never needs the image, even where an engine is,
     # and even missing a tool (_worker_without_engine names it).
     assert_eq "a worker with services on still builds" "no" "$(es '_worker_only && echo yes || echo no')"
     cp .env.shared .env.shared.keep; sed -i.bak 's/^\(EXIST_IS_[A-Z0-9_]*\)=true/\1=false/' .env.shared; rm -f .env.shared.bak
     assert_eq "a worker with none skips the engine" "yes" "$(es '_worker_only && echo yes || echo no')"
     mv .env.shared.keep .env.shared
-    rm -rf "${R}/.decree/machines" "${R}/.decree/scripts" "${R}/.decree/lib" "${R}/.decree/cron" "${R}/automation/plugins.yml"
+    rm -rf "${R}/.decree/machines" "${R}/.decree/plugins" "${R}/.decree/lib" "${R}/automation/plugins.yml"
 else
     echo "  (no yq and decree here: the host sync is not run)"
 fi
@@ -117,20 +117,40 @@ echo ""; echo "=== host plugins ==="
 # with awk (no yq here), against a scratch host project, a curl that keeps the
 # push, and a tmux that writes down what it would start (alloy only has to be
 # there). test-reporting.sh covers what it sends; this covers that it runs.
-H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines"
-touch "${R}/.decree/machines/reporting.yml"
-awk '/^  report: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
+H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines/reporting"
+touch "${R}/.decree/machines/reporting/machine.yml"
+awk '/^  report\.sh: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
     automation/plugins/reporting.md > "${H}/report.sh"
 echo '{"loki":"http://loki:3100"}' > "${R}/.decree/exist.json"
 printf '#!/bin/sh\nfor a in "$@"; do case "$a" in @*) cp "${a#@}" "%s/body" ;; esac; done\nexit 0\n' "$H" > "${R}/.stub/curl"
 printf '#!/bin/sh\n[ "$1" = has-session ] && exit 1\necho "$*" >> "%s/tmux"\n' "$H" > "${R}/.stub/tmux"
 printf '#!/bin/sh\n' > "${R}/.stub/alloy"
 chmod +x "${R}/.stub/curl" "${R}/.stub/tmux" "${R}/.stub/alloy"
-out="$(cd "$R" && DECREE_STORE="${H}/rep" DECREE_LIB="${H}/lib" "$BASH" "${H}/report.sh" 2>&1)"; rc=$?
+out="$(cd "$R" && DECREE_STATE_DIR="${H}/rep" "$BASH" "${H}/report.sh" 2>&1)"; rc=$?
 assert_eq "reporting runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
 assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'
 assert_has "...and starts alloy" "$(cat "${H}/tmux" 2>/dev/null)" "reporting-alloy"
+
+# A host whose daemon runs another decree: a sync would take what that daemon runs.
+printf '#!/bin/sh\necho "decree 0.5.0"\n' > "${R}/.stub/decree"; chmod +x "${R}/.stub/decree"
+: > "${R}/.stub/asked"
+out="$(es 'PATH="${R}/.stub:${PATH}"; DOCKER_CMD=docker; _host_plugins')"
+assert_has "a host on another decree is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
+assert_eq "...and its project is not synced" "" "$(grep 'sync host' "${R}/.stub/asked")"
+rm -f "${R}/.stub/decree"
+
+# A compose file rendered for decree 0.5 mounts scripts/ read-only, and 0.6's code is plugins/.
+for d in services/automation-backup nas/nextcloud; do
+    sed 's#/\.decree/plugins:#/.decree/scripts:#; s#\./plugins:#./scripts:#; s#\.decree/plugins:#.decree/scripts:#' "${d}/docker-compose.exist.yml" > "${d}/docker-compose.yml"
+done
+es '_decree_code_mounts' >/dev/null
+assert_eq "an old rendered compose mounts plugins/ read-only" \
+    "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.exist.yml nas/nextcloud/docker-compose.exist.yml | cut -d: -f2 | xargs)" \
+    "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | cut -d: -f2 | xargs)"
+assert_eq "...and keeps no scripts/ mount" "0" "$(cat services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | grep -c 'scripts:')"
+assert_eq "...and a second run changes nothing" "" "$(es '_decree_code_mounts')"
+rm -f services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven.

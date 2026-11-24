@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: sqlite_backup
-project: backup
-chart:
+name: sqlite_backup
+x-exist-project: backup
+machine:
   description: Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.
   data:
     TIER: {type: string, enum: [nightly, weekly], default: nightly}
@@ -16,13 +15,13 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  sqlite_backup: |
+  sqlite_backup.sh: |
     #!/usr/bin/env bash
     # sqlite_backup — dump each SQLite database listed in $TARGETS via sqlite3's
     # native .dump mechanism, rclone the compressed SQL to
     # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/sqlite/<name>/`, prune old backups.
     #
-    # Triggered by cron files in services/automation-backup/cron/. TARGETS format
+    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/. TARGETS format
     # (one entry per line):
     #   <name> <path_relative_to_VOLUMES_ROOT>
     #   e.g.:  kuma  uptime_kuma_data/kuma.db

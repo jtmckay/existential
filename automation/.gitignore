@@ -8,3 +8,6 @@ inbox/
 attention/
 *.log
 ai-use.md
+cache/
+archive/
+schema/

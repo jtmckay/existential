@@ -43,7 +43,7 @@ _tsc_in_container() {
         # Plugins' TypeScript, where the stack installs it, under an include root
         # and out of a dot-folder (tsc's globs skip those).
         rm -rf ${_PLUGINS_TS}; mkdir -p ${_PLUGINS_TS}
-        ( . automation/lib/automations/registry.sh; . automation/lib/automations/plugin.sh
+        ( . automation/lib/automations/plugin.sh
           plugin_unpack \$(cd automation/plugins && ls *.md flows/*.md | sed 's#^flows/##; s/\\.md\$//') ${_PLUGINS_TS} ) >/dev/null
         mv ${_PLUGINS_TS}/.decree ${_PLUGINS_TS}/decree
         /opt/decree/node_modules/.bin/tsc --noEmit -p tsconfig.json 2>&1 || true

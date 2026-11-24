@@ -17,8 +17,8 @@
 # A message naming an unknown machine is a `failed` run too (invalid_message),
 # so there is no dead-letter case left to look for, and one failure never hides
 # the others: the daemon reports a failed inbox run and carries on. Checks are
-# messages rather than migrations because a failed migration blocks every
-# migration after it, and because a check is dropped once the stack is up.
+# messages rather than order files because a failed order file stops every
+# one after it, and because a check is dropped once the stack is up.
 #
 # Every run in the clone is graded, not just the checks e2e staged: a check
 # can only prove it ENQUEUED work (decree runs one message at a time and the

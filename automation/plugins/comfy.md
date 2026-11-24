@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: comfy
-project: automation
-chart:
+name: comfy
+x-exist-project: automation
+machine:
   description: Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workflows/, the message body as the prompt.
   # Every param is a string: empty keeps the workflow's own value, and a binding
   # gets each one as text either way. A binding that grows a new param needs it
@@ -35,7 +34,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  comfy: |
+  comfy.sh: |
     #!/usr/bin/env bash
     # ComfyUI
     #
@@ -62,7 +61,7 @@ scripts:
     #   api_url          ComfyUI API URL (default: EXIST_COMFYUI_URL + /api/prompt)
     set -euo pipefail
 
-    LIB_DIR="${DECREE_LIB}/comfy"
+    LIB_DIR=".decree/lib/comfy"
     # shellcheck source=../../lib/comfy/common.sh
     source "$LIB_DIR/common.sh"
 
@@ -118,7 +117,7 @@ scripts:
     else
         exit 1
     fi
-lib:
+x-exist-lib:
   comfy/common.sh: |
     #!/usr/bin/env bash
     # Shared helpers for the comfy plugin's script (automation/plugins/comfy.md).
@@ -5602,7 +5601,7 @@ lib:
         required: true
         bind:
           - { node: "75", input: filename_prefix }
-endpoints:
+x-exist-endpoints:
   # ComfyUI generation from anything that can POST. The body is the prompt;
   # everything else is a path parameter, because the body is never parsed.
   #
@@ -5638,4 +5637,4 @@ Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workf
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/comfy
+- .decree/lib/comfy

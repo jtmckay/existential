@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: nextcloud-capture
-project: automation
-name: Files from your phone start work
-tagline: A file uploaded through Nextcloud runs every file processor whose pattern matches it
-docs: /docs/decree/file-change-processing
-services:
+name: nextcloud-capture
+x-exist-project: automation
+x-exist-title: Files from your phone start work
+x-exist-tagline: A file uploaded through Nextcloud runs every file processor whose pattern matches it
+x-exist-docs: /docs/decree/file-change-processing
+x-exist-services:
   - EXIST_IS_NAS_NEXTCLOUD
   - EXIST_IS_SERVICES_AUTOMATION
   - EXIST_IS_SERVICES_AUTOMATION_WEBHOOK
@@ -13,8 +12,9 @@ needs:
   - nextcloud_file_events
   - nextcloud_rclone_remote
   - file_router
-migrations:
-  23-nextcloud-rclone-remote: |
+  - decree_order
+order:
+  23-nextcloud-rclone-remote.md: |
     ---
     machine: nextcloud_rclone_remote
     ---
@@ -30,7 +30,7 @@ migrations:
 
     Safe to re-run — an existing `[nextcloud]` remote is left alone.
     `./existential.sh flow on nextcloud-capture` activates it.
-  27-nextcloud-file-events: |
+  27-nextcloud-file-events.md: |
     ---
     machine: nextcloud_file_events
     ---

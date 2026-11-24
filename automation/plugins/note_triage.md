@@ -1,12 +1,11 @@
 ---
-machine: plugin
-automation: note_triage
-project: automation
+name: note_triage
+x-exist-project: automation
 needs:
   - idea_workup
   - model
   - note_develop
-chart:
+machine:
   description: Ask the model one yes/no question per new or changed note, and hand the ones that pass to TRIAGE_ROUTINE.
   data:
     TRIAGE_CRITERIA: {type: string, default: "a business idea — something the author could plausibly build, sell, or start"}
@@ -26,7 +25,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  note_triage: |
+  note_triage.sh: |
     #!/usr/bin/env bash
     # note_triage — watch the notes vault and flag the notes worth acting on.
     #
@@ -118,7 +117,7 @@ scripts:
     # --- Ask the model ---------------------------------------------------------
 
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
 
     SYSTEM="You triage personal notes. You are shown one note. Decide whether it contains ${TRIAGE_CRITERIA}.
 
@@ -264,4 +263,4 @@ Ask the model one yes/no question per new or changed note, and hand the ones tha
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
+- .decree/lib/model.sh

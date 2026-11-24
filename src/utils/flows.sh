@@ -6,19 +6,20 @@
 # curated thing the stack does. The ones with a tagline are what the person picks
 # (./existential.sh flow); the rest are libraries other plugins need. Its
 # frontmatter starts flat (scalars and block lists of plain values), so this
-# reads it with awk on a host that has no yq:
+# reads it with awk on a host that has no yq. decree's own key is needs:; the
+# rest are existential's, x-exist-<key>, which decree ignores:
 #
-#   name        a title
-#   tagline     one line; a flow without one is a library, not offered
-#   docs        the site page that explains it (/docs/...)
-#   services    EXIST_IS_* flags turning it on turns on
-#   needs       the plugins and flows it turns on with it
-#   e2e         true: ./existential.sh e2e brings a fresh install up with it
-#   project     which decree project runs it: automation, backup or host (a list
-#               when more than one does). Every plugin has it, not only a flow
+#   x-exist-title     a title (flow_get <flow> name)
+#   x-exist-tagline   one line; a flow without one is a library, not offered
+#   x-exist-docs      the site page that explains it (/docs/...)
+#   x-exist-services  EXIST_IS_* flags turning it on turns on
+#   needs             the plugins and flows it turns on with it
+#   x-exist-e2e       true: ./existential.sh e2e brings a fresh install up with it
+#   x-exist-project   which decree project runs it: automation, backup or host (a
+#                     list when more than one does). Every plugin has it, not only a flow
 #
-# then its cron and migrations (lib/automations/plugin.sh installs those), and
-# its body: what is left for a person. What is on, for every project, is one file:
+# then its cron and order files (decree installs those), and its body: what is
+# left for a person. What is on, for every project, is one file:
 # automation/plugins.yml (`on:`, never committed), written from
 # automation/plugins.exist.yml the first time. Each project installs the entries
 # tagged for it (src/lib/plugin.sh).
@@ -39,15 +40,17 @@ _fm()        { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1" 2>/dev
 plugin_projects() {
     local f s
     f="$(plugin_file "$1")" || return 0
-    s="$(_fm "$f" | sed -n 's/^project:[[:space:]]*\([a-z]\)/\1/p' | head -1)"
-    [[ -n "$s" ]] || s="$(_fm "$f" | _yaml_list project)"
+    s="$(_fm "$f" | sed -n 's/^x-exist-project:[[:space:]]*\([a-z]\)/\1/p' | head -1)"
+    [[ -n "$s" ]] || s="$(_fm "$f" | _yaml_list x-exist-project)"
     echo "${s:-automation}"
 }
 plugin_in() { plugin_projects "$2" | grep -qxF "$1"; }   # <project> <name>
 
 flow_fm()    { _fm "${FLOWS_DIR}/$1.md"; }
 flow_body()  { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{f=0;b=1;next} b' "${FLOWS_DIR}/$1.md"; }
-flow_get()   { flow_fm "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -1 | sed 's/^"\(.*\)"$/\1/'; }
+# A flow's own keys are x-exist-<key> (its name, x-exist-title); needs: is decree's.
+_fkey()      { case "$1" in needs) echo needs ;; name) echo x-exist-title ;; *) echo "x-exist-$1" ;; esac; }
+flow_get()   { flow_fm "$1" | sed -n "s/^$(_fkey "$2"):[[:space:]]*//p" | head -1 | sed 's/^"\(.*\)"$/\1/'; }
 # A list, block (`  - x`) or flow (`[x, y]`) style, of a top-level key.
 _yaml_list() {  # <key>: reads stdin
     awk -v k="$1" '
@@ -57,7 +60,7 @@ _yaml_list() {  # <key>: reads stdin
         f && /^[[:space:]]+-[[:space:]]/ { sub(/^[[:space:]]+-[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, ""); print; next }
         f { exit }'
 }
-flow_list()  { flow_fm "$1" | _yaml_list "$2"; }
+flow_list()  { flow_fm "$1" | _yaml_list "$(_fkey "$2")"; }
 flow_exists() { [[ -f "${FLOWS_DIR}/$1.md" && -n "$(flow_get "$1" tagline)" ]]; }
 flow_names() {
     local f n

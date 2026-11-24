@@ -158,7 +158,7 @@ docker compose up -d
 Open code-server at `https://<host>.<tailnet>.ts.net`. That is the [workspace](#workspace);
 start `claude` in its terminal.
 
-Decree waits for each migration's service to pass its `exist.test.sh`, then runs the migration.
+Decree waits for each one-time setup's service to pass its `exist.test.sh`, then runs the setup.
 To see what is working:
 
 ```bash
@@ -182,10 +182,10 @@ and notifies you when something breaks or recovers.
 `workspace/` (in `volumes/workspace_data`) is your directory:
 
 - **`notes/`**: your notes, plain markdown. Starts with `my-first-note.md`.
-- **`.decree/`**: your automations, run by the `automation` daemon. Its code (`machines/`,
-  `scripts/`, `lib/`) is read-only here and installed only by `./existential.sh` on the host: the
+- **`.decree/`**: your automations, run by the `automation` daemon. Its code (`plugins/`,
+  `machines/`, `lib/`) is read-only here and installed only by `./existential.sh` on the host: the
   repo's [plugins](./plugins/index.md) you have on, and each one made in the workspace that you
-  [accepted](./plugins/offer-and-accept.md). `graph/` draws every machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
+  [accepted](./plugins/offer-and-accept.md). `machines/<name>/graph.md` draws each machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
 - **`ai/`**: what automations write, indexed like everything else.
 - **`.capture/`**: everything you typed to an agent. See [Capture](#capture).
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under
@@ -193,7 +193,8 @@ and notifies you when something breaks or recovers.
 
 In Core, [code-server](./services/code-server.md) opens it at `/workspace` with `claude`,
 `opencode` and `pi` in the terminal. The workspace carries the decree skill in `.claude/skills/decree/`,
-so `claude` there already knows how to write an automation. Add-ons mount the same tree:
+and this stack's own beside it in `.claude/skills/existential/`, so `claude` there already knows
+how to write an automation. Add-ons mount the same tree:
 [Nextcloud](./storage/nextcloud.md) as its `workspace` folder.
 
 - **A file change can start an automation.** A handler in `.decree/handlers.yml` runs once the
@@ -268,7 +269,7 @@ Details:
 - Each day is kept as `workspace/ai/you-were-here/<YYYY>/<YYYY-MM-DD>.md`, with a **Done**
   section. Past days are never rewritten. **Worked on** lines name their capture source, which
   [work look backs](#look-back) filter on.
-- Schedule: `workspace/.decree/cron/you-were-here.md`. Off: `./existential.sh flow off you-were-here`.
+- Schedule: `workspace/.decree/machines/flow_you_were_here/cron/you-were-here.md`. Off: `./existential.sh flow off you-were-here`.
 - Now: `POST /you-were-here` on `automation-webhook`, or `echo | decree emit --machine you_were_here`
   in code-server's terminal. `note_link` sets the push's last line.
 
@@ -278,7 +279,7 @@ Details:
 `workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md`, and sends a short ntfy when
 anything finished or was decided (an empty range sends nothing):
 
-- **Highlights**: checkboxes ticked, notes created, migrations landed, by project.
+- **Highlights**: checkboxes ticked, notes created, order files landed, by project.
 - **Themes**: projects that came up on more than one day.
 - **Decisions made**: notes in `notes/decisions/` and machines that landed.
 - **By the numbers**: counts only.
@@ -312,9 +313,8 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
   `EXIST_NEXTCLOUD_WORKSPACE_DIR`, default `workspace`.
 - Neither set: nothing syncs.
 - Never synced: anything a `.gitignore` under `workspace/` ignores, and every `.git/`.
-- WebDAV drops file modes, so each sync marks `workspace/.decree/scripts/` executable again.
 - A sync that would delete over half the files on one side deletes nothing and waits for
-  `docker exec automation-backup decree event <wait id> delete` (or `keep`).
+  `docker exec automation-backup decree reply <wait id> delete` (or `keep`).
 - With Nextcloud in this stack, its `workspace` folder already is this tree. Point
   `EXIST_NEXTCLOUD_WORKSPACE_DIR` elsewhere for a second copy.
 
@@ -323,7 +323,7 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
 - Simplest: keep the vault inside `workspace/`.
 - To edit it on other devices: sync through Nextcloud, see [Obsidian](./services/obsidian.md).
 - To pull it in from elsewhere: `./existential.sh flow on notes-pull` (it runs in automation-backup),
-  then in `services/automation-backup/cron/notes-pull.md`
+  then in `services/automation-backup/machines/flow_notes_pull/cron/notes-pull.md`
   set `NOTES_PULL_SOURCE` to an rsync-over-SSH path (`user@nas:/path/to/vault/`), and put an SSH
   key at `automation/secrets/notes-pull/id_ed25519`. Pulls are additive unless
   `NOTES_PULL_DELETE=true`. Pulled files fire no Nextcloud events.

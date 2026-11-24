@@ -23,7 +23,7 @@ sidebar_position: 1
 
 ## Running Decree
 
-- **`automation`**: routing, AI work, every migration.
+- **`automation`**: routing, AI work, every one-time setup (order file).
 - **[`automation-backup`](./automation-backup.md)** (off by default): backups, triage, and anything
   needing bulk volume access.
 
@@ -35,8 +35,9 @@ docker exec automation decree status --cron # each cron file and when it fires n
 echo | docker exec -i automation decree emit --machine <name>   # run one by hand
 ```
 
-Every machine and chain an install has is drawn in `workspace/.decree/graph/system.md` (and
-`services/automation-backup/graph/`), redrawn whenever a machine changes. Which machines those
+Every machine and chain an install has is drawn in `workspace/.decree/system.md`, and each
+machine in its own `machines/<name>/graph.md` (and the same in `services/automation-backup/`),
+redrawn whenever `./existential.sh` installs a change. Which machines those
 are is up to you: see [Plugins](../plugins/index.md).
 
 ## Claude for machines
@@ -78,8 +79,8 @@ A machine's Claude runs unattended in Claude Code's `auto` mode.
 A run that fails or waits for a person sends one ntfy message on the `decree` topic, with the
 machine, what happened, and the command to continue:
 
-- failed: `docker exec automation decree process --retry <id>`
-- waiting: `docker exec automation decree event <wait id> <option>`
+- failed: `docker exec automation decree retry <id>`
+- waiting: `docker exec automation decree reply <wait id> <option>`
 
 One message per state. A failed `notify` run is never reported. `automation-backup` runs report
 through [Grafana](../hosting/grafana.md)'s alert when monitoring is on.

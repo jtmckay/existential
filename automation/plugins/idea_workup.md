@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: idea_workup
-project: automation
+name: idea_workup
+x-exist-project: automation
 needs:
   - agent_task
-chart:
+machine:
   description: Fan one flagged idea out to the research and sales departments as three agent_task questions.
   data:
     note_path: {type: string, default: ""}
@@ -18,7 +17,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  idea_workup: |
+  idea_workup.sh: |
     #!/usr/bin/env bash
     # idea_workup — fan one flagged idea out to the departments that can answer it.
     #

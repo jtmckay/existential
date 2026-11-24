@@ -1,17 +1,17 @@
 ---
-machine: plugin
-automation: local-models
-project: automation
-name: Local models
-tagline: Ollama on this machine pulls the models your VRAM tier names, once, as soon as it is up
-docs: /docs/ai/ollama
-services:
+name: local-models
+x-exist-project: automation
+x-exist-title: Local models
+x-exist-tagline: Ollama on this machine pulls the models your VRAM tier names, once, as soon as it is up
+x-exist-docs: /docs/ai/ollama
+x-exist-services:
   - EXIST_IS_AI_OLLAMA
   - EXIST_IS_SERVICES_AUTOMATION
 needs:
   - ollama_pull
-migrations:
-  10-ollama-pull-chat-model: |
+  - decree_order
+order:
+  10-ollama-pull-chat-model.md: |
     ---
     machine: ollama_pull
     params:
@@ -28,7 +28,7 @@ migrations:
     Expect a few minutes on first pull — 4.3 GB at the 8 GB default tier. The tier
     table (src/utils/model-tiers.sh) sizes this so the chat model stays resident on the card
     you said you have on the first run.
-  11-ollama-set-chat-context: |
+  11-ollama-set-chat-context.md: |
     ---
     machine: ollama_pull
     params:
@@ -49,7 +49,7 @@ migrations:
     Context costs VRAM — the KV cache grows with it — but 64k is the stack's floor, not
     a dial, so every tier carries it. On a small card the cache spills into system
     RAM and ollama offloads layers to the CPU: slower, still correct.
-  14-ollama-pull-vision-model: |
+  14-ollama-pull-vision-model.md: |
     ---
     machine: ollama_pull
     params:

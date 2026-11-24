@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: nextcloud_file_events
-project: automation
-chart:
+name: nextcloud_file_events
+x-exist-project: automation
+machine:
   description: Register Nextcloud's file-event webhooks (written, deleted, renamed) against automation-webhook's /files.
   initial: wait_for_nextcloud
   states:
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  nextcloud_file_events: |
+  nextcloud_file_events.sh: |
     #!/usr/bin/env bash
     # nextcloud-file-events — point Nextcloud's file events at decree's /files webhook.
     #
@@ -59,7 +58,7 @@ scripts:
             | _ocs -X POST -H "Content-Type: application/json" --data @- "${_api}" >/dev/null
         echo "Registered ${_event} -> ${FILES_WEBHOOK_URI}"
     done
-  wait_for_nextcloud: |
+  wait_for_nextcloud.sh: |
     #!/usr/bin/env bash
     # wait_for_nextcloud — the first state of every Nextcloud migration machine.
     #

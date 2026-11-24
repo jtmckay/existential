@@ -39,7 +39,7 @@ cp -r "$HERE/eval/workspace" "$W"
 mkdir -p "$W/docs" "$W/reference" "$W/migrations" "$W/private" "$W/.decree/runs" "$TMP/cache/qmd" "$MODELS"
 cp -r "$REPO/site/docs/." "$W/docs/"
 cp "$REPO"/.claude/reference/*.md "$REPO/CLAUDE.md" "$W/reference/"
-cp "$REPO"/.decree/migrations/*.md "$W/migrations/"
+cp "$REPO"/.decree/machines/repo_develop/order/*.md "$W/migrations/"
 # What must never be found: a gitignored folder, a hidden one, a dotfile.
 echo "# Bank: PIN zebracobalt" > "$W/private/bank.md"
 echo "# Run log zebracobalt" > "$W/.decree/runs/log.md"

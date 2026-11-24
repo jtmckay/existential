@@ -1,17 +1,16 @@
 ---
-machine: plugin
-automation: weekly-newsletter
-project: automation
-name: Your own newsletter
-tagline: Mondays, at most seven items from only the feeds you picked, judged by a paragraph you wrote
-docs: /docs/flows/newsletter
-services:
+name: weekly-newsletter
+x-exist-project: automation
+x-exist-title: Your own newsletter
+x-exist-tagline: Mondays, at most seven items from only the feeds you picked, judged by a paragraph you wrote
+x-exist-docs: /docs/flows/newsletter
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION
   - EXIST_IS_SERVICES_NTFY
 needs:
   - newsletter
 cron:
-  newsletter: |
+  newsletter.md: |
     ---
     cron: "0 7 * * MON"
     machine: newsletter

@@ -1,18 +1,17 @@
 ---
-machine: plugin
-automation: backup-mealie
-project: backup
-name: Back up Mealie
-tagline: Mealie, backed up nightly and weekly to your rclone remote
-docs: /docs/decree/automation-backup
-services:
+name: backup-mealie
+x-exist-project: backup
+x-exist-title: Back up Mealie
+x-exist-tagline: Mealie, backed up nightly and weekly to your rclone remote
+x-exist-docs: /docs/decree/automation-backup
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
   - EXIST_IS_SERVICES_MEALIE
 needs:
   - db_backup
   - volume_backup
 cron:
-  mealie-db-backup-nightly: |
+  mealie-db-backup-nightly.md: |
     ---
     cron: "0 2 * * *"
     machine: db_backup
@@ -24,7 +23,7 @@ cron:
 
     Dump mealie-postgres nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/mealie-postgres/.
     Files older than 7 days are pruned at the end of the run.
-  mealie-db-backup-weekly: |
+  mealie-db-backup-weekly.md: |
     ---
     cron: "0 3 * * SUN"
     machine: db_backup
@@ -35,7 +34,7 @@ cron:
     ---
 
     Weekly dump of mealie-postgres (retained 28 days).
-  mealie-volume-backup-nightly: |
+  mealie-volume-backup-nightly.md: |
     ---
     cron: "30 2 * * *"
     machine: volume_backup
@@ -47,7 +46,7 @@ cron:
 
     Tar mealie_data volume nightly and rclone to ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/mealie_data/.
     Files older than 7 days are pruned at the end of the run.
-  mealie-volume-backup-weekly: |
+  mealie-volume-backup-weekly.md: |
     ---
     cron: "30 3 * * SUN"
     machine: volume_backup
@@ -62,4 +61,4 @@ cron:
 
 Backups go to the rclone remote in EXIST_BACKUP_RCLONE_REMOTE (.env.shared); add it once with
 ./existential.sh run rclone. Restore with ./existential.sh run backup-restore. For another
-schedule, edit the cron files in services/automation-backup/cron/.
+schedule, edit the cron files in services/automation-backup/machines/flow_backup_mealie/cron/.

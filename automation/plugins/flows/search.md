@@ -1,14 +1,13 @@
 ---
-machine: plugin
-automation: search
-project: automation
-name: Search
-tagline: Your notes, PDFs and Word files, by meaning and by exact words, from Claude or a terminal
-docs: /docs/ai/qmd
-services:
+name: search
+x-exist-project: automation
+x-exist-title: Search
+x-exist-tagline: Your notes, PDFs and Word files, by meaning and by exact words, from Claude or a terminal
+x-exist-docs: /docs/ai/qmd
+x-exist-services:
   - EXIST_IS_AI_QMD
   - EXIST_IS_SERVICES_CODE_SERVER
-e2e: true
+x-exist-e2e: true
 ---
 
 After docker compose up -d, recreate code-server so Claude and opencode get the search

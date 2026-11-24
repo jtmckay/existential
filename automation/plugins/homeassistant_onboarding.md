@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: homeassistant_onboarding
-project: automation
-chart:
+name: homeassistant_onboarding
+x-exist-project: automation
+machine:
   description: Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.
   initial: wait_for_homeassistant
   states:
@@ -20,7 +19,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  homeassistant_onboarding: |
+  homeassistant_onboarding.sh: |
     #!/usr/bin/env bash
     # homeassistant-onboarding — complete HA's setup wizard headlessly.
     #
@@ -65,7 +64,7 @@ scripts:
     # second and the migration fails before Home Assistant is back. That is the
     # observed first-run failure: wait_for_homeassistant clears HA, and HA then drops
     # connections anyway while it finishes starting. Sleeping here first makes the
-    # three attempts (machines/homeassistant_onboarding.yml) mean 10s/20s/30s of
+    # three attempts (its machine's attempts: 3) mean 10s/20s/30s of
     # actual waiting instead of nothing.
     sleep 10
 
@@ -123,7 +122,7 @@ scripts:
         '{client_id: $client_id, redirect_uri: $redirect_uri}')" >/dev/null
 
     echo "Home Assistant onboarding complete — https://homeassistant.<domain> now serves the real UI."
-  wait_for_homeassistant: |
+  wait_for_homeassistant.sh: |
     #!/usr/bin/env bash
     # wait_for_homeassistant — the first state of every Home Assistant migration
     # machine.

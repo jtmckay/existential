@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: you_were_here
-project: automation
+name: you_were_here
+x-exist-project: automation
 needs:
   - model
   - rss
-chart:
+machine:
   description: The "you were here" digest, written to workspace/ai/you-were-here.md and today's archive, pushed through ntfy when something changed.
   data:
     workspace: {type: string, default: /workspace}
@@ -14,7 +13,7 @@ chart:
     note_link: {type: string, default: ""}
     # Worth learning's Wikipedia edition (en, de, fr…). Blank: no Worth learning, and nothing is sent to Wikipedia.
     wikipedia: {type: string, default: en}
-  store:
+  state_files:
     state.json: The last digest (when, its window, its fingerprint) and the day each note, ticked checkbox and machine first appeared.
     feeds-shown.tsv: Feed links already shown, so an item is never in two digests.
     learn-shown.tsv: Wikipedia articles already suggested under Worth learning, so one is never suggested twice.
@@ -27,7 +26,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  you_were_here: |
+  you_were_here.sh: |
     #!/usr/bin/env bash
     # You were here
     #
@@ -43,8 +42,8 @@ scripts:
     # automation-webhook's POST /you-were-here runs it on demand.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
-    digest="${DECREE_LIB}/you-were-here/digest.ts"
+    source ".decree/lib/model.sh"
+    digest=".decree/lib/you-were-here/digest.ts"
 
     # A retry reuses the run dir: nothing from an earlier attempt may be read as this one.
     rm -f "${DECREE_RUN_DIR}/model.json" "${DECREE_RUN_DIR}/learn.json" "${DECREE_RUN_DIR}/ntfy.md"
@@ -80,7 +79,7 @@ scripts:
             --param ntfy_title="You were here" --param ntfy_tags=compass <"${DECREE_RUN_DIR}/ntfy.md" >/dev/null
         echo "you_were_here: pushed"
     fi
-lib:
+x-exist-lib:
   you-were-here/digest.ts: |
     #!/usr/bin/env tsx
     // you_were_here's data half. Two steps, with the model call between them in bash
@@ -99,7 +98,7 @@ lib:
     // "Recent" is since the last digest; when nothing new came in since then, it stays
     // the window of the last digest that showed something new, so a gap never empties it.
     //
-    // Env: DECREE_DATA_WORKSPACE (default /workspace), DECREE_STORE, DECREE_RUN_DIR;
+    // Env: DECREE_DATA_WORKSPACE (default /workspace), DECREE_STATE_DIR, DECREE_RUN_DIR;
     // DIGEST_NOW (ISO) pins the clock for tests.
     import * as crypto from "node:crypto";
     import * as fs from "node:fs";
@@ -108,7 +107,7 @@ lib:
 
     const WS = process.env.DECREE_DATA_WORKSPACE || "/workspace";
     const PROJECT = ".decree";
-    const STORE = process.env.DECREE_STORE!;
+    const STORE = process.env.DECREE_STATE_DIR!;
     const RUN = process.env.DECREE_RUN_DIR!;
     const SELF = ["you_were_here", "notify"]; // its own runs, and the push it emits
     const NOW = process.env.DIGEST_NOW ? new Date(process.env.DIGEST_NOW) : new Date();
@@ -269,10 +268,12 @@ lib:
       for (const r of allRuns) if (r.at && !SELF.includes(r.machine)) lastByMachine.set(r.machine, r);
       const steady = [...lastByMachine.values()].filter((r) => r.state === "done").sort((a, b) => a.machine.localeCompare(b.machine))
         .map((r) => ({ machine: r.machine, path: `.decree/runs/${r.id}/message.md` }));
-      const schedules = ls(path.join(PROJECT, "cron")).filter((f) => f.endsWith(".md")).map((f) => {
-        const fm = frontmatter(read(path.join(PROJECT, "cron", f)));
-        return { name: f.replace(/\.md$/, ""), cron: fm.cron ?? "", machine: fm.machine ?? "", path: `.decree/cron/${f}` };
-      });
+      // Each machine's cron files (decree 0.6): every plugin's, yours among them.
+      const schedules = ls(path.join(PROJECT, "machines")).flatMap((m) =>
+        ls(path.join(PROJECT, "machines", m, "cron")).filter((f) => f.endsWith(".md")).map((f) => {
+          const fm = frontmatter(read(path.join(PROJECT, "machines", m, "cron", f)));
+          return { name: f.replace(/\.md$/, ""), cron: fm.cron ?? "", machine: fm.machine ?? m, path: `.decree/machines/${m}/cron/${f}` };
+        }));
 
       const touched = allNotes.filter((n) => n.mtime > from && !n.path.startsWith("notes/decisions/"));
       const focus = words([...caps.map((c) => c.text), ...touched.map((n) => `${n.title} ${n.open.join(" ")}`)].join(" "));
@@ -281,7 +282,7 @@ lib:
       // records what is already there without calling any of it done.
       const stamp = (old: Record<string, string> | undefined, keys: string[]) =>
         Object.fromEntries(keys.map((k) => [k, old ? (old[k] ?? TODAY) : ""]));
-      const machineNames = ls(path.join(PROJECT, "machines")).filter((f) => f.endsWith(".yml")).map((f) => f.replace(/\.yml$/, ""));
+      const machineNames = ls(path.join(PROJECT, "machines")).filter((m) => fs.existsSync(path.join(PROJECT, "machines", m, "machine.yml")));
       const next: Omit<State, "fingerprint"> = {
         last_at: NOW.toISOString(),
         window_from: from,
@@ -311,8 +312,7 @@ lib:
         done: {
           ticked: today(next.checked).map((k) => { const [p, t] = k.split("\t"); return { path: p, text: t }; }),
           machines: today(next.machines),
-          migrations: finishedToday.filter((r) => r.trigger === "migration" && r.state === "done").map((r) => ({ file: r.file, path: `.decree/runs/${r.id}/message.md` })),
-          runs: finishedToday.filter((r) => r.trigger !== "migration").map((r) => ({ machine: r.machine, state: r.state, path: `.decree/runs/${r.id}/message.md` })),
+          runs: finishedToday.map((r) => ({ machine: r.machine, state: r.state, path: `.decree/runs/${r.id}/message.md` })),
           notes: today(next.notes),
           threads: threads(caps.filter((c) => day(new Date(c.ts)) === TODAY)).map((t) => ({ project: t.project, count: t.count, sources: t.sources, file: t.file })),
         },
@@ -349,7 +349,7 @@ lib:
       changed: { captures: number; notes: string[]; runs: { machine: string; state: string; path: string }[] };
       feeds: { title: string; link: string }[] | null;
       noted: string[];
-      done: { ticked: { path: string; text: string }[]; machines: string[]; migrations: { file: string; path: string }[]; runs: { machine: string; state: string; path: string }[]; notes: string[]; threads: { project: string; count: number; sources: string[]; file: string }[] };
+      done: { ticked: { path: string; text: string }[]; machines: string[]; runs: { machine: string; state: string; path: string }[]; notes: string[]; threads: { project: string; count: number; sources: string[]; file: string }[] };
       next: Omit<State, "fingerprint">;
     };
 
@@ -428,8 +428,7 @@ lib:
           "## Done",
           list([
             ...f.done.ticked.map((t) => `Ticked: ${t.text} ([note](${t.path}))`),
-            ...f.done.machines.map((n) => `New machine: **${n}** ([machine](.decree/machines/${n}.yml))`),
-            ...f.done.migrations.map((r) => `Migration landed: ${r.file} ([run](${r.path}))`),
+            ...f.done.machines.map((n) => `New machine: **${n}** ([machine](.decree/machines/${n}/machine.yml))`),
             ...f.done.runs.map((r) => `**${r.machine}** finished: ${r.state} ([run](${r.path}))`),
             ...f.done.notes.map((p) => `New note: [${p}](${p})`),
             ...f.done.threads.map((t) => `Worked on **${md(t.project)}**: ${t.count} prompt${t.count === 1 ? "" : "s"}${t.sources.length ? ` via ${t.sources.join(", ")}` : ""} ([capture](${t.file}))`),
@@ -492,9 +491,9 @@ lib:
     else if (step === "learn") learn().catch((e) => { console.error(e); process.exit(1); });
     else if (step === "write") write();
     else { console.error("usage: digest.ts gather|learn|write"); process.exit(1); }
-endpoints:
+x-exist-endpoints:
   # The "you were here" digest, on demand. It also runs every morning from
-  # workspace/.decree/cron/you-were-here.md.
+  # workspace/.decree/machines/flow_you_were_here/cron/you-were-here.md.
   - path: /you-were-here
     body: optional
     message:
@@ -506,5 +505,5 @@ The "you were here" digest, written to workspace/ai/you-were-here.md and today's
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
-- $DECREE_LIB/you-were-here/digest.ts
+- .decree/lib/model.sh
+- .decree/lib/you-were-here/digest.ts

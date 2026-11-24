@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: actual_budget_parse
-project: automation
+name: actual_budget_parse
+x-exist-project: automation
 needs:
   - actual_budget
-chart:
+machine:
   description: Run a bank's parse script against one email and emit the transaction it finds to actual_budget.
   data:
     gmail_id: {type: string, default: ""}
@@ -27,7 +26,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  actual_budget_parse: |
+  actual_budget_parse.sh: |
     #!/usr/bin/env bash
     # actual_budget_parse
     #
@@ -97,7 +96,7 @@ scripts:
         >/dev/null <<<"$amount"
 
     echo "Queued transaction: ${amount} → ${payee} (${txn_date})"
-lib:
+x-exist-lib:
   actual-budget/parse-chase.ts: |
     #!/usr/bin/env tsx
     // Parses a Chase transaction alert email into an actual-budget transaction.

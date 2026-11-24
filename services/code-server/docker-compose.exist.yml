@@ -115,7 +115,7 @@ services:
       # installed by the host alone and read-only here: an offer runs only after
       # ./existential.sh run plugin accept <name>, on the host. Do not make these writable.
       - workspace_data/.decree/machines:/workspace/.decree/machines:ro
-      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro
+      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro
       - workspace_data/.decree/lib:/workspace/.decree/lib:ro
 
 x-exist-volumes:

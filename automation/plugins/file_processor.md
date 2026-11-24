@@ -1,12 +1,11 @@
 ---
-machine: plugin
-automation: file_processor
-project: automation
+name: file_processor
+x-exist-project: automation
 needs:
   - agent_task
   - model
   - router
-chart:
+machine:
   description: Download one file, put it to the processor's CRITERIA if it has any, then run the processor on it.
   data:
     rclone_path: {type: string, default: ""}
@@ -27,7 +26,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  file_processor: |
+  file_processor.sh: |
     #!/usr/bin/env bash
     # File Processor
     #
@@ -67,7 +66,7 @@ scripts:
         exit 1
     fi
 
-    _processor_script="${DECREE_LIB}/file-processors/${processor}.sh"
+    _processor_script=".decree/lib/file-processors/${processor}.sh"
     if [ ! -f "$_processor_script" ]; then
         echo "Processor not found: $_processor_script"
         exit 1
@@ -115,7 +114,7 @@ scripts:
     # text one.
     if [ -n "$criteria" ] && [ "$file_action" = "created" ] && [ -n "$FILE_PATH" ]; then
         # shellcheck source=../../lib/model.sh
-        source "${DECREE_LIB}/model.sh"
+        source ".decree/lib/model.sh"
 
         echo "Evaluating criteria: ${criteria}"
         _body="$(head -c "$PROCESSOR_MAX_CHARS" "$FILE_PATH")"
@@ -144,7 +143,7 @@ scripts:
 
     echo "Running processor: $processor (action: $file_action)"
     bash "$_processor_script"
-lib:
+x-exist-lib:
   file-processors.example/example.sh: |
     #!/usr/bin/env bash
     # shellcheck disable=SC2034  # PATTERN, CRITERIA and IS_PRE_SIGNED are this file's
@@ -217,5 +216,5 @@ Download one file, put it to the processor's CRITERIA if it has any, then run th
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/file-processors/
-- $DECREE_LIB/model.sh
+- .decree/lib/file-processors/
+- .decree/lib/model.sh

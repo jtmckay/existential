@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: note_develop
-project: automation
+name: note_develop
+x-exist-project: automation
 needs:
   - firecrawl
   - model
-chart:
+machine:
   description: Take one flagged note and draft what can be done without its author, ending with the questions only they can answer.
   data:
     note_path: {type: string, default: ""}
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  note_develop: |
+  note_develop.sh: |
     #!/usr/bin/env bash
     # note_develop — take one flagged note and do the work that can be done without you.
     #
@@ -77,9 +76,9 @@ scripts:
     # --- Model helper ----------------------------------------------------------
 
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
     # shellcheck source=../../lib/firecrawl.sh
-    source "${DECREE_LIB}/firecrawl.sh"
+    source ".decree/lib/firecrawl.sh"
 
     # --- Optional: web research ------------------------------------------------
 
@@ -203,5 +202,5 @@ Take one flagged note and draft what can be done without its author, ending with
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/firecrawl.sh
-- $DECREE_LIB/model.sh
+- .decree/lib/firecrawl.sh
+- .decree/lib/model.sh

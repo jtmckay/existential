@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: immich_setup
-project: automation
-chart:
+name: immich_setup
+x-exist-project: automation
+machine:
   description: Create Immich's admin from EXIST_EMAIL and add the NAS photos as a read-only External Library.
   initial: wait_for_immich
   states:
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  immich_setup: |
+  immich_setup.sh: |
     #!/usr/bin/env bash
     # immich_setup — create Immich's admin and the read-only External Library.
     #
@@ -90,7 +89,7 @@ scripts:
     _api POST "/libraries/${library}/scan" >/dev/null
 
     echo "Immich is set up — https://immich.<domain> opens on your photos."
-  wait_for_immich: |
+  wait_for_immich.sh: |
     #!/usr/bin/env bash
     # wait_for_immich — the first state of every Immich migration machine. A first
     # start runs database migrations before the API answers; /api/server/ping says

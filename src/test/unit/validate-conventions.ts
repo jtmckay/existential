@@ -422,6 +422,20 @@ function checkRestartPolicy(): string[] {
   return errors;
 }
 
+// One decree version: the decree image's DECREE_TAG, which the webhook image bundles, CI
+// installs, and the host daemon's page says to install.
+function checkDecreeVersions(): string[] {
+  const read = (f: string) => fs.readFileSync(path.join(REPO_ROOT, f), 'utf8');
+  const tag = /^ARG DECREE_TAG=v(\S+)$/m.exec(read('services/automation/decree/Dockerfile'))?.[1];
+  const pins: Array<[string, RegExp]> = [
+    ['services/automation-webhook/docker-compose.exist.yml', /image: ghcr\.io\/jtmckay\/decree-go-rest:(\S+)/g],
+    ['.github/workflows/ci.yml', /install\.sh \| sh -s -- v(\S+)/g],
+    ['site/docs/hosting/host-daemon.md', /install\.sh \| sh -s -- v(\S+)/g],
+  ];
+  return pins.flatMap(([f, re]) => [...read(f).matchAll(re)].filter(m => m[1] !== tag)
+    .map(m => `${f}: decree ${m[1]} must be the decree image's DECREE_TAG (v${tag})`));
+}
+
 function checkHardcodedUids(): string[] {
   const errors: string[] = [];
   for (const cat of CATEGORY_DIRS) {
@@ -559,6 +573,7 @@ function main(): number {
   // No hardcoded uid/gid — containers run as the host user via ${EXIST_PUID:-1000}
   errors.push(...checkHardcodedUids());
   errors.push(...checkRestartPolicy());
+  errors.push(...checkDecreeVersions());
 
 
   // (13) Every service folder has a docs page, and every docs link lands on one.
@@ -623,11 +638,11 @@ function main(): number {
     }
   }
 
-  // (15) Plugins: automation/plugins/<name>.md is a machine (it has a chart), and
-  // automation/plugins/flows/<name>.md is a flow (it has none): what one curated
-  // thing needs, or lib others need. A flow with a tagline is one a person picks,
-  // and its first keys are read by src/utils/flows.sh with awk on the host, so they
-  // are flat scalars and block lists.
+  // (15) Plugins: automation/plugins/<name>.md is a decree plugin with a machine,
+  // and automation/plugins/flows/<name>.md is a flow (it has none): what one curated
+  // thing needs, or lib others need. existential's own keys are x-exist-*. A flow
+  // with an x-exist-tagline is one a person picks, and its keys are read by
+  // src/utils/flows.sh with awk on the host, so they are flat scalars and block lists.
   const pluginsDir = path.join(REPO_ROOT, 'automation/plugins');
   const flowsDir = path.join(pluginsDir, 'flows');
   const fmList = (body: string, key: string): string[] => {
@@ -651,11 +666,19 @@ function main(): number {
   }
   // The plugin system's machines (PLUGIN_KERNEL in lib/automations/plugin.sh):
   // plugins too, installed in each project they are tagged for whatever is on.
-  const kernelMachines = ['notify'];
-  // The decree projects a plugin's `project:` may name: workspace/.decree,
+  const kernelMachines = ['notify', 'skill'];
+  // decree's official plugins are decree_*, which decree adds (lib/automations/plugin.sh):
+  // a plugin here may need or extend one, and never takes the prefix.
+  const official = (n: string) => n.startsWith('decree_');
+  // Every plugin a plugin relies on: what it extends, and each need ({need: plugin}: both).
+  const needsOf = (fm: Record<string, unknown>): string[] => [
+    ...(fm.extends ? [String(fm.extends)] : []),
+    ...((fm.needs as unknown[] | undefined) ?? []).flatMap(x => typeof x === 'string' ? [x] : Object.entries(x as object).flat().map(String)),
+  ];
+  // The decree projects a plugin's `x-exist-project` may name: workspace/.decree,
   // services/automation-backup and the repo's own .decree.
   const PROJECTS = ['automation', 'backup', 'host'];
-  const projectsOf = (pl: {fm: Record<string, unknown>}) => ([] as string[]).concat((pl.fm.project as string | string[] | undefined) ?? []);
+  const projectsOf = (pl: {fm: Record<string, unknown>}) => ([] as string[]).concat((pl.fm['x-exist-project'] as string | string[] | undefined) ?? []);
   type Plugin = {file: string; where: string; flow: boolean; raw: string; fm: Record<string, unknown>};
   const plugins = new Map<string, Plugin>();
   for (const [dir, flow] of [[pluginsDir, false], [flowsDir, true]] as const) {
@@ -668,9 +691,16 @@ function main(): number {
       if (plugins.has(n)) { errors.push(`${where}: ${plugins.get(n)!.where} has the name ${n} too — a plugin name is one thing`); continue; }
       const fm = (yaml.load(m[1]) as Record<string, unknown> | null) ?? {};
       plugins.set(n, {file: path.join(dir, f), where, flow, raw: m[1], fm});
-      if (fm.automation !== n) errors.push(`${where}: automation: is ${String(fm.automation)}, not its file name ${n}`);
-      if (flow && 'chart' in fm) errors.push(`${where}: has a chart — a plugin with a machine belongs in automation/plugins/`);
-      if (!flow && !('chart' in fm)) errors.push(`${where}: has no chart — a plugin with no machine is a flow, in automation/plugins/flows/`);
+      if (fm.name !== n) errors.push(`${where}: name: is ${String(fm.name)}, not its file name ${n}`);
+      if (flow && 'machine' in fm) errors.push(`${where}: has a machine — a plugin with a machine belongs in automation/plugins/`);
+      if (!flow && !('machine' in fm) && !('extends' in fm)) errors.push(`${where}: has no machine — a plugin with no machine is a flow, in automation/plugins/flows/`);
+      if ('extends' in fm && !official(String(fm.extends))) errors.push(`${where}: extends ${String(fm.extends)} — a plugin here extends only one of decree's (decree_*)`);
+      if (official(n)) errors.push(`${where}: decree_ is decree's prefix — name it something of its own`);
+      for (const k of Object.keys(fm)) {
+        if (!['name', 'extends', 'machine', 'scripts', 'cron', 'order', 'state', 'needs'].includes(k) && !k.startsWith('x-exist-')) {
+          errors.push(`${where}: ${k}: is no key of decree's plugin file — existential's own are x-exist-<key>`);
+        }
+      }
     }
   }
   const closure = (n: string): Set<string> => {
@@ -680,7 +710,7 @@ function main(): number {
       const pl = queue.shift()!;
       if (reach.has(pl)) continue;
       reach.add(pl);
-      queue.push(...(((plugins.get(pl)?.fm.needs) as string[] | undefined) ?? []));
+      queue.push(...needsOf(plugins.get(pl)?.fm ?? {}));
     }
     return reach;
   };
@@ -688,13 +718,13 @@ function main(): number {
   const catalogue = path.join(docsDir, 'flows/index.md');
   const listed = fs.existsSync(catalogue) ? fs.readFileSync(catalogue, 'utf8') : null;
   for (const [n, pl] of plugins) {
-    const needs = ((pl.fm.needs as string[] | undefined) ?? []);
-    for (const x of needs) if (!plugins.has(x)) errors.push(`${pl.where}: needs ${x}, which is no plugin`);
+    const needs = needsOf(pl.fm);
+    for (const x of needs) if (!plugins.has(x) && !official(x)) errors.push(`${pl.where}: needs ${x}, which is no plugin here nor one of decree's (decree_*)`);
     // Every plugin says which project runs it, and a project installs only what
     // is tagged for it: so what a plugin needs must be tagged for each of its own.
     // That tag is the wall between the automation daemon and the other two.
     const projects = projectsOf(pl);
-    if (!projects.length) errors.push(`${pl.where}: no 'project:' — say which decree project runs it (${PROJECTS.join(', ')})`);
+    if (!projects.length) errors.push(`${pl.where}: no 'x-exist-project:' — say which decree project runs it (${PROJECTS.join(', ')})`);
     for (const p of projects) {
       if (!PROJECTS.includes(p)) { errors.push(`${pl.where}: project ${p} is none of ${PROJECTS.join(', ')}`); continue; }
       for (const x of needs) {
@@ -702,33 +732,33 @@ function main(): number {
         if (dep && !projectsOf(dep).includes(p)) errors.push(`${pl.where}: runs in ${p} and needs ${x}, which is not tagged for ${p}`);
       }
     }
-    if (Array.isArray(pl.fm.project) && fmList(pl.raw, 'project').join(' ') !== projects.join(' ')) {
-      errors.push(`${pl.where}: project: must be one name or a block list (  - x), which the host reads`);
+    if (Array.isArray(pl.fm['x-exist-project']) && fmList(pl.raw, 'x-exist-project').join(' ') !== projects.join(' ')) {
+      errors.push(`${pl.where}: x-exist-project: must be one name or a block list (  - x), which the host reads`);
     }
-    // The host's project is the repo's .decree, whose migrations/ and processed.md
-    // are tracked: a host plugin's migration would dirty every checkout.
-    if (projects.includes('host') && Object.keys((pl.fm.migrations as object | undefined) ?? {}).length) {
-      errors.push(`${pl.where}: a host plugin carries no migrations — .decree/migrations/ is tracked`);
+    // The host's project is the repo's .decree, whose machines' order/ is tracked:
+    // a host plugin's order file would dirty every checkout.
+    if (projects.includes('host') && Object.keys((pl.fm.order as object | undefined) ?? {}).length) {
+      errors.push(`${pl.where}: a host plugin carries no order files — the repo's own are tracked`);
     }
     if (pl.flow) {
-      for (const key of ['services', 'needs']) {
+      for (const key of ['x-exist-services', 'needs']) {
         const want = ((pl.fm[key] as string[] | undefined) ?? []).join(' ');
         if (fmList(pl.raw, key).join(' ') !== want) errors.push(`${pl.where}: ${key}: must be a block list (  - x), which the host reads`);
       }
     }
-    if (pl.flow && pl.fm.tagline) {
+    if (pl.flow && pl.fm['x-exist-tagline']) {
       if (listed !== null && !listed.includes(`| \`${n}\` |`)) errors.push(`${pl.where}: not in the table in site/docs/flows/index.md — add a row`);
-      for (const key of ['name', 'docs']) if (!pl.fm[key]) errors.push(`${pl.where}: no '${key}:' — the picker needs it`);
-      const docs = String(pl.fm.docs ?? '').match(/^\/docs\/(\S*)/)?.[1];
-      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${pl.where}: docs /docs/${docs} is no page in site/docs/`);
-      for (const v of ((pl.fm.services as string[] | undefined) ?? [])) {
-        if (!serviceVars.has(v)) errors.push(`${pl.where}: services names ${v}, which is no service folder`);
+      for (const key of ['x-exist-title', 'x-exist-docs']) if (!pl.fm[key]) errors.push(`${pl.where}: no '${key}:' — the picker needs it`);
+      const docs = String(pl.fm['x-exist-docs'] ?? '').match(/^\/docs\/(\S*)/)?.[1];
+      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${pl.where}: x-exist-docs /docs/${docs} is no page in site/docs/`);
+      for (const v of ((pl.fm['x-exist-services'] as string[] | undefined) ?? [])) {
+        if (!serviceVars.has(v)) errors.push(`${pl.where}: x-exist-services names ${v}, which is no service folder`);
       }
     }
-    // A plugin turns on its own automations: every machine its crons and
-    // migrations name is itself, something it needs, or the plugin system's.
+    // A plugin turns on its own automations: every machine its cron and order
+    // files name is itself, something it needs, or the plugin system's.
     const reach = closure(n);
-    for (const kind of ['cron', 'migrations']) {
+    for (const kind of ['cron', 'order']) {
       for (const [k, text] of Object.entries((pl.fm[kind] as Record<string, string> | undefined) ?? {})) {
         const m = String(text).match(/^---\n[\s\S]*?^machine:\s*([a-z_][a-z0-9_]*)/m);
         if (m && !reach.has(m[1])) errors.push(`${pl.where}: ${kind} ${k} runs ${m[1]}, which it does not need`);
@@ -746,7 +776,7 @@ function main(): number {
 
   // Offer and accept: decree's code in the workspace project is installed by the
   // host alone. A container that mounts the workspace (or its .decree) writable
-  // must mount machines/, scripts/ and lib/ read-only over it, so nothing a
+  // must mount plugins/, machines/ and lib/ read-only over it, so nothing a
   // container runs can create or change one (site/docs/plugins/offer-and-accept.md).
   for (const cat of CATEGORY_DIRS) {
     const catDir = path.join(REPO_ROOT, cat);
@@ -762,7 +792,7 @@ function main(): number {
         for (const m of mounts) {
           if (readOnly(m) || (m[0] !== 'workspace_data' && m[0] !== 'workspace_data/.decree')) continue;
           const project = m[0] === 'workspace_data' ? `${m[1]}/.decree` : m[1];
-          for (const d of ['machines', 'scripts', 'lib']) {
+          for (const d of ['plugins', 'machines', 'lib']) {
             const covered = mounts.some(o => o[0] === `workspace_data/.decree/${d}` && o[1] === `${project}/${d}` && readOnly(o));
             if (!covered) {
               errors.push(`${cat}/${slug}/docker-compose.exist.yml: ${svc} mounts ${m[0]} writable at ${m[1]} without ` +

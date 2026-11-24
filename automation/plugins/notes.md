@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: notes
-project: automation
-chart:
+name: notes
+x-exist-project: automation
+machine:
   description: Pull the notes vault from Nextcloud, compile it, index it, and push the result to Dropbox.
   initial: sync
   states:
@@ -12,26 +11,26 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  notes: |
+  notes.sh: |
     #!/usr/bin/env bash
     # notes — Orchestrates the complete note processing pipeline.
     #
     # Container paths (all absolute):
     #   /data/notes     — Nextcloud sync cache (in the decree_data volume: notes/)
     #   /data/dropbox   — compiled output for Dropbox (in the decree_data volume: dropbox/)
-    #   $DECREE_LIB/notes/ — pipeline scripts (this plugin's lib)
+    #   .decree/lib/notes/ — pipeline scripts (this plugin's lib)
 
     set -euo pipefail
 
     echo "--- Starting notes pipeline ---"
 
-    bash "$DECREE_LIB"/notes/pull-nextcloud.sh
-    bash "$DECREE_LIB"/notes/compile-notes.sh
-    bash "$DECREE_LIB"/notes/generate-index.sh
-    bash "$DECREE_LIB"/notes/push-dropbox.sh
+    bash ".decree/lib"/notes/pull-nextcloud.sh
+    bash ".decree/lib"/notes/compile-notes.sh
+    bash ".decree/lib"/notes/generate-index.sh
+    bash ".decree/lib"/notes/push-dropbox.sh
 
     echo "--- Notes pipeline finished ---"
-lib:
+x-exist-lib:
   notes/compile-notes.sh: |
     #!/usr/bin/env bash
     # Compile Notes

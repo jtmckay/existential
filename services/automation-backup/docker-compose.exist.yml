@@ -43,7 +43,7 @@ services:
       # automation/plugins/, and the shared automation/lib/), read-only here.
       - .:/work/.decree:z
       - ./machines:/work/.decree/machines:ro,z
-      - ./scripts:/work/.decree/scripts:ro,z
+      - ./plugins:/work/.decree/plugins:ro,z
       - ./lib:/work/.decree/lib:ro,z
       - ../../automation/secrets:/secrets:ro,z
       # Every volume at once. This is what makes a new service need no backup
@@ -57,7 +57,7 @@ services:
       - workspace_data:/workspace:z
       # workspace_sync and notes_pull bring other copies in: never decree's code.
       - workspace_data/.decree/machines:/workspace/.decree/machines:ro,z
-      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro,z
+      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro,z
       - workspace_data/.decree/lib:/workspace/.decree/lib:ro,z
       # workspace_sync's other end when it is on the NAS: the one persisted copy
       # of workspace/, synced both ways every minute.

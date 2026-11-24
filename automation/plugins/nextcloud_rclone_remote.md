@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: nextcloud_rclone_remote
-project: automation
-chart:
+name: nextcloud_rclone_remote
+x-exist-project: automation
+machine:
   description: Configure the nextcloud rclone remote (WebDAV, admin credentials) that file_processor downloads through.
   initial: wait_for_nextcloud
   states:
@@ -17,7 +16,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  nextcloud_rclone_remote: |
+  nextcloud_rclone_remote.sh: |
     #!/usr/bin/env bash
     # nextcloud-rclone-remote — configure the "nextcloud" rclone remote that
     # file-processor (and any file processor with rclone_src=nextcloud) uses to
@@ -67,7 +66,7 @@ scripts:
     EOF
 
     echo "Configured rclone remote 'nextcloud' -> ${WV_URL}"
-  wait_for_nextcloud: |
+  wait_for_nextcloud.sh: |
     #!/usr/bin/env bash
     # wait_for_nextcloud — the first state of every Nextcloud migration machine.
     #

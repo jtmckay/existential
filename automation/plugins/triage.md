@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: triage
-project: backup
-chart:
+name: triage
+x-exist-project: backup
+machine:
   description: Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
   data:
     # Minutes between rounds, one step per consecutive all-green round.
@@ -25,7 +24,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  triage: |
+  triage.sh: |
     #!/usr/bin/env bash
     # Triage — run every enabled service's own test, and say plainly what is broken.
     #

@@ -1,18 +1,17 @@
 ---
-machine: plugin
-automation: backup-immich
-project: backup
-name: Back up Immich
-tagline: Immich, backed up nightly and weekly to your rclone remote
-docs: /docs/decree/automation-backup
-services:
+name: backup-immich
+x-exist-project: backup
+x-exist-title: Back up Immich
+x-exist-tagline: Immich, backed up nightly and weekly to your rclone remote
+x-exist-docs: /docs/decree/automation-backup
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
   - EXIST_IS_SERVICES_IMMICH
 needs:
   - db_backup
   - volume_backup
 cron:
-  immich-db-backup-nightly: |
+  immich-db-backup-nightly.md: |
     ---
     cron: "0 2 * * *"
     machine: db_backup
@@ -28,7 +27,7 @@ cron:
     DB_USERNAME/DB_PASSWORD are immich's own (unprefixed — `.env.exist` is
     convention-exempt: upstream-env) and land in decree-backup's environment via
     the master `.env`, same as every other service here.
-  immich-db-backup-weekly: |
+  immich-db-backup-weekly.md: |
     ---
     cron: "0 3 * * SUN"
     machine: db_backup
@@ -39,7 +38,7 @@ cron:
     ---
 
     Weekly dump of immich-postgres (retained 28 days).
-  immich-volume-backup-nightly: |
+  immich-volume-backup-nightly.md: |
     ---
     cron: "30 2 * * *"
     machine: volume_backup
@@ -56,7 +55,7 @@ cron:
     immich_data is a declared volume under volumes/, which automation-backup mounts
     wholesale. On the NAS (EXIST_NFS_PATH_IMMICH_DATA) it is not under volumes/ and
     this finds nothing: back it up on the NAS.
-  immich-volume-backup-weekly: |
+  immich-volume-backup-weekly.md: |
     ---
     cron: "30 3 * * SUN"
     machine: volume_backup
@@ -72,4 +71,4 @@ cron:
 
 Backups go to the rclone remote in EXIST_BACKUP_RCLONE_REMOTE (.env.shared); add it once with
 ./existential.sh run rclone. Restore with ./existential.sh run backup-restore. For another
-schedule, edit the cron files in services/automation-backup/cron/.
+schedule, edit the cron files in services/automation-backup/machines/flow_backup_immich/cron/.

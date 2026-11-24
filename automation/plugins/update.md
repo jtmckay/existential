@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: update
-project: host
-chart:
+name: update
+x-exist-project: host
+machine:
   description: Follow this checkout's upstream - pull it fast-forward only, then run ./existential.sh, which installs every plugin you have on at its new version, then docker compose up -d.
   initial: update
   states:
@@ -13,7 +12,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  update: |
+  update.sh: |
     #!/usr/bin/env bash
     # The repo is the authority: what lands on its branch is what this install
     # runs. A pull that cannot fast-forward (a local commit, a rewritten
@@ -49,7 +48,7 @@ scripts:
     tell "Updated" "$(hostname) is at $(git log -1 --format='%h %s')."
     echo "update: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
 cron:
-  update: |
+  update.md: |
     ---
     machine: update
     cron: "*/15 * * * *"

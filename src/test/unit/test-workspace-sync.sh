@@ -25,8 +25,8 @@ done
 
 TMP="$(mktemp -d)"
 # The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack workspace_sync "${TMP}/unpacked" ) >/dev/null
-SYNC="${TMP}/unpacked/.decree/scripts/workspace_sync/workspace_sync.sh"
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack workspace_sync "${TMP}/unpacked" ) >/dev/null
+SYNC="${TMP}/unpacked/.decree/machines/workspace_sync/scripts/workspace_sync.sh"
 trap 'kill "$DAV_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 WS="${TMP}/workspace"
 DAV="${TMP}/dav"
@@ -48,7 +48,7 @@ sync() {         # [VAR=value ...]: one run with a fresh run dir; prints its eve
     # rclone serve webdav speaks plain WebDAV, without Nextcloud's checksums.
     env RCLONE_WEBDAV_VENDOR=other EXIST_NEXTCLOUD_DOMAIN="http://127.0.0.1:${PORT}" EXIST_NEXTCLOUD_USER=sync-user \
         EXIST_NEXTCLOUD_APP_PASSWORD=app-pass EXIST_NEXTCLOUD_WORKSPACE_DIR=workspace \
-        EXIST_IS_NAS_NEXTCLOUD=false WORKSPACE_SYNC_DIR="$WS" DECREE_STORE="$STORE" \
+        EXIST_IS_NAS_NEXTCLOUD=false WORKSPACE_SYNC_DIR="$WS" DECREE_STATE_DIR="$STORE" \
         DECREE_RUN_DIR="$run" DECREE_EVENT_FILE="${run}/event" "$@" \
         bash "$SYNC" > "${run}/log" 2>&1 || { echo "exit $?"; return; }
     cat "${run}/event"
@@ -57,9 +57,9 @@ sync() {         # [VAR=value ...]: one run with a fresh run dir; prints its eve
 # Unconfigured: nothing to do, and still a clean exit.
 check "a blank domain is a no-op" "[[ \"\$(sync EXIST_NEXTCLOUD_DOMAIN=)\" == '' && -z \"\$(ls -A '$REMOTE')\" ]]"
 
-mkdir -p "$WS"/{notes,ai,sub,.git,notes/.git,.decree/runs/r1,.decree/scripts}
+mkdir -p "$WS"/{notes,ai,sub,.git,notes/.git,.decree/runs/r1,.decree/plugins}
 for _f in notes/a.md notes/b.md notes/c.md notes/d.md secret.txt ai/out.md sub/keep.md sub/x.tmp \
-          .git/config notes/.git/HEAD .decree/runs/r1/log .decree/scripts/mine.sh 'sub/odd [name].md'; do
+          .git/config notes/.git/HEAD .decree/runs/r1/log .decree/plugins/mine.md 'sub/odd [name].md'; do
     echo "$_f" > "${WS}/${_f}"
 done
 printf 'secret.txt\nai/\n' > "${WS}/.gitignore"
@@ -69,19 +69,19 @@ printf 'runs/\n' > "${WS}/.decree/.gitignore"
 check "the first run merges" "[[ \"\$(sync)\" == '' ]]"
 check "a workspace file is uploaded" "[[ -f '${REMOTE}/notes/a.md' && -f '${REMOTE}/sub/keep.md' ]]"
 check "a file with glob characters in its name is uploaded" "[[ -f '${REMOTE}/sub/odd [name].md' ]]"
-check "decree's code is not uploaded" "[[ ! -e '${REMOTE}/.decree/scripts' ]]"
+check "decree's code is not uploaded" "[[ ! -e '${REMOTE}/.decree/plugins' ]]"
 check "a root .gitignore'd file is not uploaded" "[[ ! -e '${REMOTE}/secret.txt' ]]"
 check "a .gitignore'd directory is not uploaded" "[[ ! -e '${REMOTE}/ai' ]]"
 check "a nested .gitignore is honoured" "[[ ! -e '${REMOTE}/sub/x.tmp' ]]"
 check "decree's run state is not uploaded" "[[ ! -e '${REMOTE}/.decree/runs' ]]"
 check "no .git/ is uploaded, at any depth" "[[ ! -e '${REMOTE}/.git' && ! -e '${REMOTE}/notes/.git' ]]"
 
-# A file created on the remote side comes down; a script never does (the host alone installs code).
+# A file created on the remote side comes down; a plugin never does (the host alone installs code).
 put notes/new.md new
-put .decree/scripts/hello.sh '#!/usr/bin/env bash'
+put .decree/plugins/hello.md '#!/usr/bin/env bash'
 check "the next run syncs" "[[ \"\$(sync)\" == '' ]]"
 check "a remote file appears in the workspace" "[[ \"\$(cat '${WS}/notes/new.md' 2>/dev/null)\" == new ]]"
-check "a script on the remote does not come down" "[[ ! -e '${WS}/.decree/scripts/hello.sh' ]]"
+check "a plugin on the remote does not come down" "[[ ! -e '${WS}/.decree/plugins/hello.md' ]]"
 
 # Delete most of the workspace: rclone refuses, and the machine asks a person.
 rm -f "$WS"/notes/{a,b,c,d,new}.md "${WS}/sub/keep.md"

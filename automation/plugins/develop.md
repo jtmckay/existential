@@ -1,12 +1,11 @@
 ---
-machine: plugin
-automation: develop
-project: automation
+name: develop
+x-exist-project: automation
 needs:
   - agent
   - firecrawl
   - model
-chart:
+machine:
   description: Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file - the machine, its script and its trigger - checked by decree check, and offer it in ai/proposed/ for you to read and accept on the host. It installs nothing.
   data:
     # From the migration's frontmatter, which automation_propose writes.
@@ -23,7 +22,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  develop: |
+  develop.sh: |
     #!/usr/bin/env bash
     # develop — build one automation from its spec, as an offer.
     #
@@ -32,27 +31,25 @@ scripts:
     # container is signed in, the chat model when not, and answers with the trigger,
     # as one JSON line, and the `steps` function; this writes the rest from fixed
     # templates, as ONE PLUGIN FILE:
-    #   chart, scripts   one state, invoking lib/automations/run.sh + steps
-    #   the trigger      note: `when:`, which note_watch matches notes against
-    #                    file: a `handlers:` entry
-    #                    cron: a `cron:` entry
-    # Nothing is installed here, and nothing here can be: machines/, scripts/ and
+    #   machine, scripts one state, invoking lib/automations/run.sh + steps
+    #   the trigger      note: `x-exist-when:`, which note_watch matches notes against
+    #                    file: an `x-exist-handlers:` entry
+    #                    cron: a `cron:` file
+    # Nothing is installed here, and nothing here can be: plugins/, machines/ and
     # lib/ are read-only in this container. The plugin is installed into a scratch
-    # project to pass decree check, then written to ai/proposed/<name>.md, and you
+    # copy of this project to pass decree check, then written to ai/proposed/<name>.md, and you
     # are told where to read it and the one command, on the host, that accepts it.
     # A failed gate keeps its errors for the second attempt; the second failure ends
     # the run, which reaches your phone like any failed run.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
-    # shellcheck source=../../lib/automations/registry.sh
-    source "${DECREE_LIB}/automations/registry.sh"
+    source ".decree/lib/model.sh"
     # shellcheck source=../../lib/automations/plugin.sh
-    source "${DECREE_LIB}/automations/plugin.sh"
+    source ".decree/lib/automations/plugin.sh"
     # shellcheck source=../../lib/firecrawl.sh
-    source "${DECREE_LIB}/firecrawl.sh"
+    source ".decree/lib/firecrawl.sh"
     # shellcheck source=../../lib/agent.sh
-    source "${DECREE_LIB}/agent.sh"
+    source ".decree/lib/agent.sh"
 
     # automation_propose writes these at the top of the frontmatter, where decree
     # passes nothing to the run (only params: become DECREE_DATA_*): read them there.
@@ -60,8 +57,8 @@ scripts:
     name="${DECREE_DATA_AUTOMATION:-$(fm automation)}" from="${DECREE_DATA_FROM:-$(fm from)}"
     [[ -n "$name" ]] || { echo "develop: the migration names no automation" >&2; exit 1; }
     [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "develop: '${name}' is not a machine name" >&2; exit 1; }
-    # Only a plugin you accepted before (automation/plugins/local/) is ever offered again.
-    if [[ -e ".decree/machines/${name}.yml" && "$(automation_get "$name" spec 2>/dev/null)" != automation/plugins/local/* ]]; then
+    # Only an automation develop built before (and you accepted) is ever offered again.
+    if [[ -e ".decree/machines/${name}/machine.yml" ]] && ! grep -qF "Built by develop from notes/automations/${name}.md" ".decree/plugins/${name}.md" 2>/dev/null; then
         echo "develop: ${name} is a machine this stack ships; refusing to offer one by its name" >&2; exit 1
     fi
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
@@ -144,29 +141,27 @@ scripts:
     plugin="${DECREE_RUN_DIR}/${name}.md"
     desc="$(sed -n 's/^# //p' <<<"$spec" | head -1)"
     script="$(printf '#!/usr/bin/env bash\n# Built by develop from notes/automations/%s.md. Edit that file, not this one.\n' "$name"
-              printf '# shellcheck source=../../lib/automations/run.sh\nsource "${DECREE_LIB}/automations/run.sh"\n\n'
+              printf '# shellcheck source=../../lib/automations/run.sh\nsource ".decree/lib/automations/run.sh"\n\n'
               printf '%s\n\nautomation_run %s\n' "$code" "$name")"
     n="$name" d="${desc:-$name}" s="$script" yq -n '
-        .machine = "plugin" | .automation = strenv(n) | .project = "automation" | .needs = ["develop"] |
-        .chart = {"description": strenv(d),
+        .name = strenv(n) | .needs = ["develop"] |
+        .machine = {"description": strenv(d),
                   "data": {"note_path": {"type": "string", "default": ""}, "path": {"type": "string", "default": ""}, "change": {"type": "string", "default": ""}},
                   "initial": "run",
                   "states": {"run": {"invoke": strenv(n), "transitions": {"done": "done"}, "emits": ["notify"]},
                              "done": {"final": true}, "failed": {"final": true}}} |
-        .scripts[strenv(n)] = strenv(s)' > "${plugin}.yml"
+        .scripts[strenv(n) + ".sh"] = strenv(s) | .["x-exist-project"] = "automation"' > "${plugin}.yml"
     case "$kind" in
-        note) w="$(jq -r .when <<<"$trigger")" yq -i '.when = strenv(w)' "${plugin}.yml" ;;
-        file) h="$(jq -c '[{match: .match, changes: (.changes // ["created"]), quiet: (.quiet // 30)}]' <<<"$trigger")" yq -i '.handlers = (strenv(h) | from_json)' "${plugin}.yml" ;;
+        note) w="$(jq -r .when <<<"$trigger")" yq -i '.["x-exist-when"] = strenv(w)' "${plugin}.yml" ;;
+        file) h="$(jq -c '[{match: .match, changes: (.changes // ["created"]), quiet: (.quiet // 30)}]' <<<"$trigger")" yq -i '.["x-exist-handlers"] = (strenv(h) | from_json)' "${plugin}.yml" ;;
         cron) n="$name" c="$(printf -- '---\ncron: "%s"\nmachine: %s\n---\n\nBuilt by develop from notes/automations/%s.md.' "$(jq -r .cron <<<"$trigger")" "$name" "$name")" \
-                  yq -i '.cron[strenv(n)] = strenv(c)' "${plugin}.yml" ;;
+                  yq -i '.cron[strenv(n) + ".md"] = strenv(c)' "${plugin}.yml" ;;
     esac
     { printf -- '---\n'; cat "${plugin}.yml"; printf -- '---\n# %s\n\n%s\n\nBuilt by develop from notes/automations/%s.md%s. To change it, edit that file: develop offers it again.\n' \
         "$name" "${desc:-$name}" "$name" "${from:+ (asked for in ${from})}"; } > "$plugin"
 
     # ── decree check, in a scratch copy of this project with the plugin installed ──
-    work="${DECREE_RUN_DIR}/build"; rm -rf "$work"; mkdir -p "${work}/.decree"
-    cp -r .decree/machines .decree/scripts "${work}/.decree/"
-    if ! ( cd "$work" && unset DECREE_PROJECT_ROOT && plugin_install "$name" "$plugin" "ai/proposed/${name}.md" ) 2> "${DECREE_RUN_DIR}/install.err"; then
+    if ! plugin_try "$plugin" 2> "${DECREE_RUN_DIR}/install.err"; then
         fails=("$(paste -sd ';' "${DECREE_RUN_DIR}/install.err" | cut -c1-600)")
         fail_gate
     fi
@@ -184,7 +179,7 @@ scripts:
     { printf '%s is built and waits for you. It would start %s, and write its results to ai/automations/%s/.\n\n' "$name" "$starts" "$name"
       plugin_offered "$name"; } |
         decree emit --machine notify --param ntfy_title="Automation ready to review" --param ntfy_tags=robot >/dev/null
-lib:
+x-exist-lib:
   automations/run.sh: |
     #!/usr/bin/env bash
     # automations/run.sh — the frame every accepted automation runs in.
@@ -207,11 +202,11 @@ lib:
     # and sends its first lines to ntfy.
     set -euo pipefail
     # shellcheck source=../model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
     # shellcheck source=../firecrawl.sh
-    source "${DECREE_LIB}/firecrawl.sh"
+    source ".decree/lib/firecrawl.sh"
     # shellcheck source=../agent.sh
-    source "${DECREE_LIB}/agent.sh"
+    source ".decree/lib/agent.sh"
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     # note_watch passes note_path; a file handler passes path; a cron run neither.

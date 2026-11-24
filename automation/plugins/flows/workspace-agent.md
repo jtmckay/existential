@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: workspace-agent
-project: automation
-name: Workspace agent
-tagline: A file you save that matches your criteria is handed to an agent, and its answer lands in ai/
-docs: /docs/decree/file-change-processing
-services:
+name: workspace-agent
+x-exist-project: automation
+x-exist-title: Workspace agent
+x-exist-tagline: A file you save that matches your criteria is handed to an agent, and its answer lands in ai/
+x-exist-docs: /docs/decree/file-change-processing
+x-exist-services:
   - EXIST_IS_AI_QMD
   - EXIST_IS_AI_FIRECRAWL
 needs:

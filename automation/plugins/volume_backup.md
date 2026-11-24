@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: volume_backup
-project: backup
-chart:
+name: volume_backup
+x-exist-project: backup
+machine:
   description: Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.
   data:
     TIER: {type: string, enum: [nightly, weekly], default: nightly}
@@ -16,13 +15,13 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  volume_backup: |
+  volume_backup.sh: |
     #!/usr/bin/env bash
     # volume_backup — tar every Docker volume listed in $VOLUMES, rclone the tar
     # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
     # older than the tier's retention window.
     #
-    # Triggered by cron files in services/automation-backup/cron/, whose params
+    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/, whose params
     # (TIER, VOLUMES) are this machine's data. To add or remove
     # a volume, edit the cron file's `VOLUMES:` block — nothing else: automation-backup
     # mounts the whole volumes/ dir, so every volume is already reachable.

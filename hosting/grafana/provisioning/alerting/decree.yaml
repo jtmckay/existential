@@ -6,7 +6,7 @@
 # - a backup machine that ran in the last 8 days but has not ended done in 48h:
 #   every backup runs nightly, so that is a stopped backup.
 #
-# decree 0.5 has no hooks: a run's record is its events.jsonl, which each host's
+# decree 0.6 has no hooks: a run's record is its events.jsonl, which each host's
 # alloy ships to Loki as {job="decree", host, project, machine, type}
 # (automation/plugins/reporting.md). These alerts query that.
 # ntfy has no Grafana integration, so the contact point is a plain webhook and

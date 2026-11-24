@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: note_connect
-project: automation
+name: note_connect
+x-exist-project: automation
 needs:
   - pi
-chart:
+machine:
   description: For each new or changed note, ask pi in a department that can search your notes (qmd) for one non-obvious connection to what you already know.
   data:
     CONNECT_DEPARTMENT: {type: string, default: research}
@@ -24,7 +23,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  note_connect: |
+  note_connect.sh: |
     #!/usr/bin/env bash
     # note_connect — watch your knowledge base for connections to what you already know.
     #
@@ -70,7 +69,7 @@ scripts:
     set -euo pipefail
 
     # shellcheck source=../../lib/pi.sh
-    source "${DECREE_LIB}/pi.sh"
+    source ".decree/lib/pi.sh"
 
     NOTES_DIR="${NOTES_DIR:-/workspace}"
     STATE_DIR="${STATE_DIR:-/data/note-connect}"
@@ -281,4 +280,4 @@ For each new or changed note, ask pi in a department that can search your notes 
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/pi.sh
+- .decree/lib/pi.sh

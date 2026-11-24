@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: agent_handoff
-project: automation
+name: agent_handoff
+x-exist-project: automation
 needs:
   - agent_task
-lib:
+x-exist-lib:
   file-processors/agent-handoff.sh: |
     #!/usr/bin/env bash
     # shellcheck disable=SC2034  # PATTERN/CRITERIA/IS_PRE_SIGNED are read out of this

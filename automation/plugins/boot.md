@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: boot
-project: host
-chart:
+name: boot
+x-exist-project: host
+machine:
   description: Run .decree/boot.sh, once each time the host daemon starts.
   initial: run
   states:
@@ -15,10 +14,10 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  boot: |
+  boot.sh: |
     #!/usr/bin/env bash
     # boot — run .decree/boot.sh, yours, once each time the host daemon starts: its
-    # unit emits this before `decree daemon` (site/docs/hosting/host-daemon.md).
+    # cron file is `@reboot`, which decree fires when `decree daemon` starts.
     # tmx is exported to it, so a line like
     #   tmx -d comfyui 'cd ~/ComfyUI && exec .venv/bin/python main.py'
     # starts a process in its own tmux session unless that session already runs.
@@ -31,6 +30,13 @@ scripts:
     . "${repo}/services/automation/decree/tmx.sh"
     export -f tmx
     bash "${repo}/.decree/boot.sh"
+cron:
+  boot.md: |
+    ---
+    cron: "@reboot"
+    machine: boot
+    ---
+    Run .decree/boot.sh, once, as the host daemon starts.
 ---
 # boot
 

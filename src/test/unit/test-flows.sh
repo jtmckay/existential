@@ -43,8 +43,9 @@ grep -E '^EXIST_IS_' "${REPO_DIR}/.env.exist.shared" > "${R}/.env.shared"
 echo "EXIST_GPU_VENDOR=nvidia" >> "${R}/.env.shared"
 D="${R}/volumes/workspace_data/.decree"
 mkdir -p "$D"; cp "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${D}/decree-go-rest.yml"
-# decree check is the gate's (test decree); here it always passes.
-mkdir -p "${TMP}/bin"; printf '#!/bin/sh\nexit 0\n' > "${TMP}/bin/decree"; chmod +x "${TMP}/bin/decree"
+# The real decree, which installs what the sync writes (the adhoc image has it).
+command -v decree >/dev/null || { echo "flows: needs decree (run it through ./existential.sh test unit)"; exit 1; }
+mkdir -p "${TMP}/bin"
 
 flow() { REPO_DIR="$R" bash "${R}/src/flows.sh" "$@" 2>&1 </dev/null; }
 sync() { PATH="${TMP}/bin:${PATH}" REPO_DIR="$R" bash "${R}/src/lib/plugin.sh" sync automation >/dev/null 2>&1; }
@@ -58,8 +59,8 @@ assert_has "it is in plugins.yml, with the flows every install starts with" "$(o
 assert_has "it says what is left for you" "$out" "feeds.txt"
 assert_has "...and where to read more" "$out" "existential.company/docs/flows/newsletter"
 sync
-assert_eq "the sync installs its machine" "yes" "$(is_file "${D}/machines/newsletter.yml")"
-assert_eq "...and its cron" "yes" "$(is_file "${D}/cron/newsletter.md")"
+assert_eq "the sync installs its machine" "yes" "$(is_file "${D}/machines/newsletter/machine.yml")"
+assert_eq "...and its cron" "yes" "$(is_file "${D}/machines/flow_weekly_newsletter/cron/newsletter.md")"
 assert_eq "...and what that needs (model, rss)" "yes" "$( [[ -f "${D}/lib/model.sh" && -f "${D}/lib/rss.ts" ]] && echo yes || echo no)"
 assert_eq "...and what is yours in its store, once" "yes" "$(is_file "${D}/store/newsletter/feeds.txt")"
 out="$(flow on transcription)"
@@ -70,8 +71,8 @@ assert_eq "each service is asked for: yes turns that one on" "true" "$(env_of EX
 assert_eq "...and no leaves the next one off" "false" "$(env_of EXIST_IS_AI_WHISPERX)"
 assert_has "it asks by name" "$out" "uses whisperx, which is off"
 assert_has "it says which flow came with it" "$out" "needs nextcloud-capture"
-assert_eq "the needed flow's migrations are queued" "yes" "$(is_file "${D}/migrations/27-nextcloud-file-events.md")"
-assert_eq "...after the machine they run" "yes" "$(is_file "${D}/machines/nextcloud_file_events.yml")"
+assert_eq "the needed flow's order files are in" "yes" "$(is_file "${D}/machines/flow_nextcloud_capture/order/27-nextcloud-file-events.md")"
+assert_eq "...after the machine they run" "yes" "$(is_file "${D}/machines/nextcloud_file_events/machine.yml")"
 assert_eq "its file processor, the transcribe plugin, is installed" "yes" "$(is_file "${D}/lib/file-processors/whisperx-transcribe.sh")"
 sed -i 's/^EXIST_GPU_VENDOR=.*/EXIST_GPU_VENDOR=external/' "${R}/.env.shared"
 out="$(flow on local-models)"
@@ -82,10 +83,10 @@ assert_eq "a library is not a flow you turn on" "1" "$(flow on model >/dev/null;
 flow on auto-update >/dev/null
 assert_has "a host flow goes in the same list" "$(on_list)" "auto-update"
 sync
-assert_eq "...and its project: tag keeps it out of the workspace" "no" "$(is_file "${D}/machines/update.yml")"
+assert_eq "...and its x-exist-project keeps it out of the workspace" "no" "$(is_file "${D}/machines/update/machine.yml")"
 PATH="${TMP}/bin:${PATH}" REPO_DIR="$R" bash "${R}/src/lib/plugin.sh" sync host >/dev/null 2>&1
-assert_eq "...and in the host's project, the repo's own .decree" "yes" "$(is_file "${R}/.decree/machines/update.yml")"
-assert_eq "...which gets nothing tagged for the workspace" "no" "$(is_file "${R}/.decree/machines/notify.yml")"
+assert_eq "...and in the host's project, the repo's own .decree" "yes" "$(is_file "${R}/.decree/machines/update/machine.yml")"
+assert_eq "...which gets nothing tagged for the workspace" "no" "$(is_file "${R}/.decree/machines/notify/machine.yml")"
 assert_has "...and the list shows it on" "$(flow list | grep ' auto-update ')" "✓"
 flow off auto-update >/dev/null
 assert_lacks "...and off takes it out" "$(on_list)" "auto-update"
@@ -103,13 +104,13 @@ out="$(flow off weekly-newsletter)"
 assert_lacks "off takes it out of plugins.yml" "$(on_list)" "weekly-newsletter"
 assert_has "...and says its services stay" "$out" "stay on"
 sync
-assert_eq "the sync removes its machine and cron" "no" "$( [[ -e "${D}/machines/newsletter.yml" || -e "${D}/cron/newsletter.md" ]] && echo yes || echo no)"
+assert_eq "the sync removes its machine and cron" "no" "$( [[ -e "${D}/machines/newsletter/machine.yml" || -e "${D}/machines/flow_weekly_newsletter/cron/newsletter.md" ]] && echo yes || echo no)"
 assert_eq "...but not what is yours" "yes" "$(is_file "${D}/store/newsletter/feeds.txt")"
 flow off health-checks >/dev/null; sync
-assert_eq "a flow every install starts with goes off the same way" "no" "$(is_file "${D}/cron/health-checks.md")"
-assert_eq "...and stays off" "no" "$(sync; is_file "${D}/cron/health-checks.md")"
+assert_eq "a flow every install starts with goes off the same way" "no" "$(is_file "${D}/machines/flow_health_checks/cron/health-checks.md")"
+assert_eq "...and stays off" "no" "$(sync; is_file "${D}/machines/flow_health_checks/cron/health-checks.md")"
 flow on look-back >/dev/null; flow on you-were-here >/dev/null; flow off you-were-here >/dev/null; sync
-assert_eq "one another flow that is on needs stays (look-back needs you-were-here)" "yes" "$(is_file "${D}/cron/you-were-here.md")"
+assert_eq "one another flow that is on needs stays (look-back needs you-were-here)" "yes" "$(is_file "${D}/machines/flow_you_were_here/cron/you-were-here.md")"
 
 echo ""; echo "=== seed ==="
 # An install from before plugins.yml: an old flow's cron in place, a default flow it turned off.

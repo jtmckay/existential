@@ -11,14 +11,14 @@ params:
 
 Run every enabled service's own `exist.test.sh` and fail if any of them is broken.
 
-**This is why checks are messages and not migrations.** As a migration it ran
+**This is why checks are messages and not order files.** As one it ran
 during decree's boot, which is before anything slow has finished starting — it
 failed open-webui, appsmith, lowcoder, nocodb and nextcloud on four runs whose
-containers the health gate then found perfectly healthy. Migrations are setup;
+containers the health gate then found perfectly healthy. Order files are setup;
 this is verification, and verification runs once the stack is up. e2e drops it
 after the container-health gate for exactly that reason.
 
-Without this, a unit with no migrations and no object store verifies *nothing*: Core
+Without this, a unit with no order files and no object store verifies *nothing*: Core
 and a flow made only of services write no files, so without this check they bring
 their containers up and report `0 of 0 checks` —
 a fair verdict on a run that demonstrated nothing, and a useless one to ship.

@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: firecrawl
-project: automation
-lib:
+name: firecrawl
+x-exist-project: automation
+x-exist-lib:
   firecrawl.sh: |
     #!/usr/bin/env bash
     # firecrawl.sh — the web, read through the stack's own Firecrawl.
@@ -51,4 +50,4 @@ lib:
 ---
 # firecrawl
 
-web_search and web_read through Firecrawl, as Markdown a model can read (${DECREE_LIB}/firecrawl.sh).
+web_search and web_read through Firecrawl, as Markdown a model can read (.decree/lib/firecrawl.sh).

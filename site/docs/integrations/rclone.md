@@ -33,7 +33,7 @@ are dumped (`pg_dump`, `mysqldump`, `mongodump`), volumes tarred and SQLite copi
    That writes `EXIST_BACKUP_RCLONE_REMOTE`; nothing is backed up until it is set.
 2. Turn on a backup flow per thing you want kept: `./existential.sh flow on backup-workspace`
    first, then `backup-<service>` for each service you enabled (`./existential.sh flow list`
-   has them all). Each installs a nightly and a weekly cron in `services/automation-backup/cron/`.
+   has them all). Each installs a nightly and a weekly cron in `services/automation-backup/machines/flow_backup_<service>/cron/`.
 3. Prove it before you need it: copy the active crons into
    `services/automation-backup/inbox/` to run them once now, check
    `docker exec automation-backup decree status`, and look for the files on the remote.

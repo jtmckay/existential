@@ -1,17 +1,16 @@
 ---
-machine: plugin
-automation: newsletter
-project: automation
+name: newsletter
+x-exist-project: automation
 needs:
   - model
   - rss
-chart:
+machine:
   description: Gather new items from my feeds, pick and summarise the ones that fit my taste, and write the issue to workspace/newsletter/.
   data:
     # The most new items gather hands to the model, newest first.
     NEWSLETTER_MAX_ITEMS: {type: int, default: 60}
     NEWSLETTER_DIR: {type: string, default: /workspace/newsletter}
-  store:
+  state_files:
     seen.tsv: Links already sent, so an item is never in two issues. gather reads it; deliver appends.
     feeds.txt: Yours. One RSS or Atom URL per line; gather reads it every run.
     taste.md: Yours. What you want in an issue; write reads it every run.
@@ -30,11 +29,11 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  deliver: |
+  deliver.sh: |
     #!/usr/bin/env bash
     # newsletter's deliver: copy the run's issue.md to NEWSLETTER_DIR/<YYYY-MM-DD>.md (-2,
     # -3 when that day already has an issue), record every gathered link in
-    # $DECREE_STORE/seen.tsv with the date, and send the issue's first lines as a
+    # $DECREE_STATE_DIR/seen.tsv with the date, and send the issue's first lines as a
     # notification when anything was new. Safe to re-run: an identical issue is not copied twice, and a link
     # already in seen.tsv is not added again.
     #
@@ -56,7 +55,7 @@ scripts:
     cp "${issue}" "${target}"
     echo "deliver: ${target}"
 
-    seen="${DECREE_STORE}/seen.tsv"
+    seen="${DECREE_STATE_DIR}/seen.tsv"
     touch "${seen}"
     added=0
     if [ -s "${items}" ]; then
@@ -74,11 +73,11 @@ scripts:
       --param ntfy_title="Newsletter, ${today}" --param ntfy_tags=newspaper >/dev/null
   gather.ts: |
     #!/usr/bin/env tsx
-    // newsletter's gather: the new items of every feed in $DECREE_STORE/feeds.txt.
+    // newsletter's gather: the new items of every feed in $DECREE_STATE_DIR/feeds.txt.
     //
     // Writes $DECREE_RUN_DIR/items.jsonl, one JSON object per line (title, link, source,
     // published, summary), newest first, at most NEWSLETTER_MAX_ITEMS. An item is new when
-    // its link is not in $DECREE_STORE/seen.tsv. It does not mark items seen: deliver does,
+    // its link is not in $DECREE_STATE_DIR/seen.tsv. It does not mark items seen: deliver does,
     // so a failed run gathers them again next time. A feed that fails is logged and
     // skipped; every feed failing is an error.
     import * as fs from "node:fs";
@@ -89,14 +88,14 @@ scripts:
       const runDir = process.env.DECREE_RUN_DIR!;
       const maxItems = Number(process.env.DECREE_DATA_NEWSLETTER_MAX_ITEMS ?? "60");
 
-      const urls = fs.readFileSync(path.join(process.env.DECREE_STORE!, "feeds.txt"), "utf8")
+      const urls = fs.readFileSync(path.join(process.env.DECREE_STATE_DIR!, "feeds.txt"), "utf8")
         .split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
       if (urls.length === 0) {
         console.error("gather: feeds.txt lists no feeds");
         return 1;
       }
 
-      const seenFile = path.join(process.env.DECREE_STORE!, "seen.tsv");
+      const seenFile = path.join(process.env.DECREE_STATE_DIR!, "seen.tsv");
       const seen = new Set(fs.existsSync(seenFile)
         ? fs.readFileSync(seenFile, "utf8").split("\n").map((l) => l.split("\t")[0].trim()).filter(Boolean)
         : []);
@@ -139,18 +138,18 @@ scripts:
     }
 
     main().then((code) => process.exit(code));
-  write: |
+  write.sh: |
     #!/usr/bin/env bash
     # newsletter's write: the chat model (EXIST_MODEL_CHAT, on its own endpoint) reads
-    # $DECREE_STORE/taste.md and the run's items.jsonl, and picks and summarises
+    # $DECREE_STATE_DIR/taste.md and the run's items.jsonl, and picks and summarises
     # the items worth reading. Writes $DECREE_RUN_DIR/issue.md: a title with the date,
     # then the model's picks as markdown links. With no new items it says so, without
     # calling the model.
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
     items="${DECREE_RUN_DIR}/items.jsonl"
-    taste="${DECREE_STORE}/taste.md"
+    taste="${DECREE_STATE_DIR}/taste.md"
     issue="${DECREE_RUN_DIR}/issue.md"
     today="$(date +%F)"
     : "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
@@ -178,7 +177,7 @@ scripts:
     printf '# Newsletter, %s\n\n%s\n' "${today}" "${picks}" > "${issue}.tmp"
     mv "${issue}.tmp" "${issue}"
     echo "write: wrote issue.md"
-store:
+state:
   feeds.txt: |
     # One RSS or Atom feed URL per line. Lines starting with # are comments.
     # The newsletter machine reads this every run — edit it, no restart needed.
@@ -210,4 +209,4 @@ Gather new items from my feeds, pick and summarise the ones that fit my taste, a
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/model.sh
+- .decree/lib/model.sh

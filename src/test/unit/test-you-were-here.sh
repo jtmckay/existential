@@ -43,7 +43,7 @@ section() { awk -v h="## $2" '$0 == h {f=1; next} f && /^## /{exit} f' "$1"; }
 
 TMP="$(mktemp -d)"
 # The plugin under test, unpacked as the stack installs it (lib/automations/plugin.sh).
-( source "${REPO_DIR}/automation/lib/automations/registry.sh"; source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack you_were_here "${TMP}/unpacked" ) >/dev/null
+( source "${REPO_DIR}/automation/lib/automations/plugin.sh"; plugin_unpack you_were_here "${TMP}/unpacked" ) >/dev/null
 STUB_PID=""
 trap '[ -n "$STUB_PID" ] && kill "$STUB_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
@@ -98,7 +98,7 @@ pushes() { find "${TMP}/pushes" -name '*.args' | wc -l | tr -d ' '; }
 
 # ── The workspace ─────────────────────────────────────────────────────────────
 W="${TMP}/workspace"
-mkdir -p "$W"/.decree/{attention,runs/20260930T100000.000000Z-aaaaaa,cron,machines} "$W"/notes "$W"/.capture
+mkdir -p "$W"/.decree/{attention,runs/20260930T100000.000000Z-aaaaaa,machines/newsletter/cron} "$W"/notes "$W"/.capture
 cat > "$W/.decree/attention/20260930T110000.000000Z-bbbbbb.md" <<'EOF'
 ---
 kind: run
@@ -116,7 +116,9 @@ cat > "$W/.decree/runs/20260930T100000.000000Z-aaaaaa/events.jsonl" <<'EOF'
 {"type":"transition","machine":"newsletter","trigger":"cron","run_id":"20260930T100000.000000Z-aaaaaa","from":null,"to":"gather","ts":"2026-09-30T10:00:00.000Z"}
 {"type":"run_finished","machine":"newsletter","trigger":"cron","run_id":"20260930T100000.000000Z-aaaaaa","state":"done","ts":"2026-09-30T10:01:00.000Z"}
 EOF
-printf -- '---\ncron: "0 7 * * MON"\nmachine: newsletter\n---\n' > "$W/.decree/cron/newsletter.md"
+printf -- '---\ncron: "0 7 * * MON"\n---\n' > "$W/.decree/machines/newsletter/cron/newsletter.md"
+# A cron file is in its machine's folder (decree 0.6), and the lib is the install's.
+ln -s "${TMP}/unpacked/.decree/lib" "$W/.decree/lib"
 printf '# Garden plan\n\n- [ ] order the raised beds\n- [ ] compost delivery\n' > "$W/notes/garden.md"
 printf '%s\n' '{"ts":"2026-09-30T20:00:00Z","source":"claude-code","context":"/workspace/garden","text":"sketch the irrigation for the raised beds"}' \
     '{"ts":"2026-09-30T20:01:00Z","source":"claude-code","context":"/workspace/shed","session":"s1","text":"list the shelving parts"}' \
@@ -131,11 +133,11 @@ run_digest() {
     local run="${TMP}/rundirs/$1"
     mkdir -p "$run"
     ( cd "$W" && PATH="${TMP}/bin:$(dirname "$TSX"):${PATH}" TZ=UTC PUSHES="${TMP}/pushes" \
-        DECREE_LIB="${TMP}/unpacked/.decree/lib" DECREE_STORE="${TMP}/store" DECREE_RUN_DIR="$run" \
+        DECREE_STATE_DIR="${TMP}/store" DECREE_RUN_DIR="$run" \
         DECREE_DATA_WORKSPACE="$W" DECREE_DATA_NTFY_TOPIC=exist DECREE_DATA_NOTE_LINK="" EXIST_TAILNET_NAME="${TAILNET_UNDER_TEST:-}" \
         EXIST_MODEL_URL="${MODEL_URL_UNDER_TEST}" EXIST_MODEL_CHAT=test-model DIGEST_NOW="$1" \
         WIKIPEDIA_URL="http://127.0.0.1:${PORT}" \
-        bash "${TMP}/unpacked/.decree/scripts/you_were_here/you_were_here.sh" ) > "${run}.log" 2>&1
+        bash "${TMP}/unpacked/.decree/machines/you_were_here/scripts/you_were_here.sh" ) > "${run}.log" 2>&1
     echo $?
 }
 NOTE="$W/ai/you-were-here.md"
@@ -229,7 +231,7 @@ assert_eq "the archive is per day" "3" "$(find "$W/ai/you-were-here" -name '*.md
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 assert_eq "the cron template runs this machine" "you_were_here" \
-    "$(yq --front-matter=extract -r '.cron["you-were-here"]' "${REPO_DIR}/automation/plugins/flows/you-were-here.md" | awk '/^machine:/{print $2; exit}')"
+    "$(yq --front-matter=extract -r '.cron["you-were-here.md"]' "${REPO_DIR}/automation/plugins/flows/you-were-here.md" | awk '/^machine:/{print $2; exit}')"
 assert_eq "POST /you-were-here, which the plugin brings, queues this machine" "you_were_here" \
     "$(yq -r '.endpoints[] | select(.path == "/you-were-here") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
 assert_lacks "no second feed parser" "$(cat "${TMP}/unpacked/.decree/lib/you-were-here/digest.ts")" "<item"

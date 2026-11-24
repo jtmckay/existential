@@ -1,16 +1,15 @@
 ---
-machine: plugin
-automation: service-triage
-project: backup
-name: Triage
-tagline: Every enabled service's own check, run for you, and your phone told when one breaks or recovers
-docs: /docs/decree/automation-backup
-services:
+name: service-triage
+x-exist-project: backup
+x-exist-title: Triage
+x-exist-tagline: Every enabled service's own check, run for you, and your phone told when one breaks or recovers
+x-exist-docs: /docs/decree/automation-backup
+x-exist-services:
   - EXIST_IS_SERVICES_AUTOMATION_BACKUP
 needs:
   - triage
 cron:
-  triage: |
+  triage.md: |
     ---
     cron: "*/5 * * * *"
     machine: triage

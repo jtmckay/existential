@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: rss
-project: automation
-lib:
+name: rss
+x-exist-project: automation
+x-exist-lib:
   rss.ts: |
     // Fetch and parse an RSS or Atom feed into a flat list of items.
     // Works as a reusable library function OR as a standalone entry point when called
@@ -89,4 +88,4 @@ lib:
 ---
 # rss
 
-A small RSS and Atom reader for TypeScript scripts (${DECREE_LIB}/rss.ts).
+A small RSS and Atom reader for TypeScript scripts (.decree/lib/rss.ts).

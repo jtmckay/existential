@@ -1,6 +1,6 @@
 # Machines
 
-A machine is a statechart in `.decree/machines/<name>.yml`: a W3C SCXML document written in
+A machine is a statechart in `.decree/machines/<name>/machine.yml`: a W3C SCXML document written in
 YAML. Keys are SCXML's names (`initial`, `states`, `transitions`, `onentry`, `onexit`, `invoke`,
 `data`, `final`); decree implements a strict subset of SCXML, plus a few marked extensions. If
 you know SCXML, you know how a machine behaves.
@@ -8,11 +8,11 @@ you know SCXML, you know how a machine behaves.
 The first line links the machine to its graph:
 
 ```yaml
-# Graph: ../graph/<name>.md
+# Graph: graph.md
 ```
 
-**Before writing a machine, run `decree schema` and read `.decree/schema/v1/machine.schema.json`**
-(generated, ignored by git): the precise contract for every key below, with a description and
+**Before writing a machine, read `.decree/schema/v1/machine.schema.json`**
+(written by `decree install`, ignored by git): the precise contract for every key below, with a description and
 examples for each. Write against it, then run `decree check`, which also checks what a schema
 cannot: that names resolve, targets exist and every state is reachable. Editors apply the same
 schema by path; machines carry no schema line.
@@ -24,7 +24,9 @@ schema by path; machines carry no schema line.
 | Root | `name` | Equals the file stem; `^[a-z][a-z0-9_]*$`. |
 | Root | `description` | Required. Shown in prompts, `decree status` and graphs. |
 | Root | `data` | `name: { type: string\|int\|number\|bool, default: ..., enum?: [...] }`. `number` is an int or a float; `enum` (string only) lists the allowed values, which the default and `params` must be one of (V14). Read-only; a message's `params` override defaults. Scripts see `DECREE_DATA_<NAME>`. |
-| Root | `store` | `name: description`: what the machine keeps between runs in `.decree/store/<machine>/` (`$DECREE_STORE`). A name is a file or folder directly in that folder, `^[A-Za-z0-9][A-Za-z0-9._-]*$`; a description says what it is and which states read or write it (V14). `decree check` warns about undeclared files there. |
+| Root | `state_files` | `name: description`: what the machine keeps between runs in `.decree/machines/<machine>/state/` (`$DECREE_STATE_DIR`). A name is a file or folder directly in that folder, `^[A-Za-z0-9][A-Za-z0-9._-]*$`; a description says what it is and which states read or write it (V14). `decree check` warns about undeclared files there. |
+| Root | `concurrency` | How many runs of this machine may execute at once, across processes (default 1). Machines run beside each other; a waiting run holds no slot (V14). |
+| Root | `concurrency_group` | Machines naming one group share its slots, such as those editing one work tree (`worktree`: `decree_develop`, `decree_qa`, `decree_infra`); each gives the same `concurrency` (V14); no chain of invokes may lead from a group back to it (V20). |
 | Root | `env_file` | `.env.<name>`: a gitignored dotenv file in `.decree/` whose variables this machine's scripts get, over `.decree/.env` and the process environment; no other machine's scripts see them (V14). |
 | Root | `onentry`, `onexit` | Scripts run once when the run starts, and once after a root final state is entered. |
 | Root | `initial`, `states` | Required. `initial` is a direct child. |
@@ -53,10 +55,10 @@ name is short for `{ name: <name> }`, and `invoke: implement` is short for
 | `script: { name: <script>, attempts?: <n> \| [<value>, …], timeout?: <duration> }` | The script (see `scripts.md`), re-run in place while it fails, once per attempt (default 1), each stopped after `timeout`. A list gives each attempt its value in `$DECREE_ATTEMPT_VALUE`. | `done` (exit 0), `error` (non-zero), or the event it writes to `$DECREE_EVENT_FILE`. |
 | `check: <condition>` | decree evaluates the condition. No AI. | `true` or `false`. |
 | `model: { question: ..., router?: <machine>, min_confidence?: 0.8, output?: <state> }` | A router machine asks a model to pick one of the state's transitions. | An option; `unsure` below `min_confidence`; `error` if the router fails. |
-| `person: { question: ..., ask: <script>, timeout?: <duration> }` | The `ask` script tells someone; the run pauses for a reply. | An option; `error` on timeout. |
+| `reply: { question: ..., notify: <script>, timeout?: <duration> \| timeout_at?: <file>[#<pointer>], attention?: false }` | The `notify` script tells someone (a person, a UI, a program); the run pauses for a reply. `timeout_at` ends the wait at an instant a script wrote in the run's folder (`lease.deadline`, or `job.json#/due`). | An option; `error` on timeout. |
 | `machine: { name: <machine>, params?: {...} }` | The machine runs as a child run. | The child's root final state (`failed` becomes `error`). |
 
-A duration (`timeout`, and `decree prune --older-than` and `decree daemon --interval`) is a whole
+A duration (`timeout`, `decree daemon --interval` and the `decree_prune` plugin's `PRUNE_OLDER_THAN`) is a whole
 number followed by one unit, `s`, `m`, `h` or `d`: `90s`, `10m`, `12h`, `7d`. No fractions, no
 combinations (`1h30m`) and no bare numbers.
 
@@ -72,9 +74,9 @@ in block style:
 
 ### Choices
 
-For `model` and `person`, `question` is what is being decided, and the **options are the state's
+For `model` and `reply`, `question` is what is being decided, and the **options are the state's
 transitions** except `unsure` and `error`. Every option needs a `description`: the question and
-the descriptions are exactly what the model or person sees, so write them to stand alone. Write
+the descriptions are exactly what the model, or whoever replies, sees, so write them to stand alone. Write
 prose (`question`, `description`) in block style, one key per line. Prose containing `: ` breaks
 a plain YAML value: quote it (`description: "Step one: build"`) or use `description: >-` with the
 text indented below.
@@ -87,15 +89,14 @@ sees by what it prints, which is also how to keep secrets out of a prompt.
 
 A `model` state never calls a model itself. decree writes `request.json` (question,
 options, the `output` state's output as `input`, message body, the run's history, and
-`reply_schema`, a JSON Schema for the reply; `.decree/schema/v1/request.schema.json` after
-`decree schema`) and runs a
-**router**: an ordinary machine (`router:` on the invoke, else the machine named `router`, which
-`decree init` writes).
+`reply_schema`, a JSON Schema for the reply; `.decree/schema/v1/request.schema.json`) and runs a
+**router**: an ordinary machine (`router:` on the invoke, else the machine named `decree_router`, which
+the official `decree_router` plugin provides).
 Its script reads `$DECREE_REQUEST`, asks a model, and writes
 `{"event": "...", "reason": "...", "confidence": 0.86}` to `$DECREE_REPLY`
 (`.decree/schema/v1/reply.schema.json`). decree checks the
 event is an option and applies `min_confidence`. To use another model, write another router
-machine and point `router:` at it, or replace `machines/router.yml`; recalibrate `min_confidence` when you do.
+machine and point `router:` at it, or replace `machines/decree_router/machine.yml`; recalibrate `min_confidence` when you do.
 
 Routers are **typed** or **untyped**. A typed router cannot answer outside the options: a
 classifier such as GLiNER2.5-Decide picks one of the labels it is given, and a constrained
@@ -192,7 +193,7 @@ the new shape for an old one (`choose`, `input`, a bare `matches`, the old retry
 ## Example: everything at once
 
 ```yaml
-# Graph: ../graph/feature.md
+# Graph: graph.md
 name: feature
 description: Implement one feature spec with an AI agent, verify it, and commit.
 data:
@@ -232,9 +233,9 @@ states:
           unsure: review
       review:                      # a person picks one option; the run pauses for the reply
         invoke:
-          person:
+          reply:
             question: Tests still fail. What next?
-            ask: ask_person
+            notify: notify_person
             timeout: 2d
         transitions:
           approve: { target: verified, description: Good enough; commit it. }
@@ -245,14 +246,14 @@ states:
     invoke: spawn
     transitions: { done: done }
     emits: [feature]               # extension: machines its scripts may emit messages for
-  done:   { final: true, onentry: [commit] }   # migrations: processed.md is written first, so the commit includes it
+  done:   { final: true, onentry: [commit] }   # an order file's run: commit records it in order.git.txt first
   failed: { final: true }
 ```
 
 ## Example: composing machines
 
 ```yaml
-# Graph: ../graph/ship.md
+# Graph: graph.md
 name: ship
 description: Implement a feature, then deploy it.
 initial: build
@@ -271,14 +272,14 @@ states:
 
 Decide the cheapest way first and pass on only what is undecided: `false` from a `check`, `unsure`
 from a `model` below its `min_confidence`, then a `confidence` check to decide whether a
-person's time is worth it, then `person`. Each threshold is a number in the machine.
+person's time is worth it, then a `reply` from a person. Each threshold is a number in the machine.
 
 ## Validation
 
 `decree check` runs rules V1–V21 (names, targets, `failed` exists, reachability, every script
 name resolves, decision states cover their events, options have descriptions, `emits` and
-`router` name real machines, no invoke cycles, nothing outside the SCXML subset) and M1–M3 (every
-pending migration, inbox message and cron file parses and names a machine with valid `params`)
-and E1 (`.decree/.env` and each `env_file` are valid dotenv files without reserved keys). Errors look like `machines/feature.yml: work.verify: <message>`. It also warns when
-`.decree/graph/` is out of date, or `.decree/schema/` when it exists: run `decree graph` or
-`decree schema`.
+`router` name real machines, no invoke cycles, nothing outside the SCXML subset) and M2–M3 (every
+inbox message and cron file parses and names a machine with valid `params`)
+and E1 (`.decree/.env` and each `env_file` are valid dotenv files without reserved keys). Errors look like `machines/feature/machine.yml: work.verify: <message>`. It also warns when
+a machine's `graph.md` or `.decree/system.md` is out of date, or `.decree/schema/` when it exists: run `decree graph` or
+`decree install`.

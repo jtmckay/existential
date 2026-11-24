@@ -118,10 +118,10 @@ the box's `~/.bashrc`), so "is it running?" is `tmux has-session -t =tts` and a 
 `tmx tts` to watch it:
 
 ```bash
-# .decree/scripts/start_tts.sh
+# .decree/machines/start_tts/scripts/start_tts.sh
 tmx -d tts '<your Qwen3-TTS server command>'
 
-# .decree/scripts/end_tts.sh
+# .decree/machines/end_tts/scripts/end_tts.sh
 tmux kill-session -t =tts 2>/dev/null || true
 ```
 

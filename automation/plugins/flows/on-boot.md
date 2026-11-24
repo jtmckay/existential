@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: on-boot
-name: On boot
-tagline: Your .decree/boot.sh, run once when the host daemon starts, to start what you run on the host in tmux sessions
-docs: /docs/hosting/host-daemon#on-boot
-project: host
+name: on-boot
+x-exist-title: On boot
+x-exist-tagline: Your .decree/boot.sh, run once when the host daemon starts, to start what you run on the host in tmux sessions
+x-exist-docs: /docs/hosting/host-daemon#on-boot
+x-exist-project: host
 needs:
   - boot
 ---

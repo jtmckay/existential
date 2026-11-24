@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: homeassistant_voice
-project: automation
+name: homeassistant_voice
+x-exist-project: automation
 needs:
   - model
-chart:
+machine:
   description: Wire Wyoming speech-to-text and text-to-speech, and the chat model as the conversation agent, into Home Assistant's Assist pipeline.
   initial: wait_for_homeassistant
   states:
@@ -19,7 +18,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  homeassistant_voice: |
+  homeassistant_voice.sh: |
     #!/usr/bin/env bash
     # homeassistant-voice — wire up HA's voice pipeline headlessly: Wyoming
     # STT/TTS plus the stack's own chat model as the conversation agent.
@@ -60,7 +59,7 @@ scripts:
     HOMEASSISTANT_READY_TIMEOUT="${HOMEASSISTANT_READY_TIMEOUT:-180}"
     CLIENT_ID="${HOMEASSISTANT_URL%/}/"
     WS_URL="${HOMEASSISTANT_URL/http/ws}/api/websocket"
-    LIB_DIR="${DECREE_LIB}"
+    LIB_DIR=".decree/lib"
 
     : "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
     : "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
@@ -258,7 +257,7 @@ scripts:
     #
     # Without this the migration exits 1 with the Wyoming and conversation entries created
     # and no pipeline — a half-configured Home Assistant. It also dead-letters, and
-    # `decree process` stops at the first dead letter, so it takes every migration
+    # `decree daemon --once` stops at the first dead letter, so it takes every migration
     # numbered after it down as well.
     _ensure_voice_wiring() {
         local deadline=$(( SECONDS + HOMEASSISTANT_READY_TIMEOUT )) waited=0
@@ -325,7 +324,7 @@ scripts:
     _ws "$(jq -n --arg id "$PIPELINE_ID" '{type:"assist_pipeline/pipeline/set_preferred", pipeline_id:$id}')" >/dev/null
 
     echo "Created and activated the 'Local' Assist pipeline (stt=${STT_ENTITY}, tts=${TTS_ENTITY}, conversation=${CONV_ENTITY})."
-  wait_for_homeassistant: |
+  wait_for_homeassistant.sh: |
     #!/usr/bin/env bash
     # wait_for_homeassistant — the first state of every Home Assistant migration
     # machine.
@@ -358,7 +357,7 @@ scripts:
         fi
         sleep 5
     done
-lib:
+x-exist-lib:
   homeassistant-ws.ts: |
     // Run a single command against Home Assistant's websocket API and print the
     // result as JSON. Some HA APIs (assist_pipeline's pipeline create/update/

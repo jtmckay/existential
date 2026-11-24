@@ -1,8 +1,7 @@
 ---
-machine: plugin
-automation: model
-project: automation
-lib:
+name: model
+x-exist-project: automation
+x-exist-lib:
   model.sh: |
     #!/usr/bin/env bash
     # model.sh — how a decree script reaches a model.
@@ -12,7 +11,7 @@ lib:
     # /v1/chat/completions answers the same request. A script that wants an agent
     # with tools uses pi.sh (this model) or agent.sh (Claude).
     #
-    #   source "${DECREE_LIB}/model.sh"
+    #   source ".decree/lib/model.sh"
     #
     #   model_url <role>                         → base URL serving that role
     #   model_chat <system> <user> [max_tokens]  → assistant text on stdout
@@ -123,4 +122,4 @@ lib:
 ---
 # model
 
-One answer from a model role's OpenAI-compatible /v1 URL, for any script: model_chat, model_gate, model_url (${DECREE_LIB}/model.sh).
+One answer from a model role's OpenAI-compatible /v1 URL, for any script: model_chat, model_gate, model_url (.decree/lib/model.sh).

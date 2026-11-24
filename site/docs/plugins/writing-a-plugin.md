@@ -12,18 +12,19 @@ An automation is three things:
 
 A plugin is all three in one file, `automation/plugins/<name>.md`, so it can be committed, turned
 on and kept current like every automation the stack ships. The engine is
-[decree](https://github.com/jtmckay/decree) 0.5. This page is how this stack uses it. Worked
+[decree](https://github.com/jtmckay/decree) 0.6, and a plugin is
+[decree's plugin file](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md), with
+this stack's own keys named `x-exist-…`. This page is how this stack uses it. Worked
 example: [Note → Action](../flows/note-to-action.md).
 
 ## The file
 
-`clean_runs` is the shortest one to read beside this page:
+`boot` is the shortest one to read beside this page:
 
 ```markdown
 ---
-machine: plugin
-automation: my_job
-chart:                   # the decree machine, without its name
+name: my_job
+machine:                 # the decree machine, without its name
   description: One line on what it does.
   data:
     MY_PARAM: { type: string, default: a default }
@@ -35,8 +36,8 @@ chart:                   # the decree machine, without its name
       transitions: { done: done }
     done: { final: true }
     failed: { final: true }
-scripts:                 # each becomes .decree/scripts/my_job/<script>.sh
-  my_job: |
+scripts:                 # each becomes .decree/machines/my_job/scripts/<file>
+  my_job.sh: |
     #!/usr/bin/env bash
     # my_job — one line on what it does.
     #
@@ -44,28 +45,29 @@ scripts:                 # each becomes .decree/scripts/my_job/<script>.sh
     # writes and where, and the failure that will confuse the next person.
     set -euo pipefail
     echo "Doing the thing with ${DECREE_DATA_MY_PARAM}"
-cron:                    # optional: its schedule, installed with it
-  my_job: |
+cron:                    # optional: its schedule, installed with it once
+  my_job.md: |
     ---
     machine: my_job
     cron: "0 * * * *"
     ---
+x-exist-project: automation
 ---
 # my_job
 
 What it does, for a person reading the list.
 ```
 
-- **`automation:`** is the plugin's name and the file's. Names are snake_case.
-- **`chart:`** starts with one state. Add more only when a run shows the need.
+- **`name:`** is the plugin's name and the file's. Names are snake_case.
+- **`machine:`** starts with one state. Add more only when a run shows the need.
 - **`data:`** holds the settings. **Every param a message may pass must be declared here**, with
   a default. An undeclared param fails the run and names the key. A message's
   `params:` reach the script as `DECREE_DATA_<NAME>`; the message itself is at
   `$DECREE_MESSAGE`.
-- **`needs:`** names the plugins it runs, emits to, or whose lib it uses. You don't write it:
-  export does.
+- **`needs:`** names the plugins it runs, emits to, or whose lib it uses. `decree export` writes
+  the machines it invokes or emits to; add a lib it sources (`model`) yourself.
 
-Every key, `lib:` and `endpoints:` included: [Plugins](./index.md).
+Every key, `x-exist-lib:` and `x-exist-endpoints:` included: [Plugins](./index.md).
 
 ## Turning it on
 
@@ -75,13 +77,13 @@ Every key, `lib:` and `endpoints:` included: [Plugins](./index.md).
 ```
 
 `plugin on` installs it, and every `./existential.sh` after installs the file's current
-version. Where it is installed is its `project:` key: `automation` (the default to write),
+version. Where it is installed is its `x-exist-project` key: `automation` (the default to write),
 `backup` for `automation-backup`, or `host` for the host's daemon.
 
 ## Changing it live, then committing
 
-On the host, edit the installed copy in `volumes/workspace_data/.decree/` (`machines/my_job.yml`,
-`scripts/my_job/`) until a run does what you want, then write it back. Inside code-server those
+On the host, edit the installed copy in `volumes/workspace_data/.decree/machines/my_job/`
+(`machine.yml`, `scripts/`) until a run does what you want, then write it back. Inside code-server those
 folders are read-only: from there a plugin is [offered, and accepted on the host](./offer-and-accept.md).
 
 ```bash
@@ -97,18 +99,19 @@ Commit and push. Every install that has it on gets the new version on its next p
   ([When a run needs you](../decree/decree.md#when-a-run-needs-you)).
 - To retry a flaky step, give that state attempts:
   `invoke: { script: { name: my_job, attempts: 3 } }`.
-- A value a machine keeps between runs goes in `$DECREE_STORE`, declared under its `store:`.
-- Helpers live in `$DECREE_LIB` (`workspace/.decree/lib/`), each some plugin's `lib:`.
+- A value a machine keeps between runs goes in `$DECREE_STATE_DIR`, declared under its `state_files:`.
+- Helpers live in `workspace/.decree/lib/`, each some plugin's `x-exist-lib`; a script runs in
+  the project's root, so it sources one as `.decree/lib/<path>`.
 
-To ask a model, add `model` to what it uses: source `$DECREE_LIB/model.sh` and call
+To ask a model, add `model` to what it uses: source `.decree/lib/model.sh` and call
 `model_chat <system> <user>`, or `model_gate <criteria> <text>` for yes/no. It uses the role's
 `/v1` URL. For an agent with tools on that same model, source `pi.sh` and call
-`pi_run <department> <system> <prompt>` ([pi](../ai/pi.md)); for Claude, `agent.sh`. Export
-adds each to `needs:`, so turning yours on turns them on.
+`pi_run <department> <system> <prompt>` ([pi](../ai/pi.md)); for Claude, `agent.sh`. Add each to
+`needs:`, so turning yours on turns them on.
 
 :::warning[Which daemon?]
 - **`automation`** (`workspace/.decree`): anything that reasons, routes, calls a service API or
-  runs a migration. It has the model endpoints, pi and Claude.
+  runs one-time setup (an order file). It has the model endpoints, pi and Claude.
 - **`automation-backup`** (`services/automation-backup/`, off by default): anything that needs
   all of `volumes/` or the master `.env` (backups, `triage`, `notes_pull`). Never an AI call.
 - A job that needs both is two machines.
@@ -120,25 +123,36 @@ A machine nothing points at never runs.
 
 ### Cron — on a schedule
 
-The plugin's `cron:` installs with it. For one of your own, put a file in
-`volumes/workspace_data/.decree/cron/<name>.md` (code-server: `/workspace/.decree/cron/`). No
-restart needed:
+The plugin's `cron:` installs with it. To run an installed machine on a schedule of your own,
+offer a plugin that holds only cron files, each naming the machine it runs, and
+[accept it](./offer-and-accept.md). No restart needed:
 
 ```markdown
 ---
-cron: "0 * * * *"
-machine: my_job
-params:
-  MY_PARAM: something
----
+name: my_schedules
+needs: [my_job]
+cron:
+  my-job-hourly.md: |
+    ---
+    cron: "0 * * * *"
+    machine: my_job
+    params:
+      MY_PARAM: something
+    ---
 
-What this schedule is for. The body is free text.
+    What this schedule is for. The body is free text.
+---
+# my_schedules
+
+Why these run when they do.
 ```
+
+To change one later, offer the plugin again with the new file and accept it.
 
 ### Webhook — when something out there happens
 
 `automation-webhook` (add-on, `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK`) turns an authenticated POST
-into a message. The plugin's `endpoints:` are added while it is installed; one of your own goes
+into a message. The plugin's `x-exist-endpoints` are added while it is installed; one of your own goes
 in `workspace/.decree/decree-go-rest.yml`. No restart. See [Over HTTP](./http.md).
 
 ### A file landing in Nextcloud — when a file shows up
@@ -152,7 +166,7 @@ CRITERIA="an open question the author has not resolved"
 ```
 
 `PATTERN` is a path regex; optional `CRITERIA` adds a one-call model check on the content. No
-restart needed. To ship one, put it in a plugin's `lib:` (`ocr` and `transcribe` are examples).
+restart needed. To ship one, put it in a plugin's `x-exist-lib` (`ocr` and `transcribe` are examples).
 See [File Change Processing](../decree/file-change-processing.md).
 
 ### By hand — for testing, and for one-offs
@@ -183,12 +197,13 @@ draws the chain:
       emits: [agent_task]
 ```
 
-To fan out, emit more than once. Export adds `agent_task` to `needs:`.
+To fan out, emit more than once. `decree export` adds `agent_task` to `needs:`.
 
 ## Making it a flow
 
-A flow is a plugin with no machine, in `automation/plugins/flows/<name>.md`: a `name`, a
-`tagline`, the `services` it uses, the plugins it `needs:`, and what is left for a person to do.
+A flow is a plugin with no machine, in `automation/plugins/flows/<name>.md`: an `x-exist-title`,
+an `x-exist-tagline`, the `x-exist-services` it uses, the plugins it `needs:`, and what is left
+for a person to do. decree installs it as `flow_<name>`, with its cron and order files.
 That is what [`./existential.sh flow`](../flows/index.md) lists. Add a row for it to the
 [flows table](../flows/index.md#turning-one-on).
 

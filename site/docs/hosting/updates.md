@@ -53,7 +53,7 @@ It is a host flow too. When a notification arrives:
 docker image prune -a                            # deletes the old versions, which keep their tags
 ```
 
-For another day or time, edit `cron:` in `.decree/cron/check-versions.md`.
+For another day or time, edit `cron:` in `.decree/machines/flow_check_versions/cron/check-versions.md`.
 
 ## Ubuntu {#ubuntu}
 
@@ -79,7 +79,7 @@ lets the host daemon run one root-owned script, `/usr/local/sbin/existential-ubu
 without a password, and nothing else. Until it has run, the weekly run fails and says so.
 
 Your phone hears when the weekly run failed, and when a reboot is coming. The failed run is in
-`.decree/runs/`; fix what apt complained about, then `decree process --retry` in the checkout.
+`.decree/runs/`; fix what apt complained about, then `decree retry <id>` in the checkout.
 
 Reboots are `unattended-upgrades`' own setting, in `/etc/apt/apt.conf.d/52existential-updates`,
 which is yours once written. On a host whose work can't be interrupted, set

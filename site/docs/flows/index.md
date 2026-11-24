@@ -78,10 +78,12 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 
 ### Housekeeping
 
-- **`clean-runs`** prunes finished runs in `workspace/.decree/runs/`, and in automation-backup's and the host daemon's when those run (logs also go to Loki when it's on).
-- **`health-checks`** probes ntfy. For another service, copy its cron in
-  `workspace/.decree/cron/` to `health-check-<slug>.md` and set `SERVICE_NAME` and `SERVICE_URL`
-  (`http://<container>:<port>/<health path>`).
+- **`clean-runs`** (decree's `decree_prune`) prunes finished runs in `workspace/.decree/runs/`, and in automation-backup's and the host daemon's when those run (logs also go to Loki when it's on).
+- **`health-checks`** probes ntfy. For another service, copy its cron,
+  `workspace/.decree/machines/flow_health_checks/cron/health-checks.md`, into a
+  [schedules plugin of your own](../plugins/writing-a-plugin.md#cron--on-a-schedule) as
+  `health-check-<slug>.md`, set `SERVICE_NAME` and `SERVICE_URL`
+  (`http://<container>:<port>/<health path>`), and accept it.
 
 ## How every flow works
 

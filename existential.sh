@@ -373,13 +373,23 @@ _host_move() {
 # version, then whether a decree daemon is there to run them. Nothing starts one
 # for you: it has to start at boot, which is the host's to set up.
 _host_plugins() {
+    local want; want="$(sed -n 's/^ARG DECREE_TAG=v//p' "${SCRIPT_DIR}/services/automation/decree/Dockerfile")"
+    # A daemon on another decree would lose what it runs (update, reporting) to a sync
+    # for this one: the project is left as it is until the host has this checkout's decree.
+    if command -v decree >/dev/null 2>&1 && [[ "$(decree --version 2>/dev/null)" != "decree ${want}" ]]; then
+        echo "  ⚠  The host's decree is $(decree --version 2>/dev/null | sed 's/^decree //'), and this checkout's is ${want}, so the host's plugins (.decree) are left as they are:"
+        _install_steps decree
+        echo "     then ./existential.sh, and restart the host's daemon:"
+        echo "     tmux kill-session -t existential-host; tmux new -d -s existential-host -c '${SCRIPT_DIR}' decree daemon"
+        return 0
+    fi
     # No engine (_worker_without_engine): the same sync, with the host's own yq and decree.
     if [[ -n "${DOCKER_CMD:-}" ]]; then run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host
     else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" sync host; fi \
         || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh tries again."
     local on
-    # clean_runs alone asks for no daemon: it only prunes the runs one leaves.
-    on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- *.yml 2>/dev/null | sed 's/\.yml$//' | grep -vx clean_runs | xargs)"
+    # decree's own plugins alone ask for no daemon (prune only prunes the runs one leaves).
+    on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | grep -v '^decree_' | xargs)"
     [[ -n "$on" ]] || return 0
     # Every step still to do, in one go, so one fix-and-retry covers them all.
     local todo=false
@@ -409,15 +419,17 @@ _host_plugins() {
     return 0
 }
 
-# _install_steps <tool> — how to get one of a worker's tools on this host. yq is
-# the version the decree image pins, so host and container agree.
+# _install_steps <tool> — how to get one of a worker's tools on this host. decree
+# and yq are the versions the decree image pins, so host and container agree.
 _install_steps() {
     local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch
     os="$(uname -s | tr 'A-Z' 'a-z')"
     case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) arch="$(uname -m)" ;; esac
     case "$1" in
         decree)
-            echo "       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh" ;;
+            # The version the decree image pins, so host and container agree.
+            v="$(sed -n 's/^ARG DECREE_TAG=//p' "$df")"
+            echo "       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- ${v}" ;;
         yq)
             v="$(sed -n 's/^ARG YQ_VERSION=//p' "$df")"
             echo "       mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq \\"
@@ -910,6 +922,19 @@ _set_image() {
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
 # No terminal is the auto-update flow, which you turned on to follow the branch,
 # so there they are applied: listed only, the pins would never move.
+# decree 0.6's code is plugins/, where 0.5's was scripts/: a compose file rendered
+# before keeps .decree/plugins/ read-only like the rest of the code, every container
+# that mounts the workspace included (the offer/accept wall), without asking.
+_decree_code_mounts() {
+    local d f
+    while IFS= read -r d; do
+        f="${d}/docker-compose.yml"
+        grep -q '/\.decree/scripts:' "$f" 2>/dev/null || continue
+        sed -i.bak 's#\([./a-z_]*\)/scripts:\([^:]*\)/\.decree/scripts:#\1/plugins:\2/.decree/plugins:#' "$f" && rm -f "${f}.bak"
+        echo "  ${f#"${SCRIPT_DIR}/"}: .decree/plugins/ is mounted read-only (decree 0.6)"
+    done < <(_find_service_dirs)
+}
+
 _offer_image_updates() {
     local svc_dir out svc old new reply changes=""
     while IFS= read -r svc_dir; do
@@ -1044,6 +1069,7 @@ _nas_read_only() {
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
     _host_move
+    _decree_code_mounts
     _offer_image_updates
     _ensure_host_ids
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then

@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: transcription
-project: automation
-name: Voice memos you actually read
-tagline: A recording synced to Nextcloud gets a speaker-labelled transcript beside it
-docs: /docs/flows/recording-transcription
-services:
+name: transcription
+x-exist-project: automation
+x-exist-title: Voice memos you actually read
+x-exist-tagline: A recording synced to Nextcloud gets a speaker-labelled transcript beside it
+x-exist-docs: /docs/flows/recording-transcription
+x-exist-services:
   - EXIST_IS_AI_WHISPERX
 needs:
   - transcribe

@@ -1,11 +1,10 @@
 ---
-machine: plugin
-automation: automation_propose
-project: automation
+name: automation_propose
+x-exist-project: automation
 needs:
   - firecrawl
   - model
-chart:
+machine:
   description: Write a standing instruction from a note as an automation's migration (its intent and declarative requirements) in ai/proposed/, and tell you.
   data:
     note_path: {type: string, default: ""}
@@ -23,7 +22,7 @@ chart:
     done: {final: true}
     failed: {final: true}
 scripts:
-  automation_propose: |
+  automation_propose.sh: |
     #!/usr/bin/env bash
     # automation_propose — one standing instruction, written as the migration that
     # would build it.
@@ -37,16 +36,16 @@ scripts:
     # a plugin file you review and accept on the host (reconcile hands it over).
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
-    source "${DECREE_LIB}/model.sh"
+    source ".decree/lib/model.sh"
     # shellcheck source=../../lib/firecrawl.sh
-    source "${DECREE_LIB}/firecrawl.sh"
+    source ".decree/lib/firecrawl.sh"
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     name="$DECREE_DATA_NAME" when="$DECREE_DATA_WHEN" steps="$DECREE_DATA_STEPS" rel="$DECREE_DATA_NOTE_PATH"
     [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { echo "automation_propose: '${name}' is not a machine name" >&2; exit 1; }
     # Never a name already taken: building it would replace that machine.
     base="$name"; n=2
-    while [[ -e ".decree/machines/${name}.yml" || -e "${WS}/notes/automations/${name}.md" || -e "${WS}/ai/proposed/${name}.md" ]]; do
+    while [[ -e ".decree/machines/${name}/machine.yml" || -e "${WS}/notes/automations/${name}.md" || -e "${WS}/ai/proposed/${name}.md" ]]; do
         name="${base}_${n}"; n=$((n + 1))
     done
 
@@ -105,5 +104,5 @@ Write a standing instruction from a note as an automation's migration (its inten
 
 It needs, on the stack that installs it:
 
-- $DECREE_LIB/firecrawl.sh
-- $DECREE_LIB/model.sh
+- .decree/lib/firecrawl.sh
+- .decree/lib/model.sh

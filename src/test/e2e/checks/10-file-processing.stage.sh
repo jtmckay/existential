@@ -23,7 +23,7 @@ grep -q '^EXIST_IS_NAS_NEXTCLOUD=true' "$WORK/.env.shared" || exit 0
 # way test lint does (awk: this is the host).
 _dst="$WORK/volumes/workspace_data/.decree/lib/file-processors"
 mkdir -p "$_dst"
-awk '/^lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.example\/example\.sh: [|][-+]?$/{f=1; next}
+awk '/^x-exist-lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.example\/example\.sh: [|][-+]?$/{f=1; next}
      f && /^  [^ ]/{exit} f {print (length($0) >= 4 ? substr($0, 5) : "")}' \
     "$WORK/automation/plugins/file_processor.md" > "$_dst/example.sh"
 [ -s "$_dst/example.sh" ] || { echo "  no example processor in automation/plugins/file_processor.md" >&2; exit 1; }
@@ -31,7 +31,7 @@ awk '/^lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.example\/ex
 echo "  staged the example file-processor as the probe"
 
 # nextcloud-capture on in automation/plugins.yml: exist.initial.sh then
-# installs its plugins and queues their migrations (rclone remote, file events).
+# installs its plugins, whose order files (rclone remote, file events) run at the daemon's start.
 # shellcheck source=../../../utils/flows.sh
 # shellcheck disable=SC2034  # REPO_DIR is read by flows.sh
 ( REPO_DIR="$WORK"; . "$WORK/src/utils/flows.sh"; plugins_turn on nextcloud-capture )

@@ -1,10 +1,9 @@
 ---
-machine: plugin
-automation: update-ubuntu
-name: Update Ubuntu
-tagline: Security updates daily, every other package update on Sundays at 01:00, and a reboot at 02:00 only when an update requires it
-docs: /docs/hosting/updates#ubuntu
-project: host
+name: update-ubuntu
+x-exist-title: Update Ubuntu
+x-exist-tagline: Security updates daily, every other package update on Sundays at 01:00, and a reboot at 02:00 only when an update requires it
+x-exist-docs: /docs/hosting/updates#ubuntu
+x-exist-project: host
 needs:
   - ubuntu_upgrade
 ---
