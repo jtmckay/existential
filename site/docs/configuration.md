@@ -203,10 +203,15 @@ What it changes, in `src/generate-compose.ts`:
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
   works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
 - **`EXIST_CONTROLLER`**: with the `worker` flow on, the controller this host reports to, its
-  tailnet name or 100.x address. Blank, this host is the controller. See
+  tailnet name, 100.x address, or address on your own network. Blank, this host is the controller. See
   [Controller and Workers](./hosting/controller-and-workers.md).
 - **`EXIST_REPORTING_URL`**: on the controller, the Loki every host reports to
   (`http://<host>:3100`). Blank means this host's own Loki, when it is on.
+- **`EXIST_HOST_ADDRESS`**: how other hosts reach this one, in what it offers them
+  ([Peers](./hosting/controller-and-workers.md#peers-what-the-other-hosts-offer)). Blank means
+  `EXIST_TAILNET_NAME`, else the hostname.
+- **`EXIST_FLEET_SECRET`**: the same on every host; the secret for leasing another host's GPU
+  ([Leases](./hosting/controller-and-workers.md#leases)). Blank means no leases.
 
 The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 

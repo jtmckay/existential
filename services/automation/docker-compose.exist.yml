@@ -108,6 +108,10 @@ services:
       # Where the comfy routine POSTs its workflows — the local container by
       # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
       - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
+      # A GPU service another host offers, under its lease (the fleet lib): the secret,
+      # and the controller's Loki, where every host's offers are.
+      - EXIST_FLEET_SECRET=${EXIST_FLEET_SECRET:-}
+      - EXIST_FLEET_LOKI=${EXIST_FLEET_LOKI:-}
     volumes:
       # workspace/.decree IS the project. Its messages (inbox, your cron/), handlers
       # and store (each machine's state/) are written here and run on the next tick.

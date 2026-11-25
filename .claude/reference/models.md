@@ -49,6 +49,11 @@ Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary, so a model is pulled to th
 actually serves it. Adding a role means touching all three resolvers —
 `src/test/unit/test-model-endpoints.sh` asserts they agree, so a half-done role fails the suite.
 
+One layer sits above them, in decree scripts only: with `EXIST_FLEET_SECRET` set and a host
+offering `llm`, `model_chat` and `pi_run` call that host under its lease (`model_base`, the
+`fleet` lib) instead of the role's address, and fall back to `model_url` when none does. The
+resolvers themselves stay as they are, since everything else (Home Assistant, code-server) reads them.
+
 **A decree script reaches a model through `lib/model.sh`** (`model_chat`,
 `model_gate`), straight at the role's URL. Work that needs an agent with tools runs pi through
 `pi.sh` (`pi_run`), whose provider `pi_configure` writes from `model_url chat` — the same

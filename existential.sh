@@ -288,8 +288,18 @@ _controller_fetch() {
     ctl=$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
     [[ -n "$ctl" ]] || return 0
     ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null)" || true
+    # Without Tailscale, on your own network: the controller's Loki, on 43100, holds its
+    # answer (reporting pushes it as kind=answer); with none yet, that Loki is the answer.
+    if [[ "$ans" != "{"* ]] && curl -fsS --max-time 5 -o /dev/null "http://${ctl}:43100/loki/api/v1/status/buildinfo" 2>/dev/null; then
+        ans="$(curl -fsSG --max-time 10 "http://${ctl}:43100/loki/api/v1/query_range" \
+            --data-urlencode 'query={job="exist", kind="answer"}' --data-urlencode direction=backward \
+            --data-urlencode limit=1 --data-urlencode "start=$(( $(date +%s) - 86400 ))000000000" 2>/dev/null |
+            sed -n 's/.*"values":\[\["[0-9]*","\({.*}\)"\]\].*/\1/p' | sed 's/\\"/"/g' |
+            sed "s#\"loki\":\"[^\"]*\"#\"loki\":\"http://${ctl}:43100\"#")" || true
+        [[ "$ans" == "{"* ]] || ans="{\"loki\":\"http://${ctl}:43100\",\"domain\":\"\"}"
+    fi
     if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/.decree"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/.decree/controller.json"
-    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480; using its last answer, if any."; fi
+    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480 or :43100; using its last answer, if any."; fi
 }
 
 _tailscale_serve_steps() {
@@ -551,11 +561,8 @@ _worker_without_engine() {
         ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on worker )
     fi
     _build
-    ctl="$(grep -m1 '^EXIST_CONTROLLER=' "$f" | cut -d= -f2-)"
-    if [[ -n "$ctl" ]] && ! curl -fsS --max-time 5 "http://${ctl}:4480/" >/dev/null 2>&1; then
-        echo "  ⚠  http://${ctl}:4480 does not answer from here. The controller serves it on its tailnet,"
-        echo "     so this host needs a route there (Tailscale, or a network that reaches that address)."
-    fi
+    # The controller's answer, on 4480 or (your own network) from its Loki; it warns when neither answers.
+    _controller_fetch
 }
 
 # ── Service enablement ────────────────────────────────────────────────────────

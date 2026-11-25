@@ -87,10 +87,22 @@ x-exist-lib:
             # --tools keeps every MCP tool unless it names one, so none means off.
             [[ -z "$mcp" ]] && args+=(--no-mcp)
         fi
+        # The fleet's llm, under its lease for the whole run: pi gets a copy of its config
+        # pointed there. No host offers llm: the configured provider, as before.
+        local dir="${PI_CODING_AGENT_DIR:-${HOME}/.pi/agent}" run_dir="" rc=0
+        model_base chat || return 1
+        if [ -n "${FLEET_TOKEN:-}" ]; then
+            run_dir="$(mktemp -d)"
+            cp -R "$dir/." "$run_dir/"
+            jq --arg url "$MODEL_BASE" '.providers.existential.baseUrl = $url' "$dir/models.json" > "$run_dir/models.json"
+        fi
         ( cd "${AUTOMATIONS_WORKSPACE:-/workspace}" \
-            && timeout "${PI_TIMEOUT:-900}" pi -p --no-session --offline \
+            && PI_CODING_AGENT_DIR="${run_dir:-$dir}" timeout "${PI_TIMEOUT:-900}" pi -p --no-session --offline \
                 --provider existential --model "${EXIST_MODEL_CHAT:-}" "${args[@]}" \
-                --append-system-prompt "$system" -- "$prompt" )
+                --append-system-prompt "$system" -- "$prompt" ) || rc=$?
+        [ -z "$run_dir" ] || rm -rf "$run_dir"
+        fleet_done llm
+        return "$rc"
     }
 ---
 # pi

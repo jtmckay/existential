@@ -50,7 +50,7 @@ does (`x-exist-title`, `x-exist-tagline`, the services it turns on, the plugins 
 both folders. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
 `decree_prune`, `decree_lease`...), which a plugin here `needs:` and decree adds, and which are
 never edited: **to change one, a plugin here `extends:` it under its own name** and holds only
-what it changes (`gpu_lease`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
+what it changes (`gpu_lease`, `ai_box_gpu`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
 `{<need>: <plugin>}` meets the base's need with another plugin. Never fork an official plugin's
 scripts into a plugin here. All automation code lives in plugins: `automation/lib/` is only the
 plugin system's own, and a project's `.decree/lib/` (ours: decree 0.6 has none) is that plus
@@ -200,7 +200,7 @@ when its build context changed) without touching running containers, so the next
 them. Every run also installs each decree project's plugins at this checkout's version. The
 optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow
 reports the host to its controller, the optional `on-boot` flow runs `.decree/boot.sh` once
-when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, and the optional `update-ubuntu` flow patches an Ubuntu host; all five are host flows (`project: host`), run by a decree daemon in the repo's own `.decree`
+when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, the optional `update-ubuntu` flow patches an Ubuntu host, and the optional `ai-box` flow has a GPU box's llama.cpp, ComfyUI and TTS take turns on its card (`ai_box_gpu`, a `decree_lease`); all six are host flows (`project: host`), run by a decree daemon in the repo's own `.decree`
 that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`
@@ -358,6 +358,8 @@ department is a file*) picks its tools and MCP servers, and `pi_configure` write
 and servers in both the decree image's entrypoint and code-server's. `agent` (`lib/agent.sh`)
 is Claude Code with tools, through
 `ai` from decree's official `decree_ai` plugin, which the `agent` flow needs.
+`model` and `pi`, and `comfy`, lease a GPU another host offers through the `fleet` lib, asking
+the controller where it is (→ `decree.md`, *Offers*).
 `automation`'s image ships `claude`, signed in once per install. `develop` builds machines with
 it, and the machines it builds call `agent`. A headless call runs in decree's `auto` mode
 (`AUTOMATION_CLAUDE_PERMISSION_MODE`), kept from notes by the mount above.

@@ -139,7 +139,11 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   (`clean-runs`); extended: `decree_lease` (`gpu_lease`: its `resources` and
   `swap/gpu.sh` are scripts, so they install read-only; its `callback.sh` takes the
   holder's address from `automation/.env`, never from the request, and `gpu_release` is how
-  a POST answers a lease, refusing any run that is not `gpu_lease`'s), `decree_skill`
+  a POST answers a lease, refusing any run that is not `gpu_lease`'s; and, on a GPU box's host,
+  `ai_box_gpu`: modes `llm`, `comfy`, `tts`, its swap unloading llama.cpp's router, ComfyUI and
+  `ai_box_tts`'s tmux session; a separate host-only plugin, so a host that also runs the stack
+  never has two queues for one card; its lease is served over decree-go-rest's emit, read and
+  reply endpoints, no release machine), `decree_skill`
   (`skill`), `decree_develop` and `decree_qa` (`repo_develop`, `repo_qa`). Not
   `decree_registry` (the model endpoint resolvers do that) nor `decree_newsletter` (its
   feeds are scripts in decree 0.6, and here they are data a person edits in the store).
@@ -259,3 +263,17 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   host) from every plugin tagged for it, installed by decree, with every shipped order file
   and example queued, and runs `decree check`, then checks each plugin alone with only what
   its `needs:` reach.
+
+**Offers (peers).** A host plugin that serves the other hosts ships `scripts/offers.sh`, one
+JSON object per line (`service`, `url`, and `lease`/`api` or `start`/`stop`), `localhost`
+meaning this host. `reporting` pushes them as `kind="offer"`, with `localhost` swapped for
+`EXIST_HOST_ADDRESS` (else the tailnet name, else the hostname), and `src/lib/peers.sh`
+(`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
+The controller only answers the question; traffic goes host to host.
+The **fleet** lib (`flows/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
+service another host offers: `model_chat`/`pi_run` (`llm`) and `comfy` call it, a keeper per
+container holds one lease for a run of calls and releases it `FLEET_IDLE` (5) seconds after the
+last (comfy: after ComfyUI's queue empties too), and a new lease asks the controller again, so
+a service moved between hosts is followed. Leases are 10 minutes, renewed by the keeper.
+`EXIST_FLEET_SECRET` (the same on every host) is every box's decree-go-rest secret; blank, or no
+offer, and callers use their own addresses with no lease. `peers.sh` sources the same lib.

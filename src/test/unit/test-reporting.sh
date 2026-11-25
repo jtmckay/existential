@@ -41,14 +41,15 @@ printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.js
   plugin_unpack reporting "${I}" ) >/dev/null
 printf 'EXIST_CONTROLLER=ctl\n' > "${I}/.env.shared"
 
-# curl: a GET of the controller prints $TMP/answer (fails without one); a push
-# keeps its body in $TMP/body.
+# curl: a GET of the controller prints $TMP/answer (fails without one); its Loki on
+# 43100 answers when $TMP/lan exists; a push keeps its body in $TMP/body.
 mkdir -p "${TMP}/bin"
 cat > "${TMP}/bin/curl" <<EOF
 #!/usr/bin/env bash
 for a in "\$@"; do
     case "\$a" in
         @*) cp "\${a#@}" "${TMP}/body"; echo "\${@: -1}" > "${TMP}/pushed-to"; exit 0 ;;
+        *:43100/*) [[ -f "${TMP}/lan" ]]; exit \$? ;;
     esac
 done
 [[ -f "${TMP}/answer" ]] && cat "${TMP}/answer" || exit 7
@@ -125,6 +126,13 @@ rm -f "${TMP}/answer"
 report >/dev/null
 assert_eq "an unreachable controller: the Loki it gave last time" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 
+echo ""; echo "=== your own network ==="
+find "${I}/.decree/machines/reporting/state/" -mindepth 1 -delete
+touch "${TMP}/lan"
+report >/dev/null
+assert_eq "no answer on 4480: the controller's Loki on 43100" "http://ctl:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+rm -f "${TMP}/lan"
+
 echo ""; echo "=== nowhere ==="
 find "${I}/.decree/machines/reporting/state/" -mindepth 1 -delete
 printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
@@ -138,6 +146,7 @@ printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
 echo '{"loki":"http://127.0.0.1:43100"}' > "${I}/.decree/exist.json"
 report >/dev/null
 assert_eq "a controller reads .decree/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "...and pushes its answer, for a host on your own network" '{"loki":"http://127.0.0.1:43100"}' "$(lines answer)"
 assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | head -1)"
 assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
 assert_eq "no ntfy here: no notify-relay" "0" "$(grep -c 's notify-relay' "${TMP}/tmux")"

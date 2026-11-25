@@ -13,20 +13,47 @@ Nothing on `<ai-box>` is part of the stack. It runs no existential compose file,
 only ever sees the addresses below. Which keys exist and how they fall back is in
 [Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
 
-## The VRAM rule: nothing swaps automatically
+## One card, taken in turns
 
-One 24 GB card fits **one** GPU-heavy service at a time. No service on the box knows another is
-there. llama.cpp does not unload for ComfyUI, ComfyUI does not free memory for TTS, and a
-service that cannot get its VRAM fails, usually on its first request rather than at startup.
-So every switch is explicit:
+One 24 GB card fits **one** GPU-heavy service at a time, and no service on the box knows another
+is there: llama.cpp does not unload for ComfyUI, ComfyUI does not free memory for TTS, and a
+service that cannot get its VRAM fails on its first request. The `ai-box` flow makes the switch
+for you. Turn it on in the box's own checkout (`./existential.sh flow on ai-box`), and its host
+daemon gets `ai_box_gpu`, decree's `decree_lease` with one resource, `gpu`, in mode `llm`,
+`comfy` or `tts`. A lease in one mode frees the card first: the llama.cpp router unloads its
+models, ComfyUI finishes its queue and unloads, the TTS session ends. Up to four leases share it
+in one mode; another mode waits for them, and none waits more than 30 minutes for its turn.
 
-- llama.cpp holds at most `--models-max` models. Set it to `1`, so loading a model unloads
-  the last one. It counts models and never checks free VRAM.
-- TTS is off until something asks for it, and is stopped when the work is done
-  ([below](#tts-started-and-stopped-over-http)).
-- Before starting anything big, check `nvidia-smi` to see what is holding the card, then
-  unload the model the router holds:
-  `curl -X POST http://<ai-box>:8080/models/unload -d '{"model": "<chat-model>"}'`.
+```bash
+decree emit --machine ai_box_gpu --param resource=gpu --param mode=comfy --param holder=me </dev/null
+# ... the lease's id is printed; when its status says granted, use the card ...
+decree reply <lease id> release
+```
+
+Only work that asks takes part. A chat request or a ComfyUI prompt sent straight to the box
+still loads its model, so keep llama.cpp at `--models-max 1` (loading a model unloads the last)
+and check `nvidia-smi` when a request fails for memory. The flow needs Linux (`flock`), and it
+reads `.decree/.env` on the box: `AI_BOX_LLAMA_URL` and `AI_BOX_COMFYUI_URL` when they are not on
+`localhost:8080` and `localhost:8188`, and `AI_BOX_TTS_COMMAND` (below).
+
+### From another host
+
+With [decree-go-rest](#tts-started-and-stopped-over-http) in front of the box's `.decree`, the
+flow serves the lease over HTTP too, each call with the bearer secret:
+
+| Call | What it does |
+|---|---|
+| `POST /gpu/<mode>/<client>` | Ask for the card in mode `llm`, `comfy` or `tts`; the answer's `id` is the lease |
+| `GET /gpu/lease/<id>` | The lease's status: its `state` is `granted` or `held` once it holds the card |
+| `POST /gpu/lease/<id>/release` | Give it back (`/renew`: keep it for its duration again) |
+| `GET /gpu` | The card: its mode, holders and line |
+
+The box also tells the other hosts what it serves and where to lease it, in each report, so
+they find it by asking the controller: `./existential.sh run peers` on any host
+([Peers](./controller-and-workers.md#peers-what-the-other-hosts-offer)). The stack's own
+model calls and ComfyUI runs lease it this way on their own ([Leases](./controller-and-workers.md#leases)).
+`AI_BOX_SERVICES` in `.decree/.env` (default `llm,comfy,tts`) is what the box offers: take one
+out to [move it to another host](./controller-and-workers.md#moving-a-service-to-another-host).
 
 ## GPU containers: rootless podman with CDI
 
@@ -84,59 +111,112 @@ floor included. Only ollama enforces them for you, so here they are yours to kee
 
 ## ComfyUI
 
-ComfyUI runs on the box in its own GPU container and listens on its usual `8188`. The stack's
-side is two keys:
+ComfyUI runs on the box itself, from its own checkout, in a tmux session the host daemon starts.
+Install it once (PyTorch first, for your card; ComfyUI's README names the wheel index for each
+GPU):
+
+```bash
+git clone https://github.com/Comfy-Org/ComfyUI.git ~/ComfyUI
+cd ~/ComfyUI
+python3.12 -m venv .venv
+.venv/bin/pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu130
+.venv/bin/pip install -r requirements.txt
+```
+
+Then start it at boot with the `on-boot` flow (`./existential.sh flow on on-boot`): one line in
+`.decree/boot.sh`, which runs once each time the host daemon starts.
+
+```bash
+# .decree/boot.sh on <ai-box>
+tmx -d comfyui 'cd ~/ComfyUI && exec .venv/bin/python main.py --listen 0.0.0.0 --port 8188'
+```
+
+On another port, set `AI_BOX_COMFYUI_URL` in `.decree/.env`. The stack's side is two keys:
 
 ```bash
 EXIST_COMFYUI_URL=http://<ai-box>:8188
 EXIST_IS_AI_COMFYUI=false
 ```
 
-The workflows stay in this repo. The checkpoints they name must exist on the box. See
+The workflows stay in this repo. The checkpoints they name must exist on the box, under
+`~/ComfyUI/models/`. See
 [ComfyUI → Using a ComfyUI you already run](../ai/comfyui.md#using-a-comfyui-you-already-run).
-Free the card before a big job: `--models-max 1` keeps one model loaded, not zero.
+A `comfy` lease frees the card first: `--models-max 1` keeps one model loaded, not zero.
 
 ## TTS, started and stopped over HTTP
 
-Qwen3-TTS needs most of the card while it runs, so it is not left up. The box runs its own
-[decree](../decree/decree.md) project with
-[decree-go-rest](../plugins/http.md) in front of it. Two endpoints
-start and stop TTS:
+Qwen3-TTS needs most of the card while it runs, so it is not left up. The `ai-box` flow's
+`ai_box_tts` starts it on demand: it takes a `tts` lease (which unloads llama.cpp and ComfyUI),
+then runs `AI_BOX_TTS_COMMAND` in a tmux session named `tts`, with `tmx -d`, so a second start
+is harmless and `tmx tts` watches it. Stopping ends the session and gives the lease back.
 
-```yaml
-# .decree/decree-go-rest.yml on <ai-box>
-endpoints:
-  - path: /startTTS
-    message: { machine: start_tts }
-  - path: /endTTS
-    message: { machine: end_tts }
-```
-
-Each machine is one state that invokes a script of the same name. The scripts run TTS in a
-named tmux session with `tmx` (from this repo's `services/automation/decree/tmx.sh`, sourced in
-the box's `~/.bashrc`), so "is it running?" is `tmux has-session -t =tts` and a person can
-`tmx tts` to watch it:
+Install it once, in an environment of its own (Python 3.12, as its README asks):
 
 ```bash
-# .decree/machines/start_tts/scripts/start_tts.sh
-tmx -d tts '<your Qwen3-TTS server command>'
-
-# .decree/machines/end_tts/scripts/end_tts.sh
-tmux kill-session -t =tts 2>/dev/null || true
+conda create -n qwen3-tts python=3.12 -y
+conda run -n qwen3-tts pip install -U qwen-tts
 ```
 
-`tmx -d` does nothing if the session is already up, so a second `/startTTS` is harmless. Unload
-the router's model before the start call, because nothing else will.
+The model downloads from Hugging Face the first time the server starts (a few GB, into
+`~/.cache/huggingface`), so that first start is slow; run it once by hand to see it through.
+FlashAttention 2 (`pip install -U flash-attn --no-build-isolation`) saves VRAM but is optional;
+without it, keep `--no-flash-attn`. Then name the command in `.decree/.env`, by the full path of
+the environment's `qwen-tts-demo` (`conda run -n qwen3-tts which qwen-tts-demo`), since the
+daemon does not activate conda:
 
 ```bash
-curl -X POST http://<ai-box>:8801/startTTS -H "Authorization: Bearer <secret>"
+# .decree/.env on <ai-box>
+AI_BOX_TTS_COMMAND=~/miniconda3/envs/qwen3-tts/bin/qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign --device cuda:0 --dtype bfloat16 --no-flash-attn --ip 0.0.0.0 --port 8000
+```
+
+`VoiceDesign` makes a voice from a description; the README's other models are `CustomVoice`
+(its named speakers) and `Base` (clones a voice from a sample). The server answers on `:8000`,
+the Gradio UI and its API.
+
+```bash
+decree emit --machine ai_box_tts --param action=start </dev/null
+decree emit --machine ai_box_tts --param action=stop </dev/null
+```
+
+To start and stop it from another host, put [decree-go-rest](../plugins/http.md) in front of the
+box's `.decree`. Write `.decree/decree-go-rest.yml` (a host's own, never committed) with
+`listen: 0.0.0.0:<port>` (any free port), `secret_env: EXIST_FLEET_SECRET`, `daemon: {enabled: false}` and
+`endpoints: []`, and the flow adds its endpoints to it at each `./existential.sh`. The secret
+is the fleet's, the same on every host ([Leases](./controller-and-workers.md#leases)). Start
+it from `.decree/boot.sh`, which runs in the checkout:
+
+```bash
+# .decree/boot.sh on <ai-box>
+tmx -d decree-go-rest "exec podman run --rm --name decree-go-rest --userns keep-id \
+  --security-opt label=disable -p <port>:<port> -e EXIST_FLEET_SECRET=\"\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '$PWD/.env.shared')\" \
+  -v '$PWD/.decree:/project/.decree:ro' -v '$PWD/.decree/inbox:/project/.decree/inbox' \
+  ghcr.io/jtmckay/decree-go-rest:0.6.0"
+```
+
+It only queues messages; the host daemon runs them.
+
+```bash
+curl -X POST http://<ai-box>:<port>/startTTS -H "Authorization: Bearer <secret>"
 # ... generate speech ...
-curl -X POST http://<ai-box>:8801/endTTS -H "Authorization: Bearer <secret>"
+curl -X POST http://<ai-box>:<port>/endTTS -H "Authorization: Bearer <secret>"
 ```
 
 **There is no stack key for this.** The stack's own speech is wyoming-piper on CPU
 ([Speech has no endpoint keys](../configuration.md#speech-has-no-endpoint-keys)), so whatever
 calls Qwen3-TTS uses the box's address directly.
+
+## Checking it works
+
+With the host daemon running and the flow on:
+
+1. `curl -X POST http://<ai-box>:<port>/startTTS -H "Authorization: Bearer <secret>"`, then
+   `tmux has-session -t =tts` and, once the model is loaded, `curl -I http://<ai-box>:8000/`.
+2. `jq . .decree/machines/ai_box_gpu/state/status/resources/gpu.json` shows mode `tts` and one
+   holder.
+3. `/endTTS`: the session is gone, the holders list is empty, and `nvidia-smi` shows the
+   memory back.
+
+A run that failed is in `decree status`, its log under `.decree/runs/<id>/`.
 
 ## GLiNER on CPU
 

@@ -1,6 +1,8 @@
 ---
 name: model
 x-exist-project: automation
+needs:
+  - fleet
 x-exist-lib:
   model.sh: |
     #!/usr/bin/env bash
@@ -32,6 +34,10 @@ x-exist-lib:
     #   MODEL_API_KEY    bearer token, default EXIST_MODEL_API_KEY; omitted when empty
     #   MODEL_TIMEOUT    seconds, default 120
     #   MODEL_TEMPERATURE  default 0
+    #
+    # With the fleet on (EXIST_FLEET_SECRET), a call with no MODEL_URL goes to whichever
+    # host offers llm now, under its lease (fleet.sh): a run of calls shares one lease,
+    # given back 5 s after the last. No host offers llm: the role's own URL, as before.
 
     # model_url <role> — the in-container copy of src/utils/model-endpoints.sh's
     # endpoint_for, which this container cannot see. test-model-endpoints.sh asserts
@@ -58,10 +64,32 @@ x-exist-lib:
         esac
     }
 
+    # shellcheck source=fleet.sh
+    if [ -f "$(dirname "${BASH_SOURCE[0]}")/fleet.sh" ]; then
+        source "$(dirname "${BASH_SOURCE[0]}")/fleet.sh"
+    else
+        fleet_use() { return 3; }; fleet_done() { :; }
+    fi
+
+    # model_base <role> — sets MODEL_BASE to where a call goes now: the host that offers llm,
+    # holding the fleet's lease (end the call with fleet_done llm), else MODEL_URL or the
+    # role's own URL. Not in $(...): the lease's token lives in this shell.
+    model_base() {
+        local rc=0
+        MODEL_BASE=""
+        if [ -z "${MODEL_URL:-}" ]; then
+            fleet_use llm || rc=$?
+            if [ "$rc" -eq 0 ]; then MODEL_BASE="$FLEET_URL"; return 0; fi
+            [ "$rc" -eq 3 ] || { echo "model: no host that offers llm would lease it" >&2; return 1; }
+        fi
+        MODEL_BASE="${MODEL_URL:-$(model_url "$1")}"
+    }
+
     model_chat() {
-        local system="$1" user="$2" max_tokens="${3:-1000}" payload url model
+        local system="$1" user="$2" max_tokens="${3:-1000}" payload url model rc=0
         local role="${MODEL_ROLE:-chat}"
-        url="${MODEL_URL:-$(model_url "$role")}" || return 1
+        model_base "$role" || return 1
+        url="$MODEL_BASE"
         model="${MODEL_NAME-$(model_tag "$role")}"
         local -a args=(-fsS --max-time "${MODEL_TIMEOUT:-120}" -X POST
             "${url%/}/chat/completions"
@@ -81,7 +109,9 @@ x-exist-lib:
               max_tokens:$mt, temperature:$t}
              + (if $model == "" then {} else {model:$model} end)')"
 
-        curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty'
+        curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty' || rc=$?
+        fleet_done llm
+        return "$rc"
     }
 
     # Ask whether some text matches a natural-language criterion.

@@ -23,14 +23,15 @@ scripts:
     # Runs in the host project (the repo's own .decree), so it runs in the repo and every
     # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
     # asks that controller at http://<controller>:4480, which serves .decree/exist.json
-    # over the tailnet; blank, this host is the controller and reads that file. The
+    # over the tailnet, else (your own network) uses its Loki at http://<controller>:43100;
+    # blank, this host is the controller and reads that file. The
     # answer is kept in $DECREE_STATE_DIR/loki for when the controller is away. No
     # answer is not a failure: nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
     # (CPU, RAM, VRAM) once, kind=machine per installed decree machine, kind=plugin
     # per installed plugin, kind=cron per active cron, kind=container per running
-    # container. Each run
+    # container, kind=offer per service a host plugin offers the others. Each run
     # is alloy's, below, as {job="decree"} and {job="decree_script"}.
     #
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
@@ -43,6 +44,11 @@ scripts:
     ctl="$(env_get EXIST_CONTROLLER)"
     if [[ -n "$ctl" ]]; then
         loki="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null | loki_of || true)"
+        # Without Tailscale, on your own network, the controller is the host whose Loki
+        # listens there, on 43100 (LOKI_BIND=0.0.0.0).
+        if [[ -z "$loki" ]] && curl -fsS --max-time 5 -o /dev/null "http://${ctl}:43100/loki/api/v1/status/buildinfo" 2>/dev/null; then
+            loki="http://${ctl}:43100"
+        fi
     else
         loki="$(loki_of < "${repo}/.decree/exist.json" 2>/dev/null || true)"
     fi
@@ -126,11 +132,27 @@ scripts:
         break
     done
 
+    # The controller's answer, in its own Loki (kind=answer), for a host on your own network
+    # that finds the controller there rather than on 4480: existential.sh reads its domain back.
+    : > "${tmp}/answer"
+    [[ -n "$ctl" ]] || grep '^{.*}$' "${repo}/.decree/exist.json" > "${tmp}/answer" 2>/dev/null || true
+
+    # What this host offers the others: each host machine's scripts/offers.sh prints one
+    # JSON object per line ({"service", "url", ...}), localhost meaning this host, which is
+    # swapped for the address the others reach it by. `./existential.sh run peers` reads them back.
+    host="$(hostname -s 2>/dev/null || hostname)"
+    addr="$(env_get EXIST_HOST_ADDRESS)"; [[ -n "$addr" ]] || addr="$(env_get EXIST_TAILNET_NAME)"; [[ -n "$addr" ]] || addr="$host"
+    : > "${tmp}/offer"
+    for m in "${repo}"/.decree/machines/*/scripts/offers.sh; do
+        [[ -f "$m" ]] || continue
+        { bash "$m" 2>/dev/null || true; } | grep '^{.*}$' \
+            | sed -e "s#//localhost\([:/\"]\)#//${addr}\1#g" -e "s#//127\.0\.0\.1\([:/\"]\)#//${addr}\1#g" >> "${tmp}/offer" || true
+    done
+
     # Every run, live: alloy tails the same projects' runs/ into the same Loki
     # (lib/reporting/decree.alloy), in its own tmux session. Its read positions
     # are in the store, so a run that ends while it is down is sent once it is
     # back. A new Loki address restarts it.
-    host="$(hostname -s 2>/dev/null || hostname)"
     # shellcheck source=/dev/null
     . "${repo}/services/automation/decree/tmx.sh"
     if command -v alloy >/dev/null 2>&1; then
@@ -161,7 +183,7 @@ scripts:
     {
         printf '{"streams":['
         sep=""
-        for kind in disk load machine plugin cron container; do
+        for kind in disk load machine plugin cron container offer answer; do
             [[ -s "${tmp}/${kind}" ]] || continue
             printf '%s{"stream":{"job":"exist","host":"%s","kind":"%s"},"values":[' "$sep" "$host" "$kind"
             sed 's/\\/\\\\/g; s/"/\\"/g' "${tmp}/${kind}" \
@@ -174,7 +196,7 @@ scripts:
 
     curl -fsS --max-time 20 -H 'Content-Type: application/json' \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
-    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, ${runs}"
+    echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, $(wc -l < "${tmp}/offer" | tr -d ' ') offers, ${runs}"
 x-exist-lib:
   reporting/relay.sh: |
     #!/usr/bin/env bash
@@ -310,7 +332,7 @@ cron:
 # reporting
 
 Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines, plugins and crons installed in each of its
-projects, the containers running, and every run that finished since the last report, sent to the Loki its controller
+projects, the containers running, what its host plugins offer the other hosts (kind=offer, read back by `./existential.sh run peers`), and every run that finished since the last report, sent to the Loki its controller
 names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
 turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
 controller, and names the Loki in `EXIST_REPORTING_URL`, or its own. See

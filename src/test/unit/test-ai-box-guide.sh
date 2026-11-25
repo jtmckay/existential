@@ -18,9 +18,10 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 _ok()   { printf '  PASS  %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); }
 # _absent <name> <ERE> — passes when the guide has no line matching it.
+# 0.0.0.0 is a bind-all address, not a host's, so it is no leak.
 _absent() {
     local hit
-    if hit=$(grep -nE "$2" "$GUIDE"); then _fail "$1" "$hit"; else _ok "$1"; fi
+    if hit=$(sed 's/0\.0\.0\.0/<any>/g' "$GUIDE" | grep -nE "$2"); then _fail "$1" "$hit"; else _ok "$1"; fi
 }
 # _links <name> <file> — passes when <file> links to the guide.
 _links() {

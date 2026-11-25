@@ -635,6 +635,8 @@ function resolveOffServices(
     merged.EXIST_NTFY_URL = here.has('loki') || ctl.domain ? `http://loki:3100${push}`
       : ctl.loki ? `${ctl.loki.replace(/\/$/, '')}${push}` : merged.EXIST_NTFY_URL;
   }
+  // Where every host's offers are, for the fleet lib: this host's Loki, else the controller's.
+  merged.EXIST_FLEET_LOKI = here.has('loki') ? 'http://loki:3100' : (ctl.loki ?? '').replace(/\/$/, '');
   if (!ctl.domain) return;
   for (const [k, v] of Object.entries(merged)) {
     const m = v.match(/^http:\/\/([a-z0-9-]+)(?::\d+)?(\/.*)?$/);

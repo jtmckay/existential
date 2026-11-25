@@ -33,7 +33,7 @@ traffic):
 
 | Address | What it is |
 |---|---|
-| `http://<controller>:4480` | The answer to "where do I report?", `.decree/exist.json` |
+| `http://<controller>:4480` | The answer to "where do I report?", `.decree/exist.json` (on your own network, the controller's Loki holds it instead: [Without Tailscale](#without-tailscale-your-own-network)) |
 | `http://<host>:3100` | Loki's push address, on whichever host has Loki on |
 
 To report to a Loki on another host, set `EXIST_REPORTING_URL=http://<that-host>:3100` in the
@@ -120,19 +120,22 @@ steps 3 and 4.
 ## Without Tailscale: your own network
 
 When every host is on one network, that network is already private and nothing more is needed:
-no tailnet, no DNS record, no controller to ask. Loki listens there instead, and each host is told
-where it is.
+no tailnet and no DNS record. The controller is the host whose Loki listens on that network, and
+every other host names it by address.
 
-On the host with Loki, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
-and `docker compose up -d`. Loki's push address is now `http://<that-host's-ip>:43100`.
+On the controller, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
+and `docker compose up -d`. Loki's push address is now `http://<controller's-ip>:43100`.
 
-Every other host follows [Add a worker](#add-a-worker) with one difference in step 2: press Enter
-at the controller question, leaving `EXIST_CONTROLLER` blank, and name the Loki in `.env.shared`
-(add the line if it isn't there):
+Every other host follows [Add a worker](#add-a-worker) and answers the controller question with
+the controller's address:
 
 ```bash
-EXIST_REPORTING_URL=http://192.168.1.10:43100   # the Loki host's address
+EXIST_CONTROLLER=192.168.1.10   # the controller's address on your network
 ```
+
+A worker asks the controller at `:4480` first. With no answer there, it uses the controller's
+Loki on `:43100`, and reads the controller's answer (its domain) from that Loki, where the
+controller's own report puts it. Nothing else needs to be set on a worker.
 
 ## Updating on its own
 
@@ -154,6 +157,7 @@ The `reporting` plugin sends one push to Loki every 5 minutes, labelled `job="ex
 | `plugin` | plugin installed, in each of those projects: the ones turned on and the ones they need |
 | `cron` | active cron (`cron/`) in each of those projects, with its schedule and machine |
 | `container` | container running, by name and image (docker or podman, when the host has one) |
+| `offer` | service a host plugin offers the other hosts, and how to lease it ([Peers](#peers-what-the-other-hosts-offer)) |
 
 A container in the last day's reports that is missing from the last 10 minutes', on a host still
 reporting, sends one ntfy notification: Grafana's `container stopped` alert, on the controller.
@@ -167,6 +171,70 @@ away, is sent once it is back, within the 7 days Loki accepts. A new Loki addres
 
 When the controller can't be reached, a worker uses the Loki it named last time. With no Loki
 named anywhere, nothing is sent and nothing fails.
+
+## Peers: what the other hosts offer
+
+Every host knows its controller, so every host can ask it what the others offer. A host plugin
+that serves something to the others says so in each report (`kind="offer"`): the
+[AI box](./ai-box.md)'s llama.cpp, ComfyUI and TTS, with the address of the lease each needs.
+Any host reads the latest offers back from the Loki its controller names:
+
+```bash
+./existential.sh run peers            # every host's offers, from the last 15 minutes
+./existential.sh run peers llm        # one service
+./existential.sh run peers --json     # the same, for a script
+```
+
+```text
+<ai-box>         comfy    http://<ai-box>:8188                     lease http://<ai-box>:<port>/gpu/comfy/<client>
+<ai-box>         llm      http://<ai-box>:8080/v1                  lease http://<ai-box>:<port>/gpu/llm/<client>
+<ai-box>         tts      http://<ai-box>:8000                     start http://<ai-box>:<port>/startTTS
+```
+
+### Leases
+
+Each GPU box has room for one GPU service at a time, so anything that uses one leases it from
+that box first. Every host shares one secret for this, `EXIST_FLEET_SECRET` in `.env.shared`:
+make it once (`openssl rand -hex 32`) and put the same value on every host. Blank, nothing
+leases and the stack uses its own addresses.
+
+With it set, the stack's decree scripts find each GPU service by asking the controller, every
+time they need a new lease, and hold that host's lease while they use it:
+
+- **`model_chat` and `pi_run`** take the `llm` lease. A run of calls shares one lease, given
+  back 5 seconds after the last call ends. A model address the run sets itself (`MODEL_URL`)
+  takes none.
+- **`comfy`** takes the `comfy` lease and holds it until ComfyUI's queue is empty, then 5 more
+  seconds.
+- A lease lasts 10 minutes and is renewed while it is held. One whose holder stops renewing
+  frees the card soon after.
+
+When no host offers a service, they use their own addresses (`EXIST_MODEL_URL`,
+`EXIST_COMFYUI_URL`) with no lease. Home Assistant and code-server's pi and opencode read those
+addresses too, and take no lease.
+
+By hand, `peers lease` asks for a lease and waits until it is held, then prints its id, and
+`peers release` gives it back:
+
+```bash
+id=$(./existential.sh run peers lease <ai-box> comfy my-batch)
+# ... use http://<ai-box>:8188 ...
+./existential.sh run peers release <ai-box> comfy "$id"
+```
+
+### Moving a service to another host
+
+What a box offers is `AI_BOX_SERVICES` in its `.decree/.env` (default `llm,comfy,tts`). To
+move ComfyUI, take `comfy` out there and offer it on the other host. The box's next report,
+within 5 minutes, leaves it out (`decree emit --machine reporting </dev/null` sends one now).
+A lease held on the old host runs until it is given back, and the next lease is asked of the
+new one, so no run is cut off and no caller's settings change.
+
+An offer names a host by `EXIST_HOST_ADDRESS` in that host's `.env.shared`, else its
+`EXIST_TAILNET_NAME`, else its hostname: set it when the others reach it by another name or
+by address. Nothing goes through the controller but the question: each host serves its own
+traffic, and a host that stops reporting drops out of the list within 15 minutes. The peers
+helper needs `jq` and `yq`.
 
 ## Things to know
 

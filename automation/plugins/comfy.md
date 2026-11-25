@@ -1,6 +1,8 @@
 ---
 name: comfy
 x-exist-project: automation
+needs:
+  - fleet
 machine:
   description: Generate an image or video in ComfyUI from a workflow binding in lib/comfy/workflows/, the message body as the prompt.
   # Every param is a string: empty keeps the workflow's own value, and a binding
@@ -68,7 +70,17 @@ scripts:
     # ComfyUI parameters
     type="$DECREE_DATA_TYPE"
     items_file="$DECREE_DATA_ITEMS_FILE"
-    api_url="${DECREE_DATA_API_URL:-${EXIST_COMFYUI_URL:-http://comfyui:8188}/api/prompt}"
+    # With the fleet on, the host that offers comfy now, under its lease; the lease is
+    # held until ComfyUI's queue is empty (fleet.sh). Else EXIST_COMFYUI_URL, as before.
+    source .decree/lib/fleet.sh
+    comfy_base="${EXIST_COMFYUI_URL:-http://comfyui:8188}" rc=0
+    if [ -z "$DECREE_DATA_API_URL" ]; then
+        fleet_use comfy || rc=$?
+        if [ "$rc" -eq 0 ]; then comfy_base="$FLEET_URL"
+        elif [ "$rc" -ne 3 ]; then echo "Error: no host that offers comfy would lease it"; exit 1; fi
+    fi
+    trap 'fleet_done comfy' EXIT
+    api_url="${DECREE_DATA_API_URL:-${comfy_base}/api/prompt}"
 
     binding="$LIB_DIR/workflows/${type}.yml"
     if [ ! -f "$binding" ]; then

@@ -28,5 +28,6 @@ automations.yml
 # This host's own: boot.sh, the controller's answer; cron/ is where decree 0.5 read yours.
 cron/
 boot.sh
+decree-go-rest.yml
 exist.json
 controller.json
