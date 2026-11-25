@@ -72,6 +72,7 @@ offer is required; attribution is given here.
 | ComfyUI | GPL-3.0 | https://github.com/comfyanonymous/ComfyUI |
 | pi (coding agent) | MIT | https://github.com/earendil-works/pi |
 | Ollama | MIT | https://github.com/ollama/ollama |
+| Strata | MIT | https://github.com/Niko1221/Strata |
 | WhisperX (whisperX-FastAPI) | MIT | https://github.com/pavelzbornik/whisperX-FastAPI |
 | wyoming-piper | MIT | https://github.com/rhasspy/wyoming-piper |
 | wyoming-whisper (wyoming-faster-whisper) | MIT | https://github.com/rhasspy/wyoming-faster-whisper |

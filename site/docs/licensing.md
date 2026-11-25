@@ -50,6 +50,7 @@ across the network.
 | Firecrawl | [firecrawl](https://github.com/firecrawl/firecrawl) | AGPL-3.0 | 🟡 | Run unmodified; link to source. |
 | MCP | custom (Node base) | Your code | 🟢 | First-party. |
 | Ollama | [ollama](https://github.com/ollama/ollama) | MIT | 🟢 | |
+| Strata | [Strata](https://github.com/Niko1221/Strata) | MIT | 🟢 | Model weights carry their own licenses. |
 | Open WebUI | [open-webui](https://github.com/open-webui/open-webui) | BSD-3 + **branding clause** | 🔴 | For **>50 users** (rolling 30 days) you must **keep "Open WebUI" branding** or buy an enterprise license. White-label = enterprise license required. Hosting *with* branding intact is allowed. |
 | pi | [pi](https://github.com/earendil-works/pi) | MIT | 🟢 | CLI baked into the decree image. |
 | WhisperX | [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) | MIT | 🟢 | |

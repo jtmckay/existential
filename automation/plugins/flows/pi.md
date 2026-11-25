@@ -39,9 +39,10 @@ x-exist-lib:
         done
 
         jq --arg url "$(model_url chat)" --arg model "${EXIST_MODEL_CHAT:-}" \
+           --arg key "${EXIST_MODEL_API_KEY:-none}" \
            --argjson ctx "${EXIST_MODEL_CHAT_NUM_CTX:-65536}" '
             .providers.existential = {
-                baseUrl: $url, api: "openai-completions", apiKey: "none",
+                baseUrl: $url, api: "openai-completions", apiKey: $key,
                 models: [{id: $model, input: ["text", "image"], contextWindow: $ctx}]
             }' "$dir/models.json" > "$dir/models.json.tmp" && mv "$dir/models.json.tmp" "$dir/models.json"
 

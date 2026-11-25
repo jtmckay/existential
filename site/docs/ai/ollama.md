@@ -10,7 +10,7 @@ talks to it.
 
 - Source: https://github.com/ollama/ollama
 - License: [MIT](https://opensource.org/licenses/MIT)
-- Alternatives: vLLM, LocalAI, LM Studio
+- Alternatives: [Strata](./strata.md) (large MoE models beyond VRAM), vLLM, LocalAI, LM Studio
 
 ## Models
 

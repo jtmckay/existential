@@ -1,0 +1,70 @@
+services:
+  # Mixture-of-experts LLM server that spreads a model too big for VRAM across
+  # VRAM, RAM and SSD. An alternative to ollama for the chat role: point
+  # EXIST_MODEL_URL (or _CHAT) at http://strata:8080/v1. Health at /health.
+  strata:
+    container_name: strata
+    # One image per GPU flavour, no CPU build. cuda13 needs driver 580+; on a
+    # 575-579 driver or a Pascal/Volta card use 0.2.21-cuda12 instead.
+    image: ghcr.io/niko1221/strata:0.2.21-cuda13
+
+    # GPU wiring for anything that is not nvidia — see src/utils/gpu-vendor.sh.
+    # The nvidia reservation below is stripped automatically when this applies.
+    x-exist-gpu:
+      amd:
+        # ROCm images are per architecture: gfx120x is RX 9000 / R9700. Use
+        # rocm-gfx110x for RX 7000, rocm-gfx1151 for Strix Halo. Root reaches
+        # the devices without the render group.
+        image: ghcr.io/niko1221/strata:0.2.21-rocm-gfx120x
+        devices:
+          - /dev/kfd:/dev/kfd
+          - /dev/dri:/dev/dri
+
+    # NVIDIA GPU
+    deploy:
+      resources:
+        limits:
+          # A model server: the limit is the model. Strata plans from the host's
+          # RAM, so this must exceed the pack's RAM+VRAM figure (qwen IQ3_S is
+          # ~55G) or the kernel kills it mid-load.
+          memory: 64G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Runs as root: upstream builds it that way for the GPU device files and
+    # page-locked memory, and documents no non-root mode.
+    ulimits:
+      memlock: { soft: -1, hard: -1 }   # the engine pins tens of GB of RAM
+    shm_size: 2gb
+    # It drains and unloads on SIGTERM; docker's 10s default kills it (exit 137).
+    stop_grace_period: 2m
+
+    # No healthcheck here: the image ships one (/v1/models with the key, a 2h
+    # start period for the first download).
+    restart: unless-stopped
+    networks:
+      - exist
+    # ports disabled — reached as http://strata:8080/v1 on the exist network.
+    # Uncomment to serve another host's stack (the key still guards it):
+    #   ports:
+    #     - 8080:8080
+
+    environment:
+      FAMILY: ${STRATA_FAMILY:-}
+      MODEL: ${STRATA_MODEL:-}
+      # The stack's own key, which every model call already sends.
+      API_KEY: ${EXIST_MODEL_API_KEY}
+      # The chat context floor, as a number; upstream's compose default is 32k.
+      CONTEXT: ${EXIST_MODEL_CHAT_NUM_CTX:-65536}
+      # The vision role falls back to the chat URL, so images work by default.
+      VISION: "on"
+
+    volumes:
+      # Model packs, presets, tuning: re-downloadable, a _cache (not backed up).
+      - strata_cache:/data
+
+x-exist-volumes:
+  strata_cache: {}

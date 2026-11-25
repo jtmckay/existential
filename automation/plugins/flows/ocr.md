@@ -112,7 +112,10 @@ x-exist-lib:
 
       const res = await fetch(`${url.replace(/\/$/, "")}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.EXIST_MODEL_API_KEY && { Authorization: `Bearer ${process.env.EXIST_MODEL_API_KEY}` }),
+        },
         body: JSON.stringify({
           model,
           temperature: 0,

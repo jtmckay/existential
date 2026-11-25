@@ -29,7 +29,7 @@ x-exist-lib:
     #   MODEL_URL        overrides the role's URL
     #   MODEL_NAME       overrides the role's tag; set but EMPTY sends no "model" at
     #                    all, so the server's own default answers
-    #   MODEL_API_KEY    bearer token; omitted from the request when empty
+    #   MODEL_API_KEY    bearer token, default EXIST_MODEL_API_KEY; omitted when empty
     #   MODEL_TIMEOUT    seconds, default 120
     #   MODEL_TEMPERATURE  default 0
 
@@ -67,8 +67,9 @@ x-exist-lib:
             "${url%/}/chat/completions"
             -H "Content-Type: application/json")
 
-        if [ -n "${MODEL_API_KEY:-}" ]; then
-            args+=(-H "Authorization: Bearer ${MODEL_API_KEY}")
+        local key="${MODEL_API_KEY:-${EXIST_MODEL_API_KEY:-}}"
+        if [ -n "$key" ]; then
+            args+=(-H "Authorization: Bearer $key")
         fi
 
         payload="$(jq -n \

@@ -138,6 +138,8 @@ Chat keeps the big card; OCR stops evicting it. Then `./existential.sh` and
 - `./existential.sh run models` prints where each role resolves. Migrations pull each model to
   the host that serves it.
 - The old `EXIST_OLLAMA_URL*` keys are carried over on upgrade, `/v1` added.
+- `EXIST_MODEL_API_KEY` (generated) is sent as a bearer token on every model call. ollama ignores
+  it; [Strata](./ai/strata.md) requires it, and a llama.cpp server takes it with `--api-key`.
 - [A Separate AI Box](./hosting/ai-box.md): llama.cpp presets, ComfyUI, on-demand TTS.
 
 ComfyUI moves the same way, with `EXIST_COMFYUI_URL` (default `http://comfyui:8188`):

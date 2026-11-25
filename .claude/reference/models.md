@@ -55,6 +55,11 @@ actually serves it. Adding a role means touching all three resolvers —
 resolver, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path
 against a stub that serves only `/v1`.
 
+**One key, `EXIST_MODEL_API_KEY`, goes with every role.** Generated in `.env.exist.shared`, sent as
+a bearer token by every caller (`model_chat`, `ocr.ts`, pi, opencode, open-webui, Home
+Assistant), and set as Strata's `API_KEY`. ollama ignores it, so it costs nothing there; it is
+one key, not one per role, because nothing yet needs two.
+
 **STT/TTS get no endpoint keys.** The wyoming services are CPU-only, so there is no VRAM to
 spread, and Home Assistant is told where they live in its own UI.
 

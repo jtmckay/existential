@@ -102,6 +102,7 @@ services:
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
       - EXIST_MODEL_URL_VISION=${EXIST_MODEL_URL_VISION:-}
+      - EXIST_MODEL_API_KEY=${EXIST_MODEL_API_KEY:-}
       # ollama_pull and the health checks touch ollama's own API only when it runs.
       - EXIST_IS_AI_OLLAMA=${EXIST_IS_AI_OLLAMA:-false}
       # Where the comfy routine POSTs its workflows — the local container by

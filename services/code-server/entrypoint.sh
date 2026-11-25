@@ -119,7 +119,7 @@ _opencode_config() {
         provider: {existential: {
             name: "existential",
             npm: "@ai-sdk/openai-compatible",
-            options: {baseURL: $url},
+            options: {baseURL: $url, apiKey: ((env.EXIST_MODEL_API_KEY // "") | if . == "" then "none" else . end)},
             models: {($model): {name: $model}}
         }}
     }'

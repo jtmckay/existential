@@ -84,6 +84,7 @@ services:
       - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
       - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
+      - EXIST_MODEL_API_KEY=${EXIST_MODEL_API_KEY:-}
       # What you type into claude and opencode lands in workspace/.capture/
       # (the capture plugin's lib/capture/); entrypoint.sh wires both unless this is false.
       - CODE_SERVER_CAPTURE=${CODE_SERVER_CAPTURE:-true}

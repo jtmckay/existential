@@ -32,9 +32,9 @@ services:
       WEBUI_ADMIN_PASSWORD: ${OPEN_WEBUI_ADMIN_PASSWORD}
       WEBUI_SECRET_KEY: ${OPEN_WEBUI_SECRET_KEY}
       # The chat role's /v1 endpoint, resolved at render (src/templates.sh), so
-      # ollama and llama.cpp alike answer. It takes no key; the field wants one.
+      # ollama and llama.cpp alike answer, with the key every model call sends.
       OPENAI_API_BASE_URLS: "EXIST_MODEL_URL_CHAT"
-      OPENAI_API_KEYS: "none"
+      OPENAI_API_KEYS: "${EXIST_MODEL_API_KEY:-none}"
       # Ollama's own API too would list every model twice.
       ENABLE_OLLAMA_API: "false"
       # Seeded on first boot only (persisted config wins afterwards): the admin is
