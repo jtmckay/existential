@@ -21,7 +21,7 @@ Images are the other exception:
 
 - **A service `image:`** (`_offer_image_updates` in `existential.sh`, the start of `_build`): each
   enabled service's rendered `image:` is compared with its template's, per service, and the
-  differences are listed and rewritten on yes. No terminal (the `auto-update` flow, which is
+  differences are listed and rewritten on yes. No terminal (the `pull-existential` flow, which is
   opt-in): rewritten without asking. This is how `run check-versions --update` reaches an install.
 - **The decree image** (`ensure_adhoc_built` in `src/utils/adhoc.sh`): built with the
   `exist.context` label, a checksum of the files `.dockerignore` lets in. A mismatch rebuilds it.
@@ -64,7 +64,7 @@ The first run asks one thing: core, controller, worker or nothing (`_ask_role` i
 `existential.sh`, on the host and before adhoc is built, so a worker never builds it; the answer
 reaches `src/templates.sh` as `EXIST_ROLE`, where `_apply_role` acts on `none` and `controller`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
 keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing is on yet".
-Controller is Core plus the host flow `worker`; worker is nothing plus `worker`, and asks
+Controller is Core plus the host flow `report-host`; worker is nothing plus `report-host`, and asks
 `EXIST_CONTROLLER`. A worker is any host whose `automation/plugins.yml` has `worker` on
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 `_build` syncs the host plugins even with nothing on.
@@ -78,8 +78,8 @@ printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false`
 host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
 bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
-and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts the controller's Loki on the LAN at 43100, and each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `reporting` and `_controller_fetch` use `http://<controller>:43100`, and read the controller's domain from its answer, which its `reporting` pushes there (`kind="answer"`). A flow with
-`x-exist-project: host` (`worker`, `auto-update`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
+and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts the controller's Loki on the LAN at 43100, and each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `report_host` and `_controller_fetch` use `http://<controller>:43100`, and read the controller's domain from its answer, which its `report_host` pushes there (`kind="answer"`). A flow with
+`x-exist-project: host` (`report-host`, `pull-existential`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
 and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
 renders, so Core asks for a login and none asks nothing.
 

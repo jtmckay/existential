@@ -1,5 +1,5 @@
 ---
-name: reporting
+name: report_host
 x-exist-project: host
 machine:
   description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
@@ -37,7 +37,7 @@ scripts:
     # On the host, so bash 3.2 and BSD tools on a Mac: no jq, no date +%N.
     set -euo pipefail
     repo="$(pwd)"
-    store="${DECREE_STATE_DIR:-.decree/machines/reporting/state}"; mkdir -p "$store"
+    store="${DECREE_STATE_DIR:-.decree/machines/report_host/state}"; mkdir -p "$store"
     env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
     loki_of() { sed -n 's/.*"loki"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'; }
 
@@ -110,15 +110,17 @@ scripts:
             [[ -f "$m" ]] || continue
             printf '{"project":"%s","plugin":"%s"}\n' "$name" "$(basename "$m" .md)" >> "${tmp}/plugin"
         done
-        # Each active cron (each machine's cron/, what the daemon fires): its schedule and machine.
+        # Each active cron (each machine's cron/, what the daemon fires): the machine it runs,
+        # by name (its own, or the machine: it names), and its schedule. The file's name is
+        # not shown: decree's own plugins name theirs by cadence (weekly), which says nothing.
         for m in "$dir"/machines/*/cron/*.md; do
             [[ -f "$m" ]] || continue
-            awk -v p="$name" -v n="$(basename "$m" .md)" '
+            awk -v p="$name" -v s="$(basename "$(dirname "$(dirname "$m")")")" '
                 NR == 1 && /^---/ { fm = 1; next }
                 fm && /^---/ { exit }
                 fm && /^cron:/ { sub(/^cron:[[:space:]]*/, ""); gsub(/["\047]/, ""); c = $0 }
-                fm && /^machine:/ { sub(/^machine:[[:space:]]*/, ""); gsub(/["\047]/, ""); s = $0 }
-                END { printf "{\"project\":\"%s\",\"cron\":\"%s\",\"schedule\":\"%s\",\"machine\":\"%s\"}\n", p, n, c, s }' "$m" >> "${tmp}/cron"
+                fm && /^machine:/ { sub(/^machine:[[:space:]]*/, ""); gsub(/["\047]/, ""); if ($0 != "") s = $0 }
+                END { printf "{\"project\":\"%s\",\"machine\":\"%s\",\"schedule\":\"%s\"}\n", p, s, c }' "$m" >> "${tmp}/cron"
         done
     done
 
@@ -325,9 +327,9 @@ x-exist-lib:
     	}
     }
 cron:
-  reporting.md: |
+  report_host.md: |
     ---
-    machine: reporting
+    machine: report_host
     cron: "*/5 * * * *"
     ---
 x-exist-endpoints:
@@ -335,13 +337,13 @@ x-exist-endpoints:
   # project of your own (curl ... | decree install -), from any host with a decree-go-rest.
   - path: /plugins/fleet_gpu.md
     action: read
-    read: {machine: reporting, path: fleet_gpu.md}
+    read: {machine: report_host, path: fleet_gpu.md}
 ---
-# reporting
+# report_host
 
 Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines, plugins and crons installed in each of its
 projects, the containers running, what its host plugins offer the other hosts (kind=offer, read back by `./existential.sh run peers`), and every run that finished since the last report, sent to the Loki its controller
-names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
+names. Grafana's **Hosts** dashboard shows every host that reports. The `report-host` flow
 turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
 controller, and names its own Loki. See
 /docs/hosting/controller-and-workers.

@@ -31,7 +31,7 @@ New services arrive with their flag `false`.
 
 Images work differently: when a template names a different image than your rendered compose
 file, the run lists it and asks before updating the file (with no terminal to ask, as under the
-`auto-update` flow, it updates it). Each run then pulls and builds every
+`pull-existential` flow, it updates it). Each run then pulls and builds every
 enabled image without touching running containers; `docker compose up -d` switches to them.
 
 ## Service enablement
@@ -173,7 +173,7 @@ What it changes, in `src/generate-compose.ts`:
 
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
   works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
-- **`EXIST_CONTROLLER`**: with the `worker` flow on, the controller this host reports to, its
+- **`EXIST_CONTROLLER`**: with the `report-host` flow on, the controller this host reports to, its
   tailnet name, 100.x address, or address on your own network. Blank, this host is the
   controller, and has Loki on. See [Controller and Workers](./hosting/controller-and-workers.md).
 - **`EXIST_FLEET_SECRET`**: the same on every host; the secret for leasing another host's GPU

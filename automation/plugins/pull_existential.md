@@ -1,18 +1,18 @@
 ---
-name: update
+name: pull_existential
 x-exist-project: host
 machine:
   description: Follow this checkout's upstream - pull it fast-forward only, then run ./existential.sh, which installs every plugin you have on at its new version, then docker compose up -d.
-  initial: update
+  initial: pull
   states:
-    update:
+    pull:
       invoke:
-        script: {name: update, timeout: 30m}
+        script: {name: pull, timeout: 30m}
       transitions: {done: done}
     done: {final: true}
     failed: {final: true}
 scripts:
-  update.sh: |
+  pull.sh: |
     #!/usr/bin/env bash
     # The repo is the authority: what lands on its branch is what this install
     # runs. A pull that cannot fast-forward (a local commit, a rewritten
@@ -48,15 +48,15 @@ scripts:
         $DOCKER_CMD builder prune -af >/dev/null 2>&1 || true
     fi
     tell "Updated" "$(hostname) is at $(git log -1 --format='%h %s')."
-    echo "update: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
+    echo "pull_existential: $(git log --oneline "${before}..HEAD" | wc -l) commits, now $(git log -1 --format=%h)"
 cron:
-  update.md: |
+  pull_existential.md: |
     ---
-    machine: update
+    machine: pull_existential
     cron: "*/15 * * * *"
     ---
 ---
-# update
+# pull_existential
 
 Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, runs
 `./existential.sh` (which installs the new version of every plugin you have on) and
@@ -64,5 +64,5 @@ Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, 
 fast-forward, which changes nothing.
 
 It runs in the host's own decree project, the repo's own `.decree`, so a decree daemon has to be
-running there, started at boot: `./existential.sh` says so while it is not. The `auto-update` flow turns it on:
-`./existential.sh flow on auto-update`.
+running there, started at boot: `./existential.sh` says so while it is not. The `pull-existential` flow turns it on:
+`./existential.sh flow on pull-existential`.

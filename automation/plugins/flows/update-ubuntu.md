@@ -5,13 +5,13 @@ x-exist-tagline: Security updates daily, every other package update on Sundays a
 x-exist-docs: /docs/hosting/updates#ubuntu
 x-exist-project: host
 needs:
-  - ubuntu_upgrade
+  - update_ubuntu
 ---
 It runs in a decree daemon on the host (the repo's own .decree): start one, and have it start at boot,
 as https://existential.company/docs/hosting/host-daemon says.
 
 One step needs root, once, after ./existential.sh has installed the flow:
 
-  sudo bash .decree/lib/ubuntu_upgrade/setup.sh
+  sudo bash .decree/lib/update_ubuntu/setup.sh
 
 It never upgrades the Ubuntu release: do-release-upgrade stays yours to schedule.

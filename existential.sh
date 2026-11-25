@@ -250,13 +250,14 @@ _tailscale_serve_core() {
     return 0
 }
 
-# A worker is a machine whose host runs decree with the worker flow on (reporting).
+# A worker is a machine whose host runs decree with the report-host flow on (report_host;
+# worker, its name before, until _rename_flows renames it).
 # Its EXIST_CONTROLLER names the controller it reports to; blank, with Loki on here, it
 # is the controller (blank without Loki, it reports nowhere). Read from automation/plugins.yml, what is wanted, so the first run
 # knows before the host sync has installed anything (host/.decree/plugins.yml is
 # where an older install said so, until the sync folds it in).
 _is_worker() {
-    grep -qhE '^[[:space:]]+-[[:space:]]+worker[[:space:]]*$|^on:.*[[ ,]worker[], ]' \
+    grep -qhE '^[[:space:]]+-[[:space:]]+(report-host|worker)[[:space:]]*$|^on:.*[[ ,](report-host|worker)[], ]' \
         "${SCRIPT_DIR}/automation/plugins.yml" "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
 }
 _is_controller() {
@@ -270,6 +271,60 @@ _is_controller() {
 # Loki's host. The speech keys moved to their services, which took their values at render.
 # EXIST_MODEL_API_KEY was merged into EXIST_FLEET_SECRET.
 _RETIRED_KEYS='EXIST_(MODEL_API_KEY|REPORTING_URL|HOST_ADDRESS|MODEL_SERVICE|COMFYUI_URL|MODEL_URL_CHAT|MODEL_URL_VISION|MODEL_STT|MODEL_STT_LANGUAGE|MODEL_TTS_VOICE)'
+# Flows that were renamed, in automation/plugins.yml's on: list, so a host that had one on
+# keeps it on, under the name its machine has: <old> <new>.
+_RENAMED_FLOWS='auto-update pull-existential
+worker report-host
+on-boot boot-daemon
+ai-box lease-gpu'
+_rename_flows() {
+    local f="${SCRIPT_DIR}/automation/plugins.yml" old new t
+    [[ -f "$f" ]] || return 0
+    while read -r old new; do
+        grep -qE "(^[[:space:]]*-[[:space:]]*|[[, ])${old}([[:space:]]*$|[], ])" "$f" || continue
+        t="$(mktemp)"
+        sed -e "s/^\([[:space:]]*-[[:space:]]*\)${old}[[:space:]]*\$/\1${new}/" \
+            -e "s/\([[, ]\)${old}\([], ]\)/\1${new}\2/g" "$f" > "$t" && cat "$t" > "$f"
+        rm -f "$t"
+        echo "  The ${old} flow is ${new} now; it stays on."
+    done <<<"$_RENAMED_FLOWS"
+}
+
+# Machines that were renamed: <old> <new>. decree removes a machine whose plugin is gone but
+# keeps its state/ (and leaves its graph.md): what it kept moves to the new machine, as long as
+# the new one has none of its own yet (report_host's alloy positions, so no run log ships
+# twice), and the old folder goes once nothing but its graph is left.
+_RENAMED_MACHINES='reporting report_host
+update pull_existential
+auto_update pull_existential
+boot boot_daemon
+on_boot boot_daemon
+ubuntu_upgrade update_ubuntu
+ai_box_gpu lease_gpu'
+_rename_machines() {
+    local m="${SCRIPT_DIR}/.decree/machines" old new f
+    while read -r old new; do
+        [[ -d "${m}/${old}" && ! -f "${m}/${old}/machine.yml" && -f "${m}/${new}/machine.yml" ]] || continue
+        # reporting's alloy writes into its state: stopped first, and report_host's next run
+        # starts it on the new folder. alloy takes a closing session's hangup as "reload".
+        if [[ "$old" == reporting ]]; then
+            tmux kill-session -t '=reporting-alloy' 2>/dev/null || true
+            pkill -f 'alloy run .decree/lib/reporting/decree.alloy' 2>/dev/null || true
+        fi
+        if [[ -d "${m}/${old}/state" ]]; then
+            mkdir -p "${m}/${new}/state"
+            for f in "${m}/${old}/state"/* "${m}/${old}/state"/.[!.]*; do
+                [[ -e "$f" ]] || continue
+                # The new machine's own copy wins; the old one is stale.
+                if [[ -e "${m}/${new}/state/${f##*/}" ]]; then rm -rf "$f"; else mv "$f" "${m}/${new}/state/"; fi
+            done
+            rmdir "${m}/${old}/state" 2>/dev/null || continue
+        fi
+        rm -f "${m}/${old}/graph.md"
+        rmdir "${m}/${old}" 2>/dev/null && echo "  ${old} is ${new} now; what it kept moved with it."
+    done <<<"$_RENAMED_MACHINES"
+}
+
 _retire_env_keys() {
     local f="${SCRIPT_DIR}/.env.shared" url ctl t key
     grep -qE "^${_RETIRED_KEYS}=" "$f" 2>/dev/null || return 0
@@ -309,11 +364,11 @@ _controller_answer() {
 
 # fleet_gpu.md: the fleet lib (automation/plugins/flows/fleet.md) as a plugin any decree
 # project installs, served by this host's decree-go-rest (GET /plugins/fleet_gpu.md, the
-# reporting plugin's endpoint) from reporting's state. Written at each run, so it is this
+# report_host plugin's endpoint) from report_host's state. Written at each run, so it is this
 # checkout's. Data to serve, never run here: no #! line, so decree check takes it as data.
 _fleet_gpu_plugin() {
-    local d="${SCRIPT_DIR}/.decree/machines/reporting/state"
-    [[ -d "${SCRIPT_DIR}/.decree/machines/reporting" ]] || return 0
+    local d="${SCRIPT_DIR}/.decree/machines/report_host/state"
+    [[ -d "${SCRIPT_DIR}/.decree/machines/report_host" ]] || return 0
     mkdir -p "$d"
     { printf -- '---\nname: fleet_gpu\nscripts:\n  requirements: |\n    # kind    name\n    command   curl\n    command   jq\n  fleet.sh: |\n'
       awk '/^  fleet\.sh: \|$/ { f = 1; next } f && !/^    / && !/^$/ { exit } f && !/^    #!/ { print }' \
@@ -328,8 +383,12 @@ asking the fleet's controller, and used under that host's lease.
 
 In `.decree/.env`:
 
-    EXIST_FLEET_LOKI=http://<controller>:43100
+    EXIST_CONTROLLER=<the controller's address>
     EXIST_FLEET_SECRET=<the fleet's secret>
+
+Installed, and updated, from the project's root:
+
+    set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
 
 In a script:
 
@@ -480,11 +539,11 @@ _host_plugins() {
         todo=true
     fi
     $todo && echo "     Or turn one off:  ./existential.sh run plugin off <name>"
-    if [[ " ${on} " == *" reporting "* ]] && ! command -v alloy >/dev/null 2>&1; then
-        echo "  ⚠  reporting ships this host's decree runs with alloy, and alloy is not here:"
+    if [[ " ${on} " == *" report_host "* ]] && ! command -v alloy >/dev/null 2>&1; then
+        echo "  ⚠  report_host ships this host's decree runs with alloy, and alloy is not here:"
         _install_steps alloy; todo=true
     fi
-    if ! $todo && [[ " ${on} " == *" reporting "* ]]; then
+    if ! $todo && [[ " ${on} " == *" report_host "* ]]; then
         # The answer to "is this host reporting?": what its newest report said.
         local runs="${SCRIPT_DIR}/.decree/runs" r last=""
         for r in $(ls -t "$runs" 2>/dev/null | head -20); do
@@ -624,9 +683,10 @@ _worker_without_engine() {
         fi
         { grep -E '^EXIST_IS_' "${SCRIPT_DIR}/.env.exist.shared" | sed 's/=.*/=false/'
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
-        ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on worker )
+        ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on report-host )
     fi
     _retire_env_keys
+    _rename_flows
     _controller_answer
     _fleet_gpu_plugin
     _build
@@ -1000,7 +1060,7 @@ _set_image() {
 # (`git pull`, `run check-versions --update`) never reaches it on its own.
 # List each enabled service whose rendered image differs from its template's,
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
-# No terminal is the auto-update flow, which you turned on to follow the branch,
+# No terminal is the pull-existential flow, which you turned on to follow the branch,
 # so there they are applied: listed only, the pins would never move.
 # decree 0.6's code is plugins/, where 0.5's was scripts/: a compose file rendered
 # before keeps .decree/plugins/ read-only like the rest of the code, every container
@@ -1153,9 +1213,11 @@ _build() {
     _offer_image_updates
     _ensure_host_ids
     _retire_env_keys
+    _rename_flows
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
         _host_plugins
+        _rename_machines
         if _is_worker; then
             _controller_answer
             _fleet_gpu_plugin
@@ -1179,6 +1241,7 @@ _build() {
     _warn_if_no_gateway
     run_initials
     _host_plugins
+    _rename_machines
     _stage_images
     echo "Done! Next step:  docker compose up -d"
     _report_dashboard
@@ -1268,7 +1331,7 @@ case "$action" in
         ;;
     flow|service)
         ensure_git_hooks
-        # A worker (no engine, or no services): its flows (auto-update, on-boot, ...)
+        # A worker (no engine, or no services): its flows (pull-existential, boot-daemon, ...)
         # are host plugins, turned on and synced with the host's own tools, as the
         # bare run does. One that turned a service on, where an engine is, builds.
         # 3 is "nothing changed": a list, or a picker left without a choice.

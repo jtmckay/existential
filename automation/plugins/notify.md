@@ -55,7 +55,7 @@ scripts:
 
     # No ntfy on this host: NTFY_URL is the controller's Loki (generate-compose sets
     # it), the message goes there as {job="exist", kind="notify"}, and the
-    # controller's notify-relay publishes it to its ntfy (automation/plugins/reporting.md).
+    # controller's notify-relay publishes it to its ntfy (automation/plugins/report_host.md).
     if [[ "$ntfy_url" == */loki/api/v1/push ]]; then
         line="$(jq -nc --arg topic "$ntfy_topic" --arg title "$ntfy_title" --arg priority "$ntfy_priority" \
             --arg tags "$ntfy_tags" --arg body "$body" '{topic: $topic, title: $title, priority: $priority, tags: $tags, body: $body}')"

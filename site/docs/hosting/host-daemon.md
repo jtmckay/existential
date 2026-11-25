@@ -6,7 +6,7 @@ sidebar_position: 13
 
 Most of the stack runs in containers. Five flows run on the host itself, in the host's decree
 project, the checkout's own `.decree`: [`worker`](./controller-and-workers.md), which reports the host,
-[`auto-update`](./updates.md), which keeps the install current, [`on-boot`](#on-boot),
+[`pull-existential`](./updates.md), which keeps the install current, [`boot-daemon`](#boot-daemon),
 which runs your own script when the daemon starts, [`check-versions`](./updates.md#pinned-images),
 which says when a pinned image is behind, and [`update-ubuntu`](./updates.md#ubuntu),
 which keeps an Ubuntu host patched. They run only while a decree
@@ -17,7 +17,7 @@ daemon runs there, and nothing starts one for you. `./existential.sh` says so un
 Each one is off until you turn it on, from the checkout:
 
 ```bash
-./existential.sh flow on auto-update     # or worker, on-boot, check-versions, update-ubuntu
+./existential.sh flow on pull-existential     # or report-host, boot-daemon, check-versions, update-ubuntu
 ```
 
 That puts it in `automation/plugins.yml` and installs it into the checkout's `.decree`. It works on
@@ -84,7 +84,7 @@ again as above, and change `WorkingDirectory` in the unit to the checkout.
 ## When decree's version changes
 
 A pull that pins a new decree leaves the host's `.decree` as it is, so the daemon you have
-keeps running what it runs (`auto-update` included), and `./existential.sh` prints the steps
+keeps running what it runs (`pull-existential` included), and `./existential.sh` prints the steps
 until you take them: install that version as above, run `./existential.sh`, then restart the
 daemon:
 
@@ -102,11 +102,11 @@ tail -3 .decree/process.log
 Each run ends in a line like `✓ <run> done in 0s`. A flow's own output is in
 `.decree/runs/<run>/`. `./existential.sh` also warns while no daemon runs.
 
-## On boot
+## Boot daemon
 
 With the unit above, the daemon is the one thing started at boot, and it can start the rest.
-`./existential.sh flow on on-boot`, then write `.decree/boot.sh`. It runs once each time the
-daemon starts (a cron file of the `boot` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
+`./existential.sh flow on boot-daemon`, then write `.decree/boot.sh`. It runs once each time the
+daemon starts (a cron file of the `boot_daemon` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
 in reach, so each process gets its own tmux session and is left alone if it already runs:
 
 ```bash

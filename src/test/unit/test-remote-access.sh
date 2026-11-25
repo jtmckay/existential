@@ -73,8 +73,8 @@ RUNNING="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"
 NO_HTTPS="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": null}"
 
 printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_IS_HOSTING_LOKI=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
-# This host is the controller: the worker flow on, no EXIST_CONTROLLER, Loki on.
-mkdir -p "$WORK/automation"; printf 'on:\n  - worker\n' > "$WORK/automation/plugins.yml"
+# This host is the controller: the report-host flow on, no EXIST_CONTROLLER, Loki on.
+mkdir -p "$WORK/automation"; printf 'on:\n  - report-host\n' > "$WORK/automation/plugins.yml"
 cp "$WORK/.env.shared" "$WORK/env.fresh"
 
 # _serve <path> — runs _tailscale_serve_core as existential.sh does (set -euo pipefail).

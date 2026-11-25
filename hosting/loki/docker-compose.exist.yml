@@ -38,7 +38,7 @@ services:
     image: grafana/alloy:v1.22.0
     restart: unless-stopped
     # Tails every container's json-file log (each host ships its own decree
-    # runs: automation/plugins/reporting.md). ~42 MiB idle, ~65 MiB while
+    # runs: automation/plugins/report_host.md). ~42 MiB idle, ~65 MiB while
     # backfilling a cold positions file.
     deploy:
       resources:

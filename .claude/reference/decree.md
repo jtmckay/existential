@@ -19,7 +19,7 @@ the repo's own `.decree` included (but for its order files and their record, bel
 | `x-exist-project` | `automation` | `backup` | `host` |
 |---|---|---|---|
 | project (`.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/`, mounted as `/work/.decree` | the repo's own `.decree`, run by a decree daemon on the host |
-| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `update`, `reporting`, `boot`, `check_versions`, `ubuntu_upgrade`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
+| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `update`, `report_host`, `boot`, `check_versions`, `update_ubuntu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
 | always has | the plugin system: `notify`, `skill` | `notify` | nothing |
 | crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files, accepted | the same: `service-triage`, `workspace-sync`, `notes-pull` and one `backup-<service>` flow per service | each plugin's own |
 | order files | each plugin's own (`order:`), run by decree's `decree_order` plugin | none | **the repo's**, tracked in `.decree/machines/repo_develop/order/` with `state/order.git.txt`; a host plugin carries none (validate conventions) |
@@ -140,7 +140,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   `swap/gpu.sh` are scripts, so they install read-only; its `callback.sh` takes the
   holder's address from `automation/.env`, never from the request, and `gpu_release` is how
   a POST answers a lease, refusing any run that is not `gpu_lease`'s; and, on a GPU box's host,
-  `ai_box_gpu`: modes `llm`, `comfy`, `tts`, `strata`, its swap unloading llama.cpp's router and
+  `lease_gpu`: modes `llm`, `comfy`, `tts`, `strata`, its swap unloading llama.cpp's router and
   ComfyUI, and stopping or starting the TTS tmux session and Strata's container; a separate host-only plugin, so a host that also runs the stack
   never has two queues for one card; its lease is served over decree-go-rest's emit, read and
   reply endpoints, no release machine), `decree_skill`
@@ -174,7 +174,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   with the gate `.githooks/pre-push`, `conventions.md` from CLAUDE.md's rules and the
   declarative order files, and the `requirements` its precheck checks) and `repo_qa`
   (`decree_qa`, handing bugs to `repo_develop` by a needs map) are host plugins like
-  `update`, off until `run plugin on repo_develop` (and `repo_qa`); both need the `repo`
+  `pull_existential`, off until `run plugin on repo_develop` (and `repo_qa`); both need the `repo`
   flow, which needs `decree_order`. The repo's migrations are order files,
   `.decree/machines/repo_develop/order/`, and declarative: `decree_order` runs each once and
   again when it is edited, and `decree_develop`'s `commit` records it in
@@ -243,7 +243,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   and the watcher logs that. Claude learns this from `automation/lib/skill-notes.md`.
   Nextcloud's `/files` webhook is the optional older path. Tested by
   `src/test/unit/test-file-handlers.sh`.
-- **Telemetry is the event log.** Each host's alloy, which the `reporting` plugin keeps
+- **Telemetry is the event log.** Each host's alloy, which the `report_host` plugin keeps
   running, ships `runs/*/events.jsonl` and script logs of all three projects to Loki, live,
   labelled `host` and `project`; Grafana counts runs from those lines. A failed run in
   `automation-backup` or `host`, or a backup with no `done` run in 48h, alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
@@ -266,11 +266,11 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 
 **Offers (peers).** A host plugin that serves the other hosts ships `scripts/offers.sh`, one
 JSON object per line (`service`, `url`, and `lease`/`api` or `start`/`stop`), `localhost`
-meaning this host. `reporting` pushes them as `kind="offer"`, with `localhost` swapped for
+meaning this host. `report_host` pushes them as `kind="offer"`, with `localhost` swapped for
 `EXIST_TAILNET_NAME` (else `EXIST_LOCAL_HOST_IP`, else the hostname), and `src/lib/peers.sh`
 (`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
 `./existential.sh` writes the fleet lib as a plain decree plugin, `fleet_gpu.md`, into
-`reporting`'s state, and every host's go-rest serves it (`GET /plugins/fleet_gpu.md`), so a
+`report_host`'s state, and every host's go-rest serves it (`GET /plugins/fleet_gpu.md`), so a
 decree project of your own installs it with `curl ... | decree install -`.
 The controller only answers the question; traffic goes host to host.
 The **fleet** lib (`flows/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU

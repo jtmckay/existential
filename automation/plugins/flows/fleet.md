@@ -26,18 +26,20 @@ x-exist-lib:
     #   fleet_lease <offer> <holder>      ask, wait until held (FLEET_WAIT s, default 2400), print the id
     #   fleet_answer <offer> <id> <release|renew>
     #
-    # Env: EXIST_FLEET_SECRET (every host's decree-go-rest takes it), EXIST_FLEET_LOKI (the
-    # controller's Loki), FLEET_HOLDER (default this host's name), FLEET_STATE_DIR.
+    # Env: EXIST_FLEET_SECRET (every host's decree-go-rest takes it) and EXIST_CONTROLLER (its
+    # Loki, on :43100, holds the offers; the stack sets EXIST_FLEET_LOKI instead), FLEET_HOLDER
+    # (default this host's name), FLEET_STATE_DIR.
     # Needs curl and jq. bash 3.2: the host's `./existential.sh run peers` sources it too.
 
     FLEET_IDLE="${FLEET_IDLE:-5}"
     FLEET_STATE_DIR="${FLEET_STATE_DIR:-${TMPDIR:-/tmp}/fleet}"
 
-    fleet_on() { [ -n "${EXIST_FLEET_SECRET:-}" ] && [ -n "${EXIST_FLEET_LOKI:-}" ]; }
+    _fleet_loki() { echo "${EXIST_FLEET_LOKI:-${EXIST_CONTROLLER:+http://${EXIST_CONTROLLER}:43100}}"; }
+    fleet_on() { [ -n "${EXIST_FLEET_SECRET:-}" ] && [ -n "$(_fleet_loki)" ]; }
 
     fleet_offers() {
         local out
-        out="$(curl -fsSG --max-time 15 "${EXIST_FLEET_LOKI%/}/loki/api/v1/query_range" \
+        out="$(curl -fsSG --max-time 15 "$(_fleet_loki)/loki/api/v1/query_range" \
             --data-urlencode 'query={job="exist", kind="offer"}' \
             --data-urlencode "start=$(( $(date +%s) - 900 ))000000000" \
             --data-urlencode direction=backward --data-urlencode limit=2000)" || return 1
@@ -110,9 +112,9 @@ x-exist-lib:
             printf '%s\n' "$id" > "$d/id"; printf '%s\n' "$offer" > "$d/offer"
             jq -r .url <<<"$offer" > "$d/url"; date +%s > "$d/last"; date +%s > "$d/beat"
             # Its own session, so the run that asked can end without taking it along.
-            export FLEET_STATE_DIR FLEET_IDLE EXIST_FLEET_SECRET
+            export FLEET_STATE_DIR FLEET_IDLE EXIST_FLEET_SECRET EXIST_FLEET_LOKI EXIST_CONTROLLER
             if command -v setsid >/dev/null 2>&1; then
-                setsid bash -c "$(declare -f fleet_offers _fleet_auth fleet_answer _fleet_lock _fleet_unlock fleet_keeper); fleet_keeper '$svc'" \
+                setsid bash -c "$(declare -f _fleet_loki fleet_offers _fleet_auth fleet_answer _fleet_lock _fleet_unlock fleet_keeper); fleet_keeper '$svc'" \
                     </dev/null >/dev/null 2>&1 &
             else
                 ( fleet_keeper "$svc" ) </dev/null >/dev/null 2>&1 &

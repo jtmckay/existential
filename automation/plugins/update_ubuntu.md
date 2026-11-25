@@ -1,5 +1,5 @@
 ---
-name: ubuntu_upgrade
+name: update_ubuntu
 x-exist-project: host
 machine:
   description: Once a week, install every Ubuntu package update that is not a release upgrade, and reboot at the configured time only if one of them requires it. Ubuntu's own unattended-upgrades does the daily security updates.
@@ -21,7 +21,7 @@ scripts:
     # host project (the repo's own .decree), so it runs in the repo.
     set -euo pipefail
     repo="$(pwd)"
-    lib=".decree/lib/ubuntu_upgrade"
+    lib=".decree/lib/update_ubuntu"
     root=/usr/local/sbin/existential-ubuntu-upgrade
     # shellcheck source=/dev/null
     . "${repo}/src/utils/adhoc.sh"
@@ -30,10 +30,10 @@ scripts:
         printf '%s\n' "$2" | ${DOCKER_CMD:-false} exec -i automation decree emit --machine notify \
             --param ntfy_title="$1" --param ntfy_tags=package >/dev/null 2>&1 || true
     }
-    grep -qs '^ID=ubuntu$' /etc/os-release || { echo "ubuntu_upgrade: this host is not Ubuntu; turn the flow off here" >&2; exit 1; }
+    grep -qs '^ID=ubuntu$' /etc/os-release || { echo "update_ubuntu: this host is not Ubuntu; turn the flow off here" >&2; exit 1; }
     # Not set up, or the repo's upgrade.sh changed since: a person runs setup again.
     if ! cmp -s "${lib}/upgrade.sh" "$root" || ! sudo -n -l "$root" >/dev/null 2>&1; then
-        echo "ubuntu_upgrade: set it up once, as root, then retry:  sudo bash ${lib}/setup.sh" >&2
+        echo "update_ubuntu: set it up once, as root, then retry:  sudo bash ${lib}/setup.sh" >&2
         tell "Ubuntu upgrade needs setup" "$(hostname): sudo bash ${lib}/setup.sh"
         exit 1
     fi
@@ -46,9 +46,9 @@ scripts:
     reboot="$(printf '%s\n' "$out" | grep '^reboot: ' || true)"
     [[ -z "$reboot" ]] || tell "Ubuntu upgraded" "$(hostname) ${reboot}"
 x-exist-lib:
-  ubuntu_upgrade/upgrade.sh: |
+  update_ubuntu/upgrade.sh: |
     #!/usr/bin/env bash
-    # The root half of ubuntu_upgrade, installed by setup.sh as
+    # The root half of update_ubuntu, installed by setup.sh as
     # /usr/local/sbin/existential-ubuntu-upgrade, the one command sudo lets the
     # host daemon run. `upgrade`, never `dist-upgrade` or do-release-upgrade: no
     # package is removed and the release never changes. A changed config file
@@ -68,12 +68,12 @@ x-exist-lib:
     else
         echo "reboot: required, and automatic reboots are off, so it waits for you"
     fi
-  ubuntu_upgrade/setup.sh: |
+  update_ubuntu/setup.sh: |
     #!/usr/bin/env bash
     # setup.sh — the one root step of the update-ubuntu flow. Safe to run again;
-    # run it again when ubuntu_upgrade says upgrade.sh changed.
+    # run it again when update_ubuntu says upgrade.sh changed.
     #
-    #   sudo bash .decree/lib/ubuntu_upgrade/setup.sh
+    #   sudo bash .decree/lib/update_ubuntu/setup.sh
     #
     # 1. unattended-upgrades on: package lists and security updates daily, and a
     #    reboot at 02:00 only when an installed update requires one. The file is
@@ -105,15 +105,15 @@ x-exist-lib:
     install -o root -g root -m 440 "$tmp" /etc/sudoers.d/existential-ubuntu-upgrade
     echo "set up: security updates daily, everything else Sundays at 01:00, reboots per ${conf}"
 cron:
-  ubuntu-upgrade.md: |
+  update_ubuntu.md: |
     ---
-    machine: ubuntu_upgrade
+    machine: update_ubuntu
     cron: "0 1 * * SUN"
     ---
 
     The weekly maintenance window: Sundays at 01:00, an hour before the reboot time.
 ---
-# ubuntu_upgrade
+# update_ubuntu
 
 The weekly half of keeping an Ubuntu host patched: Sundays at 01:00 it installs every package
 update (`apt-get upgrade`, so nothing is removed and the release never changes), and schedules

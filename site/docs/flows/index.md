@@ -26,7 +26,7 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 - `docker compose up -d` afterwards starts anything new.
 - A flow that needs another turns that one on too.
 - `off` never deletes a file you changed.
-- `worker`, `auto-update`, `on-boot`, `check-versions`, `update-ubuntu` and `ai-box` run on the host itself, in a decree daemon there (the checkout's own `.decree`),
+- `report-host`, `pull-existential`, `boot-daemon`, `check-versions`, `update-ubuntu` and `lease-gpu` run on the host itself, in a decree daemon there (the checkout's own `.decree`),
   not in a container. `./existential.sh` says so until one runs.
 
 | Flow | What it does | Needs, beyond Core |
@@ -55,12 +55,12 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 | `home-voice` | Talk to the house: Home Assistant, speech in and out, your chat model answering | Home Assistant, Wyoming |
 | `photos` | Immich, its admin made and your NAS photos indexed read-only | Immich |
 | `comfyui` | ComfyUI workflows a decree message runs | ComfyUI and its models |
-| `worker` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, CPU, RAM, VRAM, automations, runs, in Grafana | decree on the host |
-| `auto-update` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
-| `on-boot` | [Your `.decree/boot.sh`](../hosting/host-daemon.md#on-boot), run once when the host daemon starts | decree on the host |
+| `report-host` | [This host, reported to your controller](../hosting/controller-and-workers.md): disks, CPU, RAM, VRAM, automations, runs, in Grafana | decree on the host |
+| `pull-existential` | [Follow the branch](../hosting/updates.md): `git pull`, `./existential.sh`, `docker compose up -d` every 15 minutes | decree on the host |
+| `boot-daemon` | [Your `.decree/boot.sh`](../hosting/host-daemon.md#boot-daemon), run once when the host daemon starts | decree on the host |
 | `check-versions` | [Fridays at noon, every pinned image with a newer version upstream](../hosting/updates.md#pinned-images), in one notification | decree on the host |
 | `update-ubuntu` | [Keep an Ubuntu host patched](../hosting/updates.md#ubuntu): security updates daily, the rest weekly, a reboot at 02:00 only when one is required | decree on the host, Ubuntu |
-| `ai-box` | [A GPU box's llama.cpp, ComfyUI and TTS take turns on its one card](../hosting/ai-box.md#one-card-taken-in-turns): a lease unloads the others first | decree on the host, Linux |
+| `lease-gpu` | [A GPU box's llama.cpp, ComfyUI and TTS take turns on its one card](../hosting/ai-box.md#one-card-taken-in-turns): a lease unloads the others first | decree on the host, Linux |
 | `plugin-sharing` | [Trade plugins with another stack](../plugins/index.md#between-stacks): ask for one, send yours when asked | automation-webhook |
 | `service-triage` | Every enabled service's own check, run for you; your phone hears when one breaks or recovers | automation-backup |
 | `workspace-sync` | `workspace/` kept the same as one other copy, on your NAS or in Nextcloud | automation-backup |

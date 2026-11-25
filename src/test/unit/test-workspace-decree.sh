@@ -69,7 +69,7 @@ check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/wor
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
 check "plugins.yml, what is on, is written from its example" "cmp -s '${R}/automation/plugins.exist.yml' '${R}/automation/plugins.yml'"
 check "...beside the plugins, not in the workspace the automation daemon can write" "[[ ! -e '${P}/plugins.yml' ]]"
-check "nothing tagged for another project is installed (x-exist-project: backup, host)" "[[ ! -e '${P}/machines/triage/machine.yml' && ! -e '${P}/machines/update/machine.yml' ]]"
+check "nothing tagged for another project is installed (x-exist-project: backup, host)" "[[ ! -e '${P}/machines/triage/machine.yml' && ! -e '${P}/machines/pull_existential/machine.yml' ]]"
 check "plugins.exist.yml turns on three flows and nothing else" "[[ \"\$(yq -r '.on | join(\" \")' '${R}/automation/plugins.exist.yml')\" == 'note-to-automation clean-runs health-checks' ]]"
 check "the digest, the look backs, capture and the agents are off until asked for" "[[ ! -e '${P}/machines/flow_you_were_here' && ! -e '${P}/machines/flow_look_back' && ! -e '${P}/machines/capture/machine.yml' && ! -e '${P}/lib/pi.sh' ]]"
 check "clean-runs (decree's decree_prune) and health-checks are on" "[[ -f '${P}/machines/decree_prune/cron/weekly.md' && -f '${P}/machines/flow_health_checks/cron/health-checks.md' ]]"

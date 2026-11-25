@@ -80,16 +80,16 @@ assert_eq "the GPU answer outranks a flow's service" "false" "$(env_of EXIST_IS_
 assert_has "...and says so" "$out" "EXIST_IS_AI_OLLAMA stays off"
 assert_eq "an unknown flow fails" "1" "$(flow on nope >/dev/null; echo $?)"
 assert_eq "a library is not a flow you turn on" "1" "$(flow on model >/dev/null; echo $?)"
-flow on auto-update >/dev/null
-assert_has "a host flow goes in the same list" "$(on_list)" "auto-update"
+flow on pull-existential >/dev/null
+assert_has "a host flow goes in the same list" "$(on_list)" "pull-existential"
 sync
-assert_eq "...and its x-exist-project keeps it out of the workspace" "no" "$(is_file "${D}/machines/update/machine.yml")"
+assert_eq "...and its x-exist-project keeps it out of the workspace" "no" "$(is_file "${D}/machines/pull_existential/machine.yml")"
 PATH="${TMP}/bin:${PATH}" REPO_DIR="$R" bash "${R}/src/lib/plugin.sh" sync host >/dev/null 2>&1
-assert_eq "...and in the host's project, the repo's own .decree" "yes" "$(is_file "${R}/.decree/machines/update/machine.yml")"
+assert_eq "...and in the host's project, the repo's own .decree" "yes" "$(is_file "${R}/.decree/machines/pull_existential/machine.yml")"
 assert_eq "...which gets nothing tagged for the workspace" "no" "$(is_file "${R}/.decree/machines/notify/machine.yml")"
-assert_has "...and the list shows it on" "$(flow list | grep ' auto-update ')" "✓"
-flow off auto-update >/dev/null
-assert_lacks "...and off takes it out" "$(on_list)" "auto-update"
+assert_has "...and the list shows it on" "$(flow list | grep ' pull-existential ')" "✓"
+flow off pull-existential >/dev/null
+assert_lacks "...and off takes it out" "$(on_list)" "pull-existential"
 
 echo ""; echo "=== list ==="
 out="$(flow list)"; rc=$?

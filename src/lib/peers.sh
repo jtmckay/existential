@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# peers — what the other hosts offer, asked of the controller: every host's reporting pushes
+# peers — what the other hosts offer, asked of the controller: every host's report_host pushes
 # its offers (kind=offer) to the Loki the controller names, and this reads the latest of each.
 #   ./existential.sh run peers [<service>] [--json]     every host's offers, or one service's
 #   ./existential.sh run peers lease <host> <service> <client>
@@ -31,8 +31,8 @@ loki_url() {
         [[ -n "$ans" ]] || ans="$(cat "$f" 2>/dev/null || true)"
     done
     ans="$(jq -r '.loki // empty' <<<"$ans" 2>/dev/null || true)"
-    [[ -n "$ans" ]] || ans="$(cat "${REPO_DIR}/.decree/machines/reporting/state/loki" 2>/dev/null || true)"
-    [[ -n "$ans" ]] || die "no Loki named: turn on the worker flow, and set EXIST_CONTROLLER (blank on the controller)"
+    [[ -n "$ans" ]] || ans="$(cat "${REPO_DIR}/.decree/machines/report_host/state/loki" 2>/dev/null || true)"
+    [[ -n "$ans" ]] || die "no Loki named: turn on the report-host flow, and set EXIST_CONTROLLER (blank on the controller)"
     echo "$ans"
 }
 EXIST_FLEET_LOKI="$(loki_url)"

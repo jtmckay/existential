@@ -756,7 +756,7 @@ _ask_if_needed() {
 # The first run's one choice, asked on the host (existential.sh, _ask_role) so a
 # worker never builds this image, and handed in as EXIST_ROLE:
 #   core        what .env.exist.shared ships on; also anything else, and blank.
-#   controller  Core, and the worker flow on with no EXIST_CONTROLLER: the host's
+#   controller  Core, and the report-host flow on with no EXIST_CONTROLLER: the host's
 #               decree reports this host, and the others ask it where to report.
 #   none        nothing on yet.
 # A worker is set up on the host (_worker_without_engine) and never gets here.
@@ -767,7 +767,7 @@ _apply_role() {
             echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2 ;;
         controller)
             # shellcheck source=src/utils/flows.sh
-            ( . "${_SRC_DIR}/utils/flows.sh"; plugins_turn on worker ) ;;
+            ( . "${_SRC_DIR}/utils/flows.sh"; plugins_turn on report-host ) ;;
         *) return 0 ;;
     esac
     _reload_env_shared

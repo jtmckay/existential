@@ -38,8 +38,8 @@ I="${TMP}/install"; git clone -q "${TMP}/upstream.git" "$I"
 
 # The plugin, unpacked into the install's host project as the stack installs it.
 ( source "${REPO_DIR}/automation/lib/plugin.sh"
-  plugin_unpack update "${I}" ) >/dev/null
-UPDATE="${I}/.decree/machines/update/scripts/update.sh"
+  plugin_unpack pull_existential "${I}" ) >/dev/null
+UPDATE="${I}/.decree/machines/pull_existential/scripts/pull.sh"
 
 # docker: `info` answers, everything else is written down.
 mkdir -p "${TMP}/bin"
@@ -79,10 +79,10 @@ assert_eq "...nothing changes" "$mine" "$(git -C "$I" rev-parse HEAD)"
 assert_eq "...nothing runs" "no" "$([[ -e "${TMP}/existential-ran" ]] && echo yes || echo no)"
 assert_has "...and you are told" "$(cat "${TMP}/docker" 2>/dev/null)" "ntfy_title=Update stopped"
 
-echo ""; echo "=== ubuntu_upgrade ==="
+echo ""; echo "=== update_ubuntu ==="
 # Its root half is compared with the installed copy, so a wrong path means "set it up again" every week.
-U="${REPO_DIR}/automation/plugins/ubuntu_upgrade.md"
-assert_eq "ubuntu_upgrade reads its root half where the sync writes it" \
+U="${REPO_DIR}/automation/plugins/update_ubuntu.md"
+assert_eq "update_ubuntu reads its root half where the sync writes it" \
     ".decree/lib/$(yq --front-matter=extract -r '.["x-exist-lib"] | keys | .[] | select(test("upgrade.sh$"))' "$U")" \
     "$(yq --front-matter=extract -r '.scripts["upgrade.sh"]' "$U" | sed -n 's/^lib="\(.*\)"$/\1/p')/upgrade.sh"
 

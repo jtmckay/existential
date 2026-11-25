@@ -120,5 +120,5 @@ echo ""
 # The tier sizes models for ONE card. Anyone who has a bigger one elsewhere can
 # lease it instead of shrinking the models, so say so here.
 _u="$(env_get EXIST_MODEL_URL)"; echo "  Model calls go to ${_u:-http://ollama:11434/v1}. A GPU box another host"
-echo "  offers is leased instead, whenever it serves the model: see the ai-box docs."
+echo "  offers is leased instead, whenever it serves the model: see the AI box docs (lease-gpu)."
 echo ""

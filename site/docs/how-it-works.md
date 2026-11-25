@@ -352,5 +352,5 @@ Even on one host, think of it as separate stacks, so moving one later is a confi
 ### Watching every host
 
 Once the stack spans hosts, each can report its free disk space and its decree machines' runs to
-one Loki, for Grafana's **Hosts** dashboard: turn on the `worker` flow on each, with one of them
+one Loki, for Grafana's **Hosts** dashboard: turn on the `report-host` flow on each, with one of them
 the controller the others ask where to report. See [Controller and Workers](./hosting/controller-and-workers.md).

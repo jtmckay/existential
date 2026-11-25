@@ -1,5 +1,5 @@
 ---
-name: boot
+name: boot_daemon
 x-exist-project: host
 machine:
   description: Run .decree/boot.sh, once each time the host daemon starts.
@@ -31,14 +31,14 @@ scripts:
     export -f tmx
     bash "${repo}/.decree/boot.sh"
 cron:
-  boot.md: |
+  boot_daemon.md: |
     ---
     cron: "@reboot"
-    machine: boot
+    machine: boot_daemon
     ---
     Run .decree/boot.sh, once, as the host daemon starts.
 ---
-# boot
+# boot_daemon
 
 Runs `.decree/boot.sh` once each time the host daemon starts, so the daemon is the one thing
 started at boot and your script starts the rest.

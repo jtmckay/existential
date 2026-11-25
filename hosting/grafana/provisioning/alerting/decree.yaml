@@ -8,7 +8,7 @@
 #
 # decree 0.6 has no hooks: a run's record is its events.jsonl, which each host's
 # alloy ships to Loki as {job="decree", host, project, machine, type}
-# (automation/plugins/reporting.md). These alerts query that.
+# (automation/plugins/report_host.md). These alerts query that.
 # ntfy has no Grafana integration, so the contact point is a plain webhook and
 # ntfy's own message templating (tpl=1) renders Grafana's JSON: t and m are the
 # URL-encoded templates {{.title}} and {{.message}}. It authenticates as the

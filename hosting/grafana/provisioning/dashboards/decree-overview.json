@@ -1,5 +1,5 @@
 {
-  "description": "Every decree run on every host that reports, in each of existential's projects (automation, automation-backup, host): what did not end done, runs per machine, durations, recent runs and installed machines. Each host's alloy ships its runs' events.jsonl live (automation/plugins/reporting.md); a run_id opens Decree Run Detail.",
+  "description": "Every decree run on every host that reports, in each of existential's projects (automation, automation-backup, host): what did not end done, runs per machine, durations, recent runs and installed machines. Each host's alloy ships its runs' events.jsonl live (automation/plugins/report_host.md); a run_id opens Decree Run Detail.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,

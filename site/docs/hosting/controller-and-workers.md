@@ -5,7 +5,7 @@ sidebar_position: 13
 # Controller and Workers
 
 One host keeps your notes; the others just need watching. A **worker** is a host that runs decree
-itself, with the `worker` flow on. Every 5 minutes it reports its free disk space, CPU, RAM and
+itself, with the `report-host` flow on. Every 5 minutes it reports its free disk space, CPU, RAM and
 VRAM use, the decree machines and plugins it has installed and the containers it runs to one Loki, and ships every decree run there
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
@@ -13,14 +13,14 @@ as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overv
   Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host with
   `EXIST_CONTROLLER` blank and no Loki reports nowhere.
 - Every other worker names it in `EXIST_CONTROLLER`.
-- A host doesn't have to be a worker at all. Without the `worker` flow, nothing runs on the
+- A host doesn't have to be a worker at all. Without the `report-host` flow, nothing runs on the
   host and nothing is reported.
 
 Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already needs.
 
 ## The controller
 
-Pick **Controller** on the first run (or `./existential.sh flow on worker` later, with
+Pick **Controller** on the first run (or `./existential.sh flow on report-host` later, with
 `EXIST_CONTROLLER` blank), then turn on where the reports land:
 
 ```bash
@@ -50,7 +50,7 @@ Notifications are the exception, so no ntfy password leaves the controller. On a
 off, `EXIST_NTFY_URL` becomes the controller's Loki (`https://loki.<domain>/loki/api/v1/push`),
 `notify` pushes each message there as `{job="exist", kind="notify"}`, and the controller,
 with ntfy on, publishes it to ntfy within 15 seconds. That relay runs in the controller's tmux
-session `notify-relay` (`tmux attach -t notify-relay`), started by its `reporting`, and needs
+session `notify-relay` (`tmux attach -t notify-relay`), started by its `report_host`, and needs
 `jq` on the controller. It keeps its place, so a message sent while it is down goes out once it
 is back.
 
@@ -111,7 +111,7 @@ names. Both are served on the controller's tailnet, so in practice that's Tailsc
 
 ### A host that already runs services
 
-`./existential.sh flow on worker`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
+`./existential.sh flow on report-host`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
 steps 3 and 4.
 
 ## Without Tailscale: your own network
@@ -150,13 +150,13 @@ controller's own report puts it. Nothing else needs to be set on a worker.
 ## Updating on its own
 
 A worker's decree daemon can also keep the install current: `./existential.sh flow on
-auto-update` runs `git pull`, `./existential.sh` and `docker compose up -d` every 15 minutes.
+pull-existential` runs `git pull`, `./existential.sh` and `docker compose up -d` every 15 minutes.
 On a host with neither docker nor podman, `flow` works the same, with the host's own tools,
 and the update leaves out `docker compose`. See [Updates](./updates.md).
 
 ## What each host reports
 
-The `reporting` plugin sends one push to Loki every 5 minutes, labelled `job="exist"` and
+The `report_host` plugin sends one push to Loki every 5 minutes, labelled `job="exist"` and
 `host=<hostname>`:
 
 | `kind` | One line per |
@@ -235,19 +235,21 @@ id=$(./existential.sh run peers lease <ai-box> comfy my-batch)
 
 ### A decree project of your own
 
-Any decree project, existential or not, can lease the fleet's GPUs: the `fleet_gpu` plugin is the
-same lib the stack uses, and every host with a decree-go-rest (`./existential.sh run fleet api`,
-which `fleet controller` runs) serves it:
+Any decree project, existential or not, can lease the fleet's GPUs through the `fleet_gpu` plugin,
+the same lib the stack uses, which the controller serves once it runs a decree-go-rest
+(`./existential.sh run fleet api`, which `fleet controller` runs). Two lines in the project's
+`.decree/.env`:
 
 ```bash
-curl -fsSL -H "Authorization: Bearer <secret>" http://<controller>:8801/plugins/fleet_gpu.md | decree install -
+EXIST_CONTROLLER=<the controller's address>
+EXIST_FLEET_SECRET=<secret>
 ```
 
-Then in that project's `.decree/.env`:
+Then, from the project's root, one command installs it (or updates it) and lists what the fleet
+offers:
 
 ```bash
-EXIST_FLEET_LOKI=http://<controller>:43100
-EXIST_FLEET_SECRET=<secret>
+set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
 ```
 
 and in its scripts, the same calls as the stack's:
@@ -259,8 +261,9 @@ curl -fsS "${FLEET_URL}/chat/completions" -d @request.json
 fleet_done llm
 ```
 
-`llm`, `strata`, `comfy` and `tts` all work this way. The plugin file says the rest. It is
-written from this checkout at each `./existential.sh`, so to update it, run the `curl` again.
+`llm`, `strata`, `comfy` and `tts` all work this way; decree gives every script the two lines
+from `.decree/.env`. The plugin file says the rest. It is written from the controller's checkout
+at each `./existential.sh`, so to update it, run the command again.
 
 ### Moving a service to another host
 

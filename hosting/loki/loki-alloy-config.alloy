@@ -1,7 +1,7 @@
 // Alloy's own config language, not YAML. Replaces loki-promtail-config.yaml
 // (promtail is EOL). Generated with `alloy convert --source-format=promtail`.
 // Decree runs are not here: every host ships its own, live, with the alloy the
-// reporting plugin runs (automation/plugins/reporting.md).
+// report_host plugin runs (automation/plugins/report_host.md).
 
 // Every container's json-file log. No docker socket, so these carry only the
 // 64-hex container id in `filename` — a catch-all grep, not a per-service

@@ -50,7 +50,7 @@ does (`x-exist-title`, `x-exist-tagline`, the services it turns on, the plugins 
 both folders. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
 `decree_prune`, `decree_lease`...), which a plugin here `needs:` and decree adds, and which are
 never edited: **to change one, a plugin here `extends:` it under its own name** and holds only
-what it changes (`gpu_lease`, `ai_box_gpu`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
+what it changes (`gpu_lease`, `lease_gpu`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
 `{<need>: <plugin>}` meets the base's need with another plugin. Never fork an official plugin's
 scripts into a plugin here. All automation code lives in plugins: `automation/lib/` is only the
 plugin system's own, and a project's `.decree/lib/` (ours: decree 0.6 has none) is that plus
@@ -137,7 +137,7 @@ Nextcloud's file events are an optional second path. User-facing detail:
 `site/docs/decree/file-handlers.md`.
 
 - `.decree/` = the **host's** decree project, run by a decree daemon on the host: host plugins
-  like `update` and `reporting`, and the machines that develop this repo (`repo_develop` and
+  like `pull_existential` and `report_host`, and the machines that develop this repo (`repo_develop` and
   `repo_qa`, extending `decree_develop` and `decree_qa`: host plugins too, off until turned
   on). Tracked there: only `machines/repo_develop/order/` (the repo's migrations, as order
   files), `machines/repo_develop/state/order.git.txt` (which ran) and `.gitignore`.
@@ -195,12 +195,12 @@ written **once** and skipped thereafter — there is no re-render flag. Two exce
 existing install on `git pull && ./existential.sh`: a rendered `.env*` gets every key the
 template has gained **appended** (existing values, blanks included, never touched), and a
 rendered compose file whose service `image:` differs from its template's is listed and updated
-**if the user says yes** (with no terminal, as under `auto-update`, without asking). Every run then pulls and builds every enabled image (the decree image
+**if the user says yes** (with no terminal, as under `pull-existential`, without asking). Every run then pulls and builds every enabled image (the decree image
 when its build context changed) without touching running containers, so the next `up -d` gets
 them. Every run also installs each decree project's plugins at this checkout's version. The
-optional `auto-update` flow pulls, re-runs and `up -d`s on its own, and the optional `worker` flow
-reports the host to its controller, the optional `on-boot` flow runs `.decree/boot.sh` once
-when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, the optional `update-ubuntu` flow patches an Ubuntu host, and the optional `ai-box` flow has a GPU box's llama.cpp, ComfyUI and TTS take turns on its card (`ai_box_gpu`, a `decree_lease`); all six are host flows (`project: host`), run by a decree daemon in the repo's own `.decree`
+optional `pull-existential` flow pulls, re-runs and `up -d`s on its own, and the optional `report-host` flow
+reports the host to its controller, the optional `boot-daemon` flow runs `.decree/boot.sh` once
+when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, the optional `update-ubuntu` flow patches an Ubuntu host, and the optional `lease-gpu` flow has a GPU box's llama.cpp, ComfyUI and TTS take turns on its card (`lease_gpu`, a `decree_lease`); all six are host flows (`project: host`), run by a decree daemon in the repo's own `.decree`
 that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-reporting.sh — the reporting plugin sends this host to the Loki its
+# test-report-host.sh — the report_host plugin sends this host to the Loki its
 # controller names, with curl stubbed (the push body is kept, the controller's
 # answer is a file):
 #
@@ -38,7 +38,7 @@ touch "${W}/machines/notify/machine.yml" "${W}/machines/look_back/machine.yml"
 printf '{"type":"transition","machine":"notify"}\n{"type":"run_finished","machine":"notify","state":"done","duration_ms":12}\n' > "${W}/runs/r1/events.jsonl"
 printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.jsonl"
 ( source "${REPO_DIR}/automation/lib/plugin.sh"
-  plugin_unpack reporting "${I}" ) >/dev/null
+  plugin_unpack report_host "${I}" ) >/dev/null
 printf 'EXIST_CONTROLLER=ctl\n' > "${I}/.env.shared"
 
 # curl: a GET of the controller prints $TMP/answer (fails without one); its Loki on
@@ -82,8 +82,8 @@ cp "${REPO_DIR}/services/automation/decree/tmx.sh" "${I}/services/automation/dec
 
 report() {  # [PATH]
     rm -f "${TMP}/body" "${TMP}/pushed-to"
-    (cd "${I}" && PATH="${1:-${TMP}/bin:${PATH}}" DECREE_STATE_DIR="${I}/.decree/machines/reporting/state" \
-        bash .decree/machines/reporting/scripts/report.sh 2>&1)
+    (cd "${I}" && PATH="${1:-${TMP}/bin:${PATH}}" DECREE_STATE_DIR="${I}/.decree/machines/report_host/state" \
+        bash .decree/machines/report_host/scripts/report.sh 2>&1)
 }
 started() { grep -c '^new ' "${TMP}/tmux" 2>/dev/null || true; }
 field() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p"; }
@@ -96,10 +96,10 @@ assert_eq "it ends done" "0" "$rc"
 assert_eq "it pushes to the Loki the controller names" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 assert_eq "the body is JSON Loki takes" "ok" "$(yq -p json -o yaml '.streams[0].stream.job' "${TMP}/body" >/dev/null 2>&1 && echo ok)"
 assert_has "every line names this host" "$(yq -p json -o yaml -r '.streams[].stream.host' "${TMP}/body" | sort -u)" "$(hostname -s 2>/dev/null || hostname)"
-assert_eq "a line per installed machine, in every project" "look_back notify reporting" "$(lines machine | field machine | sort | xargs)"
-assert_eq "a line per installed plugin, with its project" "automation look_back,host reporting" "$(lines plugin | while read -r l; do echo "$(field project <<<"$l") $(field plugin <<<"$l")"; done | sort | paste -sd, -)"
-assert_eq "a line per active cron, with its schedule and machine" \
-    '{"project":"automation","cron":"look-back-weekly","schedule":"0 21 * * SUN","machine":"look_back"}' "$(lines cron | grep look-back-weekly)"
+assert_eq "a line per installed machine, in every project" "look_back notify report_host" "$(lines machine | field machine | sort | xargs)"
+assert_eq "a line per installed plugin, with its project" "automation look_back,host report_host" "$(lines plugin | while read -r l; do echo "$(field project <<<"$l") $(field plugin <<<"$l")"; done | sort | paste -sd, -)"
+assert_eq "a line per active cron, named by the machine it runs, with its schedule" \
+    '{"project":"automation","machine":"look_back","schedule":"0 21 * * SUN"}' "$(lines cron | grep look_back)"
 assert_eq "a line per running container" "loki ntfy" "$(lines container | field name | sort | xargs)"
 assert_has "...with its image" "$(lines container)" '"image":"grafana/loki:3.5"'
 assert_eq "no run line: alloy ships the runs" "" "$(lines run)"
@@ -127,14 +127,14 @@ report >/dev/null
 assert_eq "an unreachable controller: the Loki it gave last time" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 
 echo ""; echo "=== your own network ==="
-find "${I}/.decree/machines/reporting/state/" -mindepth 1 -delete
+find "${I}/.decree/machines/report_host/state/" -mindepth 1 -delete
 touch "${TMP}/lan"
 report >/dev/null
 assert_eq "no answer on 4480: the controller's Loki on 43100" "http://ctl:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 rm -f "${TMP}/lan"
 
 echo ""; echo "=== nowhere ==="
-find "${I}/.decree/machines/reporting/state/" -mindepth 1 -delete
+find "${I}/.decree/machines/report_host/state/" -mindepth 1 -delete
 printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
 out="$(report)"; rc=$?
 assert_eq "no Loki named: still done" "0" "$rc"

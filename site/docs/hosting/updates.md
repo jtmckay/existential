@@ -4,7 +4,7 @@ sidebar_position: 14
 
 # Updates
 
-An install can follow its branch on its own. The `auto-update` [flow](../flows/index.md), off until you
+An install can follow its branch on its own. The `pull-existential` [flow](../flows/index.md), off until you
 turn it on, runs on the host every 15 minutes:
 
 1. `git pull`, fast-forward only. A checkout with commits of its own, or an upstream that was
@@ -20,16 +20,16 @@ notify to tell it). The repo is the authority: what is
 on its branch is what your install runs.
 
 ```bash
-./existential.sh flow on auto-update
+./existential.sh flow on pull-existential
 ```
 
-`auto-update` is a host flow: it runs in [the host daemon](./host-daemon.md), so start that
+`pull-existential` is a host flow: it runs in [the host daemon](./host-daemon.md), so start that
 once, and have it start at boot. `./existential.sh` says so until one runs.
 
 ## Turning it off
 
 ```bash
-./existential.sh flow off auto-update
+./existential.sh flow off pull-existential
 ```
 
 Then you pull and run `./existential.sh` yourself, as before.
@@ -58,7 +58,7 @@ For another day or time, edit `cron:` in `.decree/machines/flow_check_versions/c
 
 ## Ubuntu
 
-`auto-update` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu
+`pull-existential` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu
 host under it, also from [the host daemon](./host-daemon.md):
 
 | | When |
@@ -72,7 +72,7 @@ host under it, also from [the host daemon](./host-daemon.md):
 ```bash
 ./existential.sh flow on update-ubuntu
 ./existential.sh
-sudo bash .decree/lib/ubuntu_upgrade/setup.sh
+sudo bash .decree/lib/update_ubuntu/setup.sh
 ```
 
 The last line is the one step that needs root, once. It turns `unattended-upgrades` on, and

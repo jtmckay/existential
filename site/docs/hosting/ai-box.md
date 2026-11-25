@@ -17,16 +17,16 @@ only ever sees the addresses below. Which keys exist and how they fall back is i
 
 One 24 GB card fits **one** GPU-heavy service at a time, and no service on the box knows another
 is there: llama.cpp does not unload for ComfyUI, ComfyUI does not free memory for TTS, and a
-service that cannot get its VRAM fails on its first request. The `ai-box` flow makes the switch
-for you. Turn it on in the box's own checkout (`./existential.sh flow on ai-box`), and its host
-daemon gets `ai_box_gpu`, decree's `decree_lease` with one resource, `gpu`, in mode `llm`,
+service that cannot get its VRAM fails on its first request. The `lease-gpu` flow makes the switch
+for you. Turn it on in the box's own checkout (`./existential.sh flow on lease-gpu`), and its host
+daemon gets `lease_gpu`, decree's `decree_lease` with one resource, `gpu`, in mode `llm`,
 `comfy`, `tts` or `strata`. A lease in one mode frees the card first: the llama.cpp router
 unloads its models, ComfyUI finishes its queue and unloads, TTS and Strata stop. A `tts` or
 `strata` lease then starts its server. Up to four leases share it
 in one mode; another mode waits for them, and none waits more than 30 minutes for its turn.
 
 ```bash
-decree emit --machine ai_box_gpu --param resource=gpu --param mode=comfy --param holder=me </dev/null
+decree emit --machine lease_gpu --param resource=gpu --param mode=comfy --param holder=me </dev/null
 # ... the lease's id is printed; when its status says granted, use the card ...
 decree reply <lease id> release
 ```
@@ -124,7 +124,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-Then start it at boot with the `on-boot` flow (`./existential.sh flow on on-boot`): one line in
+Then start it at boot with the `boot-daemon` flow (`./existential.sh flow on boot-daemon`): one line in
 `.decree/boot.sh`, which runs once each time the host daemon starts.
 
 ```bash
@@ -206,7 +206,7 @@ the Gradio UI and its API.
 For another host to take a lease, the box needs [decree-go-rest](../plugins/http.md) in front of
 its `.decree`, on `:8801` with the fleet's secret ([Leases](./controller-and-workers.md#leases)).
 One command writes its config (`.decree/decree-go-rest.yml`, the box's own), starts it, and adds
-it to `.decree/boot.sh` with the `on-boot` flow, so it starts at boot; the flow adds its
+it to `.decree/boot.sh` with the `boot-daemon` flow, so it starts at boot; the flow adds its
 endpoints at each `./existential.sh`:
 
 ```bash
@@ -234,7 +234,7 @@ With the host daemon running and the flow on:
 
 1. `id=$(./existential.sh run peers lease <ai-box> tts check)` returns once TTS answers:
    `tmux has-session -t =tts` on the box, and `curl -I http://<ai-box>:8000/`.
-2. `jq . .decree/machines/ai_box_gpu/state/status/resources/gpu.json` shows mode `tts` and one
+2. `jq . .decree/machines/lease_gpu/state/status/resources/gpu.json` shows mode `tts` and one
    holder.
 3. `./existential.sh run peers release <ai-box> tts "$id"`: the holders list is empty. A lease
    in another mode ends the session, and `nvidia-smi` shows the memory back.

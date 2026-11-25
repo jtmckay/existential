@@ -25,14 +25,14 @@ env_set() {  # <file> <key> <value>: the first line for key, or a new one
     cat "$t" > "$1"; rm -f "$t"
 }
 
-# The address the others reach this host by, as reporting offers it.
+# The address the others reach this host by, as report_host offers it.
 address() {
     local a; a="$(env_get "$ENV" EXIST_TAILNET_NAME)"
     [[ -n "$a" ]] || a="$(env_get "$ENV" EXIST_LOCAL_HOST_IP)"
     echo "${a:-$(hostname)}"
 }
 
-# The host daemon runs the worker flow (reporting, update, ai-box): started here when it isn't.
+# The host daemon runs the host flows (report-host, pull-existential, lease-gpu): started here when it isn't.
 start_daemon() {
     if tmux has-session -t "=existential-host" 2>/dev/null; then echo "  daemon   running (tmux existential-host)"; return 0; fi
     command -v decree >/dev/null 2>&1 || { echo "  daemon   not started: install decree (./existential.sh says how), then rerun"; return 0; }
@@ -43,7 +43,7 @@ start_daemon() {
 # decree-go-rest in front of this host's .decree, on the LAN at :8801 with the fleet secret: the
 # leases a GPU box serves, and fleet_gpu.md for a decree project of your own. Its config is
 # this host's (.decree/decree-go-rest.yml, written once); each ./existential.sh adds the
-# endpoints its plugins declare. Started now, and by .decree/boot.sh (the on-boot flow) at
+# endpoints its plugins declare. Started now, and by .decree/boot.sh (the boot-daemon flow) at
 # boot; started again, so it takes the secret as .env.shared has it now.
 cmd_api() {
     local rest="${REPO_DIR}/.decree/decree-go-rest.yml" boot="${REPO_DIR}/.decree/boot.sh" engine flags line
@@ -66,7 +66,7 @@ YML
     line="tmx -d decree-go-rest \"exec ${engine##*/} run --rm --name decree-go-rest ${flags} -p 8801:8801 -e EXIST_FLEET_SECRET=\\\"\\\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '${REPO_DIR}/.env.shared')\\\" -v '${REPO_DIR}/.decree:/project/.decree:ro' -v '${REPO_DIR}/.decree/inbox:/project/.decree/inbox' ghcr.io/jtmckay/decree-go-rest:0.6.0\""
     if ! grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
         printf '# decree-go-rest in front of this .decree, on :8801 (./existential.sh run fleet api).\n%s\n' "$line" >> "$boot"
-        exist flow on on-boot
+        exist flow on boot-daemon
         echo "  api      started at boot by .decree/boot.sh"
     fi
     exist
@@ -86,7 +86,7 @@ cmd_controller() {
         env_set "$ENV" EXIST_FLEET_SECRET "$secret"
         echo "  secret   made"
     fi
-    exist flow on worker
+    exist flow on report-host
     exist service on loki grafana
     # Loki on the network, so the workers can push to it and ask it who the controller is.
     env_set "$LOKI_ENV" LOKI_BIND 0.0.0.0
@@ -97,8 +97,8 @@ cmd_controller() {
     echo "Start Loki and Grafana:  docker compose up -d"
     echo "Then on every other host:"
     echo "  ./existential.sh run fleet join $(address) ${secret}"
-    echo "And in a decree project of your own (.decree/.env: EXIST_FLEET_LOKI=http://$(address):43100, EXIST_FLEET_SECRET):"
-    echo "  curl -fsSL -H \"Authorization: Bearer ${secret}\" http://$(address):8801/plugins/fleet_gpu.md | decree install -"
+    echo "And in a decree project of your own, with EXIST_CONTROLLER=$(address) and EXIST_FLEET_SECRET in its .decree/.env:"
+    echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"http://\$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md\" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c \"{host, service, models}\"'"
 }
 
 cmd_join() {
@@ -111,7 +111,7 @@ cmd_join() {
     echo "This host reports to ${ctl}:"
     env_set "$ENV" EXIST_CONTROLLER "$ctl"
     [[ -z "$secret" ]] || env_set "$ENV" EXIST_FLEET_SECRET "$secret"
-    exist flow on worker
+    exist flow on report-host
     exist
     start_daemon
     # A go-rest that runs takes the secret only when it starts.

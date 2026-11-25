@@ -83,10 +83,10 @@ out="$(es '_SHELL_PATH=/usr/bin; _check_local_bin')"
 assert_has "a .local/bin off your PATH is named with the line that adds it" "$out" 'export PATH="$HOME/.local/bin:$PATH"'
 # The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
 if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
-    (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on worker)
+    (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on report-host)
     out="$(REPO_DIR="$R" "$BASH" src/lib/plugin.sh sync host 2>&1)"; rc=$?
     assert_eq "the host's plugins sync without adhoc" "0" "$rc"
-    assert_eq "...installing the worker's reporting" "yes" "$([[ -f "${R}/.decree/machines/reporting/machine.yml" ]] && echo yes || echo no)"
+    assert_eq "...installing the worker's report_host" "yes" "$([[ -f "${R}/.decree/machines/report_host/machine.yml" ]] && echo yes || echo no)"
     # A worker with no services never needs the image, even where an engine is,
     # and even missing a tool (_worker_without_engine names it).
     assert_eq "a worker with services on still builds" "no" "$(es '_worker_only && echo yes || echo no')"
@@ -114,6 +114,14 @@ printf 'EXIST_FLEET_SECRET=fleet\nEXIST_MODEL_API_KEY=abc\n' > .env.shared
 es _retire_env_keys >/dev/null
 assert_eq "...and one with a secret keeps it" "EXIST_FLEET_SECRET=fleet" "$(xargs < .env.shared)"
 mv .env.shared.keep .env.shared
+mkdir -p automation; [[ -f automation/plugins.yml ]] && cp automation/plugins.yml automation/plugins.yml.keep
+printf 'on:\n  - worker\n  - auto-update\n  - ai-box\n' > automation/plugins.yml
+es _rename_flows >/dev/null
+assert_eq "a renamed flow stays on under its new name" "on: - report-host - pull-existential - lease-gpu" "$(xargs < automation/plugins.yml)"
+printf 'on: [auto-update, worker]\n' > automation/plugins.yml
+es _rename_flows >/dev/null
+assert_eq "...in a one-line list too" "on: [pull-existential, report-host]" "$(cat automation/plugins.yml)"
+if [[ -f automation/plugins.yml.keep ]]; then mv automation/plugins.yml.keep automation/plugins.yml; else rm -f automation/plugins.yml; fi
 
 echo ""; echo "=== flows and Core's setup ==="
 assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \
@@ -133,25 +141,25 @@ echo ""; echo "=== host plugins ==="
 # A host plugin's script runs on the host. reporting's, taken out of its plugin
 # with awk (no yq here), against a scratch host project, a curl that keeps the
 # push, and a tmux that writes down what it would start (alloy only has to be
-# there). test-reporting.sh covers what it sends; this covers that it runs.
-H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines/reporting"
-touch "${R}/.decree/machines/reporting/machine.yml"
+# there). test-report-host.sh covers what it sends; this covers that it runs.
+H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines/report_host"
+touch "${R}/.decree/machines/report_host/machine.yml"
 awk '/^  report\.sh: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
-    automation/plugins/reporting.md > "${H}/report.sh"
+    automation/plugins/report_host.md > "${H}/report.sh"
 echo '{"loki":"http://loki:3100"}' > "${R}/.decree/exist.json"
 printf '#!/bin/sh\nfor a in "$@"; do case "$a" in @*) cp "${a#@}" "%s/body" ;; esac; done\nexit 0\n' "$H" > "${R}/.stub/curl"
 printf '#!/bin/sh\n[ "$1" = has-session ] && exit 1\necho "$*" >> "%s/tmux"\n' "$H" > "${R}/.stub/tmux"
 printf '#!/bin/sh\n' > "${R}/.stub/alloy"
 chmod +x "${R}/.stub/curl" "${R}/.stub/tmux" "${R}/.stub/alloy"
 out="$(cd "$R" && DECREE_STATE_DIR="${H}/rep" "$BASH" "${H}/report.sh" 2>&1)"; rc=$?
-assert_eq "reporting runs" "0" "$rc"
+assert_eq "report_host runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
 assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'
 assert_has "...and starts alloy" "$(cat "${H}/tmux" 2>/dev/null)" "reporting-alloy"
 
 # fleet_gpu.md: the fleet lib as a plugin a decree project of its own installs.
 es _fleet_gpu_plugin >/dev/null
-g="${R}/.decree/machines/reporting/state/fleet_gpu.md"
+g="${R}/.decree/machines/report_host/state/fleet_gpu.md"
 assert_has "the fleet lib is written as a plugin" "$(cat "$g" 2>/dev/null)" "    fleet_use() {"
 assert_eq "...with no #! to run" "0" "$(grep -c '#!' "$g" 2>/dev/null)"
 if command -v decree >/dev/null 2>&1; then

@@ -1,5 +1,5 @@
 ---
-name: ai_box_gpu
+name: lease_gpu
 extends: decree_lease
 x-exist-project: host
 scripts:
@@ -105,7 +105,7 @@ scripts:
         done
         # What it serves, for offers.sh while it is stopped.
         curl -fsS --max-time 10 -H "Authorization: Bearer ${strata_key}" "${strata_url}/v1/models" \
-            > .decree/machines/ai_box_gpu/state/strata-models.json || true
+            > .decree/machines/lease_gpu/state/strata-models.json || true
         echo "strata: serving"
     }
     [[ "$to" == llm ]] || free_llm
@@ -114,7 +114,7 @@ scripts:
     [[ "$to" == strata ]] || free_strata
     [[ "$to" != strata ]] || start_strata
     [[ "$to" != tts ]] || start_tts
-    echo "ai_box_gpu: the GPU is free for ${to}"
+    echo "lease_gpu: the GPU is free for ${to}"
   offers.sh: |
     #!/usr/bin/env bash
     # offers — what this box serves to the other hosts, for reporting (kind=offer): one JSON
@@ -148,7 +148,7 @@ scripts:
     # Strata: what it served when the lease last started it, with the context it is set to.
     strata_models() {
         jq -c --argjson c "${AI_BOX_STRATA_CONTEXT:-65536}" '[.data[] | {id, context: $c}]' \
-            .decree/machines/ai_box_gpu/state/strata-models.json 2>/dev/null || echo '[]'
+            .decree/machines/lease_gpu/state/strata-models.json 2>/dev/null || echo '[]'
     }
     # AI_BOX_SERVICES: what this box offers (default llm,comfy,tts; add strata to offer it,
     # with AI_BOX_STRATA_FAMILY set). Taking one out moves it off
@@ -164,7 +164,7 @@ scripts:
         if on comfy; then offer comfy "$comfy" ""; fi
     fi
   requirements: |
-    # What ai_box_gpu's scripts need beyond decree, checked by decree_infra's `run.sh check`.
+    # What lease_gpu's scripts need beyond decree, checked by decree_infra's `run.sh check`.
     # kind    name    version   source
     command   bash
     command   flock
@@ -178,13 +178,13 @@ x-exist-endpoints:
     patterns: {mode: "llm|comfy|tts|strata", client: "[a-z0-9_-]{1,40}"}
     body: optional
     message:
-      machine: ai_box_gpu
+      machine: lease_gpu
       params: {resource: gpu, mode: "{{mode}}", holder: "{{client}}", duration: 10m}
   # The lease's status: state waiting, swapping, granted, held, released, expired...
   - path: /gpu/lease/{id}
     action: read
     patterns: {id: "[0-9A-Za-z._-]{1,80}"}
-    read: {machine: ai_box_gpu, path: "status/leases/{{id}}.json"}
+    read: {machine: lease_gpu, path: "status/leases/{{id}}.json"}
   # Give it back, or keep it for its duration again.
   - path: /gpu/lease/{id}/{answer}
     action: reply
@@ -193,9 +193,9 @@ x-exist-endpoints:
   # The card: its mode, holders and line.
   - path: /gpu
     action: read
-    read: {machine: ai_box_gpu, path: status/resources/gpu.json}
+    read: {machine: lease_gpu, path: status/resources/gpu.json}
 ---
-# ai_box_gpu
+# lease_gpu
 
 The card on a separate AI box, as decree's `decree_lease` with one resource, `gpu`, in mode
 `llm`, `comfy`, `tts` or `strata`. A lease in one mode stops the others first: the llama.cpp
@@ -209,7 +209,7 @@ With a decree-go-rest in front of the host's `.decree`, another host asks over H
 `scripts/offers.sh` tells the others all this through `reporting` (`./existential.sh run peers`).
 
 Ask on the host with
-`decree emit --machine ai_box_gpu --param resource=gpu --param mode=<mode> --param holder=<who>`,
+`decree emit --machine lease_gpu --param resource=gpu --param mode=<mode> --param holder=<who>`,
 and give it back with `decree reply <lease id> release`. Only work that asks takes part: a
 model call or a ComfyUI prompt that does not ask uses the card anyway.
 

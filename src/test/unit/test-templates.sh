@@ -435,14 +435,14 @@ assert_eq "none turns every flag off" "" "$(grep '=true$' "$TMP/.env.shared")"
 printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
 ( EXIST_ROLE="" _apply_role ) >/dev/null 2>&1
 assert_eq "no answer keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
-# A controller turns on the host's worker flow (reporting) and keeps Core.
+# A controller turns on the host's report-host flow (report_host) and keeps Core.
 mkdir -p "$TMP/automation/plugins/flows"
 cp "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
-cp "$_REAL/automation/plugins/flows/worker.md" "$TMP/automation/plugins/flows/"
+cp "$_REAL/automation/plugins/flows/report-host.md" "$TMP/automation/plugins/flows/"
 printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
 ( EXIST_ROLE=controller _apply_role ) >/dev/null 2>&1
 assert_eq "a controller keeps Core, and names no controller" "EXIST_IS_AI_X=true EXIST_CONTROLLER=" "$(xargs < "$TMP/.env.shared")"
-assert_eq "...and turns the worker flow on" "worker" "$(sed -n 's/^  - //p' "$TMP/automation/plugins.yml" | grep -x worker)"
+assert_eq "...and turns the report-host flow on" "report-host" "$(sed -n 's/^  - //p' "$TMP/automation/plugins.yml" | grep -x report-host)"
 rm -f "$TMP/automation/plugins.yml"
 
 printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
