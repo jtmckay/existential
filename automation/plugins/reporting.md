@@ -330,6 +330,12 @@ cron:
     machine: reporting
     cron: "*/5 * * * *"
     ---
+x-exist-endpoints:
+  # fleet_gpu.md, which ./existential.sh writes here: the fleet lib as a plugin for a decree
+  # project of your own (curl ... | decree install -), from any host with a decree-go-rest.
+  - path: /plugins/fleet_gpu.md
+    action: read
+    read: {machine: reporting, path: fleet_gpu.md}
 ---
 # reporting
 

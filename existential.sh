@@ -298,6 +298,45 @@ _controller_answer() {
     printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
 }
 
+# fleet_gpu.md: the fleet lib (automation/plugins/flows/fleet.md) as a plugin any decree
+# project installs, served by this host's decree-go-rest (GET /plugins/fleet_gpu.md, the
+# reporting plugin's endpoint) from reporting's state. Written at each run, so it is this
+# checkout's. Data to serve, never run here: no #! line, so decree check takes it as data.
+_fleet_gpu_plugin() {
+    local d="${SCRIPT_DIR}/.decree/machines/reporting/state"
+    [[ -d "${SCRIPT_DIR}/.decree/machines/reporting" ]] || return 0
+    mkdir -p "$d"
+    { printf -- '---\nname: fleet_gpu\nscripts:\n  requirements: |\n    # kind    name\n    command   curl\n    command   jq\n  fleet.sh: |\n'
+      awk '/^  fleet\.sh: \|$/ { f = 1; next } f && !/^    / && !/^$/ { exit } f && !/^    #!/ { print }' \
+          "${SCRIPT_DIR}/automation/plugins/flows/fleet.md"
+      cat <<'MD'
+---
+# fleet_gpu
+
+The GPUs of an existential fleet, for a decree project of your own: llama.cpp (`llm`), Strata
+(`strata`), ComfyUI (`comfy`) and TTS (`tts`), each on whichever host offers it now, found by
+asking the fleet's controller, and used under that host's lease.
+
+In `.decree/.env`:
+
+    EXIST_FLEET_LOKI=http://<controller>:43100
+    EXIST_FLEET_SECRET=<the fleet's secret>
+
+In a script:
+
+    source .decree/machines/fleet_gpu/scripts/fleet.sh
+    fleet_use comfy || exit 1        # FLEET_URL is ComfyUI's address, under its lease
+    curl -fsS "${FLEET_URL}/prompt" -d @workflow.json
+    fleet_done comfy
+
+The lease is taken by the first `fleet_use`, shared by every call after it, renewed while they
+come, and given back 5 seconds after the last `fleet_done` (ComfyUI: once its queue is empty).
+`fleet_use` returns 3 when no host offers the service, 1 when none would lease it.
+`fleet_offers` lists what every host offers. Needs curl and jq.
+MD
+    } > "${d}/fleet_gpu.md.tmp" && mv "${d}/fleet_gpu.md.tmp" "${d}/fleet_gpu.md"
+}
+
 # Another host's copy of its controller's answer, .decree/controller.json, for
 # generate-compose's .env (the controller reads its own .decree/exist.json). The
 # last answer stays while the controller is away.
@@ -580,6 +619,7 @@ _worker_without_engine() {
     fi
     _migrate_controller_keys
     _controller_answer
+    _fleet_gpu_plugin
     _build
     # The controller's answer, on 4480 or (your own network) from its Loki; it warns when neither answers.
     _controller_fetch
@@ -854,8 +894,10 @@ _run_general_utility() {
         # Host-side: reads `docker stats` so it can put observed usage next to
         # the declared ceilings, and adhoc has no docker socket.
         footprint)      bash "${SCRIPT_DIR}/src/lib/footprint.sh" "$@" ;;
-        # Host-side: edits .env.shared, runs ./existential.sh and starts the host daemon.
+        # Host-side: edits .env.shared, runs ./existential.sh and starts the host daemon;
+        # peers reads the repo's fleet lib and reaches the other hosts from here.
         fleet)          bash "${SCRIPT_DIR}/src/lib/fleet.sh" "$@" ;;
+        peers)          bash "${SCRIPT_DIR}/src/lib/peers.sh" "$@" ;;
         # A worker (no engine, or no services) uses the host's own yq and decree:
         # the same sync _host_plugins does, so list, on and off work there too.
         plugin)         if ! _worker_only && adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
@@ -1107,6 +1149,7 @@ _build() {
         _host_plugins
         if _is_worker; then
             _controller_answer
+            _fleet_gpu_plugin
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
             echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'nowhere: set EXIST_CONTROLLER in .env.shared')."
         else
@@ -1117,6 +1160,7 @@ _build() {
     fi
     _tailscale_serve_core
     _controller_answer
+    _fleet_gpu_plugin
     _controller_fetch
     _start_on_boot
     _check_nas || exit 1

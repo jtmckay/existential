@@ -6,21 +6,22 @@ scripts:
   resources: |
     # A separate AI box's one card: one GPU-heavy service at a time.
     #   name  max_lease  linger  max_wait  modes         holders
-    # Modes: llm (the llama.cpp router), comfy (ComfyUI), tts (the TTS server ai_box_tts starts),
-    # strata (Strata, started by the swap). Up to four leases share the card in one mode; another
-    # mode waits for all of them.
+    # Modes: llm (the llama.cpp router), comfy (ComfyUI), tts (the TTS server) and strata
+    # (Strata); the swap starts the last two. Up to four leases share the card in one mode;
+    # another mode waits for all of them.
     gpu     4h         5s      30m       llm,comfy,tts,strata  4
   swap/gpu.sh: |
     #!/usr/bin/env bash
     # gpu.sh <from> <to>: free the card for <to> by stopping every other GPU user. <to> loads
-    # on demand (llama.cpp, ComfyUI), is started by whoever asked (ai_box_tts), or, for strata,
-    # is started here: Strata loads its model when it starts, so the lease owns its container.
+    # on demand (llama.cpp, ComfyUI) or, for tts and strata, is started here: each loads its
+    # model when it starts, so the lease owns it, and the lease is granted once it answers.
     # A service that does not answer holds nothing. Addresses and the session name: .decree/.env.
     set -euo pipefail
     to="$2"
     llm="${AI_BOX_LLAMA_URL:-http://localhost:8080}"
     comfy="${AI_BOX_COMFYUI_URL:-http://localhost:8188}"
     tts="${AI_BOX_TTS_SESSION:-tts}"
+    tts_url="${AI_BOX_TTS_URL:-http://localhost:8000}"
     free_llm() {  # unload every model the llama.cpp router has loaded or is loading
         local models m
         models="$(curl -fsS --max-time 10 "${llm}/models" 2>/dev/null |
@@ -38,6 +39,19 @@ scripts:
         curl -fsS --max-time 60 -X POST "${comfy}/free" -H 'Content-Type: application/json' \
             -d '{"unload_models": true, "free_memory": true}' >/dev/null
         echo "comfy: models unloaded"
+    }
+    # TTS: AI_BOX_TTS_COMMAND in a tmux session, run again if it exits: the swap runs only
+    # when the mode changes, so nothing else would.
+    start_tts() {
+        : "${AI_BOX_TTS_COMMAND:?tts: set AI_BOX_TTS_COMMAND in .decree/.env, the command that runs your TTS server}"
+        tmux has-session -t "=${tts}" 2>/dev/null ||
+            tmux new-session -d -s "$tts" "cd ~ && while :; do ${AI_BOX_TTS_COMMAND}; sleep 5; done"
+        # Held once it answers: a first start downloads the model.
+        until [[ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$tts_url" 2>/dev/null)" != 000 ]]; do
+            tmux has-session -t "=${tts}" 2>/dev/null || { echo "tts: the session ended while loading (tmux attach -t ${tts})" >&2; return 1; }
+            sleep 5
+        done
+        echo "tts: serving"
     }
     free_tts() {  # its tmux session ends, and its CUDA context a moment after
         tmux has-session -t "=${tts}" 2>/dev/null || return 0
@@ -89,6 +103,9 @@ scripts:
             strata_up || { echo "strata: the container stopped while loading (${engine##*/} logs ${strata})" >&2; return 1; }
             sleep 5
         done
+        # What it serves, for offers.sh while it is stopped.
+        curl -fsS --max-time 10 -H "Authorization: Bearer ${strata_key}" "${strata_url}/v1/models" \
+            > .decree/machines/ai_box_gpu/state/strata-models.json || true
         echo "strata: serving"
     }
     [[ "$to" == llm ]] || free_llm
@@ -96,6 +113,7 @@ scripts:
     [[ "$to" == tts ]] || free_tts
     [[ "$to" == strata ]] || free_strata
     [[ "$to" != strata ]] || start_strata
+    [[ "$to" != tts ]] || start_tts
     echo "ai_box_gpu: the GPU is free for ${to}"
   offers.sh: |
     #!/usr/bin/env bash
@@ -103,7 +121,8 @@ scripts:
     # object per line, `localhost` meaning this host (reporting puts in the address the others
     # reach it by). With a decree-go-rest in front of the host's .decree, `lease` is where to
     # ask for the card: POST <lease>/<client>; the lease's status is GET <api>/gpu/lease/<id>,
-    # and POST <api>/gpu/lease/<id>/release gives it back. TTS is started, not leased.
+    # and POST <api>/gpu/lease/<id>/release gives it back. llm and strata carry `models`, each
+    # model's id and context, read without loading anything.
     set -euo pipefail
     llm="${AI_BOX_LLAMA_URL:-http://localhost:8080}"
     comfy="${AI_BOX_COMFYUI_URL:-http://localhost:8188}"
@@ -113,23 +132,36 @@ scripts:
     if [[ -f "$rest" ]] && grep -q 'path: /gpu/{mode}/{client}' "$rest"; then
         api="http://localhost:$(sed -n 's/^listen:[[:space:]]*[^#]*:\([0-9][0-9]*\).*/\1/p' "$rest" | head -n 1)"
     fi
-    offer() {  # <service> <url> [<key> <value>]...
-        local s="{\"service\":\"$1\",\"url\":\"$2\""; shift 2
+    offer() {  # <service> <url> <models JSON, or ""> [<key> <value>]...
+        local s="{\"service\":\"$1\",\"url\":\"$2\""
+        [[ -z "$3" ]] || s="${s},\"models\":$3"
+        shift 3
         while [[ $# -gt 1 ]]; do s="${s},\"$1\":\"$2\""; shift 2; done
         echo "${s}}"
+    }
+    # llama.cpp's router lists every model it can load, with the --ctx-size each starts with.
+    llm_models() {
+        curl -fsS --max-time 5 "${llm}/v1/models" 2>/dev/null | jq -c '[.data[] | {id,
+            context: ((.status.args // []) as $a | ($a | index("--ctx-size")) as $i
+                | if $i then ($a[$i + 1] | tonumber) else null end)}]' 2>/dev/null || echo '[]'
+    }
+    # Strata: what it served when the lease last started it, with the context it is set to.
+    strata_models() {
+        jq -c --argjson c "${AI_BOX_STRATA_CONTEXT:-65536}" '[.data[] | {id, context: $c}]' \
+            .decree/machines/ai_box_gpu/state/strata-models.json 2>/dev/null || echo '[]'
     }
     # AI_BOX_SERVICES: what this box offers (default llm,comfy,tts; add strata to offer it,
     # with AI_BOX_STRATA_FAMILY set). Taking one out moves it off
     # this box: its next report drops it, leases held now run out, and new ones go elsewhere.
     on() { [[ ",${AI_BOX_SERVICES:-llm,comfy,tts}," == *",$1,"* ]]; }
     if [[ -n "$api" ]]; then
-        if on llm; then offer llm "${llm}/v1" lease "${api}/gpu/llm" api "$api"; fi
-        if on comfy; then offer comfy "$comfy" lease "${api}/gpu/comfy" api "$api"; fi
-        if on tts; then offer tts "$tts" start "${api}/startTTS" stop "${api}/endTTS" api "$api"; fi
-        if on strata; then offer strata "${strata}/v1" lease "${api}/gpu/strata" api "$api"; fi
+        if on llm; then offer llm "${llm}/v1" "$(llm_models)" lease "${api}/gpu/llm" api "$api"; fi
+        if on comfy; then offer comfy "$comfy" "" lease "${api}/gpu/comfy" api "$api"; fi
+        if on tts; then offer tts "$tts" "" lease "${api}/gpu/tts" api "$api"; fi
+        if on strata; then offer strata "${strata}/v1" "$(strata_models)" lease "${api}/gpu/strata" api "$api"; fi
     else
-        if on llm; then offer llm "${llm}/v1"; fi
-        if on comfy; then offer comfy "$comfy"; fi
+        if on llm; then offer llm "${llm}/v1" "$(llm_models)"; fi
+        if on comfy; then offer comfy "$comfy" ""; fi
     fi
   requirements: |
     # What ai_box_gpu's scripts need beyond decree, checked by decree_infra's `run.sh check`.
@@ -166,9 +198,10 @@ x-exist-endpoints:
 # ai_box_gpu
 
 The card on a separate AI box, as decree's `decree_lease` with one resource, `gpu`, in mode
-`llm`, `comfy` or `tts`. A lease in one mode stops the others first: the llama.cpp router
-unloads its models, ComfyUI finishes its queue and unloads, the TTS session ends. It runs in
-the host daemon, so it reaches the services on `localhost` and TTS's tmux session directly.
+`llm`, `comfy`, `tts` or `strata`. A lease in one mode stops the others first: the llama.cpp
+router unloads its models, ComfyUI finishes its queue and unloads, the TTS session ends,
+Strata's container stops. A `tts` or `strata` lease starts its server and is granted once it
+answers. It runs in the host daemon, so it reaches the services on `localhost` directly.
 
 With a decree-go-rest in front of the host's `.decree`, another host asks over HTTP:
 `POST /gpu/<mode>/<client>` (the answer's `id` is the lease), `GET /gpu/lease/<id>` until its
@@ -180,5 +213,6 @@ Ask on the host with
 and give it back with `decree reply <lease id> release`. Only work that asks takes part: a
 model call or a ComfyUI prompt that does not ask uses the card anyway.
 
-Linux only (decree_lease needs `flock`). Set `AI_BOX_LLAMA_URL` and `AI_BOX_COMFYUI_URL` in
-`.decree/.env` when they are not on `localhost:8080` and `localhost:8188`.
+Linux only (decree_lease needs `flock`). Set `AI_BOX_LLAMA_URL`, `AI_BOX_COMFYUI_URL` and
+`AI_BOX_TTS_URL` in `.decree/.env` when they are not on `localhost:8080`, `:8188` and `:8000`,
+and `AI_BOX_TTS_COMMAND` to the command that runs the TTS server.

@@ -2,6 +2,7 @@
 # fleet — set a host up as the controller or as a worker on your own network, in one command.
 #   ./existential.sh run fleet controller            on the controller: prints the join command
 #   ./existential.sh run fleet join <controller> [<secret>]   on every other host
+#   ./existential.sh run fleet api                   this host's decree-go-rest on :8801, now and at boot
 #   ./existential.sh run fleet status                what this host has, and what it can reach
 # Each step is what site/docs/hosting/controller-and-workers.md does by hand; running one twice
 # changes nothing. Runs on the host, a Mac included: bash 3.2, BSD tools.
@@ -39,6 +40,42 @@ start_daemon() {
     echo "  daemon   started (tmux existential-host); have it start at boot: site/docs/hosting/host-daemon.md"
 }
 
+# decree-go-rest in front of this host's .decree, on the LAN at :8801 with the fleet secret: the
+# leases a GPU box serves, and fleet_gpu.md for a decree project of your own. Its config is
+# this host's (.decree/decree-go-rest.yml, written once); each ./existential.sh adds the
+# endpoints its plugins declare. Started now, and by .decree/boot.sh (the on-boot flow) at
+# boot; started again, so it takes the secret as .env.shared has it now.
+cmd_api() {
+    local rest="${REPO_DIR}/.decree/decree-go-rest.yml" boot="${REPO_DIR}/.decree/boot.sh" engine flags line
+    engine="$(command -v podman || command -v docker || true)"
+    [[ -n "$engine" ]] || die "decree-go-rest runs in a container: install podman or docker"
+    if [[ ! -f "$rest" ]]; then
+        cat > "$rest" <<'YML'
+# This host's own (gitignored), written by ./existential.sh run fleet api. The plugins add their endpoints.
+listen: 0.0.0.0:8801 # open to the LAN, plain HTTP: the bearer secret is readable on the wire
+secret_env: EXIST_FLEET_SECRET # from .env.shared, the same on every host
+decree: decree
+daemon:
+  enabled: false # the host daemon (existential-host) works the queue
+endpoints: []
+YML
+        echo "  api      wrote .decree/decree-go-rest.yml"
+    fi
+    flags="--user $(id -u):$(id -g)"
+    [[ "$engine" == *podman ]] && flags="--userns keep-id ${flags} --security-opt label=disable"
+    line="tmx -d decree-go-rest \"exec ${engine##*/} run --rm --name decree-go-rest ${flags} -p 8801:8801 -e EXIST_FLEET_SECRET=\\\"\\\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '${REPO_DIR}/.env.shared')\\\" -v '${REPO_DIR}/.decree:/project/.decree:ro' -v '${REPO_DIR}/.decree/inbox:/project/.decree/inbox' ghcr.io/jtmckay/decree-go-rest:0.6.0\""
+    if ! grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
+        printf '# decree-go-rest in front of this .decree, on :8801 (./existential.sh run fleet api).\n%s\n' "$line" >> "$boot"
+        exist flow on on-boot
+        echo "  api      started at boot by .decree/boot.sh"
+    fi
+    exist
+    tmux kill-session -t "=decree-go-rest" 2>/dev/null || true
+    "$engine" rm -f decree-go-rest >/dev/null 2>&1 || true
+    ( cd "$REPO_DIR" && . services/automation/decree/tmx.sh && eval "$line" )
+    echo "  api      http://$(address):8801 (tmux attach -t decree-go-rest)"
+}
+
 cmd_controller() {
     [[ -f "$ENV" ]] || die "run ./existential.sh first (pick Controller)"
     echo "This host is the controller:"
@@ -53,13 +90,15 @@ cmd_controller() {
     exist service on loki grafana
     # Loki on the network, so the workers can push to it and ask it who the controller is.
     env_set "$LOKI_ENV" LOKI_BIND 0.0.0.0
-    exist
     echo "  loki     on the network at :43100"
+    cmd_api
     start_daemon
     echo ""
     echo "Start Loki and Grafana:  docker compose up -d"
     echo "Then on every other host:"
     echo "  ./existential.sh run fleet join $(address) ${secret}"
+    echo "And in a decree project of your own (.decree/.env: EXIST_FLEET_LOKI=http://$(address):43100, EXIST_FLEET_SECRET):"
+    echo "  curl -fsSL -H \"Authorization: Bearer ${secret}\" http://$(address):8801/plugins/fleet_gpu.md | decree install -"
 }
 
 cmd_join() {
@@ -75,6 +114,8 @@ cmd_join() {
     exist flow on worker
     exist
     start_daemon
+    # A go-rest that runs takes the secret only when it starts.
+    if tmux has-session -t "=decree-go-rest" 2>/dev/null; then cmd_api; fi
     echo ""
     cmd_status
 }
@@ -108,7 +149,8 @@ cmd_status() {
 
 case "${1:-status}" in
     controller) cmd_controller ;;
+    api)        cmd_api ;;
     join)       shift; cmd_join "$@" ;;
     status)     cmd_status ;;
-    *)          die "usage: fleet controller | fleet join <controller> [<secret>] | fleet status" ;;
+    *)          die "usage: fleet controller | fleet join <controller> [<secret>] | fleet api | fleet status" ;;
 esac

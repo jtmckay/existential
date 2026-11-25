@@ -20,8 +20,9 @@ is there: llama.cpp does not unload for ComfyUI, ComfyUI does not free memory fo
 service that cannot get its VRAM fails on its first request. The `ai-box` flow makes the switch
 for you. Turn it on in the box's own checkout (`./existential.sh flow on ai-box`), and its host
 daemon gets `ai_box_gpu`, decree's `decree_lease` with one resource, `gpu`, in mode `llm`,
-`comfy` or `tts`. A lease in one mode frees the card first: the llama.cpp router unloads its
-models, ComfyUI finishes its queue and unloads, the TTS session ends. Up to four leases share it
+`comfy`, `tts` or `strata`. A lease in one mode frees the card first: the llama.cpp router
+unloads its models, ComfyUI finishes its queue and unloads, TTS and Strata stop. A `tts` or
+`strata` lease then starts its server. Up to four leases share it
 in one mode; another mode waits for them, and none waits more than 30 minutes for its turn.
 
 ```bash
@@ -38,12 +39,12 @@ reads `.decree/.env` on the box: `AI_BOX_LLAMA_URL` and `AI_BOX_COMFYUI_URL` whe
 
 ### From another host
 
-With [decree-go-rest](#tts-started-and-stopped-over-http) in front of the box's `.decree`, the
+With [decree-go-rest](#leases-from-another-host) in front of the box's `.decree`, the
 flow serves the lease over HTTP too, each call with the bearer secret:
 
 | Call | What it does |
 |---|---|
-| `POST /gpu/<mode>/<client>` | Ask for the card in mode `llm`, `comfy` or `tts`; the answer's `id` is the lease |
+| `POST /gpu/<mode>/<client>` | Ask for the card in mode `llm`, `comfy`, `tts` or `strata`; the answer's `id` is the lease |
 | `GET /gpu/lease/<id>` | The lease's status: its `state` is `granted` or `held` once it holds the card |
 | `POST /gpu/lease/<id>/release` | Give it back (`/renew`: keep it for its duration again) |
 | `GET /gpu` | The card: its mode, holders and line |
@@ -172,12 +173,14 @@ new pack first (`ai/strata`'s own `docker compose up -d strata` on the box, then
 download never runs inside a lease. A host whose model calls should go to Strata sets
 `EXIST_MODEL_SERVICE=strata` and its `EXIST_MODEL_CHAT` to the id Strata serves.
 
-## TTS, started and stopped over HTTP
+## TTS, a lease like the others
 
-Qwen3-TTS needs most of the card while it runs, so it is not left up. The `ai-box` flow's
-`ai_box_tts` starts it on demand: it takes a `tts` lease (which unloads llama.cpp and ComfyUI),
-then runs `AI_BOX_TTS_COMMAND` in a tmux session named `tts`, with `tmx -d`, so a second start
-is harmless and `tmx tts` watches it. Stopping ends the session and gives the lease back.
+Qwen3-TTS needs most of the card while it runs, so it runs only under a `tts` lease. The lease
+stops everything else, then runs `AI_BOX_TTS_COMMAND` in a tmux session named `tts`
+(`tmux attach -t tts` watches it), and is granted once the server answers on
+`AI_BOX_TTS_URL` (default `http://localhost:8000`). If it exits, it starts again; any other
+mode ends the session. Released, it stays up until another mode needs the card, so the next
+TTS lease is granted at once.
 
 Install it once, in an environment of its own (Python 3.12, as its README asks):
 
@@ -202,48 +205,43 @@ AI_BOX_TTS_COMMAND=~/miniconda3/envs/qwen3-tts/bin/qwen-tts-demo Qwen/Qwen3-TTS-
 (its named speakers) and `Base` (clones a voice from a sample). The server answers on `:8000`,
 the Gradio UI and its API.
 
-```bash
-decree emit --machine ai_box_tts --param action=start </dev/null
-decree emit --machine ai_box_tts --param action=stop </dev/null
-```
+## Leases from another host
 
-To start and stop it from another host, put [decree-go-rest](../plugins/http.md) in front of the
-box's `.decree`. Write `.decree/decree-go-rest.yml` (a host's own, never committed) with
-`listen: 0.0.0.0:<port>` (any free port), `secret_env: EXIST_FLEET_SECRET`, `daemon: {enabled: false}` and
-`endpoints: []`, and the flow adds its endpoints to it at each `./existential.sh`. The secret
-is the fleet's, the same on every host ([Leases](./controller-and-workers.md#leases)). Start
-it from `.decree/boot.sh`, which runs in the checkout:
+For another host to take a lease, the box needs [decree-go-rest](../plugins/http.md) in front of
+its `.decree`, on `:8801` with the fleet's secret ([Leases](./controller-and-workers.md#leases)).
+One command writes its config (`.decree/decree-go-rest.yml`, the box's own), starts it, and adds
+it to `.decree/boot.sh` with the `on-boot` flow, so it starts at boot; the flow adds its
+endpoints at each `./existential.sh`:
 
 ```bash
-# .decree/boot.sh on <ai-box>
-tmx -d decree-go-rest "exec podman run --rm --name decree-go-rest --userns keep-id \
-  --security-opt label=disable -p <port>:<port> -e EXIST_FLEET_SECRET=\"\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '$PWD/.env.shared')\" \
-  -v '$PWD/.decree:/project/.decree:ro' -v '$PWD/.decree/inbox:/project/.decree/inbox' \
-  ghcr.io/jtmckay/decree-go-rest:0.6.0"
+./existential.sh run fleet api
 ```
 
 It only queues messages; the host daemon runs them.
 
+Another host's decree scripts then take and give back leases through the `fleet` lib
+([Leases](./controller-and-workers.md#leases)), or by hand:
+
 ```bash
-curl -X POST http://<ai-box>:<port>/startTTS -H "Authorization: Bearer <secret>"
-# ... generate speech ...
-curl -X POST http://<ai-box>:<port>/endTTS -H "Authorization: Bearer <secret>"
+id=$(./existential.sh run peers lease <ai-box> tts my-job)
+# ... generate speech at http://<ai-box>:8000 ...
+./existential.sh run peers release <ai-box> tts "$id"
 ```
 
-**There is no stack key for this.** The stack's own speech is wyoming-piper on CPU
+**There is no stack key for TTS.** The stack's own speech is wyoming-piper on CPU
 ([Speech has no endpoint keys](../configuration.md#speech-has-no-endpoint-keys)), so whatever
-calls Qwen3-TTS uses the box's address directly.
+calls Qwen3-TTS leases it and uses the box's address directly.
 
 ## Checking it works
 
 With the host daemon running and the flow on:
 
-1. `curl -X POST http://<ai-box>:<port>/startTTS -H "Authorization: Bearer <secret>"`, then
-   `tmux has-session -t =tts` and, once the model is loaded, `curl -I http://<ai-box>:8000/`.
+1. `id=$(./existential.sh run peers lease <ai-box> tts check)` returns once TTS answers:
+   `tmux has-session -t =tts` on the box, and `curl -I http://<ai-box>:8000/`.
 2. `jq . .decree/machines/ai_box_gpu/state/status/resources/gpu.json` shows mode `tts` and one
    holder.
-3. `/endTTS`: the session is gone, the holders list is empty, and `nvidia-smi` shows the
-   memory back.
+3. `./existential.sh run peers release <ai-box> tts "$id"`: the holders list is empty. A lease
+   in another mode ends the session, and `nvidia-smi` shows the memory back.
 
 A run that failed is in `decree status`, its log under `.decree/runs/<id>/`.
 
@@ -259,7 +257,7 @@ it is given. Like TTS, it has no stack key.
 |---|---|
 | llama.cpp router | `EXIST_MODEL_URL` (or one `EXIST_MODEL_URL_<ROLE>` per role), `EXIST_MODEL_*` set to preset names, `EXIST_IS_AI_OLLAMA=false` |
 | ComfyUI | `EXIST_COMFYUI_URL`, `EXIST_IS_AI_COMFYUI=false` |
-| Qwen3-TTS | none (start and stop it through the box's `/startTTS` and `/endTTS`) |
+| Qwen3-TTS | none (lease it: `tts`) |
 | GLiNER | none |
 
 Then `./existential.sh && docker compose up -d`, and `./existential.sh run models` to confirm

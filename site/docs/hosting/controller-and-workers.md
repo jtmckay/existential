@@ -127,6 +127,7 @@ missing:
 ```bash
 ./existential.sh run fleet controller                 # on the controller: prints the join line
 ./existential.sh run fleet join <controller> <secret> # on every other host, after ./existential.sh
+./existential.sh run fleet api                        # on a GPU box: the go-rest its leases are asked through
 ./existential.sh run fleet status                     # on any host: controller, secret, daemon, last report
 ```
 
@@ -197,7 +198,7 @@ Any host reads the latest offers back from the Loki its controller names:
 ```text
 <ai-box>         comfy    http://<ai-box>:8188                     lease http://<ai-box>:<port>/gpu/comfy/<client>
 <ai-box>         llm      http://<ai-box>:8080/v1                  lease http://<ai-box>:<port>/gpu/llm/<client>
-<ai-box>         tts      http://<ai-box>:8000                     start http://<ai-box>:<port>/startTTS
+<ai-box>         tts      http://<ai-box>:8000                     lease http://<ai-box>:<port>/gpu/tts/<client>
 ```
 
 ### Leases
@@ -231,6 +232,35 @@ id=$(./existential.sh run peers lease <ai-box> comfy my-batch)
 # ... use http://<ai-box>:8188 ...
 ./existential.sh run peers release <ai-box> comfy "$id"
 ```
+
+### A decree project of your own
+
+Any decree project, existential or not, can lease the fleet's GPUs: the `fleet_gpu` plugin is the
+same lib the stack uses, and every host with a decree-go-rest (`./existential.sh run fleet api`,
+which `fleet controller` runs) serves it:
+
+```bash
+curl -fsSL -H "Authorization: Bearer <secret>" http://<controller>:8801/plugins/fleet_gpu.md | decree install -
+```
+
+Then in that project's `.decree/.env`:
+
+```bash
+EXIST_FLEET_LOKI=http://<controller>:43100
+EXIST_FLEET_SECRET=<secret>
+```
+
+and in its scripts, the same calls as the stack's:
+
+```bash
+source .decree/machines/fleet_gpu/scripts/fleet.sh
+fleet_use llm || exit 1     # FLEET_URL: wherever llm is now, under its lease
+curl -fsS "${FLEET_URL}/chat/completions" -d @request.json
+fleet_done llm
+```
+
+`llm`, `strata`, `comfy` and `tts` all work this way. The plugin file says the rest. It is
+written from this checkout at each `./existential.sh`, so to update it, run the `curl` again.
 
 ### Moving a service to another host
 

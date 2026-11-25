@@ -140,8 +140,8 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   `swap/gpu.sh` are scripts, so they install read-only; its `callback.sh` takes the
   holder's address from `automation/.env`, never from the request, and `gpu_release` is how
   a POST answers a lease, refusing any run that is not `gpu_lease`'s; and, on a GPU box's host,
-  `ai_box_gpu`: modes `llm`, `comfy`, `tts`, its swap unloading llama.cpp's router, ComfyUI and
-  `ai_box_tts`'s tmux session; a separate host-only plugin, so a host that also runs the stack
+  `ai_box_gpu`: modes `llm`, `comfy`, `tts`, `strata`, its swap unloading llama.cpp's router and
+  ComfyUI, and stopping or starting the TTS tmux session and Strata's container; a separate host-only plugin, so a host that also runs the stack
   never has two queues for one card; its lease is served over decree-go-rest's emit, read and
   reply endpoints, no release machine), `decree_skill`
   (`skill`), `decree_develop` and `decree_qa` (`repo_develop`, `repo_qa`). Not
@@ -269,6 +269,9 @@ JSON object per line (`service`, `url`, and `lease`/`api` or `start`/`stop`), `l
 meaning this host. `reporting` pushes them as `kind="offer"`, with `localhost` swapped for
 `EXIST_TAILNET_NAME` (else `EXIST_LOCAL_HOST_IP`, else the hostname), and `src/lib/peers.sh`
 (`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
+`./existential.sh` writes the fleet lib as a plain decree plugin, `fleet_gpu.md`, into
+`reporting`'s state, and every host's go-rest serves it (`GET /plugins/fleet_gpu.md`), so a
+decree project of your own installs it with `curl ... | decree install -`.
 The controller only answers the question; traffic goes host to host.
 The **fleet** lib (`flows/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
 service another host offers: `model_chat`/`pi_run` (`llm`) and `comfy` call it, a keeper per
