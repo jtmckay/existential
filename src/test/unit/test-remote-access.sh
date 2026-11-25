@@ -72,8 +72,8 @@ export TS_NAME=box.tail1234.ts.net TS_STATE="$WORK/serve" TS_CALLS="$WORK/calls"
 RUNNING="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": [\"${TS_NAME}\"]}"
 NO_HTTPS="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": null}"
 
-printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
-# This host is the controller: the worker flow on, no EXIST_CONTROLLER.
+printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_IS_HOSTING_LOKI=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
+# This host is the controller: the worker flow on, no EXIST_CONTROLLER, Loki on.
 mkdir -p "$WORK/automation"; printf 'on:\n  - worker\n' > "$WORK/automation/plugins.yml"
 cp "$WORK/.env.shared" "$WORK/env.fresh"
 
@@ -120,7 +120,7 @@ status="$(TS_STATE="$TS_STATE" "$WORK/bin/tailscale" serve status --json)"
 _has "serve status: code-server on 443" "$status" "\"${TS_NAME}:443\": {\"Handlers\": {\"/\": {\"Proxy\": \"http://127.0.0.1:42080\"}}}"
 _has "serve status: ntfy on 8443" "$status" "\"${TS_NAME}:8443\": {\"Handlers\": {\"/\": {\"Proxy\": \"http://127.0.0.1:44680\"}}}"
 calls="$(cat "$TS_CALLS" 2>/dev/null | wc -l | tr -d " ")"
-[[ "$calls" == 3 ]] && _ok "two runs set each port once" || _fail "two runs set each port once" "$(cat "$TS_CALLS")"
+[[ "$calls" == 4 ]] && _ok "two runs set each port once" || _fail "two runs set each port once" "$(cat "$TS_CALLS")"
 _has "a controller serves its answer to workers on 4480, as http" "$status" "\"${TS_NAME}:4480\": {\"Handlers\": {\"/\": {\"Path\": \"$WORK/.decree/exist.json\"}}}"
 _has "...which exists before anything asks" "$(cat "$WORK/.decree/exist.json" 2>/dev/null)" "{}"
 _has "uses --bg, which persists across reboots" "$(cat "$TS_CALLS")" "serve --bg --https=443 http://127.0.0.1:42080"

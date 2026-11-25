@@ -12,4 +12,4 @@ as https://existential.company/docs/hosting/host-daemon says.
 
 With EXIST_CONTROLLER in .env.shared naming your controller (its tailnet name or 100.x
 address), this host reports there. Blank, this host is the controller: the others ask it
-where to report, and it names the Loki in EXIST_REPORTING_URL, or its own when Loki is on here.
+where to report, and it names its own Loki, which has to be on here.

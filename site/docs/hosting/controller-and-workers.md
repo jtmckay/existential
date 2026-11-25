@@ -10,7 +10,8 @@ VRAM use, the decree machines and plugins it has installed and the containers it
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
 - The **controller** is the one host the others ask "where do I report?". It answers with a
-  Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank.
+  Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host with
+  `EXIST_CONTROLLER` blank and no Loki reports nowhere.
 - Every other worker names it in `EXIST_CONTROLLER`.
 - A host doesn't have to be a worker at all. Without the `worker` flow, nothing runs on the
   host and nothing is reported.
@@ -35,10 +36,6 @@ traffic):
 |---|---|
 | `http://<controller>:4480` | The answer to "where do I report?", `.decree/exist.json` (on your own network, the controller's Loki holds it instead: [Without Tailscale](#without-tailscale-your-own-network)) |
 | `http://<host>:3100` | Loki's push address, on whichever host has Loki on |
-
-To report to a Loki on another host, set `EXIST_REPORTING_URL=http://<that-host>:3100` in the
-controller's `.env.shared` and re-run `./existential.sh`. Every worker picks it up on its next
-report.
 
 ## Services a host has off
 
@@ -122,6 +119,18 @@ steps 3 and 4.
 When every host is on one network, that network is already private and nothing more is needed:
 no tailnet and no DNS record. The controller is the host whose Loki listens on that network, and
 every other host names it by address.
+
+`./existential.sh run fleet` does all of this section, plus the fleet secret, the host's address
+and the host daemon, in one command per host. Run it again any time; it changes only what is
+missing:
+
+```bash
+./existential.sh run fleet controller                 # on the controller: prints the join line
+./existential.sh run fleet join <controller> <secret> # on every other host, after ./existential.sh
+./existential.sh run fleet status                     # on any host: controller, secret, daemon, last report
+```
+
+By hand:
 
 On the controller, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
 and `docker compose up -d`. Loki's push address is now `http://<controller's-ip>:43100`.
@@ -231,9 +240,8 @@ within 5 minutes, leaves it out (`decree emit --machine reporting </dev/null` se
 A lease held on the old host runs until it is given back, and the next lease is asked of the
 new one, so no run is cut off and no caller's settings change.
 
-An offer names a host by `EXIST_HOST_ADDRESS` in that host's `.env.shared`, else its
-`EXIST_TAILNET_NAME`, else its hostname: set it when the others reach it by another name or
-by address. Nothing goes through the controller but the question: each host serves its own
+An offer names a host by its `EXIST_TAILNET_NAME`, else its `EXIST_LOCAL_HOST_IP` (found by `./existential.sh`), else
+its hostname. Nothing goes through the controller but the question: each host serves its own
 traffic, and a host that stops reporting drops out of the list within 15 minutes. The peers
 helper needs `jq` and `yq`.
 

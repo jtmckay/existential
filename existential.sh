@@ -251,8 +251,8 @@ _tailscale_serve_core() {
 }
 
 # A worker is a machine whose host runs decree with the worker flow on (reporting).
-# Its EXIST_CONTROLLER names the controller it reports to; blank, it is the
-# controller. Read from automation/plugins.yml, what is wanted, so the first run
+# Its EXIST_CONTROLLER names the controller it reports to; blank, with Loki on here, it
+# is the controller (blank without Loki, it reports nowhere). Read from automation/plugins.yml, what is wanted, so the first run
 # knows before the host sync has installed anything (host/.decree/plugins.yml is
 # where an older install said so, until the sync folds it in).
 _is_worker() {
@@ -260,20 +260,38 @@ _is_worker() {
         "${SCRIPT_DIR}/automation/plugins.yml" "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
 }
 _is_controller() {
-    _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
+    _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null &&
+        grep -q '^EXIST_IS_HOSTING_LOKI=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
+}
+
+# Before EXIST_CONTROLLER was the one setting, a host named its Loki in EXIST_REPORTING_URL,
+# and one with that and no controller took itself for the controller. Its controller is
+# that Loki's host. EXIST_HOST_ADDRESS went too: reporting finds the address itself.
+_migrate_controller_keys() {
+    local f="${SCRIPT_DIR}/.env.shared" url ctl t
+    grep -qE '^EXIST_(REPORTING_URL|HOST_ADDRESS)=' "$f" 2>/dev/null || return 0
+    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" | cut -d= -f2-) || true
+    ctl=$(grep -m1 '^EXIST_CONTROLLER=' "$f" | cut -d= -f2-) || true
+    t="$(mktemp)"
+    grep -vE '^EXIST_(REPORTING_URL|HOST_ADDRESS)=' "$f" > "$t" || true
+    if [[ -n "$url" && -z "$ctl" ]] && ! grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f"; then
+        ctl="${url#*://}"; ctl="${ctl%%[:/]*}"
+        awk -v c="$ctl" '/^EXIST_CONTROLLER=/ && !d { print "EXIST_CONTROLLER=" c; d = 1; next } { print }' "$t" > "${t}.2"
+        grep -q '^EXIST_CONTROLLER=' "${t}.2" || echo "EXIST_CONTROLLER=${ctl}" >> "${t}.2"
+        mv "${t}.2" "$t"
+        echo "  EXIST_REPORTING_URL is gone: this host now names its controller, EXIST_CONTROLLER=${ctl}."
+    fi
+    cat "$t" > "$f"; rm -f "$t"
 }
 
 # The controller's answer to "where do I report?", .decree/exist.json, served on 4480
-# (_tailscale_serve_core) and read by the reporting plugin on every worker:
-# EXIST_REPORTING_URL, else this host's Loki when it is on, else nowhere.
+# (_tailscale_serve_core) and read by the reporting plugin on every worker: the
+# controller's own Loki. Any other host has none, so it never answers for one.
 _controller_answer() {
     local f="${SCRIPT_DIR}/.env.shared" url name domain
-    _is_controller || return 0
-    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" 2>/dev/null | cut -d= -f2-) || true
-    if [[ -z "$url" ]] && grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null; then
-        name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-) || true
-        if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
-    fi
+    _is_controller || { rm -f "${SCRIPT_DIR}/.decree/exist.json"; return 0; }
+    name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-) || true
+    if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
     # Its domain: where a service another host has off is found (https://<slug>.<domain>).
     domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2-) || true
     mkdir -p "${SCRIPT_DIR}/.decree"
@@ -560,6 +578,8 @@ _worker_without_engine() {
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
         ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on worker )
     fi
+    _migrate_controller_keys
+    _controller_answer
     _build
     # The controller's answer, on 4480 or (your own network) from its Loki; it warns when neither answers.
     _controller_fetch
@@ -834,6 +854,8 @@ _run_general_utility() {
         # Host-side: reads `docker stats` so it can put observed usage next to
         # the declared ceilings, and adhoc has no docker socket.
         footprint)      bash "${SCRIPT_DIR}/src/lib/footprint.sh" "$@" ;;
+        # Host-side: edits .env.shared, runs ./existential.sh and starts the host daemon.
+        fleet)          bash "${SCRIPT_DIR}/src/lib/fleet.sh" "$@" ;;
         # A worker (no engine, or no services) uses the host's own yq and decree:
         # the same sync _host_plugins does, so list, on and off work there too.
         plugin)         if ! _worker_only && adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
@@ -1079,13 +1101,14 @@ _build() {
     _decree_code_mounts
     _offer_image_updates
     _ensure_host_ids
+    _migrate_controller_keys
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
         _host_plugins
         if _is_worker; then
             _controller_answer
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
-            echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'the Loki this host names, as the controller')."
+            echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'nowhere: set EXIST_CONTROLLER in .env.shared')."
         else
             echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
         fi

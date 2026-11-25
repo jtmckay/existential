@@ -98,6 +98,17 @@ else
     echo "  (no yq and decree here: the host sync is not run)"
 fi
 
+echo ""; echo "=== the controller is one setting ==="
+cp .env.shared .env.shared.keep
+printf 'EXIST_IS_HOSTING_LOKI=false\nEXIST_CONTROLLER=\nEXIST_REPORTING_URL=http://ctl.lan:43100\nEXIST_HOST_ADDRESS=x\n' > .env.shared
+es _migrate_controller_keys >/dev/null
+assert_eq "a host with a reporting URL and no controller names that host its controller" \
+    "EXIST_IS_HOSTING_LOKI=false EXIST_CONTROLLER=ctl.lan" "$(xargs < .env.shared)"
+printf 'EXIST_IS_HOSTING_LOKI=true\nEXIST_CONTROLLER=\nEXIST_REPORTING_URL=http://other:3100\n' > .env.shared
+es _migrate_controller_keys >/dev/null
+assert_eq "...and one with Loki on stays the controller" "EXIST_IS_HOSTING_LOKI=true EXIST_CONTROLLER=" "$(xargs < .env.shared)"
+mv .env.shared.keep .env.shared
+
 echo ""; echo "=== flows and Core's setup ==="
 assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \
     "$(REPO_DIR="$R"; . src/utils/flows.sh; flow_closure transcription | xargs)"

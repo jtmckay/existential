@@ -54,7 +54,7 @@ scripts:
     fi
     if [[ -n "$loki" ]]; then printf '%s\n' "$loki" > "${store}/loki"
     else loki="$(cat "${store}/loki" 2>/dev/null || true)"; fi
-    [[ -n "$loki" ]] || { echo "reporting: no Loki named yet (EXIST_REPORTING_URL on the controller, or Loki on there), so nothing is sent"; exit 0; }
+    [[ -n "$loki" ]] || { echo "reporting: no Loki named yet (set EXIST_CONTROLLER, or turn Loki on if this is the controller), so nothing is sent"; exit 0; }
 
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
@@ -141,7 +141,9 @@ scripts:
     # JSON object per line ({"service", "url", ...}), localhost meaning this host, which is
     # swapped for the address the others reach it by. `./existential.sh run peers` reads them back.
     host="$(hostname -s 2>/dev/null || hostname)"
-    addr="$(env_get EXIST_HOST_ADDRESS)"; [[ -n "$addr" ]] || addr="$(env_get EXIST_TAILNET_NAME)"; [[ -n "$addr" ]] || addr="$host"
+    # The address the others reach it by: its tailnet name, else the address ./existential.sh found.
+    addr="$(env_get EXIST_TAILNET_NAME)"; [[ -n "$addr" ]] || addr="$(env_get EXIST_LOCAL_HOST_IP)"
+    [[ -n "$addr" ]] || addr="$host"
     : > "${tmp}/offer"
     for m in "${repo}"/.decree/machines/*/scripts/offers.sh; do
         [[ -f "$m" ]] || continue
@@ -335,5 +337,5 @@ Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its a
 projects, the containers running, what its host plugins offer the other hosts (kind=offer, read back by `./existential.sh run peers`), and every run that finished since the last report, sent to the Loki its controller
 names. Grafana's **Hosts** dashboard shows every host that reports. The `worker` flow
 turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
-controller, and names the Loki in `EXIST_REPORTING_URL`, or its own. See
+controller, and names its own Loki. See
 /docs/hosting/controller-and-workers.

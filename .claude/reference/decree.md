@@ -267,7 +267,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 **Offers (peers).** A host plugin that serves the other hosts ships `scripts/offers.sh`, one
 JSON object per line (`service`, `url`, and `lease`/`api` or `start`/`stop`), `localhost`
 meaning this host. `reporting` pushes them as `kind="offer"`, with `localhost` swapped for
-`EXIST_HOST_ADDRESS` (else the tailnet name, else the hostname), and `src/lib/peers.sh`
+`EXIST_TAILNET_NAME` (else `EXIST_LOCAL_HOST_IP`, else the hostname), and `src/lib/peers.sh`
 (`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
 The controller only answers the question; traffic goes host to host.
 The **fleet** lib (`flows/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
