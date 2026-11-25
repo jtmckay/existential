@@ -8,14 +8,14 @@ x-exist-lib:
     #!/usr/bin/env bash
     # model.sh — how a decree script reaches a model.
     #
-    # Sourced, never run. Every model role's address is an OpenAI-compatible base
-    # URL ending /v1, so ollama, a llama.cpp server or anything else that serves
+    # Sourced, never run. A model's address is an OpenAI-compatible base URL ending
+    # /v1, so ollama, a llama.cpp server, Strata or anything else that serves
     # /v1/chat/completions answers the same request. A script that wants an agent
     # with tools uses pi.sh (this model) or agent.sh (Claude).
     #
     #   source ".decree/lib/model.sh"
     #
-    #   model_url <role>                         → base URL serving that role
+    #   model_url                                → this host's own model URL
     #   model_chat <system> <user> [max_tokens]  → assistant text on stdout
     #   model_gate <criteria> <text>             → 0 = YES, 1 = NO, 2 = no verdict
     #
@@ -25,36 +25,23 @@ x-exist-lib:
     # rather than silently treating "no answer" as "no match".
     #
     # Env vars:
-    #   EXIST_MODEL_URL, EXIST_MODEL_URL_<ROLE>  the endpoints (compose passes them)
-    #   EXIST_MODEL_<ROLE>   the tag a role sends as "model"
+    #   EXIST_MODEL_URL      this host's own model URL (compose passes it)
+    #   EXIST_MODEL_<ROLE>   the model a role (chat, vision) sends as "model"
     #   MODEL_ROLE       role model_chat talks to, default chat
     #   MODEL_URL        overrides the role's URL
     #   MODEL_NAME       overrides the role's tag; set but EMPTY sends no "model" at
     #                    all, so the server's own default answers
-    #   MODEL_API_KEY    bearer token, default EXIST_MODEL_API_KEY; omitted when empty
+    #   MODEL_API_KEY    bearer token, default EXIST_FLEET_SECRET; omitted when empty
     #   MODEL_TIMEOUT    seconds, default 120
     #   MODEL_TEMPERATURE  default 0
     #
-    # With the fleet on (EXIST_FLEET_SECRET), a call with no MODEL_URL goes to whichever
-    # host offers EXIST_MODEL_SERVICE (llm, the default, or strata) now, under its lease
+    # With the fleet on (EXIST_FLEET_SECRET), a call with no MODEL_URL goes to the fleet
+    # service (llm or strata) whose offer lists the role's model, under its lease
     # (fleet.sh): a run of calls shares one lease, given back 5 s after the last. No host
-    # offers it: the role's own URL, as before.
+    # offers that model: EXIST_MODEL_URL.
 
-    # model_url <role> — the in-container copy of src/utils/model-endpoints.sh's
-    # endpoint_for, which this container cannot see. test-model-endpoints.sh asserts
-    # the two resolve every role identically, so never add a fallback in one only.
-    model_url() {
-        local role="${1:-}" specific=""
-        case "$role" in
-            chat|chat-ctx) specific="${EXIST_MODEL_URL_CHAT:-}" ;;
-            vision)        specific="${EXIST_MODEL_URL_VISION:-}" ;;
-            *)
-                echo "model_url: unknown role '${role}' (chat|chat-ctx|vision)" >&2
-                return 1
-                ;;
-        esac
-        printf '%s\n' "${specific:-${EXIST_MODEL_URL:-http://ollama:11434/v1}}"
-    }
+    # model_url — this host's own model URL, where a call goes when the fleet has none.
+    model_url() { printf '%s\n' "${EXIST_MODEL_URL:-http://ollama:11434/v1}"; }
 
     # model_tag <role> — the EXIST_MODEL_* tag for a role (empty when unset).
     model_tag() {
@@ -69,22 +56,34 @@ x-exist-lib:
     if [ -f "$(dirname "${BASH_SOURCE[0]}")/fleet.sh" ]; then
         source "$(dirname "${BASH_SOURCE[0]}")/fleet.sh"
     else
-        fleet_use() { return 3; }; fleet_done() { :; }
+        fleet_on() { return 1; }; fleet_use() { return 3; }; fleet_done() { :; }
     fi
 
-    # model_base <role> — sets MODEL_BASE to where a call goes now: the host that offers
-    # MODEL_SERVICE (EXIST_MODEL_SERVICE, default llm), holding the fleet's lease (end the
-    # call with fleet_done "$MODEL_SERVICE"), else MODEL_URL or the role's own URL. Not in
-    # $(...): the lease's token lives in this shell.
+    # model_service <model> — the fleet service (llm or strata) whose offer lists this
+    # model, or nothing.
+    model_service() {
+        [ -n "$1" ] || return 0
+        fleet_offers 2>/dev/null | jq -r --arg m "$1" \
+            'select((.service == "llm" or .service == "strata") and any(.models[]?; .id == $m)) | .service' |
+            head -n 1
+    }
+
+    # model_base <role> — sets MODEL_BASE to where a call goes now: the fleet service that
+    # serves the role's model, holding its lease (end the call with fleet_done
+    # "$MODEL_SERVICE"), else MODEL_URL or EXIST_MODEL_URL. Not in $(...): the lease's
+    # token lives in this shell.
     model_base() {
         local rc=0
-        MODEL_BASE="" MODEL_SERVICE="${EXIST_MODEL_SERVICE:-llm}"
-        if [ -z "${MODEL_URL:-}" ]; then
-            fleet_use "$MODEL_SERVICE" || rc=$?
-            if [ "$rc" -eq 0 ]; then MODEL_BASE="$FLEET_URL"; return 0; fi
-            [ "$rc" -eq 3 ] || { echo "model: no host that offers ${MODEL_SERVICE} would lease it" >&2; return 1; }
+        MODEL_BASE="" MODEL_SERVICE=""
+        if [ -z "${MODEL_URL:-}" ] && fleet_on 2>/dev/null; then
+            MODEL_SERVICE="$(model_service "${MODEL_NAME-$(model_tag "$1")}")"
+            if [ -n "$MODEL_SERVICE" ]; then
+                fleet_use "$MODEL_SERVICE" || rc=$?
+                if [ "$rc" -eq 0 ]; then MODEL_BASE="$FLEET_URL"; return 0; fi
+                [ "$rc" -eq 3 ] || { echo "model: no host that offers ${MODEL_SERVICE} would lease it" >&2; return 1; }
+            fi
         fi
-        MODEL_BASE="${MODEL_URL:-$(model_url "$1")}"
+        MODEL_BASE="${MODEL_URL:-$(model_url)}"
     }
 
     model_chat() {
@@ -97,7 +96,7 @@ x-exist-lib:
             "${url%/}/chat/completions"
             -H "Content-Type: application/json")
 
-        local key="${MODEL_API_KEY:-${EXIST_MODEL_API_KEY:-}}"
+        local key="${MODEL_API_KEY:-${EXIST_FLEET_SECRET:-}}"
         if [ -n "$key" ]; then
             args+=(-H "Authorization: Bearer $key")
         fi
@@ -112,7 +111,7 @@ x-exist-lib:
              + (if $model == "" then {} else {model:$model} end)')"
 
         curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty' || rc=$?
-        fleet_done "$MODEL_SERVICE"
+        [ -z "$MODEL_SERVICE" ] || fleet_done "$MODEL_SERVICE"
         return "$rc"
     }
 
@@ -155,4 +154,4 @@ x-exist-lib:
 ---
 # model
 
-One answer from a model role's OpenAI-compatible /v1 URL, for any script: model_chat, model_gate, model_url (.decree/lib/model.sh).
+One answer from a model's OpenAI-compatible /v1 URL, for any script: model_chat, model_gate, model_url (.decree/lib/model.sh).

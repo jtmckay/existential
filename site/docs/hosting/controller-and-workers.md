@@ -204,25 +204,25 @@ Any host reads the latest offers back from the Loki its controller names:
 ### Leases
 
 Each GPU box has room for one GPU service at a time, so anything that uses one leases it from
-that box first. Every host shares one secret for this, `EXIST_FLEET_SECRET` in `.env.shared`:
-make it once (`openssl rand -hex 32`) and put the same value on every host. Blank, nothing
-leases and the stack uses its own addresses.
+that box first. Every host shares one secret for this, `EXIST_FLEET_SECRET` in `.env.shared`,
+which is also every model call's API key: the first run generates one, and `fleet join` puts the
+controller's on every other host. Blank, nothing leases and the stack uses its own addresses.
 
 With it set, the stack's decree scripts find each GPU service by asking the controller, every
 time they need a new lease, and hold that host's lease while they use it:
 
-- **`model_chat` and `pi_run`** take the lease of the service `EXIST_MODEL_SERVICE` names:
-  `llm` (llama.cpp, the default) or `strata`. A run of calls shares one lease, given
-  back 5 seconds after the last call ends. A model address the run sets itself (`MODEL_URL`)
-  takes none.
+- **`model_chat`, `pi_run` and OCR** take the lease of the service (`llm` or `strata`) whose
+  offer lists the model `EXIST_MODEL_CHAT` (or `EXIST_MODEL_VISION`) names. A run of calls
+  shares one lease, given back 5 seconds after the last call ends. A model address the run sets
+  itself (`MODEL_URL`) takes none.
 - **`comfy`** takes the `comfy` lease and holds it until ComfyUI's queue is empty, then 5 more
   seconds.
 - A lease lasts 10 minutes and is renewed while it is held. One whose holder stops renewing
   frees the card soon after.
 
-When no host offers a service, they use their own addresses (`EXIST_MODEL_URL`,
-`EXIST_COMFYUI_URL`) with no lease. Home Assistant and code-server's pi and opencode read those
-addresses too, and take no lease.
+When no host offers it, they use this host's own: `EXIST_MODEL_URL`, and the local `comfyui`
+container. Home Assistant, Open WebUI and code-server's opencode read `EXIST_MODEL_URL` too,
+and take no lease.
 
 By hand, `peers lease` asks for a lease and waits until it is held, then prints its id, and
 `peers release` gives it back:

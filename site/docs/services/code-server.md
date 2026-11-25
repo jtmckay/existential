@@ -58,8 +58,8 @@ tmx claude                            # attach to it
 
 `tmx` never starts a second copy.
 
-**`opencode`** is pointed at the stack's chat model on every boot (`EXIST_MODEL_URL_CHAT`, else
-`EXIST_MODEL_URL`, and `EXIST_MODEL_CHAT`). Your `~/.config/opencode/opencode.json` is merged over it.
+**`opencode`** is pointed at the stack's chat model on every boot (`EXIST_MODEL_URL` and
+`EXIST_MODEL_CHAT`). Your `~/.config/opencode/opencode.json` is merged over it.
 
 **With the `code-server-agents` flow on** (`./existential.sh flow on code-server-agents`), pi is
 set up on the stack's model and what you type into `claude` and `opencode` is captured to

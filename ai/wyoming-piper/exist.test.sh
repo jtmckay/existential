@@ -48,7 +48,7 @@ fi
 if printf '%s' "$RESP" | grep -q '"voices"[[:space:]]*:[[:space:]]*\[[[:space:]]*\]'; then
     warn "wyoming-piper voice loaded" \
          "info event lists no voices" \
-         "Check EXIST_MODEL_TTS_VOICE in .env.shared names a real piper voice (https://rhasspy.github.io/piper-samples/), then: docker compose restart wyoming-piper"
+         "Check WYOMING_PIPER_VOICE in ai/wyoming-piper/.env names a real piper voice (https://rhasspy.github.io/piper-samples/), then: docker compose restart wyoming-piper"
 else
     ok "wyoming-piper voice loaded"
 fi

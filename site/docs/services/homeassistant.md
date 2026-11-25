@@ -100,9 +100,8 @@ already-running instance, restart the `homeassistant` container once first — H
 picks up a new `custom_components/` folder on boot, and the migration fails loudly
 with that exact instruction if it isn't loaded yet.
 
-The STT/TTS models are chosen globally in `.env.shared` — `EXIST_MODEL_STT`,
-`EXIST_MODEL_STT_LANGUAGE` and `EXIST_MODEL_TTS_VOICE`. See
-[How it works](../how-it-works.md) for the full model-selection block. The
+The STT/TTS models are the speech services' own settings:
+[wyoming-whisper](../ai/wyoming-whisper.md) and [wyoming-piper](../ai/wyoming-piper.md). The
 conversation brain is `EXIST_MODEL_CHAT` at the chat endpoint, the same model every
 other part of the stack talks to.
 

@@ -56,7 +56,7 @@ services:
       FAMILY: ${STRATA_FAMILY:-}
       MODEL: ${STRATA_MODEL:-}
       # The stack's own key, which every model call already sends.
-      API_KEY: ${EXIST_MODEL_API_KEY}
+      API_KEY: ${EXIST_FLEET_SECRET}
       # The chat context floor, as a number; upstream's compose default is 32k.
       CONTEXT: ${EXIST_MODEL_CHAT_NUM_CTX:-65536}
       # The vision role falls back to the chat URL, so images work by default.

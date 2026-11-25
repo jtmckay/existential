@@ -41,14 +41,12 @@ if [ -z "${OLLAMA_URL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-}" != true ]; then
     exit 0
 fi
 
-# Every role resolves its own endpoint, exactly as the ollama-pull routine does,
-# so a split install pulls each model to the box that will serve it. Reading the
-# EXIST_MODEL_URL_* keys here (or writing a private fallback) is forbidden —
-# src/utils/model-endpoints.sh is the single source of truth. An explicit
-# OLLAMA_URL still overrides everything, which is how you target one box.
-# shellcheck source=../../src/utils/model-endpoints.sh
-. "${REPO_DIR}/src/utils/model-endpoints.sh"
-_url_for() { if [ -n "${OLLAMA_URL:-}" ]; then printf '%s\n' "$OLLAMA_URL"; else ollama_root_for "$1"; fi; }
+# EXIST_MODEL_URL's server, without /v1, where ollama's own API lives; an explicit
+# OLLAMA_URL overrides it, which is how you target another box.
+_url_for() {
+    local u="${EXIST_MODEL_URL:-http://ollama:11434/v1}"; u="${u%/}"
+    printf '%s\n' "${OLLAMA_URL:-${u%/v1}}"
+}
 
 MODEL_CHAT="${EXIST_MODEL_CHAT:-}"
 MODEL_CHAT_NUM_CTX="${EXIST_MODEL_CHAT_NUM_CTX:-}"

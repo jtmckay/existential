@@ -15,7 +15,7 @@ but every run appends keys the template has gained since (`_reconcile_env_keys` 
 `src/templates.sh`), so `git pull && ./existential.sh` reaches an existing install instead of
 silently leaving it a version behind. It is **append-only** — existing values, blanks included,
 are never touched. That is what makes the blank-means-not-yet-asked convention
-(`EXIST_VRAM_GB`, the per-role endpoint keys) survive an upgrade.
+(`EXIST_VRAM_GB`) survive an upgrade.
 
 Images are the other exception:
 

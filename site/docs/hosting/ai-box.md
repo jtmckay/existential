@@ -132,12 +132,8 @@ Then start it at boot with the `on-boot` flow (`./existential.sh flow on on-boot
 tmx -d comfyui 'cd ~/ComfyUI && exec .venv/bin/python main.py --listen 0.0.0.0 --port 8188'
 ```
 
-On another port, set `AI_BOX_COMFYUI_URL` in `.decree/.env`. The stack's side is two keys:
-
-```bash
-EXIST_COMFYUI_URL=http://<ai-box>:8188
-EXIST_IS_AI_COMFYUI=false
-```
+On another port, set `AI_BOX_COMFYUI_URL` in `.decree/.env`. The other hosts lease it; on
+each, `EXIST_IS_AI_COMFYUI=false` keeps a local one from starting.
 
 The workflows stay in this repo. The checkpoints they name must exist on the box, under
 `~/ComfyUI/models/`. See
@@ -167,11 +163,11 @@ Strata fills the RAM it is given with cached experts. On a 24 GB card, 64 GB ser
 262144 context at full speed (about 100 tokens/s; a 250k-token prompt in about 90 s) and uses
 about 57 GiB of it. Below about 64 GB Strata keeps more of its context in VRAM, which leaves
 less room for experts and slows it down; more than 64 GB gains nothing. Less RAM means more reads
-from the SSD, not a failure. Its key is `EXIST_MODEL_API_KEY` from the box's `.env.shared`, the same on every host that calls
+from the SSD, not a failure. Its key is `EXIST_FLEET_SECRET` from the box's `.env.shared`, the same on every host that calls
 it. A lease that starts Strata is granted once it serves a model, which takes minutes; fetch a
 new pack first (`ai/strata`'s own `docker compose up -d strata` on the box, then stop it) so a
-download never runs inside a lease. A host whose model calls should go to Strata sets
-`EXIST_MODEL_SERVICE=strata` and its `EXIST_MODEL_CHAT` to the id Strata serves.
+download never runs inside a lease. A host whose model calls should go to Strata sets its
+`EXIST_MODEL_CHAT` to the id Strata serves (`./existential.sh run peers strata --json` lists it).
 
 ## TTS, a lease like the others
 
@@ -255,8 +251,8 @@ it is given. Like TTS, it has no stack key.
 
 | Service on `<ai-box>` | Stack keys |
 |---|---|
-| llama.cpp router | `EXIST_MODEL_URL` (or one `EXIST_MODEL_URL_<ROLE>` per role), `EXIST_MODEL_*` set to preset names, `EXIST_IS_AI_OLLAMA=false` |
-| ComfyUI | `EXIST_COMFYUI_URL`, `EXIST_IS_AI_COMFYUI=false` |
+| llama.cpp router | `EXIST_MODEL_*` set to model ids it offers (leased), `EXIST_MODEL_URL` for apps that cannot lease, `EXIST_IS_AI_OLLAMA=false` |
+| ComfyUI | `EXIST_IS_AI_COMFYUI=false` (leased) |
 | Qwen3-TTS | none (lease it: `tts`) |
 | GLiNER | none |
 

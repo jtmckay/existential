@@ -116,7 +116,7 @@ A dry run prints a verdict per note, chains nothing and writes no ledger entries
 ### Prerequisites
 
 - Notes in `/data/notes`: turn on `notes-to-dropbox`, or point `NOTES_DIR` at a vault you sync.
-- A chat model (`EXIST_MODEL_URL_CHAT` or `EXIST_MODEL_URL`). The departments run it through
+- A chat model (leased from a GPU box, or `EXIST_MODEL_URL`). The departments run it through
   [pi](../ai/pi.md), which ships in the image.
 
 ## Swap the judgment

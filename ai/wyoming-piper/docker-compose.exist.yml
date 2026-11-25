@@ -46,7 +46,7 @@ services:
     # from that hardcoded flag. --voice is the only thing left to say.
     command:
       - --voice
-      - ${EXIST_MODEL_TTS_VOICE:-en_US-lessac-medium}
+      - ${WYOMING_PIPER_VOICE:-en_US-lessac-medium}
     volumes:
       # Voice models, downloaded on first use — a _cache, re-downloadable.
       - wyoming_piper_cache:/data

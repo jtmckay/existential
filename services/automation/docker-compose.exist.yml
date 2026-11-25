@@ -97,22 +97,14 @@ services:
       - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
       - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
       - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
-      # ...and the per-role endpoints. Blank means "wherever EXIST_MODEL_URL
-      # points" — see the "Model Endpoints" block in .env.exist.shared.
+      # ...and where a call goes when no host offers its model.
       - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
-      - EXIST_MODEL_URL_CHAT=${EXIST_MODEL_URL_CHAT:-}
-      - EXIST_MODEL_URL_VISION=${EXIST_MODEL_URL_VISION:-}
-      - EXIST_MODEL_API_KEY=${EXIST_MODEL_API_KEY:-}
       # ollama_pull and the health checks touch ollama's own API only when it runs.
       - EXIST_IS_AI_OLLAMA=${EXIST_IS_AI_OLLAMA:-false}
-      # Where the comfy routine POSTs its workflows — the local container by
-      # default, another machine's ComfyUI when EXIST_COMFYUI_URL says so.
-      - EXIST_COMFYUI_URL=${EXIST_COMFYUI_URL:-http://comfyui:8188}
       # A GPU service another host offers, under its lease (the fleet lib): the secret,
       # and the controller's Loki, where every host's offers are.
       - EXIST_FLEET_SECRET=${EXIST_FLEET_SECRET:-}
       - EXIST_FLEET_LOKI=${EXIST_FLEET_LOKI:-}
-      - EXIST_MODEL_SERVICE=${EXIST_MODEL_SERVICE:-llm}
     volumes:
       # workspace/.decree IS the project. Its messages (inbox, your cron/), handlers
       # and store (each machine's state/) are written here and run on the next tick.

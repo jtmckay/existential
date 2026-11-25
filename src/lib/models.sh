@@ -117,23 +117,8 @@ fi
 echo "    docker compose up -d                  # recreates what reads the models"
 echo ""
 
-# The tier sizes models for ONE card. Anyone who has a second one can stop
-# fighting for VRAM instead of shrinking the models, so say so here — this is
-# the moment they are thinking about how much they have.
-# shellcheck source=../utils/model-endpoints.sh
-source "${REPO_DIR}/src/utils/model-endpoints.sh"
-if endpoints_are_uniform; then
-    echo "  Every model role currently runs at $(endpoint_for chat)."
-    echo "  With a second host you can split them instead of sizing down —"
-    echo "  chat on the big card, vision elsewhere. Set the per-role keys in"
-    echo "  the \"Model Endpoints\" block of .env.shared:"
-    echo "    EXIST_MODEL_URL_CHAT / _VISION"
-    echo "  Blank means \"wherever EXIST_MODEL_URL points\", which is today."
-else
-    echo "  Model roles are split across hosts:"
-    for _r in chat vision; do
-        printf '    %-8s %s\n' "$_r" "$(endpoint_for "$_r")"
-    done
-    echo "  This tier sizes each role's model; it does not move them."
-fi
+# The tier sizes models for ONE card. Anyone who has a bigger one elsewhere can
+# lease it instead of shrinking the models, so say so here.
+_u="$(env_get EXIST_MODEL_URL)"; echo "  Model calls go to ${_u:-http://ollama:11434/v1}. A GPU box another host"
+echo "  offers is leased instead, whenever it serves the model: see the ai-box docs."
 echo ""

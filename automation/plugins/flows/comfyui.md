@@ -135,7 +135,7 @@ x-exist-examples:
 ---
 
 ComfyUI ships with no models: each workflow in workspace/.decree/lib/comfy/workflows/ (the comfy plugin's) names the
-files it needs and where they go. Already run ComfyUI elsewhere? Set
-EXIST_COMFYUI_URL=http://<host>:8188 and EXIST_IS_AI_COMFYUI=false instead. To run one,
+files it needs and where they go. Already run ComfyUI on a GPU box? Offer it there (the ai-box
+flow) and set EXIST_IS_AI_COMFYUI=false here: the comfy plugin leases it. To run one,
 drop one of the examples above (examples:) into volumes/workspace_data/.decree/inbox/, or:
   echo 'a lighthouse at dusk' | docker exec -i automation decree emit --machine comfy --param type=image-text-image

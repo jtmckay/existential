@@ -125,22 +125,6 @@ render_template() {
             _vals["$key"]="$value"
         done < "${REPO_DIR}/.env.shared"
 
-        # Per-role model endpoints fall back to the global one when blank. Done
-        # HERE, before substitution, so a template can write the bare token
-        # EXIST_MODEL_URL_VISION and get a working URL on a single-box install
-        # instead of an empty string. Without this, every consumer would have to
-        # carry its own fallback and they would drift.
-        # The resolver in src/utils/model-endpoints.sh is the same rule for
-        # scripts; keep the two in step when adding a role.
-        local _role _role_key
-        for _role in CHAT VISION; do
-            _role_key="EXIST_MODEL_URL_${_role}"
-            if [[ -z "${_vals[$_role_key]:-}" ]]; then
-                _vals["$_role_key"]="${_vals[EXIST_MODEL_URL]:-http://ollama:11434/v1}"
-                [[ " ${_keys[*]} " == *" ${_role_key} "* ]] || _keys+=("$_role_key")
-            fi
-        done
-
         # Build the substitutions longest-key-first so a shorter key (EXIST_FOO)
         # can't rewrite the prefix of a longer one (EXIST_FOOBAR). The bare-token
         # form is anchored on a trailing word boundary (\b) for the same reason and
@@ -443,17 +427,21 @@ _compose_always_render() {
 _RECONCILE_MARKER="Added by ./existential.sh — new keys from the template"
 
 # _renamed_value <new key> <dst> — the value an existing install set under the
-# key's old name, on stdout; fails when there is none. EXIST_MODEL_URL* replaced
-# EXIST_OLLAMA_URL*, which held ollama's root rather than its OpenAI /v1 base.
+# key's old name, on stdout; fails when there is none. EXIST_MODEL_URL replaced
+# EXIST_OLLAMA_URL, which held ollama's root rather than its OpenAI /v1 base. The
+# speech services' keys were .env.shared's (./existential.sh drops those after).
 _renamed_value() {
-    local key="$1" dst="$2" old v
+    local key="$1" dst="$2" old v from="$2"
     case "$key" in
-        EXIST_MODEL_URL|EXIST_MODEL_URL_*) old="EXIST_OLLAMA_URL${key#EXIST_MODEL_URL}" ;;
+        EXIST_MODEL_URL) old="EXIST_OLLAMA_URL" ;;
+        WYOMING_WHISPER_MODEL) old="EXIST_MODEL_STT" from="${REPO_DIR}/.env.shared" ;;
+        WYOMING_WHISPER_LANGUAGE) old="EXIST_MODEL_STT_LANGUAGE" from="${REPO_DIR}/.env.shared" ;;
+        WYOMING_PIPER_VOICE) old="EXIST_MODEL_TTS_VOICE" from="${REPO_DIR}/.env.shared" ;;
         *) return 1 ;;
     esac
-    v="$(sed -n "s/^${old}=//p" "$dst" | tail -1)"
+    v="$(sed -n "s/^${old}=//p" "$from" 2>/dev/null | tail -1)"
     [[ -n "$v" ]] || return 1
-    v="${v%/}"; printf '%s/v1\n' "${v%/v1}"
+    if [[ "$key" == EXIST_MODEL_URL ]]; then v="${v%/}"; printf '%s/v1\n' "${v%/v1}"; else printf '%s\n' "$v"; fi
 }
 
 # Key-level upgrade path for rendered .env files.
@@ -471,8 +459,7 @@ _renamed_value() {
 #   never removes  a key the user added that the template lacks stays put
 #                  (`validate drift` already reports those as "- local custom")
 #   never fills    a key present with a blank value is left alone — blank is
-#                  load-bearing here (EXIST_VRAM_GB means "not yet asked";
-#                  EXIST_MODEL_URL_<ROLE> means "fall back to the global URL")
+#                  load-bearing here (EXIST_VRAM_GB means "not yet asked")
 #   no prompting   rendering runs with stdin from /dev/null, so an EXIST_CLI key
 #                  that is NOT new can never stop an upgrade to ask a question
 #

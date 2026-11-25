@@ -46,7 +46,7 @@ Then point the stack at it in `.env.shared` and set the model names to the id St
 `./existential.sh run strata test` prints that id once the model is loaded.
 
 ```bash
-EXIST_MODEL_URL=http://strata:8080/v1      # or EXIST_MODEL_URL_CHAT, to move chat alone
+EXIST_MODEL_URL=http://strata:8080/v1
 EXIST_MODEL_CHAT=<id from the test>
 EXIST_MODEL_VISION=<id from the test>      # vision is on, and the role follows chat
 EXIST_IS_AI_OLLAMA=false                   # unless ollama still serves another role
@@ -57,7 +57,7 @@ rendered with ([Configuration → Endpoints](../configuration.md#endpoints)).
 
 ## The key
 
-Strata refuses any request without its key. Its key is `EXIST_MODEL_API_KEY`, which
+Strata refuses any request without its key. Its key is `EXIST_FLEET_SECRET`, which
 `./existential.sh` generates in `.env.shared` and every model call already sends. Ollama
 ignores the key, so the same key works with both servers.
 

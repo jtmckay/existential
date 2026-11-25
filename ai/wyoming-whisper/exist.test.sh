@@ -48,7 +48,7 @@ fi
 if printf '%s' "$RESP" | grep -q '"asr"[[:space:]]*:[[:space:]]*\[[[:space:]]*\]'; then
     warn "wyoming-whisper model loaded" \
          "info event lists no ASR models" \
-         "Check EXIST_MODEL_STT in .env.shared names a real faster-whisper size (tiny|base|small|medium|large-v3), then: docker compose restart wyoming-whisper"
+         "Check WYOMING_WHISPER_MODEL in ai/wyoming-whisper/.env names a real faster-whisper size (tiny|base|small|medium|large-v3), then: docker compose restart wyoming-whisper"
 else
     ok "wyoming-whisper model loaded"
 fi

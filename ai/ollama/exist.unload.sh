@@ -39,13 +39,10 @@ if [ -z "${OLLAMA_URL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-}" != true ]; then
     exit 0
 fi
 
-# The chat model's address, resolved in one place. Never read EXIST_MODEL_URL_*
-# directly and never write a private fallback — src/utils/model-endpoints.sh is
-# the single source of truth, so an install whose chat model lives on another box
+# EXIST_MODEL_URL's server, without /v1, so an install pointed at another box
 # unloads it there instead of on a container that does not exist.
-# shellcheck source=../../src/utils/model-endpoints.sh
-. "${REPO_DIR}/src/utils/model-endpoints.sh"
-OLLAMA_URL="${OLLAMA_URL:-$(ollama_root_for chat)}"
+_u="${EXIST_MODEL_URL:-http://ollama:11434/v1}"; _u="${_u%/}"
+OLLAMA_URL="${OLLAMA_URL:-${_u%/v1}}"
 MODEL="${1:-${EXIST_MODEL_CHAT:-}}"
 
 die() { echo "Error: $*" >&2; exit 1; }

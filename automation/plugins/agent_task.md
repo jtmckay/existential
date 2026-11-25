@@ -99,7 +99,7 @@ scripts:
 
     if [ ! -s "$_raw" ]; then
         echo "pi${department:+ (${department})} returned nothing." >&2
-        echo "Check that EXIST_MODEL_URL_CHAT is reachable and the chat model can carry a" >&2
+        echo "Check that EXIST_MODEL_URL is reachable and the chat model can carry a" >&2
         echo "tool-using turn; the run's log has pi's own error above." >&2
         exit 1
     fi

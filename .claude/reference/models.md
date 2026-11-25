@@ -17,53 +17,33 @@ Consumers read those keys rather than naming a tag themselves:
 A hardcoded model tag in a service is a second place to edit when the user changes hosts or
 tiers, and the tier table below can no longer keep the stack consistent.
 
-## Model addresses are per-role, and OpenAI-compatible
+## One model address, OpenAI-compatible; the fleet routes by model
 
-`.env.exist.shared`'s *Model Endpoints* block gives each role its own key —
-`EXIST_MODEL_URL_CHAT` and `_VISION` — each shipped **blank** and falling
-back to `EXIST_MODEL_URL`. That blankness is the mechanism: leaving them empty means "one
-server for everything", and filling one in moves that role to another host. It is how VRAM
-gets spread across hosts without touching a service.
+`EXIST_MODEL_URL` is this host's model server, an **OpenAI-compatible base URL ending `/v1`**
+(default `http://ollama:11434/v1`). ollama, llama.cpp and Strata all answer it, so every caller
+that sends a prompt speaks `/v1/chat/completions` and nothing else. Only ollama's own API —
+pulling, unloading, `/api/show`, `/api/ps`, its health probe — lives at the root (the URL less
+`/v1`), and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**. The key used to be
+`EXIST_OLLAMA_URL`, holding ollama's root; `_renamed_value` in `src/templates.sh` carries an old
+value across, `/v1` appended.
 
-Every value is an **OpenAI-compatible base URL ending `/v1`** (default
-`http://ollama:11434/v1`). ollama and a llama.cpp server both answer it, so every caller that
-sends a prompt speaks `/v1/chat/completions` and nothing else. Only
-ollama's own API — pulling, unloading, `/api/show`, `/api/ps`, its health probe — lives at the
-root, and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**; they get the root from
-`ollama_root_for <role>`, never by editing a URL themselves.
-
-The keys used to be `EXIST_OLLAMA_URL*`, holding ollama's root. `_reconcile_env_keys`
-(`_renamed_value` in `src/templates.sh`) carries an old value across, `/v1` appended, when it
-appends the new key to an existing `.env.shared`.
-
-Because the fallback chain matters, **never read a role key directly and never write your own
-fallback**. There are exactly three resolvers, one per context:
-
-| context | how to resolve |
-|---|---|
-| host scripts | source `src/utils/model-endpoints.sh`, call `endpoint_for <role>` |
-| rendered templates | write the bare token `EXIST_MODEL_URL_VISION`; `src/templates.sh` resolves it before substitution |
-| containers (decree) | compose passes the raw keys; source `lib/model.sh`, call `model_url <role>` |
-
-Roles share `ollama-pull`'s `OLLAMA_ROLE` vocabulary, so a model is pulled to the host that
-actually serves it. Adding a role means touching all three resolvers —
-`src/test/unit/test-model-endpoints.sh` asserts they agree, so a half-done role fails the suite.
-
-One layer sits above them, in decree scripts only: with `EXIST_FLEET_SECRET` set and a host
-offering `llm`, `model_chat` and `pi_run` call that host under its lease (`model_base`, the
-`fleet` lib) instead of the role's address, and fall back to `model_url` when none does. The
-resolvers themselves stay as they are, since everything else (Home Assistant, code-server) reads them.
+Spreading models across hosts is the fleet's job, not an address's: in decree scripts, with
+`EXIST_FLEET_SECRET` set, `model_base <role>` (lib/model.sh) asks the controller for the
+service (`llm` or `strata`) whose offer lists the role's model (`EXIST_MODEL_CHAT`,
+`EXIST_MODEL_VISION`), takes that host's lease, and falls back to `model_url`
+(`EXIST_MODEL_URL`) when no host offers it. Apps that cannot lease (Home Assistant, Open WebUI,
+opencode) read `EXIST_MODEL_URL`.
 
 **A decree script reaches a model through `lib/model.sh`** (`model_chat`,
 `model_gate`), straight at the role's URL. Work that needs an agent with tools runs pi through
-`pi.sh` (`pi_run`), whose provider `pi_configure` writes from `model_url chat` — the same
-resolver, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path
+`pi.sh` (`pi_run`), whose provider `pi_configure` writes from `model_url` — the same
+address, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path
 against a stub that serves only `/v1`.
 
-**One key, `EXIST_MODEL_API_KEY`, goes with every role.** Generated in `.env.exist.shared`, sent as
-a bearer token by every caller (`model_chat`, `ocr.ts`, pi, opencode, open-webui, Home
-Assistant), and set as Strata's `API_KEY`. ollama ignores it, so it costs nothing there; it is
-one key, not one per role, because nothing yet needs two.
+**One secret, `EXIST_FLEET_SECRET`, for leases and models.** Generated in `.env.exist.shared`
+and the same on every host, it is the bearer for leases (decree-go-rest), sent by every model
+caller (`model_chat`, `ocr.ts`, pi, opencode, open-webui, Home Assistant), and Strata's
+`API_KEY`. ollama ignores it. It was `EXIST_MODEL_API_KEY` too until the two were merged.
 
 **STT/TTS get no endpoint keys.** The wyoming services are CPU-only, so there is no VRAM to
 spread, and Home Assistant is told where they live in its own UI.

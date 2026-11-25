@@ -40,11 +40,9 @@ if [ -z "${OLLAMA_URL:-}" ] && [ "${EXIST_IS_AI_OLLAMA:-}" != true ]; then
     exit 0
 fi
 
-# Address comes from the role resolver, not a private fallback — benchmarking
-# http://ollama:11434 on an install pointed at another box measured nothing.
-# shellcheck source=../../src/utils/model-endpoints.sh
-. "${REPO_DIR}/src/utils/model-endpoints.sh"
-OLLAMA_URL="${OLLAMA_URL:-$(ollama_root_for chat)}"
+# EXIST_MODEL_URL's server, without /v1: where ollama's own API lives.
+_u="${EXIST_MODEL_URL:-http://ollama:11434/v1}"; _u="${_u%/}"
+OLLAMA_URL="${OLLAMA_URL:-${_u%/v1}}"
 MODEL="${1:-}"
 
 hr() { printf '%0.s─' {1..64}; echo; }

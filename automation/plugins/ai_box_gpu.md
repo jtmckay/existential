@@ -65,7 +65,7 @@ scripts:
     # volumes/strata_cache, the service's, so a pack is fetched once.
     engine="$(command -v podman || command -v docker || true)"
     strata="${AI_BOX_STRATA_CONTAINER:-ai-box-strata}"
-    strata_key="$(sed -n 's/^EXIST_MODEL_API_KEY=//p' .env.shared 2>/dev/null | head -n 1)"
+    strata_key="$(sed -n 's/^EXIST_FLEET_SECRET=//p' .env.shared 2>/dev/null | head -n 1)"
     strata_url="http://127.0.0.1:${AI_BOX_STRATA_PORT:-8081}"
     strata_up() { [[ -n "$engine" ]] && [[ -n "$("$engine" ps -q --filter "name=^${strata}\$" 2>/dev/null)" ]]; }
     free_strata() {

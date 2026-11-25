@@ -264,16 +264,25 @@ _is_controller() {
         grep -q '^EXIST_IS_HOSTING_LOKI=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
 }
 
-# Before EXIST_CONTROLLER was the one setting, a host named its Loki in EXIST_REPORTING_URL,
-# and one with that and no controller took itself for the controller. Its controller is
-# that Loki's host. EXIST_HOST_ADDRESS went too: reporting finds the address itself.
-_migrate_controller_keys() {
-    local f="${SCRIPT_DIR}/.env.shared" url ctl t
-    grep -qE '^EXIST_(REPORTING_URL|HOST_ADDRESS)=' "$f" 2>/dev/null || return 0
+# Keys .env.shared no longer has, dropped from an install that still does. Before
+# EXIST_CONTROLLER was the one setting, a host named its Loki in EXIST_REPORTING_URL, and
+# one with that and no controller took itself for the controller: its controller is that
+# Loki's host. The speech keys moved to their services, which took their values at render.
+# EXIST_MODEL_API_KEY was merged into EXIST_FLEET_SECRET.
+_RETIRED_KEYS='EXIST_(MODEL_API_KEY|REPORTING_URL|HOST_ADDRESS|MODEL_SERVICE|COMFYUI_URL|MODEL_URL_CHAT|MODEL_URL_VISION|MODEL_STT|MODEL_STT_LANGUAGE|MODEL_TTS_VOICE)'
+_retire_env_keys() {
+    local f="${SCRIPT_DIR}/.env.shared" url ctl t key
+    grep -qE "^${_RETIRED_KEYS}=" "$f" 2>/dev/null || return 0
     url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" | cut -d= -f2-) || true
     ctl=$(grep -m1 '^EXIST_CONTROLLER=' "$f" | cut -d= -f2-) || true
     t="$(mktemp)"
-    grep -vE '^EXIST_(REPORTING_URL|HOST_ADDRESS)=' "$f" > "$t" || true
+    grep -vE "^${_RETIRED_KEYS}=" "$f" > "$t" || true
+    # EXIST_MODEL_API_KEY is EXIST_FLEET_SECRET now: a host with no secret takes its value.
+    key=$(grep -m1 '^EXIST_MODEL_API_KEY=' "$f" | cut -d= -f2-) || true
+    if [[ -n "$key" ]] && ! grep -qE '^EXIST_FLEET_SECRET=.+' "$t"; then
+        grep -v '^EXIST_FLEET_SECRET=' "$t" > "${t}.2" || true
+        echo "EXIST_FLEET_SECRET=${key}" >> "${t}.2"; mv "${t}.2" "$t"
+    fi
     if [[ -n "$url" && -z "$ctl" ]] && ! grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f"; then
         ctl="${url#*://}"; ctl="${ctl%%[:/]*}"
         awk -v c="$ctl" '/^EXIST_CONTROLLER=/ && !d { print "EXIST_CONTROLLER=" c; d = 1; next } { print }' "$t" > "${t}.2"
@@ -617,7 +626,7 @@ _worker_without_engine() {
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
         ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on worker )
     fi
-    _migrate_controller_keys
+    _retire_env_keys
     _controller_answer
     _fleet_gpu_plugin
     _build
@@ -1143,7 +1152,7 @@ _build() {
     _decree_code_mounts
     _offer_image_updates
     _ensure_host_ids
-    _migrate_controller_keys
+    _retire_env_keys
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
         _host_plugins

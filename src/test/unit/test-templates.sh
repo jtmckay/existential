@@ -330,23 +330,24 @@ out="$(_reconcile_env_keys "$_RSRC" "$_RDST")"
 assert_eq "new EXIST_CLI key appended blank" "RECON_ASK=" "$(grep '^RECON_ASK=' "$_RDST")"
 assert_contains "EXIST_CLI key flagged as needing a value" "needs a value" "$out"
 
-# A renamed key carries what the user set under its old name. EXIST_OLLAMA_URL*
-# held ollama's root, so the value arrives as the /v1 base the new key means; a
-# blank old key leaves the new one at its template value.
+# A renamed key carries what the user set under its old name. EXIST_OLLAMA_URL
+# held ollama's root, so the value arrives as the /v1 base the new key means.
 cp "$TMP/.env.shared" "$TMP/.env.shared.saved"
-printf 'EXIST_MODEL_URL=http://ollama:11434/v1\nEXIST_MODEL_URL_CHAT=\nEXIST_MODEL_URL_VISION=\n' > "$TMP/.env.exist.shared"
-printf 'EXIST_OLLAMA_URL=http://bigbox:11434\nEXIST_OLLAMA_URL_CHAT=http://chatbox:8080/v1/\nEXIST_OLLAMA_URL_VISION=\n' > "$TMP/.env.shared"
+printf 'EXIST_MODEL_URL=http://ollama:11434/v1\n' > "$TMP/.env.exist.shared"
+printf 'EXIST_OLLAMA_URL=http://bigbox:11434\n' > "$TMP/.env.shared"
 _reconcile_env_keys "$TMP/.env.exist.shared" "$TMP/.env.shared" >/dev/null
 assert_eq "an old global model URL takes effect under the new key" \
     "EXIST_MODEL_URL=http://bigbox:11434/v1" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
-assert_eq "an old role URL that already ended /v1 is not doubled" \
-    "EXIST_MODEL_URL_CHAT=http://chatbox:8080/v1" "$(grep '^EXIST_MODEL_URL_CHAT=' "$TMP/.env.shared")"
-assert_eq "a blank old role key leaves the new one blank" \
-    "EXIST_MODEL_URL_VISION=" "$(grep '^EXIST_MODEL_URL_VISION=' "$TMP/.env.shared")"
+# A speech service's key takes what .env.shared held under its old shared name.
+printf 'EXIST_MODEL_STT=small\n' > "$TMP/.env.shared"
+printf 'WYOMING_WHISPER_MODEL=base\n' > "$TMP/wy.exist"; : > "$TMP/wy.env"
+_reconcile_env_keys "$TMP/wy.exist" "$TMP/wy.env" >/dev/null
+assert_eq "a speech setting moves from .env.shared to its service" \
+    "WYOMING_WHISPER_MODEL=small" "$(grep '^WYOMING_WHISPER_MODEL=' "$TMP/wy.env")"
 mv "$TMP/.env.shared.saved" "$TMP/.env.shared"; rm -f "$TMP/.env.exist.shared"
 
-# Blank is load-bearing (EXIST_VRAM_GB = not yet asked, EXIST_MODEL_URL_<ROLE> =
-# fall back to the global URL), so a key that is present and empty is left alone.
+# Blank is load-bearing (EXIST_VRAM_GB = not yet asked), so a key that is present
+# and empty is left alone.
 printf 'RECON_BLANK=has-a-default\n' > "$_RSRC"
 printf 'RECON_BLANK=\n' > "$_RDST"
 _reconcile_env_keys "$_RSRC" "$_RDST" >/dev/null

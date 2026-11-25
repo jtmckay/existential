@@ -39,7 +39,10 @@ x-exist-lib:
 
     # shellcheck source=../model.sh
     source /work/.decree/lib/model.sh
-    _text=$(MODEL_URL="$(model_url vision)" /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
+    # The fleet's vision model under its lease, else EXIST_MODEL_URL.
+    model_base vision
+    _text=$(MODEL_URL="$MODEL_BASE" /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
+    [ -z "$MODEL_SERVICE" ] || fleet_done "$MODEL_SERVICE"
 
     printf '%s' "$_text" | rclone rcat "$_output_path" \
         --config /secrets/rclone/rclone.conf
@@ -50,7 +53,7 @@ x-exist-lib:
     // (ollama, llama.cpp with a projector, anything that takes image_url content).
     // Works as a reusable library function OR as a standalone entry point when called
     // directly by tsx (reads FILE_PATH, OCR_MODEL, MODEL_URL from env, writes text to stdout).
-    // Callers resolve MODEL_URL with lib/model.sh's `model_url vision`.
+    // Callers resolve MODEL_URL with lib/model.sh's `model_base vision`.
 
     import { readFileSync } from "node:fs";
     import { extname } from "node:path";
@@ -85,7 +88,7 @@ x-exist-lib:
 
     function modelUrl(): string {
       const url = process.env.MODEL_URL;
-      if (!url) throw new Error("MODEL_URL is required — resolve it with `model_url vision` (lib/model.sh)");
+      if (!url) throw new Error("MODEL_URL is required — resolve it with `model_base vision` (lib/model.sh)");
       return url;
     }
 
@@ -114,7 +117,7 @@ x-exist-lib:
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(process.env.EXIST_MODEL_API_KEY && { Authorization: `Bearer ${process.env.EXIST_MODEL_API_KEY}` }),
+          ...(process.env.EXIST_FLEET_SECRET && { Authorization: `Bearer ${process.env.EXIST_FLEET_SECRET}` }),
         },
         body: JSON.stringify({
           model,

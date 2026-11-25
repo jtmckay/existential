@@ -73,9 +73,9 @@ services:
     # are the only settings actually being chosen here.
     command:
       - --model
-      - ${EXIST_MODEL_STT:-base}
+      - ${WYOMING_WHISPER_MODEL:-base}
       - --language
-      - ${EXIST_MODEL_STT_LANGUAGE:-en}
+      - ${WYOMING_WHISPER_LANGUAGE:-en}
       - --beam-size
       - "1"
     volumes:

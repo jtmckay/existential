@@ -22,7 +22,7 @@ assert_eq() { if [[ "$2" == "$3" ]]; then _ok "$1"; else _fail "$1" "expected=$2
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-export EXIST_MODEL_URL="http://ollama:11434/v1" EXIST_MODEL_URL_CHAT="http://chatbox:11434/v1"
+export EXIST_MODEL_URL="http://chatbox:11434/v1"
 export EXIST_MODEL_CHAT="gemma4:e2b-it-qat" EXIST_MODEL_CHAT_NUM_CTX=65536
 export PI_CODING_AGENT_DIR="${TMP}/agent"
 ( source "${REPO_DIR}/automation/lib/plugin.sh"; plugin_unpack pi agent_task "${TMP}/unpacked" ) >/dev/null
@@ -36,7 +36,7 @@ echo '{"mcpServers":{"mine":{"url":"https://y"},"firecrawl":{"url":"stale"}}}' >
 EXIST_IS_AI_FIRECRAWL=false EXIST_IS_AI_MCP=true EXIST_IS_AI_QMD=true pi_configure
 M="${PI_CODING_AGENT_DIR}/models.json"; S="${PI_CODING_AGENT_DIR}/mcp.json"; C="${PI_CODING_AGENT_DIR}/settings.json"
 
-assert_eq "provider baseUrl is the chat role's URL" "http://chatbox:11434/v1" "$(jq -r .providers.existential.baseUrl "$M")"
+assert_eq "provider baseUrl is the host's model URL" "http://chatbox:11434/v1" "$(jq -r .providers.existential.baseUrl "$M")"
 assert_eq "provider speaks openai-completions" "openai-completions" "$(jq -r .providers.existential.api "$M")"
 assert_eq "provider declares the chat tag" "gemma4:e2b-it-qat" "$(jq -r '.providers.existential.models[0].id' "$M")"
 assert_eq "provider carries the chat context" "65536" "$(jq -r '.providers.existential.models[0].contextWindow' "$M")"

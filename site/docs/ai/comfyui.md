@@ -19,13 +19,9 @@ The ComfyUI web frontend reports browser errors to Comfy's Sentry, and upstream 
 
 ## Using a ComfyUI you already run
 
-`EXIST_COMFYUI_URL` is the one address the stack uses (the `comfy` machine, the
-`comfyui.EXIST_DOMAIN` proxy and `exist.test.sh`). Point it elsewhere and turn the local one off:
-
-```bash
-EXIST_COMFYUI_URL=http://bigbox:8188
-EXIST_IS_AI_COMFYUI=false
-```
+Run it on a [GPU box](../hosting/ai-box.md), which offers it to the other hosts, and turn the
+local one off with `EXIST_IS_AI_COMFYUI=false`. The `comfy` machine then leases it from that box
+(with `EXIST_FLEET_SECRET` set), and uses the local container when no host offers one.
 
 Then `./existential.sh && docker compose up -d`. Workflows stay in
 `workspace/.decree/lib/comfy/workflows/` (the [comfy plugin](../plugins/index.md)'s); the checkpoints they name must exist on the other host.

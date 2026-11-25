@@ -31,13 +31,13 @@ speech model here would evict it every time you spoke.
 
 ## Configuration
 
-Both settings are global — set them once in `.env.shared` and they reach the
-container at start:
+Both settings are the service's own, in `ai/wyoming-whisper/.env`, and reach the container at
+start:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `EXIST_MODEL_STT` | `base` | `tiny`, `base`, `small`, `medium`, `large-v3` |
-| `EXIST_MODEL_STT_LANGUAGE` | `en` | Pinning beats auto-detect on short commands |
+| `WYOMING_WHISPER_MODEL` | `base` | `tiny`, `base`, `small`, `medium`, `large-v3` |
+| `WYOMING_WHISPER_LANGUAGE` | `en` | Pinning beats auto-detect on short commands |
 
 On a few CPU cores, `base` is near-instant and good enough for commands;
 `small` is noticeably more accurate and roughly 2–3× the latency; `medium` is

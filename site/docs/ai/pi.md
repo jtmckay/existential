@@ -24,8 +24,7 @@ image, so it is in two places:
 `pi_configure` (`workspace/.decree/lib/pi.sh`) writes pi's config on every boot of the `automation`
 daemon and of code-server:
 
-- **`models.json`**: an `existential` provider at the chat role's `/v1` URL (`EXIST_MODEL_URL_CHAT`,
-  else `EXIST_MODEL_URL`) with `EXIST_MODEL_CHAT` and its context window. A bare `pi` starts on it.
+- **`models.json`**: an `existential` provider at `EXIST_MODEL_URL` with `EXIST_MODEL_CHAT` and its context window. A bare `pi` starts on it.
 - **`mcp.json`**: the MCP server of every add-on that is on: [qmd](./qmd.md),
   [Firecrawl](./firecrawl.md) and [MCP](./mcp.md) (Playwright). Turn an add-on off and its
   server is gone on the next boot.

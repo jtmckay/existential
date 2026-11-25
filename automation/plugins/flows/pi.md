@@ -39,7 +39,7 @@ x-exist-lib:
         done
 
         jq --arg url "$(model_url chat)" --arg model "${EXIST_MODEL_CHAT:-}" \
-           --arg key "${EXIST_MODEL_API_KEY:-none}" \
+           --arg key "${EXIST_FLEET_SECRET:-none}" \
            --argjson ctx "${EXIST_MODEL_CHAT_NUM_CTX:-65536}" '
             .providers.existential = {
                 baseUrl: $url, api: "openai-completions", apiKey: $key,
@@ -101,7 +101,7 @@ x-exist-lib:
                 --provider existential --model "${EXIST_MODEL_CHAT:-}" "${args[@]}" \
                 --append-system-prompt "$system" -- "$prompt" ) || rc=$?
         [ -z "$run_dir" ] || rm -rf "$run_dir"
-        fleet_done "$MODEL_SERVICE"
+        [ -z "$MODEL_SERVICE" ] || fleet_done "$MODEL_SERVICE"
         return "$rc"
     }
 ---

@@ -10,12 +10,12 @@ exist_self_elevate
 exist_test_init "comfyui" EXIST_IS_AI_COMFYUI
 
 # ComfyUI is either the local container or a server on another machine — the
-# comfy routine and caddy both follow EXIST_COMFYUI_URL, so this test does too.
+# The comfy routine and caddy both reach the local container, so this test does too.
 # At the default URL it is the local container: skip when disabled, and probe
 # through every layer. Anywhere else it is what the routine actually talks to,
 # so it is checked regardless of the enablement flag.
 load_env_exist
-COMFY_URL="${EXIST_COMFYUI_URL:-http://comfyui:8188}"
+COMFY_URL="http://comfyui:8188"
 COMFY_URL="${COMFY_URL%/}"
 
 if [ "$COMFY_URL" = "http://comfyui:8188" ]; then

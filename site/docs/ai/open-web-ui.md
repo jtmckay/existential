@@ -38,7 +38,7 @@ generated into `ai/open-webui/.env` (`OPEN_WEBUI_ADMIN_EMAIL` / `OPEN_WEBUI_ADMI
 
 | Container env var | Value |
 |---|---|
-| `OPENAI_API_BASE_URLS` | the chat role's endpoint, `EXIST_MODEL_URL_CHAT` (else `EXIST_MODEL_URL`), resolved at render |
+| `OPENAI_API_BASE_URLS` | `EXIST_MODEL_URL`, read at container start |
 | `OPENAI_API_KEYS` | `none` — the model server takes no key |
 | `AUDIO_STT_OPENAI_API_BASE_URL` | `http://whisperx:8000/v1` |
 

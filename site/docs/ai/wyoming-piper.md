@@ -28,11 +28,11 @@ immediately.
 
 ## Configuration
 
-The voice is global — set it once in `.env.shared`:
+The voice is the service's own, in `ai/wyoming-piper/.env`:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `EXIST_MODEL_TTS_VOICE` | `en_US-lessac-medium` | `<lang>_<REGION>-<name>-<quality>` |
+| `WYOMING_PIPER_VOICE` | `en_US-lessac-medium` | `<lang>_<REGION>-<name>-<quality>` |
 
 Browse and listen to the options at
 [rhasspy.github.io/piper-samples](https://rhasspy.github.io/piper-samples/).
@@ -61,5 +61,5 @@ Then build a pipeline under **Settings → Voice assistants**, pairing it with
 ```
 
 The first start downloads the voice before the socket opens. If the test warns
-that no voice is loaded, check that `EXIST_MODEL_TTS_VOICE` names a real piper
+that no voice is loaded, check that `WYOMING_PIPER_VOICE` names a real piper
 voice and restart the container.

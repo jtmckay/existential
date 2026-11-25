@@ -15,7 +15,7 @@ scripts:
     # gpu.sh <from> <to>: free the GPU for <to>, letting the other mode's work finish first.
     set -euo pipefail
     source ".decree/lib/model.sh"
-    comfy="${EXIST_COMFYUI_URL:-http://comfyui:8188}"
+    comfy="http://comfyui:8188"
     case "$2" in
         llm)    # ComfyUI: its queue empties, then its models are unloaded.
             curl -fsS --max-time 5 "${comfy}/queue" >/dev/null 2>&1 || exit 0

@@ -52,7 +52,7 @@ scripts:
     #   HOMEASSISTANT_URL                           default http://homeassistant:8123
     #   HOMEASSISTANT_READY_TIMEOUT                 default 180 (seconds to wait for HA)
     #   HOMEASSISTANT_ADMIN_USER / HOMEASSISTANT_ADMIN_PASSWORD
-    #   EXIST_MODEL_CHAT, EXIST_MODEL_URL[_CHAT]   the chat role, via lib/model.sh
+    #   EXIST_MODEL_CHAT, EXIST_MODEL_URL   the chat model and this host's model URL, via lib/model.sh
     set -euo pipefail
 
     HOMEASSISTANT_URL="${HOMEASSISTANT_URL:-http://homeassistant:8123}"
@@ -201,7 +201,7 @@ scripts:
         [[ "$(_entries extended_openai_conversation | jq 'length')" -gt 0 ]] && return 0
         local flow_id
         flow_id=$(_api POST /api/config/config_entries/flow '{"handler":"extended_openai_conversation"}' | jq -r .flow_id)
-        _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg url "$(model_url chat)" --arg key "${EXIST_MODEL_API_KEY:-none}" \
+        _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg url "$(model_url chat)" --arg key "${EXIST_FLEET_SECRET:-none}" \
             '{name:"Local model", api_key:$key, base_url:$url, api_provider:"openai"}')" >/dev/null
         echo "Created the conversation-agent entry."
     }

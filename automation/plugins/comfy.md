@@ -26,7 +26,7 @@ machine:
     seed: {type: string, default: ""}
     # A batch binding's item list, instead of the message body.
     items_file: {type: string, default: ""}
-    # Empty means EXIST_COMFYUI_URL + /api/prompt.
+    # Empty means the fleet's ComfyUI, else the local one, + /api/prompt.
     api_url: {type: string, default: ""}
   initial: generate
   states:
@@ -60,7 +60,7 @@ scripts:
     #   last_image       final-frame image (video-ltx-first-last)
     #   output_prefix    output filename prefix (required)
     #   items_file       path to the YAML item list, instead of the message body
-    #   api_url          ComfyUI API URL (default: EXIST_COMFYUI_URL + /api/prompt)
+    #   api_url          ComfyUI API URL (default: the fleet's ComfyUI, else http://comfyui:8188, + /api/prompt)
     set -euo pipefail
 
     LIB_DIR=".decree/lib/comfy"
@@ -71,9 +71,9 @@ scripts:
     type="$DECREE_DATA_TYPE"
     items_file="$DECREE_DATA_ITEMS_FILE"
     # With the fleet on, the host that offers comfy now, under its lease; the lease is
-    # held until ComfyUI's queue is empty (fleet.sh). Else EXIST_COMFYUI_URL, as before.
+    # held until ComfyUI's queue is empty (fleet.sh). Else the local container.
     source .decree/lib/fleet.sh
-    comfy_base="${EXIST_COMFYUI_URL:-http://comfyui:8188}" rc=0
+    comfy_base="http://comfyui:8188" rc=0
     if [ -z "$DECREE_DATA_API_URL" ]; then
         fleet_use comfy || rc=$?
         if [ "$rc" -eq 0 ]; then comfy_base="$FLEET_URL"

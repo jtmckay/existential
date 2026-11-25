@@ -22,13 +22,10 @@ skip_if_disabled
 load_env_exist
 MODEL="${OLLAMA_MODEL:-${EXIST_MODEL_CHAT:-}}"
 
-# Address is per-role and resolved in one place. Hardcoding http://ollama:11434
-# here tested a container that does not exist on an install pointed at another
-# box (EXIST_MODEL_URL / EXIST_MODEL_URL_CHAT), and reported it as ollama being
-# down. Never read the role keys directly — see src/utils/model-endpoints.sh.
-# shellcheck source=../../src/utils/model-endpoints.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../src/utils" && pwd)/model-endpoints.sh"
-OLLAMA_URL="${OLLAMA_URL:-$(ollama_root_for chat)}"
+# EXIST_MODEL_URL's server, without /v1: an install pointed at another box tests that
+# box, not a container that is not here.
+_u="${EXIST_MODEL_URL:-http://ollama:11434/v1}"; _u="${_u%/}"
+OLLAMA_URL="${OLLAMA_URL:-${_u%/v1}}"
 if [ -z "$MODEL" ]; then
     fail "EXIST_MODEL_CHAT set" \
          "neither OLLAMA_MODEL nor EXIST_MODEL_CHAT is set" \

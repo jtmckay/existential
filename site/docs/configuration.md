@@ -97,60 +97,31 @@ Download sizes:
   agent's prompt. Raising it costs VRAM.
 - `EXIST_MODEL_VISION` ships as the chat tag, so one model stays loaded.
   Blank `EXIST_MODEL_VISION` disables image handling.
-- Speech runs on CPU (wyoming-whisper, wyoming-piper):
-  - `EXIST_MODEL_STT`: `tiny | base | small | medium | large-v3`
-  - `EXIST_MODEL_TTS_VOICE`: a piper voice, `<lang>_<REGION>-<name>-<quality>`
-    ([samples](https://rhasspy.github.io/piper-samples/))
-  - `EXIST_MODEL_STT_LANGUAGE`: the language you speak (`en` by default); short commands need it
-  - WhisperX is separate: GPU, long recordings, speaker labels.
+- Speech runs on CPU, and its settings are the services' own:
+  [wyoming-whisper](./ai/wyoming-whisper.md) and [wyoming-piper](./ai/wyoming-piper.md).
+  WhisperX is separate: GPU, long recordings, speaker labels.
 
 <a id="endpoints"></a>
 
-## Endpoints — putting roles on different hosts
+## Endpoints — where model calls go
 
-`EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is the **OpenAI-compatible `/v1` URL**
-every role uses unless it has its own: local ollama, ollama elsewhere, llama.cpp
-(`http://192.168.1.20:8080/v1`), anything that answers `/v1/chat/completions`.
+`EXIST_MODEL_URL` (default `http://ollama:11434/v1`) is this host's **OpenAI-compatible `/v1`
+URL**: local ollama, ollama elsewhere, llama.cpp (`http://192.168.1.20:8080/v1`), anything that
+answers `/v1/chat/completions`.
 
 - Every caller speaks only `/v1`, so the backend doesn't matter.
 - Ollama-only steps (pull, `run ollama unload`, `/api/show`) run only with `EXIST_IS_AI_OLLAMA=true`.
-- The vision server must accept images (llama.cpp: `--mmproj`).
 - Models elsewhere: set `EXIST_IS_AI_OLLAMA=false`.
-
-The **Model Endpoints** block sends each role somewhere different. Every key ships **blank**,
-meaning "use `EXIST_MODEL_URL`".
-
-| Key | Role | Who reads it |
-|---|---|---|
-| `EXIST_MODEL_URL_CHAT` | Chat / reasoning | pi, open-webui, Home Assistant, decree scripts, the newsletter |
-| `EXIST_MODEL_URL_VISION` | Vision / OCR | image-ocr |
-
-A worked split, with a 24 GB card and an 8 GB one:
-
-```bash
-EXIST_MODEL_URL=http://bigbox:8080/v1             # chat lands here
-EXIST_MODEL_URL_VISION=http://littlebox:11434/v1
-```
-
-Chat keeps the big card; OCR stops evicting it. Then `./existential.sh` and
-`docker compose up -d`.
-
-- `./existential.sh run models` prints where each role resolves. Migrations pull each model to
-  the host that serves it.
-- The old `EXIST_OLLAMA_URL*` keys are carried over on upgrade, `/v1` added.
-- `EXIST_MODEL_API_KEY` (generated) is sent as a bearer token on every model call. ollama ignores
+- `EXIST_FLEET_SECRET` (generated) is sent as a bearer token on every model call. ollama ignores
   it; [Strata](./ai/strata.md) requires it, and a llama.cpp server takes it with `--api-key`.
-- [A Separate AI Box](./hosting/ai-box.md): llama.cpp presets, ComfyUI, on-demand TTS.
 
-ComfyUI moves the same way, with `EXIST_COMFYUI_URL` (default `http://comfyui:8188`):
+To spread models across hosts, put them on a [GPU box](./hosting/ai-box.md) and lease them.
+With `EXIST_FLEET_SECRET` set, the stack's decree scripts (model calls, pi, OCR) ask the
+controller which host serves the model `EXIST_MODEL_CHAT` (or `EXIST_MODEL_VISION`) names, and
+use it under that host's lease ([Leases](./hosting/controller-and-workers.md#leases)). ComfyUI
+works the same way. A model no host offers goes to `EXIST_MODEL_URL`. Apps that cannot take a
+lease (Open WebUI, opencode, Home Assistant) always use `EXIST_MODEL_URL`.
 
-```bash
-EXIST_COMFYUI_URL=http://bigbox:8188
-EXIST_IS_AI_COMFYUI=false                  # nothing local to start
-```
-
-One thing doesn't follow the block: Open WebUI's compose file is rendered once. Edit
-`ai/open-webui/docker-compose.yml` too, or `./existential.sh reset`.
 
 ### Speech has no endpoint keys
 
@@ -206,9 +177,8 @@ What it changes, in `src/generate-compose.ts`:
   tailnet name, 100.x address, or address on your own network. Blank, this host is the
   controller, and has Loki on. See [Controller and Workers](./hosting/controller-and-workers.md).
 - **`EXIST_FLEET_SECRET`**: the same on every host; the secret for leasing another host's GPU
-  ([Leases](./hosting/controller-and-workers.md#leases)). Blank means no leases.
-- **`EXIST_MODEL_SERVICE`**: which leased service answers model calls when a host offers it:
-  `llm` (llama.cpp) or `strata` ([Strata on an AI box](./hosting/ai-box.md#strata-a-fourth-mode)).
+  ([Leases](./hosting/controller-and-workers.md#leases)) and every model call. Generated on the
+  first run; copy the controller's to every other host (`fleet join` does).
 
 The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 

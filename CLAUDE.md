@@ -303,12 +303,12 @@ from the repo root against the generated `docker-compose.yml`.
 - **Model choice is global, never per-service.** Every model the stack uses is named once in
   `.env.exist.shared`'s *Model Selection* block. **Never hardcode a model tag in a service** —
   consumers read those keys (ollama migrations name an `OLLAMA_ROLE`, not a tag). → `models.md`
-- **Model *addresses* are per-role, in one block.** `.env.exist.shared`'s *Model Endpoints*
-  block gives each role its own key, each **blank** and falling back to `EXIST_MODEL_URL` —
-  that is how VRAM gets spread across machines. Every value is an **OpenAI-compatible `/v1`
-  base URL**, so ollama and llama.cpp both serve it; ollama-only steps (pull, unload,
-  `/api/*`) run only when ollama is enabled. **Never read a role key directly and never write
-  your own fallback**: there are three resolvers and they must agree. → `models.md`
+- **One model address; the fleet spreads models.** `EXIST_MODEL_URL` is this host's
+  **OpenAI-compatible `/v1` base URL**, so ollama, llama.cpp and Strata all serve it;
+  ollama-only steps (pull, unload, `/api/*`) run only when ollama is enabled. Decree scripts
+  reach a model through `model_base` (lib/model.sh), which leases the host whose offer lists
+  the model and falls back to `EXIST_MODEL_URL`: never add a per-role or per-service address.
+  → `models.md`
 - **Model values come from the VRAM tier table** (`src/utils/model-tiers.sh`). Edit the table,
   not the individual defaults — a unit test asserts the two agree, and asserts that
   `.env.exist.shared` ships `EXIST_VRAM_GB` **blank** (the record of not-yet-asked). Every tier
