@@ -212,6 +212,8 @@ What it changes, in `src/generate-compose.ts`:
   `EXIST_TAILNET_NAME`, else the hostname.
 - **`EXIST_FLEET_SECRET`**: the same on every host; the secret for leasing another host's GPU
   ([Leases](./hosting/controller-and-workers.md#leases)). Blank means no leases.
+- **`EXIST_MODEL_SERVICE`**: which leased service answers model calls when a host offers it:
+  `llm` (llama.cpp) or `strata` ([Strata on an AI box](./hosting/ai-box.md#strata-a-fourth-mode)).
 
 The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
 

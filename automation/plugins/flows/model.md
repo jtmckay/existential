@@ -36,8 +36,9 @@ x-exist-lib:
     #   MODEL_TEMPERATURE  default 0
     #
     # With the fleet on (EXIST_FLEET_SECRET), a call with no MODEL_URL goes to whichever
-    # host offers llm now, under its lease (fleet.sh): a run of calls shares one lease,
-    # given back 5 s after the last. No host offers llm: the role's own URL, as before.
+    # host offers EXIST_MODEL_SERVICE (llm, the default, or strata) now, under its lease
+    # (fleet.sh): a run of calls shares one lease, given back 5 s after the last. No host
+    # offers it: the role's own URL, as before.
 
     # model_url <role> — the in-container copy of src/utils/model-endpoints.sh's
     # endpoint_for, which this container cannot see. test-model-endpoints.sh asserts
@@ -71,16 +72,17 @@ x-exist-lib:
         fleet_use() { return 3; }; fleet_done() { :; }
     fi
 
-    # model_base <role> — sets MODEL_BASE to where a call goes now: the host that offers llm,
-    # holding the fleet's lease (end the call with fleet_done llm), else MODEL_URL or the
-    # role's own URL. Not in $(...): the lease's token lives in this shell.
+    # model_base <role> — sets MODEL_BASE to where a call goes now: the host that offers
+    # MODEL_SERVICE (EXIST_MODEL_SERVICE, default llm), holding the fleet's lease (end the
+    # call with fleet_done "$MODEL_SERVICE"), else MODEL_URL or the role's own URL. Not in
+    # $(...): the lease's token lives in this shell.
     model_base() {
         local rc=0
-        MODEL_BASE=""
+        MODEL_BASE="" MODEL_SERVICE="${EXIST_MODEL_SERVICE:-llm}"
         if [ -z "${MODEL_URL:-}" ]; then
-            fleet_use llm || rc=$?
+            fleet_use "$MODEL_SERVICE" || rc=$?
             if [ "$rc" -eq 0 ]; then MODEL_BASE="$FLEET_URL"; return 0; fi
-            [ "$rc" -eq 3 ] || { echo "model: no host that offers llm would lease it" >&2; return 1; }
+            [ "$rc" -eq 3 ] || { echo "model: no host that offers ${MODEL_SERVICE} would lease it" >&2; return 1; }
         fi
         MODEL_BASE="${MODEL_URL:-$(model_url "$1")}"
     }
@@ -110,7 +112,7 @@ x-exist-lib:
              + (if $model == "" then {} else {model:$model} end)')"
 
         curl "${args[@]}" -d "$payload" | jq -r '.choices[0].message.content // empty' || rc=$?
-        fleet_done llm
+        fleet_done "$MODEL_SERVICE"
         return "$rc"
     }
 

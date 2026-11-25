@@ -201,7 +201,8 @@ leases and the stack uses its own addresses.
 With it set, the stack's decree scripts find each GPU service by asking the controller, every
 time they need a new lease, and hold that host's lease while they use it:
 
-- **`model_chat` and `pi_run`** take the `llm` lease. A run of calls shares one lease, given
+- **`model_chat` and `pi_run`** take the lease of the service `EXIST_MODEL_SERVICE` names:
+  `llm` (llama.cpp, the default) or `strata`. A run of calls shares one lease, given
   back 5 seconds after the last call ends. A model address the run sets itself (`MODEL_URL`)
   takes none.
 - **`comfy`** takes the `comfy` lease and holds it until ComfyUI's queue is empty, then 5 more

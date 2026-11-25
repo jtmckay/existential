@@ -6,14 +6,16 @@ scripts:
   resources: |
     # A separate AI box's one card: one GPU-heavy service at a time.
     #   name  max_lease  linger  max_wait  modes         holders
-    # Modes: llm (the llama.cpp router), comfy (ComfyUI), tts (the TTS server ai_box_tts starts).
-    # Up to four leases share the card in one mode; another mode waits for all of them.
-    gpu     4h         5s      30m       llm,comfy,tts  4
+    # Modes: llm (the llama.cpp router), comfy (ComfyUI), tts (the TTS server ai_box_tts starts),
+    # strata (Strata, started by the swap). Up to four leases share the card in one mode; another
+    # mode waits for all of them.
+    gpu     4h         5s      30m       llm,comfy,tts,strata  4
   swap/gpu.sh: |
     #!/usr/bin/env bash
     # gpu.sh <from> <to>: free the card for <to> by stopping every other GPU user. <to> loads
-    # on demand (llama.cpp, ComfyUI) or is started by whoever asked (ai_box_tts). A service
-    # that does not answer holds nothing. Addresses and the session name: .decree/.env.
+    # on demand (llama.cpp, ComfyUI), is started by whoever asked (ai_box_tts), or, for strata,
+    # is started here: Strata loads its model when it starts, so the lease owns its container.
+    # A service that does not answer holds nothing. Addresses and the session name: .decree/.env.
     set -euo pipefail
     to="$2"
     llm="${AI_BOX_LLAMA_URL:-http://localhost:8080}"
@@ -44,9 +46,56 @@ scripts:
         sleep 3
         echo "tts: stopped"
     }
+    # Strata: the ai/strata service's image and model pack, in a container of the lease's own
+    # (not compose, whose `up -d` would start it again behind the lease). Its downloads are
+    # volumes/strata_cache, the service's, so a pack is fetched once.
+    engine="$(command -v podman || command -v docker || true)"
+    strata="${AI_BOX_STRATA_CONTAINER:-ai-box-strata}"
+    strata_key="$(sed -n 's/^EXIST_MODEL_API_KEY=//p' .env.shared 2>/dev/null | head -n 1)"
+    strata_url="http://127.0.0.1:${AI_BOX_STRATA_PORT:-8081}"
+    strata_up() { [[ -n "$engine" ]] && [[ -n "$("$engine" ps -q --filter "name=^${strata}\$" 2>/dev/null)" ]]; }
+    free_strata() {
+        strata_up || return 0
+        "$engine" stop -t 120 "$strata" >/dev/null
+        "$engine" rm -f "$strata" >/dev/null 2>&1 || true
+        echo "strata: stopped"
+    }
+    start_strata() {
+        local image gpu
+        [[ -n "$engine" ]] || { echo "strata: no podman or docker here" >&2; return 1; }
+        [[ -n "${AI_BOX_STRATA_FAMILY:-}" ]] || { echo "strata: set AI_BOX_STRATA_FAMILY (and AI_BOX_STRATA_MODEL) in .decree/.env" >&2; return 1; }
+        if ! strata_up; then
+            image="${AI_BOX_STRATA_IMAGE:-$(sed -n 's/^ *image: *\(ghcr\.io\/niko1221\/strata:[^ ]*-cuda[0-9]*\).*/\1/p' ai/strata/docker-compose.exist.yml | head -n 1)}"
+            # podman: CDI for the card, and its bridge network, as compose uses (a plain rootless
+            # run's pasta resets the IPv6 that localhost and the hostname resolve to first).
+            gpu=(--gpus all); [[ "$engine" == *podman ]] && gpu=(--device nvidia.com/gpu=all --network podman)
+            mkdir -p volumes/strata_cache
+            # Its RAM cap, and the engine told it too, so it plans within it: Strata fills the RAM
+            # it is given with cached experts. 64g serves the full context at full speed on a 24 GB card.
+            mem="${AI_BOX_STRATA_MEMORY:-64g}" mib=""
+            case "$mem" in *g|*G) mib=$(( ${mem%[gG]} * 1024 )) ;; *m|*M) mib="${mem%[mM]}" ;; esac
+            "$engine" rm -f "$strata" >/dev/null 2>&1 || true
+            # Restarted if it crashes: the swap runs only when the mode changes, so nothing else would.
+            "$engine" run -d --restart on-failure --name "$strata" "${gpu[@]}" --security-opt label=disable \
+                --ulimit memlock=-1:-1 --shm-size 2g --memory "$mem" ${mib:+-e STRATA_MEMORY_LIMIT_MIB="$mib"} \
+                -p "${AI_BOX_STRATA_PORT:-8081}:8080" -v "$(pwd)/volumes/strata_cache:/data" \
+                -e FAMILY="$AI_BOX_STRATA_FAMILY" -e MODEL="${AI_BOX_STRATA_MODEL:-}" -e API_KEY="$strata_key" \
+                -e CONTEXT="${AI_BOX_STRATA_CONTEXT:-65536}" "$image" >/dev/null
+            echo "strata: started ${image}"
+        fi
+        # Held once it serves a model: a load takes minutes, a first download much longer.
+        until curl -fsS --max-time 10 -H "Authorization: Bearer ${strata_key}" "${strata_url}/v1/models" 2>/dev/null |
+                jq -e '.data | length > 0' >/dev/null 2>&1; do
+            strata_up || { echo "strata: the container stopped while loading (${engine##*/} logs ${strata})" >&2; return 1; }
+            sleep 5
+        done
+        echo "strata: serving"
+    }
     [[ "$to" == llm ]] || free_llm
     [[ "$to" == comfy ]] || free_comfy
     [[ "$to" == tts ]] || free_tts
+    [[ "$to" == strata ]] || free_strata
+    [[ "$to" != strata ]] || start_strata
     echo "ai_box_gpu: the GPU is free for ${to}"
   offers.sh: |
     #!/usr/bin/env bash
@@ -59,6 +108,7 @@ scripts:
     llm="${AI_BOX_LLAMA_URL:-http://localhost:8080}"
     comfy="${AI_BOX_COMFYUI_URL:-http://localhost:8188}"
     tts="${AI_BOX_TTS_URL:-http://localhost:8000}"
+    strata="http://localhost:${AI_BOX_STRATA_PORT:-8081}"
     rest=.decree/decree-go-rest.yml api=""
     if [[ -f "$rest" ]] && grep -q 'path: /gpu/{mode}/{client}' "$rest"; then
         api="http://localhost:$(sed -n 's/^listen:[[:space:]]*[^#]*:\([0-9][0-9]*\).*/\1/p' "$rest" | head -n 1)"
@@ -68,13 +118,15 @@ scripts:
         while [[ $# -gt 1 ]]; do s="${s},\"$1\":\"$2\""; shift 2; done
         echo "${s}}"
     }
-    # AI_BOX_SERVICES: what this box offers (default all three). Taking one out moves it off
+    # AI_BOX_SERVICES: what this box offers (default llm,comfy,tts; add strata to offer it,
+    # with AI_BOX_STRATA_FAMILY set). Taking one out moves it off
     # this box: its next report drops it, leases held now run out, and new ones go elsewhere.
     on() { [[ ",${AI_BOX_SERVICES:-llm,comfy,tts}," == *",$1,"* ]]; }
     if [[ -n "$api" ]]; then
         if on llm; then offer llm "${llm}/v1" lease "${api}/gpu/llm" api "$api"; fi
         if on comfy; then offer comfy "$comfy" lease "${api}/gpu/comfy" api "$api"; fi
         if on tts; then offer tts "$tts" start "${api}/startTTS" stop "${api}/endTTS" api "$api"; fi
+        if on strata; then offer strata "${strata}/v1" lease "${api}/gpu/strata" api "$api"; fi
     else
         if on llm; then offer llm "${llm}/v1"; fi
         if on comfy; then offer comfy "$comfy"; fi
@@ -91,7 +143,7 @@ x-exist-endpoints:
   # Ask for the card, from another host: the answer's id is the lease. Ten minutes, renewed
   # by its holder while it works, so a holder that dies frees the card soon after.
   - path: /gpu/{mode}/{client}
-    patterns: {mode: "llm|comfy|tts", client: "[a-z0-9_-]{1,40}"}
+    patterns: {mode: "llm|comfy|tts|strata", client: "[a-z0-9_-]{1,40}"}
     body: optional
     message:
       machine: ai_box_gpu

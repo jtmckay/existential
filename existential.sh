@@ -151,7 +151,7 @@ _ensure_host_access() {
     [[ -f "$f" ]] || return 0
 
     local ip
-    ip=$(grep -m1 '^EXIST_LOCAL_HOST_IP=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+    ip=$(grep -m1 '^EXIST_LOCAL_HOST_IP=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
     if [[ -z "$ip" ]] && grep -q '^EXIST_LOCAL_HOST_IP=' "$f"; then
         ip="$(_detect_host_ip)"
         if [[ -n "$ip" ]]; then
@@ -165,7 +165,7 @@ _ensure_host_access() {
     fi
 
     local domain
-    domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+    domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]' || true)
     if [[ -z "$domain" && -n "$ip" ]] && grep -q '^EXIST_DOMAIN=' "$f"; then
         domain="${ip//./-}.nip.io"
         _sed_i "s|^EXIST_DOMAIN=.*|EXIST_DOMAIN=${domain}|" "$f"

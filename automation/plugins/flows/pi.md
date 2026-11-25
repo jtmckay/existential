@@ -87,7 +87,7 @@ x-exist-lib:
             # --tools keeps every MCP tool unless it names one, so none means off.
             [[ -z "$mcp" ]] && args+=(--no-mcp)
         fi
-        # The fleet's llm, under its lease for the whole run: pi gets a copy of its config
+        # The fleet's model service, under its lease for the whole run: pi gets a copy of its config
         # pointed there. No host offers llm: the configured provider, as before.
         local dir="${PI_CODING_AGENT_DIR:-${HOME}/.pi/agent}" run_dir="" rc=0
         model_base chat || return 1
@@ -101,7 +101,7 @@ x-exist-lib:
                 --provider existential --model "${EXIST_MODEL_CHAT:-}" "${args[@]}" \
                 --append-system-prompt "$system" -- "$prompt" ) || rc=$?
         [ -z "$run_dir" ] || rm -rf "$run_dir"
-        fleet_done llm
+        fleet_done "$MODEL_SERVICE"
         return "$rc"
     }
 ---

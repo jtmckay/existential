@@ -143,6 +143,35 @@ The workflows stay in this repo. The checkpoints they name must exist on the box
 [ComfyUI → Using a ComfyUI you already run](../ai/comfyui.md#using-a-comfyui-you-already-run).
 A `comfy` lease frees the card first: `--models-max 1` keeps one model loaded, not zero.
 
+## Strata, a fourth mode
+
+[Strata](../ai/strata.md) serves a mixture-of-experts model too big for the card across VRAM,
+RAM and SSD. Unlike llama.cpp it loads its model when it starts, so on an AI box the lease runs
+it: a `strata` lease stops everything else and starts Strata, and any other mode stops it. It
+is the `ai/strata` service's image and model pack, in a container of the lease's own
+(`ai-box-strata`), so leave the `strata` service off on the box: compose's `up -d` would start
+it again behind the lease. Its downloads stay in `volumes/strata_cache`.
+
+```bash
+# .decree/.env on <ai-box>
+AI_BOX_SERVICES=llm,comfy,tts,strata
+AI_BOX_STRATA_FAMILY=qwen
+AI_BOX_STRATA_MODEL=IQ3_S
+# AI_BOX_STRATA_PORT=8081   # where it listens on the box (8080 is llama.cpp's)
+AI_BOX_STRATA_CONTEXT=262144  # the model's full context (default 65536)
+# AI_BOX_STRATA_MEMORY=64g    # its RAM cap (the default)
+```
+
+Strata fills the RAM it is given with cached experts. On a 24 GB card, 64 GB serves the full
+262144 context at full speed (about 100 tokens/s; a 250k-token prompt in about 90 s) and uses
+about 57 GiB of it. Below about 64 GB Strata keeps more of its context in VRAM, which leaves
+less room for experts and slows it down; more than 64 GB gains nothing. Less RAM means more reads
+from the SSD, not a failure. Its key is `EXIST_MODEL_API_KEY` from the box's `.env.shared`, the same on every host that calls
+it. A lease that starts Strata is granted once it serves a model, which takes minutes; fetch a
+new pack first (`ai/strata`'s own `docker compose up -d strata` on the box, then stop it) so a
+download never runs inside a lease. A host whose model calls should go to Strata sets
+`EXIST_MODEL_SERVICE=strata` and its `EXIST_MODEL_CHAT` to the id Strata serves.
+
 ## TTS, started and stopped over HTTP
 
 Qwen3-TTS needs most of the card while it runs, so it is not left up. The `ai-box` flow's
