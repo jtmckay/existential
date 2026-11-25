@@ -123,8 +123,8 @@ scripts:
     # object per line, `localhost` meaning this host (reporting puts in the address the others
     # reach it by). With a decree-go-rest in front of the host's .decree, `lease` is where to
     # ask for the card: POST <lease>/<client>; the lease's status is GET <api>/gpu/lease/<id>,
-    # and POST <api>/gpu/lease/<id>/release gives it back. llm and strata carry `models`, each
-    # model's id and context, read without loading anything.
+    # and POST <api>/gpu/lease/<id>/release gives it back. llm, strata and tts carry `models`:
+    # each model's id (and context, for the LLMs), read without loading anything.
     set -euo pipefail
     llm="${AI_BOX_LLAMA_URL:-http://localhost:8080}"
     comfy="${AI_BOX_COMFYUI_URL:-http://localhost:8188}"
@@ -152,14 +152,38 @@ scripts:
         jq -c --argjson c "${AI_BOX_STRATA_CONTEXT:-65536}" '[.data[] | {id, context: $c}]' \
             .decree/machines/lease_gpu/state/strata-models.json 2>/dev/null || echo '[]'
     }
+    # Comfy: with the comfy plugin on here too, the workflows its machine runs, as `workflows`, and `generate`,
+    # where to POST <type>/<name> with the prompt as the body (GET <api>/comfy/run/<id> is its status).
+    comfy_workflows() {
+        local f out=()
+        for f in .decree/lib/comfy/workflows/*.yml; do [[ -f "$f" ]] && out+=("$(basename "$f" .yml)"); done
+        [[ ${#out[@]} -gt 0 ]] || { echo '[]'; return; }
+        printf '%s\n' "${out[@]}" | jq -cR '{id: .}' | jq -cs .
+    }
+    # TTS: the model AI_BOX_TTS_COMMAND runs, its first org/name argument (the demo server
+    # has no models endpoint).
+    tts_models() {
+        local a args
+        read -ra args <<<"${AI_BOX_TTS_COMMAND:-}"
+        for a in "${args[@]}"; do
+            if [[ "$a" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then jq -cn --arg id "$a" '[{id: $id}]'; return; fi
+        done
+        echo '[]'
+    }
     # AI_BOX_SERVICES: what this box offers (default llm,comfy,tts; add strata to offer it,
     # with AI_BOX_STRATA_FAMILY set). Taking one out moves it off
     # this box: its next report drops it, leases held now run out, and new ones go elsewhere.
     on() { [[ ",${AI_BOX_SERVICES:-llm,comfy,tts}," == *",$1,"* ]]; }
     if [[ -n "$api" ]]; then
         if on llm; then offer llm "${llm}/v1" "$(llm_models)" lease "${api}/gpu/llm" api "$api"; fi
-        if on comfy; then offer comfy "$comfy" "" lease "${api}/gpu/comfy" api "$api"; fi
-        if on tts; then offer tts "$tts" "" lease "${api}/gpu/tts" api "$api"; fi
+        if on comfy; then
+            if [[ -f .decree/machines/comfy/machine.yml ]]; then
+                offer comfy "$comfy" "" lease "${api}/gpu/comfy" api "$api" generate "${api}/comfy" | jq -c --argjson w "$(comfy_workflows)" '. + {workflows: $w}'
+            else
+                offer comfy "$comfy" "" lease "${api}/gpu/comfy" api "$api"
+            fi
+        fi
+        if on tts; then offer tts "$tts" "$(tts_models)" lease "${api}/gpu/tts" api "$api"; fi
         if on strata; then offer strata "${strata}/v1" "$(strata_models)" lease "${api}/gpu/strata" api "$api"; fi
     else
         if on llm; then offer llm "${llm}/v1" "$(llm_models)"; fi

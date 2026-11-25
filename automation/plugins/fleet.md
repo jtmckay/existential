@@ -1,6 +1,8 @@
 ---
 name: fleet
-x-exist-project: automation
+x-exist-project:
+  - automation
+  - host
 x-exist-lib:
   fleet.sh: |
     #!/usr/bin/env bash

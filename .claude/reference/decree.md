@@ -267,6 +267,9 @@ service another host offers: `model_chat`/`pi_run` (`llm`) and `comfy` call it, 
 container holds one lease for a run of calls and releases it `FLEET_IDLE` (5) seconds after the
 last (comfy: after ComfyUI's queue empties too), and a new lease asks the controller again, so
 a service moved between hosts is followed. Leases are 10 minutes, renewed by the keeper.
+With `comfy` on in a GPU box's host project (`comfy` and `fleet` are tagged `automation` and
+`host`), its offer gains `generate` and `workflows`, the box's `fleet-api` takes
+`POST /comfy/<type>/<name>`, and a run writes `state/status/runs/<id>.json`, read by `GET /comfy/run/<id>`.
 `EXIST_FLEET_SECRET` (the same on every host) is every GPU box's `fleet-api` secret and the model
 gateway's key; blank, or no
 offer, and callers use their own addresses with no lease. `peers.sh` sources the same lib.

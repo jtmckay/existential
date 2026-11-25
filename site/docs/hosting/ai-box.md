@@ -55,6 +55,21 @@ they find it by asking the controller: `./existential.sh run peers` on any host
 model calls and ComfyUI runs lease it this way on their own ([Leases](./controller-and-workers.md#leases)).
 `AI_BOX_SERVICES` in `.decree/.env` (default `llm,comfy,tts`) is what the box offers: take one
 out to [move it to another host](./controller-and-workers.md#moving-a-service-to-another-host).
+The `llm`, `strata` and `tts` offers list their `models` (tts: the one `AI_BOX_TTS_COMMAND` runs).
+
+### Images and video for any host
+
+With the `comfy` plugin on too (`./existential.sh plugin on comfy`), the box runs the
+[comfy machine](../ai/comfyui.md) itself, so a host with nothing but curl can use ComfyUI:
+
+| Call | What it does |
+|---|---|
+| `POST /comfy/<type>/<name>` | Run workflow `<type>` with the body as the prompt (`/<image>` and `/<image>/<last>` for the image forms); the answer's `id` is the run |
+| `GET /comfy/run/<id>` | `{state: waiting\|running\|done\|failed, files: [{filename, url}], error}`, each `url` ComfyUI's `/view` of one output to download; `waiting` while the GPU is busy |
+
+The run takes the `comfy` lease itself. The box's `comfy` offer then carries `generate` (where to
+POST, on its [fleet API](./fleet-api.md)) and `workflows` (the types). It needs `node` (22.18 or later) or `tsx`, and `yq`, on the host
+daemon's `PATH`.
 
 ## GPU containers: rootless podman with CDI
 

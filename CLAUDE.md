@@ -210,7 +210,8 @@ optional `pull_existential` plugin pulls, re-runs and `up -d`s on its own, `repo
 reports the host to its controller, `boot_daemon` runs `.decree/boot.sh` once when that daemon
 starts, `check_versions` says weekly which pinned images are behind, `update_ubuntu` patches an
 Ubuntu host, and `lease_gpu` (a `decree_lease`) has a GPU box's llama.cpp, ComfyUI and TTS take
-turns on its card; all six are host plugins (`x-exist-project: host`), run by a decree daemon in
+turns on its card (with `comfy` on there too, the box runs ComfyUI workflows for any host behind
+its `fleet-api`); all six are host plugins (`x-exist-project: host`), run by a decree daemon in
 the repo's own `.decree`, started now and at every boot by `./existential.sh run host-daemon install`
 (a systemd user unit with linger, or a LaunchAgent), which every run offers while none runs.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders

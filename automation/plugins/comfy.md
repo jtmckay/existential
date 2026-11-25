@@ -1,6 +1,8 @@
 ---
 name: comfy
-x-exist-project: automation
+x-exist-project:
+  - automation
+  - host
 needs:
   - fleet
 machine:
@@ -70,8 +72,25 @@ scripts:
     # ComfyUI parameters
     type="$DECREE_DATA_TYPE"
     items_file="$DECREE_DATA_ITEMS_FILE"
+
+    # What anyone may read (GET /comfy/run/<id>, the id the POST answered with), in
+    # $DECREE_STATE_DIR/status/runs/<id>.json: {state: waiting|running|done|failed, type,
+    # prompt_id, files: [{filename, subfolder, type, url}], error}, each url ComfyUI's
+    # /view of one output, to download it from.
+    status() {  # <state> [<more JSON>]
+        [ -n "${DECREE_STATE_DIR:-}" ] && [ -n "${DECREE_MESSAGE_ID:-}" ] || return 0
+        local f="${DECREE_STATE_DIR}/status/runs/${DECREE_MESSAGE_ID}.json" more="${2:-}"
+        [ -n "$more" ] || more='{}'
+        mkdir -p "${f%/*}"
+        jq -n --arg s "$1" --arg t "$type" --argjson m "$more" '{state: $s, type: $t} + $m' > "${f}.tmp" && mv "${f}.tmp" "$f"
+    }
+    status waiting  # for the GPU
     # With the fleet on, the host that offers comfy now, under its lease; the lease is
-    # held until ComfyUI's queue is empty (fleet.sh). Else the local container.
+    # held until ComfyUI's queue is empty (fleet.sh). Else the local container. On a host,
+    # whose daemon reads .decree/.env and not .env.shared, the fleet's settings come from there.
+    for k in EXIST_CONTROLLER EXIST_FLEET_SECRET; do
+        [ -n "${!k:-}" ] || [ ! -f .env.shared ] || export "$k=$(sed -n "s/^$k=//p" .env.shared | head -n 1)"
+    done
     source .decree/lib/fleet.sh
     comfy_base="http://comfyui:8188" rc=0
     if [ -z "$DECREE_DATA_API_URL" ]; then
@@ -120,15 +139,43 @@ scripts:
 
     echo "=== ComfyUI: $type ==="
     echo "  API:      $api_url"
-    payload=$(tsx "$LIB_DIR/patch.ts" "$binding" <<<"$patch_input")
+    # tsx where the stack has it, else node, which runs TypeScript itself from 22.18.
+    if command -v tsx >/dev/null; then ts=tsx; else ts=node; fi
+    payload=$("$ts" "$LIB_DIR/patch.ts" "$binding" <<<"$patch_input")
+
+    status running
 
     comfy_submit "$payload" "$api_url" "$DECREE_RUN_DIR"
-
-    if [ "$COMFY_HTTP_CODE" -ge 200 ] && [ "$COMFY_HTTP_CODE" -lt 300 ]; then
-        exit 0
-    else
+    if [ "$COMFY_HTTP_CODE" -lt 200 ] || [ "$COMFY_HTTP_CODE" -ge 300 ]; then
+        status failed "$(jq -cn --arg e "ComfyUI answered HTTP ${COMFY_HTTP_CODE}" '{error: $e}')"
         exit 1
     fi
+    prompt_id=$(jq -r '.prompt_id // empty' <<<"$COMFY_RESPONSE" 2>/dev/null || true)
+    [ -n "$prompt_id" ] || { status failed '{"error": "ComfyUI gave no prompt_id"}'; exit 1; }
+    status running "$(jq -cn --arg p "$prompt_id" '{prompt_id: $p}')"
+
+    # Done when ComfyUI's history has it, up to COMFY_WAIT seconds (default 2h). The lease
+    # is held meanwhile, as it is until ComfyUI's queue is empty.
+    base="${api_url%/api/prompt}" deadline=$(( $(date +%s) + ${COMFY_WAIT:-7200} ))
+    echo "=== Waiting for $prompt_id ==="
+    until entry=$(curl -fsS --max-time 15 "${base}/history/${prompt_id}" 2>/dev/null |
+            jq -ce --arg p "$prompt_id" '.[$p] // empty' 2>/dev/null); do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            status failed "$(jq -cn --arg p "$prompt_id" '{prompt_id: $p, error: "timed out waiting for ComfyUI"}')"
+            exit 1
+        fi
+        sleep 5
+    done
+    result=$(jq -c --arg p "$prompt_id" --arg b "$base" '{prompt_id: $p,
+        files: [.outputs[]? | .[]? | arrays | .[] | objects | select(.filename and .type == "output")
+            | {filename, subfolder: (.subfolder // ""), type,
+               url: ($b + "/view?filename=" + (.filename | @uri) + "&subfolder=" + ((.subfolder // "") | @uri) + "&type=output")}],
+        error: (if .status.status_str == "error" then ([.status.messages[]? | select(.[0] == "execution_error") | .[1].exception_message] | first // "execution error") else null end)}' <<<"$entry")
+    jq -r '.files[].url' <<<"$result"
+    if [ "$(jq -r '.error // empty' <<<"$result")" ]; then
+        status failed "$result"; jq -r .error <<<"$result"; exit 1
+    fi
+    status "done" "$result"
 x-exist-lib:
   comfy/common.sh: |
     #!/usr/bin/env bash
@@ -148,7 +195,7 @@ x-exist-lib:
     }
 
     # POST $1=payload to $2=api_url, logging payload/response under $3=run_dir
-    # (if set). Prints the response body and sets COMFY_HTTP_CODE.
+    # (if set). Prints the response body and sets COMFY_HTTP_CODE and COMFY_RESPONSE.
     comfy_submit() {
         local payload="$1" api_url="$2" run_dir="$3"
 
@@ -166,6 +213,8 @@ x-exist-lib:
         local body
         body=$(echo "$response" | sed '$d')
 
+        # shellcheck disable=SC2034  # read by comfy.sh, which sources this
+        COMFY_RESPONSE="$body"
         echo "=== Response (HTTP $COMFY_HTTP_CODE) ==="
         echo "$body"
 
@@ -178,6 +227,7 @@ x-exist-lib:
     // print the finished POST body on stdout (a summary goes to stderr).
     //
     //   tsx patch.ts workflows/<type>.yml   <<< '{"params":{...},"items":[...]}'
+    //   (or node, which runs TypeScript itself; the binding is read with yq, no packages)
     //
     // One patcher for every flow: what a workflow exposes lives in its sibling
     // <type>.yml, never here. Adding a workflow is adding a .json and a .yml.
@@ -187,9 +237,9 @@ x-exist-lib:
     // just hands back the template's own default image.
 
     import { randomBytes } from "node:crypto";
+    import { execFileSync } from "node:child_process";
     import { readFileSync } from "node:fs";
     import { dirname, resolve } from "node:path";
-    import { load } from "js-yaml";
 
     interface Bind {
       node: string | number;
@@ -275,7 +325,7 @@ x-exist-lib:
     const bindingPath = process.argv[2];
     if (!bindingPath) die("usage: patch.ts <binding.yml>  (params JSON on stdin)");
 
-    const binding = load(readFileSync(bindingPath, "utf8")) as Binding;
+    const binding = JSON.parse(execFileSync("yq", ["-o=json", bindingPath], { encoding: "utf8" })) as Binding;
     if (!binding?.workflow) die(`${bindingPath}: no "workflow:" key`);
 
     const workflowPath = resolve(dirname(bindingPath), binding.workflow);
@@ -5642,6 +5692,13 @@ x-exist-endpoints:
     message:
       machine: comfy
       params: {type: "{{type}}", output_prefix: "comfy/{{name}}", input_image: "{{image}}", last_image: "{{last}}"}
+  # A run's status, by the id its POST answered with: {state: waiting|running|done|failed, type,
+  # prompt_id, files: [{filename, subfolder, type, url}], error}. Each url is ComfyUI's
+  # /view of one output, to download it from. Not found until the daemon takes the message (seconds).
+  - path: /comfy/run/{id}
+    action: read
+    patterns: {id: "[0-9A-Za-z._-]{1,80}"}
+    read: {machine: comfy, path: "status/runs/{{id}}.json"}
 x-exist-examples:
   comfy-image-qwen-angles: |
     ---
