@@ -20,6 +20,7 @@ check() { if eval "$2"; then _ok "$1"; else _fail "$1" "$2"; fi; }
 
 command -v decree >/dev/null || { echo "attention-notify: needs decree (run it through ./existential.sh test unit)"; exit 1; }
 unset "${!DECREE@}"   # run from inside a decree run, the caller's would leak in
+unset NTFY_URL   # a worker's points at the controller's Loki; this tests the direct ntfy publish
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
