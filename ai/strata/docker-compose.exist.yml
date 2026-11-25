@@ -27,7 +27,7 @@ services:
           # A model server: the limit is the model. Strata plans from the host's
           # RAM, so this must exceed the pack's RAM+VRAM figure (qwen IQ3_S is
           # ~55G) or the kernel kills it mid-load.
-          memory: 64G
+          memory: 96G
         reservations:
           devices:
             - driver: nvidia

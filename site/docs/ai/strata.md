@@ -22,7 +22,7 @@ the SSD.
   it to `rocm-gfx110x` for an RX 7000 or `rocm-gfx1151` for Strix Halo.
 - **It needs the whole host.** The `qwen` packs need 38-55 GB of RAM plus VRAM, and the
   downloads are 66-76 GB. Size it against the RAM that is free while the rest of the stack
-  runs, not the RAM installed. The container's limit is `64G`. A pack that needs more is
+  runs, not the RAM installed. The container's limit is `96G`. A pack that needs more is
   killed while it loads, so raise the limit in `ai/strata/docker-compose.yml` first.
 - **It replaces chat, not everything.** Embeddings, speech and image generation stay where they
   are.
