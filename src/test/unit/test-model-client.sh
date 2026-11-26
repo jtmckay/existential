@@ -140,6 +140,38 @@ else
     _ok "no path asked for ollama's /api/*"
 fi
 
+# ── The three model keys ──────────────────────────────────────────────────────
+# A blank EXIST_MODEL_CHAT is the first model the URL lists; EXIST_MODEL_KEY is the
+# key sent (blank: the fleet secret); no URL at all is "no model yet", not a hang.
+cat > "${TMP}/listing.js" <<'EOF2'
+const http = require("node:http");
+const fs = require("node:fs");
+const dir = process.argv[2];
+http.createServer((req, res) => {
+  let body = ""; req.on("data", (c) => (body += c)).on("end", () => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    if (req.url === "/v1/models") return res.end(JSON.stringify({ data: [{ id: "first-model" }, { id: "second" }] }));
+    fs.writeFileSync(`${dir}/listing-req.json`, JSON.stringify({ auth: req.headers.authorization, model: JSON.parse(body).model }));
+    res.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+  });
+}).listen(0, "127.0.0.1", function () { fs.writeFileSync(`${dir}/listing-port`, String(this.address().port)); });
+EOF2
+node "${TMP}/listing.js" "$TMP" & LISTING_PID=$!
+for _ in $(seq 50); do [ -s "${TMP}/listing-port" ] && break; sleep 0.1; done
+LURL="http://127.0.0.1:$(cat "${TMP}/listing-port")/v1"
+_mc() { ( unset EXIST_MODEL_CHAT MODEL_API_KEY; cd "${TMP}/unpacked" && env "$@" bash -c 'source .decree/lib/model.sh; model_chat s u' ); }
+_mc EXIST_MODEL_URL="$LURL" EXIST_MODEL_KEY=sk-hosted EXIST_FLEET_SECRET=fleet >/dev/null 2>&1
+assert_eq "a blank EXIST_MODEL_CHAT asks for the first model the URL lists" "first-model" "$(jq -r .model "${TMP}/listing-req.json")"
+assert_eq "...and EXIST_MODEL_KEY is the key sent" "Bearer sk-hosted" "$(jq -r .auth "${TMP}/listing-req.json")"
+_mc EXIST_MODEL_URL="$LURL" EXIST_MODEL_CHAT=second EXIST_FLEET_SECRET=fleet >/dev/null 2>&1
+assert_eq "a named EXIST_MODEL_CHAT is sent as named" "second" "$(jq -r .model "${TMP}/listing-req.json")"
+assert_eq "...and a blank key sends the fleet secret" "Bearer fleet" "$(jq -r .auth "${TMP}/listing-req.json")"
+out="$(_mc EXIST_MODEL_URL= 2>&1)"; rc=$?
+assert_eq "no model URL: model_chat fails" "1" "$rc"
+assert_contains "...saying what to set" "set EXIST_MODEL_URL" "$out"
+assert_eq "...and model_ready says no" "1" "$( (cd "${TMP}/unpacked" && EXIST_MODEL_URL='' bash -c 'source .decree/lib/model.sh; model_ready'); echo $?)"
+kill "$LISTING_PID" 2>/dev/null
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

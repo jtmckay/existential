@@ -424,7 +424,7 @@ _host_plugins() {
         || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh tries again."
     local on
     # decree's own plugins alone ask for no daemon (prune only prunes the runs one leaves).
-    on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | grep -v '^decree_' | xargs)"
+    on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | { grep -v '^decree_' || true; } | xargs)"
     [[ -n "$on" ]] || return 0
     # Every step still to do, in one go, so one fix-and-retry covers them all.
     local todo=false
@@ -585,10 +585,10 @@ _warn_if_no_gateway() {
     esac
 
     if [[ "${caddy_on:-false}" != "true" ]]; then
-        # Core is reached over Tailscale (_tailscale_serve_core); only an add-on
-        # with a web UI needs Caddy, or its own ports: block uncommented.
+        # Core (what .env.exist.shared ships on) is reached without Caddy; only an
+        # add-on with a web UI needs it, or its own ports: block uncommented.
         grep -E '^EXIST_IS_[A-Z_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null \
-            | grep -qvE '^EXIST_IS_SERVICES_(CODE_SERVER|AUTOMATION|NTFY)=' || return 0
+            | grep -qvxF -f <(grep -E '^EXIST_IS_[A-Z_]+=true' "${SCRIPT_DIR}/.env.exist.shared") || return 0
         echo ""
         echo "  ⚠  Caddy is disabled, so add-ons outside Core have no https://<slug>.<domain>"
         echo "     name. Set EXIST_IS_HOSTING_CADDY=true in .env.shared, or uncomment the"
