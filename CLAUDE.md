@@ -64,20 +64,16 @@ that `needs:`, at the checkout's version, so `git pull` reaches a running stack.
 wall:** a project never installs a plugin not tagged for it, and nothing `automation` can
 write (the workspace) decides or changes what `backup` or the host runs.
 
-**Offer and accept: the one way code gets in from the workspace.** `plugins/`, `machines/` and
-`lib/` of `workspace/.decree` are mounted **read-only in every container that mounts the
-workspace** (`automation`, code-server, Nextcloud, `automation-backup`); only `./existential.sh`
-on the host installs into them (`decree install`; decree never installs on its own). Anything made in the workspace, by `develop` from a note, by an
-agent in code-server or by another stack, is an **offer**: one plugin file in
-`workspace/ai/proposed/<name>.md`. A person reads it and runs `./existential.sh run plugin accept
-<name>` on the host (a terminal and a typed yes, no flag that skips it), which keeps it in
-`automation/plugins/local/` (gitignored), forces `x-exist-project: automation`, and installs it.
-Never add a path around this: no writable mount of those folders, no machine that installs, no
-accept from a notification or a webhook, and no code in a machine's `state/` (decree 0.6's
-rule too: code is `scripts/`, from the plugin file). Data a person edits lives in the store
+**Your own plugins are written in the workspace.** `workspace/.decree` is writable in every
+container that mounts it (`automation`, code-server, Nextcloud, `automation-backup`): a machine of
+your own is a plugin file in `workspace/.decree/plugins/<name>.md`, installed with `decree install
+<name>` from there. `./existential.sh` installs the repo's plugins into the same folder and leaves
+a plugin file it did not write alone. What the stack builds on its own (`develop` from a note,
+another stack) is an **offer** in `workspace/ai/proposed/<name>.md`, which a person reads and
+moves into `.decree/plugins/`; no machine installs. No code in a machine's `state/` (decree
+0.6's rule: code is `scripts/`, from the plugin file); data a person edits lives in the store
 (`workspace/.decree/store/<plugin>/`, a plugin's `state:`, which each machine's `state/` links
-to), which stays writable. User-facing:
-`site/docs/plugins/offer-and-accept.md`. A config file that is yours (`handlers.yml`,
+to). User-facing: `site/docs/plugins/offer-and-accept.md`. A config file that is yours (`handlers.yml`,
 `decree-go-rest.yml`, `plugins.yml`) ships as a `<name>.exist.<ext>` example and is copied to
 its real name once. → `.claude/reference/decree.md`
 
@@ -320,7 +316,7 @@ from the repo root against the generated `docker-compose.yml`.
 
 ## Decree (Automations)
 
-decree **0.6** (0.6.0): the `/decree` skill covers decree itself, and `.claude/reference/decree.md`
+decree **0.6** (0.6.1): the `/decree` skill covers decree itself, and `.claude/reference/decree.md`
 covers how existential uses it. The rules worth keeping here:
 
 **Three decree projects, all installed from `automation/plugins/` by `x-exist-project` tag, not one per
@@ -337,8 +333,8 @@ backup is one flow file.
 
 **Automations never change your notes.** In `automation`, `workspace/notes/` is mounted
 read-only: notes are what a person tells the stack to do, so no run, and no Claude a run calls,
-can change them. What a machine makes goes to `workspace/ai/`. Nor can they change code:
-`plugins/`, `machines/` and `lib/` are read-only there too, and `develop` only offers what it builds.
+can change them. What a machine makes goes to `workspace/ai/`. `develop` only offers what it
+builds, in `ai/proposed/`.
 
 **A plugin is the unit:** `automation/plugins/<name>.md`, one machine (one state until a run
 shows the need for more) and its scripts, snake_case, with its `x-exist-project`. Change one live, then `./existential.sh run
@@ -349,7 +345,7 @@ plugin emits to. A project has only the plugins it has on.
 
 **AI is half of what decree is for, in two places.** *Conversation:* code-server ships
 `claude`, `opencode` and `pi` for a person to drive, and the decree skill in the workspace is how a
-conversation offers new machines (a plugin file in `ai/proposed/`, accepted on the host). *Automations:* a machine's script calls AI itself, in one of
+conversation offers new machines (a plugin file in `.decree/plugins/`, installed with `decree install`). *Automations:* a machine's script calls AI itself, in one of
 three ways, each a library plugin a machine `needs:`. `model` (`lib/model.sh`: `model_chat`,
 `model_gate`) is one answer from the role's `/v1` URL. `pi` (`lib/pi.sh`: `pi_run`) is
 [pi](https://pi.dev) with tools on that same chat model, nothing leaving the box; a department
@@ -370,8 +366,8 @@ Repo-editing belongs to a coding agent on the host, not to the stack.
 into its machine's folder: a cron file once, then it is the project's to edit, and gone with the
 plugin; an order file once, run by `order` at the daemon's start, and again only if edited.
 There is no top-level cron folder (decree 0.6 reads only `machines/*/cron/`): a schedule of
-your own is a plugin whose only key is `cron:` (each file naming its `machine:`), offered and
-accepted like any other, and `accept` installs its cron files every time. A backup is a flow like any other (`backup-<service>`,
+your own is a plugin whose only key is `cron:` (each file naming its `machine:`), installed
+like any other (`decree install --cron <name>` installs its cron files again after an edit). A backup is a flow like any other (`backup-<service>`,
 `x-exist-project: backup`): a new one is one flow file. The daemon rescans cron files every tick.
 
 **Opt-in is the rule.** `automation/plugins.exist.yml` turns on `note-to-automation`,

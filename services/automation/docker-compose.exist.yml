@@ -107,18 +107,9 @@ services:
       - EXIST_FLEET_LOKI=${EXIST_FLEET_LOKI:-}
     volumes:
       # workspace/.decree IS the project. Its messages (inbox, your cron/), handlers
-      # and store (each machine's state/) are written here and run on the next tick.
+      # and store (each machine's state/) are written here and run on the next tick, and so
+      # are plugins, machines and lib: `decree install <name>` from here or code-server.
       - workspace_data/.decree:/work/.decree:z
-      # Its CODE is not: plugins, machines and lib are installed by the host alone
-      # (./existential.sh writes plugins/ from automation/plugins/, then `decree
-      # install`), and read-only in every
-      # container that mounts the workspace. Nothing this container runs, and no
-      # model it calls, can write or change one: it can only offer a plugin file in
-      # workspace/ai/proposed/, which a person accepts on the host
-      # (./existential.sh run plugin accept <name>). Do not make these writable.
-      - workspace_data/.decree/machines:/work/.decree/machines:ro,z
-      - workspace_data/.decree/plugins:/work/.decree/plugins:ro,z
-      - workspace_data/.decree/lib:/work/.decree/lib:ro,z
       # Config, never secrets, and outside the synced workspace (decree reads
       # .decree/.env). exist.initial.sh creates it.
       - ../../automation/.env:/work/.decree/.env:ro,z
@@ -147,10 +138,6 @@ services:
       # Your notes are what you tell the stack to do: an automation, or the Claude
       # it calls, reads them and never changes them. What it makes goes in ai/.
       - workspace_data/notes:/workspace/notes:ro,z
-      # The same code, by its other path: read-only here too.
-      - workspace_data/.decree/machines:/workspace/.decree/machines:ro,z
-      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro,z
-      - workspace_data/.decree/lib:/workspace/.decree/lib:ro,z
     tty: false
 
 x-exist-volumes:

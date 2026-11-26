@@ -73,10 +73,6 @@ services:
       # Local external storage, so the desktop client syncs it and every
       # upload fires the file events decree routes.
       - workspace_data:/workspace
-      # decree's code is installed by the host alone: a synced desktop cannot change it.
-      - workspace_data/.decree/machines:/workspace/.decree/machines:ro
-      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro
-      - workspace_data/.decree/lib:/workspace/.decree/lib:ro
       # A share of files you already have, mounted into Files at /nas the same
       # way. Your files, not Nextcloud's: nextcloud_data is its own layout.
       - nextcloud_share:/nas
@@ -156,10 +152,6 @@ services:
       - nextcloud_custom_apps_data:/var/www/html/custom_apps
       - nextcloud_themes_data:/var/www/html/themes
       - workspace_data:/workspace
-      # decree's code is installed by the host alone: a synced desktop cannot change it.
-      - workspace_data/.decree/machines:/workspace/.decree/machines:ro
-      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro
-      - workspace_data/.decree/lib:/workspace/.decree/lib:ro
       - nextcloud_share:/nas
     environment:
       - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}

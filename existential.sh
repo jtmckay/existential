@@ -1062,16 +1062,23 @@ _set_image() {
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
 # No terminal is the pull-existential flow, which you turned on to follow the branch,
 # so there they are applied: listed only, the pins would never move.
-# decree 0.6's code is plugins/, where 0.5's was scripts/: a compose file rendered
-# before keeps .decree/plugins/ read-only like the rest of the code, every container
-# that mounts the workspace included (the offer/accept wall), without asking.
+# A compose file rendered before, without asking: decree 0.6's code is plugins/,
+# where 0.5's was scripts/, and the workspace's .decree is no longer mounted
+# read-only over it (automation-backup's own project still is).
 _decree_code_mounts() {
     local d f
     while IFS= read -r d; do
         f="${d}/docker-compose.yml"
-        grep -q '/\.decree/scripts:' "$f" 2>/dev/null || continue
-        sed -i.bak 's#\([./a-z_]*\)/scripts:\([^:]*\)/\.decree/scripts:#\1/plugins:\2/.decree/plugins:#' "$f" && rm -f "${f}.bak"
-        echo "  ${f#"${SCRIPT_DIR}/"}: .decree/plugins/ is mounted read-only (decree 0.6)"
+        [[ -f "$f" ]] || continue
+        if grep -q '/\.decree/scripts:' "$f"; then
+            sed -i.bak 's#\([./a-z_]*\)/scripts:\([^:]*\)/\.decree/scripts:#\1/plugins:\2/.decree/plugins:#' "$f" && rm -f "${f}.bak"
+            echo "  ${f#"${SCRIPT_DIR}/"}: .decree/plugins/ is mounted read-only (decree 0.6)"
+        fi
+        # The workspace's own decree code was mounted read-only over it; now it is yours to write.
+        if grep -qE '^[[:space:]]*- workspace_data/\.decree/(machines|plugins|lib):' "$f"; then
+            sed -i.bak -E '/^[[:space:]]*- workspace_data\/\.decree\/(machines|plugins|lib):/d' "$f" && rm -f "${f}.bak"
+            echo "  ${f#"${SCRIPT_DIR}/"}: workspace/.decree is writable (your own plugins go in its plugins/)"
+        fi
     done < <(_find_service_dirs)
 }
 

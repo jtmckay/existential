@@ -110,13 +110,6 @@ services:
       # reinstalling those and logging back in.
       - code_server_data:/code-server-data
       - workspace_data:/workspace
-      # A person or an agent here writes notes, messages and plugin OFFERS
-      # (workspace/ai/proposed/). decree's code (machines, scripts, lib) is
-      # installed by the host alone and read-only here: an offer runs only after
-      # ./existential.sh run plugin accept <name>, on the host. Do not make these writable.
-      - workspace_data/.decree/machines:/workspace/.decree/machines:ro
-      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro
-      - workspace_data/.decree/lib:/workspace/.decree/lib:ro
 
 x-exist-volumes:
   code_server_data: {}

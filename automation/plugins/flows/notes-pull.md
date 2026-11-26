@@ -59,9 +59,12 @@ cron:
     (default 22), NOTES_PULL_DELETE (default false), NOTES_PULL_EXTRA_ARGS (raw
     extra rsync flags, e.g. "--exclude=.trash/**").
 
+    A vault on your NAS needs no SSH: give `EXIST_NFS_SHARE_NOTES` in .env.shared its
+    folder on the export and set NOTES_PULL_SOURCE to "/notes-nas/" (mounted read-only).
+
     A source with no `host:` prefix — a local path, or a share already mounted
     into the container some other way — skips SSH entirely; rsync just copies it.
 ---
 
 After turning it on, set NOTES_PULL_SOURCE in services/automation-backup/machines/flow_notes_pull/cron/notes-pull.md to your
-real user@host:/path/, and add the key it describes. Until then every run fails and says so.
+real user@host:/path/ and add the key it describes, or to /notes-nas/ for a NAS folder. Until then every run fails and says so.

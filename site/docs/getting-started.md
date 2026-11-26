@@ -182,10 +182,9 @@ and notifies you when something breaks or recovers.
 `workspace/` (in `volumes/workspace_data`) is your directory:
 
 - **`notes/`**: your notes, plain markdown. Starts with `my-first-note.md`.
-- **`.decree/`**: your automations, run by the `automation` daemon. Its code (`plugins/`,
-  `machines/`, `lib/`) is read-only here and installed only by `./existential.sh` on the host: the
-  repo's [plugins](./plugins/index.md) you have on, and each one made in the workspace that you
-  [accepted](./plugins/offer-and-accept.md). `machines/<name>/graph.md` draws each machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
+- **`.decree/`**: your automations, run by the `automation` daemon. `./existential.sh` installs the
+  repo's [plugins](./plugins/index.md) you have on into it, beside
+  [your own](./plugins/offer-and-accept.md), which `decree install` installs from the workspace. `machines/<name>/graph.md` draws each machine. See [Writing a Plugin](./plugins/writing-a-plugin.md).
 - **`ai/`**: what automations write, indexed like everything else.
 - **`.capture/`**: everything you typed to an agent. See [Capture](#capture).
 - **`ai/you-were-here.md`**: the morning digest, with one file per day under

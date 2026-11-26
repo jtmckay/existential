@@ -55,13 +55,11 @@ services:
       - ../../volumes:/volumes:z
       # notes_pull rsyncs an external vault into workspace/notes/.
       - workspace_data:/workspace:z
-      # workspace_sync and notes_pull bring other copies in: never decree's code.
-      - workspace_data/.decree/machines:/workspace/.decree/machines:ro,z
-      - workspace_data/.decree/plugins:/workspace/.decree/plugins:ro,z
-      - workspace_data/.decree/lib:/workspace/.decree/lib:ro,z
       # workspace_sync's other end when it is on the NAS: the one persisted copy
       # of workspace/, synced both ways every minute.
       - workspace_share:/workspace-nas
+      # notes_pull's source when your vault is a NAS folder: NOTES_PULL_SOURCE=/notes-nas/.
+      - notes_share:/notes-nas:ro
       # Triage's backoff state and status report live at /data/triage — the same
       # volume `automation` mounts for /data/notes and /data/dropbox. Disjoint
       # subtrees, one volume.
@@ -84,3 +82,4 @@ x-exist-volumes:
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
   workspace_share: { nfs: true }  # A copy of your workspace/ on the NAS, synced both ways every minute; the newer edit wins.
+  notes_share: { nfs: true }  # Your notes vault on the NAS, read-only: notes-pull copies it into workspace/notes/.

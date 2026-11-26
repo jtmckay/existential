@@ -35,7 +35,7 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 | `look-back` | The week and the month in review, next to your notes | a chat model |
 | `clean-runs` | Prunes decree's finished run logs after 30 days, the host daemon's too. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
-| `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), review what is built, accept it on the host, and it runs. **On by default** | a chat model |
+| `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), review what is built, install it, and it runs. **On by default** | a chat model |
 | `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/` | — |
 | `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model | — |
 | `weekly-newsletter` | [Your own newsletter](./newsletter.md) from only the feeds you picked | a chat model |

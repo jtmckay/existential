@@ -24,11 +24,10 @@ scripts:
     # You say "build this" by moving a spec automation_propose wrote from
     # ai/proposed/ into notes/automations/, and may edit it there:
     #   accepted, edited  develop builds it as a plugin file and offers it in
-    #                     ai/proposed/<name>.md. You read that and accept it on the
-    #                     host; an edit means a new offer to accept
-    #   deleted           you are told how to turn it off, on the host
-    # Nothing is installed or removed here, and nothing here could: plugins/,
-    # machines/ and lib/ are read-only in every container.
+    #                     ai/proposed/<name>.md. You read that and install it; an
+    #                     edit means a new offer
+    #   deleted           you are told how to turn it off
+    # Nothing is installed or removed here.
     set -euo pipefail
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
@@ -44,21 +43,21 @@ scripts:
 
     if [[ "$change" == deleted ]]; then
         [[ ! -e ".decree/machines/${name}/machine.yml" ]] ||
-            say "Automation still on" "${rel} was deleted, and ${name} still runs. To turn it off, on the host: ./existential.sh run plugin off ${name}"
+            say "Automation still on" "${rel} was deleted, and ${name} still runs. To turn it off: rm .decree/plugins/${name}.md && decree install"
         exit 0
     fi
 
     spec="${WS}/${rel}"
     fm() { sed -n "2,/^---\$/s/^$1: *//p" "$spec" | head -1; }
     if [[ "$(fm name)" == "$name" ]]; then   # a plugin file names itself; a spec names its automation
-        say "Not installed" "${rel} is a plugin file, and moving it here installs nothing. Put it back in ai/proposed/ and, on the host: ./existential.sh run plugin accept ${name}"
+        say "Not installed" "${rel} is a plugin file, and moving it here installs nothing. Move it into .decree/plugins/ and run: decree install ${name}"
         exit 0
     fi
     [[ "$(fm machine)" == develop && "$(fm automation)" == "$name" ]] ||
         { say "Automation not built" "${rel} needs 'machine: develop' and 'automation: ${name}' in its frontmatter."; exit 1; }
 
     decree emit --machine develop --param automation="$name" --param from="$(fm from)" < "$spec" >/dev/null
-    say "Building an automation" "${name}: develop builds it from ${rel} now, and tells you when it is ready to review. Nothing runs until you accept it on the host."
+    say "Building an automation" "${name}: develop builds it from ${rel} now, and tells you when it is ready to review. Nothing runs until you install it."
 ---
 # reconcile
 

@@ -199,7 +199,8 @@ The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-t
   `none` (Enter) to keep it on this host. Compose mounts it over NFS.
 - **`EXIST_NFS_SHARE_<NAME>`**: the same for a volume that holds your own files rather than a
   container's data: `EXIST_NFS_SHARE_NEXTCLOUD` (shown in Nextcloud at `/nas`) and
-  `EXIST_NFS_SHARE_WORKSPACE` (where `workspace/` syncs to). See
+  `EXIST_NFS_SHARE_WORKSPACE` (where `workspace/` syncs to) and `EXIST_NFS_SHARE_NOTES` (a notes
+  vault `notes-pull` copies into `workspace/notes/`, read-only). See
   [Storage](./storage/index.md#a-nas-for-the-bulk-files).
 - **`EXIST_BACKUP_RCLONE_REMOTE`**: an rclone remote (`<remote>:<path>`), set by
   `./existential.sh run rclone`. Blank disables scheduled DB backups.

@@ -32,8 +32,7 @@ PLUGINS_SEED="automation/plugins.exist.yml"
 # Any plugin's file and frontmatter, a machine's or a flow's.
 plugin_file() {
     if [[ -f "${FLOWS_DIR%/flows}/$1.md" ]]; then echo "${FLOWS_DIR%/flows}/$1.md"
-    elif [[ -f "${FLOWS_DIR}/$1.md" ]]; then echo "${FLOWS_DIR}/$1.md"
-    elif [[ -f "${FLOWS_DIR%/flows}/local/$1.md" ]]; then echo "${FLOWS_DIR%/flows}/local/$1.md"; else return 1; fi
+    elif [[ -f "${FLOWS_DIR}/$1.md" ]]; then echo "${FLOWS_DIR}/$1.md"; else return 1; fi
 }
 _fm()        { awk 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f' "$1" 2>/dev/null; }
 # plugin_projects <name>: the projects that run it, one per line (none: automation).

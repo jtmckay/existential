@@ -3,9 +3,9 @@
 decree itself (messages, machines, scripts, plugins, `decree check`, `emit`, `install`,
 `status`) is the `/decree` skill (`.claude/skills/decree/`, the files `decree init` writes;
 copy them from a fresh `decree init` on a version bump, never hand-edit them). This file is
-only what existential adds on top. Every daemon runs decree **0.6.0**, pinned in
+only what existential adds on top. Every daemon runs decree **0.6.1**, pinned in
 `services/automation/decree/Dockerfile` (`DECREE_TAG`), which CI and a host's install steps
-read too, and the webhook image is decree-go-rest 0.6.0, which bundles it.
+read too, and the webhook image is decree-go-rest 0.6.0, which bundles decree 0.6.0 (there is no 0.6.1).
 
 ## One place, three projects
 
@@ -21,7 +21,7 @@ the repo's own `.decree` included (but for its order files and their record, bel
 | project (`.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/`, mounted as `/work/.decree` | the repo's own `.decree`, run by a decree daemon on the host |
 | runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `update`, `report_host`, `boot`, `check_versions`, `update_ubuntu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
 | always has | the plugin system: `notify`, `skill` | `notify` | nothing |
-| crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files, accepted | the same: `service-triage`, `workspace-sync`, `notes-pull` and one `backup-<service>` flow per service | each plugin's own |
+| crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files in `.decree/plugins/` | the same: `service-triage`, `workspace-sync`, `notes-pull` and one `backup-<service>` flow per service | each plugin's own |
 | order files | each plugin's own (`order:`), run by decree's `decree_order` plugin | none | **the repo's**, tracked in `.decree/machines/repo_develop/order/` with `state/order.git.txt`; a host plugin carries none (validate conventions) |
 
 Each project has its own `inbox/`, `runs/` and `store/`. The seeded `.gitignore` keeps
@@ -88,7 +88,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   run queues one `decree_order` run. It never touches a machine folder no plugin names. It runs in
   adhoc (yq, decree) from each project's `exist.initial.sh` and from `_host_plugins` in
   `existential.sh`; on a worker with no engine, on the host. `./existential.sh run plugin` is
-  the CLI (`list`, `on`, `off`, `sync`, `export`, `offers`, `accept`).
+  the CLI (`list`, `on`, `off`, `sync`, `export`).
 - **decree 0.5's layout is converted once** (`plugin_convert_05`): a copy a plugin installed
   goes (the plugin installs it again), a machine of yours moves to `machines/<name>/`, and the
   registry, applied copies, migrations and flat scripts are kept in `.decree/archive/0.5/`.
@@ -107,8 +107,8 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 - **Yours is in the store.** Data a person edits (the newsletter's `feeds.txt` and `taste.md`,
   pi's departments) is a plugin's `state:`, written once, never overwritten, removed or
   exported. In `automation` and `backup` each machine's `state/` is a link to
-  `.decree/store/<name>/` (`plugin_state_links`), since `machines/` is read-only there and the
-  store is not: the store is where a person and every container write it. On the host,
+  `.decree/store/<name>/` (`plugin_state_links`), so a machine's data lives apart from its
+  code: the store is where a person and every container write it. On the host,
   `state/` is a folder. Code a person tunes (the agent-handoff processor's CRITERIA) is still
   code: changed in its plugin file. The project's own config ships as examples copied once:
   `automation/handlers.exist.yml` and `decree-go-rest.exist.yml`.
@@ -118,11 +118,11 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   sync adds the machine to `note_watch`'s `emits`). There is no `.decree/cron/`: a schedule
   of yours is a plugin with only `cron:` (`plugin_is` takes one as a plugin, not a spec),
   such as the `gmail_transactions` that `exist.gmail-transactions-cron.sh` offers. A sync
-  installs a plugin's cron files once, so an edited copy is kept; `accept` passes `--cron`,
-  so what a person approved is what runs. The sync names any file left in `.decree/cron/`.
+  installs a plugin's cron files once, so an edited copy is kept; `decree install --cron <name>`
+  installs them again. The sync names any file left in `.decree/cron/`.
 - **The plugin system is `notify`, and in `automation` `skill`** (`PLUGIN_KERNEL`): files in
   `automation/plugins/` like the rest, but in every project they are tagged for whatever is on,
-  and never replaced by an accepted plugin. `skill` extends `decree_skill` to write the decree
+  and rewritten by every sync. `skill` extends `decree_skill` to write the decree
   skill to `/workspace/.claude/skills/decree` (not `/work`, the project root) at each daemon
   start; the entrypoint writes this project's `existential` skill beside it. Trading plugins with another stack
   (`plugin_share`, `plugin_offer`, `plugin_request`, with their webhook endpoints) is the
@@ -147,29 +147,19 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   (`skill`), `decree_develop` and `decree_qa` (`repo_develop`, `repo_qa`). Not
   `decree_registry` (the model endpoint resolvers do that) nor `decree_newsletter` (its
   feeds are scripts in decree 0.6, and here they are data a person edits in the store).
-- **Offer and accept** is the one way code made in the workspace gets in, and the critical
-  journey to keep whole (`site/docs/plugins/offer-and-accept.md`):
-  1. `plugins/`, `machines/` and `lib/` of `workspace/.decree` are mounted **read-only** in
-     every container that mounts the workspace (`automation`, by both its paths; code-server;
-     Nextcloud and its cron; `automation-backup`), and `workspace_sync` filters them out both
-     ways. validate conventions fails a compose template that mounts the workspace writable
-     without them. decree itself never installs (only `decree install` does, which only the
-     host runs), and a daemon over a read-only `machines/` runs what is installed.
-  2. So everything in a container can only **offer**: one plugin file in
-     `workspace/ai/proposed/<name>.md`. `develop` builds one from an accepted spec
-     (`notes/automations/<name>.md`, handed over by `reconcile`), installs it into a scratch
-     copy of the project to pass `decree check` (`plugin_try`), and writes the offer;
-     `plugin_offer` writes one another stack sent; an agent in code-server writes one by hand
-     (`automation/lib/skill-notes.md`, the workspace's `existential` skill, teaches it). Each
-     tells the person through `plugin_offered` (`lib/plugin.sh`): where to read
-     it, and the command.
-  3. `./existential.sh run plugin accept <name>` (`src/lib/plugin.sh`), on the host, is the
-     only installer: it prints what the plugin starts on, needs and runs, requires a terminal
-     and a typed yes, refuses a name the repo or decree ships, an endpoint that emits to
-     another machine and a need the automation project does not run, copies the file to
-     `automation/plugins/local/` (gitignored) with `x-exist-project: automation` forced, turns
-     it on and syncs; a failed install is taken back out. `plugin_wanted` never gives a
-     `local/` plugin to another project.
+- **Your own plugins** (`site/docs/plugins/offer-and-accept.md`): `workspace/.decree` is
+  writable in every container that mounts it, so a plugin file in `.decree/plugins/` and `decree
+  install <name>` there is a machine. `plugin_sync` lists what it wrote in
+  `.decree/plugins/.existential` and removes only those, so a file of yours survives every
+  `./existential.sh`; the sync gives it what decree does not install (its `x-exist-handlers`, `-when`, `-lib`,
+  `-endpoints`), and `.decree/plugins/.yours` lists them so a deleted one's handlers go.
+  `workspace_sync` still filters `plugins/`, `machines/` and `lib/` out both ways. What the stack
+  builds on its own is an **offer** in `workspace/ai/proposed/<name>.md`: `develop` builds one
+  from an accepted spec (`notes/automations/<name>.md`, handed over by `reconcile`), installs it
+  into a scratch copy of the project to pass `decree check` (`plugin_try`), and writes it;
+  `plugin_offer` writes one another stack sent. Each tells the person through `plugin_offered`
+  (`lib/plugin.sh`) where to read it and the `mv` + `decree install` that installs it. No
+  machine installs. backup and the host install only the repo's plugins.
 - **The repo's own `.decree` is the host project.** Its `repo_develop` (`decree_develop`
   with the gate `.githooks/pre-push`, `conventions.md` from CLAUDE.md's rules and the
   declarative order files, and the `requirements` its precheck checks) and `repo_qa`
@@ -232,7 +222,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   without a restart.
 - **Whoever can write `workspace/` can write messages, not code.** A cron file, an inbox
   message or a handler there starts a machine that is already installed, with the params it
-  declares; no agent with the workspace mounted can add or change a script (offer and accept,
+  declares; an agent in code-server can add a plugin of its own (your own plugins,
   above). Keep secrets out of `workspace/` all the same.
 - **File handlers:** `automation/lib/file-handlers.ts`, kept running by the `automation`
   entrypoint, watches all of `/workspace` and emits `--param path= --param change=` for every

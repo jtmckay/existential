@@ -88,10 +88,10 @@ named `decree_*`: `decree_order` (runs a plugin's one-time setup), `decree_ai` (
 
 Data that is yours to edit (the newsletter's feeds and taste, pi's departments) is a plugin's
 `state:`, written once to `workspace/.decree/store/<plugin>/` (each machine's `state/` is that
-folder) and never overwritten, removed or sent to another stack. The store is writable from
-code-server; `plugins/`, `machines/` and `lib/` are read-only in every container, and a plugin
-made in the workspace runs only after you [accept it on the host](./offer-and-accept.md). A
-schedule of your own is a plugin too, one with only `cron:` files, accepted the same way.
+folder) and never overwritten, removed or sent to another stack. A plugin of
+your own is a file in `workspace/.decree/plugins/`, installed with `decree install`
+([Your Own Plugins](./offer-and-accept.md)). A schedule of your own is a plugin too, one with
+only `cron:` files.
 
 ```bash
 ./existential.sh run plugin                     # every plugin: on or not, its project, what it does
@@ -105,8 +105,8 @@ one that something still on needs stays. With `auto_update: false`, a plugin who
 ## Changing one
 
 On the host, change the installed machine and scripts in its project
-(`volumes/workspace_data/.decree/machines/<name>/` for `automation`; read-only inside every
-container) until it works, then write it back (`decree export`) and commit. A plugin that `backup` or the host
+(`volumes/workspace_data/.decree/machines/<name>/` for `automation`, also writable from
+code-server) until it works, then write it back (`decree export`) and commit. A plugin that `backup` or the host
 runs is exported from there, never from the workspace:
 
 ```bash
@@ -141,7 +141,7 @@ plugin, and yours can ask theirs. Nothing is installed anywhere without a person
   /request/plugins/<from>[/<machine>]`.
 - `plugin_offer`: what comes back, at `/plugins/offer/<from>`. A list goes to your phone, with
   the line that asks for one; a plugin waits in `ai/proposed/` until you
-  [accept it on the host](./offer-and-accept.md). Read its scripts first: they run with this stack's access.
+  [install it](./offer-and-accept.md#offers). Read its scripts first: they run with this stack's access.
 
 A plugin sent from another stack `needs:` the plugins it uses, which the receiving stack has to
 have on: accepting it says which.

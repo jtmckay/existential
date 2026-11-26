@@ -45,8 +45,8 @@ boot).
 ## AI in the terminal
 
 The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
-automations: it writes one as a file in `ai/proposed/`, and it runs once you
-[accept it on the host](../plugins/offer-and-accept.md). Nothing here can install code itself. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
+automations: it writes one as a file in `.decree/plugins/` and
+[installs it](../plugins/offer-and-accept.md) with `decree install <name>`. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:

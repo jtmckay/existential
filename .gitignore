@@ -156,8 +156,6 @@ Thumbs.db
 
 # What is on, for every decree project: yours, from automation/plugins.exist.yml.
 automation/plugins.yml
-# Plugins you accepted from the workspace (./existential.sh run plugin accept).
-automation/plugins/local/
 # Where the host's decree project was before it was the repo's own .decree.
 /host/
 automation/typecheck-plugins/

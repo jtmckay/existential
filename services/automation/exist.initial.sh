@@ -54,11 +54,10 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
-# The `automation` project is workspace/.decree. Its code (plugins/, machines/,
-# lib/) is installed here, on the host, from automation/plugins/, at this
-# checkout's version every run, and is read-only in every container: what a
-# person or an agent makes in the workspace is an offer in ai/proposed/, accepted
-# with ./existential.sh run plugin accept <name>. `decree install` draws the graphs.
+# The `automation` project is workspace/.decree. The repo's plugins are
+# installed here, on the host, from automation/plugins/, at this checkout's
+# version every run; a plugin of yours is a file in its .decree/plugins/, which
+# `decree install <name>` installs from the workspace. `decree install` draws the graphs.
 #
 # An install from before this keeps its active crons and migrations, and its
 # record of which migrations ran, in automation/. Each moves over once, unless
@@ -110,9 +109,8 @@ content — notes, plans, reference material — except:
 - **`.decree/`** — your automations: the decree project the `automation`
   daemon runs. `machines/<name>/graph.md` draws each machine, and
   `store/<name>/` holds what it keeps (yours to edit: feeds, departments).
-  Its code (`plugins/`, `machines/`, `lib/`) is read-only here: a new automation
-  is offered in `ai/proposed/` and runs once you accept it on the host
-  (`./existential.sh run plugin accept <name>`).
+  A new automation is one file in `.decree/plugins/<name>.md`, installed with
+  `decree install <name>` from a terminal here.
 - **`.claude/`** — the decree skill, so `claude` started here knows how to
   write a machine.
 - **`ai/`** — automation output, not yours to write to. See `ai/README.md`,
@@ -137,10 +135,8 @@ When something should happen on its own — a reminder, a weekly look back,
 tidying a folder — open a terminal here in code-server, start `claude`, and say
 what should happen, in your own words.
 
-Claude writes it as one file in `ai/proposed/` and tells you its name. Read it,
-then on the computer that runs the stack: `./existential.sh run plugin accept <name>`.
-Nothing made in here runs until you have said yes there. After that it runs on
-its own, and `.decree/machines/<name>/graph.md` draws what it does.
+Claude writes it as one file in `.decree/plugins/` and installs it with
+`decree install <name>`. From then on it runs on its own, and `.decree/machines/<name>/graph.md` draws what it does.
 
 A change to a matching file can start an automation too ("when a PDF lands in
 `inbox/`, file it"); a folder listed in a `.gitignore` never starts one.

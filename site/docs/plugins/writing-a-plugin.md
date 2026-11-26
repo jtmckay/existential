@@ -83,8 +83,8 @@ version. Where it is installed is its `x-exist-project` key: `automation` (the d
 ## Changing it live, then committing
 
 On the host, edit the installed copy in `volumes/workspace_data/.decree/machines/my_job/`
-(`machine.yml`, `scripts/`) until a run does what you want, then write it back. Inside code-server those
-folders are read-only: from there a plugin is [offered, and accepted on the host](./offer-and-accept.md).
+(`machine.yml`, `scripts/`) until a run does what you want, then write it back. The same folders are
+writable in code-server, where `decree install <name>` reinstalls from the plugin file.
 
 ```bash
 ./existential.sh run plugin export my_job    # → automation/plugins/my_job.md
@@ -124,8 +124,8 @@ A machine nothing points at never runs.
 ### Cron — on a schedule
 
 The plugin's `cron:` installs with it. To run an installed machine on a schedule of your own,
-offer a plugin that holds only cron files, each naming the machine it runs, and
-[accept it](./offer-and-accept.md). No restart needed:
+write a plugin that holds only cron files, each naming the machine it runs, and
+[install it](./offer-and-accept.md). No restart needed:
 
 ```markdown
 ---

@@ -775,36 +775,6 @@ function main(): number {
     }
   }
 
-  // Offer and accept: decree's code in the workspace project is installed by the
-  // host alone. A container that mounts the workspace (or its .decree) writable
-  // must mount plugins/, machines/ and lib/ read-only over it, so nothing a
-  // container runs can create or change one (site/docs/plugins/offer-and-accept.md).
-  for (const cat of CATEGORY_DIRS) {
-    const catDir = path.join(REPO_ROOT, cat);
-    if (!fs.existsSync(catDir)) continue;
-    for (const slug of fs.readdirSync(catDir)) {
-      const file = path.join(catDir, slug, 'docker-compose.exist.yml');
-      if (!fs.existsSync(file)) continue;
-      let data: {services?: Record<string, {volumes?: unknown[]}>};
-      try { data = (yaml.load(fs.readFileSync(file, 'utf8')) ?? {}) as typeof data; } catch { continue; }
-      for (const [svc, def] of Object.entries(data.services ?? {})) {
-        const mounts = (def?.volumes ?? []).filter((v): v is string => typeof v === 'string').map(v => v.split(':'));
-        const readOnly = (m: string[]) => (m[2] ?? '').split(',').includes('ro');
-        for (const m of mounts) {
-          if (readOnly(m) || (m[0] !== 'workspace_data' && m[0] !== 'workspace_data/.decree')) continue;
-          const project = m[0] === 'workspace_data' ? `${m[1]}/.decree` : m[1];
-          for (const d of ['plugins', 'machines', 'lib']) {
-            const covered = mounts.some(o => o[0] === `workspace_data/.decree/${d}` && o[1] === `${project}/${d}` && readOnly(o));
-            if (!covered) {
-              errors.push(`${cat}/${slug}/docker-compose.exist.yml: ${svc} mounts ${m[0]} writable at ${m[1]} without ` +
-                `workspace_data/.decree/${d}:${project}/${d}:ro — decree's code is installed by the host alone`);
-            }
-          }
-        }
-      }
-    }
-  }
-
   // (14) README.md and the intro page each list what Core installs, under a
   // `## What Core installs` heading, as links to service pages. The services
   // those pages document must be exactly what .env.exist.shared ships on.

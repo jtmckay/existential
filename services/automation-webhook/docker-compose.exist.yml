@@ -5,7 +5,7 @@ services:
   # write nothing but inbox/; the `automation` daemon runs what it queues.
   automation-webhook:
     container_name: automation-webhook
-    # Bundles decree v0.6.0: keep it equal to decree/Dockerfile's DECREE_TAG.
+    # Bundles decree v0.6.0 (no 0.6.1 release): the newest decree-go-rest, not DECREE_TAG.
     image: ghcr.io/jtmckay/decree-go-rest:0.6.0
     user: "${EXIST_PUID:-1000}:${EXIST_PGID:-1000}"
     restart: unless-stopped

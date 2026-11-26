@@ -4,7 +4,7 @@ x-exist-project: automation
 needs:
   - plugin_request
 machine:
-  description: Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you accept it on the host (run plugin accept), or sends the list of its machines, which goes to your phone.
+  description: Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you move it into .decree/plugins/ and install it, or sends the list of its machines, which goes to your phone.
   data:
     from: {type: string, default: ""}
   initial: offer
@@ -19,8 +19,8 @@ scripts:
   offer.sh: |
     #!/usr/bin/env bash
     # The body is a plugin file. Once it reads as one, it is written to
-    # ai/proposed/<name>.md and you are told; nothing is installed until you accept it
-    # on the host (./existential.sh run plugin accept <name>).
+    # ai/proposed/<name>.md and you are told; nothing is installed until you move it
+    # into .decree/plugins/ and `decree install <name>`.
     # A list of machines (catalog: true) is only sent to your phone.
     set -euo pipefail
     # shellcheck source=../../lib/plugin.sh
@@ -58,4 +58,4 @@ x-exist-endpoints:
 ---
 # plugin_offer
 
-Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you accept it on the host (run plugin accept), or sends the list of its machines, which goes to your phone.
+Another stack offers a machine as a plugin file, which waits in ai/proposed/ until you move it into .decree/plugins/ and install it, or sends the list of its machines, which goes to your phone.

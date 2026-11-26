@@ -178,12 +178,14 @@ rm -f "${R}/.stub/decree"
 # A compose file rendered for decree 0.5 mounts scripts/ read-only, and 0.6's code is plugins/.
 for d in services/automation-backup nas/nextcloud; do
     sed 's#/\.decree/plugins:#/.decree/scripts:#; s#\./plugins:#./scripts:#; s#\.decree/plugins:#.decree/scripts:#' "${d}/docker-compose.exist.yml" > "${d}/docker-compose.yml"
+    echo "      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro" >> "${d}/docker-compose.yml"
 done
 es '_decree_code_mounts' >/dev/null
-assert_eq "an old rendered compose mounts plugins/ read-only" \
+assert_eq "an old rendered compose mounts its own plugins/ read-only, as the template does" \
     "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.exist.yml nas/nextcloud/docker-compose.exist.yml | cut -d: -f2 | xargs)" \
     "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | cut -d: -f2 | xargs)"
 assert_eq "...and keeps no scripts/ mount" "0" "$(cat services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | grep -c 'scripts:')"
+assert_eq "...and no read-only workspace .decree" "0" "$(cat services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | grep -c 'workspace_data/\.decree')"
 assert_eq "...and a second run changes nothing" "" "$(es '_decree_code_mounts')"
 rm -f services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml
 

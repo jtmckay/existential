@@ -13,14 +13,13 @@ A minute after you stop typing, your phone says: *When I write down a new busine
 can look up competitors; do a market analysis with TAM; say whether it's worth building. To
 have it built, move ai/proposed/business_idea_research.md into
 notes/automations/.* Move it, and a moment later: *Automation ready to review*, with where to
-read what was built and one command to run on the host:
+read what was built. Read it, then in code-server's terminal:
 
 ```bash
-./existential.sh run plugin accept business_idea_research
+mv ai/proposed/business_idea_research.md .decree/plugins/ && decree install business_idea_research
 ```
 
-It shows what the automation starts on and runs, and asks you. Nothing made in the workspace
-runs before that yes: [Offer and Accept](../plugins/offer-and-accept.md).
+Nothing `develop` builds runs before you move it: [Your Own Plugins](../plugins/offer-and-accept.md).
 
 After that, each business idea you write is researched. Your phone gets the verdict first:
 *favorable*, *unfavorable*, or *already done, by these people*. The full analysis, with sources,
@@ -50,7 +49,7 @@ Edit it in plain words before moving it. It stays the automation's desired state
 | A standing instruction | `automation_propose` | The model writes the spec, and you are told. Nothing is built. |
 | You say "build this" | `reconcile` | Moving the spec to `notes/automations/<name>.md` hands it to `develop`. |
 | It is built, as an offer | `develop` | The model reads the spec and answers with the trigger and the steps. `develop` writes them as one plugin file: a machine, its script, and the trigger as `when:` (a note event `note_watch` matches your notes against), `handlers:` (a file change) or `cron:` (a schedule). It must pass `decree check`, in a scratch copy, and the trigger's own rules (a file trigger never matches its own output). A failed check is shown to the model once more; a second failure reaches your phone like any failed run. The file goes to `ai/proposed/<name>.md`. **Nothing is installed.** |
-| You accept, on the host | `./existential.sh run plugin accept <name>` | You read the file, the command asks, and only then is it installed and on. |
+| You install it | `mv ai/proposed/<name>.md .decree/plugins/ && decree install <name>` | You read the file, and only then is it installed and on. |
 | It runs | `<name>` | Its trigger starts it. It writes its results to `ai/automations/<name>/<date>-<note>.md` and sends their first lines to ntfy. |
 
 ## Research on the web, with Firecrawl
@@ -89,11 +88,9 @@ into `notes/automations/` installs nothing.
 
 ## Changing or removing one
 
-- Edit the spec in `notes/automations/` and `develop` offers a new version to accept.
-- To turn one off: `./existential.sh run plugin off <name>`, on the host. Deleting the spec
+- Edit the spec in `notes/automations/` and `develop` offers a new version to install.
+- To turn one off: `rm .decree/plugins/<name>.md && decree install`. Deleting the spec
   removes nothing.
-- `.decree/machines/`, `scripts/` and `lib/` are read-only in the workspace; nothing there is
-  edited directly.
 
 ## What it can do, and what to read first
 

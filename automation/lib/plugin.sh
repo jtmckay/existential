@@ -27,30 +27,25 @@
 # One that extends an official plugin holds only what it changes (decree 0.6's
 # extends), and a needs: entry may be {<need>: <plugin>}, the plugin that meets it.
 #
-# One way in. The repo's automation/plugins/ is the one source, and plugin_sync,
-# run on the host by ./existential.sh, is the only thing that installs: every
-# container that mounts the workspace has .decree/plugins/, machines/ and lib/
-# read-only. A plugin made in the workspace (by develop from a note, by an agent,
-# by another stack) is an offer, a file in workspace/ai/proposed/. A person reads
-# it and accepts it on the host (./existential.sh run plugin accept <name>), which
-# puts it in automation/plugins/local/ (never in git), for the automation project
-# only. The plugin system itself (PLUGIN_KERNEL) is in every project it is tagged
-# for, whatever is on, and no accepted plugin can replace it. Run from the decree
-# project root.
+# The repo's automation/plugins/ is what plugin_sync, run on the host by
+# ./existential.sh, installs. In the workspace project (automation) a plugin file
+# of your own goes in .decree/plugins/ and `decree install <name>` installs it;
+# the sync leaves a file it did not write alone. backup and the host install only
+# the repo's. The plugin system itself (PLUGIN_KERNEL) is in every project it is
+# tagged for, whatever is on. Run from the decree project root.
 
 HANDLERS=".decree/handlers.yml"
 REST=".decree/decree-go-rest.yml"
 MANIFEST=".decree/plugins/.existential"   # the plugins the sync wrote, so it removes only its own
+YOURS=".decree/plugins/.yours"            # your own plugin files it saw, so a deleted one's handlers go
 
 # notify: every machine tells you things, and decree check fails an emits: that
 # names a machine the project lacks. skill: the decree skill in the workspace (automation only).
 PLUGIN_KERNEL=" notify skill "
 
-# plugin_src <dir> <name>: the plugin's file: a machine's, a flow's, or one you
-# accepted (local/, never in git; a shipped plugin by the same name wins).
+# plugin_src <dir> <name>: the plugin's file, a machine's or a flow's.
 plugin_src() {
-    if [[ -f "$1/$2.md" ]]; then echo "$1/$2.md"; elif [[ -f "$1/flows/$2.md" ]]; then echo "$1/flows/$2.md"
-    elif [[ -f "$1/local/$2.md" ]]; then echo "$1/local/$2.md"; else return 1; fi
+    if [[ -f "$1/$2.md" ]]; then echo "$1/$2.md"; elif [[ -f "$1/flows/$2.md" ]]; then echo "$1/flows/$2.md"; else return 1; fi
 }
 
 plugin_is() {  # <file>: true when it is a plugin, not a spec: it carries a machine or cron files, or extends one
@@ -96,8 +91,6 @@ plugin_wanted() {
         if [[ "$n" == decree_* ]]; then echo "$n"; continue; fi   # decree's own: never one of ours
         src="$(plugin_src "$dir" "$n")" || { echo "plugin: no plugin ${n} in ${dir}" >&2; continue; }
         [[ "$project" == none ]] || plugin_tags "$src" | grep -qxF "$project" || continue
-        # One you accepted from the workspace runs in the automation project and nowhere else.
-        [[ "$src" != */local/* || "$project" == automation || "$project" == none ]] || continue
         echo "$n"
         while IFS= read -r f; do [[ -n "$f" ]] && queue+=("$f"); done < <(plugin_needs "$src")
     done
@@ -126,7 +119,7 @@ plugin_write() {
 # goes; a plugin file the sync did not write (an official one you added) stays.
 # Then what decree does not install: x-exist-lib, handlers, endpoints.
 plugin_sync() {
-    local dir="$1" project="$2" wanted n dn src auto rc=0 when="" old check
+    local dir="$1" project="$2" wanted n dn src auto rc=0 when="" old check f mine=""
     shift 2
     plugin_convert_05 "$dir"
     wanted="$(plugin_wanted "$dir" "$project" "$@" | xargs)"
@@ -138,7 +131,18 @@ plugin_sync() {
         src="$(plugin_src "$dir" "$n")" || continue
         [[ -n "$(yq --front-matter=extract -r '.["x-exist-when"] // ""' "$src")" ]] && when+="${n} "
     done
-    plugin_extras_clear
+    # Your own plugin files in the workspace project, installed by `decree install`:
+    # never written or removed here, only given what decree does not install.
+    if [[ "$project" == automation ]]; then
+        for f in .decree/plugins/*.md; do
+            [[ -f "$f" ]] || continue; n="$(basename "$f" .md)"
+            [[ "$n" == decree_* || "$n" == flow_* || "$old" == *" ${n} "* ]] && continue
+            plugin_src "$dir" "$n" >/dev/null && continue
+            mine+="${n} "
+            [[ -n "$(yq --front-matter=extract -r '.["x-exist-when"] // ""' "$f")" ]] && when+="${n} "
+        done
+    fi
+    plugin_extras_clear "$mine"
     : > "${MANIFEST}.new"
     for n in $wanted; do
         [[ "$n" == decree_* ]] && continue                        # official: decree adds it as a need
@@ -162,6 +166,12 @@ plugin_sync() {
     ! ls .decree/cron/*.md >/dev/null 2>&1 ||
         echo "plugin: .decree/cron/ is not read (decree 0.6): a schedule of yours is a plugin with only cron: files, offered and accepted"
     plugin_extras "$dir" "$wanted"
+    [[ -z "$mine" ]] || plugin_extras .decree/plugins "$mine"
+    # One of yours whose file you deleted: its handlers go too.
+    for n in $(cat "$YOURS" 2>/dev/null || true); do
+        [[ " $mine " == *" ${n} "* || ! -f "$HANDLERS" ]] || n="$n" yq -i 'del(.[] | select(.machine == strenv(n)))' "$HANDLERS"
+    done
+    if [[ "$project" == automation ]]; then printf '%s\n' $mine > "$YOURS"; fi
     plugin_order_record
     if ! check="$(decree check --no-color 2>&1)"; then
         echo "plugin: decree check fails after the sync:" >&2; printf '%s\n' "$check" | grep -v '^warning' | head -20 >&2; rc=1
@@ -197,13 +207,15 @@ plugin_state_links() {  # <project>
 
 # Before the sync writes plugins/: what each plugin it wrote last time added
 # beside decree's files goes (its lib, the handlers and endpoints it declares),
-# read from its plugin file, which is still there. A handler or endpoint of
-# yours, or seeded from an example, is not a plugin's and stays.
-plugin_extras_clear() {
+# read from its plugin file, which is still there; and the same for each of your
+# own plugin files named. A handler or endpoint of yours, or seeded from an
+# example, is not a plugin's and stays.
+plugin_extras_clear() {  # [your plugins]
     local f k libs=".decree/lib/.plugins"
     if [[ -f "$libs" ]]; then while IFS= read -r k; do [[ -n "$k" ]] && rm -f ".decree/lib/${k}"; done < "$libs"; fi
     : > "$libs"
-    for k in $( { cat "$MANIFEST" 2>/dev/null || true; } ); do
+    # shellcheck disable=SC2086  # names, split on purpose
+    for k in $( { cat "$MANIFEST" 2>/dev/null || true; } ) ${1:-}; do
         f=".decree/plugins/${k}.md"; [[ -f "$f" ]] || continue
         if [[ -f "$HANDLERS" ]]; then
             yq --front-matter=extract '[.["x-exist-handlers"][]? | .match]' "$f" > "${TMPDIR:-/tmp}/exist-match.yml"
@@ -301,8 +313,9 @@ plugin_convert_05() {  # <dir>
     echo "plugin: decree 0.5's installed copies are replaced; what is left of them is in ${keep}/"
 }
 
+
 # plugin_try <file>: install one plugin file into a scratch copy of this project
-# and decree check it, as an accept would; why not, on stderr. Nothing here changes.
+# and decree check it; why not, on stderr. Nothing here changes.
 plugin_try() {
     local work out
     work="$(mktemp -d)"; mkdir -p "${work}/.decree"
@@ -314,13 +327,10 @@ plugin_try() {
     rm -rf "$work"
 }
 
-# plugin_offered <name>: what a person is told about an offer in
-# workspace/ai/proposed/: where to read it, and the one command, on the host, that
-# installs it. Nothing in a container can.
+# plugin_offered <name>: what a person is told about a plugin file in
+# workspace/ai/proposed/: read it, then install it from the workspace.
 plugin_offered() {
-    local at="workspace/ai/proposed/$1.md"
-    [[ -z "${EXIST_TAILNET_NAME:-}" ]] || at="ai/proposed/$1.md, in https://${EXIST_TAILNET_NAME}"
-    printf 'Read it first: its scripts would run with this stack'"'"'s credentials.\n  %s\nThen, on the host:\n  ./existential.sh run plugin accept %s\n' "$at" "$1"
+    printf 'Read it first: its scripts would run with this stack'"'"'s credentials. To install it:\n  mv ai/proposed/%s.md .decree/plugins/ && decree install %s\n' "$1" "$1"
 }
 
 # plugin_unpack <name>... <project root>: the repo's plugins, and all they need,

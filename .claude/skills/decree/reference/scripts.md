@@ -103,8 +103,9 @@ EOF
 ## Run-directory files
 
 Scripts hand work to one another, and to a person, through files in `$DECREE_ROOT_RUN_DIR`
-(the run's own folder, or in a child run the top run's, so a child machine whose steps are
-decree_develop's scripts shares them). decree reads none of them but `hold`, and quotes `STOP` and
+(the run's own folder, or in a child run of a `machine` invoke its root run's, so a child
+machine whose steps are decree_develop's scripts shares them; an emitted message and an
+order file's run each start their own work and have their own). decree reads none of them but `hold`, and quotes `STOP` and
 `leftovers` in the run's attention file; the official `decree_develop` plugin's scripts follow this convention:
 
 - `progress.md`: the step log, one line per step, what is done and what is next. A retry
@@ -149,7 +150,7 @@ decree_develop's scripts shares them). decree reads none of them but `hold`, and
 | `DECREE_EVENT_FILE` | For an invoke: the file to write its event to. Empty for other scripts. |
 | `DECREE_PARENT` | In a child run, the parent run's id. |
 | `DECREE_PARENT_RUN_DIR` | In a child run, the parent run's folder; empty otherwise. Reach the task's files from here, never by building `runs/$DECREE_PARENT`. |
-| `DECREE_ROOT_RUN_DIR` | The folder of the run at the top of the chain (no parent); `DECREE_RUN_DIR` in a top-level run. |
+| `DECREE_ROOT_RUN_DIR` | The root run's folder: a `machine` invoke's child shares its parent's; a top-level run, an emitted message and an order file's run are their own root (`DECREE_RUN_DIR`). |
 | `DECREE_REQUEST`, `DECREE_REPLY` | In a router run: the request JSON to read and the reply JSON to write. |
 | `DECREE_WAIT_ID`, `DECREE_QUESTION`, `DECREE_CHOICES` | For a `reply` state's `notify` script: the wait id, the question, and a JSON file of options and descriptions. |
 | `DECREE_RECEIVED` | The last reply this run received (`runs/<id>/received/<file>`), or empty. |

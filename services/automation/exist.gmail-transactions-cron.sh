@@ -3,7 +3,8 @@
 #
 # Walks through selecting a Gmail label, a parse script, and an Actual Budget
 # account, then offers gmail_transactions (ai/proposed/), your schedules, with
-# a cron file for that label: ./existential.sh run plugin accept installs it.
+# a cron file for that label: moving it into .decree/plugins/ and
+# `decree install gmail_transactions` installs it.
 #
 # Run via: ./existential.sh run automation gmail-transactions-cron
 # Requires: `./existential.sh run automation gmail-sync` + `./existential.sh run
@@ -19,7 +20,7 @@ SECRETS_DIR="${SECRETS_DIR:-/secrets}"
 LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
 OFFER="/repo/volumes/workspace_data/ai/proposed/gmail_transactions.md"
-ACCEPTED="/repo/automation/plugins/local/gmail_transactions.md"
+ACCEPTED="/repo/volumes/workspace_data/.decree/plugins/gmail_transactions.md"
 # Installed by the actual_budget_parse plugin (the budget flow), with any parser of yours beside it.
 PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/volumes/workspace_data/.decree/lib/actual-budget}"
 DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
@@ -124,8 +125,8 @@ CRON_SCHEDULE="${INPUT_CRON:-*/5 * * * *}"
 # ── Offer the schedule ────────────────────────────────────────────────────────
 #
 # Your schedules are one plugin of yours, gmail_transactions: one cron file per
-# label. This adds this label's to it (starting from the one you accepted) and
-# offers it in ai/proposed/; accepting it is what installs it.
+# label. This adds this label's to it (starting from the one installed) and
+# offers it in ai/proposed/; moving it into .decree/plugins/ installs it.
 
 if [ -f "$OFFER" ]; then :
 elif [ -f "$ACCEPTED" ]; then cp "$ACCEPTED" "$OFFER"
@@ -182,4 +183,5 @@ echo "  Label:   ${GMAIL_LABEL}"
 echo "  Parser:  ${PARSE_SCRIPT_NAME}"
 echo "  Account: ${ACCOUNT_NAME}"
 echo ""
-echo "  Read it, then on the host: ./existential.sh run plugin accept gmail_transactions"
+echo "  Read it, then in code-server's terminal, in /workspace:"
+echo "    mv ai/proposed/gmail_transactions.md .decree/plugins/ && decree install gmail_transactions"

@@ -32,7 +32,7 @@ You need [decree](https://github.com/jtmckay/decree) on the host (the version
 `services/automation/decree/Dockerfile` pins), and `tmux`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.0
+curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.1
 ```
 
 `./existential.sh` prints this line with the version it pins. It installs to `~/.local/bin`. If `decree --version` isn't found, that folder isn't on your

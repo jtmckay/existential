@@ -119,9 +119,8 @@ scripts:
     git init -q "$DECREE_RUN_DIR/git"
     {
         echo '- .git/**'
-        # decree's code is installed by the host alone: no other copy of the
-        # workspace ever brings a plugin, a machine or lib in (they are read-only
-        # here too), and none is sent out.
+        # decree's code is installed with `decree install`: no other copy of the
+        # workspace ever brings a plugin, a machine or lib in, and none is sent out.
         printf -- '- /.decree/%s/**\n' plugins machines lib
         git --git-dir="$DECREE_RUN_DIR/git/.git" --work-tree="$WORKSPACE" -C "$WORKSPACE" \
             ls-files -z --others --ignored --exclude-standard --directory \

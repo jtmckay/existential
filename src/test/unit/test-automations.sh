@@ -13,18 +13,14 @@
 #   web       web_search and web_read return Firecrawl's pages as Markdown
 #   develop   builds ONE PLUGIN FILE in ai/proposed/ (machine, script, and its
 #             trigger as when:, handlers: or cron:), installs nothing, and tells
-#             you where to read it and the host command that accepts it; a
+#             you where to read it and how to install it; a
 #             failed gate offers nothing and keeps its errors for the next attempt
 #   claude    signed in, develop builds with Claude and may use agent
-#   accepted  the offer, installed as the host does (the sync writes it to
-#             plugins/, decree installs it): script, note_watch, handler, cron;
+#   accepted  the offer, moved into .decree/plugins/ and installed (decree
+#             installs it, the sync wires its trigger): script, note_watch, handler, cron;
 #             and decree exports it with its trigger
 #   trigger   a later note the model matches starts it, and only an installed one
 #   edit      a changed spec is offered again; remove: deleting it removes nothing
-#   accept    ./existential.sh run plugin accept: says what it would run, needs a
-#             terminal and a yes, forces x-exist-project: automation, keeps it in
-#             automation/plugins/local/, never in another project, and refuses a
-#             name the repo or decree ships, a spec, and an endpoint for another machine
 #   share     an installed plugin is sent as its file; one another stack offers
 #             waits in ai/proposed/; lists and requests between stacks
 #   sync      the repo's plugins dir: a project's plugins/ is what is on and what
@@ -179,12 +175,12 @@ mv "$PROPOSAL" "$W/notes/automations/${NAME}.md"
 assert_eq "moving the spec into notes/automations/ reconciles" "0" "$(run "$(plugin_script reconcile)" DECREE_DATA_PATH="notes/automations/${NAME}.md" DECREE_DATA_CHANGE=created)"
 assert_has "...which hands it to develop" "$(emits)" "--machine develop --param automation=${NAME}"
 assert_has "...with the spec as written" "$(cat "${TMP}"/emits/* 2>/dev/null)" "## Acceptance Criteria"
-assert_has "you are told it is being built, and that nothing runs yet" "$(cat "${TMP}"/emits/* 2>/dev/null)" "Nothing runs until you accept it on the host"
+assert_has "you are told it is being built, and that nothing runs yet" "$(cat "${TMP}"/emits/* 2>/dev/null)" "Nothing runs until you install it."
 assert_eq "...and nothing is filed or installed" "no" "$([[ -e "$W/.decree/migrations" && -n "$(ls "$W/.decree/migrations" 2>/dev/null)" ]] && echo yes || echo no)"
 reset_emits
 cp "${REPO_DIR}/automation/plugins/gpu_lease.md" "$W/notes/automations/gpu_lease.md"
 assert_eq "a plugin file moved there reconciles" "0" "$(run "$(plugin_script reconcile)" DECREE_DATA_PATH=notes/automations/gpu_lease.md DECREE_DATA_CHANGE=created)"
-assert_has "...and installs nothing: you are sent to the host" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin accept gpu_lease"
+assert_has "...and installs nothing: you are told how" "$(cat "${TMP}"/emits/* 2>/dev/null)" "Move it into .decree/plugins/ and run: decree install gpu_lease"
 assert_lacks "...and develop is not asked" "$(emits)" "--machine develop"
 rm -f "$W/notes/automations/gpu_lease.md"
 
@@ -231,8 +227,7 @@ assert_eq "...whose note trigger is its x-exist-when" "a new business idea" "$(i
 assert_eq "...and which needs develop, whose frame it runs in" "develop" "$(in_offer $NAME '.needs | join(" ")')"
 assert_eq "NOTHING is installed: machines/ and plugins/ are as they were" "$before" "$(cd "$W/.decree" && find machines plugins -type f | sort | xargs cksum)"
 assert_has "you are told it is ready to review" "$(emits)" "ntfy_title=Automation ready to review"
-assert_has "...where to read it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "ai/proposed/${NAME}.md, in https://box.ts.net"
-assert_has "...and the one command, on the host, that accepts it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin accept ${NAME}"
+assert_has "...and how to install it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "mv ai/proposed/${NAME}.md .decree/plugins/ && decree install ${NAME}"
 
 # A file trigger and a cron trigger, each on a scratch name.
 printf 'TRIGGER: {"kind": "file", "match": "inbox/*.pdf", "changes": ["created"], "quiet": 10}\nsteps() { echo "## Filed"; }\n' > "${TMP}/build-reply"
@@ -294,18 +289,15 @@ assert_lacks "...and the chat model was not offered agent" "$(cat "${TMP}/build-
 rm -f "${TMP}/run/gate.err"
 
 echo ""; echo "=== accepted ==="
-# Installed by the host: accept keeps the offer in automation/plugins/local/ and
-# turns it on, the sync writes it to plugins/, and decree installs it (the accept
-# command's own checks are in the accept section).
-PD0="${TMP}/repo-plugins"; mkdir -p "$PD0"; cp -r "${REPO_DIR}/automation/plugins/." "$PD0/"; rm -rf "${PD0}/local"; mkdir -p "${PD0}/local"
+# Installed in the workspace: the offer moved into .decree/plugins/ and `decree
+# install`ed; the sync (the host's next ./existential.sh) wires its trigger.
 printf 'on: [note_watch, automation_propose, reconcile, develop, plugin_share, plugin_offer, plugin_request]\n' > "${TMP}/plugins.yml"
-host_install() {  # <name>: what accept does once you say yes (run in $(), so the list is a file)
-    cp "$(offer "$1")" "${PD0}/local/$1.md"
-    n="$1" yq -i '.on += [strenv(n)]' "${TMP}/plugins.yml"
-    ( cd "$W" && PLUGINS_ON="${TMP}/plugins.yml" bash -c 'source "$1"; plugin_sync "$2" automation' _ \
-        "${REPO_DIR}/automation/lib/plugin.sh" "$PD0" ) > "${TMP}/last.log" 2>&1; echo $?
+host_install() {  # <name>: mv + decree install, then the sync (run in $(), so the list is a file)
+    mv "$(offer "$1")" "$W/.decree/plugins/$1.md"
+    ( cd "$W" && decree install --no-color "$1" && PLUGINS_ON="${TMP}/plugins.yml" bash -c 'source "$1"; plugin_sync "$2" automation' _ \
+        "${REPO_DIR}/automation/lib/plugin.sh" "${REPO_DIR}/automation/plugins" ) > "${TMP}/last.log" 2>&1; echo $?
 }
-assert_eq "the host installs the offer" "0" "$(host_install $NAME)"
+assert_eq "the offer installs" "0" "$(host_install $NAME)"
 assert_eq "...its script in machines/<name>/scripts/, executable" "yes" "$([[ -x "$W/.decree/machines/${NAME}/scripts/${NAME}.sh" ]] && echo yes || echo no)"
 assert_eq "...from its plugin file, which keeps its note trigger" "a new business idea" "$(yq --front-matter=extract -r '.["x-exist-when"]' "$W/.decree/plugins/${NAME}.md")"
 assert_has "...and note_watch may start it" "$(yq -r '.states.watch.emits | join(" ")' "$W/.decree/machines/note_watch/machine.yml")" "$NAME"
@@ -349,58 +341,9 @@ echo ""; echo "=== remove ==="
 reset_emits
 rm "$SPEC"
 assert_eq "deleting the spec reconciles" "0" "$(run "$(plugin_script reconcile)" DECREE_DATA_PATH="notes/automations/${NAME}.md" DECREE_DATA_CHANGE=deleted)"
-assert_eq "...and removes nothing: only the host does" "yes" "$([[ -e "$W/.decree/machines/${NAME}/machine.yml" ]] && echo yes || echo no)"
-assert_has "...you are told how to turn it off there" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin off ${NAME}"
+assert_eq "...and removes nothing" "yes" "$([[ -e "$W/.decree/machines/${NAME}/machine.yml" ]] && echo yes || echo no)"
+assert_has "...you are told how to turn it off" "$(cat "${TMP}"/emits/* 2>/dev/null)" "rm .decree/plugins/${NAME}.md && decree install"
 
-echo ""; echo "=== accept ==="
-# The host's command, against a scratch checkout. Saying yes takes a terminal
-# (script(1) gives it one); without one, nothing is ever installed.
-A="${TMP}/checkout"; AW="${A}/volumes/workspace_data"
-mkdir -p "${A}/automation" "${A}/src/lib" "${A}/src/utils" "${AW}/.decree" "${AW}/ai/proposed"
-cp -r "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${A}/automation/"; rm -rf "${A}/automation/plugins/local"
-cp "${REPO_DIR}/automation/plugins.exist.yml" "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${A}/automation/"
-cp "${REPO_DIR}/src/lib/plugin.sh" "${A}/src/lib/"; cp "${REPO_DIR}/src/utils/flows.sh" "${A}/src/utils/"
-cp "${A}/automation/decree-go-rest.exist.yml" "${AW}/.decree/decree-go-rest.yml"
-plug() { env REPO_DIR="$A" bash "${A}/src/lib/plugin.sh" "$@" 2>&1; }
-say_yes() { env REPO_DIR="$A" script -qec "bash '${A}/src/lib/plugin.sh' accept $1" /dev/null <<<"${2:-y}" 2>&1; }
-plug sync automation >/dev/null
-cp "$(offer pdf_filer)" "${AW}/ai/proposed/pdf_filer.md"
-yq --front-matter=process -i '.["x-exist-project"] = "host"' "${AW}/ai/proposed/pdf_filer.md"     # an offer that asks for the host
-assert_has "offers lists what waits" "$(plug offers)" "pdf_filer"
-out="$(plug accept pdf_filer </dev/null)"
-assert_has "accept says what it would run" "$out" "when inbox/*.pdf changes"
-assert_has "...and, without a terminal, installs nothing" "$out" "needs a terminal"
-assert_eq "...nothing at all" "no" "$([[ -e "${A}/automation/plugins/local/pdf_filer.md" || -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
-if command -v script >/dev/null 2>&1; then
-    assert_has "a no installs nothing" "$(say_yes pdf_filer n)" "Not installed"
-    assert_eq "...nothing at all" "no" "$([[ -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
-    assert_has "a yes at a terminal installs it" "$(say_yes pdf_filer)" "pdf_filer is installed and on"
-    assert_eq "...into the workspace project" "yes" "$([[ -e "${AW}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
-    assert_eq "...kept in automation/plugins/local/, for the automation project whatever it asked for" "automation" "$(yq --front-matter=extract -r '.["x-exist-project"]' "${A}/automation/plugins/local/pdf_filer.md")"
-    assert_has "...and on" "$(yq -r '.on | join(" ")' "${A}/automation/plugins.yml")" "pdf_filer"
-    assert_eq "...the offer gone from ai/proposed/" "no" "$([[ -e "${AW}/ai/proposed/pdf_filer.md" ]] && echo yes || echo no)"
-    plug sync host >/dev/null
-    assert_eq "...and never in the host's project" "no" "$([[ -e "${A}/.decree/machines/pdf_filer/machine.yml" ]] && echo yes || echo no)"
-    cp "${REPO_DIR}/automation/plugins/notify.md" "${AW}/ai/proposed/notify.md"
-    assert_has "a name the repo ships is refused" "$(say_yes notify)" "nothing from the workspace replaces"
-    cp "${REPO_DIR}/automation/plugins/pull_existential.md" "${AW}/ai/proposed/pull_existential.md"
-    assert_has "...a host plugin's too" "$(say_yes pull_existential)" "nothing from the workspace replaces"
-    sed 's/^name: gpu_lease$/name: decree_order/' "${REPO_DIR}/automation/plugins/gpu_lease.md" > "${AW}/ai/proposed/decree_order.md"
-    assert_has "...and one of decree's" "$(say_yes decree_order)" "nothing from the workspace replaces"
-    sed 's/^name: gpu_lease$/name: sneaky_plugin/' "${REPO_DIR}/automation/plugins/gpu_lease.md" | sed 's/^      machine: gpu_lease$/      machine: develop/' > "${AW}/ai/proposed/sneaky_plugin.md"
-    out="$(say_yes sneaky_plugin)"
-    assert_has "an endpoint that reaches another machine does not install" "$out" "must emit to sneaky_plugin"
-    assert_eq "...and is not kept" "no" "$([[ -e "${A}/automation/plugins/local/sneaky_plugin.md" || -e "${AW}/.decree/machines/sneaky_plugin/machine.yml" ]] && echo yes || echo no)"
-    printf -- '---\nname: my_schedules\nneeds: [notify]\ncron:\n  ping.md: |\n    ---\n    cron: "0 9 * * *"\n    machine: notify\n    ---\n---\n# my_schedules\n' > "${AW}/ai/proposed/my_schedules.md"
-    assert_has "your schedules are a plugin of cron files only, accepted like any other" "$(say_yes my_schedules)" "my_schedules is installed and on"
-    assert_eq "...into its machine folder, where decree reads them" "notify" "$(yq --front-matter=extract -r .machine "${AW}/.decree/machines/my_schedules/cron/ping.md" 2>/dev/null)"
-    sed 's/0 9 \* \* \*/30 9 * * */' "${A}/automation/plugins/local/my_schedules.md" > "${AW}/ai/proposed/my_schedules.md"; say_yes my_schedules >/dev/null
-    assert_eq "...and accepting a new schedule puts it in, not only the first" "30 9 * * *" "$(yq --front-matter=extract -r .cron "${AW}/.decree/machines/my_schedules/cron/ping.md" 2>/dev/null)"
-else
-    echo "  (no script(1) here: the yes path is not run)"
-fi
-printf -- '---\nmachine: develop\nautomation: some_spec\n---\n# x\n' > "${AW}/ai/proposed/some_spec.md"
-assert_has "a spec is not a plugin: it is built first" "$(plug accept some_spec </dev/null)" "move it into notes/automations/"
 
 echo ""; echo "=== share ==="
 # Plugins move between stacks as files: an installed one is sent as the file it
@@ -424,7 +367,7 @@ rm -f "$W/ai/proposed/${PLUGIN}.md"; reset_emits
 assert_eq "an offered plugin file is taken" "0" "$(run "${TMP}/offer.sh" DECREE_MESSAGE="${TMP}/offer-msg.md" DECREE_DATA_FROM=garage-box)"
 assert_eq "...into ai/proposed/, as sent" "$(shape "${TMP}/exported.md")" "$(shape "$W/ai/proposed/${PLUGIN}.md" 2>/dev/null)"
 assert_has "...and you are told it would replace yours" "$(cat "${TMP}"/emits/* 2>/dev/null)" "garage-box offers the machine ${PLUGIN}. It would replace the ${PLUGIN} you have."
-assert_has "...and how to accept it, on the host" "$(cat "${TMP}"/emits/* 2>/dev/null)" "./existential.sh run plugin accept ${PLUGIN}"
+assert_has "...and how to install it" "$(cat "${TMP}"/emits/* 2>/dev/null)" "mv ai/proposed/${PLUGIN}.md .decree/plugins/ && decree install ${PLUGIN}"
 printf -- '---\nmachine: plugin_offer\n---\n\nsomething else entirely\n' > "${TMP}/offer-junk.md"
 assert_eq "an offer that is not a plugin file fails" "1" "$(run "${TMP}/offer.sh" DECREE_MESSAGE="${TMP}/offer-junk.md" DECREE_DATA_FROM=garage-box)"
 rm -f "$W/ai/proposed/"*.md

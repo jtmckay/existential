@@ -101,7 +101,7 @@ check "an edited schedule is kept (decree installs a plugin's cron files once)" 
 check "skill writes decree's skill to the workspace root, not this project's" "grep -qxF '/workspace/.claude/skills/decree' '${P}/machines/skill/scripts/dirs'"
 
 # gpu_lease is decree's decree_lease with this stack's rules and swap, which run from
-# the installed copy with machines/ read-only, as in the automation container; a
+# the installed copy with its scripts read-only (decree installs code that way); a
 # client's release reaches a gpu_lease run and nothing else.
 G="${TMP}/gl"; mkdir -p "${G}"
 ( cd "${G}" && git init -q && source "${REPO_DIR}/automation/lib/plugin.sh" && plugin_unpack gpu_lease "${G}" ) >/dev/null 2>&1

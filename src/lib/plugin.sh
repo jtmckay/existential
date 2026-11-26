@@ -6,15 +6,10 @@
 #   ./existential.sh run plugin on|off <name>
 #   ./existential.sh run plugin sync [project] [name...]
 #   ./existential.sh run plugin export <name>
-#   ./existential.sh run plugin offers            what waits in workspace/ai/proposed/
-#   ./existential.sh run plugin accept <name>     read one, say yes, and it is installed
 #
-# accept is the only way anything made in the workspace becomes a machine: every
-# container that mounts the workspace has .decree/plugins/, machines/ and lib/
-# read-only, so develop, an agent in code-server or another stack can only offer
-# a plugin file (workspace/ai/proposed/<name>.md). A person reads it and accepts
-# it here, on the host, at a terminal. It is kept in automation/plugins/local/
-# (never in git), for the automation project alone.
+# A machine of your own is not here: write it as a plugin file in
+# workspace/.decree/plugins/<name>.md and `decree install <name>` there. The sync
+# leaves a plugin file it did not write alone.
 #
 # automation/plugins.yml is the one record of what is on, written from
 # automation/plugins.exist.yml the first time. A plugin's x-exist-project says
@@ -132,7 +127,7 @@ case "$cmd" in
     list)
         seed
         on=" $(plugins_on | tr '\n' ' ') "
-        for f in "$PLUGINS"/*.md "$PLUGINS"/flows/*.md "$PLUGINS"/local/*.md; do
+        for f in "$PLUGINS"/*.md "$PLUGINS"/flows/*.md; do
             [[ -f "$f" ]] || continue
             n="$(basename "$f" .md)"
             mark="  "; [[ "$on" == *" ${n} "* ]] && mark="on"
@@ -167,69 +162,7 @@ case "$cmd" in
         fi
         mv "$out" "$dst"; chmod 644 "$dst"
         echo "Wrote ${dst#"${REPO_DIR}/"} from the ${p} project — commit it, and every install that has it on gets it on its next pull." ;;
-    offers)
-        d="${REPO_DIR}/${FLOWS_DECREE%/.decree}/ai/proposed"; any=false
-        for f in "$d"/*.md; do
-            [[ -f "$f" ]] || continue; any=true; n="$(basename "$f" .md)"
-            if plugin_is "$f"; then printf '  %-28s %s\n' "$n" "$(yq --front-matter=extract -r '.machine.description // ""' "$f" | cut -c1-90)"
-            else printf '  %-28s %s\n' "$n" "a spec, not built yet: move it into notes/automations/ to have it built"; fi
-        done
-        if $any; then echo ""; echo "Read one in workspace/ai/proposed/, then:  ./existential.sh run plugin accept <name>"
-        else echo "  Nothing is offered."; fi ;;
-    accept)
-        [[ -n "${1:-}" ]] || { echo "usage: plugin accept <name>   (./existential.sh run plugin offers lists them)" >&2; exit 2; }
-        n="$1"; f="${REPO_DIR}/${FLOWS_DECREE%/.decree}/ai/proposed/${n}.md"
-        die() { echo "plugin: $*" >&2; exit 1; }
-        [[ "$n" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || die "'${n}' is not a machine name"
-        [[ -f "$f" ]] || die "nothing is offered as workspace/ai/proposed/${n}.md"
-        plugin_is "$f" || die "${n} is a spec, not a plugin: move it into notes/automations/ and develop builds it for review"
-        [[ "$(yq --front-matter=extract -r '.name // ""' "$f")" == "$n" ]] || die "the file says 'name: $(yq --front-matter=extract -r '.name // ""' "$f")', not ${n}"
-        [[ ! -f "${PLUGINS}/${n}.md" && ! -f "${PLUGINS}/flows/${n}.md" && "$PLUGIN_KERNEL" != *" ${n} "* ]] &&
-            [[ "$n" != decree_* ]] || die "${n} is a plugin the repo or decree ships, which nothing from the workspace replaces"
-        # An endpoint answers one machine, its own: one that emits elsewhere would let a
-        # POST start any machine here.
-        while IFS=$'\t' read -r k m; do
-            [[ -n "$k$m" ]] || continue
-            [[ "$m" == "$n" ]] || die "its endpoint ${k} must emit to ${n}, not '${m}'"
-        done < <(yq --front-matter=extract -r '.["x-exist-endpoints"][]? | [.path // "", (.action // "emit") as $a | (select($a == "emit") | .message.machine // "") // ("an " + $a + " action")] | @tsv' "$f")
-        for k in $(plugin_needs "$f"); do
-            [[ "$k" == decree_* ]] || plugin_src "$PLUGINS" "$k" >/dev/null || die "it needs ${k}, which is no plugin here"
-            plugin_src "$PLUGINS" "$k" >/dev/null && ! plugin_in automation "$k" && die "it needs ${k}, which the automation project does not run"
-        done
-        echo ""
-        echo "  ${n}: $(yq --front-matter=extract -r '.machine.description // ("decree'"'"'s " + .extends + ", with what this file changes")' "$f")"
-        yq --front-matter=extract -r '
-            "  starts     " + ([(.["x-exist-when"] | select(.) | "on a note that is: " + .), (.["x-exist-handlers"][]? | "when " + .match + " changes"),
-                               (.cron // {} | keys | .[] | "cron " + .), (.["x-exist-endpoints"][]? | "POST " + .path)] | join("; ") | select(. != "") // "only when something emits to it"),
-            "  extends    " + (.extends // "nothing"),
-            "  needs      " + ((.needs // []) | map(select(tag == "!!map") |= (to_entries | .[0] | .key + " met by " + .value)) | join(", ") | select(. != "") // "nothing"),
-            "  scripts    " + ((.scripts // {}) | to_entries | map(.key + " (" + (.value | split("\n") | length | tostring) + " lines)") | join(", ")),
-            "  lib        " + ((.["x-exist-lib"] // {}) | keys | join(", ") | select(. != "") // "none"),
-            "  order      " + ((.order // {}) | keys | join(", ") | select(. != "") // "none")' "$f"
-        echo "  the file   workspace/ai/proposed/${n}.md"
-        if [[ -f "${PLUGINS}/local/${n}.md" ]]; then
-            echo ""; echo "  You accepted a ${n} before. What changes:"
-            diff "${PLUGINS}/local/${n}.md" "$f" | sed 's/^/    /' | head -60 || true
-        fi
-        echo ""
-        echo "  Its scripts run in the automation container, with that container's credentials."
-        # A person, at a terminal: there is no flag that says yes for you.
-        [[ -t 0 ]] || die "accept is a person's review, so it needs a terminal. Run it on the host yourself."
-        read -r -p "  Have you read it, and should it be installed? [y/N] " reply || reply=""
-        [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]] || { echo "  Not installed."; exit 0; }
-        mkdir -p "${PLUGINS}/local"
-        cp "$f" "${PLUGINS}/local/${n}.md"; chmod 644 "${PLUGINS}/local/${n}.md"
-        yq --front-matter=process -i '.["x-exist-project"] = "automation"' "${PLUGINS}/local/${n}.md"
-        seed; plugins_turn on "$n"
-        # --cron: what you just read is what runs, its cron files too (a sync installs those once).
-        if ( sync_project automation && decree install --cron --no-color "$n" >/dev/null ); then
-            rm -f "$f"
-            echo "  ${n} is installed and on. Off again:  ./existential.sh run plugin off ${n}"
-        else
-            plugins_turn off "$n"; rm -f "${PLUGINS}/local/${n}.md"; ( sync_project automation ) >/dev/null 2>&1 || true
-            die "${n} did not install (above), so it is not kept. The offer is still in workspace/ai/proposed/."
-        fi ;;
     seed)
         seed ;;
-    *) echo "usage: plugin [list|on|off|sync|export|offers|accept|seed] ..." >&2; exit 2 ;;
+    *) echo "usage: plugin [list|on|off|sync|export|seed] ..." >&2; exit 2 ;;
 esac

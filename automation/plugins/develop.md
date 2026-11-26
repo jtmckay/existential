@@ -6,7 +6,7 @@ needs:
   - firecrawl
   - model
 machine:
-  description: Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file - the machine, its script and its trigger - checked by decree check, and offer it in ai/proposed/ for you to read and accept on the host. It installs nothing.
+  description: Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file - the machine, its script and its trigger - checked by decree check, and offer it in ai/proposed/ for you to read and install. It installs nothing.
   data:
     # From the migration's frontmatter, which automation_propose writes.
     automation: {type: string, default: ""}
@@ -35,10 +35,9 @@ scripts:
     #   the trigger      note: `x-exist-when:`, which note_watch matches notes against
     #                    file: an `x-exist-handlers:` entry
     #                    cron: a `cron:` file
-    # Nothing is installed here, and nothing here can be: plugins/, machines/ and
-    # lib/ are read-only in this container. The plugin is installed into a scratch
-    # copy of this project to pass decree check, then written to ai/proposed/<name>.md, and you
-    # are told where to read it and the one command, on the host, that accepts it.
+    # Nothing is installed here. The plugin is installed into a scratch copy of this
+    # project to pass decree check, then written to ai/proposed/<name>.md, and you are
+    # told where to read it and how to install it (move it into .decree/plugins/).
     # A failed gate keeps its errors for the second attempt; the second failure ends
     # the run, which reaches your phone like any failed run.
     set -euo pipefail
@@ -240,4 +239,4 @@ x-exist-lib:
 ---
 # develop
 
-Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file, checked by decree check, and offer it in ai/proposed/ for you to read and accept on the host. It installs nothing: `./existential.sh run plugin accept <name>` does.
+Build an automation from its accepted spec (notes/automations/<name>.md) as one plugin file, checked by decree check, and offer it in ai/proposed/ for you to read and install. It installs nothing: moving it into `.decree/plugins/` and `decree install <name>` does.

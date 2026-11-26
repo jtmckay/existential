@@ -47,6 +47,6 @@ fi
 
 # The daemon runs each machine's order files at start (decree's `decree_order` plugin),
 # in order, each one waiting on the service it targets in its own wait_for_*
-# state (automation/plugins/*.md). Its plugins are installed by the host: here
-# machines/ and plugins/ are read-only.
+# state (automation/plugins/*.md). The repo's plugins are installed by the host;
+# your own, by `decree install` in the workspace.
 exec decree daemon --no-color --interval 2s

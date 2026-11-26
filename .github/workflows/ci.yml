@@ -53,7 +53,7 @@ jobs:
       # A worker without docker syncs its plugins with the host's yq (on the
       # runner already) and decree, so the suite runs that sync too.
       - name: Install decree
-        run: curl -fsSL https://github.com/jtmckay/decree/releases/download/v0.6.0/install.sh | sh -s -- v0.6.0  # the tag the decree image pins (DECREE_TAG)
+        run: curl -fsSL https://github.com/jtmckay/decree/releases/download/v0.6.1/install.sh | sh -s -- v0.6.1  # the tag the decree image pins (DECREE_TAG)
       # Host-side code on this runner's bash, then again under bash 3.2.
       - name: Host-side portability
         run: ./existential.sh test host

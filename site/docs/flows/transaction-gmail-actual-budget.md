@@ -117,7 +117,7 @@ An interactive prompt will:
 4. Confirm the schedule (default: `*/5 * * * *`)
 5. Add `gmail-transactions-<label>.md` to `gmail_transactions`, your schedules plugin, and offer it in `workspace/ai/proposed/`
 
-Read it, then accept it on the host: `./existential.sh run plugin accept gmail_transactions`. No restart needed.
+Read it, then in code-server's terminal: `mv ai/proposed/gmail_transactions.md .decree/plugins/ && decree install gmail_transactions`. No restart needed.
 
 ## Verifying
 
