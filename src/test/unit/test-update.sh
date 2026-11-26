@@ -60,7 +60,7 @@ assert_eq "an install behind its branch updates" "0" "$(run)"
 assert_eq "...to the branch" "$(git -C "$U" rev-parse HEAD)" "$(git -C "$I" rev-parse HEAD)"
 assert_eq "...then runs ./existential.sh" "ran" "$(cat "${TMP}/existential-ran" 2>/dev/null)"
 assert_has "...then brings the stack up" "$(cat "${TMP}/docker" 2>/dev/null)" "compose up -d"
-assert_has "...and tells you, through the stack's notify" "$(cat "${TMP}/docker" 2>/dev/null)" "exec -i automation decree emit --machine notify --param ntfy_title=Updated"
+assert_has "...and tells you, through the stack's notify" "$(cat "${TMP}/docker" 2>/dev/null)" "exec -i automation decree emit --machine notify --param ntfy_topic=host --param ntfy_title=Updated"
 assert_has "...naming the commit" "$(cat "${TMP}/told" 2>/dev/null)" "two"
 
 echo ""; echo "=== worker, engine and no services ==="

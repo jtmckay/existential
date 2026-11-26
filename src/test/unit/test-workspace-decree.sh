@@ -72,7 +72,8 @@ check "...beside the plugins, not in the workspace the automation daemon can wri
 check "nothing tagged for another project is installed (x-exist-project: backup, host)" "[[ ! -e '${P}/machines/triage/machine.yml' && ! -e '${P}/machines/pull_existential/machine.yml' ]]"
 check "plugins.exist.yml turns on six flows and nothing else" "[[ \"\$(yq -r '.on | join(\" \")' '${R}/automation/plugins.exist.yml')\" == 'note-to-automation clean-runs health-checks pi file-advice you-were-here' ]]"
 check "pi and the model are installed, for code-server's agents" "[[ -f '${P}/lib/pi.sh' && -f '${P}/lib/model.sh' ]]"
-check "the digest, the look backs and capture are off until asked for" "[[ ! -e '${P}/machines/flow_you_were_here' && ! -e '${P}/machines/flow_look_back' && ! -e '${P}/machines/capture/machine.yml' ]]"
+check "the morning digest is on" "[[ -f '${P}/machines/flow_you_were_here/cron/you-were-here.md' ]]"
+check "the look backs and capture are off until asked for" "[[ ! -e '${P}/machines/flow_look_back' && ! -e '${P}/machines/capture/machine.yml' ]]"
 check "clean-runs (decree's decree_prune) and health-checks are on" "[[ -f '${P}/machines/decree_prune/cron/weekly.md' && -f '${P}/machines/flow_health_checks/cron/health-checks.md' ]]"
 check "a flow that is not on is not installed" "[[ ! -e '${P}/machines/flow_weekly_newsletter' ]]"
 yq -i '.on -= ["health-checks"]' "${R}/automation/plugins.yml"; run_init

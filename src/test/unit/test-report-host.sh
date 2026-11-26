@@ -69,7 +69,16 @@ EOF
 printf '#!/bin/sh\n' > "${TMP}/bin/alloy"
 chmod +x "${TMP}/bin/tmux" "${TMP}/bin/alloy"
 # The engine, either name: two containers running.
-printf '#!/bin/sh\n[ "$1" = ps ] && printf "loki grafana/loki:3.5\\nntfy binwiederhier/ntfy:v2\\n"\n' > "${TMP}/bin/podman"
+# Two services (a restart policy), an adhoc run (none), decree-go-rest (none, but
+# exist.watch=true) and Strata (exist.watch=false): only those meant to stay up are reported.
+cat > "${TMP}/bin/podman" <<'STUB'
+#!/bin/sh
+[ "$1" = ps ] && { echo a1; echo a2; echo a3; echo a4; echo a5; exit 0; }
+[ "$1" = inspect ] && printf '%s\n' '/loki grafana/loki:3.5 unless-stopped <no value>' \
+    '/ntfy binwiederhier/ntfy:v2 always <no value>' '/existential-adhoc-run-1 decree no <no value>' \
+    '/decree-go-rest go-rest no true' '/ai-box-strata strata on-failure false'
+exit 0
+STUB
 cp "${TMP}/bin/podman" "${TMP}/bin/docker"; chmod +x "${TMP}/bin/podman" "${TMP}/bin/docker"
 # What plugin sync wrote: one plugin in the automation project (the host's own is unpacked above).
 mkdir -p "${W}/plugins"
@@ -100,7 +109,7 @@ assert_eq "a line per installed machine, in every project" "look_back notify rep
 assert_eq "a line per installed plugin, with its project" "automation look_back,host report_host" "$(lines plugin | while read -r l; do echo "$(field project <<<"$l") $(field plugin <<<"$l")"; done | sort | paste -sd, -)"
 assert_eq "a line per active cron, named by the machine it runs, with its schedule" \
     '{"project":"automation","machine":"look_back","schedule":"0 21 * * SUN"}' "$(lines cron | grep look_back)"
-assert_eq "a line per running container" "loki ntfy" "$(lines container | field name | sort | xargs)"
+assert_eq "a line per container meant to stay up" "decree-go-rest loki ntfy" "$(lines container | field name | sort | xargs)"
 assert_has "...with its image" "$(lines container)" '"image":"grafana/loki:3.5"'
 assert_eq "no run line: alloy ships the runs" "" "$(lines run)"
 assert_has "the disks it has" "$(lines disk | head -1)" '"avail_kb":'
