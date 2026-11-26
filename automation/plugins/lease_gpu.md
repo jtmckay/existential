@@ -1,5 +1,6 @@
 ---
 name: lease_gpu
+x-exist-topic: host
 extends: decree_lease
 x-exist-project: host
 scripts:
@@ -90,7 +91,8 @@ scripts:
             case "$mem" in *g|*G) mib=$(( ${mem%[gG]} * 1024 )) ;; *m|*M) mib="${mem%[mM]}" ;; esac
             "$engine" rm -f "$strata" >/dev/null 2>&1 || true
             # Restarted if it crashes: the swap runs only when the mode changes, so nothing else would.
-            "$engine" run -d --restart on-failure --name "$strata" "${gpu[@]}" --security-opt label=disable \
+            # exist.watch=false: it comes and goes with its lease, so its stopping is no alert.
+            "$engine" run -d --restart on-failure --label exist.watch=false --name "$strata" "${gpu[@]}" --security-opt label=disable \
                 --ulimit memlock=-1:-1 --shm-size 2g --memory "$mem" ${mib:+-e STRATA_MEMORY_LIMIT_MIB="$mib"} \
                 -p "${AI_BOX_STRATA_PORT:-8081}:8080" -v "$(pwd)/volumes/strata_cache:/data" \
                 -e FAMILY="$AI_BOX_STRATA_FAMILY" -e MODEL="${AI_BOX_STRATA_MODEL:-}" -e API_KEY="$strata_key" \

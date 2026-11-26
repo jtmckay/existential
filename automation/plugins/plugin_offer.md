@@ -35,7 +35,7 @@ scripts:
         { printf '%s has these machines. A free one is sent at once; one that asks waits for their yes.\n\n' "${from:-Another stack}"
           body "$file"
           printf '\nAsk for one:  echo | docker exec -i automation decree emit --machine plugin_request --param from=%s --param machine=<name>\n' "${from:-<from>}"
-        } | "${DECREE:-decree}" emit --machine notify --param ntfy_title="Machines ${from:-a stack} shares" --param ntfy_tags=package >/dev/null
+        } | "${DECREE:-decree}" emit --machine notify --param ntfy_topic=suggestions --param ntfy_title="Machines ${from:-a stack} shares" --param ntfy_tags=package >/dev/null
         echo "plugin_offer: sent ${from:-their} list of machines to your phone"; exit 0
     fi
     name="$(fm '.name // ""')"
@@ -47,7 +47,7 @@ scripts:
     echo "plugin_offer: wrote ai/proposed/${name}.md"
     if [[ -e ".decree/machines/${name}/machine.yml" ]]; then had=" It would replace the ${name} you have."; else had=""; fi
     { printf '%s offers the machine %s.%s\n\n' "${DECREE_DATA_FROM:-Another stack}" "$name" "$had"; plugin_offered "$name"; } |
-        "${DECREE:-decree}" emit --machine notify --param ntfy_title="A machine offered to you" --param ntfy_tags=package >/dev/null
+        "${DECREE:-decree}" emit --machine notify --param ntfy_topic=suggestions --param ntfy_title="A machine offered to you" --param ntfy_tags=package >/dev/null
 x-exist-endpoints:
   - path: /plugins/offer/{from}
     patterns: {from: "[a-z0-9_-]{1,40}"}

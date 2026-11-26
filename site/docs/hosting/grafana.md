@@ -62,7 +62,7 @@ A message something else publishes to ntfy (your own `curl`) is not here.
 - **New dashboard**: drop a JSON export into `hosting/grafana/provisioning/dashboards/`. Grafana auto-loads it.
 - **New datasource**: add a YAML file to `hosting/grafana/provisioning/datasources/`.
 - **Alerts**: unified alerting. `provisioning/alerting/decree.yaml` provisions the ntfy contact
-  point (a webhook, authenticated as `EXIST_NTFY_USER`) and two rules on Loki, each repeating at
+  point (a webhook to the `host` topic, authenticated as `EXIST_NTFY_USER`) and two rules on Loki, each repeating at
   most every 6 hours per machine: `decree run failed`, a run in `automation-backup` or a host's
   own project that ended `failed` in the last 10 minutes, and `backup has not run`, a
   `db_backup`, `volume_backup` or `sqlite_backup` that ran in the last 8 days but has not ended

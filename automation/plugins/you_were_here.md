@@ -8,7 +8,7 @@ machine:
   description: The "you were here" digest, written to workspace/ai/you-were-here.md and today's archive, pushed through ntfy when something changed.
   data:
     workspace: {type: string, default: /workspace}
-    ntfy_topic: {type: string, default: exist}
+    ntfy_topic: {type: string, default: digest}
     # The last line of the push. Blank: the note in code-server on EXIST_TAILNET_NAME. A URL to it (Nextcloud, Obsidian) works too.
     note_link: {type: string, default: ""}
     # Worth learning's Wikipedia edition (en, de, fr…). Blank: no Worth learning, and nothing is sent to Wikipedia.

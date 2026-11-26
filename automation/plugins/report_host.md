@@ -1,5 +1,6 @@
 ---
 name: report_host
+x-exist-topic: host
 x-exist-project: host
 machine:
   description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
@@ -124,13 +125,18 @@ scripts:
         done
     done
 
-    # The containers running here, whichever engine the stack uses (podman first,
-    # as adhoc picks). The controller's Grafana pages when one that was is gone.
+    # The containers running here that are meant to stay up: a restart policy (every
+    # service has one; an adhoc run or a `docker run --rm` has none), or the label
+    # exist.watch=true (decree-go-rest, under tmux); exist.watch=false never. Whichever engine
+    # the stack uses (podman first, as adhoc picks). The controller's Grafana pages when
+    # one that was is gone.
     : > "${tmp}/container"
     for e in podman docker; do
         command -v "$e" >/dev/null 2>&1 || continue
-        { "$e" ps --format '{{.Names}} {{.Image}}' 2>/dev/null || true; } \
-            | awk 'NF { printf "{\"name\":\"%s\",\"image\":\"%s\"}\n", $1, $2 }' > "${tmp}/container"
+        ids="$("$e" ps -q 2>/dev/null || true)"
+        # shellcheck disable=SC2086  # ids, split on purpose
+        [[ -z "$ids" ]] || { "$e" inspect --format '{{.Name}} {{.Config.Image}} {{.HostConfig.RestartPolicy.Name}} {{index .Config.Labels "exist.watch"}}' $ids 2>/dev/null || true; } \
+            | awk 'NF && $4 != "false" && ($4 == "true" || ($3 != "" && $3 != "no")) { sub(/^\//, "", $1); printf "{\"name\":\"%s\",\"image\":\"%s\"}\n", $1, $2 }' > "${tmp}/container"
         break
     done
 

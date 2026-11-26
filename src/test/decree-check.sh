@@ -49,6 +49,13 @@ messages() {
     done
 }
 
+# An order file runs only through decree_order: a plugin with one needs it, or it never runs.
+for n in $PLUGINS; do
+    src="$(plugin_src "$DIR" "$n")"
+    [[ "$(yq --front-matter=extract '.order // {} | length' "$src")" == 0 ]] || plugin_needs "$src" | grep -qxF decree_order ||
+        { echo "FAIL  ${n} has order files and does not need decree_order, so they never run" >&2; rc=1; }
+done
+
 # Two plugins shipping one lib path would have one overwrite the other.
 dups="$(cd "$DIR" && for f in *.md flows/*.md; do yq --front-matter=extract -r '.["x-exist-lib"] // {} | keys | .[]' "$f"; done | sort | uniq -d)"
 [[ -z "$dups" ]] || { echo "FAIL  two plugins ship the same lib file: $(paste -sd' ' <<<"$dups")" >&2; rc=1; }

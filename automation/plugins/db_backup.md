@@ -1,5 +1,6 @@
 ---
 name: db_backup
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Dump each listed database (postgres, mariadb, mongo), upload the dumps with rclone under the tier, and prune past retention.

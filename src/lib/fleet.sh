@@ -63,7 +63,7 @@ YML
     fi
     flags="--user $(id -u):$(id -g)"
     [[ "$engine" == *podman ]] && flags="--userns keep-id ${flags} --security-opt label=disable"
-    line="tmx -d decree-go-rest \"exec ${engine##*/} run --rm --name decree-go-rest ${flags} -p 8801:8801 -e EXIST_FLEET_SECRET=\\\"\\\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '${REPO_DIR}/.env.shared')\\\" -v '${REPO_DIR}/.decree:/project/.decree:ro' -v '${REPO_DIR}/.decree/inbox:/project/.decree/inbox' ghcr.io/jtmckay/decree-go-rest:0.6.0\""
+    line="tmx -d decree-go-rest \"exec ${engine##*/} run --rm --name decree-go-rest --label exist.watch=true ${flags} -p 8801:8801 -e EXIST_FLEET_SECRET=\\\"\\\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '${REPO_DIR}/.env.shared')\\\" -v '${REPO_DIR}/.decree:/project/.decree:ro' -v '${REPO_DIR}/.decree/inbox:/project/.decree/inbox' ghcr.io/jtmckay/decree-go-rest:0.6.0\""
     if ! grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
         printf '# decree-go-rest in front of this .decree, on :8801 (./existential.sh run fleet api).\n%s\n' "$line" >> "$boot"
         exist flow on boot-daemon

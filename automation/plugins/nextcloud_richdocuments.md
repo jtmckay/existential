@@ -1,5 +1,6 @@
 ---
 name: nextcloud_richdocuments
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Install richdocuments and point it at Collabora, with the WOPI allowlist set to the exist bridge.

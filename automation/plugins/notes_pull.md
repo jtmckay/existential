@@ -1,5 +1,6 @@
 ---
 name: notes_pull
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Rsync-pull an external notes vault into workspace/notes, one way, without --delete unless asked.

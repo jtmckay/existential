@@ -1,5 +1,6 @@
 ---
 name: homeassistant_onboarding
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Complete Home Assistant's onboarding by creating the admin account from EXIST_USERNAME.

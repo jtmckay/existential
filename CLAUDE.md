@@ -269,6 +269,11 @@ from the repo root against the generated `docker-compose.yml`.
   container gets its limit in RAM *plus the same again in swap* before anything is killed. The
   limit is where swapping starts, not a ceiling. `./existential.sh run footprint` compares limits
   against live usage. Model servers are the exception — there the limit *is* the model.
+- **Every notification names its ntfy topic** (`decree emit --machine notify --param
+  ntfy_topic=<topic>`), one of the Topics table on `site/docs/services/ntfy.md`: `host` for the
+  server's own news (Grafana, health, backups, updates; a plugin doing that work carries
+  `x-exist-topic: host`, which routes its failed runs too), `decree`, `suggestions`, `digest`,
+  `exist`. A new topic is a row there first; `test flows` checks both ways.
 - **Every container's log is capped** (json-file, 3 × 10 MB): `generate-compose.ts` writes
   it into each service, because docker never trims one. A template sets `logging:` only to
   differ; it stays `json-file`, which `loki-alloy` reads.
@@ -376,7 +381,7 @@ like any other (`decree install --cron <name>` installs its cron files again aft
 `x-exist-project: backup`): a new one is one flow file. The daemon rescans cron files every tick.
 
 **Opt-in is the rule.** `automation/plugins.exist.yml` turns on `note-to-automation`,
-`clean-runs`, `health-checks` and `pi` (code-server's agents need its lib) and nothing else, and only `notify` (and, in `automation`, `skill`) is
+`clean-runs`, `health-checks`, `pi` (code-server's agents need its lib), `file-advice` and `you-were-here` and nothing else, and only `notify` (and, in `automation`, `skill`) is
 installed regardless. Anything new ships off, as a flow a person turns on; never add a default, an
 always-installed machine, or an example file to copy by hand.
 

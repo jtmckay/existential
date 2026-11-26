@@ -3,7 +3,7 @@
 # workspace/.decree, the `automation` daemon's project, from the repo's
 # automation/: the plugins that are on are written to plugins/ and decree
 # installs them, a person's own files stay, an older install's crons and migrations move over,
-# only note-to-automation, clean-runs and health-checks are on by default, notes/my-first-note.md
+# only note-to-automation, clean-runs, health-checks, file-advice and you-were-here are on by default, notes/my-first-note.md
 # is written once, and nothing secret is written under workspace/.
 #
 # Runs the real script, and the real decree, against a scratch copy of the files
@@ -70,7 +70,7 @@ check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
 check "plugins.yml, what is on, is written from its example" "cmp -s '${R}/automation/plugins.exist.yml' '${R}/automation/plugins.yml'"
 check "...beside the plugins, not in the workspace the automation daemon can write" "[[ ! -e '${P}/plugins.yml' ]]"
 check "nothing tagged for another project is installed (x-exist-project: backup, host)" "[[ ! -e '${P}/machines/triage/machine.yml' && ! -e '${P}/machines/pull_existential/machine.yml' ]]"
-check "plugins.exist.yml turns on four flows and nothing else" "[[ \"\$(yq -r '.on | join(\" \")' '${R}/automation/plugins.exist.yml')\" == 'note-to-automation clean-runs health-checks pi' ]]"
+check "plugins.exist.yml turns on six flows and nothing else" "[[ \"\$(yq -r '.on | join(\" \")' '${R}/automation/plugins.exist.yml')\" == 'note-to-automation clean-runs health-checks pi file-advice you-were-here' ]]"
 check "pi and the model are installed, for code-server's agents" "[[ -f '${P}/lib/pi.sh' && -f '${P}/lib/model.sh' ]]"
 check "the digest, the look backs and capture are off until asked for" "[[ ! -e '${P}/machines/flow_you_were_here' && ! -e '${P}/machines/flow_look_back' && ! -e '${P}/machines/capture/machine.yml' ]]"
 check "clean-runs (decree's decree_prune) and health-checks are on" "[[ -f '${P}/machines/decree_prune/cron/weekly.md' && -f '${P}/machines/flow_health_checks/cron/health-checks.md' ]]"

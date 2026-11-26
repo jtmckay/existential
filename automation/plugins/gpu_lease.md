@@ -1,5 +1,6 @@
 ---
 name: gpu_lease
+x-exist-topic: host
 extends: decree_lease
 x-exist-project: automation
 needs:

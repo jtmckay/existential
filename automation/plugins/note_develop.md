@@ -188,7 +188,7 @@ scripts:
 
     if [ "$NOTE_NOTIFY" = "true" ]; then
         questions="$(printf '%s' "$draft" | sed -n '/^## What only you can answer/,$p' | tail -n +2)"
-        decree emit --machine notify --param ntfy_title="Idea developed — ${note_name}" \
+        decree emit --machine notify --param ntfy_topic=digest --param ntfy_title="Idea developed — ${note_name}" \
             --param ntfy_priority=default --param ntfy_tags=bulb >/dev/null <<EOF
     ${note_reason:-A note was flagged and developed.}
 

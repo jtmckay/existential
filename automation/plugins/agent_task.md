@@ -124,7 +124,7 @@ scripts:
     # --- Tell someone ----------------------------------------------------------
 
     if [ "$AGENT_NOTIFY" = "true" ]; then
-        decree emit --machine notify \
+        decree emit --machine notify --param ntfy_topic=decree \
             --param ntfy_title="Agent task done — ${_name}" \
             --param ntfy_priority=default --param ntfy_tags=robot >/dev/null <<EOF
     ${FILE_MATCH_REASON:-${prompt}}

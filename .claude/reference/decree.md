@@ -60,7 +60,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 
 - **What is on is one file**: `automation/plugins.yml` (`on:`, `auto_update`; gitignored),
   written the first time from `automation/plugins.exist.yml`, which is what every install
-  starts with: `note-to-automation`, `clean-runs`, `health-checks` and `pi`, and nothing else.
+  starts with: `note-to-automation`, `clean-runs`, `health-checks`, `pi`, `file-advice` and `you-were-here`, and nothing else.
   **Opt-in is the rule**: every other flow, in every project, is off until a person turns it
   on. `clean-runs` (decree's `decree_prune`) is tagged for `automation` and `backup`;
   **the host's project is not Core**, so each host flow `needs: decree_prune` itself, and

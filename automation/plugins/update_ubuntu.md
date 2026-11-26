@@ -1,5 +1,6 @@
 ---
 name: update_ubuntu
+x-exist-topic: host
 x-exist-project: host
 machine:
   description: Once a week, install every Ubuntu package update that is not a release upgrade, and reboot at the configured time only if one of them requires it. Ubuntu's own unattended-upgrades does the daily security updates.
@@ -27,7 +28,7 @@ scripts:
     . "${repo}/src/utils/adhoc.sh"
     adhoc_find_runtime || true
     tell() {  # <title> <body>: to your phone, through the stack's own notify, when there is one here
-        printf '%s\n' "$2" | ${DOCKER_CMD:-false} exec -i automation decree emit --machine notify \
+        printf '%s\n' "$2" | ${DOCKER_CMD:-false} exec -i automation decree emit --machine notify --param ntfy_topic=host \
             --param ntfy_title="$1" --param ntfy_tags=package >/dev/null 2>&1 || true
     }
     grep -qs '^ID=ubuntu$' /etc/os-release || { echo "update_ubuntu: this host is not Ubuntu; turn the flow off here" >&2; exit 1; }

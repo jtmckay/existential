@@ -1,5 +1,6 @@
 ---
 name: workspace_sync
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Two-way sync workspace/ with a folder on the NAS or in Nextcloud, newest edit winning, skipping what any .gitignore ignores and every .git/, and asking a person before a large delete.
@@ -47,7 +48,7 @@ scripts:
             [[ "$_event" == error ]] && continue
             echo "docker exec automation-backup decree reply $DECREE_WAIT_ID $_event"
         done
-    } | decree emit --machine notify --param ntfy_title="workspace sync: large delete held" >/dev/null
+    } | decree emit --machine notify --param ntfy_topic=host --param ntfy_title="workspace sync: large delete held" >/dev/null
   delete.sh: |
     #!/usr/bin/env bash
     WORKSPACE_SYNC_MODE=force exec "$(dirname "$0")/workspace_sync.sh"

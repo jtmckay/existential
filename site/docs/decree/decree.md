@@ -73,8 +73,9 @@ A machine's Claude runs unattended in Claude Code's `auto` mode.
 
 ## When a run needs you
 
-A run that fails or waits for a person sends one ntfy message on the `decree` topic, with the
-machine, what happened, and the command to continue:
+A run that fails or waits for a person sends one ntfy message, with the machine, what happened,
+and the command to continue. It goes to the `decree` topic, or to `host` for a plugin that does
+the server's own work (`x-exist-topic: host`: health checks, backups, sync, setup):
 
 - failed: `docker exec automation decree retry <id>`
 - waiting: `docker exec automation decree reply <wait id> <option>`

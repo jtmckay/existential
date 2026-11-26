@@ -69,7 +69,7 @@ scripts:
     echo "deliver: ${added} links added to ${seen}"
 
     [ -s "${items}" ] || { echo "deliver: nothing new; no push"; exit 0; }
-    head -n 5 "${target}" | decree emit --machine notify \
+    head -n 5 "${target}" | decree emit --machine notify --param ntfy_topic=digest \
       --param ntfy_title="Newsletter, ${today}" --param ntfy_tags=newspaper >/dev/null
   gather.ts: |
     #!/usr/bin/env tsx

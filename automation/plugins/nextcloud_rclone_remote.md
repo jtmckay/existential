@@ -1,5 +1,6 @@
 ---
 name: nextcloud_rclone_remote
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Configure the nextcloud rclone remote (WebDAV, admin credentials) that file_processor downloads through.

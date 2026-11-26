@@ -261,7 +261,7 @@ scripts:
         fi
 
         if [ "$CONNECT_NOTIFY" = "true" ]; then
-            decree emit --machine notify --param ntfy_title="Connection found — ${note_name}" \
+            decree emit --machine notify --param ntfy_topic=digest --param ntfy_title="Connection found — ${note_name}" \
                 --param ntfy_priority=default --param ntfy_tags=link >/dev/null << EOF
     ${insight}
 

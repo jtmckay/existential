@@ -1,5 +1,6 @@
 ---
 name: gpu_release
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Answer a GPU lease from outside the stack, release or renew, and only a gpu_lease run.

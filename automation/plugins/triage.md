@@ -1,5 +1,6 @@
 ---
 name: triage
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Run every enabled service's own exist.test.sh, and notify when one breaks or recovers.
@@ -208,7 +209,7 @@ scripts:
                 _priority="default"; _tags="white_check_mark"
             fi
 
-            decree emit --machine notify --param ntfy_title="$_title" \
+            decree emit --machine notify --param ntfy_topic=host --param ntfy_title="$_title" \
                 --param ntfy_priority="$_priority" --param ntfy_tags="$_tags" >/dev/null << NOTIFY
     ${_broke:+Not working: ${_broke% }
     }${_fixed:+Recovered: ${_fixed% }

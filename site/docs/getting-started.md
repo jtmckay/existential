@@ -59,9 +59,11 @@ then the automations that need a model skip, and Claude Code works on its own lo
 To make this host a controller or have it report to one: `./existential.sh run fleet controller`
 or `./existential.sh run fleet join <controller>`.
 
-Three [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
-run cleanup, and a health check on ntfy. The rest are off until you turn them on, the
-[morning digest](#you-were-here), the [look backs](#look-back) and [capture](#capture) included.
+Five [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
+[file advice](./flows/index.md#file-advice) (each file you add from now on is read once, and a
+suggestion reaches your phone), the [morning digest](#you-were-here), run cleanup, and a health
+check on ntfy. The rest are off until you turn them on, the [look backs](#look-back) and
+[capture](#capture) included.
 
 Core ships no backups. Turn on [automation-backup](./decree/automation-backup.md), or put
 `volumes/workspace_data` under git with a remote you choose.
@@ -257,8 +259,8 @@ curl -X POST https://automation-webhook.<domain>/capture \
 
 ### You were here
 
-Off until `./existential.sh flow on you-were-here`. Then, every morning at 7, `you_were_here` writes `workspace/ai/you-were-here.md` and pushes the top of
-it to ntfy:
+On by default. Every morning at 7, `you_were_here` writes `workspace/ai/you-were-here.md` and pushes the top of
+it to ntfy's `digest` topic:
 
 - **The picture**: two or three sentences.
 - **Waiting on you**: at most three, from `.decree/attention/` and runs waiting on a person.

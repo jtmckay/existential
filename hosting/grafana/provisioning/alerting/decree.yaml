@@ -23,7 +23,7 @@ contactPoints:
       - uid: ntfy
         type: webhook
         settings:
-          url: ${NTFY_URL}/decree?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
+          url: ${NTFY_URL}/host?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
           httpMethod: POST
           username: ${NTFY_USER}
           password: ${NTFY_PASSWORD}
@@ -35,7 +35,7 @@ contactPoints:
         type: webhook
         disableResolveMessage: true
         settings:
-          url: ${NTFY_URL}/decree?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
+          url: ${NTFY_URL}/host?tpl=1&t=%7B%7B.title%7D%7D&m=%7B%7B.message%7D%7D
           httpMethod: POST
           username: ${NTFY_USER}
           password: ${NTFY_PASSWORD}

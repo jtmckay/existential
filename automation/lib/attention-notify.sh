@@ -46,10 +46,12 @@ for f in "$ATTENTION_DIR"/*.md; do
         "")      title="decree: the queue is held by ${name}" ;;
         *)       title="decree: ${machine} ${status} in ${state}" ;;
     esac
+    # The plugin's topic (x-exist-topic: host for the server's own work), else decree.
+    topic="$(yq --front-matter=extract -r '.["x-exist-topic"] // "decree"' ".decree/plugins/${machine}.md" 2>/dev/null || echo decree)"
     # The body, with decree's indented commands prefixed to run from the host.
     awk 'NR==1 && /^---$/{fm=1; next} fm && /^---$/{fm=0; next} !fm' "$f" \
         | sed -E 's/^    decree /    docker exec automation decree /' \
-        | decree emit --machine notify --param ntfy_title="$title" \
+        | decree emit --machine notify --param ntfy_topic="$topic" --param ntfy_title="$title" \
             --param ntfy_priority=high --param ntfy_tags=warning >/dev/null
     echo "$key" >> "$ATTENTION_SEEN"
 done

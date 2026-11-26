@@ -96,7 +96,7 @@ scripts:
 
     printf 'When %s, I can %s\n\nTo have it built, move ai/proposed/%s.md into notes/automations/. Read or edit what it will do first. Nothing runs until you review what is built and install it.\n' \
         "$when" "$(printf '%s\n' "$steps" | sed 's/^- //' | paste -sd ';' | sed 's/;/; /g')" "$name" |
-        decree emit --machine notify --param ntfy_title="An automation you could have" --param ntfy_tags=bulb >/dev/null
+        decree emit --machine notify --param ntfy_topic=suggestions --param ntfy_title="An automation you could have" --param ntfy_tags=bulb >/dev/null
 ---
 # automation_propose
 

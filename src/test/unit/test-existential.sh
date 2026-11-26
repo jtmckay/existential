@@ -600,6 +600,24 @@ printf 'EXIST_NFS_ADDRESS=10.0.0.5\nEXIST_NFS_SHARE_FOO_PHOTOS=/photos\n' > "${F
 _rc=0; _out="$(_source_existential "$FAKE_NAS" "${_nas_stub}; _check_nas" 2>&1)" || _rc=$?
 assert_eq "...but one writable mount anywhere still needs a write" "1" "$_rc"
 
+# ── Section: run_initials ─────────────────────────────────────────────────────
+# An exist.initial.sh that reads stdin (a docker compose run does) must not eat the
+# list of services still to initialize.
+
+echo ""
+echo "=== run_initials ==="
+
+FAKE_INIT="$(make_fake_repo initials)"
+printf 'EXIST_IS_SERVICES_AUTOMATION=true\nEXIST_IS_SERVICES_MEALIE=true\n' > "${FAKE_INIT}/.env.shared"
+echo 'cat >/dev/null' > "${FAKE_INIT}/services/automation/exist.initial.sh"
+echo 'touch "$(dirname "$0")/ran"' > "${FAKE_INIT}/services/mealie/exist.initial.sh"
+_source_existential "$FAKE_INIT" "run_initials" >/dev/null 2>&1
+if [[ -f "${FAKE_INIT}/services/mealie/ran" ]]; then
+    _ok "run_initials: a script that reads stdin does not stop the ones after it"
+else
+    _fail "run_initials: a script that reads stdin does not stop the ones after it" "services/mealie's exist.initial.sh never ran"
+fi
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

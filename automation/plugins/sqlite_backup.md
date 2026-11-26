@@ -1,5 +1,6 @@
 ---
 name: sqlite_backup
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Dump each listed SQLite database with sqlite3 .dump, upload it with rclone under the tier, and prune past retention.

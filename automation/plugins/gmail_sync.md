@@ -358,7 +358,7 @@ scripts:
     _handle_auth_failure() {
         if [ ! -f "$_AUTH_FAILURE_FILE" ]; then
             touch "$_AUTH_FAILURE_FILE"
-            decree emit --machine notify --param ntfy_title="Gmail sync: authorization failed" \
+            decree emit --machine notify --param ntfy_topic=decree --param ntfy_title="Gmail sync: authorization failed" \
                 --param ntfy_priority=high --param ntfy_tags=warning,key >/dev/null <<'NOTIFY'
     Gmail token refresh failed. The gmail_sync machine is paused.
 

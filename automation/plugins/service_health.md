@@ -1,5 +1,6 @@
 ---
 name: service_health
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Probe one service's HTTP endpoint and fail unless it answers with the expected status.

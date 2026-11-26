@@ -16,6 +16,8 @@
 #                     .decree/handlers.yml for this machine
 #   x-exist-when      the kind of note that starts it: note_watch asks the model
 #                     whether a note is that, and emits to this machine
+#   x-exist-topic     the ntfy topic a failed or waiting run of it is told on (host for
+#                     the server's own work; default decree), by lib/attention-notify.sh
 #   x-exist-endpoints decree-go-rest endpoints, added to .decree/decree-go-rest.yml;
 #                     each emits to <name> and nothing else
 #   x-exist-title, -tagline, -docs, -services, -e2e, -examples: a flow's, read by

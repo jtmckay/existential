@@ -1,5 +1,6 @@
 ---
 name: nextcloud_file_events
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Register Nextcloud's file-event webhooks (written, deleted, renamed) against automation-webhook's /files.

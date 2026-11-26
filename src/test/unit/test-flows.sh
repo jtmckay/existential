@@ -152,7 +152,22 @@ for n in $(flow_defaults); do plugin_file "$n" >/dev/null || _fail "plugins.exis
 _ok "everything plugins.exist.yml turns on is a plugin"
 for n in $(flow_defaults); do [[ "$n" == clean-runs || "$n" == clean_runs ]] || ! plugin_in host "$n" || _fail "plugins.exist.yml turns on ${n} for the host: only clean-runs runs there until you say so"; done
 _ok "plugins.exist.yml turns on clean-runs alone for the host"
-assert_eq "the default flows are note-to-automation, clean-runs and health-checks" "clean-runs health-checks note-to-automation" "$(flow_defaults | while read -r n; do flow_exists "$n" && echo "$n"; done | sort | xargs)"
+assert_eq "the default flows are note-to-automation, clean-runs, health-checks, file-advice and you-were-here" "clean-runs file-advice health-checks note-to-automation you-were-here" "$(flow_defaults | while read -r n; do flow_exists "$n" && echo "$n"; done | sort | xargs)"
+
+# ntfy topics: the table on the ntfy docs page is the list, and every sender names one in it.
+topics=" $(awk '/^### Topics/{f=1} f && /^## /{exit} f' "${REPO_DIR}/site/docs/services/ntfy.md" | sed -n 's/^| `\([a-z-]*\)`.*/\1/p' | xargs) "
+used="$(cd "${REPO_DIR}" && {
+    grep -rhoE 'ntfy_topic=[a-z-]+' automation | cut -d= -f2
+    grep -rhoE 'ntfy_topic: (\{type: string, default: )?[a-z-]+' automation | grep -oE '[a-z-]+$'
+    grep -rhoE '^x-exist-topic: [a-z-]+' automation/plugins | cut -d' ' -f2
+    grep -hoE 'NTFY_URL\}/[a-z-]+\?' hosting/grafana/provisioning/alerting/*.yaml | sed 's#.*/##; s/?//'
+    echo decree; } | sort -u)"   # decree: notify's default, and attention-notify's
+for t in $used; do [[ "$topics" == *" ${t} "* ]] || _fail "ntfy topic ${t} is used and not in site/docs/services/ntfy.md's Topics table"; done
+for t in $topics; do grep -qxF "$t" <<<"$used" || _fail "ntfy topic ${t} is in the Topics table and nothing sends to it"; done
+_ok "every ntfy topic used is in the Topics table, and every one there is used"
+unnamed="$(cd "${REPO_DIR}" && grep -rnE -- '--machine notify' automation | grep -v -- '--machine notify --param ntfy_topic=' | grep -v '^automation/plugins/notify.md:')"
+[[ -z "$unnamed" ]] || _fail "a notify call names no topic (--machine notify --param ntfy_topic=<topic>)" "$unnamed"
+_ok "every notify call names its topic"
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven (run-all.sh selfcheck).

@@ -1,5 +1,6 @@
 ---
 name: immich_setup
+x-exist-topic: host
 x-exist-project: automation
 machine:
   description: Create Immich's admin from EXIST_EMAIL and add the NAS photos as a read-only External Library.

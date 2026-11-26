@@ -31,11 +31,12 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 
 | Flow | What it does | Needs, beyond Core |
 |---|---|---|
-| `you-were-here` | Every morning, yesterday in one notification | a chat model |
+| `you-were-here` | Every morning, yesterday in one notification. **On by default** | — (a chat model adds its summary) |
 | `look-back` | The week and the month in review, next to your notes | a chat model |
 | `clean-runs` | Prunes decree's finished run logs after 30 days. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
 | `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), review what is built, install it, and it runs. **On by default** | a chat model |
+| `file-advice` | [Each file you add](#file-advice) is read once; your phone hears which flow, or new machine, would handle it. **On by default** | Claude, signed in once, or a chat model |
 | `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/` | — |
 | `code-server-agents` | claude, opencode and pi in code-server's terminal, pi on your own model | — |
 | `weekly-newsletter` | [Your own newsletter](./newsletter.md) from only the feeds you picked | a chat model |
@@ -76,6 +77,20 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 | `backup-uptime-kuma` | Uptime Kuma's database, backed up nightly and weekly | automation-backup, Uptime Kuma |
 
 [Note → Automation](./note-to-automation.md) is part of Core, on whenever a chat model answers.
+
+### File advice
+
+Every file you add or change outside `ai/` and hidden folders is read once, with the list of
+flows: by Claude (Haiku, in plan mode, so it can change nothing) once you have signed in to
+`claude` in code-server's terminal, else by your chat model. If a flow that is off fits it, or a machine nobody has written yet
+would plainly be wanted, your phone hears it: the flow's `./existential.sh flow on` line, or
+the machine to ask claude or opencode for. Each suggestion is sent once, so a folder of PDFs
+is one message.
+
+It starts from now: when it is installed, everything already in the workspace is marked as
+handled without being read, and a file already read is not read again when it changes.
+`workspace/.decree/store/file_advise/` holds `handled.txt` and `suggested.txt`; deleting a
+line reads that file, or sends that suggestion, again.
 
 ### Housekeeping
 

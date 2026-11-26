@@ -53,6 +53,9 @@ cat > "$WS/.decree/handlers.yml" << 'EOF'
   quiet: 1
 - match: slow/*.txt
   machine: on_file
+- match: "[!.]*.log"
+  machine: on_file
+  quiet: 1
 EOF
 
 runs() {         # <path> [change]: how many runs were queued for it
@@ -78,10 +81,12 @@ cp "${TMP}/doc.pdf" "$WS/deep/er/doc.pdf"
 cp "${TMP}/doc.pdf" "$WS/repo/.git/inside.pdf"
 echo x > "$WS/unmatched.txt"
 echo x > "$WS/slow/a.txt"
+echo x > "$WS/top.log"; echo x > "$WS/.hid.log"
 sleep 2.5
 check "a PDF copied anywhere starts one run" "[[ \$(runs deep/er/doc.pdf created) == 1 ]]"
 check "nothing inside .git/ starts a run" "[[ \$(runs repo/.git/inside.pdf) == 0 ]]"
 check "a file matching no handler starts nothing" "[[ \$(runs unmatched.txt) == 0 ]]"
+check "[!.] matches any one character but a dot" "[[ \$(runs top.log) == 1 && \$(runs .hid.log) == 0 ]]"
 check "the default quiet period is longer than a few seconds" "[[ \$(runs slow/a.txt) == 0 ]]"
 
 rm "$WS/deep/er/doc.pdf"

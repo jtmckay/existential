@@ -1,5 +1,6 @@
 ---
 name: check_versions
+x-exist-topic: host
 x-exist-project: host
 machine:
   description: Compare every pinned image tag and base image against upstream, and notify once when any has an update.
@@ -38,7 +39,7 @@ scripts:
 
     Apply: ./existential.sh run check-versions --update
     Then:  ./existential.sh && docker compose up -d"
-    printf '%s\n' "$body" | $DOCKER_CMD exec -i automation decree emit --machine notify \
+    printf '%s\n' "$body" | $DOCKER_CMD exec -i automation decree emit --machine notify --param ntfy_topic=host \
         --param ntfy_title="Image updates available" --param ntfy_tags=arrow_up >/dev/null
 ---
 # check_versions

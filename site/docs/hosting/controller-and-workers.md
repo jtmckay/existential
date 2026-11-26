@@ -166,11 +166,11 @@ The `report_host` plugin sends one push to Loki every 5 minutes, labelled `job="
 | `machine` | decree machine installed, in each project on the host (`automation`, `automation-backup`, `host`) |
 | `plugin` | plugin installed, in each of those projects: the ones turned on and the ones they need |
 | `cron` | active cron (`cron/`) in each of those projects, with its schedule and machine |
-| `container` | container running, by name and image (docker or podman, when the host has one) |
+| `container` | container running that is meant to stay up, by name and image (docker or podman, when the host has one): one with a restart policy, as every service has, or the label `exist.watch=true`; never an adhoc run, a `docker run --rm`, or one labelled `exist.watch=false` (Strata, which comes and goes with its lease) |
 | `offer` | service a host plugin offers the other hosts, and how to lease it ([Peers](#peers-what-the-other-hosts-offer)) |
 
 A container in the last day's reports that is missing from the last 10 minutes', on a host still
-reporting, sends one ntfy notification: Grafana's `container stopped` alert, on the controller.
+reporting, sends one ntfy notification on the `host` topic: Grafana's `container stopped` alert, on the controller.
 
 Each report also makes sure alloy is shipping this host's decree runs to that Loki, in a tmux
 session, `reporting-alloy` (`tmux attach -t reporting-alloy` shows it): every step of every run

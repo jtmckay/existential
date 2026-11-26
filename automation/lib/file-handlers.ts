@@ -32,8 +32,8 @@ const handlersFile = join(root, ".decree", "handlers.yml");
 const log = (msg: string) => console.error(`[file-handlers] ${msg}`);
 
 // A glob as a regex over a workspace-relative path: `**/` is any number of
-// folders, `*` and `?` stay within one, `{a,b}` is either. Dotfiles match too:
-// "anywhere in the workspace" includes .decree/.
+// folders, `*` and `?` stay within one, `{a,b}` is either, `[!.]` is one character
+// but a dot. Dotfiles match too: "anywhere in the workspace" includes .decree/.
 function globToRegExp(glob: string): RegExp {
   let re = "";
   for (let i = 0; i < glob.length; i++) {
@@ -42,6 +42,10 @@ function globToRegExp(glob: string): RegExp {
     else if (glob.startsWith("**", i)) { re += ".*"; i += 1; }
     else if (c === "*") re += "[^/]*";
     else if (c === "?") re += "[^/]";
+    else if (c === "[" && glob.indexOf("]", i) > i) {
+      const end = glob.indexOf("]", i);
+      re += "[" + glob.slice(i + 1, end).replace(/^!/, "^").replace(/\\/g, "\\\\") + "]"; i = end;
+    }
     else if (c === "{") re += "(?:";
     else if (c === "}") re += ")";
     else if (c === ",") re += "|";

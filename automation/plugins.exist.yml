@@ -8,5 +8,7 @@ on:
   - clean-runs
   - health-checks
   - pi
+  - file-advice
+  - you-were-here
 # false: a plugin whose file changed is named on ./existential.sh, not installed.
 auto_update: true

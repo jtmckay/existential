@@ -1,5 +1,6 @@
 ---
 name: boot_daemon
+x-exist-topic: host
 x-exist-project: host
 machine:
   description: Run .decree/boot.sh, once each time the host daemon starts.

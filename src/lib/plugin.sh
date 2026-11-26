@@ -108,7 +108,12 @@ kernel() {  # <project>
     local path
     [[ "$1" != host ]] || return 0
     shared_lib
-    [[ "$1" == automation && -f "$REST" ]] || return 0
+    [[ "$1" == automation ]] || return 0
+    # Every flow a person can turn on, for file_advise: name, on|off, title, tagline.
+    flow_names | while read -r n; do
+        printf '%s\t%s\t%s\t%s\n' "$n" "$(flow_on "$n" && echo on || echo off)" "$(flow_get "$n" name)" "$(flow_get "$n" tagline)"
+    done > .decree/flows.tsv
+    [[ -f "$REST" ]] || return 0
     for path in $(yq -r '.endpoints[] | select(.message.machine | test("^notify$")) | .path' "${REPO_DIR}/automation/decree-go-rest.exist.yml"); do
         p="$path" yq -e '.endpoints[] | select(.path == strenv(p))' "$REST" >/dev/null 2>&1 && continue
         p="$path" r="${REPO_DIR}/automation/decree-go-rest.exist.yml" yq -i '.endpoints += [load(strenv(r)).endpoints[] | select(.path == strenv(p))]' "$REST"

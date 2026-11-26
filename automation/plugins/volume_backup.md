@@ -1,5 +1,6 @@
 ---
 name: volume_backup
+x-exist-topic: host
 x-exist-project: backup
 machine:
   description: Tar each listed volume, upload it with rclone to the backup remote under its tier, and prune past the tier's retention.

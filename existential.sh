@@ -765,7 +765,9 @@ run_initials() {
 
         echo ""
         echo "Initializing ${rel}..."
-        if bash "$init_script"; then
+        # No stdin: the loop reads the service list from it, and a docker run in a
+        # script would swallow the rest. exist.initial.sh never asks anything.
+        if bash "$init_script" </dev/null; then
             echo "  ✓ ${rel}"
             (( ++ran ))
         else

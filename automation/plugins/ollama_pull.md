@@ -1,5 +1,6 @@
 ---
 name: ollama_pull
+x-exist-topic: host
 x-exist-project: automation
 needs:
   - model

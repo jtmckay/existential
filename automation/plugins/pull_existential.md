@@ -1,5 +1,6 @@
 ---
 name: pull_existential
+x-exist-topic: host
 x-exist-project: host
 machine:
   description: Follow this checkout's upstream - pull it fast-forward only, then run ./existential.sh, which installs every plugin you have on at its new version, then docker compose up -d.
@@ -27,7 +28,7 @@ scripts:
     adhoc_find_runtime || DOCKER_CMD=""
     tell() {  # <title> <body>: to your phone, through the stack's own notify
         [[ -n "$DOCKER_CMD" ]] || return 0
-        printf '%s\n' "$2" | $DOCKER_CMD exec -i automation decree emit --machine notify \
+        printf '%s\n' "$2" | $DOCKER_CMD exec -i automation decree emit --machine notify --param ntfy_topic=host \
             --param ntfy_title="$1" --param ntfy_tags=arrows_counterclockwise >/dev/null 2>&1 || true
     }
     before="$(git rev-parse HEAD)"

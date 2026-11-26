@@ -177,7 +177,7 @@ scripts:
     echo "develop: built ${name}, which would start ${starts}; offered in ai/proposed/${name}.md"
     { printf '%s is built and waits for you. It would start %s, and write its results to ai/automations/%s/.\n\n' "$name" "$starts" "$name"
       plugin_offered "$name"; } |
-        decree emit --machine notify --param ntfy_title="Automation ready to review" --param ntfy_tags=robot >/dev/null
+        decree emit --machine notify --param ntfy_topic=decree --param ntfy_title="Automation ready to review" --param ntfy_tags=robot >/dev/null
 x-exist-lib:
   automations/run.sh: |
     #!/usr/bin/env bash
@@ -234,7 +234,7 @@ x-exist-lib:
         echo "${name}: wrote ${out#"${WS}/"}"
         { printf '%s\n\n' "$(printf '%s\n' "$body" | sed '/^[[:space:]]*$/d' | head -8)"
           printf 'All of it: %s\n' "${out#"${WS}/"}"; } |
-            decree emit --machine notify --param ntfy_title="${name}: done" --param ntfy_tags=robot >/dev/null
+            decree emit --machine notify --param ntfy_topic=decree --param ntfy_title="${name}: done" --param ntfy_tags=robot >/dev/null
     }
 ---
 # develop

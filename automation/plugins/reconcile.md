@@ -36,7 +36,7 @@ scripts:
     name="$(basename "$rel" .md)"
     say() {  # <title> <body>
         echo "reconcile: $2"
-        printf '%s\n' "$2" | decree emit --machine notify --param ntfy_title="$1" --param ntfy_tags=robot >/dev/null
+        printf '%s\n' "$2" | decree emit --machine notify --param ntfy_topic=decree --param ntfy_title="$1" --param ntfy_tags=robot >/dev/null
     }
 
     [[ "$name" =~ ^[a-z][a-z0-9_]{2,40}$ ]] || { say "Automation not built" "${rel}: '${name}' is not a machine name (lowercase, digits and _)."; exit 1; }

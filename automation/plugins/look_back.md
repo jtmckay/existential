@@ -8,7 +8,7 @@ machine:
   description: A look back over a range of the "you were here" archive, written to workspace/ai/you-were-here/<YYYY>/look-back-<from>-<to>.md and pointed at through ntfy.
   data:
     workspace: {type: string, default: /workspace}
-    ntfy_topic: {type: string, default: exist}
+    ntfy_topic: {type: string, default: digest}
     # The range is the period up to `to` (today when blank): year to date by default.
     period: {type: string, enum: [week, month, quarter, year], default: year}
     # Either end, YYYY-MM-DD, overrides the period's.
