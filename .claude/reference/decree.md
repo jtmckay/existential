@@ -11,17 +11,17 @@ read too, and the webhook image is decree-go-rest 0.6.0, which bundles decree 0.
 
 **Every machine, script, lib file, cron file and order file the repo ships is in
 `automation/plugins/`**, and nowhere else. Each is a decree plugin file. A plugin's
-`x-exist-project` says which decree project runs it (one name or a block list); what is on is
-one list, `automation/plugins.yml`. A project's `.decree/plugins/` is written from these by the
-sync, and `decree install` installs them into `.decree/machines/<name>/`. Neither is committed,
+`x-exist-project` says which decree project runs it (one name or a block list). None of it is
+on: what is on is each project's own list, `.decree/plugins/.on`. A project's
+`.decree/plugins/` is written from these by the sync, and `decree install` installs them into `.decree/machines/<name>/`. Neither is committed,
 the repo's own `.decree` included (but for its order files and their record, below).
 
 | `x-exist-project` | `automation` | `backup` | `host` |
 |---|---|---|---|
 | project (`.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/`, mounted as `/work/.decree` | the repo's own `.decree`, run by a decree daemon on the host |
-| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `update`, `report_host`, `boot`, `check_versions`, `update_ubuntu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
-| always has | the plugin system: `notify`, `skill` | `notify` | nothing |
-| crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files in `.decree/plugins/` | the same: `service-triage`, `workspace-sync`, `notes-pull` and one `backup-<service>` flow per service | each plugin's own |
+| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `pull_existential`, `report_host`, `boot_daemon`, `check_versions`, `update_ubuntu`, `lease_gpu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
+| always has | the plugin system: `notify`, `skill`, `decree_prune` | `notify`, `decree_prune` | `decree_prune`, once anything is on |
+| crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files in `.decree/plugins/` | the same: `triage`'s, `workspace_sync`'s, `notes_pull`'s, and each backup plugin's nightly and weekly, listing every service it knows | each plugin's own |
 | order files | each plugin's own (`order:`), run by decree's `decree_order` plugin | none | **the repo's**, tracked in `.decree/machines/repo_develop/order/` with `state/order.git.txt`; a host plugin carries none (validate conventions) |
 
 Each project has its own `inbox/`, `runs/` and `store/`. The seeded `.gitignore` keeps
@@ -34,11 +34,11 @@ or write is what a prompt injection can. Three things keep it from `backup` and 
 
 - **`/repo` is mounted only into `automation-backup`**, read-only. `automation` mounts the
   workspace, `automation/.env` and `/secrets`, and nothing else of the repo: not
-  `automation/plugins/`, not `automation/plugins.yml`.
+  `automation/plugins/`, nor `backup`'s or the host's list of what is on.
 - **A project gets only what is tagged for it** (`plugin_wanted`), and what a plugin
   `needs:` must carry each of its own tags (validate conventions), so turning something on
   never pulls an automation-only plugin into another project.
-- **`run plugin export` reads from the most privileged project that runs the plugin** (host,
+- **`plugin export` reads from the most privileged project that runs the plugin** (host,
   then backup, then automation: `source_of`). An edit in the workspace can only ever be
   exported into a plugin that only `automation` runs.
 
@@ -48,39 +48,33 @@ or write is what a prompt injection can. Three things keep it from `backup` and 
 `needs`, `machine`, `scripts`, `cron`, `state`, `order`) with existential's keys beside them, each
 `x-exist-<key>`, which decree ignores and `decree export` keeps (`project`, `lib`, `handlers`,
 `when`, `endpoints`; `automation/lib/plugin.sh` says what each is). Validate
-conventions fails any other key. With no `machine` (and no `extends`) it is a **flow**, in
-`automation/plugins/flows/<name>.md`: one curated thing the stack does (`x-exist-title`,
-`-tagline`, `-docs`, `-services`, `-e2e`, `needs`, then `cron`, `order`, `x-exist-examples`
-and a body of what is left for a person), or, without a tagline, lib others need (`model`,
-`agent`, `pi` with `departments/`, `firecrawl`, `rss`, `repo`, the file processors `ocr`,
-`transcribe`, `agent_handoff`). decree installs a flow as a library plugin named
-`flow_<name>` (snake_case: decree's names are), so its cron and order files have a folder.
-One name space across both folders (validate conventions). A `decree_*` name in `needs:` or
-`extends:` is one of decree's official plugins, which the sync adds with `decree install <name>`.
+conventions fails any other key. With no `machine` (and no `extends`) it is lib others need
+(`model`, `agent`, `pi` with `departments/`, `firecrawl`, `rss`, `fleet`, `repo`, the file
+processors `ocr`, `transcribe`, `agent_handoff`). A `decree_*` name in `needs:` or `extends:` is
+one of decree's official plugins, which the sync adds with `decree install <name>`. There are no
+flow files: a flow is a row on `site/docs/flows/index.md`, the `service on` and `plugin on` lines
+for one job, and a plugin a person turns on (a machine nothing needs) must have its line there
+(validate conventions).
 
-- **What is on is one file**: `automation/plugins.yml` (`on:`, `auto_update`; gitignored),
-  written the first time from `automation/plugins.exist.yml`, which is what every install
-  starts with: `note-to-automation`, `clean-runs`, `health-checks`, `pi`, `file-advice` and `you-were-here`, and nothing else.
-  **Opt-in is the rule**: every other flow, in every project, is off until a person turns it
-  on. `clean-runs` (decree's `decree_prune`) is tagged for `automation` and `backup`;
-  **the host's project is not Core**, so each host flow `needs: decree_prune` itself, and
-  `_host_plugins` syncs the host only when a host flow is on (`_host_flows_on`) or an earlier
-  sync left plugins there to take out. An install from when each project had its
-  own list has them folded in once (`plugins_seed` in `src/utils/flows.sh`, awk: a worker with
-  no engine runs it), and one from before any list keeps what it had (`plugin.sh seed`).
-  A project has exactly what `on:` lists for it plus everything that `needs:`.
-- **`./existential.sh flow`** is the picker over flows with a tagline (`src/flows.sh`): `on`
-  asks, per service, to turn on each that its flows need and is off (`x-exist-services`,
-  unless the GPU answer forbids one; no answer is no) and adds it to `plugins.yml`; `off`
-  takes it out. The build after installs or removes. `run plugin on|off <name>` is the same
-  list, for any plugin, and syncs the projects it is tagged for at once. `src/utils/flows.sh`
-  reads flows with awk (e2e and host-portability run on the host), so a flow's keys stay flat
-  scalars and block lists, which validate conventions holds it to.
+- **What is on is each project's own list**, `.decree/plugins/.on` (never committed): the
+  plugins a person turned on there. A project with none starts with `PLUGIN_DEFAULTS` tagged for
+  it (`plugin_seed`): `note_watch`, `reconcile`, `service_health`, `pi`, `file_advise` and
+  `you_were_here`, all `automation`'s. **Opt-in is the rule**: everything else, in every
+  project, is off until a person turns it on. `decree_prune` is in the kernel, so every project
+  prunes its runs; **the host's project is not Core**, and `_host_plugins` syncs it only while
+  its list names something (`plugin off` syncs it at once, so the last one off is removed). A
+  project has exactly what its list names, the kernel, and everything those `needs:`. An
+  install from before kept one `automation/plugins.yml` and each sync's `.existential`:
+  `_plugins_on` (`src/utils/migrate.sh`) makes each `.on` from the latter, moving a flow's
+  installed cron files to the machine each names, and archives the former.
+- **`./existential.sh plugin on|off <name>...`** (`src/plugins.sh`) edits the list of each
+  project the plugin is tagged for (backup only while automation-backup is on) and syncs each
+  at once. `plugin` (exit 3) lists every plugin: `on`, `+` for one something on needs, or off.
+  The services a flow uses are `./existential.sh service on`, a separate step.
 - **A plugin turns on its own automations**: validate conventions fails one whose cron or
   order file runs a machine it does not need.
-- **`plugin_sync`** writes the project's `.decree/plugins/`: each wanted plugin's file (as
-  decree names it, a changed one only named while `auto_update` is false), each official one it
-  needs, and removes each it wrote before (`.decree/plugins/.existential`) and no longer wants.
+- **`plugin_sync`** writes the project's `.decree/plugins/`: each wanted plugin's file, as the
+  checkout has it, and removes each whose name is a repo plugin's and that nothing wants.
   Then `decree install` installs all of it: a changed plugin again, an installed copy edited in
   place archived first in `.decree/archive/<name>/`, a removed plugin's copy gone (its
   `state/` and `order/` stay). Cron files are installed with a plugin once and are then the
@@ -89,13 +83,13 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   Then the order files: a migration decree 0.5 ran is recorded as run, and one that has not
   run queues one `decree_order` run. It never touches a machine folder no plugin names. It runs in
   adhoc (yq, decree) from each project's `exist.initial.sh` and from `_host_plugins` in
-  `existential.sh`; on a worker with no engine, on the host. `./existential.sh run plugin` is
+  `existential.sh`; on a worker with no engine, on the host. `./existential.sh plugin` is
   the CLI (`list`, `on`, `off`, `sync`, `export`).
 - **decree 0.5's layout is converted once** (`plugin_convert_05`): a copy a plugin installed
   goes (the plugin installs it again), a machine of yours moves to `machines/<name>/`, and the
   registry, applied copies, migrations and flat scripts are kept in `.decree/archive/0.5/`.
-- **`run plugin export <name>`** is `decree export` in the source project, with `needs:` put
-  back in the repo's names and `note_watch`'s emits as the repo has them: change it live,
+- **`plugin export <name>`** is `decree export` in the source project, with `note_watch`'s
+  emits as the repo has them: change it live,
   export, commit, and every install that has it on gets it on its next pull.
 - **`lib/` is ours, not decree's.** decree 0.6 has no `.decree/lib/` and no `$DECREE_LIB`; it
   lets a project keep a folder of its own, and this one does. `automation/lib/` holds only the
@@ -122,23 +116,23 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   such as the `gmail_transactions` that `exist.gmail-transactions-cron.sh` offers. A sync
   installs a plugin's cron files once, so an edited copy is kept; `decree install --cron <name>`
   installs them again. The sync names any file left in `.decree/cron/`.
-- **The plugin system is `notify`, and in `automation` `skill`** (`PLUGIN_KERNEL`): files in
+- **The plugin system is `notify`, decree's `decree_prune`, and in `automation` `skill`** (`PLUGIN_KERNEL`): files in
   `automation/plugins/` like the rest, but in every project they are tagged for whatever is on,
   and rewritten by every sync. `skill` extends `decree_skill` to write the decree
   skill to `/workspace/.claude/skills/decree` (not `/work`, the project root) at each daemon
   start; the entrypoint writes this project's `existential` skill beside it. Trading plugins with another stack
-  (`plugin_share`, `plugin_offer`, `plugin_request`, with their webhook endpoints) is the
-  `plugin-sharing` flow, off until asked for; `plugin_share` sends the plugin file a machine
+  (`plugin_share`, `plugin_offer`, `plugin_request`, with their webhook endpoints) is off until
+  asked for; `plugin_share` sends the plugin file a machine
   was installed from. There is no machine that installs a plugin.
 - **decree's official plugins are `decree_*`, used as they are or extended, never forked.**
   decree installs each from the binary, and `check` fails an edited one: a change to one is a
   plugin here that `extends:` it under its own name and holds only the files it changes,
   installed over the base (which is installed too, idle). The sync installs only its own
   plugins, by name, so decree adds each official one they need and removes it when nothing
-  needs it any more (decree A15); `decree_order` must never outlive the `repo` flow on a
+  needs it any more (decree A15); `decree_order` must never outlive the `repo` plugin on a
   host, or it would run the repo's order files at boot.
   Used: `decree_order` (order files), `decree_ai` (`agent.sh`'s `ai`), `decree_prune`
-  (`clean-runs`); extended: `decree_lease` (`gpu_lease`: its `resources` and
+  (the kernel's); extended: `decree_lease` (`gpu_lease`: its `resources` and
   `swap/gpu.sh` are scripts, so they install read-only; its `callback.sh` takes the
   holder's address from `automation/.env`, never from the request, and `gpu_release` is how
   a POST answers a lease, refusing any run that is not `gpu_lease`'s; and, on a GPU box's host,
@@ -151,9 +145,9 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   feeds are scripts in decree 0.6, and here they are data a person edits in the store).
 - **Your own plugins** (`site/docs/plugins/offer-and-accept.md`): `workspace/.decree` is
   writable in every container that mounts it, so a plugin file in `.decree/plugins/` and `decree
-  install <name>` there is a machine. `plugin_sync` lists what it wrote in
-  `.decree/plugins/.existential` and removes only those, so a file of yours survives every
-  `./existential.sh`; the sync gives it what decree does not install (its `x-exist-handlers`, `-when`, `-lib`,
+  install <name>` there is a machine. `plugin_sync` removes only a file whose name is a
+  repo plugin's, so a file of yours survives every `./existential.sh`, and the repo plugins it
+  `needs:` are installed with it; the sync gives it what decree does not install (its `x-exist-handlers`, `-when`, `-lib`,
   `-endpoints`), and `.decree/plugins/.yours` lists them so a deleted one's handlers go.
   `workspace_sync` still filters `plugins/`, `machines/` and `lib/` out both ways. What the stack
   builds on its own is an **offer** in `workspace/ai/proposed/<name>.md`: `develop` builds one
@@ -166,13 +160,13 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   with the gate `.githooks/pre-push`, `conventions.md` from CLAUDE.md's rules and the
   declarative order files, and the `requirements` its precheck checks) and `repo_qa`
   (`decree_qa`, handing bugs to `repo_develop` by a needs map) are host plugins like
-  `pull_existential`, off until `run plugin on repo_develop` (and `repo_qa`); both need the `repo`
-  flow, which needs `decree_order`. The repo's migrations are order files,
+  `pull_existential`, off until `plugin on repo_develop` (and `repo_qa`); both need the `repo`
+  plugin, which needs `decree_order`. The repo's migrations are order files,
   `.decree/machines/repo_develop/order/`, and declarative: `decree_order` runs each once and
   again when it is edited, and `decree_develop`'s `commit` records it in
   `state/order.git.txt` with the work. Tracked there: only those two and `.gitignore`. To
-  change one of these machines, edit its plugin file or edit the installed copy and `run
-  plugin export`, which writes only what differs from the base.
+  change one of these machines, edit its plugin file or edit the installed copy and
+  `plugin export`, which writes only what differs from the base.
 - automation-backup bind-mounts its installed `plugins/`, `machines/` and `lib/`: gitignored,
   but written from the tracked repo every run, like a rendered file, not state.
 
@@ -203,7 +197,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 - **Two ways for a machine to reach AI:** `lib/model.sh` (`model_chat`,
   `model_gate`), one answer from the role's OpenAI-compatible `/v1` URL; and
   `lib/agent.sh` (`agent`, `agent_ready`), Claude Code with tools through `ai`, from decree's
-  official `decree_ai` plugin (`.decree/machines/decree_ai/scripts/ai.sh`), which the `agent` flow needs.
+  official `decree_ai` plugin (`.decree/machines/decree_ai/scripts/ai.sh`), which the `agent` plugin needs.
   `automation`'s image ships `claude` (pinned, updater and telemetry off). It shares
   code-server's login (`code_server_data/home/.claude`, mounted as its `CLAUDE_CONFIG_DIR`):
   `/login` once in code-server's terminal signs in both, or `AUTOMATION_ANTHROPIC_API_KEY` / `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN`.
@@ -239,7 +233,7 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   running, ships `runs/*/events.jsonl` and script logs of all three projects to Loki, live,
   labelled `host` and `project`; Grafana counts runs from those lines. A failed run in
   `automation-backup` or `host`, or a backup with no `done` run in 48h, alerts through Grafana (`hosting/grafana/provisioning/alerting/decree.yaml`) to ntfy.
-  There are no hooks. decree's `decree_prune` (the `clean-runs` flow) deletes runs older than 30 days.
+  There are no hooks. decree's `decree_prune` (in every project's kernel) deletes runs older than 30 days.
 - **A run that needs you pages you:** `automation/lib/attention-notify.sh`, looped by the
   `automation` entrypoint (`ATTENTION_NOTIFY=1`), turns each new file in
   `workspace/.decree/attention/` (failed, interrupted, waiting on a person, a hold) into one
@@ -265,7 +259,7 @@ meaning this host. `report_host` pushes them as `kind="offer"`, with `localhost`
 `report_host`'s state, and every host's go-rest serves it (`GET /plugins/fleet_gpu.md`), so a
 decree project of your own installs it with `curl ... | decree install -`.
 The controller only answers the question; traffic goes host to host.
-The **fleet** lib (`flows/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
+The **fleet** lib (`plugins/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
 service another host offers: `model_chat`/`pi_run` (`llm`) and `comfy` call it, a keeper per
 container holds one lease for a run of calls and releases it `FLEET_IDLE` (5) seconds after the
 last (comfy: after ComfyUI's queue empties too), and a new lease asks the controller again, so

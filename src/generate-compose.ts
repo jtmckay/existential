@@ -40,7 +40,7 @@ function loadEnv(filePath: string): Record<string, string> {
 
 // ── Service discovery ──────────────────────────────────────────────────────────
 
-const SKIP_DIRS = new Set(['.git', 'site', 'src', 'automation', 'flows', 'node_modules', 'volumes']);
+const SKIP_DIRS = new Set(['.git', 'site', 'src', 'automation', 'node_modules', 'volumes']);
 
 function serviceEnvKey(relPath: string): string {
   return 'EXIST_IS_' + relPath.toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -114,7 +114,6 @@ function nfsKey(name: string): string {
 interface VolumeSpec {
   nfs?: boolean;
   db?: boolean;
-  backup?: boolean;
 }
 
 const VOLUME_SPEC_KEY = 'x-exist-volumes';

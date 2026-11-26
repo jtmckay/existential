@@ -21,9 +21,9 @@ Point the `collabora` subdomain in your DNS to Caddy, and ensure Caddy proxies t
 
 ## Setup with Nextcloud
 
-**Automatic**: `./existential.sh flow on office-documents` asks to turn on Nextcloud and Collabora, and
-its `nextcloud-richdocuments` migration installs the app and points it at this container. See
-[Nextcloud → Collabora](./nextcloud.md#collabora-office-document-editing) for what that migration
+**Automatic**: `./existential.sh service on nextcloud collabora`, then
+`./existential.sh plugin on nextcloud_richdocuments`, whose order file installs the app and points it at this container. See
+[Nextcloud → Collabora](./nextcloud.md#collabora-office-document-editing) for what that order file
 does.
 
 By hand instead:

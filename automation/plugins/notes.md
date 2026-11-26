@@ -311,6 +311,14 @@ x-exist-lib:
     else
         echo "Output volume is empty, skipping sync."
     fi
+cron:
+  notes.md: |
+    ---
+    cron: "*/10 * * * *"
+    machine: notes
+    ---
+
+    Notes compilation and sync.
 ---
 # notes
 

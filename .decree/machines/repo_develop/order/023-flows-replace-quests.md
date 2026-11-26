@@ -1,72 +1,62 @@
 ---
 machine: repo_develop
 ---
-# A flow is a folder: turn one on and it brings the services it needs
+# A flow is a page, a plugin is the unit, and each project keeps its own list of what is on
 
 ## Overview
 
-Quests were service groups with a guide to read and type: 28 files, a 944-line picker, and a
-second list of what the stack can do beside the curated machines in `automation-examples/`.
-What a person wants is the thing the stack does for them ("my own newsletter", "transcribe my
-voice memos"), and the machine that does it already knows which services it needs. So the
-curated machines become the unit you pick, each bringing whatever has to be on first. This
-is not a marketplace: the flows ship in the repo, with nothing to download.
+Quests were service groups with a guide to read and type; flows replaced them, then grew into a
+second kind of plugin (no machine, a title, the services to ask for, cron and order files of
+other plugins), a picker, an on-list for every project and an awk reader for the host. All of it
+said what the plugins and services already say. What a person wants is still the thing the stack
+does for them ("my own newsletter", "transcribe my voice memos"): that is written down, once, as
+a recipe; the code has one unit, the plugin, and one switch per project.
 
 ## Outcome
 
-- **`flows/<name>/` is one flow**: `flow.md` (frontmatter `name`, `tagline`, `docs`, and
-  block lists `services` of `EXIST_IS_*` flags, `flows` it needs, `processors` it copies from
-  `automation/lib/file-processors.example/`; scalars `default` and `e2e`; then a body of only
-  what is left for a person), plus `cron/*.md` and `migrations/*.md` that switch its machine on,
-  and `examples/` messages that are never copied. Every template that was in
-  `automation-examples/` is in exactly one flow; that folder and `src/quests/` are gone.
-- **`./existential.sh flow`**: a picker in a terminal, a list otherwise; `flow list`, `flow on
-  <name>...`, `flow off <name>...`. On turns on the flows it needs first, sets each service flag
-  unless the GPU answer forbids that service, copies each file not already in place (a
-  migration in `processed.md` counts), prints the body, then renders and builds. Off deletes only
-  copies identical to the flow's file, says so for an edited one, leaves services alone, and
-  records a default flow in `workspace/.decree/flows-off`. A list or an empty pick rebuilds nothing.
-- **Core ships on.** `.env.exist.shared` has code-server, automation and ntfy `true`. The first
-  bare `./existential.sh` asks the two hardware questions through `run models` (which also asks
-  for the model server's URL when the models live elsewhere) and builds Core; no picker.
-- **Default flows** (`default: true`): `you-were-here`, `look-back`, `clean-runs`,
-  `health-checks`. automation's `exist.initial.sh` activates each missing file of every default
-  flow not named in `flows-off`. They need nothing beyond Core.
-- **e2e** runs Core as it ships, then each flow with `e2e: true` over Core (its services, the
-  flows it needs, their files).
-- **Docs** describe it: Getting Started's setup is `./existential.sh` then `flow`; the Flows
-  page has a table with a row per flow; a service no flow needs is a flag, its setup on its own
-  page (Caddy's CA and hostnames, ntfy's subscribe, NFS mounting on Storage, backups on rclone).
-  No page, README, reference or comment tells anyone to run `quest` or copy from
-  `automation-examples/`.
+- **`automation/plugins/` is every plugin there is, and none of it is on.** A plugin carries
+  its own cron and order files (the machine they run is itself or something it `needs:`), and
+  one with no machine is lib other plugins need. There is no `automation/plugins/flows/`.
+- **What is on is each decree project's own list**, `.decree/plugins/.on`: the workspace's,
+  automation-backup's and the repo's own `.decree`. A new project starts with
+  `PLUGIN_DEFAULTS` (`note_watch`, `reconcile`, `service_health`, `pi`, `file_advise`,
+  `you_were_here`); `notify`, `decree_prune` and, in the workspace, `skill` are installed
+  whatever is on. There is no `automation/plugins.yml` and no `plugins.exist.yml`.
+- **`./existential.sh plugin [list|on|off|sync|export]`** (`src/plugins.sh`): `on`/`off` edit
+  the list of each project the plugin is tagged for and sync it at once; the sync installs what
+  is listed and all it needs and removes a repo plugin nothing listed needs. `service on|off`
+  turns services on; nothing turns a service on for a plugin.
+- **A flow is a row on `site/docs/flows/index.md`**: what it does, its `service on` and
+  `plugin on` lines, and what is left for a person. There is no `./existential.sh flow`.
+- **Backups are three plugins** (`volume_backup`, `db_backup`, `sqlite_backup`), each with one
+  nightly and one weekly cron file listing every service it knows; one that is off is skipped.
+- **e2e runs Core**, as it ships.
+- **An older install keeps what it had**: `_plugins_on` (`src/utils/migrate.sh`) makes each
+  project's `.on` from what its last sync wrote, moves the cron files a flow installed to the
+  machine each names, and archives `automation/plugins.yml`.
 
 ## Constraints
 
-- `src/utils/flows.sh` reads a manifest with awk, not yq: e2e and `exist.initial.sh` run on the
-  host. It honours a `REPO_DIR` it is given.
-- Services stay one flag per folder; a flow never renders, creates or deletes a service.
-- `validate conventions` checks every flow: it has `flow.md` with a name, tagline and a docs page
-  that exists; each service, flow and processor it names exists; it has a row on the Flows page.
-- `decree check` (`./existential.sh test decree`) runs with every flow's files queued, and fails
-  when two flows ship a file of the same name.
+- The host plugin sync is host code: bash 3.2 and BSD tools (`./existential.sh test host`).
+- A project never installs a plugin not tagged for it, and nothing the workspace can write
+  changes backup's or the host's list.
+- `validate conventions` fails a docs `plugin on`/`service on` line that names nothing, and a
+  plugin a person turns on (a machine nothing needs) with no line on the Flows page.
 
 ## Acceptance Criteria
 
 - **Given** a fresh checkout
   **When** `./existential.sh validate conventions` and `./existential.sh test` run
   **Then** both exit 0
-- **Given** an install with newsletter off
-  **When** `./existential.sh flow on newsletter`
-  **Then** `volumes/workspace_data/.decree/cron/newsletter.md` matches `flows/newsletter/cron/newsletter.md`
-- **Given** `EXIST_GPU_VENDOR=external`
-  **When** `./existential.sh flow on local-models`
-  **Then** `EXIST_IS_AI_OLLAMA` stays `false` and the output says why
-- **Given** `flow on transcription`
-  **Then** WhisperX and Nextcloud are on, nextcloud-capture's migrations are in place, and
-  `automation/lib/file-processors/whisperx-transcribe.sh` exists
-- **Given** `flow off you-were-here`
-  **When** automation's `exist.initial.sh` runs again
-  **Then** its cron is not put back
+- **Given** a new workspace project
+  **When** its first sync runs
+  **Then** `.decree/plugins/.on` lists the defaults and each is installed
+- **Given** `./existential.sh plugin on newsletter`
+  **Then** `newsletter`, its cron file and what it needs are installed, and `plugin off
+  newsletter` removes them and leaves its store
+- **Given** an install whose sync wrote `.decree/plugins/.existential`
+  **When** `./existential.sh` runs
+  **Then** each project's `.on` names what it had, under its plugin's name
 - **Given** the repo
-  **When** it is searched for `src/quests`, `quest.sh` or `automation-examples`
-  **Then** only `graveyard/`, `archive/` and the `.decree/` history mention them
+  **When** it is searched for `existential.sh flow`, `plugins.yml` or `plugins/flows`
+  **Then** only `archive/`, the migration and the `.decree/` history mention them

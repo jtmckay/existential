@@ -43,7 +43,7 @@ else
 fi
 
 # Every class every shipped workflow uses, read out of the workflows themselves
-# rather than listed here — so a new flow extends this assertion by existing.
+# rather than listed here — so a new workflow extends this assertion by existing.
 # Custom nodes are the reason this matters: several workflows lean on packs
 # (ResolutionSelector, the LTXV and ComfyMath nodes) that live in the comfyui_data
 # volume via ComfyUI Manager, not in the image, and so are absent on a fresh host.

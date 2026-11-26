@@ -349,7 +349,7 @@ x-exist-endpoints:
 
 Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines, plugins and crons installed in each of its
 projects, the containers running, what its host plugins offer the other hosts (kind=offer, read back by `./existential.sh run peers`), and every run that finished since the last report, sent to the Loki its controller
-names. Grafana's **Hosts** dashboard shows every host that reports. The `report-host` flow
-turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
+names. Grafana's **Hosts** dashboard shows every host that reports. `./existential.sh plugin on
+report_host` turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
 controller, and names its own Loki. See
 /docs/hosting/controller-and-workers.

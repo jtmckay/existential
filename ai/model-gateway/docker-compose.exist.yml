@@ -1,5 +1,5 @@
 # Refs:
-#   gateway.ts in this folder; the fleet lib (automation/plugins/flows/fleet.md)
+#   gateway.ts in this folder; the fleet lib (automation/plugins/fleet.md)
 #
 # model-gateway — the controller's model endpoint: an OpenAI-compatible /v1 that
 # leases whichever GPU host offers the model a call names. Turned on by

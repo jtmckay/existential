@@ -22,7 +22,7 @@ scripts:
     # native .dump mechanism, rclone the compressed SQL to
     # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/sqlite/<name>/`, prune old backups.
     #
-    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/. TARGETS format
+    # Triggered by its own cron files, in services/automation-backup/machines/sqlite_backup/cron/. TARGETS format
     # (one entry per line):
     #   <name> <path_relative_to_VOLUMES_ROOT>
     #   e.g.:  kuma  uptime_kuma_data/kuma.db
@@ -96,6 +96,30 @@ scripts:
 
     echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
     [ "$failed" -eq 0 ]
+cron:
+  sqlite-backup-nightly.md: |
+    ---
+    cron: "0 3 * * *"
+    machine: sqlite_backup
+    params:
+      TIER: nightly
+      TARGETS: |
+        kuma uptime_kuma_data/kuma.db
+    ---
+
+    Copy every SQLite database listed nightly, consistently, and rclone it to the backup
+    remote. Files older than 7 days are pruned. One not on disk here is skipped.
+  sqlite-backup-weekly.md: |
+    ---
+    cron: "0 4 * * SUN"
+    machine: sqlite_backup
+    params:
+      TIER: weekly
+      TARGETS: |
+        kuma uptime_kuma_data/kuma.db
+    ---
+
+    The same databases weekly, kept 28 days.
 ---
 # sqlite_backup
 

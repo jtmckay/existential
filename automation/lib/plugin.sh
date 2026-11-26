@@ -20,35 +20,37 @@
 #                     the server's own work; default decree), by lib/attention-notify.sh
 #   x-exist-endpoints decree-go-rest endpoints, added to .decree/decree-go-rest.yml;
 #                     each emits to <name> and nothing else
-#   x-exist-title, -tagline, -docs, -services, -e2e, -examples: a flow's, read by
-#                     ./existential.sh flow and the gates
-# A flow (plugins/flows/<name>.md) has no machine: decree gets it as flow_<name>,
-# hyphens as underscores, its cron files and order files installed with it. A
-# decree_* name in needs: or extends: is one of decree's official plugins
-# (decree_order, decree_ai, decree_lease...), which `decree install <name>` adds.
-# One that extends an official plugin holds only what it changes (decree 0.6's
-# extends), and a needs: entry may be {<need>: <plugin>}, the plugin that meets it.
+# A plugin with no machine is lib others need (model, pi, fleet...). A decree_* name
+# in needs: or extends: is one of decree's official plugins (decree_order,
+# decree_ai, decree_lease...), which `decree install <name>` adds. One that extends
+# an official plugin holds only what it changes (decree 0.6's extends), and a
+# needs: entry may be {<need>: <plugin>}, the plugin that meets it.
 #
-# The repo's automation/plugins/ is what plugin_sync, run on the host by
-# ./existential.sh, installs. In the workspace project (automation) a plugin file
-# of your own goes in .decree/plugins/ and `decree install <name>` installs it;
-# the sync leaves a file it did not write alone. backup and the host install only
-# the repo's. The plugin system itself (PLUGIN_KERNEL) is in every project it is
-# tagged for, whatever is on. Run from the decree project root.
+# The repo's automation/plugins/ is every plugin there is, and none of it is on.
+# What a project has on is its own .decree/plugins/.on, one name per line: what
+# `./existential.sh plugin on` put there (a new project starts with
+# PLUGIN_DEFAULTS). plugin_sync, run on the host by ./existential.sh, writes each
+# of those and all they need into .decree/plugins/ at the checkout's version, and
+# removes a repo plugin nothing on needs any more. In the workspace project
+# (automation) a plugin file of your own goes in .decree/plugins/ and `decree
+# install <name>` installs it; the sync leaves a file whose name is not the repo's
+# alone. The plugin system itself (PLUGIN_KERNEL) is in every project it is tagged
+# for, whatever is on. Run from the decree project root.
 
 HANDLERS=".decree/handlers.yml"
 REST=".decree/decree-go-rest.yml"
-MANIFEST=".decree/plugins/.existential"   # the plugins the sync wrote, so it removes only its own
+ON=".decree/plugins/.on"                  # what is on in this project, one name per line
 YOURS=".decree/plugins/.yours"            # your own plugin files it saw, so a deleted one's handlers go
 
 # notify: every machine tells you things, and decree check fails an emits: that
-# names a machine the project lacks. skill: the decree skill in the workspace (automation only).
-PLUGIN_KERNEL=" notify skill "
+# names a machine the project lacks. skill: the decree skill in the workspace
+# (automation only). decree_prune: finished runs pruned after 30 days.
+PLUGIN_KERNEL=" notify skill decree_prune "
+# What a new project starts with: what every install does without being asked.
+PLUGIN_DEFAULTS=" note_watch reconcile service_health pi file_advise you_were_here "
 
-# plugin_src <dir> <name>: the plugin's file, a machine's or a flow's.
-plugin_src() {
-    if [[ -f "$1/$2.md" ]]; then echo "$1/$2.md"; elif [[ -f "$1/flows/$2.md" ]]; then echo "$1/flows/$2.md"; else return 1; fi
-}
+# plugin_src <dir> <name>: the plugin's file.
+plugin_src() { [[ -f "$1/$2.md" ]] && echo "$1/$2.md"; }
 
 plugin_is() {  # <file>: true when it is a plugin, not a spec: it carries a machine or cron files, or extends one
     [[ "$(yq --front-matter=extract '[.machine, .cron] | map(tag) | join(" ")' "$1" 2>/dev/null)" == *'!!map'* ||
@@ -62,14 +64,6 @@ plugin_needs() {
         (.needs // [] | .[] | select(tag == "!!map") | to_entries | .[] | [.key, .value])] | flatten | .[]' "$1"
 }
 
-# The name decree knows it by: a flow's is flow_<name>, snake_case.
-plugin_decree_name() {  # <dir> <name>
-    local src
-    src="$(plugin_src "$1" "$2")" || { echo "$2"; return 0; }
-    if [[ "$src" == */flows/* ]]; then echo "flow_${2//-/_}"; else echo "$2"; fi
-}
-
-
 # plugin_tags <file>: the projects that run it, one per line (none: automation).
 plugin_tags() { yq --front-matter=extract -r '[.["x-exist-project"] // "automation"] | flatten | .[]' "$1"; }
 
@@ -77,13 +71,15 @@ plugin_tags() { yq --front-matter=extract -r '[.["x-exist-project"] // "automati
 # each once: what is on, the plugin system and the names given, and all they
 # need, less whatever is not tagged for this project. Project `none` is a scratch
 # project: the names given and all they need, whatever their tags. An official
-# plugin is named as it is (decree_order); a flow by its own name (clean-runs).
+# plugin is named as it is (decree_order).
 plugin_wanted() {
-    local dir="$1" project="$2" cfg="${PLUGINS_ON:-$1/../plugins.yml}" f n src seen=" " queue=()
+    local dir="$1" project="$2" f n src seen=" " queue=()
     shift 2
     if [[ "$project" != none ]]; then
-        [[ -f "$cfg" ]] && while IFS= read -r n; do [[ -n "$n" ]] && queue+=("$n"); done < <(yq -r '.on // [] | .[]' "$cfg")
-        for n in $PLUGIN_KERNEL; do plugin_src "$dir" "$n" >/dev/null && queue+=("$n"); done
+        [[ -f "$ON" ]] && while IFS= read -r n; do [[ -n "$n" ]] && queue+=("$n"); done < "$ON"
+        for n in $PLUGIN_KERNEL; do
+            { [[ "$n" == decree_* ]] || plugin_src "$dir" "$n" >/dev/null; } && queue+=("$n")
+        done
     fi
     queue+=("$@")
     while [[ ${#queue[@]} -gt 0 ]]; do
@@ -99,70 +95,67 @@ plugin_wanted() {
 }
 
 # plugin_write <dir> <name> <out> [when-machines]: the plugin's file as decree
-# installs it: its decree name, and its needs by theirs. note_watch also emits to
-# every plugin a note starts (their x-exist-when).
+# installs it. note_watch also emits to every plugin a note starts (their x-exist-when).
 plugin_write() {
-    local dir="$1" name="$2" out="$3" when="${4:-}" src dn k d
-    src="$(plugin_src "$dir" "$name")"; dn="$(plugin_decree_name "$dir" "$name")"
-    dn="$dn" yq --front-matter=process '.name = strenv(dn)' "$src" > "$out"
-    for k in $(yq --front-matter=extract -r '.needs // [] | .[] | select(tag == "!!str")' "$src"); do
-        d="$(plugin_decree_name "$dir" "$k")"
-        [[ "$d" == "$k" ]] || a="$k" b="$d" yq --front-matter=process -i '(.needs[] | select(. == strenv(a))) = strenv(b)' "$out"
-    done
-    ! cmp -s <(yq --front-matter=extract . "$src") <(yq --front-matter=extract . "$out") || cp "$src" "$out"   # as written, when nothing changed
-    [[ "$name" != note_watch || -z "$when" ]] ||
+    local src="$1/$2.md" out="$3" when="${4:-}"
+    cp "$src" "$out"
+    [[ "$2" != note_watch || -z "$when" ]] ||
         w="$when" yq --front-matter=process -i '.machine.states.watch.emits = ((.machine.states.watch.emits // []) + (strenv(w) | split(" ")) | unique)' "$out"
 }
 
 # plugin_sync <dir> <project> [name...]: the project's .decree/plugins/ is what is
-# wanted, each written from the repo's file (a changed one is named, not written,
-# while auto_update is false), and `decree install` installs it all, archiving an
-# installed copy edited in place. What the sync wrote and is no longer wanted
-# goes; a plugin file the sync did not write (an official one you added) stays.
-# Then what decree does not install: x-exist-lib, handlers, endpoints.
+# wanted, each written from the repo's file, and `decree install` installs it all,
+# archiving an installed copy edited in place. A repo plugin no longer wanted goes;
+# a plugin file whose name is not the repo's (yours, or an official one you added)
+# stays. Then what decree does not install: x-exist-lib, handlers, endpoints.
 plugin_sync() {
-    local dir="$1" project="$2" wanted n dn src auto rc=0 when="" old check f mine=""
+    local dir="$1" project="$2" wanted n src rc=0 when="" check f mine="" theirs="" names=""
     shift 2
     plugin_convert_05 "$dir"
-    wanted="$(plugin_wanted "$dir" "$project" "$@" | xargs)"
-    # Not `// true`: yq's alternative treats false as missing.
-    auto="$(yq '.auto_update' "${PLUGINS_ON:-${dir}/../plugins.yml}" 2>/dev/null || echo true)"
-    mkdir -p .decree/plugins .decree/machines .decree/lib
-    old=" $( { cat "$MANIFEST" 2>/dev/null || true; } | xargs) "
+    plugin_seed "$dir" "$project" || return 1
+    mkdir -p .decree/machines .decree/lib
+    # Your own plugin files in the workspace project, installed by `decree install`:
+    # never written or removed here, only given what decree does not install, and
+    # the repo's plugins they need.
+    if [[ "$project" == automation ]]; then
+        for f in .decree/plugins/*.md; do
+            [[ -f "$f" ]] || continue; n="$(basename "$f" .md)"
+            [[ "$n" == decree_* ]] && continue
+            plugin_src "$dir" "$n" >/dev/null && continue
+            mine+="${n} "
+            [[ -n "$(yq --front-matter=extract -r '.["x-exist-when"] // ""' "$f")" ]] && when+="${n} "
+            for n in $(plugin_needs "$f"); do plugin_src "$dir" "$n" >/dev/null && theirs+="${n} "; done
+        done
+    fi
+    # shellcheck disable=SC2086  # names, split on purpose
+    wanted="$(plugin_wanted "$dir" "$project" "$@" $theirs | xargs)"
     for n in $wanted; do
         src="$(plugin_src "$dir" "$n")" || continue
         [[ -n "$(yq --front-matter=extract -r '.["x-exist-when"] // ""' "$src")" ]] && when+="${n} "
     done
-    # Your own plugin files in the workspace project, installed by `decree install`:
-    # never written or removed here, only given what decree does not install.
-    if [[ "$project" == automation ]]; then
-        for f in .decree/plugins/*.md; do
-            [[ -f "$f" ]] || continue; n="$(basename "$f" .md)"
-            [[ "$n" == decree_* || "$n" == flow_* || "$old" == *" ${n} "* ]] && continue
-            plugin_src "$dir" "$n" >/dev/null && continue
-            mine+="${n} "
-            [[ -n "$(yq --front-matter=extract -r '.["x-exist-when"] // ""' "$f")" ]] && when+="${n} "
-        done
-    fi
-    plugin_extras_clear "$mine"
-    : > "${MANIFEST}.new"
+    plugin_extras_clear "$dir" "$mine"
     for n in $wanted; do
-        [[ "$n" == decree_* ]] && continue                        # official: decree adds it as a need
-        dn="$(plugin_decree_name "$dir" "$n")"; echo "$dn" >> "${MANIFEST}.new"
-        plugin_write "$dir" "$n" ".decree/plugins/.${dn}.md" "${when% }"
-        if cmp -s ".decree/plugins/.${dn}.md" ".decree/plugins/${dn}.md"; then rm -f ".decree/plugins/.${dn}.md"
-        elif [[ -f ".decree/plugins/${dn}.md" && "$auto" == false ]]; then
-            echo "plugin: ${n} has a new version (auto_update is off)"; rm -f ".decree/plugins/.${dn}.md"
-        else mv ".decree/plugins/.${dn}.md" ".decree/plugins/${dn}.md"; fi
+        if [[ "$n" == decree_* ]]; then   # official: decree adds it as a need, or named, the kernel's
+            [[ "$PLUGIN_KERNEL" != *" ${n} "* ]] || names+="${n} "
+            continue
+        fi
+        names+="${n} "
+        plugin_write "$dir" "$n" ".decree/plugins/.${n}.md" "${when% }"
+        if cmp -s ".decree/plugins/.${n}.md" ".decree/plugins/${n}.md"; then rm -f ".decree/plugins/.${n}.md"
+        else mv ".decree/plugins/.${n}.md" ".decree/plugins/${n}.md"; fi
     done
-    for dn in $old; do grep -qxF "$dn" "${MANIFEST}.new" || { rm -f ".decree/plugins/${dn}.md"; echo "plugin: ${dn} removed"; }; done
-    mv "${MANIFEST}.new" "$MANIFEST"
+    for f in .decree/plugins/*.md; do
+        [[ -f "$f" ]] || continue; n="$(basename "$f" .md)"
+        [[ " ${wanted} " == *" ${n} "* ]] && continue
+        plugin_src "$dir" "$n" >/dev/null || continue
+        rm -f "$f"; echo "plugin: ${n} removed"
+    done
     plugin_state_links "$project"
     # Named, so decree adds each official plugin they need, recorded as a need; then bare,
     # which removes a deleted plugin's copy and each need nothing needs any more (decree_order
-    # never outlives the repo flow on a host). A plugin's cron files install once, then are yours.
-    # shellcheck disable=SC2046  # one plugin name per line, split on purpose (bash 3.2: no mapfile)
-    if ! check="$( { decree install --no-color $(cat "$MANIFEST") && decree install --no-color; } 2>&1)"; then rc=1; fi
+    # never outlives the repo plugin on a host). A plugin's cron files install once, then are yours.
+    # shellcheck disable=SC2086  # one plugin name each, split on purpose (bash 3.2: no mapfile)
+    if ! check="$( { decree install --no-color $names && decree install --no-color; } 2>&1)"; then rc=1; fi
     grep -v '^installed ' <<<"$check" || true
     plugin_state_links "$project"   # and each official plugin decree just added
     ! ls .decree/cron/*.md >/dev/null 2>&1 ||
@@ -179,6 +172,30 @@ plugin_sync() {
         echo "plugin: decree check fails after the sync:" >&2; printf '%s\n' "$check" | grep -v '^warning' | head -20 >&2; rc=1
     fi
     return $rc
+}
+
+# plugin_seed <dir> <project>: a project with no list of what is on starts with the
+# defaults tagged for it. One an older checkout synced has its list in its old form
+# until ./existential.sh's migration turns it into this one.
+plugin_seed() {
+    local n src
+    mkdir -p .decree/plugins
+    [[ ! -f "$ON" ]] || return 0
+    if [[ -f .decree/plugins/.existential ]]; then
+        echo "plugin: run ./existential.sh once first: it turns this project's old list of what is on into ${ON}" >&2; return 1
+    fi
+    for n in $PLUGIN_DEFAULTS; do
+        src="$(plugin_src "$1" "$n")" && plugin_tags "$src" | grep -qxF "$2" && echo "$n"
+    done > "$ON"
+    return 0
+}
+
+# plugin_turn on|off <dir> <project> <name>: in this project's list of what is on, or out of it.
+plugin_turn() {
+    plugin_seed "$1" "$2" || return 1
+    grep -vxF "$4" "$ON" > "${ON}.new" || true
+    [[ "$1" == off ]] || echo "$4" >> "${ON}.new"
+    mv "${ON}.new" "$ON"
 }
 
 # Each machine's state/: in a project a container mounts with machines/ read-only
@@ -207,18 +224,18 @@ plugin_state_links() {  # <project>
     done
 }
 
-# Before the sync writes plugins/: what each plugin it wrote last time added
+# Before the sync writes plugins/: what each repo plugin installed here added
 # beside decree's files goes (its lib, the handlers and endpoints it declares),
 # read from its plugin file, which is still there; and the same for each of your
 # own plugin files named. A handler or endpoint of yours, or seeded from an
 # example, is not a plugin's and stays.
-plugin_extras_clear() {  # [your plugins]
+plugin_extras_clear() {  # <dir> [your plugins]
     local f k libs=".decree/lib/.plugins"
     if [[ -f "$libs" ]]; then while IFS= read -r k; do [[ -n "$k" ]] && rm -f ".decree/lib/${k}"; done < "$libs"; fi
     : > "$libs"
-    # shellcheck disable=SC2086  # names, split on purpose
-    for k in $( { cat "$MANIFEST" 2>/dev/null || true; } ) ${1:-}; do
-        f=".decree/plugins/${k}.md"; [[ -f "$f" ]] || continue
+    for f in .decree/plugins/*.md; do
+        [[ -f "$f" ]] || continue; k="$(basename "$f" .md)"
+        plugin_src "$1" "$k" >/dev/null || [[ " ${2:-} " == *" ${k} "* ]] || continue
         if [[ -f "$HANDLERS" ]]; then
             yq --front-matter=extract '[.["x-exist-handlers"][]? | .match]' "$f" > "${TMPDIR:-/tmp}/exist-match.yml"
             n="$k" yq -i "del(.[] | select(.machine == strenv(n) and ([.match] - load(\"${TMPDIR:-/tmp}/exist-match.yml\") | length) == 0))" "$HANDLERS"
@@ -346,7 +363,7 @@ plugin_unpack() {
     ( cd "$root" && { [[ -f "$REST" ]] || echo 'endpoints: []' > "$REST"; }
       names="$(plugin_wanted "$dir" none "${@:1:$#-1}" | xargs)"
       for n in $names; do
-          if plugin_src "$dir" "$n" >/dev/null; then plugin_write "$dir" "$n" ".decree/plugins/$(plugin_decree_name "$dir" "$n").md"
+          if plugin_src "$dir" "$n" >/dev/null; then plugin_write "$dir" "$n" ".decree/plugins/${n}.md"
           elif [[ ! -f ".decree/plugins/${n}.md" ]]; then decree install --no-color "$n" >/dev/null || return 1; fi
       done
       plugin_state_links none

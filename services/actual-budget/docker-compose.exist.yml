@@ -22,8 +22,8 @@ services:
     #     - '45006:5006'
     volumes:
       # SQLite budget files + sync server — db: true (NFS breaks WAL locking).
-      # Backup: ./existential.sh flow on backup-actual-budget
-      # (automation/plugins/flows/backup-actual-budget.md).
+      # Backup: ./existential.sh plugin on volume_backup
+      # (automation/plugins/volume_backup.md lists it).
       - actual_budget_data:/data
     # No ACTUAL_BUDGET_PASSWORD here on purpose: the server has no env var for
     # its login password (checked packages/sync-server/src/load-config.js in the

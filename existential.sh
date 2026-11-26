@@ -5,7 +5,7 @@
 # off to domain scripts inside the container. All heavy lifting lives in:
 #
 #   src/templates.sh        — render *.exist.* templates (fzf prompts, placeholders)
-#   src/flows.sh            — turn curated flows (machines + the services they need) on and off
+#   src/plugins.sh          — turn decree plugins on and off, in each decree project
 #   src/services.sh         — turn single services on and off
 #   src/generate-compose.ts — merge enabled services → docker-compose.yml
 #   src/lib/                — general utilities (backup, rclone, etc.)
@@ -264,15 +264,12 @@ _tailscale_serve_core() {
     return 0
 }
 
-# A worker is a machine whose host runs decree with the report-host flow on (report_host;
-# worker, its name before, until _rename_flows renames it).
+# A worker is a host whose decree has report_host on, in the host project's list of
+# what is on (or, until _migrate turns it into that list, in what an older sync wrote).
 # Its EXIST_CONTROLLER names the controller it reports to; blank, with Loki on here, it
-# is the controller (blank without Loki, it reports nowhere). Read from automation/plugins.yml, what is wanted, so the first run
-# knows before the host sync has installed anything (host/.decree/plugins.yml is
-# where an older install said so, until the sync folds it in).
+# is the controller (blank without Loki, it reports nowhere).
 _is_worker() {
-    grep -qhE '^[[:space:]]+-[[:space:]]+(report-host|worker)[[:space:]]*$|^on:.*[[ ,](report-host|worker)[], ]' \
-        "${SCRIPT_DIR}/automation/plugins.yml" "${SCRIPT_DIR}/host/.decree/plugins.yml" 2>/dev/null
+    grep -qxE 'report_host|reporting' "${SCRIPT_DIR}/.decree/plugins/.on" "${SCRIPT_DIR}/.decree/plugins/.existential" 2>/dev/null
 }
 _is_controller() {
     _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null &&
@@ -294,7 +291,7 @@ _controller_answer() {
     printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
 }
 
-# fleet_gpu.md: the fleet lib (automation/plugins/flows/fleet.md) as a plugin any decree
+# fleet_gpu.md: the fleet lib (automation/plugins/fleet.md) as a plugin any decree
 # project installs, served by this host's decree-go-rest (GET /plugins/fleet_gpu.md, the
 # report_host plugin's endpoint) from report_host's state. Written at each run, so it is this
 # checkout's. Data to serve, never run here: no #! line, so decree check takes it as data.
@@ -304,7 +301,7 @@ _fleet_gpu_plugin() {
     mkdir -p "$d"
     { printf -- '---\nname: fleet_gpu\nscripts:\n  requirements: |\n    # kind    name\n    command   curl\n    command   jq\n  fleet.sh: |\n'
       awk '/^  fleet\.sh: \|$/ { f = 1; next } f && !/^    / && !/^$/ { exit } f && !/^    #!/ { print }' \
-          "${SCRIPT_DIR}/automation/plugins/flows/fleet.md"
+          "${SCRIPT_DIR}/automation/plugins/fleet.md"
       cat <<'MD'
 ---
 # fleet_gpu
@@ -406,30 +403,11 @@ _start_on_boot() {
 
 # The host's plugins (the repo's own .decree: none, by default) at this checkout's
 # version, then whether a decree daemon is there to run them. Nothing starts one
-# for you: it has to start at boot, which is the host's to set up.
-# True when a flow that is on runs on the host (x-exist-project: host), read from
-# automation/plugins.yml (its first copy, before there is one) with no yq: the host
-# project is not part of Core, and is left alone until one is.
-_host_flows_on() {
-    local f="${SCRIPT_DIR}/automation/plugins.yml" n p
-    [[ -f "$f" ]] || f="${SCRIPT_DIR}/automation/plugins.exist.yml"
-    for n in $(awk '/^on:[[:space:]]*\[/ { sub(/^on:[[:space:]]*\[/, ""); sub(/\].*/, ""); gsub(/,/, " "); print; next }
-                   /^on:/ { o = 1; next } o && /^[^[:space:]-]/ { o = 0 }
-                   o && /^[[:space:]]*-/ { sub(/^[[:space:]]*-[[:space:]]*/, ""); sub(/[[:space:]#].*/, ""); print }' "$f" 2>/dev/null); do
-        for p in "${SCRIPT_DIR}/automation/plugins/${n}.md" "${SCRIPT_DIR}/automation/plugins/flows/${n}.md"; do
-            [[ -f "$p" ]] || continue
-            awk '/^---$/ { if (++d == 2) exit; next } d != 1 { next }
-                 /^x-exist-project:/ { l = 1; if ($2 == "host") h = 1; next }
-                 l && /^[[:space:]]+-/ { if ($2 == "host") h = 1; next } { l = 0 }
-                 END { exit !h }' "$p" && return 0
-        done
-    done
-    return 1
-}
-
+# for you: it has to start at boot, which is the host's to set up. The host project
+# is not part of Core, and is left alone until something is on in it
+# (./existential.sh plugin on <name>, which syncs it then, as off does).
 _host_plugins() {
-    # Nothing for the host on, and nothing an earlier sync left to take back out.
-    _host_flows_on || [[ -s "${SCRIPT_DIR}/.decree/plugins/.existential" ]] || return 0
+    [[ -s "${SCRIPT_DIR}/.decree/plugins/.on" ]] || return 0
     local want; want="$(sed -n 's/^ARG DECREE_TAG=v//p' "${SCRIPT_DIR}/services/automation/decree/Dockerfile")"
     # A daemon on another decree would lose what it runs (update, reporting) to a sync
     # for this one: the project is left as it is until the host has this checkout's decree.
@@ -441,8 +419,8 @@ _host_plugins() {
         return 0
     fi
     # No engine (_worker_without_engine): the same sync, with the host's own yq and decree.
-    if [[ -n "${DOCKER_CMD:-}" ]]; then run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync host
-    else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" sync host; fi \
+    if [[ -n "${DOCKER_CMD:-}" ]]; then run_adhoc env REPO_DIR=/repo bash /src/plugins.sh sync host
+    else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/plugins.sh" sync host; fi \
         || echo "  ⚠  The host's plugin sync failed (above); ./existential.sh tries again."
     local on
     # decree's own plugins alone ask for no daemon (prune only prunes the runs one leaves).
@@ -460,7 +438,7 @@ _host_plugins() {
         echo "     and have it start at boot, in this folder (it was host/ before): https://existential.company/docs/hosting/host-daemon"
         todo=true
     fi
-    $todo && echo "     Or turn one off:  ./existential.sh run plugin off <name>"
+    $todo && echo "     Or turn one off:  ./existential.sh plugin off <name>"
     if [[ " ${on} " == *" report_host "* ]] && ! command -v alloy >/dev/null 2>&1; then
         echo "  ⚠  report_host ships this host's decree runs with alloy, and alloy is not here:"
         _install_steps alloy; todo=true
@@ -571,7 +549,9 @@ _worker_without_engine() {
         fi
         { grep -E '^EXIST_IS_' "${SCRIPT_DIR}/.env.exist.shared" | sed 's/=.*/=false/'
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
-        ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on report-host )
+        # report_host on in the host project; _build's _host_plugins installs it.
+        mkdir -p "${SCRIPT_DIR}/.decree/plugins"
+        grep -qxF report_host "${SCRIPT_DIR}/.decree/plugins/.on" 2>/dev/null || echo report_host >> "${SCRIPT_DIR}/.decree/plugins/.on"
     fi
     _controller_answer
     _fleet_gpu_plugin
@@ -865,10 +845,6 @@ _run_general_utility() {
         # peers reads the repo's fleet lib and reaches the other hosts from here.
         fleet)          bash "${SCRIPT_DIR}/src/lib/fleet.sh" "$@" ;;
         peers)          bash "${SCRIPT_DIR}/src/lib/peers.sh" "$@" ;;
-        # A worker (no engine, or no services) uses the host's own yq and decree:
-        # the same sync _host_plugins does, so list, on and off work there too.
-        plugin)         if ! _worker_only && adhoc_find_runtime; then run_adhoc bash /src/lib/plugin.sh "$@"
-                        else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/lib/plugin.sh" "$@"; fi ;;
         *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
 }
@@ -894,7 +870,7 @@ run_setup() {
     _run_service_action "$first" "${2:-initial}" "${@:3}"
 }
 
-# ── The build, shared by the bare command and `flow` ──────────────────────────
+# ── The build, shared by the bare command and `service` ─────────────────────
 
 # Render every enabled service's templates. A blank EXIST_DOMAIN /
 # EXIST_LOCAL_HOST_IP is back-filled *before* rendering: render_template
@@ -958,7 +934,7 @@ _set_image() {
 # (`git pull`, `run check-versions --update`) never reaches it on its own.
 # List each enabled service whose rendered image differs from its template's,
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
-# No terminal is the pull-existential flow, which you turned on to follow the branch,
+# No terminal is the pull_existential plugin, which you turned on to follow the branch,
 # so there they are applied: listed only, the pins would never move.
 _offer_image_updates() {
     local svc_dir out svc old new reply changes=""
@@ -1106,7 +1082,7 @@ _build() {
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
             echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'nowhere: set EXIST_CONTROLLER in .env.shared')."
         else
-            echo "Nothing is on yet. Pick services:  ./existential.sh service   (or a flow: ./existential.sh flow)"
+            echo "Nothing is on yet. Pick services:  ./existential.sh service   (and plugins: ./existential.sh plugin)"
         fi
         [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] && echo "Anything still running stops with:  docker compose down"
         return 0
@@ -1139,20 +1115,22 @@ Actions:
   (none)                 Render templates for enabled services, run their setup
                          scripts, generate docker-compose.yml. The first run
                          asks Core or none; a login is asked when a service needs it.
-  flow [list|on|off] [name...]
-                         What the stack does for you: each flow turns on the
-                         services it needs and its machine, then the same.
   service [list|on|off] [slug...]
                          Turn single services on or off without opening
                          .env.shared, then the same.
+  plugin [list|on|off] [name...]
+                         Turn decree plugins on or off; what each needs comes with
+                         it. Each decree project it runs in (automation, backup,
+                         host) is synced at once. What a plugin needs beyond
+                         plugins: https://existential.company/docs/flows
+  plugin sync [project] | export <name>
+                         sync installs a project's plugins at this checkout's
+                         version (a bare run does every project); export writes
+                         an installed plugin back to automation/plugins/.
   reset                  Archive every rendered file to archive/<timestamp>/ so the
                          next run renders fresh. Asks first; never touches volumes.
   run                    List every action.
   run <utility> [args]   A general utility in src/lib/ (rclone, models, footprint, ...).
-  run plugin [list|on|off|sync|export] [project/][name]
-                         Each decree project's plugins (automation, backup, host).
-                         sync installs them at this checkout's version; a bare
-                         run already does that for every project.
   run <slug> [action] [args]
                          A service's exist.<action>.sh (action defaults to initial).
   test [name]            all (default); secrets, guards, harness, lint, typecheck, site,
@@ -1160,9 +1138,9 @@ Actions:
                          unit or integration suite by name; or a service slug.
                          host: what runs on the host also runs on a Mac.
   validate [name]        all (default), conventions or drift.
-  e2e [--all|down|<pattern>...]
+  e2e [down]
                          Does a fresh install come up working? Clone, render, up,
-                         test, down: Core, then each flow marked e2e.
+                         test, down: Core, as it ships.
 EOF
 }
 
@@ -1199,7 +1177,7 @@ case "$action" in
         [[ "$_is_first_run" == "true" ]] && _report_login
         _report_model
         echo ""
-        echo "Tip: ./existential.sh flow  picks what else the stack does for you."
+        echo "Tip: what else the stack can do, and how to turn it on: https://existential.company/docs/flows"
         ;;
     reset)
         # Before anything is archived, while docker-compose.yml still exists.
@@ -1207,25 +1185,26 @@ case "$action" in
         ensure_adhoc_built
         run_adhoc env REPO_DIR=/repo bash /src/reset.sh
         ;;
-    flow|service)
+    plugin)
+        # Each project it is tagged for is synced at once, so there is nothing to build.
+        # A worker (no engine, or no services) uses the host's own yq and decree, as
+        # _host_plugins does. 3 is "nothing changed": a list.
+        _rc=0
+        if ! _worker_only && adhoc_find_runtime; then
+            ensure_adhoc_built
+            run_adhoc env REPO_DIR=/repo bash /src/plugins.sh "$@" || _rc=$?
+        else REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/plugins.sh" "$@" || _rc=$?; fi
+        [[ "$_rc" -eq 3 ]] && exit 0
+        exit "$_rc"
+        ;;
+    service)
         ensure_git_hooks
-        # A worker (no engine, or no services): its flows (pull-existential, boot-daemon, ...)
-        # are host plugins, turned on and synced with the host's own tools, as the
-        # bare run does. One that turned a service on, where an engine is, builds.
         # 3 is "nothing changed": a list, or a picker left without a choice.
-        if [[ "$action" == flow ]] && { _worker_only || ! adhoc_find_runtime; }; then
-            _rc=0; REPO_DIR="$SCRIPT_DIR" bash "${SCRIPT_DIR}/src/flows.sh" "$@" || _rc=$?
-            [[ "$_rc" -eq 3 ]] && exit 0
-            [[ "$_rc" -eq 0 ]] || exit "$_rc"
-            if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
-            ensure_adhoc_built
-        else
-            adhoc_find_runtime || { echo "Services need docker or podman: https://docs.docker.com/engine/install/" >&2; exit 1; }
-            ensure_adhoc_built
-            _rc=0; run_adhoc env REPO_DIR=/repo bash "/src/${action}s.sh" "$@" || _rc=$?
-            [[ "$_rc" -eq 3 ]] && exit 0
-            [[ "$_rc" -eq 0 ]] || exit "$_rc"
-        fi
+        adhoc_find_runtime || { echo "Services need docker or podman: https://docs.docker.com/engine/install/" >&2; exit 1; }
+        ensure_adhoc_built
+        _rc=0; run_adhoc env REPO_DIR=/repo bash /src/services.sh "$@" || _rc=$?
+        [[ "$_rc" -eq 3 ]] && exit 0
+        [[ "$_rc" -eq 0 ]] || exit "$_rc"
         _render
         _ask_hardware_if_needed
         _build

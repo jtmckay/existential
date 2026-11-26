@@ -80,7 +80,7 @@ services/automation-backup/runs/*
 services/automation-backup/store/
 services/automation-backup/processed.md
 services/automation-backup/process.log
-# automation-backup's plugins, as decree installed them, and the shared lib (src/lib/plugin.sh).
+# automation-backup's plugins (plugins/.on is what is on there), as decree installed them, and the shared lib (src/plugins.sh).
 services/automation-backup/lib/
 services/automation-backup/plugins/
 services/automation-backup/machines/
@@ -154,7 +154,7 @@ Thumbs.db
 # e2e evidence — one directory per run, copied out of the clone before teardown
 /e2e-out/
 
-# What is on, for every decree project: yours, from automation/plugins.exist.yml.
+# What was on before each project kept its own list; ./existential.sh moves it to archive/.
 automation/plugins.yml
 # Where the host's decree project was before it was the repo's own .decree.
 /host/

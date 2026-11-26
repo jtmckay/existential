@@ -8,7 +8,7 @@
 # error about capabilities, which points nowhere near this table.
 #
 # So the assertions here are about the contract between four files that have to
-# agree — src/utils/gpu-vendor.sh, src/flows.sh, src/lib/models.sh and
+# agree — src/utils/gpu-vendor.sh, src/services.sh, src/lib/models.sh and
 # src/generate-compose.ts — plus the templates that carry x-exist-gpu blocks.
 set -euo pipefail
 
@@ -18,13 +18,13 @@ set -euo pipefail
 # suites use — see test-compose.sh's GC.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-[[ -f "${SRC_DIR}/flows.sh" ]] || SRC_DIR="/src"
+[[ -f "${SRC_DIR}/services.sh" ]] || SRC_DIR="/src"
 
 REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 [[ -f "${REPO_DIR}/.env.exist.shared" ]] || REPO_DIR="/repo"
 
 VENDORS="${SRC_DIR}/utils/gpu-vendor.sh"
-FLOWS="${SRC_DIR}/flows.sh"
+SERVICES="${SRC_DIR}/services.sh"
 ENTRY="${REPO_DIR}/existential.sh"
 MODELS="${SRC_DIR}/lib/models.sh"
 GC="${SRC_DIR}/generate-compose.ts"
@@ -164,7 +164,7 @@ fi
 # Every consumer must go through the list. A hardcoded EXIST_IS_AI_OLLAMA=false
 # is what let the picker, models.sh and e2e.sh drift apart in the first place.
 E2E="${SRC_DIR}/test/e2e/e2e.sh"
-for _f in "$FLOWS" "$MODELS" "$E2E"; do
+for _f in "$SERVICES" "$MODELS" "$E2E"; do
     _name="$(basename "$_f")"
     if [[ ! -f "$_f" ]]; then
         _fail "${_name} is readable" "not found at ${_f}"

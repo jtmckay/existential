@@ -28,12 +28,11 @@ services:
       # this volume leaves .env and the running server out of step; see
       # .claude/reference/volumes.md.
       #
-      # Backup IS wired up: ./existential.sh flow on backup-lowcoder schedules
-      # lowcoder-db-backup-{nightly,weekly} in
-      # decree-backup (mongodump straight to ${EXIST_BACKUP_RCLONE_REMOTE}, same
-      # as every other db-backup — there is no local *_backup volume for any of
-      # them, see volumes.md). lowcoder-volume-backup-{nightly,weekly}.md covers
-      # lowcoder_data + lowcoder_assets_data the same way.
+      # Backup IS wired up: ./existential.sh plugin on db_backup volume_backup.
+      # db_backup's cron files list lowcoder-mongodb (mongodump straight to
+      # ${EXIST_BACKUP_RCLONE_REMOTE}, as every database: there is no local *_backup
+      # volume, see volumes.md); volume_backup's list lowcoder_data and
+      # lowcoder_assets_data.
       - lowcoder_mongo_data:/data/db
       # mongo declares VOLUME for BOTH /data/db and /data/configdb. Mounting only
       # the first leaves Docker to make an anonymous volume for the second.

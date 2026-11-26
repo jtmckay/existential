@@ -1,4 +1,4 @@
-# Setup: render, reset, flows, e2e
+# Setup: render, reset, plugins, e2e
 
 The mechanics behind `./existential.sh`. The rules are in `CLAUDE.md`; this is how they work.
 
@@ -21,7 +21,7 @@ Images are the other exception:
 
 - **A service `image:`** (`_offer_image_updates` in `existential.sh`, the start of `_build`): each
   enabled service's rendered `image:` is compared with its template's, per service, and the
-  differences are listed and rewritten on yes. No terminal (the `pull-existential` flow, which is
+  differences are listed and rewritten on yes. No terminal (the `pull_existential` plugin, which is
   opt-in): rewritten without asking. This is how `run check-versions --update` reaches an install.
 - **The decree image** (`ensure_adhoc_built` in `src/utils/adhoc.sh`): built with the
   `exist.context` label, a checksum of the files `.dockerignore` lets in. A mismatch rebuilds it.
@@ -63,27 +63,26 @@ the adhoc container, which has no docker socket.
 The first run asks nothing: it is Core, what `.env.exist.shared` ships on (code-server, ntfy,
 automation, qmd, Firecrawl), with `EXIST_USERNAME=admin` and a generated `EXIST_PASSWORD`
 (`_report_login` prints both once) and no model (`_report_model` says so every run until
-`EXIST_MODEL_URL` is set). A controller is `run fleet controller` (report-host, Loki, Grafana,
+`EXIST_MODEL_URL` is set). A controller is `run fleet controller` (report_host, Loki, Grafana,
 the model gateway); a host that reports to one, `run fleet join <controller>`. With every
-`EXIST_IS_*` false, `_build` stops at "nothing is on yet". A worker is any host whose `automation/plugins.yml` has `worker` on
-(`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
-`_build` syncs the host plugins even with nothing on.
+`EXIST_IS_*` false, `_build` stops at "nothing is on yet". A worker is any host whose host project has `report_host` on
+(`.decree/plugins/.on`, `_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 A host with neither docker nor podman (`adhoc_find_runtime` fails), and
 one that is already a worker with no service on (`_worker_only`) all skip adhoc altogether, on
-the bare run, `flow` and `run plugin` alike (a tool missing is named, never a reason to build):
+the bare run and `plugin` alike (a tool missing is named, never a reason to build):
 `_worker_without_engine` checks decree, yq, curl and tmux (`_worker_needs`, each missing one
 printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false` plus
-`EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), turns
-`worker` on, and runs `_build`, whose `_host_plugins` runs `src/lib/plugin.sh sync host` on the
+`EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), puts
+`report_host` in the host project's list, and runs `_build`, whose `_host_plugins` runs `src/plugins.sh sync host` on the
 host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
 bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
-and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts the controller's Loki on the LAN at 43100, and each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `report_host` and `_controller_fetch` use `http://<controller>:43100`, and read the controller's domain from its answer, which its `report_host` pushes there (`kind="answer"`). A flow with
-`x-exist-project: host` (`report-host`, `pull-existential`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_EMAIL` is asked by `_ask_if_needed` before the first enabled service that uses it
+and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts the controller's Loki on the LAN at 43100, and each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `report_host` and `_controller_fetch` use `http://<controller>:43100`, and read the controller's domain from its answer, which its `report_host` pushes there (`kind="answer"`). A plugin with
+`x-exist-project: host` (`report_host`, `pull_existential`) is on in the host project's own list and installed into the repo's `.decree`; `_host_plugins` leaves that project alone until its list names something; `_host_move` moves an older install's `host/` there once. `EXIST_EMAIL` is asked by `_ask_if_needed` before the first enabled service that uses it
 renders; Core uses none. What an older install needs once lives in `src/utils/migrate.sh`
 (`_migrate`, `_rename_machines`), each step dated for removal.
 
-Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `flow`
+Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `service`
 (with `EXIST_GPU_VENDOR` blank and a terminal) runs `src/lib/models.sh` with `FIRST_RUN=1`
 only when an enabled service's template declares `driver: nvidia`
 (`_ask_hardware_if_needed`). Until then blank resolves to `none`.
@@ -96,34 +95,37 @@ first. `EXIST_GPU_VENDOR` records that the pair was asked, so they are never re-
 `./existential.sh run models` is the way back and re-asks both. The VRAM picker's last entry
 takes a model name instead of a number (`custom:<tag>`) — see `.claude/reference/models.md`.
 
-## Flows
+## Plugins
 
-A flow is a plugin with no machine, `automation/plugins/flows/<name>.md`; the ones with a tagline
-are what `./existential.sh flow` offers. `src/utils/flows.sh` reads them, sourced by
-`src/flows.sh` (the command) and `e2e.sh`. It is awk over flat frontmatter, not yq, because e2e
-runs on the host. The keys are documented in its header; keep a flow's first keys flat (scalars,
-block lists of plain values) or the reader will not see them.
+Nothing in `automation/plugins/` is on. What a decree project has on is its own
+`.decree/plugins/.on` (the workspace's, `services/automation-backup/plugins/.on`, the repo's
+`.decree/plugins/.on`), seeded with `PLUGIN_DEFAULTS` the first time (`plugin_seed`).
+`./existential.sh plugin on|off <name>` (`src/plugins.sh`) edits the list of each project the
+plugin's `x-exist-project` names, skipping backup while automation-backup is off, and syncs each
+at once (`plugin_sync`, `automation/lib/plugin.sh`): what is listed and all it needs is written
+into `.decree/plugins/`, a repo plugin nothing listed needs is removed, and `decree install`
+installs it. `plugin` runs in adhoc, or on the host with the host's yq and decree where there
+is no engine or the host is a worker only. It exits 3 for "nothing changed" (`list`).
+`service [list|on|off]` (`src/services.sh`) turns one service's `EXIST_IS_*` flag on or off,
+skips one the GPU answer forbids (`vendor_forbids_service`), and rebuilds; it exits 3 the same way.
 
-`flow on <name>` asks, one service at a time, before it sets any flag the flows it needs name
-(`services:`, through `needs:`, depth first; only a typed `y` sets it, and no terminal is no; a
-service left off is printed with its `service on` line), skips one the GPU answer forbids (`vendor_forbids_service`: a local ollama under
-`external`), adds it to `automation/plugins.yml` (the one record of what is on, for every project), and
-prints the body: only what is left for a person. Then `existential.sh` renders and builds, and
-the sync of the project its `x-exist-project` names installs it and all it needs. `flow off` takes it out of
-`plugins.yml` and never touches services. `src/flows.sh` exits 3 for "nothing
-changed" (a list, an empty pick), which skips the rebuild. `service [list|on|off]` (`src/services.sh`) is
-the same shape for one service's `EXIST_IS_*` flag, with the same GPU check and exit 3.
+A flow is not code: it is a row on `site/docs/flows/index.md`, the `service on` and `plugin on`
+lines for one job and what is left for a person. `validate conventions` fails a `plugin on` or
+`service on` line in the docs that names nothing, and a plugin a person turns on (a machine
+nothing needs) with no line there. The setup steps for a service on its own live on the
+service's docs page.
 
-Every flow is in the table on `site/docs/flows/index.md`, and its names resolve (`validate
-conventions`). The setup steps for a service no flow needs live on the service's docs page.
+An install from before this kept one list, `automation/plugins.yml`, and each project's sync
+wrote `.decree/plugins/.existential`: `_plugins_on` (`src/utils/migrate.sh`) turns that into
+`.on`, moves the cron files a flow installed to the machine each names, and archives the old
+list. A sync that finds `.existential` and no `.on` refuses until it has.
 
 ## e2e
 
 e2e answers one question — **does a fresh install come up working?** — because that is the one
 thing `triage` cannot see.
 
-It runs Core (the install as it ships), then every flow marked `e2e: true` over it, or the units a
-pattern names (`./existential.sh e2e search`). It copies the **working tree** (not HEAD) into a
+It runs Core, the install as it ships. It copies the **working tree** (not HEAD) into a
 throwaway clone → render → up → checks → down, and does *not* re-run per-service tests.
 
 **An e2e check is a markdown file in `src/test/e2e/checks/`** — a decree message, dropped into

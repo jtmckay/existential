@@ -4,27 +4,27 @@ sidebar_position: 13
 
 # The Host Daemon
 
-Most of the stack runs in containers. Five flows run on the host itself, in the host's decree
-project, the checkout's own `.decree`: [`worker`](./controller-and-workers.md), which reports the host,
-[`pull-existential`](./updates.md), which keeps the install current, [`boot-daemon`](#boot-daemon),
-which runs your own script when the daemon starts, [`check-versions`](./updates.md#pinned-images),
-which says when a pinned image is behind, and [`update-ubuntu`](./updates.md#ubuntu),
-which keeps an Ubuntu host patched. They run only while a decree
+Most of the stack runs in containers. Six plugins run on the host itself, in the host's decree
+project, the checkout's own `.decree`: [`report_host`](./controller-and-workers.md), which reports the host,
+[`pull_existential`](./updates.md), which keeps the install current, [`boot_daemon`](#boot-daemon),
+which runs your own script when the daemon starts, [`check_versions`](./updates.md#pinned-images),
+which says when a pinned image is behind, [`update_ubuntu`](./updates.md#ubuntu),
+which keeps an Ubuntu host patched, and [`lease_gpu`](./ai-box.md), which shares a GPU box's card. They run only while a decree
 daemon runs there, and nothing starts one for you. `./existential.sh` says so until one does.
 
-## Turn a flow on
+## Turn one on
 
 Each one is off until you turn it on, from the checkout:
 
 ```bash
-./existential.sh flow on pull-existential     # or report-host, boot-daemon, check-versions, update-ubuntu
+./existential.sh plugin on pull_existential     # or report_host, boot_daemon, check_versions, update_ubuntu, lease_gpu
 ```
 
-That puts it in `automation/plugins.yml` and installs it into the checkout's `.decree`. It works on
-a host with neither docker nor podman, with the host's own tools; anything missing is named,
-all of it at once, with how to install it. Then start the daemon, below.
-`./existential.sh flow list` shows which flows are on; `./existential.sh run plugin list`
-shows every plugin, with the project that runs it.
+That puts it in the host project's list, `.decree/plugins/.on`, and installs it into the
+checkout's `.decree`. It works on a host with neither docker nor podman, with the host's own
+tools; anything missing is named, all of it at once, with how to install it. Then start the
+daemon, below. `./existential.sh plugin` shows every plugin, which are on, and the project that
+runs each.
 
 ## What it needs
 
@@ -84,7 +84,7 @@ again as above, and change `WorkingDirectory` in the unit to the checkout.
 ## When decree's version changes
 
 A pull that pins a new decree leaves the host's `.decree` as it is, so the daemon you have
-keeps running what it runs (`pull-existential` included), and `./existential.sh` prints the steps
+keeps running what it runs (`pull_existential` included), and `./existential.sh` prints the steps
 until you take them: install that version as above, run `./existential.sh`, then restart the
 daemon:
 
@@ -99,13 +99,13 @@ tmux has-session -t =existential-host && echo running
 tail -3 .decree/process.log
 ```
 
-Each run ends in a line like `✓ <run> done in 0s`. A flow's own output is in
+Each run ends in a line like `✓ <run> done in 0s`. A plugin's own output is in
 `.decree/runs/<run>/`. `./existential.sh` also warns while no daemon runs.
 
 ## Boot daemon
 
 With the unit above, the daemon is the one thing started at boot, and it can start the rest.
-`./existential.sh flow on boot-daemon`, then write `.decree/boot.sh`. It runs once each time the
+`./existential.sh plugin on boot_daemon`, then write `.decree/boot.sh`. It runs once each time the
 daemon starts (a cron file of the `boot_daemon` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
 in reach, so each process gets its own tmux session and is left alone if it already runs:
 

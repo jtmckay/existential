@@ -59,7 +59,7 @@ then the automations that need a model skip, and Claude Code works on its own lo
 To make this host a controller or have it report to one: `./existential.sh run fleet controller`
 or `./existential.sh run fleet join <controller>`.
 
-Five [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
+These [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
 [file advice](./flows/index.md#file-advice) (each file you add from now on is read once, and a
 suggestion reaches your phone), the [morning digest](#you-were-here), run cleanup, and a health
 check on ntfy. The rest are off until you turn them on, the [look backs](#look-back) and
@@ -71,21 +71,19 @@ Core ships no backups. Turn on [automation-backup](./decree/automation-backup.md
 ### Turning on more
 
 ```bash
-./existential.sh flow                 # pick from the list
-./existential.sh flow on weekly-newsletter   # or by name
+./existential.sh service on whisperx      # a service, then the same rebuild
+./existential.sh plugin on newsletter     # a decree plugin, installed now
 ```
 
 A **flow** is one thing the stack does for you: your own newsletter, transcribed voice memos,
-bank alerts as budget entries.
+bank alerts as budget entries. Each is a few services and plugins turned on, and the
+[Flows](./flows/index.md) page lists them all, with the lines to turn each on and any step only
+you can do (an OAuth grant, a password).
 
-- `flow on` asks before it turns on each service it needs, turns on its machine, rebuilds, and prints
-  any step only you can do (an OAuth grant, a password).
 - `docker compose up -d` starts what is new.
-- `flow off <name>` turns the machine off and leaves the services alone.
-- The full list: [Flows](./flows/index.md#turning-one-on).
-
-A service no flow needs (Caddy, Grafana, Mealie, ...) is one flag in `.env.shared`,
-`EXIST_IS_<CATEGORY>_<SLUG>=true`, then `./existential.sh` again.
+- `plugin off <name>` turns a plugin off; `service off <slug>` a service.
+- A service on its own (Caddy, Grafana, Mealie, ...) is `./existential.sh service on <slug>`, or
+  one flag in `.env.shared`, `EXIST_IS_<CATEGORY>_<SLUG>=true`, then `./existential.sh` again.
 
 What each `./existential.sh` run does:
 
@@ -154,7 +152,7 @@ Every run also pulls and builds the images, without touching what's running. The
 
 ## Enable/Disable Services
 
-A flow asks for each service it needs. For anything else:
+The [Flows](./flows/index.md) page names the services each flow uses. To turn one on or off:
 
 ```bash
 ./existential.sh service                 # pick: Space switches one, Enter applies
@@ -216,7 +214,7 @@ how to write an automation. Add-ons mount the same tree:
 - **A file change can start an automation.** A handler in `.decree/handlers.yml` runs once the
   file has been quiet for 30 seconds. A `.gitignore`'d path or anything in `.git/` never does.
   See [File Handlers](./decree/file-handlers.md).
-- **With Search on** (`./existential.sh flow on search`), [qmd](./ai/qmd.md) indexes the workspace within a
+- **Search** is part of Core: [qmd](./ai/qmd.md) indexes the workspace within a
   minute of each change, and you, pi, Claude Code and opencode can search it.
 - **To edit on other computers**, sync it: the Nextcloud desktop client with Nextcloud in the stack,
   or [a Nextcloud elsewhere](#syncing-with-a-nas-or-a-nextcloud-optional). Its *Ignored Files* list keeps
@@ -224,8 +222,7 @@ how to write an automation. Add-ons mount the same tree:
 
 ### Capture
 
-Off until `./existential.sh flow on code-server-agents` (or `capture-stream`, for the webhook
-alone). `workspace/.capture/` then keeps what you typed to an agent, one JSON line each (`ts`, `source`,
+Off until `./existential.sh plugin on capture`. `workspace/.capture/` then keeps what you typed to an agent, one JSON line each (`ts`, `source`,
 `context`, `session`, `text`), one file per writer and month (`2026-10-code-server.jsonl`).
 
 - Only what you typed: never a response, tool output or transcript.
@@ -238,10 +235,10 @@ alone). `workspace/.capture/` then keeps what you typed to an agent, one JSON li
 
 | Source | On | Off |
 |---|---|---|
-| Claude Code in [code-server](./services/code-server.md) | With `code-server-agents` on: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
-| opencode in code-server | With `code-server-agents` on: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
+| Claude Code in [code-server](./services/code-server.md) | With capture on: a `UserPromptSubmit` hook | `CODE_SERVER_CAPTURE=false` in `services/code-server/.env`, then `./existential.sh && docker compose up -d code-server` (turns off opencode too) |
+| opencode in code-server | With capture on: a plugin, `capture/opencode.ts` (the capture plugin's) | The same key |
 | Claude Code on another computer | `bash <workspace>/.decree/lib/capture/capture.sh install <workspace dir>`, with the workspace synced there | `bash <workspace>/.decree/lib/capture/capture.sh uninstall` |
-| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh flow off capture-stream` |
+| Anything that can POST | `POST /capture` on `automation-webhook` (`EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`) | `./existential.sh plugin off capture` |
 
 `install` adds the hook to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR`'s) beside your
 other hooks; `uninstall` removes only that one.
@@ -285,7 +282,7 @@ Details:
 - Each day is kept as `workspace/ai/you-were-here/<YYYY>/<YYYY-MM-DD>.md`, with a **Done**
   section. Past days are never rewritten. **Worked on** lines name their capture source, which
   [work look backs](#look-back) filter on.
-- Schedule: `workspace/.decree/machines/flow_you_were_here/cron/you-were-here.md`. Off: `./existential.sh flow off you-were-here`.
+- Schedule: `workspace/.decree/machines/you_were_here/cron/you-were-here.md`. Off: `./existential.sh plugin off you_were_here`.
 - Now: `POST /you-were-here` on `automation-webhook`, or `echo | decree emit --machine you_were_here`
   in code-server's terminal. `note_link` sets the push's last line.
 
@@ -307,7 +304,7 @@ Every item links to its day note.
   when blank); `from`/`to` (`YYYY-MM-DD`) set either end.
 - `scope=work` keeps only what `workspace/ai/you-were-here/scope.md` lists (projects, folders,
   capture sources), and writes `…-work.md` beside the full one.
-- `./existential.sh flow on look-back` turns on the weekly (Sunday) and monthly (month-end) look backs
+- `./existential.sh plugin on look_back` turns on the weekly (Sunday) and monthly (month-end) look backs
   (`cron/look-back-weekly.md`, `look-back-monthly.md`), and the digest they read. Longer ranges read those instead of
   every day note.
 - With the webhook: `POST /look-back`, `/look-back/month`, `/look-back/month/work`.
@@ -318,7 +315,7 @@ docker exec automation decree emit --machine look_back --param period=quarter --
 
 ### Syncing with a NAS or a Nextcloud (optional)
 
-With [automation-backup](./decree/automation-backup.md) on, `workspace-sync` runs `rclone bisync`
+With [automation-backup](./decree/automation-backup.md) on and `./existential.sh plugin on workspace_sync`, it runs `rclone bisync`
 every minute, both ways, with one other copy. A file changed on both sides keeps the newer edit.
 
 - **A NAS folder**: `EXIST_NFS_SHARE_WORKSPACE` in `.env.shared`, asked with the other
@@ -338,8 +335,8 @@ every minute, both ways, with one other copy. A file changed on both sides keeps
 
 - Simplest: keep the vault inside `workspace/`.
 - To edit it on other devices: sync through Nextcloud, see [Obsidian](./services/obsidian.md).
-- To pull it in from elsewhere: `./existential.sh flow on notes-pull` (it runs in automation-backup),
-  then in `services/automation-backup/machines/flow_notes_pull/cron/notes-pull.md`
+- To pull it in from elsewhere: `./existential.sh plugin on notes_pull` (it runs in automation-backup),
+  then in `services/automation-backup/machines/notes_pull/cron/notes-pull.md`
   set `NOTES_PULL_SOURCE` to an rsync-over-SSH path (`user@nas:/path/to/vault/`), and put an SSH
   key at `automation/secrets/notes-pull/id_ed25519`. Pulls are additive unless
   `NOTES_PULL_DELETE=true`. Pulled files fire no Nextcloud events.

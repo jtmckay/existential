@@ -19,7 +19,7 @@ every service in Core is one more thing a new user has to understand.
 - automation-webhook is an add-on with its own flag, and on-demand endpoints (`/capture`,
   `/you-were-here`, `/look-back`) come with it. Everything it triggers can also be started from
   code-server's terminal.
-- Everything past Core is an add-on: a flow that turns on what it needs (migration 023), or one
+- Everything past Core is an add-on: the plugins and services a flow names (migration 023), or one
   `EXIST_IS_*` flag, with any manual setup on that service's docs page: Caddy (hostnames, LAN
   access without Tailscale, its CA), monitoring (dashy, loki, prometheus, grafana,
   uptime-kuma), Nextcloud and the webhook, the apps, local AI, voice and home.

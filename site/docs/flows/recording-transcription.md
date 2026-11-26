@@ -85,8 +85,9 @@ recordings/2026-04-22 Meeting.mp3.transcript.txt   ← created automatically
 
 ### Step 1 — turn it on
 
-`./existential.sh flow on transcription` asks to turn on WhisperX, and turns on Nextcloud's file events (two
-migrations: the `nextcloud` rclone remote and the webhooks, see
+`./existential.sh service on whisperx nextcloud automation-webhook`, then
+`./existential.sh plugin on transcribe nextcloud_file_events`: Nextcloud's file events (two
+order files: the `nextcloud` rclone remote and the webhooks, see
 [File Processor → Setup](../decree/file-change-processing.md#setup)), and copies the
 `whisperx-transcribe` processor into `workspace/.decree/lib/file-processors/`.
 
@@ -112,7 +113,7 @@ docker exec automation decree status
 
 ### Step 4 — Configure Nextcloud mobile auto-upload
 
-In the Nextcloud mobile app, enable auto-upload for your phone's voice recordings or screen recordings folder. Each upload fires the webhook, and the transcription flow triggers automatically.
+In the Nextcloud mobile app, enable auto-upload for your phone's voice recordings or screen recordings folder. Each upload fires the webhook, and the transcription runs automatically.
 
 ## Customization
 

@@ -65,26 +65,24 @@ Every plugin is in that one folder, and its `x-exist-project` says which decree 
 | `backup` | `services/automation-backup/` | backups, triage, workspace sync |
 | `host` | the repo's own `.decree` | what runs on the host itself, in [the host daemon](../hosting/host-daemon.md): [updates](../hosting/updates.md) |
 
-What is on is one list for all three, `automation/plugins.yml` (`on:`). That file is yours,
-never in git, and written the first time from `automation/plugins.exist.yml`: what every
-install starts with. Each project's `.decree/plugins/` gets the entries tagged for it, and
-whatever those need, and `decree install` installs them. A project never gets a plugin that is
-not tagged for it, and the list is outside the workspace: nothing the `automation` daemon runs,
-or a model it calls, can change what `backup` or the host runs. The installed copies
-(`plugins/`, `machines/`, `lib/` in each project) are never committed; the plugin's file in
-the repo is the one place it lives.
+None of them is on until you say so. What is on is each project's own list,
+`.decree/plugins/.on`: the plugins you turned on there. Each project's `.decree/plugins/` gets
+those, and whatever they need, at this checkout's version on every `./existential.sh`, and
+`decree install` installs them; a repo plugin nothing on needs any more is removed. A project
+never gets a plugin that is not tagged for it, and nothing the `automation` daemon runs, or a
+model it calls, can write `backup`'s or the host's list. The installed copies (`plugins/`,
+`machines/`, `lib/` in each project) are never committed; the plugin's file in the repo is the
+one place it lives. A new install's `automation` list starts with `note_watch`, `reconcile`,
+`service_health`, `pi`, `file_advise` and `you_were_here`.
 
-A plugin with no machine is a **flow**, in `automation/plugins/flows/`: one thing the stack does
-for you, needing the plugins that do it and naming the services they use (turning it on asks before it
-turns each on). Those with a
-tagline are the ones [`./existential.sh flow`](../flows/index.md) offers; the rest are libraries, code
-other plugins use (`model`, `pi`, `agent`, `firecrawl`, `rss`) or a file processor a flow turns
-on (`ocr`, `transcribe`, `agent_handoff`). decree installs a flow as `flow_<name>`, so its
-schedule has a folder. Every helper a script uses is some plugin's `x-exist-lib`, installed into
-`workspace/.decree/lib/` and sourced as `.decree/lib/<path>` (a script runs in the project's
-root). A plugin may also need one of [decree's own](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md#official-plugins),
+A plugin with no machine is lib other plugins need: code they use (`model`, `pi`, `agent`,
+`firecrawl`, `rss`, `fleet`) or a file processor (`ocr`, `transcribe`, `agent_handoff`). Every
+helper a script uses is some plugin's `x-exist-lib`, installed into `workspace/.decree/lib/` and
+sourced as `.decree/lib/<path>` (a script runs in the project's root). A plugin may also need one
+of [decree's own](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md#official-plugins),
 named `decree_*`: `decree_order` (runs a plugin's one-time setup), `decree_ai` (Claude Code, for
-`agent`) and `decree_prune` (the `clean-runs` flow).
+`agent`); `decree_prune` prunes finished runs in every project. What a plugin needs that is not a
+plugin (a service, a model, a step only you can do) is on the [Flows](../flows/index.md) page.
 
 Data that is yours to edit (the newsletter's feeds and taste, pi's departments) is a plugin's
 `state:`, written once to `workspace/.decree/store/<plugin>/` (each machine's `state/` is that
@@ -94,13 +92,13 @@ your own is a file in `workspace/.decree/plugins/`, installed with `decree insta
 only `cron:` files.
 
 ```bash
-./existential.sh run plugin                     # every plugin: on or not, its project, what it does
-./existential.sh run plugin on gpu_lease        # install it where its x-exist-project says, and keep it current
-./existential.sh run plugin off gpu_lease       # remove it, endpoints and schedule included
+./existential.sh plugin                     # every plugin: on, + (something on needs it), or off
+./existential.sh plugin on gpu_lease        # install it where its x-exist-project says, and keep it current
+./existential.sh plugin off gpu_lease       # remove it, endpoints and schedule included
 ```
 
-`plugins.yml` is `on: [...]` and `auto_update: true`. Turning a plugin off takes it out of `on:`;
-one that something still on needs stays. With `auto_update: false`, a plugin whose file changed is named, not installed.
+Turning a plugin off takes it out of its project's list; what it needed goes too, unless
+something else on needs it.
 
 ## Changing one
 
@@ -110,7 +108,7 @@ code-server) until it works, then write it back (`decree export`) and commit. A 
 runs is exported from there, never from the workspace:
 
 ```bash
-./existential.sh run plugin export gpu_lease    # → automation/plugins/gpu_lease.md
+./existential.sh plugin export gpu_lease    # → automation/plugins/gpu_lease.md
 ```
 
 Every install that has it on gets the new version on its next pull. A copy someone edited in
@@ -118,13 +116,13 @@ place is kept in `.decree/archive/<name>/` (decree does that) before the new ver
 it. A schedule you edited in place is kept: decree installs a plugin's cron files once. Machines you wrote
 yourself, and automations `develop` built from your notes, are never touched.
 
-`notify` is the plugin system itself. It is a plugin file like
-the rest, but always installed, whatever is on, and only the repo's files install them: no
+`notify` is the plugin system itself (with `skill` in the workspace, and decree's
+`decree_prune`). It is a plugin file like the rest, but always installed, whatever is on, and only the repo's files install them: no
 plugin you accept from another stack can replace it, nor one of decree's. Everything else is off until you turn it on.
 
 ## Between stacks
 
-Off until `./existential.sh flow on plugin-sharing`, which also needs
+Off until `./existential.sh plugin on plugin_share plugin_offer`, which also needs
 [automation-webhook](../decree/automation-webhook.md). With it on, another stack can ask yours for a
 plugin, and yours can ask theirs. Nothing is installed anywhere without a person accepting it.
 

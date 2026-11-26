@@ -128,30 +128,29 @@ printf 'alpha\nbeta\n' > "$insync/x.exist.txt"
 printf 'alpha\nbeta\n' > "$insync/x.txt"
 expect_pass "drift: passes when rendered matches template" tsx "$DRIFT" "$insync"
 
-# ── Plugins and flows ─────────────────────────────────────────────────────────
-# A flow is automation/plugins/flows/<name>.md, a plugin with no machine:
-# frontmatter, then what is left for a person. Every name it gives must resolve.
+# ── Plugins ───────────────────────────────────────────────────────────────────
+# A plugin is automation/plugins/<name>.md. One a person turns on (a machine
+# nothing needs) has its `plugin on` line on the Flows page, and every `plugin on`
+# and `service on` the docs give names what there is.
 
-ffix() {   # ffix <frontmatter lines>: one service folder, its page, and one flow, foo
+pfix() {   # pfix <frontmatter lines> [flows page line]: one service folder, its page, and one plugin, foo
     local d; d="$(mkfix)"
-    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/automation/plugins/flows"
+    mkdir -p "$d/ai/foo" "$d/site/docs/ai" "$d/site/docs/flows" "$d/automation/plugins"
     printf 'services:\n  foo:\n    container_name: foo\n    restart: unless-stopped\n' > "$d/ai/foo/docker-compose.exist.yml"
     printf -- '---\nservice: ai/foo\n---\n\n# Foo\n' > "$d/site/docs/ai/foo.md"
-    printf -- '---\nname: foo\nx-exist-project: automation\n%s\n---\n\nTurn it on, then e2e: false is just words here.\n' "$1" > "$d/automation/plugins/flows/foo.md"
+    printf -- '---\nname: foo\nx-exist-project: automation\nmachine:\n  initial: go\n%s\n---\n' "$1" > "$d/automation/plugins/foo.md"
+    printf '# Flows\n\n%s\n' "${2-./existential.sh service on foo && ./existential.sh plugin on foo}" > "$d/site/docs/flows/index.md"
     echo "$d"
 }
-FLOW_OK=$'x-exist-title: Foo\nx-exist-tagline: does foo\nx-exist-docs: /docs/ai/foo\nx-exist-services:\n  - EXIST_IS_AI_FOO'
-expect_pass "conventions: accepts a flow whose names all resolve" tsx "$CONV" "$(ffix "$FLOW_OK")"
-expect_fail "conventions: rejects a flow you pick with no docs" tsx "$CONV" "$(ffix $'x-exist-title: Foo\nx-exist-tagline: does foo')"
-expect_fail "conventions: rejects a flow whose docs page does not exist" tsx "$CONV" "$(ffix "${FLOW_OK/ai\/foo/ai\/bar}")"
-expect_fail "conventions: rejects a flow naming a service with no folder" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\n  - EXIST_IS_AI_BAR')"
-expect_fail "conventions: rejects a flow needing a plugin that does not exist" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nneeds:\n  - bar')"
-expect_fail "conventions: rejects a flow with a machine (it belongs in plugins/)" tsx "$CONV" "$(ffix "${FLOW_OK}"$'\nmachine:\n  initial: go')"
-expect_fail "conventions: rejects a flow whose cron runs a machine it does not need" tsx "$CONV" \
-    "$(ffix "${FLOW_OK}"$'\ncron:\n  foo-daily.md: |\n    ---\n    machine: bar\n    ---')"
-clash="$(ffix "$FLOW_OK")"
-printf -- '---\nname: foo\nx-exist-project: automation\nmachine:\n  initial: go\n---\n' > "$clash/automation/plugins/foo.md"
-expect_fail "conventions: rejects a machine and a flow sharing a name" tsx "$CONV" "$clash"
+expect_pass "conventions: accepts a plugin whose row on the Flows page names it" tsx "$CONV" "$(pfix '')"
+expect_fail "conventions: rejects a plugin a person turns on with no row on the Flows page" tsx "$CONV" "$(pfix '' 'nothing here')"
+expect_fail "conventions: rejects docs turning on a plugin that does not exist" tsx "$CONV" "$(pfix '' './existential.sh plugin on foo bar')"
+expect_fail "conventions: rejects docs turning on a service with no folder" tsx "$CONV" "$(pfix '' './existential.sh service on bar && ./existential.sh plugin on foo')"
+expect_fail "conventions: rejects a plugin needing one that does not exist" tsx "$CONV" "$(pfix $'needs:\n  - bar')"
+expect_fail "conventions: rejects a plugin whose cron runs a machine it does not need" tsx "$CONV" \
+    "$(pfix $'cron:\n  foo-daily.md: |\n    ---\n    machine: bar\n    ---')"
+flowsdir="$(pfix '')"; mkdir -p "$flowsdir/automation/plugins/flows"
+expect_fail "conventions: rejects automation/plugins/flows/ (a flow is a docs page)" tsx "$CONV" "$flowsdir"
 
 # ── Docs: a page per service, links that land, Core's list ───────────────────
 # docfix <dir>: one service folder (ai/foo), its page, a one-service Core, and a

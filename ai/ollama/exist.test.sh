@@ -67,7 +67,7 @@ NAMES=$(echo "$TAGS" | jq -r '.models[]?.name // empty' 2>/dev/null || true)
 
 if [ -z "$NAMES" ]; then
     # No models AT ALL is the pull step not having run yet, not a fault: the
-    # pulls are the local-models flow, or `./existential.sh run ollama
+    # pulls are the ollama_pull plugin, or `./existential.sh run ollama
     # pull-models`, so a fresh install legitimately has an empty ollama. Failing here reported
     # a working stack as broken. Drift is still caught: one model present and the
     # configured one missing falls through to the fail below.

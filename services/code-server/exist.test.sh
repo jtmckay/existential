@@ -26,20 +26,19 @@ probe_service "code-server /healthz" code-server 8080 /healthz 200
 env_var_set "code-server password" CODE_SERVER_PASSWORD
 probe_service "code-server auth gate" code-server 8080 / 302
 
-# The code-server-agents flow (off unless turned on) is what configures the agents:
-# model.sh and pi.sh (sourced to configure opencode and pi) and the capture hook
-# and plugin are read from the workspace's decree lib, where the model, pi and
-# capture plugins install them. A missing one only makes the entrypoint warn, so
-# check them on disk.
-if ! grep -qxE '[[:space:]]*-[[:space:]]*code-server-agents' /repo/automation/plugins.yml 2>/dev/null; then
-    skip "code-server agents" "the code-server-agents flow is off"
+# The agents are configured from the workspace's decree lib: model.sh and pi.sh
+# (sourced to configure opencode and pi; pi is on by default) and the capture hook
+# and plugin, which the capture plugin installs. A missing one only makes the
+# entrypoint warn, so check them on disk, once capture is on.
+if ! grep -qxF capture /repo/volumes/workspace_data/.decree/plugins/.on 2>/dev/null; then
+    skip "code-server agents" "capture is off (./existential.sh plugin on capture)"
 else
     for _src in model.sh pi.sh capture/capture.sh capture/opencode.ts; do
         if [ -f "/repo/volumes/workspace_data/.decree/lib/${_src}" ]; then
             ok "code-server lib/${_src} installed"
         else
             fail "code-server lib/${_src} installed" "workspace/.decree/lib/${_src} is missing" \
-                 "./existential.sh flow on code-server-agents"
+                 "./existential.sh plugin on capture"
         fi
     done
 

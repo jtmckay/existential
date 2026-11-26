@@ -41,7 +41,6 @@ right after first-boot schema migrations, so the compose limit is 2G (~2.3x idle
 instead probes `/api/v1/db/meta/nocodb/info`, which reads through to Postgres and fails the
 moment the DB is unreachable.
 
-**Backup.** `./existential.sh flow on backup-nocodb` schedules, in `automation-backup`,
-`nocodb-db-backup-{nightly,weekly}.md` (dumps `nocodb-postgres`) and
-`nocodb-volume-backup-{nightly,weekly}.md` (tars `nocodb_data` — attachments and other files
+**Backup.** `./existential.sh plugin on db_backup volume_backup` schedules, in `automation-backup`,
+the dump of `nocodb-postgres` and the tar of `nocodb_data` — attachments and other files
 NocoDB writes outside Postgres).

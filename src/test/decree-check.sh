@@ -5,7 +5,7 @@
 # No project is checkable as it sits: its plugins are written from
 # automation/plugins/, and inbox/ and cron/ are the user's. So each (automation,
 # backup, host) is assembled in a temp dir from every plugin whose x-exist-project
-# names it, with their order files and every flow's examples in the inbox: that is
+# names it, with their order files and every plugin's examples in the inbox: that is
 # what makes decree check validate the templates' machine and params against the
 # machines' data, which is the mistake a rename or a new param makes. Then each
 # plugin is checked again alone with the plugins its needs: names, so a needs: that
@@ -33,7 +33,7 @@ unpack() {  # <project root> <name>...: each plugin installed there, as the stac
     local root="$1"; shift
     plugin_unpack "$@" "$root" >/dev/null || { echo "FAIL  $* does not install" >&2; rc=1; }
 }
-PLUGINS="$(cd "$DIR" && ls -- *.md flows/*.md | sed 's#^flows/##; s/\.md$//')"
+PLUGINS="$(cd "$DIR" && ls -- *.md | sed 's/\.md$//')"
 
 # messages <dir> <name>...: each plugin's order files and examples (messages for
 # reading, never installed) into <dir>/inbox, where decree check reads them.
@@ -57,7 +57,7 @@ for n in $PLUGINS; do
 done
 
 # Two plugins shipping one lib path would have one overwrite the other.
-dups="$(cd "$DIR" && for f in *.md flows/*.md; do yq --front-matter=extract -r '.["x-exist-lib"] // {} | keys | .[]' "$f"; done | sort | uniq -d)"
+dups="$(cd "$DIR" && for f in *.md; do yq --front-matter=extract -r '.["x-exist-lib"] // {} | keys | .[]' "$f"; done | sort | uniq -d)"
 [[ -z "$dups" ]] || { echo "FAIL  two plugins ship the same lib file: $(paste -sd' ' <<<"$dups")" >&2; rc=1; }
 
 tagged() {  # <project>: every plugin whose x-exist-project names it

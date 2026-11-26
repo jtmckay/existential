@@ -24,7 +24,7 @@ cannot drive it without a bridge.
 | Job | short voice commands | long recordings |
 | Speaker labels | no | yes (diarization) |
 | Runs on | CPU | GPU |
-| Spoken to by | Home Assistant | Decree, via the transcription flow |
+| Spoken to by | Home Assistant | Decree, via the transcribe plugin |
 
 Running it on CPU is deliberate. The GPU is already holding the chat model; a GPU
 speech model here would evict it every time you spoke.

@@ -170,10 +170,10 @@ Decree picks up the new file immediately — no restart needed.
 
 ## Setup
 
-`./existential.sh flow on nextcloud-capture` asks to turn on Nextcloud and automation-webhook, and installs
-the two one-time decree order files below, which run once, as soon as they are installed. Core does not
-include Nextcloud, so this is always a step you take. The flows built on it (`image-ocr`,
-`transcription`, `workspace-agent`) turn it on themselves and copy their processor in:
+`./existential.sh service on nextcloud automation-webhook`, then `./existential.sh plugin on nextcloud_file_events`,
+which installs the two one-time decree order files below, which run once, as soon as they are installed. Core does not
+include Nextcloud, so this is always a step you take. The processors built on it (`ocr`,
+`transcribe`, `agent_handoff`) are plugins too, turned on beside it ([Flows](../flows/index.md)):
 
 - **`23-nextcloud-rclone-remote.md`** — the `nextcloud` rclone remote (WebDAV, as the admin
   user) that `file_processor` downloads through. `rclone_src` on the webhook's `/files` route

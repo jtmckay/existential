@@ -100,7 +100,7 @@ same tree code-server and decree see. See [Getting Started → Workspace](../get
 
 ## Collabora (office document editing)
 
-`./existential.sh flow on office-documents` installs the `richdocuments` app, points it at
+`./existential.sh plugin on nextcloud_richdocuments` installs the `richdocuments` app, points it at
 Collabora, sets `wopi_callback_url` to `http://nextcloud` so Collabora fetches files over the
 `exist` network, and limits `wopi_allowlist` to the `exist` subnet (blank would allow any IP).
 
@@ -121,8 +121,8 @@ Collabora's own admin console lives at `https://collabora.<domain>`, gated by
 
 ## Calendar
 
-CalDAV is always on; the Calendar app (`/apps/calendar`) isn't. `./existential.sh flow on
-calendar` installs it.
+CalDAV is always on; the Calendar app (`/apps/calendar`) isn't. `./existential.sh plugin on
+calendar_extract` installs it.
 
 To do it by hand instead:
 
@@ -132,9 +132,9 @@ docker exec nextcloud php /var/www/html/occ app:install calendar
 
 ### Searchable, answerable by pi
 
-The flow's `calendar-extract` cron writes each event, from the recent past to
+`calendar_extract`'s cron writes each event, from the recent past to
 `CALENDAR_EXTRACT_FUTURE_DAYS` ahead, as a note in `workspace/ai/calendar/<calendar>/`. qmd
-indexes it (the `search` flow), so pi can answer "what's on my calendar".
+indexes it, so pi can answer "what's on my calendar".
 
 - Full refresh: a cancelled event's note disappears on the next run.
 - CalDAV details: `automation/plugins/calendar_extract.md` (tested on nextcloud:34.0.3, recurring

@@ -65,5 +65,5 @@ Keeps this install on its branch: every 15 minutes it pulls, fast-forward only, 
 fast-forward, which changes nothing.
 
 It runs in the host's own decree project, the repo's own `.decree`, so a decree daemon has to be
-running there, started at boot: `./existential.sh` says so while it is not. The `pull-existential` flow turns it on:
-`./existential.sh flow on pull-existential`.
+running there, started at boot: `./existential.sh` says so while it is not. `./existential.sh plugin on pull_existential`
+turns it on.

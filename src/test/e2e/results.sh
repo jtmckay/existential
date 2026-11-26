@@ -4,8 +4,8 @@
 # nothing. Everything here is functions — keep it that way.
 #
 # The problem it solves: the e2e clone is deleted on the way out, so for a long
-# time the only way to see WHY something failed was to print it first (the flow
-# test's _diagnose dump) or to skip teardown entirely (E2E_KEEP=1). Every run's
+# time the only way to see WHY something failed was to print it first (a
+# _diagnose dump) or to skip teardown entirely (E2E_KEEP=1). Every run's
 # evidence already exists in a good shape — decree writes
 # runs/<id>/{message.md,events.jsonl,<NNNN>-<state>-<script>.log} per run — it
 # was just being thrown away. This copies it out before teardown and writes an
@@ -32,15 +32,12 @@
 # an id scheme this has no business depending on.
 
 # Read one frontmatter value out of a message.md. Frontmatter only — a check's
-# prose body is free-form and must never be parsed as data (the same rule
-# src/utils/flows.sh applies to a flow).
+# prose body is free-form and must never be parsed as data.
 e2e_fm_get() {
     local file="$1" key="$2"
     [ -f "$file" ] || return 0
     # Trailing whitespace is trimmed as well as leading: a caller comparing
-    # against a literal (`[ "$(e2e_fm_get "$f" e2e)" = true ]`) would otherwise
-    # match NEITHER branch on `e2e:  true   `, and a flow would vanish from the
-    # run list and the excluded list at once, with no warning.
+    # against a literal would otherwise miss `key:  value   `.
     awk -v k="^${2}:" 'NR==1 && /^---$/{f=1;next} f && /^---$/{exit} f && $0 ~ k' "$file" \
         | head -1 | sed "s/^${key}:[[:space:]]*//; s/[[:space:]]*\$//"
 }

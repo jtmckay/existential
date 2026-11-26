@@ -78,6 +78,42 @@ scripts:
         printf '[%s] HTTP %s (expected %s)  FAIL\n' "$SERVICE_NAME" "$http_code" "$EXPECT_CODE" >&2
         exit 1
     fi
+cron:
+  health-checks.md: |
+    ---
+    cron: "*/15 * * * *"
+    machine: service_health
+    params:
+      SERVICE_NAME: notifications
+    ---
+
+    Health check cron template for all services accessible from the main decree
+    daemon on the exist Docker network.
+
+    Each check is a separate cron file. Copy this file and adjust SERVICE_NAME and
+    SERVICE_URL for each service you want to monitor.
+
+    The shipped default leaves SERVICE_URL blank: it checks where this host's
+    notifications go, its ntfy, or the controller's Loki when ntfy is off here. A
+    check on a container this host does not run (a service that is off here) is
+    skipped, not failed, so a copy can stay in place on every host. Results appear
+    in Grafana's Decree Overview, from Loki.
+
+    The run's machine is "service_health", not SERVICE_NAME — every copy of
+    this cron shares one. The per-service
+    alert in hosting/prometheus/alerts.yml rides triage's exist_service_healthy
+    gauge instead, which needs no cron file at all.
+
+    Example service URLs (container:port/health-path):
+      http://ollama:11434/api/tags            - ollama
+      http://mealie:9000/api/app/about        - mealie
+      http://nocodb:8080/api/v1/health        - nocodb (unauthenticated)
+      http://grafana:3000/api/health          - grafana
+      http://prometheus:9090/-/healthy        - prometheus
+      http://loki:3100/ready                  - loki
+      http://automation-webhook:8801/healthz  - automation-webhook
+      http://uptime-kuma:3001               - uptime-kuma (any 200)
+      http://open-webui:8080/health           - open-webui
 ---
 # service_health
 

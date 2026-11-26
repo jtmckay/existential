@@ -44,7 +44,7 @@ _tsc_in_container() {
         # and out of a dot-folder (tsc's globs skip those).
         rm -rf ${_PLUGINS_TS}; mkdir -p ${_PLUGINS_TS}
         ( . automation/lib/plugin.sh
-          plugin_unpack \$(cd automation/plugins && ls *.md flows/*.md | sed 's#^flows/##; s/\\.md\$//') ${_PLUGINS_TS} ) >/dev/null
+          plugin_unpack \$(cd automation/plugins && ls *.md | sed 's/\\.md\$//') ${_PLUGINS_TS} ) >/dev/null
         mv ${_PLUGINS_TS}/.decree ${_PLUGINS_TS}/decree
         /opt/decree/node_modules/.bin/tsc --noEmit -p tsconfig.json 2>&1 || true
         rm -rf ${_PLUGINS_TS}
@@ -100,7 +100,7 @@ OURS="$(printf '%s\n' "$OUT" \
 _count="$(git -C "$REPO" ls-files '*.ts' 2>/dev/null \
     | grep -E '^(src|automation|services/automation/src|ai)/' | wc -l)"
 
-_count=$(( _count + $(cat "${REPO}"/automation/plugins/*.md "${REPO}"/automation/plugins/flows/*.md | grep -cE '^  [A-Za-z0-9_./-]+\.ts: [|]') ))
+_count=$(( _count + $(cat "${REPO}"/automation/plugins/*.md | grep -cE '^  [A-Za-z0-9_./-]+\.ts: [|]') ))
 if [ -z "$OURS" ]; then
     echo "  PASS  typecheck-ts (${_count} files with the plugins', tsc --noEmit, strict)"
 else

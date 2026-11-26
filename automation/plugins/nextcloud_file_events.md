@@ -79,6 +79,26 @@ scripts:
         sleep 10
     done
     echo "nextcloud ready."
+needs:
+  - nextcloud_rclone_remote
+  - file_router
+  - decree_order
+order:
+  27-nextcloud-file-events.md: |
+    ---
+    machine: nextcloud_file_events
+    ---
+
+    Register Nextcloud's file-event webhooks (written, deleted, renamed) against
+    decree's `/files` endpoint, so an upload through Nextcloud — the desktop
+    client, the web UI, WebDAV — runs `file-router` and any matching file
+    processor.
+
+    Without this, Nextcloud works normally and nothing downstream ever hears about
+    a file.
+
+    Requires nas/nextcloud (`EXIST_IS_NAS_NEXTCLOUD`) enabled.
+    `./existential.sh plugin on nextcloud_file_events` turns it on.
 ---
 # nextcloud_file_events
 

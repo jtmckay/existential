@@ -32,7 +32,7 @@ host in the fleet has. `EXIST_MODEL_CHAT` blank means the first model the fleet 
 
 | Call | |
 |---|---|
-| `GET /v1/models` | Every model a GPU host offers now (its `lease-gpu` flow reports them to the controller). |
+| `GET /v1/models` | Every model a GPU host offers now (its `lease_gpu` plugin reports them to the controller). |
 | `POST /v1/...` | Finds the host whose offer lists `model`, leases it (`fleet_use`, the same lib decree scripts use) and streams that host's answer back. |
 | No host offers the model | 404, saying so. |
 | The host would not lease it | 503, saying why. |

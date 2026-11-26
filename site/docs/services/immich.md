@@ -73,14 +73,13 @@ relocates a photo library unattended is a script that can lose one.
 (`EXIST_NFS_SHARE_IMMICH`); without one it is `volumes/immich_share`. The mount is read-only,
 so the NAS folder only has to be readable by `EXIST_PUID:EXIST_PGID`.
 
-**Setup is automatic with the `photos` flow** (`./existential.sh flow on photos`). Its
-`immich_setup` migration creates the admin from `EXIST_EMAIL` and `EXIST_PASSWORD`, skips
+**Setup is automatic with `immich_setup`** (`./existential.sh plugin on immich_setup`). Its
+order file creates the admin from `EXIST_EMAIL` and `EXIST_PASSWORD`, skips
 Immich's onboarding wizard, and adds `/mnt/media/external_photos` as an External Library, which
-Immich rescans nightly. An Immich that already has an admin is left alone. Turned on with
-`service on` instead, Immich opens on its sign-up page and the library is added by hand under
+Immich rescans nightly. An Immich that already has an admin is left alone. Without it, Immich opens on its sign-up page and the library is added by hand under
 **Administration → External Libraries**.
 
-**Backup.** `./existential.sh flow on backup-immich` schedules the database dump and the
+**Backup.** `./existential.sh plugin on db_backup volume_backup` schedules the database dump and the
 volume backup, nightly and weekly, in `automation-backup`. Both reach the data because `automation-backup`
 mounts `volumes/` wholesale, and that is where both volumes live. A library on the NAS is not
 under `volumes/`: the volume backup skips it, and the NAS's own snapshots or replication are

@@ -231,7 +231,7 @@ assert_eq "the archive is per day" "3" "$(find "$W/ai/you-were-here" -name '*.md
 
 # ── wiring ────────────────────────────────────────────────────────────────────
 assert_eq "the cron template runs this machine" "you_were_here" \
-    "$(yq --front-matter=extract -r '.cron["you-were-here.md"]' "${REPO_DIR}/automation/plugins/flows/you-were-here.md" | awk '/^machine:/{print $2; exit}')"
+    "$(yq --front-matter=extract -r '.cron["you-were-here.md"]' "${REPO_DIR}/automation/plugins/you_were_here.md" | awk '/^machine:/{print $2; exit}')"
 assert_eq "POST /you-were-here, which the plugin brings, queues this machine" "you_were_here" \
     "$(yq -r '.endpoints[] | select(.path == "/you-were-here") | .message.machine' "${TMP}/unpacked/.decree/decree-go-rest.yml")"
 assert_lacks "no second feed parser" "$(cat "${TMP}/unpacked/.decree/lib/you-were-here/digest.ts")" "<item"

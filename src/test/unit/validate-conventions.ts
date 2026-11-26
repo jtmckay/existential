@@ -387,9 +387,6 @@ function checkVolumeSpecs(): string[] {
             `corrupts (mmap/flock). Drop 'nfs: true'.`,
           );
         }
-        if (name.endsWith('_cache') && props['backup'] === true) {
-          errors.push(`${rel}: volume '${name}' is a _cache but declares backup: true`);
-        }
       }
     }
   }
@@ -642,13 +639,12 @@ function main(): number {
     }
   }
 
-  // (15) Plugins: automation/plugins/<name>.md is a decree plugin with a machine,
-  // and automation/plugins/flows/<name>.md is a flow (it has none): what one curated
-  // thing needs, or lib others need. existential's own keys are x-exist-*. A flow
-  // with an x-exist-tagline is one a person picks, and its keys are read by
-  // src/utils/flows.sh with awk on the host, so they are flat scalars and block lists.
+  // (15) Plugins: automation/plugins/<name>.md is a decree plugin, with a machine or
+  // lib others need, and existential's own keys are x-exist-*. Nothing in the repo is
+  // on: each project's .decree/plugins/.on is (lib/plugin.sh). What a plugin needs
+  // that is not a plugin (a service, a model, a step for a person) is on the Flows
+  // page, whose `plugin on` lines must name every plugin a person turns on.
   const pluginsDir = path.join(REPO_ROOT, 'automation/plugins');
-  const flowsDir = path.join(pluginsDir, 'flows');
   const fmList = (body: string, key: string): string[] => {
     const lines = body.split('\n');
     const start = lines.findIndex(l => new RegExp(`^${key}:\\s*$`).test(l));
@@ -662,15 +658,19 @@ function main(): number {
     return out;
   };
   const varFor = (svc: string) => 'EXIST_IS_' + svc.replace('/', '_').toUpperCase().replace(/-/g, '_');
-  const serviceVars = new Set<string>();
+  const serviceSlugs = new Set<string>();
   for (const cat of CATEGORY_DIRS) {
     const catDir = path.join(REPO_ROOT, cat);
     if (!fs.existsSync(catDir)) continue;
-    for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (e.isDirectory()) serviceVars.add(varFor(`${cat}/${e.name}`));
+    for (const e of fs.readdirSync(catDir, {withFileTypes: true})) if (isServiceDir(path.join(catDir, e.name))) serviceSlugs.add(e.name);
   }
-  // The plugin system's machines (PLUGIN_KERNEL in lib/plugin.sh):
-  // plugins too, installed in each project they are tagged for whatever is on.
-  const kernelMachines = ['notify', 'skill'];
+  // The plugin system's (PLUGIN_KERNEL) and what a new project starts with
+  // (PLUGIN_DEFAULTS), both in lib/plugin.sh.
+  const libFile = path.join(REPO_ROOT, 'automation/lib/plugin.sh');
+  const libText = fs.existsSync(libFile) ? fs.readFileSync(libFile, 'utf8') : '';
+  const shList = (name: string): string[] => (libText.match(new RegExp(`^${name}="([^"]*)"`, 'm'))?.[1] ?? '').trim().split(/\s+/).filter(Boolean);
+  const kernel = shList('PLUGIN_KERNEL');
+  const defaults = shList('PLUGIN_DEFAULTS');
   // decree's official plugins are decree_*, which decree adds (lib/plugin.sh):
   // a plugin here may need or extend one, and never takes the prefix.
   const official = (n: string) => n.startsWith('decree_');
@@ -683,32 +683,27 @@ function main(): number {
   // services/automation-backup and the repo's own .decree.
   const PROJECTS = ['automation', 'backup', 'host'];
   const projectsOf = (pl: {fm: Record<string, unknown>}) => ([] as string[]).concat((pl.fm['x-exist-project'] as string | string[] | undefined) ?? []);
-  type Plugin = {file: string; where: string; flow: boolean; raw: string; fm: Record<string, unknown>};
+  type Plugin = {where: string; raw: string; fm: Record<string, unknown>};
   const plugins = new Map<string, Plugin>();
-  for (const [dir, flow] of [[pluginsDir, false], [flowsDir, true]] as const) {
-    if (!fs.existsSync(dir)) continue;
-    for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.md'))) {
-      const n = f.replace(/\.md$/, '');
-      const where = path.relative(REPO_ROOT, path.join(dir, f));
-      const m = fs.readFileSync(path.join(dir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/);
-      if (!m) { errors.push(`${where}: no frontmatter fence`); continue; }
-      if (plugins.has(n)) { errors.push(`${where}: ${plugins.get(n)!.where} has the name ${n} too — a plugin name is one thing`); continue; }
-      const fm = (yaml.load(m[1]) as Record<string, unknown> | null) ?? {};
-      plugins.set(n, {file: path.join(dir, f), where, flow, raw: m[1], fm});
-      if (fm.name !== n) errors.push(`${where}: name: is ${String(fm.name)}, not its file name ${n}`);
-      if (flow && 'machine' in fm) errors.push(`${where}: has a machine — a plugin with a machine belongs in automation/plugins/`);
-      if (!flow && !('machine' in fm) && !('extends' in fm)) errors.push(`${where}: has no machine — a plugin with no machine is a flow, in automation/plugins/flows/`);
-      if ('extends' in fm && !official(String(fm.extends))) errors.push(`${where}: extends ${String(fm.extends)} — a plugin here extends only one of decree's (decree_*)`);
-      if (official(n)) errors.push(`${where}: decree_ is decree's prefix — name it something of its own`);
-      for (const k of Object.keys(fm)) {
-        if (!['name', 'extends', 'machine', 'scripts', 'cron', 'order', 'state', 'needs'].includes(k) && !k.startsWith('x-exist-')) {
-          errors.push(`${where}: ${k}: is no key of decree's plugin file — existential's own are x-exist-<key>`);
-        }
+  if (fs.existsSync(path.join(pluginsDir, 'flows'))) errors.push('automation/plugins/flows/: a flow is a docs page now (site/docs/flows/), and lib is a plugin');
+  for (const f of (fs.existsSync(pluginsDir) ? fs.readdirSync(pluginsDir) : []).filter(x => x.endsWith('.md'))) {
+    const n = f.replace(/\.md$/, '');
+    const where = `automation/plugins/${f}`;
+    const m = fs.readFileSync(path.join(pluginsDir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/);
+    if (!m) { errors.push(`${where}: no frontmatter fence`); continue; }
+    const fm = (yaml.load(m[1]) as Record<string, unknown> | null) ?? {};
+    plugins.set(n, {where, raw: m[1], fm});
+    if (fm.name !== n) errors.push(`${where}: name: is ${String(fm.name)}, not its file name ${n}`);
+    if ('extends' in fm && !official(String(fm.extends))) errors.push(`${where}: extends ${String(fm.extends)} — a plugin here extends only one of decree's (decree_*)`);
+    if (official(n)) errors.push(`${where}: decree_ is decree's prefix — name it something of its own`);
+    for (const k of Object.keys(fm)) {
+      if (!['name', 'extends', 'machine', 'scripts', 'cron', 'order', 'state', 'needs'].includes(k) && !k.startsWith('x-exist-')) {
+        errors.push(`${where}: ${k}: is no key of decree's plugin file — existential's own are x-exist-<key>`);
       }
     }
   }
   const closure = (n: string): Set<string> => {
-    const reach = new Set(kernelMachines);
+    const reach = new Set(kernel);
     const queue = [n];
     while (queue.length) {
       const pl = queue.shift()!;
@@ -718,9 +713,7 @@ function main(): number {
     }
     return reach;
   };
-  // The Flows page lists every flow a person picks, so the catalogue a reader sees is the one that ships.
-  const catalogue = path.join(docsDir, 'flows/index.md');
-  const listed = fs.existsSync(catalogue) ? fs.readFileSync(catalogue, 'utf8') : null;
+  const needed = new Set([...plugins.values()].flatMap(pl => needsOf(pl.fm)));
   for (const [n, pl] of plugins) {
     const needs = needsOf(pl.fm);
     for (const x of needs) if (!plugins.has(x) && !official(x)) errors.push(`${pl.where}: needs ${x}, which is no plugin here nor one of decree's (decree_*)`);
@@ -737,27 +730,12 @@ function main(): number {
       }
     }
     if (Array.isArray(pl.fm['x-exist-project']) && fmList(pl.raw, 'x-exist-project').join(' ') !== projects.join(' ')) {
-      errors.push(`${pl.where}: x-exist-project: must be one name or a block list (  - x), which the host reads`);
+      errors.push(`${pl.where}: x-exist-project: must be one name or a block list (  - x)`);
     }
     // The host's project is the repo's .decree, whose machines' order/ is tracked:
     // a host plugin's order file would dirty every checkout.
     if (projects.includes('host') && Object.keys((pl.fm.order as object | undefined) ?? {}).length) {
       errors.push(`${pl.where}: a host plugin carries no order files — the repo's own are tracked`);
-    }
-    if (pl.flow) {
-      for (const key of ['x-exist-services', 'needs']) {
-        const want = ((pl.fm[key] as string[] | undefined) ?? []).join(' ');
-        if (fmList(pl.raw, key).join(' ') !== want) errors.push(`${pl.where}: ${key}: must be a block list (  - x), which the host reads`);
-      }
-    }
-    if (pl.flow && pl.fm['x-exist-tagline']) {
-      if (listed !== null && !listed.includes(`| \`${n}\` |`)) errors.push(`${pl.where}: not in the table in site/docs/flows/index.md — add a row`);
-      for (const key of ['x-exist-title', 'x-exist-docs']) if (!pl.fm[key]) errors.push(`${pl.where}: no '${key}:' — the picker needs it`);
-      const docs = String(pl.fm['x-exist-docs'] ?? '').match(/^\/docs\/(\S*)/)?.[1];
-      if (docs !== undefined && !docExists(docs || 'intro')) errors.push(`${pl.where}: x-exist-docs /docs/${docs} is no page in site/docs/`);
-      for (const v of ((pl.fm['x-exist-services'] as string[] | undefined) ?? [])) {
-        if (!serviceVars.has(v)) errors.push(`${pl.where}: x-exist-services names ${v}, which is no service folder`);
-      }
     }
     // A plugin turns on its own automations: every machine its cron and order
     // files name is itself, something it needs, or the plugin system's.
@@ -769,13 +747,30 @@ function main(): number {
       }
     }
   }
-  // What an install starts with names only plugins there are.
-  for (const seed of ['automation/plugins.exist.yml']) {
-    const f = path.join(REPO_ROOT, seed);
-    if (!fs.existsSync(f)) continue;
-    for (const n of (((yaml.load(fs.readFileSync(f, 'utf8')) as {on?: string[]} | null)?.on) ?? [])) {
-      if (!plugins.has(n)) errors.push(`${seed}: turns on ${n}, which is no plugin`);
+  for (const [list, names] of [['PLUGIN_KERNEL', kernel], ['PLUGIN_DEFAULTS', defaults]] as const) {
+    for (const n of names) if (!plugins.has(n) && !official(n)) errors.push(`automation/lib/plugin.sh: ${list} names ${n}, which is no plugin`);
+  }
+  // Every `plugin on|off` and `service on|off` the docs and README tell a person to
+  // run names what there is; and every plugin a person turns on (a machine nothing
+  // else needs, not the plugin system's) has its line on the Flows page.
+  const walkDocs = (dir: string): string[] => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e =>
+    e.isDirectory() ? (e.name === 'graveyard' ? [] : walkDocs(path.join(dir, e.name))) : e.name.endsWith('.md') ? [path.join(dir, e.name)] : []);
+  const onLines = (text: string, kind: string): string[] =>
+    [...text.matchAll(new RegExp(`existential\\.sh ${kind} (?:on|off)((?: [a-z0-9_-]+)+)`, 'g'))].flatMap(m => m[1].trim().split(/\s+/));
+  const catalogue = path.join(docsDir, 'flows/index.md');
+  const turnedOn = new Set<string>();
+  for (const f of [...(fs.existsSync(docsDir) ? walkDocs(docsDir) : []), path.join(REPO_ROOT, 'README.md')].filter(x => fs.existsSync(x))) {
+    const text = fs.readFileSync(f, 'utf8').replace(/^```[\s\S]*?^```/gm, '');   // an example in a code block names what it likes
+    const rel = path.relative(REPO_ROOT, f);
+    for (const n of onLines(text, 'plugin')) {
+      if (!plugins.has(n)) errors.push(`${rel}: \`plugin on ${n}\` — no plugin ${n} in automation/plugins/`);
+      if (f === catalogue) turnedOn.add(n);
     }
+    for (const s of onLines(text, 'service')) if (!serviceSlugs.has(s)) errors.push(`${rel}: \`service on ${s}\` — no service folder ${s}`);
+  }
+  for (const [n, pl] of plugins) {
+    if (!('machine' in pl.fm) || needed.has(n) || kernel.includes(n) || turnedOn.has(n)) continue;
+    errors.push(`${pl.where}: nothing needs it, and site/docs/flows/index.md has no \`./existential.sh plugin on ${n}\` — add its row there`);
   }
 
   // (14) README.md and the intro page each list what Core installs, under a

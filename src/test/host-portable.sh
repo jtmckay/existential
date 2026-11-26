@@ -73,15 +73,12 @@ assert_eq "...so Core listens on the network" "EXIST_CORE_BIND=0.0.0.0" "$(grep 
 assert_has "...and says where" "$out" ":42080"
 es '_core_bind 127.0.0.1' >/dev/null
 assert_eq "Tailscale serving it puts it back on loopback" "EXIST_CORE_BIND=127.0.0.1" "$(grep '^EXIST_CORE_BIND=' .env.shared)"
-# The host's decree project is not Core: untouched until a flow for the host is on.
-rm -f automation/plugins.yml
-assert_eq "Core turns on no flow for the host" "no" "$(es '_host_flows_on && echo yes || echo no')"
-assert_eq "...so the host sync does not run" "" "$(es 'run_adhoc() { echo synced; }; _host_plugins')"
-printf 'on:\n  - clean-runs\n  - report-host  # mine\n' > automation/plugins.yml
-assert_eq "a host flow on, listed" "yes" "$(es '_host_flows_on && echo yes || echo no')"
-printf 'on: [pi, report-host]\n' > automation/plugins.yml
-assert_eq "...or inline" "yes" "$(es '_host_flows_on && echo yes || echo no')"
-rm -f automation/plugins.yml
+# The host's decree project is not Core: untouched until something is on in it.
+rm -rf .decree/plugins
+assert_eq "with nothing on for the host, the host sync does not run" "" "$(es 'run_adhoc() { echo synced; }; _host_plugins')"
+mkdir -p .decree/plugins; : > .decree/plugins/.on
+assert_eq "...nor with an empty list" "" "$(es 'run_adhoc() { echo synced; }; _host_plugins')"
+rm -rf .decree/plugins
 
 # The decree image: pulled when CI published this exact build context, else built.
 out="$(es 'stub() { echo "$*" >> .stub-docker; case "$1 $2" in "image inspect") return 1 ;; "pull -q") [[ "$3" == *":$(adhoc_context_hash)" ]] ;; esac; }; DOCKER_CMD=stub; ensure_adhoc_built; cat .stub-docker')"
@@ -106,8 +103,7 @@ out="$(es '_SHELL_PATH=/usr/bin; _check_local_bin')"
 assert_has "a .local/bin off your PATH is named with the line that adds it" "$out" 'export PATH="$HOME/.local/bin:$PATH"'
 # The host plugin sync, as a worker with no engine runs it: on the host, not in adhoc.
 if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
-    (REPO_DIR="$R"; . src/utils/flows.sh; plugins_turn on report-host)
-    out="$(REPO_DIR="$R" "$BASH" src/lib/plugin.sh sync host 2>&1)"; rc=$?
+    out="$(REPO_DIR="$R" "$BASH" src/plugins.sh on report_host 2>&1)"; rc=$?
     assert_eq "the host's plugins sync without adhoc" "0" "$rc"
     assert_eq "...installing the worker's report_host" "yes" "$([[ -f "${R}/.decree/machines/report_host/machine.yml" ]] && echo yes || echo no)"
     # A worker with no services never needs the image, even where an engine is,
@@ -116,7 +112,7 @@ if command -v yq >/dev/null 2>&1 && command -v decree >/dev/null 2>&1; then
     cp .env.shared .env.shared.keep; sed -i.bak 's/^\(EXIST_IS_[A-Z0-9_]*\)=true/\1=false/' .env.shared; rm -f .env.shared.bak
     assert_eq "a worker with none skips the engine" "yes" "$(es '_worker_only && echo yes || echo no')"
     mv .env.shared.keep .env.shared
-    rm -rf "${R}/.decree/machines" "${R}/.decree/plugins" "${R}/.decree/lib" "${R}/automation/plugins.yml"
+    rm -rf "${R}/.decree/machines" "${R}/.decree/plugins" "${R}/.decree/lib"
 else
     echo "  (no yq and decree here: the host sync is not run)"
 fi
@@ -137,18 +133,13 @@ printf 'EXIST_FLEET_SECRET=fleet\nEXIST_MODEL_API_KEY=abc\n' > .env.shared
 es _retire_env_keys >/dev/null
 assert_eq "...and one with a secret keeps it" "EXIST_FLEET_SECRET=fleet" "$(xargs < .env.shared)"
 mv .env.shared.keep .env.shared
-mkdir -p automation; [[ -f automation/plugins.yml ]] && cp automation/plugins.yml automation/plugins.yml.keep
-printf 'on:\n  - worker\n  - auto-update\n  - ai-box\n' > automation/plugins.yml
-es _rename_flows >/dev/null
-assert_eq "a renamed flow stays on under its new name" "on: - report-host - pull-existential - lease-gpu" "$(xargs < automation/plugins.yml)"
-printf 'on: [auto-update, worker]\n' > automation/plugins.yml
-es _rename_flows >/dev/null
-assert_eq "...in a one-line list too" "on: [pull-existential, report-host]" "$(cat automation/plugins.yml)"
-if [[ -f automation/plugins.yml.keep ]]; then mv automation/plugins.yml.keep automation/plugins.yml; else rm -f automation/plugins.yml; fi
+mkdir -p .decree/plugins; printf 'flow_worker\nflow_auto_update\nreporting\nflow_clean_runs\n' > .decree/plugins/.existential
+es _plugins_on >/dev/null
+assert_eq "what an older sync wrote is on, under its new name" "report_host pull_existential" "$(xargs < .decree/plugins/.on)"
+assert_eq "...and the old list is gone" "no" "$([[ -e .decree/plugins/.existential ]] && echo yes || echo no)"
+rm -rf .decree/plugins
 
-echo ""; echo "=== flows and Core's setup ==="
-assert_eq "a flow brings the flows it needs" "nextcloud-capture transcription" \
-    "$(REPO_DIR="$R"; . src/utils/flows.sh; flow_closure transcription | xargs)"
+echo ""; echo "=== Core's setup ==="
 # The plugin sync runs in adhoc (yq, decree), which a Mac host has no part in:
 # a docker that writes down what it was asked stands in for it.
 mkdir -p "${R}/.stub"; printf '#!/bin/sh\n[ "$1" = compose ] && echo "$*" >> "%s/.stub/asked"\nexit 0\n' "$R" > "${R}/.stub/docker"
@@ -157,7 +148,7 @@ chmod +x "${R}/.stub/docker" "${R}/.stub/podman"; PATH="${R}/.stub:${PATH}"; exp
 out="$("$BASH" services/automation/exist.initial.sh 2>&1)"; rc=$?
 assert_eq "automation's exist.initial.sh runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
-assert_has "...and installs its plugins in adhoc" "$(cat "${R}/.stub/asked" 2>/dev/null)" "plugin.sh sync automation"
+assert_has "...and installs its plugins in adhoc" "$(cat "${R}/.stub/asked" 2>/dev/null)" "plugins.sh sync automation"
 assert_eq "...and a second run changes nothing" "" "$("$BASH" services/automation/exist.initial.sh 2>&1)"
 
 echo ""; echo "=== host plugins ==="
@@ -193,8 +184,10 @@ fi
 # A host whose daemon runs another decree: a sync would take what that daemon runs.
 printf '#!/bin/sh\necho "decree 0.5.0"\n' > "${R}/.stub/decree"; chmod +x "${R}/.stub/decree"
 : > "${R}/.stub/asked"
-out="$(es '_host_flows_on() { return 0; }; PATH="${R}/.stub:${PATH}"; DOCKER_CMD=docker; _host_plugins')"
-assert_has "a host on another decree, with a host flow on, is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
+mkdir -p "${R}/.decree/plugins"; echo report_host > "${R}/.decree/plugins/.on"
+out="$(es 'PATH="${R}/.stub:${PATH}"; DOCKER_CMD=docker; _host_plugins')"
+rm -f "${R}/.decree/plugins/.on"
+assert_has "a host on another decree, with a host plugin on, is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
 assert_eq "...and its project is not synced" "" "$(grep 'sync host' "${R}/.stub/asked")"
 rm -f "${R}/.stub/decree"
 

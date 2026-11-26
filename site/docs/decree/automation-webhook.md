@@ -9,8 +9,7 @@ sidebar_position: 2
 authenticated HTTP POST into a message in the `automation` daemon's inbox. It runs no work
 itself and can write nothing but `inbox/`; decree runs what it queues.
 
-It is an add-on, not part of Core: `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true`, or a flow that
-needs it (`nextcloud-capture`).
+It is an add-on, not part of Core: `EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true` (`./existential.sh service on automation-webhook`).
 
 ```bash
 EXIST_IS_SERVICES_AUTOMATION_WEBHOOK=true

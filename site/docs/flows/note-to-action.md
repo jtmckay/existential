@@ -85,10 +85,10 @@ They're written beside the original note. Answer them and the next run picks up 
 ### 1. Turn it on
 
 ```bash
-./existential.sh flow on note-triage
+./existential.sh plugin on note_triage
 ```
 
-This installs `note-triage.md` in `volumes/workspace_data/.decree/machines/flow_note_triage/cron/`. Its `TRIAGE_ROUTINE`
+This installs `note-triage.md` in `volumes/workspace_data/.decree/machines/note_triage/cron/`. Its `TRIAGE_ROUTINE`
 param picks `note_develop` (default) or `idea_workup`.
 
 The fan-out path uses the `research` and `sales` departments, files in
@@ -270,6 +270,6 @@ Environment, in `automation/.env`:
 | Knowing an idea was already evaluated | **Ships.** `/data/note-triage/ideas.tsv` |
 | Research, draft, open questions | **Ships.** `note_develop`, with [Firecrawl](../ai/firecrawl.md) when enabled |
 | Competition, market size, value proposition | **Ships.** `idea_workup` → `agent_task` |
-| Indexing notes | **Ships.** `workspace/` searchable with [qmd](../ai/qmd.md) within a minute of a change (the `search` flow) |
+| Indexing notes | **Ships.** `workspace/` searchable with [qmd](../ai/qmd.md) within a minute of a change (part of Core) |
 | Notifying you | **Ships.** `notify` → ntfy |
 | **What counts as worth acting on** | **Yours.** `TRIAGE_CRITERIA` |

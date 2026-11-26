@@ -137,7 +137,7 @@ state:
     # departments
 
     **A department is a file here.** Adding one is adding a file — the same move this
-    repo makes for services, flows, cron jobs and e2e checks. Nothing enumerates them.
+    repo makes for services, plugins, cron jobs and e2e checks. Nothing enumerates them.
 
     A department is what one [pi](https://pi.dev) run may reach: its built-in tools and
     its MCP servers. `pi_run` (`../pi.sh`) turns the file into pi's `--tools` list, so a

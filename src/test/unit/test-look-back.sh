@@ -224,8 +224,8 @@ assert_eq "no day note was rewritten" "$SUMS" "$(cd "$A" && find . -name '20*-*-
 assert_eq "a bad date fails the run" "1" "$(run_lb 2026-10-02T09:00:00Z from=2026-13-01)"
 
 # ── wiring ────────────────────────────────────────────────────────────────────
-# The look-back flow's crons, as it ships them (automation/plugins/flows/look-back.md).
-cron() { k="$1" yq --front-matter=extract -r '.cron[strenv(k)]' "${REPO_DIR}/automation/plugins/flows/look-back.md" | awk -v k="$2:" '$1 == k {print $2; exit}'; }
+# look_back's crons, as it ships them (automation/plugins/look_back.md).
+cron() { k="$1" yq --front-matter=extract -r '.cron[strenv(k)]' "${REPO_DIR}/automation/plugins/look_back.md" | awk -v k="$2:" '$1 == k {print $2; exit}'; }
 assert_eq "the weekly cron runs this machine" "look_back" "$(cron look-back-weekly.md machine)"
 assert_eq "...for the week" "week" "$(cron look-back-weekly.md period)"
 assert_eq "the monthly cron runs this machine" "look_back" "$(cron look-back-monthly.md machine)"

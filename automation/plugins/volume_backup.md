@@ -22,7 +22,7 @@ scripts:
     # to `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/volumes/<volume>/`, prune anything
     # older than the tier's retention window.
     #
-    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/, whose params
+    # Triggered by its own cron files, in services/automation-backup/machines/volume_backup/cron/, whose params
     # (TIER, VOLUMES) are this machine's data. To add or remove
     # a volume, edit the cron file's `VOLUMES:` block — nothing else: automation-backup
     # mounts the whole volumes/ dir, so every volume is already reachable.
@@ -33,8 +33,8 @@ scripts:
     #
     # $VOLUMES format (one entry per line, whitespace-separated):
     #   <volume_name> <comma,separated,consumer,containers>
-    # The consumer list is informational at backup time — used by the restore
-    # flow to know which containers must be stopped before wiping the volume.
+    # The consumer list is informational at backup time — used by restore
+    # to know which containers must be stopped before wiping the volume.
 
     set -euo pipefail
 
@@ -63,7 +63,7 @@ scripts:
 
     # ── Run each volume from $VOLUMES ────────────────────────────────────────────
     # Second column (consumers) is intentionally ignored here — it's used by the
-    # restore flow, not the backup.
+    # restore, not the backup.
 
     dumped=0
     skipped=0
@@ -112,6 +112,47 @@ scripts:
 
     echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
     [ "$failed" -eq 0 ]
+cron:
+  volume-backup-nightly.md: |
+    ---
+    cron: "30 2 * * *"
+    machine: volume_backup
+    params:
+      TIER: nightly
+      VOLUMES: |
+        workspace_data        nextcloud,nextcloud-cron,code-server,automation
+        actual_budget_data    actual-budget
+        appsmith_data         appsmith
+        immich_data           immich-server
+        lowcoder_data         lowcoder-api-service
+        lowcoder_assets_data  lowcoder-api-service,lowcoder-frontend
+        mealie_data           mealie
+        nocodb_data           nocodb
+    ---
+
+    Tar every volume listed nightly and rclone each to
+    ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/volumes/<volume>/. Files older than 7 days are
+    pruned. A volume not on disk here (its service is off, or it lives on the NAS) is
+    skipped, so the list names every service with data worth keeping; delete a line to
+    stop backing one up. The second column is what restore stops first.
+  volume-backup-weekly.md: |
+    ---
+    cron: "30 3 * * SUN"
+    machine: volume_backup
+    params:
+      TIER: weekly
+      VOLUMES: |
+        workspace_data        nextcloud,nextcloud-cron,code-server,automation
+        actual_budget_data    actual-budget
+        appsmith_data         appsmith
+        immich_data           immich-server
+        lowcoder_data         lowcoder-api-service
+        lowcoder_assets_data  lowcoder-api-service,lowcoder-frontend
+        mealie_data           mealie
+        nocodb_data           nocodb
+    ---
+
+    The same volumes weekly, kept 28 days.
 ---
 # volume_backup
 

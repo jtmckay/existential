@@ -5,7 +5,7 @@ sidebar_position: 13
 # Controller and Workers
 
 One host keeps your notes; the others just need watching. A **worker** is a host that runs decree
-itself, with the `report-host` flow on. Every 5 minutes it reports its free disk space, CPU, RAM and
+itself, with `report_host` on. Every 5 minutes it reports its free disk space, CPU, RAM and
 VRAM use, the decree machines and plugins it has installed and the containers it runs to one Loki, and ships every decree run there
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
@@ -13,14 +13,14 @@ as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overv
   Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host with
   `EXIST_CONTROLLER` blank and no Loki reports nowhere.
 - Every other worker names it in `EXIST_CONTROLLER`.
-- A host doesn't have to be a worker at all. Without the `report-host` flow, nothing runs on the
+- A host doesn't have to be a worker at all. Without `report_host`, nothing runs on the
   host and nothing is reported.
 
 Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already needs.
 
 ## The controller
 
-Pick **Controller** on the first run (or `./existential.sh flow on report-host` later, with
+Pick **Controller** on the first run (or `./existential.sh plugin on report_host` later, with
 `EXIST_CONTROLLER` blank), then turn on where the reports land:
 
 ```bash
@@ -111,7 +111,7 @@ names. Both are served on the controller's tailnet, so in practice that's Tailsc
 
 ### A host that already runs services
 
-`./existential.sh flow on report-host`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
+`./existential.sh plugin on report_host`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
 steps 3 and 4.
 
 ## Without Tailscale: your own network
@@ -149,9 +149,9 @@ controller's own report puts it. Nothing else needs to be set on a worker.
 
 ## Updating on its own
 
-A worker's decree daemon can also keep the install current: `./existential.sh flow on
-pull-existential` runs `git pull`, `./existential.sh` and `docker compose up -d` every 15 minutes.
-On a host with neither docker nor podman, `flow` works the same, with the host's own tools,
+A worker's decree daemon can also keep the install current: `./existential.sh plugin on
+pull_existential` runs `git pull`, `./existential.sh` and `docker compose up -d` every 15 minutes.
+On a host with neither docker nor podman, `plugin` works the same, with the host's own tools,
 and the update leaves out `docker compose`. See [Updates](./updates.md).
 
 ## What each host reports

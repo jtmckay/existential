@@ -98,8 +98,8 @@ services:
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       # model.sh, pi.sh and capture/ are read from /workspace/.decree/lib/, where
-      # the model, pi and capture plugins install them (the code-server-agents
-      # flow): the same files the decree daemon runs, so opencode, pi and a
+      # the model, pi and capture plugins install them (pi on by default, capture
+      # when turned on): the same files the decree daemon runs, so opencode, pi and a
       # routine reach the model through one implementation instead of two.
       # The recall skill entrypoint.sh copies into the workspace when search is on.
       - ../../ai/qmd/recall:/opt/recall:ro

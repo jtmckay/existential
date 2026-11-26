@@ -273,6 +273,43 @@ scripts:
     cp "$current" "$MANIFEST"
 
     echo "Examined ${examined}, surfaced ${surfaced}, already known ${deduped}."
+cron:
+  note-connect.md: |
+    ---
+    cron: "0 * * * *"
+    machine: note_connect
+    params:
+      CONNECT_DEPARTMENT: research
+      CONNECT_MIN_SCORE: 7
+      CONNECT_MAX_NOTES: 20
+      # CONNECT_OUTPUT_RCLONE_DEST: "nextcloud:Notes"   # copy the writeup back beside the vault
+    ---
+
+    Hourly scan of workspace/ (NOTES_DIR's default) for new or changed notes with a genuinely
+    interesting, non-obvious connection to something already in your knowledge base.
+
+    Different question than note_triage: not "is this worth acting on" but "does anything you
+    already know connect to this". The search runs through pi in the `research`
+    department (workspace/.decree/store/agent_task/departments/research.yml) so it can search your notes with qmd —
+    a plain completion cannot search the knowledge base.
+
+    The first run records the tree as seen WITHOUT scanning, so enabling this over an existing
+    workspace does not fire a call per note. To scan the backlog once, run it by hand with
+    CONNECT_BOOTSTRAP=true:
+
+      docker exec automation decree emit --machine note_connect --param CONNECT_BOOTSTRAP=true </dev/null
+
+    CONNECT_MIN_SCORE is the part worth tuning — raise it if too many topical-but-boring
+    connections get through, lower it if nothing ever clears the bar. Try CONNECT_DRY_RUN=true
+    for a few runs to see what it would have surfaced before it starts writing files and
+    notifying.
+
+    The same source-note-to-target pairing is never surfaced twice; editing the source note
+    again can surface a new pairing, just not the same one.
+
+    It needs qmd (part of Core) and a research department
+    whose `mcp:` names qmd: one copied before 2026-11 names openviking, so change it. Point
+    NOTES_DIR at /data/notes instead to scan a note-triage-style vault mirror there.
 ---
 # note_connect
 

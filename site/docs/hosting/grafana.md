@@ -49,7 +49,7 @@ Every notification a decree run sent, on every host that reports, read from the 
 gives the `notify` machine, which each host's alloy ships with the rest of the run:
 
 - **Topics** — each topic that got one, and how many: these are what to subscribe to in the
-  ntfy app. Everything goes to `decree` unless a flow names another
+  ntfy app. Everything goes to `decree` unless a plugin names another
 - **Notifications per day**, by topic
 - **Notifications** — each one's topic, title and text
 - **Grafana's own alerts** — the decree and container alerts go from Grafana straight to the `decree`

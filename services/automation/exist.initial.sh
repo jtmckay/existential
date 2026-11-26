@@ -76,19 +76,18 @@ done
 for _f in decree-go-rest handlers; do
     [[ -e "${PROJECT}/${_f}.yml" ]] || cp -p "${REPO}/automation/${_f}.exist.yml" "${PROJECT}/${_f}.yml"
 done
-# The plugin system, then the plugins this install has on (src/lib/plugin.sh),
-# each at the version in this checkout: what automation/plugins.yml has on and
-# tags for this project (written from automation/plugins.exist.yml the first
+# The plugin system, then the plugins this project has on (src/plugins.sh), each
+# at the version in this checkout: its .decree/plugins/.on (the defaults, the first
 # time) and all they need, their cron and order files included.
 # In adhoc, where yq and decree are; a failure is said and the stack still comes up.
 if [[ -n "${IN_CONTAINER:-}" ]]; then
-    REPO_DIR="$REPO" bash "${REPO}/src/lib/plugin.sh" sync automation ||
-        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync tries again."
+    REPO_DIR="$REPO" bash "${REPO}/src/plugins.sh" sync automation ||
+        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh plugin sync tries again."
 else
     # A subshell: with no container runtime adhoc.sh exits, and this must not.
     # shellcheck source=../../src/utils/adhoc.sh
-    ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/lib/plugin.sh sync automation ) ||
-        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh run plugin sync tries again."
+    ( . "${REPO}/src/utils/adhoc.sh"; run_adhoc env REPO_DIR=/repo bash /src/plugins.sh sync automation ) ||
+        echo "[automation] ⚠ the plugin sync failed (above); ./existential.sh plugin sync tries again."
 fi
 
 # workspace/README.md — the orientation doc. An agent confined to workspace/

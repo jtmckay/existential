@@ -31,4 +31,4 @@ type *ntfy*, server URL `http://ntfy:80`, and the topic you want.
 
 v2 removed *Settings → Backup & Restore*, so the whole configuration lives in
 `volumes/uptime_kuma_data/kuma.db` and nowhere else. Turn its backup on with
-`./existential.sh flow on backup-uptime-kuma` ([automation-backup](../decree/automation-backup.md)).
+`./existential.sh plugin on sqlite_backup` ([automation-backup](../decree/automation-backup.md)).

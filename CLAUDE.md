@@ -16,7 +16,7 @@ the one that matches what you're touching. Don't restate what `ls`, reading a fi
 | add a hostname, Caddy block, or piHole/TLS change | `.claude/reference/networking.md` |
 | write or change a test | `.claude/reference/testing.md` |
 | add a service, a decree daemon, or change container privileges | `.claude/reference/services.md` |
-| change `existential.sh`, `reset`, a flow, or an e2e check | `.claude/reference/setup.md` |
+| change `existential.sh`, `reset`, the plugin command, or an e2e check | `.claude/reference/setup.md` |
 | change a model, a model endpoint, or a VRAM tier | `.claude/reference/models.md` |
 | work on automation/decree | the `/decree` skill, then `.claude/reference/decree.md` |
 | change the homepage, `README.md`'s opening, or `site/docs/intro.md`'s opening | `.claude/reference/audience.md` |
@@ -42,12 +42,11 @@ file: `automation/plugins/<name>.md` is one **decree plugin file** (decree's `na
 `x-exist-<key>` (lib, handlers, endpoints), and its **`x-exist-project`** tag says which daemon
 runs it: `automation`, `backup` (automation-backup) or `host` (a list when more than one does).
 Each project's `.decree/plugins/` is written from these, and `decree install` installs them into
-`.decree/machines/<name>/`; neither is committed, the repo's own `.decree` included. **A flow is
-a plugin with no machine**, in `automation/plugins/flows/<name>.md`: one curated thing the stack
-does (`x-exist-title`, `x-exist-tagline`, the services it turns on, the plugins and flows it
-`needs:`, its cron and order files, and what is left for a person), or lib others need (`model`,
-`pi`, `agent`, a file processor); decree installs it as `flow_<name>`. One name space across
-both folders. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
+`.decree/machines/<name>/`; neither is committed, the repo's own `.decree` included. A plugin
+carries its own cron and order files; one with no machine is lib others need (`model`, `pi`,
+`agent`, `fleet`, a file processor). **A flow is not a file here: it is a row on
+`site/docs/flows/index.md`**, the services and plugins one job turns on and what is left for a
+person. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
 `decree_prune`, `decree_lease`...), which a plugin here `needs:` and decree adds, and which are
 never edited: **to change one, a plugin here `extends:` it under its own name** and holds only
 what it changes (`gpu_lease`, `lease_gpu`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
@@ -56,13 +55,14 @@ scripts into a plugin here. All automation code lives in plugins: `automation/li
 plugin system's own, and a project's `.decree/lib/` (ours: decree 0.6 has none) is that plus
 its plugins' `x-exist-lib`.
 
-**What is on is one file**, `automation/plugins.yml` (`on:`, never committed), written
-the first time from `automation/plugins.exist.yml`, which is what every install starts with.
-`./existential.sh flow on|off <name>` edits it (and asks before turning on each service a flow needs); each
-`./existential.sh` installs into each project exactly what it lists for that project plus what
-that `needs:`, at the checkout's version, so `git pull` reaches a running stack. **The tag is a
-wall:** a project never installs a plugin not tagged for it, and nothing `automation` can
-write (the workspace) decides or changes what `backup` or the host runs.
+**The repo is every plugin there is, none of it on. What is on is each project's own list**,
+`.decree/plugins/.on` (never committed): the plugins a person turned on there, a new project
+starting with `PLUGIN_DEFAULTS` (`automation/lib/plugin.sh`). `./existential.sh plugin on|off
+<name>` edits the list of each project the plugin is tagged for and syncs it at once; each
+`./existential.sh` installs into each project what its list has plus what that `needs:`, at the
+checkout's version, so `git pull` reaches a running stack, and removes a repo plugin nothing on
+needs. **The tag is a wall:** a project never installs a plugin not tagged for it, and nothing
+`automation` can write (the workspace) decides or changes what `backup` or the host runs.
 
 **Your own plugins are written in the workspace.** `workspace/.decree` is writable in every
 container that mounts it (`automation`, code-server, Nextcloud, `automation-backup`): a machine of
@@ -74,7 +74,7 @@ moves into `.decree/plugins/`; no machine installs. No code in a machine's `stat
 0.6's rule: code is `scripts/`, from the plugin file); data a person edits lives in the store
 (`workspace/.decree/store/<plugin>/`, a plugin's `state:`, which each machine's `state/` links
 to). User-facing: `site/docs/plugins/offer-and-accept.md`. A config file that is yours (`handlers.yml`,
-`decree-go-rest.yml`, `plugins.yml`) ships as a `<name>.exist.<ext>` example and is copied to
+`decree-go-rest.yml`) ships as a `<name>.exist.<ext>` example and is copied to
 its real name once. → `.claude/reference/decree.md`
 
 ---
@@ -106,7 +106,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
    boot → the container's own **`entrypoint.sh`**, which is the one place that can write it
    (see `services.md`). Post-startup setup → decree order files (run once). Manual steps → the
-   flow's body, or the service's docs page.
+   flow's row on `site/docs/flows/index.md`, or the service's docs page.
 7. **Services validate themselves** via `exist.test.sh`. Every service ships one.
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
@@ -133,8 +133,8 @@ Nextcloud's file events are an optional second path. User-facing detail:
 `site/docs/decree/file-handlers.md`.
 
 - `.decree/` = the **host's** decree project, run by a decree daemon on the host. **Not part of
-  Core:** nothing Core turns on is tagged for it, and `./existential.sh` leaves it alone until a
-  host flow is on (each needs its own `decree_prune`). Host plugins like `pull_existential` and `report_host`, and the machines that develop this repo (`repo_develop` and
+  Core:** nothing Core turns on is tagged for it, and `./existential.sh` leaves it alone until
+  something is on in its list (`.decree/plugins/.on`). Host plugins like `pull_existential` and `report_host`, and the machines that develop this repo (`repo_develop` and
   `repo_qa`, extending `decree_develop` and `decree_qa`: host plugins too, off until turned
   on). Tracked there: only `machines/repo_develop/order/` (the repo's migrations, as order
   files), `machines/repo_develop/state/order.git.txt` (which ran) and `.gitignore`.
@@ -192,20 +192,23 @@ written **once** and skipped thereafter — there is no re-render flag. Two exce
 existing install on `git pull && ./existential.sh`: a rendered `.env*` gets every key the
 template has gained **appended** (existing values, blanks included, never touched), and a
 rendered compose file whose service `image:` differs from its template's is listed and updated
-**if the user says yes** (with no terminal, as under `pull-existential`, without asking). Every run then pulls and builds every enabled image (the decree image
+**if the user says yes** (with no terminal, as under `pull_existential`, without asking). Every run then pulls and builds every enabled image (the decree image
 when its build context changed) without touching running containers, so the next `up -d` gets
 them. Every run also installs each decree project's plugins at this checkout's version. The
-optional `pull-existential` flow pulls, re-runs and `up -d`s on its own, and the optional `report-host` flow
-reports the host to its controller, the optional `boot-daemon` flow runs `.decree/boot.sh` once
-when that daemon starts, the optional `check-versions` flow says weekly which pinned images are behind, the optional `update-ubuntu` flow patches an Ubuntu host, and the optional `lease-gpu` flow has a GPU box's llama.cpp, ComfyUI and TTS take turns on its card (`lease_gpu`, a `decree_lease`); all six are host flows (`project: host`), run by a decree daemon in the repo's own `.decree`
-that the host starts at boot, and `./existential.sh` says so until it does.
+optional `pull_existential` plugin pulls, re-runs and `up -d`s on its own, `report_host`
+reports the host to its controller, `boot_daemon` runs `.decree/boot.sh` once when that daemon
+starts, `check_versions` says weekly which pinned images are behind, `update_ubuntu` patches an
+Ubuntu host, and `lease_gpu` (a `decree_lease`) has a GPU box's llama.cpp, ComfyUI and TTS take
+turns on its card; all six are host plugins (`x-exist-project: host`), run by a decree daemon in
+the repo's own `.decree` that the host starts at boot, and `./existential.sh` says so until it does.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`
 
 `run` dispatches two ways: general utilities (`src/lib/<name>.sh`) and service actions
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
-`validate [conventions|drift]`, `e2e [pattern...]`, and `flow`/`service [list|on|off]` (pickers). The
+`validate [conventions|drift]`, `e2e` (Core, from a fresh clone), `service [list|on|off]` (a
+picker) and `plugin [list|on|off|sync|export]`. The
 first bare run asks nothing: it builds Core (code-server, ntfy, automation, qmd, Firecrawl), makes
 the login (`admin`, a generated password, printed once) and leaves one step, the model
 (`EXIST_MODEL_URL`, `EXIST_MODEL_KEY`). Controller and worker are `run fleet controller|join`. A
@@ -273,14 +276,14 @@ from the repo root against the generated `docker-compose.yml`.
   ntfy_topic=<topic>`), one of the Topics table on `site/docs/services/ntfy.md`: `host` for the
   server's own news (Grafana, health, backups, updates; a plugin doing that work carries
   `x-exist-topic: host`, which routes its failed runs too), `decree`, `suggestions`, `digest`,
-  `exist`. A new topic is a row there first; `test flows` checks both ways.
+  `exist`. A new topic is a row there first; `test plugins` checks both ways.
 - **Every container's log is capped** (json-file, 3 × 10 MB): `generate-compose.ts` writes
   it into each service, because docker never trims one. A template sets `logging:` only to
   differ; it stays `json-file`, which `loki-alloy` reads.
 - **Volumes are always host bind mounts** — never Docker-managed. Everything lives in one
   `volumes/<name>`, referenced by bare name (optionally with a subpath into it,
   `workspace_data/notes`) and declared in the service's top-level `x-exist-volumes:` block
-  (`nfs` / `db` / `backup`); an undeclared name is a hard error. The name's suffix is enforced and
+  (`nfs` / `db`); an undeclared name is a hard error. The name's suffix is enforced and
   says whether it is safe to delete: `_data`, `_share`, `_backup`, `_cache`. An embedded DB (SQLite, bbolt,
   TSDB) is `db: true` and must **never** be `nfs: true`. An `nfs: true` volume is the one
   exception to bind mounts: given `EXIST_NFS_ADDRESS` and its `EXIST_NFS_PATH_<VOLUME>`,
@@ -338,8 +341,8 @@ anything else that needs that bulk access and makes no AI call (`triage`, `notes
 **`/repo` is mounted there and nowhere else**: `automation` puts what it reads in front of a
 model, so what that container can read is what a prompt injection can read. Both run
 `automation/lib/`. `automation` mounts none of the repo but `automation/.env` and `/secrets`: not the
-plugins, not `plugins.yml`. Nothing secret goes under `workspace/`: `.env` and `/secrets` stay in `automation/`. A service gets **no** `*-decree` sidecar; a new
-backup is one flow file.
+plugins, not any project's list. Nothing secret goes under `workspace/`: `.env` and `/secrets` stay in `automation/`. A service gets **no** `*-decree` sidecar; a new
+backup is a line in a backup plugin's cron files.
 
 **Automations never change your notes.** In `automation`, `workspace/notes/` is mounted
 read-only: notes are what a person tells the stack to do, so no run, and no Claude a run calls,
@@ -347,7 +350,7 @@ can change them. What a machine makes goes to `workspace/ai/`. `develop` only of
 builds, in `ai/proposed/`.
 
 **A plugin is the unit:** `automation/plugins/<name>.md`, one machine (one state until a run
-shows the need for more) and its scripts, snake_case, with its `x-exist-project`. Change one live, then `./existential.sh run
+shows the need for more) and its scripts, snake_case, with its `x-exist-project`. Change one live, then `./existential.sh
 plugin export <name>` writes it back to commit, read from the most privileged project that runs
 it (host, backup, automation), never from the workspace for a plugin another project runs. Params a message passes must be declared in the
 machine's `data:`. Chaining is `decree emit` with `emits:` on the state, and `needs:` names what a
@@ -363,7 +366,7 @@ three ways, each a library plugin a machine `needs:`. `model` (`lib/model.sh`: `
 department is a file*) picks its tools and MCP servers, and `pi_configure` writes pi's provider
 and servers in both the decree image's entrypoint and code-server's. `agent` (`lib/agent.sh`)
 is Claude Code with tools, through
-`ai` from decree's official `decree_ai` plugin, which the `agent` flow needs.
+`ai` from decree's official `decree_ai` plugin, which the `agent` plugin needs.
 `model` and `pi`, and `comfy`, lease a GPU another host offers through the `fleet` lib, asking
 the controller where it is (→ `decree.md`, *Offers*).
 `automation`'s image ships `claude`, signed in once per install. `develop` builds machines with
@@ -371,19 +374,22 @@ it, and the machines it builds call `agent`. A headless call runs in decree's `a
 (`AUTOMATION_CLAUDE_PERMISSION_MODE`), kept from notes by the mount above.
 Repo-editing belongs to a coding agent on the host, not to the stack.
 
-**Cron activation:** a plugin carries its cron and order files (`cron:`, `order:`; a flow's
+**Cron activation:** a plugin carries its cron and order files (`cron:`, `order:`; its
 `x-exist-examples` are inbox messages for reading, never installed), and decree installs them
 into its machine's folder: a cron file once, then it is the project's to edit, and gone with the
 plugin; an order file once, run by `order` at the daemon's start, and again only if edited.
 There is no top-level cron folder (decree 0.6 reads only `machines/*/cron/`): a schedule of
 your own is a plugin whose only key is `cron:` (each file naming its `machine:`), installed
-like any other (`decree install --cron <name>` installs its cron files again after an edit). A backup is a flow like any other (`backup-<service>`,
-`x-exist-project: backup`): a new one is one flow file. The daemon rescans cron files every tick.
+like any other (`decree install --cron <name>` installs its cron files again after an edit). A backup is a line in
+`volume_backup`'s, `db_backup`'s or `sqlite_backup`'s cron files, which list every service they
+know and skip what is off here. The daemon rescans cron files every tick.
 
-**Opt-in is the rule.** `automation/plugins.exist.yml` turns on `note-to-automation`,
-`clean-runs`, `health-checks`, `pi` (code-server's agents need its lib), `file-advice` and `you-were-here` and nothing else, and only `notify` (and, in `automation`, `skill`) is
-installed regardless. Anything new ships off, as a flow a person turns on; never add a default, an
-always-installed machine, or an example file to copy by hand.
+**Opt-in is the rule.** A new `automation` project starts with `PLUGIN_DEFAULTS`: `note_watch`,
+`reconcile`, `service_health`, `pi` (code-server's agents need its lib), `file_advise` and
+`you_were_here`, and nothing else; only the kernel (`PLUGIN_KERNEL`: `notify`, `decree_prune`
+and, in `automation`, `skill`) is installed regardless. Anything new ships off, as a plugin a
+person turns on with its row on the Flows page; never add a default, an always-installed
+machine, or an example file to copy by hand.
 
 **Gate:** `./existential.sh test decree` runs `decree check` on each project with every plugin
 tagged for it installed and every template queued, then on each plugin alone with only its `needs:`.

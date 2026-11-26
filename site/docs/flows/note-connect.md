@@ -50,10 +50,10 @@ surface a different one.
 
 ## Turning it on
 
-- `./existential.sh flow on note-connect` turns on the `search` flow (qmd, which indexes
-  `workspace/`) and installs the hourly `note-connect` cron.
+- `./existential.sh plugin on note_connect` installs the hourly `note-connect` cron. It needs
+  qmd, part of Core, which indexes `workspace/`.
 - `NOTES_DIR` defaults to `/workspace`.
-- Off: `./existential.sh flow off note-connect`.
+- Off: `./existential.sh plugin off note_connect`.
 
 ### Pointing it at a different vault
 
@@ -79,7 +79,7 @@ echo | docker exec -i automation decree emit --machine note_connect --param CONN
 
 ### Prerequisites
 
-- `workspace/` indexed by [qmd](../ai/qmd.md) (the `search` flow).
+- `workspace/` indexed by [qmd](../ai/qmd.md), part of Core.
 - A `research` department whose `mcp:` names `qmd`. One copied before 2026-11 names `openviking`;
   change it in `workspace/.decree/store/agent_task/departments/research.yml`.
 - A chat model with ollama's `tools` capability; pi ships in the image.

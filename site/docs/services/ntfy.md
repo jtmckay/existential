@@ -42,7 +42,7 @@ your phone. Check it with `./existential.sh test ntfy`.
 ### Topics
 
 Every notification the stack sends goes to one of these, and nothing else
-(`./existential.sh test flows` checks it). Each is its own path on the server,
+(`./existential.sh test plugins` checks it). Each is its own path on the server,
 `<ntfy address>/<topic>`, so the app lists them apart and each can be muted on its own.
 
 | Topic | What arrives |

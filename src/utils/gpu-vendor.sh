@@ -7,7 +7,7 @@
 # knowing whether there is a card is asking a question that may not apply.
 #
 # Consumed by src/lib/models.sh (the first-run questions, and
-# `./existential.sh run models` to change your mind later) and src/flows.sh. The value lands in
+# `./existential.sh run models` to change your mind later), src/services.sh and e2e. The value lands in
 # .env.shared as EXIST_GPU_VENDOR and is read by src/generate-compose.ts, which
 # is where a vendor actually changes the generated compose file.
 #

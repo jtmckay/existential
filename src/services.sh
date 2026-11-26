@@ -6,9 +6,8 @@
 #   ./existential.sh service on <slug>...     its EXIST_IS_* flag to true
 #   ./existential.sh service off <slug>...    its EXIST_IS_* flag to false
 #
-# A service is a folder (<category>/<slug>), so this is only its flag. A flow
-# asks for each service it needs; this is for the rest. existential.sh renders and
-# rebuilds after. Exits 3 for "nothing changed", as src/flows.sh does.
+# A service is a folder (<category>/<slug>), so this is only its flag.
+# existential.sh renders and rebuilds after. Exits 3 for "nothing changed".
 set -euo pipefail
 
 if [[ -z "${REPO_DIR:-}" ]]; then

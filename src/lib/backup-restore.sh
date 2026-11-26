@@ -37,9 +37,8 @@ rclone_in() {
 rclone_lsf() { rclone_in "$1" lsf "${REMOTE}/$2" 2>/dev/null || true; }
 
 # Concatenate the params.TARGETS blocks of every active cron for one
-# backup+tier. Cron files are named per service (mealie-db-backup-nightly.md, …)
-# and each is in its flow's machines/<flow>/cron/, so a restore reads all of
-# them, not one fixed filename.
+# backup+tier: the backup plugin's own (db-backup-nightly.md, in
+# machines/db_backup/cron/) and any copy of yours, in any machine's cron/.
 collect_targets() {
     local kind="$1" tier="$2"
     $DOCKER_CMD exec "${SIDECAR}" bash -c "
@@ -92,7 +91,7 @@ $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -qx "$SIDECAR" \
 
 if [ "$KIND" = "db" ]; then
     TARGETS=$(collect_targets db-backup "$TIER")
-    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — turn its backup flow on: ./existential.sh flow on backup-<service>"
+    [ -n "$TARGETS" ] || die "No active *db-backup-${TIER} cron in ${SIDECAR} — turn it on: ./existential.sh plugin on db_backup"
 
     echo ""
     echo "Services with DB backups in ${REMOTE}/${TIER}/:"
@@ -240,7 +239,7 @@ fi
 [ "$KIND" = "sqlite" ] || exit 0
 
 TARGETS=$(collect_targets sqlite-backup "$TIER")
-[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — turn its backup flow on: ./existential.sh flow on backup-<service>"
+[ -n "$TARGETS" ] || die "No active *sqlite-backup-${TIER} cron in ${SIDECAR} — turn it on: ./existential.sh plugin on sqlite_backup"
 
 echo ""
 echo "SQLite databases with backups in ${REMOTE}/${TIER}/sqlite/:"

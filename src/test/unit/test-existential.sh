@@ -471,7 +471,7 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
 # ── Section: Core's membership ───────────────────────────────────────────────
 # Core is "open the work dir, talk to an AI, have decree automate it": what
 # .env.exist.shared ships on. This pins WHAT is in it, so a service creeping
-# into Core is a deliberate edit here too, and a default flow never needs more.
+# into Core is a deliberate edit here too, and a default plugin never needs more.
 
 echo ""
 echo "=== Core: membership ==="
@@ -479,18 +479,16 @@ echo "=== Core: membership ==="
 assert_eq "Core ships exactly its five services on" \
     "EXIST_IS_AI_FIRECRAWL EXIST_IS_AI_QMD EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_NTFY" \
     "$(grep -oE '^EXIST_IS_[A-Z_]+=true' "${REPO}/.env.exist.shared" | cut -d= -f1 | sort | xargs)"
-_beyond_core="$(REPO_DIR="$REPO"; . "${REPO}/src/utils/flows.sh"
-    for n in $(flow_defaults); do
-        for f in $(flow_closure "$n"); do flow_list "$f" services; done
-    done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)|EXIST_IS_AI_(QMD|FIRECRAWL)' || true; } | sort -u | xargs)"
-assert_eq "a flow every install starts with (plugins.exist.yml) needs nothing beyond Core" "" "$_beyond_core"
+_beyond_core="$(for n in $(sed -n 's/^PLUGIN_DEFAULTS=" *\(.*\) *"$/\1/p' "${REPO}/automation/lib/plugin.sh"); do
+    grep -qx 'x-exist-project: automation' "${REPO}/automation/plugins/${n}.md" 2>/dev/null || echo "$n"; done | xargs)"
+assert_eq "a plugin every install starts with (PLUGIN_DEFAULTS) runs in automation, which Core ships" "" "$_beyond_core"
 
 # ── Image updates reach a rendered compose file ───────────────────────────────
 #
 # A rendered compose file is written once, so _offer_image_updates is how a
 # template's newer image reaches it. Pins: per-service comparison (a nested
 # x-exist-gpu image is not the service's), comment kept on rewrite, and a run
-# with no terminal (the opt-in pull-existential flow) applies them without asking.
+# with no terminal (the opt-in pull_existential plugin) applies them without asking.
 
 FAKE_IMG="${TMPDIR_ROOT}/fake-img"
 mkdir -p "${FAKE_IMG}/services/foo"

@@ -7,7 +7,7 @@
 #   ./existential.sh run peers release <host> <service> <id>   give the lease back
 # A lease needs EXIST_FLEET_SECRET in .env.shared, the same on every host.
 #
-# The same code as the stack's decree scripts: the fleet lib (automation/plugins/flows/fleet.md).
+# The same code as the stack's decree scripts: the fleet lib (automation/plugins/fleet.md).
 # Runs on the host, a Mac included: bash 3.2. Needs curl, jq and yq.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,7 +17,7 @@ for t in curl jq yq; do command -v "$t" >/dev/null 2>&1 || die "needs ${t} on th
 env_get() { grep -E "^$1=" "${REPO_DIR}/.env.shared" 2>/dev/null | head -1 | cut -d= -f2-; }
 
 lib="$(mktemp)"; trap 'rm -f "$lib"' EXIT
-yq --front-matter=extract -r '.["x-exist-lib"]["fleet.sh"]' "${REPO_DIR}/automation/plugins/flows/fleet.md" > "$lib"
+yq --front-matter=extract -r '.["x-exist-lib"]["fleet.sh"]' "${REPO_DIR}/automation/plugins/fleet.md" > "$lib"
 # shellcheck source=/dev/null
 . "$lib"
 

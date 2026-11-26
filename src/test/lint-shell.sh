@@ -83,7 +83,7 @@ $DOCKER_CMD run --rm -v "$ROOT":/repo:z -w /repo \
 # resolve. awk, not yq: this is the host.
 _pd="$(dirname "$_canary")/plugins"; mkdir -p "${_pd}/scripts" "${_pd}/lib"
 cp -R automation/lib/. "${_pd}/lib/"
-for _p in automation/plugins/*.md automation/plugins/flows/*.md; do
+for _p in automation/plugins/*.md; do
     _n="$(basename "$_p" .md)"; mkdir -p "${_pd}/scripts/${_n}"
     awk -v sdir="${_pd}/scripts/${_n}" -v ldir="${_pd}/lib" '
         /^[A-Za-z_-]+:/ { s = ($0 ~ /^scripts:/); l = ($0 ~ /^x-exist-lib:/); f = ""; next }
@@ -96,8 +96,8 @@ for _p in automation/plugins/*.md automation/plugins/flows/*.md; do
         f != "" { print (length($0) >= 4 ? substr($0, 5) : "") > f }' "$_p"
 done
 mapfile -t PLUGIN_SCRIPTS < <(cd "$_pd" && find scripts -name '*.sh' | sort)
-mapfile -t PLUGIN_LIB < <(cd automation/plugins && awk '/^x-exist-lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  [A-Za-z0-9_][A-Za-z0-9_.\/-]*\.sh: [|][-+]?$/ {k=$1; sub(/:$/, "", k); print "lib/" k}' *.md flows/*.md | sort)
-_expected="$(cat automation/plugins/*.md automation/plugins/flows/*.md | awk '/^scripts:/{s=1; next} /^[A-Za-z_-]/{s=0} s && /^  [a-z][a-z0-9_]*\.sh: [|][-+]?$/' | wc -l)"
+mapfile -t PLUGIN_LIB < <(cd automation/plugins && awk '/^x-exist-lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  [A-Za-z0-9_][A-Za-z0-9_.\/-]*\.sh: [|][-+]?$/ {k=$1; sub(/:$/, "", k); print "lib/" k}' *.md | sort)
+_expected="$(cat automation/plugins/*.md | awk '/^scripts:/{s=1; next} /^[A-Za-z_-]/{s=0} s && /^  [a-z][a-z0-9_]*\.sh: [|][-+]?$/' | wc -l)"
 if [ "${#PLUGIN_SCRIPTS[@]}" -ne "$_expected" ]; then
     echo "  FAIL  lint-shell: wrote ${#PLUGIN_SCRIPTS[@]} plugin scripts, the plugins have ${_expected}" >&2; _rc=1
 fi

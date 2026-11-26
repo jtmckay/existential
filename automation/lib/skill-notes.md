@@ -45,9 +45,9 @@ What it is for, in a sentence or two.
 
 Write the file, then `decree install <name>` and `decree check`: it runs from then on. To change
 it, edit the file and `decree install <name>` again (an edit made in `.decree/machines/` is
-archived by the next install). A plugin the repo ships (one `./existential.sh` wrote, listed in
-`.decree/plugins/.existential`) is rewritten on the host's next run: change only your own. To
-turn one off, delete its file and run `decree install`. To build on one of decree's own
+archived by the next install). A plugin the repo ships (`.decree/plugins.tsv` lists its machines, on or off) is rewritten
+on the host's next run: change only your own. To turn one of yours off, delete its file and run
+`decree install`; one of the repo's is turned off on the host, `./existential.sh plugin off <name>`. To build on one of decree's own
 (`decree_lease`, `decree_develop`...), write `extends: decree_<x>` instead of a `machine:`, and
 only the scripts that change: never copy its scripts.
 

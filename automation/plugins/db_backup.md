@@ -22,7 +22,7 @@ scripts:
     # `${EXIST_BACKUP_RCLONE_REMOTE}/<tier>/<container>/`, prune anything older
     # than the tier's retention window.
     #
-    # Triggered by cron files in services/automation-backup/machines/flow_backup_*/cron/, whose params
+    # Triggered by its own cron files, in services/automation-backup/machines/db_backup/cron/, whose params
     # (TIER, TARGETS) are this machine's data. Credential vars
     # come from automation-backup's environment, which is the master .env.
     #
@@ -149,6 +149,43 @@ scripts:
 
     echo "done — dumped=${dumped} skipped=${skipped} failed=${failed} tier=${TIER}"
     [ "$failed" -eq 0 ]
+cron:
+  db-backup-nightly.md: |
+    ---
+    cron: "0 2 * * *"
+    machine: db_backup
+    params:
+      TIER: nightly
+      TARGETS: |
+        postgres immich-postgres DB_USERNAME DB_PASSWORD
+        mongo lowcoder-mongodb LOWCODER_MONGO_ROOT_USERNAME LOWCODER_MONGO_ROOT_PASSWORD
+        postgres mealie-postgres MEALIE_POSTGRES_USER MEALIE_POSTGRES_PASSWORD
+        mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
+        postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
+    ---
+
+    Dump every database listed nightly and rclone each to
+    ${EXIST_BACKUP_RCLONE_REMOTE}/nightly/<container>/. Files older than 7 days are pruned.
+    A container that is not running here (its service is off) is skipped, so the list
+    names every service that has a database; delete a line to stop backing one up.
+
+    Credentials are each service's own env vars, which reach automation-backup through
+    the master .env. `_LITERAL_<value>` is a fixed username.
+  db-backup-weekly.md: |
+    ---
+    cron: "0 3 * * SUN"
+    machine: db_backup
+    params:
+      TIER: weekly
+      TARGETS: |
+        postgres immich-postgres DB_USERNAME DB_PASSWORD
+        mongo lowcoder-mongodb LOWCODER_MONGO_ROOT_USERNAME LOWCODER_MONGO_ROOT_PASSWORD
+        postgres mealie-postgres MEALIE_POSTGRES_USER MEALIE_POSTGRES_PASSWORD
+        mariadb nextcloud-db _LITERAL_root NEXTCLOUD_ROOT_PASSWORD
+        postgres nocodb-postgres NOCODB_POSTGRES_USER NOCODB_POSTGRES_PASSWORD
+    ---
+
+    The same databases weekly, kept 28 days.
 ---
 # db_backup
 

@@ -72,8 +72,8 @@ Every key, `x-exist-lib:` and `x-exist-endpoints:` included: [Plugins](./index.m
 ## Turning it on
 
 ```bash
-./existential.sh run plugin on my_job        # into automation/plugins.yml, installed now
-./existential.sh run plugin off my_job       # removed, schedule and endpoints included
+./existential.sh plugin on my_job        # into its project's list (.decree/plugins/.on), installed now
+./existential.sh plugin off my_job       # removed, schedule and endpoints included
 ```
 
 `plugin on` installs it, and every `./existential.sh` after installs the file's current
@@ -87,7 +87,7 @@ On the host, edit the installed copy in `volumes/workspace_data/.decree/machines
 writable in code-server, where `decree install <name>` reinstalls from the plugin file.
 
 ```bash
-./existential.sh run plugin export my_job    # → automation/plugins/my_job.md
+./existential.sh plugin export my_job    # → automation/plugins/my_job.md
 ```
 
 Commit and push. Every install that has it on gets the new version on its next pull.
@@ -199,13 +199,12 @@ draws the chain:
 
 To fan out, emit more than once. `decree export` adds `agent_task` to `needs:`.
 
-## Making it a flow
+## Listing it
 
-A flow is a plugin with no machine, in `automation/plugins/flows/<name>.md`: an `x-exist-title`,
-an `x-exist-tagline`, the `x-exist-services` it uses, the plugins it `needs:`, and what is left
-for a person to do. decree installs it as `flow_<name>`, with its cron and order files.
-That is what [`./existential.sh flow`](../flows/index.md) lists. Add a row for it to the
-[flows table](../flows/index.md#turning-one-on).
+A plugin a person turns on gets a row in the [Flows](../flows/index.md#turning-one-on) table:
+what it does, the `./existential.sh plugin on` line (and `service on`, for the services it
+uses), and what is left for a person to do. `./existential.sh validate conventions` fails a
+plugin nothing needs that has no row there.
 
 ## Verifying it
 
@@ -228,7 +227,7 @@ Why a job seems to do nothing:
 
 | Symptom | Cause |
 |---|---|
-| No run at all | Nothing triggers it, or it is not on: `./existential.sh run plugin on <name>` |
+| No run at all | Nothing triggers it, or it is not on: `./existential.sh plugin on <name>` |
 | A `failed` run with `invalid_message` | The message names a machine that project does not have, or a param its `data:` does not declare |
 | A chained job never runs | The emitting script's `decree emit` failed; its log says why |
 | Runs, ends `done`, does nothing | Missing `set -euo pipefail`, so a failed step was swallowed |

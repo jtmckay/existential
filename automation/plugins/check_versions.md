@@ -41,9 +41,18 @@ scripts:
     Then:  ./existential.sh && docker compose up -d"
     printf '%s\n' "$body" | $DOCKER_CMD exec -i automation decree emit --machine notify --param ntfy_topic=host \
         --param ntfy_title="Image updates available" --param ntfy_tags=arrow_up >/dev/null
+cron:
+  check-versions.md: |
+    ---
+    cron: "0 12 * * FRI"
+    machine: check_versions
+    ---
+
+    Fridays at 12:00, every pinned image against upstream. One ntfy notification
+    lists each that is behind; silent when all are current.
 ---
 # check_versions
 
 Compare every pinned image tag and base image against upstream, and notify once when any has
 an update. The checker is the repo's own, `./existential.sh run check-versions`, so it runs in
-the host's decree project, the repo's own `.decree`. The `check-versions` flow turns it on.
+the host's decree project, the repo's own `.decree`. `./existential.sh plugin on check_versions` turns it on.

@@ -43,9 +43,8 @@ services:
     entrypoint: /entrypoint.sh
     volumes:
       # Recorder SQLite + YAML config — must be local; NFS breaks the recorder DB.
-      # TODO: no backup cron wired up yet. Add a backup-homeassistant flow
-      # for `homeassistant_data homeassistant` (same shape as
-      # automation/plugins/flows/backup-mealie.md) —
+      # TODO: no backup cron wired up yet. Add `homeassistant_data homeassistant`
+      # to volume_backup's cron files (automation/plugins/volume_backup.md) —
       # out of scope for this directory, see services/automation-backup/.
       - homeassistant_data:/config
       - ./entrypoint.sh:/entrypoint.sh:ro

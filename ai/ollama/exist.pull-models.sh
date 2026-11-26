@@ -2,8 +2,8 @@
 # ollama — manual model pull, driven by the global model selection.
 #
 # This is a manual fallback. Under normal operation the decree daemon's ollama
-# migrations (the local-models flow, automation/plugins/flows/local-models.md) do exactly this after ollama
-# passes its health check — `./existential.sh flow on local-models` and they
+# order files (automation/plugins/ollama_pull.md) do exactly this after ollama
+# passes its health check — `./existential.sh plugin on ollama_pull` and they
 # run once.
 #
 # Which models get pulled is NOT decided here: it comes from the "Model

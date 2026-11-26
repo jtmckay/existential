@@ -39,8 +39,8 @@ services:
       - NTFY_PASSWORD=${EXIST_NTFY_PASSWORD:-}
     volumes:
       # SQLite (grafana.db) — must be local; NFS breaks WAL locking.
-      # TODO: no backup yet — add a volume-backup cron in
-      # automation/plugins/flows/ (a backup-<service> flow; nothing else is needed).
+      # TODO: no backup yet — add its volume to volume_backup's cron files
+      # (automation/plugins/volume_backup.md; nothing else is needed).
       - grafana_data:/var/lib/grafana
       # Mount the subdirs we own, not the parent: mounting
       # /etc/grafana/provisioning wholesale hides the image's empty plugins/,

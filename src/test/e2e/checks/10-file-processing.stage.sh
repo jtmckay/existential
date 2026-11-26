@@ -3,8 +3,8 @@
 # the stack boots.
 #
 # The probe processor is placed in the workspace's decree lib from out here, before
-# the stack boots, and nextcloud-capture is turned on, so any unit with Nextcloud
-# on boots with file events whether or not it turned that flow on.
+# the stack boots, and nextcloud_file_events is turned on, so a stack with Nextcloud
+# on boots with file events.
 #
 # Contract: $WORK is the e2e clone. Exit non-zero to fail the run. Every write
 # lands inside the clone and is torn down with it.
@@ -30,9 +30,11 @@ awk '/^x-exist-lib:/{l=1; next} /^[A-Za-z_-]/{l=0} l && /^  file-processors\.exa
 
 echo "  staged the example file-processor as the probe"
 
-# nextcloud-capture on in automation/plugins.yml: exist.initial.sh then
-# installs its plugins, whose order files (rclone remote, file events) run at the daemon's start.
-# shellcheck source=../../../utils/flows.sh
-# shellcheck disable=SC2034  # REPO_DIR is read by flows.sh
-( REPO_DIR="$WORK"; . "$WORK/src/utils/flows.sh"; plugins_turn on nextcloud-capture )
-echo "  turned on nextcloud-capture (rclone remote, file events)"
+# nextcloud_file_events on in the workspace project, beside the defaults its first
+# sync would start it with: exist.initial.sh then installs it and what it needs,
+# whose order files (rclone remote, file events) run at the daemon's start.
+_on="$WORK/volumes/workspace_data/.decree/plugins/.on"
+mkdir -p "${_on%/*}"
+[ -f "$_on" ] || sed -n 's/^PLUGIN_DEFAULTS=" *\(.*\) *"$/\1/p' "$WORK/automation/lib/plugin.sh" | tr ' ' '\n' | grep . > "$_on"
+echo nextcloud_file_events >> "$_on"
+echo "  turned on nextcloud_file_events (rclone remote, file events)"

@@ -4,7 +4,7 @@ sidebar_position: 14
 
 # Updates
 
-An install can follow its branch on its own. The `pull-existential` [flow](../flows/index.md), off until you
+An install can follow its branch on its own. The `pull_existential` [plugin](../flows/index.md), off until you
 turn it on, runs on the host every 15 minutes:
 
 1. `git pull`, fast-forward only. A checkout with commits of its own, or an upstream that was
@@ -20,16 +20,16 @@ notify to tell it). The repo is the authority: what is
 on its branch is what your install runs.
 
 ```bash
-./existential.sh flow on pull-existential
+./existential.sh plugin on pull_existential
 ```
 
-`pull-existential` is a host flow: it runs in [the host daemon](./host-daemon.md), so start that
+`pull_existential` is a host plugin: it runs in [the host daemon](./host-daemon.md), so start that
 once, and have it start at boot. `./existential.sh` says so until one runs.
 
 ## Turning it off
 
 ```bash
-./existential.sh flow off pull-existential
+./existential.sh plugin off pull_existential
 ```
 
 Then you pull and run `./existential.sh` yourself, as before.
@@ -37,16 +37,16 @@ Then you pull and run `./existential.sh` yourself, as before.
 ## Pinned images
 
 Every image the stack runs is pinned to a tag in the repo, so nothing moves until the pin does.
-The `check-versions` flow says when one is behind: Fridays at noon it runs
+`check_versions` says when one is behind: Fridays at noon it runs
 `./existential.sh run check-versions`, which compares every pinned tag and base image against
 upstream, and sends one notification listing each that has a newer version. Nothing is changed,
 and a week with nothing behind is silent.
 
 ```bash
-./existential.sh flow on check-versions
+./existential.sh plugin on check_versions
 ```
 
-It is a host flow too. When a notification arrives:
+It is a host plugin too. When a notification arrives:
 
 ```bash
 ./existential.sh run check-versions --update     # moves the pins in the templates
@@ -54,23 +54,23 @@ It is a host flow too. When a notification arrives:
 docker image prune -a && docker builder prune -a  # deletes the old versions, which keep their tags
 ```
 
-For another day or time, edit `cron:` in `.decree/machines/flow_check_versions/cron/check-versions.md`.
+For another day or time, edit `cron:` in `.decree/machines/check_versions/cron/check-versions.md`.
 
 ## Ubuntu
 
-`pull-existential` keeps the stack current. The `update-ubuntu` flow does the same for an Ubuntu
+`pull_existential` keeps the stack current. `update_ubuntu` does the same for an Ubuntu
 host under it, also from [the host daemon](./host-daemon.md):
 
 | | When |
 |---|---|
 | Check for updates | Daily, by Ubuntu's own `unattended-upgrades` |
 | Security updates | Daily, by `unattended-upgrades` |
-| Every other package update | Sundays at 01:00, by the flow (`apt-get upgrade`: nothing is removed) |
+| Every other package update | Sundays at 01:00, by update_ubuntu (`apt-get upgrade`: nothing is removed) |
 | Reboot | At 02:00, only when an installed update requires one |
 | Ubuntu release upgrades | Never. `do-release-upgrade` is yours to schedule |
 
 ```bash
-./existential.sh flow on update-ubuntu
+./existential.sh plugin on update_ubuntu
 ./existential.sh
 sudo bash .decree/lib/update_ubuntu/setup.sh
 ```

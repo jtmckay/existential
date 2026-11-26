@@ -11,7 +11,7 @@ x-exist-handlers:
     changes: [created, modified]
     quiet: 120
 machine:
-  description: Read each new file once (Claude when it is signed in, else the chat model); when a flow that is off, or a machine not yet written, would handle it, tell your phone.
+  description: Read each new file once (Claude when it is signed in, else the chat model); when a plugin that is off, or a machine not yet written, would handle it, tell your phone.
   data:
     path: {type: string, default: ""}
     change: {type: string, default: ""}
@@ -23,7 +23,7 @@ machine:
     claude_model: {type: string, default: haiku}
   state_files:
     handled.txt: Every file already read (workspace-relative, one per line), each read once; what was there at install is marked without being read. Delete a line to read that file again.
-    suggested.txt: Each flow or machine already suggested, so each reaches your phone once.
+    suggested.txt: Each plugin or machine already suggested, so each reaches your phone once.
   initial: advise
   states:
     advise:
@@ -44,14 +44,14 @@ order:
 scripts:
   file_advise.sh: |
     #!/usr/bin/env bash
-    # file_advise — each new file, read once: would a flow you have not turned on, or
+    # file_advise — each new file, read once: would a plugin you have not turned on, or
     # a machine you have not written, handle it?
     #
     # Run by the file handler for every file created or changed outside a hidden
     # folder and ai/ (what automations write). A file is read the first time it
     # changes and never again: state/handled.txt has every path read, and the order
-    # file marked what was there at install. The flows it picks from are
-    # .decree/flows.tsv, which ./existential.sh writes from the repo's. Each
+    # file marked what was there at install. The plugins it picks from are
+    # .decree/plugins.tsv, which ./existential.sh writes from the repo's. Each
     # suggestion reaches ntfy once (state/suggested.txt); "nothing" says nothing.
     #
     # Claude reads it when it is signed in (advisor: claude, the default), in plan
@@ -83,30 +83,33 @@ scripts:
     # Not marked: the next change to it, once one answers, reads it.
     else echo "file_advise: Claude is not signed in (claude, then /login, in code-server) and there is no model (EXIST_MODEL_URL)"; exit 0; fi
 
-    flows=".decree/flows.tsv"
-    [[ -s "$flows" ]] || { echo "file_advise: no ${flows} (./existential.sh writes it)"; exit 0; }
-    catalog="$(awk -F'\t' '{ printf "- %s (%s): %s\n", $1, $2, $4 }' "$flows")"
-    machines="$(for f in .decree/plugins/*.md; do [[ -f "$f" ]] &&
-                    printf -- '- %s: %s\n' "$(basename "$f" .md)" "$(yq --front-matter=extract -r '.machine.description // ""' "$f" 2>/dev/null)"
-                done | grep -v ': $' || true)"
+    plugins=".decree/plugins.tsv"
+    [[ -s "$plugins" ]] || { echo "file_advise: no ${plugins} (./existential.sh writes it)"; exit 0; }
+    catalog="$(awk -F'\t' '{ printf "- %s (%s): %s\n", $1, $2, $3 }' "$plugins")"
+    # Your own machines: installed, and not the repo's.
+    yours="$(for f in .decree/plugins/*.md; do
+                 n="$(basename "$f" .md)"
+                 [[ -f "$f" ]] && ! cut -f1 "$plugins" | grep -qxF "$n" &&
+                     printf -- '- %s: %s\n' "$n" "$(yq --front-matter=extract -r '.machine.description // ""' "$f" 2>/dev/null)"
+             done | grep -v ': $' || true)"
     if grep -Iq . "${WS}/${rel}" 2>/dev/null; then sample="$(head -c 3000 "${WS}/${rel}")"
     else sample="(binary, $(wc -c < "${WS}/${rel}") bytes)"; fi
 
     system='A person keeps files in a workspace that runs automations. Given one file they just
     saved, decide whether something should handle files like it from now on. Reply with one JSON
     object and no other text:
-    {"flow": null or "the name of a flow from the list that is off",
+    {"plugin": null or "the name of a plugin from the list that is off",
      "machine": null or {"name": "snake_case_name", "does": "one sentence: what it would do with each such file"},
      "why": "one sentence, to the person"}
-    flow: only a flow marked off whose description clearly fits this kind of file.
-    machine: only when no flow fits, nothing installed already does it, and the person would
+    plugin: only a plugin marked off whose description clearly fits this kind of file.
+    machine: only when no plugin fits, nothing installed already does it, and the person would
     plainly want it done every time a file like this lands here. Most files need nothing:
-    then both are null. Never suggest a flow or machine named as already suggested.'
-    user="Flows (name (on|off): what it does):
+    then both are null. Never suggest a plugin or machine named as already suggested.'
+    user="Plugins (name (on|off): what it does):
     ${catalog}
 
-    Machines installed:
-    ${machines:-none}
+    Your own machines:
+    ${yours:-none}
 
     Already suggested (never again): $(paste -sd, "$suggested")
 
@@ -127,17 +130,17 @@ scripts:
     echo "$rel" >> "$handled"
 
     why="$(jq -r '.why // ""' <<<"$answer")"
-    flow="$(jq -r '.flow // "" | strings' <<<"$answer")"
-    # Only a flow that exists and is off: a model answer cannot name anything else.
-    if [[ -n "$flow" ]] && ! grep -qxF "$flow" "$suggested" && awk -F'\t' -v f="$flow" '$1 == f && $2 == "off" { ok = 1 } END { exit !ok }' "$flows"; then
-        title="$(awk -F'\t' -v f="$flow" '$1 == f { print $3 }' "$flows")"
-        echo "$flow" >> "$suggested"
-        decree emit --machine notify --param ntfy_topic=suggestions --param ntfy_title="Turn on ${title:-$flow}?" --param ntfy_tags=bulb <<EOF
+    plugin="$(jq -r '.plugin // "" | strings' <<<"$answer")"
+    # Only a plugin that exists and is off: a model answer cannot name anything else.
+    if [[ -n "$plugin" ]] && ! grep -qxF "$plugin" "$suggested" && awk -F'\t' -v p="$plugin" '$1 == p && $2 == "off" { ok = 1 } END { exit !ok }' "$plugins"; then
+        echo "$plugin" >> "$suggested"
+        decree emit --machine notify --param ntfy_topic=suggestions --param ntfy_title="Turn on ${plugin}?" --param ntfy_tags=bulb <<EOF
     ${rel}: ${why}
 
-    On the host: ./existential.sh flow on ${flow}
+    $(awk -F'\t' -v p="$plugin" '$1 == p { print $3 }' "$plugins")
+    On the host: ./existential.sh plugin on ${plugin}
     EOF
-        echo "file_advise: ${rel} -> flow ${flow}"; exit 0
+        echo "file_advise: ${rel} -> plugin ${plugin}"; exit 0
     fi
     name="$(jq -r '.machine.name // "" | strings' <<<"$answer" | tr 'A-Z -' 'a-z__' | tr -cd 'a-z0-9_' | cut -c1-40)"
     does="$(jq -r '.machine.does // "" | strings' <<<"$answer")"
@@ -155,7 +158,7 @@ scripts:
 ---
 # file_advise
 
-Read each new file once; when a flow that is off, or a machine not yet written, would handle
+Read each new file once; when a plugin that is off, or a machine not yet written, would handle
 it, tell your phone, once per suggestion. Files already in the workspace at install are marked
 as handled (`state/handled.txt`) by its order file, without being read.
 
@@ -163,4 +166,4 @@ It needs, on the stack that installs it:
 
 - .decree/lib/model.sh
 - .decree/lib/agent.sh
-- .decree/flows.tsv (every flow, on or off, written by ./existential.sh)
+- .decree/plugins.tsv (every machine the repo has for this project, on or off, written by ./existential.sh)

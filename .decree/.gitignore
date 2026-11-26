@@ -8,8 +8,9 @@ process.log
 cache/
 archive/
 ai-use.md
-# Written from automation/plugins/ (x-exist-project: host) by ./existential.sh,
-# never committed: a plugin's file is the one place its machine and scripts live.
+# Written from automation/plugins/ (x-exist-project: host) by ./existential.sh, with
+# plugins/.on (what is on here), never committed: a plugin's file is the one place
+# its machine and scripts live.
 plugins/
 # Installed from plugins/ by decree; a machine's order/ and any *.git.* file
 # (order.git.txt) are committed. Not graph.md: it is whatever this host has on.

@@ -29,15 +29,14 @@ It is also what the health gates run: `triage` executes every enabled service's 
 
 ## End-to-end
 
-`./existential.sh e2e [<pattern>...|down]` → `src/test/e2e/e2e.sh`. Per unit (Core, then each
-flow marked `e2e: true`): copy the **working tree** into `.tmp-e2e-*` → copy
-`src/test/fixtures/env.shared` over `.env.shared` and flip on Core's `EXIST_IS_*` vars, then the
-flow's and those of every flow it needs, and copy their files in →
+`./existential.sh e2e [down]` → `src/test/e2e/e2e.sh`. Core, as it ships: copy the **working
+tree** into `.tmp-e2e-*` → copy `src/test/fixtures/env.shared` over `.env.shared` and flip on
+Core's `EXIST_IS_*` vars →
 **stage checks** → render templates → `run_initials` (sourced from the clone's own
 `existential.sh`, not a second copy) → `generate-compose.ts` → `up -d --build` → settle →
 container-state gate → **wait for both daemons to finish migrating** → drop the checks → wait
 for both to drain → copy the evidence to
-`e2e-out/` → tear down. A flow without `e2e: true` needs something e2e cannot supply (a Google
+`e2e-out/` → tear down. Anything beyond Core needs something e2e cannot supply (a Google
 grant, a NAS, model checkpoints).
 
 **The clone is the working tree, not `HEAD`** — `git ls-files --cached --others --exclude-standard`
@@ -60,7 +59,7 @@ Adding a check is adding a file. Full contract in that directory's `README.md`; 
   `invalid_message` — which is how `00-services` once failed every unit after `triage` moved.
 
 - `00-services.md` runs `triage` with `TRIAGE_STRICT=true` — the per-service tier. Without it a
-  unit with no order files and no object store verifies **nothing**: most flows add only cron
+  stack with no order files and no object store verifies **nothing**: most plugins add only cron
   files, none of which can fire inside a run
   that lives for minutes, so they reported `0 of 0 checks` and failed on that alone.
 - A check with a sibling `.yml` and `.sh` gets them staged into the clone's `machines/` and
@@ -105,12 +104,6 @@ Its opposite lives in `harness-selftest.sh` (below): `collect_results` driven ag
 
 Each of these was tried, shipped, and reverted. They all look like simplifications.
 
-- **Core is not a representative unit — verify a harness change against all of them.** Core once
-  had the only full migration set and the others copied *cron files only*. Twice a
-  change was justified against a green Core and broke everything else: stripping the clone's crons
-  left those with nothing gradable at all (a guaranteed `0 of 0` = fail), and running checks
-  as migrations passed Core only because the 0.4 migration gate held its slow starter back. Run the
-  sweep, not `e2e core`.
 - **Don't convert checks into order files.** It is the obvious consolidation and it is a phase
   error — see "Messages, not order files" above. The rationale is written into
   `checks/README.md` and `results.sh` as well; if you find yourself proposing it, all three
@@ -246,7 +239,7 @@ patterns), which is deliberately older than what builds the binary.
 
 ## Git hooks
 
-`.githooks/` is auto-installed via `core.hooksPath=.githooks` on `default`/`flow`.
+`.githooks/` is auto-installed via `core.hooksPath=.githooks` on `default`/`service`.
 
 - **`pre-commit`** blocks secrets from entering the public repo — lean/fast, the one
   irreversible failure.

@@ -36,8 +36,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
       - ./error.html:/var/www/html/error.html:ro,Z
       # Internal CA root + ACME state — plain files, but worth keeping.
-      # TODO: no backup yet — add a volume-backup cron in
-      # automation/plugins/flows/ (a backup-<service> flow; nothing else is needed).
+      # TODO: no backup yet — add its volume to volume_backup's cron files
+      # (automation/plugins/volume_backup.md; nothing else is needed).
       - caddy_data:/data
       # Autosaved JSON config, rebuilt from the Caddyfile on every start.
       - caddy_config_cache:/config

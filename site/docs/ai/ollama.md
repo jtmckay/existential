@@ -19,7 +19,7 @@ You do not pick models here. Model choice is global and lives in the *Model Sele
 [Configuration → Models](../configuration.md#models).
 
 The models are pulled for you: the `10-ollama-*` … `14-ollama-*` decree migrations run as soon as
-ollama answers `/api/tags`, once the `local-models` flow is on (`./existential.sh flow on local-models`). Without it, pull manually:
+ollama answers `/api/tags`, once `ollama_pull` is on (`./existential.sh plugin on ollama_pull`). Without it, pull manually:
 
 ```bash
 ./existential.sh run ollama pull-models

@@ -44,5 +44,5 @@ email on signup — Appsmith's `admin.emails` property. Comma-separate more than
 
 ## Back it up
 
-`./existential.sh flow on backup-appsmith` schedules a nightly and a weekly volume backup in
+`./existential.sh plugin on volume_backup` schedules a nightly and a weekly volume backup in
 `automation-backup`.

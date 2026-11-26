@@ -1,5 +1,5 @@
 {
-  "description": "Every host that reports (the report_host plugin of the report-host flow, job=\"exist\" in Loki): free disk space, CPU, RAM and VRAM. Its decree machines and runs are on Decree Overview.",
+  "description": "Every host that reports (the report_host plugin, job=\"exist\" in Loki): free disk space, CPU, RAM and VRAM. Its decree machines and runs are on Decree Overview.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,

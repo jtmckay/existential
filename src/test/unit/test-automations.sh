@@ -25,9 +25,9 @@
 #             waits in ai/proposed/; lists and requests between stacks
 #   sync      the repo's plugins dir: a project's plugins/ is what is on and what
 #             that needs, and decree installs it; a changed file is installed
-#             again, an edited copy archived by decree first; auto_update off only
-#             names it; one no longer wanted goes, cron and lib too; a flow brings
-#             its order files; decree 0.5's copies are converted
+#             again, an edited copy archived by decree first; one no longer wanted
+#             goes, cron and lib too; order files come with their plugin;
+#             decree 0.5's copies are converted
 #
 # Everything is written under a temp dir, removed in the trap.
 set -uo pipefail
@@ -291,10 +291,10 @@ rm -f "${TMP}/run/gate.err"
 echo ""; echo "=== accepted ==="
 # Installed in the workspace: the offer moved into .decree/plugins/ and `decree
 # install`ed; the sync (the host's next ./existential.sh) wires its trigger.
-printf 'on: [note_watch, automation_propose, reconcile, develop, plugin_share, plugin_offer, plugin_request]\n' > "${TMP}/plugins.yml"
-host_install() {  # <name>: mv + decree install, then the sync (run in $(), so the list is a file)
+printf '%s\n' note_watch automation_propose reconcile develop plugin_share plugin_offer plugin_request > "$W/.decree/plugins/.on"
+host_install() {  # <name>: mv + decree install, then the sync
     mv "$(offer "$1")" "$W/.decree/plugins/$1.md"
-    ( cd "$W" && decree install --no-color "$1" && PLUGINS_ON="${TMP}/plugins.yml" bash -c 'source "$1"; plugin_sync "$2" automation' _ \
+    ( cd "$W" && decree install --no-color "$1" && bash -c 'source "$1"; plugin_sync "$2" automation' _ \
         "${REPO_DIR}/automation/lib/plugin.sh" "${REPO_DIR}/automation/plugins" ) > "${TMP}/last.log" 2>&1; echo $?
 }
 assert_eq "the offer installs" "0" "$(host_install $NAME)"
@@ -403,9 +403,9 @@ assert_has "...saying what to set" "$(cat "${TMP}/last.log")" "set PLUGIN_SHARE_
 echo ""; echo "=== sync ==="
 # The repo's plugins dir is the one source: a project's plugins/ is what is on
 # and what that needs, and decree installs it; a changed file is installed
-# again, and decree archives a copy edited in place first; auto_update off only
-# names it; one no longer wanted goes, its cron and lib with it, but not what is
-# yours; a flow brings what it needs and its order files; decree 0.5's copies go.
+# again, and decree archives a copy edited in place first; one no longer wanted
+# goes, its cron and lib with it, but not what is yours; a plugin brings what it
+# needs and its order files; decree 0.5's copies go.
 PD="${TMP}/plugins"; mkdir -p "$PD"
 mkplugin() {  # <name> <needs list> [script body]
     cat > "${PD}/$1.md" <<EOF
@@ -436,23 +436,24 @@ mkplugin hostonly '[]'; yq --front-matter=process -i '.["x-exist-project"] = "ho
 # A cron of its own, a helper in lib, and a file that is yours once written.
 yq --front-matter=process -i '.cron["gamma_hourly.md"] = "---\nmachine: gamma\ncron: \"0 * * * *\"\n---\n" | .["x-exist-lib"]["gamma/helper.sh"] = "echo helped\n" | .state["conf.txt"] = "shipped\n"' "${PD}/gamma.md"
 S="${TMP}/sp"; mkdir -p "$S/.decree"
+turn_on() { mkdir -p "$S/.decree/plugins"; printf '%s\n' "$@" > "$S/.decree/plugins/.on"; }   # what is on in the project
 psync() {  # psync [name...]: one plugin_sync of the automation project; its output in $TMP/sync.log
-    ( cd "$S" && PLUGINS_ON="$S/plugins.yml" bash -c 'source "$1"; shift; plugin_sync "$@"' \
+    ( cd "$S" && bash -c 'source "$1"; shift; plugin_sync "$@"' \
         _ "${REPO_DIR}/automation/lib/plugin.sh" "$PD" automation "$@" ) > "${TMP}/sync.log" 2>&1
     echo $?
 }
 installed() { (cd "$S/.decree/machines" 2>/dev/null && ls -d -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | sort | paste -sd' '); }
 copies() { (cd "$S/.decree" && find machines -type f | sort | xargs cksum); }
-printf 'on: [alpha]\n' > "$S/plugins.yml"
+turn_on alpha
 assert_eq "a sync runs" "0" "$(psync)"
-assert_eq "...installs what plugins.yml has on and what that needs, and nothing else" "alpha beta" "$(installed)"
+assert_eq "...installs what is on and what that needs, and nothing else but decree_prune" "alpha beta decree_prune" "$(installed)"
 assert_eq "...each as written" "echo beta" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
 assert_eq "...from its file in plugins/, which decree installs" "yes" "$(cmp -s "${PD}/beta.md" "$S/.decree/plugins/beta.md" && echo yes || echo no)"
 before="$(copies)"
 assert_eq "...and an unchanged one again changes nothing" "$before" "$(psync >/dev/null; copies)"
-printf 'on: [alpha, gamma]\n' > "$S/plugins.yml"
+turn_on alpha gamma
 psync >/dev/null
-assert_eq "one turned on is installed" "alpha beta gamma" "$(installed)"
+assert_eq "one turned on is installed" "alpha beta decree_prune gamma" "$(installed)"
 assert_eq "...with its cron" "gamma" "$(yq --front-matter=extract -r .machine "$S/.decree/machines/gamma/cron/gamma_hourly.md" 2>/dev/null)"
 assert_eq "...and its lib, where its scripts reach it" "echo helped" "$(cat "$S/.decree/lib/gamma/helper.sh" 2>/dev/null)"
 assert_eq "what is yours (state:) is written to its store, once" "shipped" "$(cat "$S/.decree/store/gamma/conf.txt" 2>/dev/null)"
@@ -464,22 +465,21 @@ assert_eq "...and never overwritten" "mine" "$(cat "$S/.decree/store/gamma/conf.
 mkdir -p "$S/.decree/cron"; printf -- '---\nmachine: gamma\ncron: "* * * * *"\n---\n' > "$S/.decree/cron/mine.md"
 assert_has "a cron file in .decree/cron/ is not read, and the sync says so" "$(psync >/dev/null; cat "${TMP}/sync.log")" ".decree/cron/ is not read"
 rm -rf "$S/.decree/cron"
-assert_eq "a name given that is tagged for another project is not installed" "alpha beta gamma" "$(psync hostonly >/dev/null; installed)"
-# A flow: no machine, in plugins/flows/; it needs a machine, and an order file runs that machine once.
-mkdir -p "${PD}/flows"
-printf -- '---\nname: epsilon\nx-exist-project: automation\nx-exist-title: Epsilon\nx-exist-tagline: delta, set up once\nneeds:\n  - delta\n  - decree_order\norder:\n  epsilon-setup.md: |\n    ---\n    machine: delta\n    ---\n---\n' > "${PD}/flows/epsilon.md"
-assert_eq "a flow brings the plugins it needs, decree's decree_order among them" "alpha beta decree_order delta gamma" "$(psync epsilon >/dev/null; installed)"
-assert_eq "...as flow_<name>, whose order file is in" "delta" "$(yq --front-matter=extract -r .machine "$S/.decree/machines/flow_epsilon/order/epsilon-setup.md" 2>/dev/null)"
+assert_eq "a name given that is tagged for another project is not installed" "alpha beta decree_prune gamma" "$(psync hostonly >/dev/null; installed)"
+# An order file: delta's, which runs delta once, and needs decree_order to.
+yq --front-matter=process -i '.needs = ["decree_order"] | .order["delta-setup.md"] = "---\nmachine: delta\n---\n"' "${PD}/delta.md"
+assert_eq "a plugin brings what it needs, decree's decree_order among them" "alpha beta decree_order decree_prune delta gamma" "$(psync delta >/dev/null; installed)"
+assert_eq "...and its order file is in" "delta" "$(yq --front-matter=extract -r .machine "$S/.decree/machines/delta/order/delta-setup.md" 2>/dev/null)"
 assert_has "...and queued to run now, not at the next start" "$(cat "${TMP}/sync.log")" "order files are queued to run"
 psync >/dev/null
-assert_eq "...and removed when nothing wants them" "alpha beta gamma" "$(installed)"
+assert_eq "...and removed when nothing wants them" "alpha beta decree_prune gamma" "$(installed)"
 # One that extends decree's: its base, and what decree adds for that, come and go with it.
 printf -- '---\nname: zeta\nextends: decree_develop\nx-exist-project: automation\nscripts:\n  gate.sh: |\n    echo pass > "$DECREE_EVENT_FILE"\n---\n' > "${PD}/zeta.md"
-printf 'on: [alpha, gamma, zeta]\n' > "$S/plugins.yml"
-assert_eq "one that extends decree's installs with its base and that base's needs" "alpha beta decree_develop decree_infra decree_order gamma zeta" "$(psync >/dev/null; installed)"
+turn_on alpha gamma zeta
+assert_eq "one that extends decree's installs with its base and that base's needs" "alpha beta decree_develop decree_infra decree_order decree_prune gamma zeta" "$(psync >/dev/null; installed)"
 assert_eq "...its own file over the base's" 'echo pass > "$DECREE_EVENT_FILE"' "$(tail -1 "$S/.decree/machines/zeta/scripts/gate.sh" 2>/dev/null)"
-printf 'on: [alpha, gamma]\n' > "$S/plugins.yml"
-assert_eq "...and all of it goes with it, decree_order included" "alpha beta gamma" "$(psync >/dev/null; installed)"
+turn_on alpha gamma
+assert_eq "...and all of it goes with it, decree_order included" "alpha beta decree_prune gamma" "$(psync >/dev/null; installed)"
 rm -f "${PD}/zeta.md"
 mkplugin beta '[]' 'echo beta two'
 psync >/dev/null
@@ -490,14 +490,9 @@ mkplugin beta '[]' 'echo beta three'
 psync >/dev/null
 assert_eq "an edited copy is replaced" "echo beta three" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
 assert_has "...and decree archives it first" "$(cat "$S"/.decree/archive/beta/*.md 2>/dev/null)" "echo mine"
-printf 'on: [alpha, gamma]\nauto_update: false\n' > "$S/plugins.yml"
-mkplugin beta '[]' 'echo beta four'
+turn_on alpha
 psync >/dev/null
-assert_eq "with auto_update off a change is not installed" "echo beta three" "$(tail -1 "$S/.decree/machines/beta/scripts/go.sh")"
-assert_has "...only named" "$(cat "${TMP}/sync.log")" "beta has a new version"
-printf 'on: [alpha]\n' > "$S/plugins.yml"
-psync >/dev/null
-assert_eq "one turned off again is removed" "alpha beta" "$(installed)"
+assert_eq "one turned off again is removed" "alpha beta decree_prune" "$(installed)"
 assert_eq "...its cron and lib with it" "no" "$([[ -e "$S/.decree/machines/gamma/cron/gamma_hourly.md" || -e "$S/.decree/lib/gamma/helper.sh" ]] && echo yes || echo no)"
 assert_eq "...but not what is yours" "mine" "$(cat "$S/.decree/store/gamma/conf.txt" 2>/dev/null)"
 mkdir -p "$S/.decree/machines/mine"

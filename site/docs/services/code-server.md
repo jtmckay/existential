@@ -36,7 +36,7 @@ Then `./existential.sh && docker compose up -d` from the repo root.
 It mounts `workspace/`, the same tree the `automation` daemon's agents see, so you and an agent
 can edit the same files at once.
 
-## Seeing your flows
+## Seeing your machines
 
 Open any machine's `.decree/machines/<name>/graph.md` and run **Markdown: Open Preview** to see it as a diagram
 ([Mermaid extension](https://open-vsx.org/extension/bierner/markdown-mermaid), installed on
@@ -63,8 +63,8 @@ tmx claude                            # attach to it
 **`opencode`** is pointed at the stack's chat model on every boot (`EXIST_MODEL_URL` and
 `EXIST_MODEL_CHAT`). Your `~/.config/opencode/opencode.json` is merged over it.
 
-**With the `code-server-agents` flow on** (`./existential.sh flow on code-server-agents`), pi is
-set up on the stack's model and what you type into `claude` and `opencode` is captured to
+**pi** is set up on the stack's model (the `pi` plugin, on by default). **With `capture` on**
+(`./existential.sh plugin on capture`), what you type into `claude` and `opencode` is captured to
 `workspace/.capture/` (secrets redacted, never responses). `CODE_SERVER_CAPTURE=false` turns capture off. See
 [Capture](../getting-started.md#capture).
 

@@ -7,11 +7,9 @@
 # here. What triage cannot see is a first install — templates rendering,
 # order files running, one service reaching another for the first time.
 #
-# Per unit, Core and then each flow marked `e2e: true`: copy the WORKING TREE
-# into a throwaway clone (tracked files plus untracked-but-not-ignored ones, so
-# uncommitted work is what gets tested and secrets stay out by git's own ignore
-# rules), turn the flow on (its services, the flows it needs, its files),
-# render, up, then drop this run's CHECKS into the
+# Core, the install as it ships: copy the WORKING TREE into a throwaway clone
+# (tracked files plus untracked-but-not-ignored ones, so uncommitted work is what
+# gets tested and secrets stay out by git's own ignore rules), render, up, then drop this run's CHECKS into the
 # decree inbox once the stack is healthy and let the daemon run them. Evidence
 # lands in e2e-out/ before teardown.
 #
@@ -20,8 +18,7 @@
 # adding a file; nothing here enumerates them.
 #
 # Usage (via existential.sh):
-#   ./existential.sh e2e                 # Core, then every e2e flow
-#   ./existential.sh e2e core search     # units matching a name pattern
+#   ./existential.sh e2e                 # Core, up from a fresh clone, checked
 #   ./existential.sh e2e down            # reclaim artifacts from a crashed run
 #
 # Env:
@@ -34,8 +31,6 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FIXTURES="${REPO_DIR}/src/test/fixtures"
 
-# shellcheck source=../../utils/flows.sh
-. "${REPO_DIR}/src/utils/flows.sh"
 # shellcheck source=../../utils/gpu-vendor.sh
 . "${REPO_DIR}/src/utils/gpu-vendor.sh"
 # Evidence collection, kept sourceable so harness-selftest.sh can drive it
@@ -54,33 +49,6 @@ hr()   { printf '[e2e] '; printf '%0.s─' {1..54}; echo; }
 # Every compose call against the e2e stack goes through here — each open-coded
 # -p/-f pair was a chance to address the wrong stack.
 _compose() { local w="$1"; shift; docker compose -p "$E2E_PROJECT" -f "$w/docker-compose.yml" "$@"; }
-
-# ── Units ─────────────────────────────────────────────────────────────────────
-# "core" is the install as it ships; every other unit is a flow marked e2e: true,
-# turned on over Core the way `./existential.sh flow on` does it. The rest need
-# external infrastructure (a Gmail grant, a NAS, model checkpoints).
-
-unit_name() { if [ "$1" = core ]; then echo Core; else flow_get "$1" name; fi; }
-units() {
-    local n
-    echo core
-    for n in $(flow_names); do [ "$(flow_get "$n" e2e)" = true ] && echo "$n"; done
-    return 0
-}
-
-# Resolve name patterns ("core", "search") to units, matched case-insensitively
-# against the unit's id and its name.
-units_by_names() {
-    local -a all=(); mapfile -t all < <(units)
-    local pat u found
-    for pat in "$@"; do
-        found=""
-        for u in "${all[@]}"; do
-            if grep -qi -- "$pat" <<<"$u $(unit_name "$u")"; then echo "$u"; found=1; fi
-        done
-        [ -n "$found" ] || log "No e2e unit matched '${pat}' — skipped" >&2
-    done
-}
 
 # ── Teardown ──────────────────────────────────────────────────────────────────
 
@@ -381,8 +349,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 run_unit() {
-    local unit="$1" name vendor var src f n=0 health_rc=0 checks_rc=0
-    name=$(unit_name "$unit")
+    local unit=core name=Core vendor var src f n=0 health_rc=0 checks_rc=0
 
     hr; log "${name} — start"; hr
     UNIT_LABEL="$name"; COLLECTED=0
@@ -409,12 +376,10 @@ run_unit() {
     grep -q '^EXIST_PUID=' "$WORK/.env.shared" || printf 'EXIST_PUID=%s\n' "$(id -u)" >> "$WORK/.env.shared"
     grep -q '^EXIST_PGID=' "$WORK/.env.shared" || printf 'EXIST_PGID=%s\n' "$(id -g)" >> "$WORK/.env.shared"
 
-    # 3. Core's services, then the flow's: its own and those of every flow it
-    #    needs. The vendor answer outranks the list, as `flow on` does.
+    # 3. Core's services. The vendor answer outranks the list, as `service on` does.
     log "Enabling services..."
     vendor=$(grep -m1 '^EXIST_GPU_VENDOR=' "$WORK/.env.shared" | cut -d= -f2-)
-    for var in $(grep -oE '^EXIST_IS_[A-Z_]+=true' "$WORK/.env.exist.shared" | cut -d= -f1) \
-               $( [ "$unit" = core ] || for f in $(flow_closure "$unit"); do flow_list "$f" services; done ); do
+    for var in $(grep -oE '^EXIST_IS_[A-Z_]+=true' "$WORK/.env.exist.shared" | cut -d= -f1); do
         if [ -n "$vendor" ] && vendor_forbids_service "$vendor" "$var"; then
             log "  skipping ${var} — EXIST_GPU_VENDOR=${vendor}"
             continue
@@ -431,15 +396,7 @@ run_unit() {
             || die "could not enable ${var} — add it to src/test/fixtures/env.shared"
     done
 
-    # 4. The flow on in automation/plugins.yml, as `flow on` does; it and
-    #    what it needs are installed by exist.initial.sh, below, exactly as on a
-    #    real install. Core's flows are the plugins.yml every install starts with.
-    if [ "$unit" != core ]; then
-        ( REPO_DIR="$WORK"; plugins_turn on "$unit" )
-        log "Turned on ${unit} in automation/plugins.yml"
-    fi
-
-    # 5. Stage the checks — before the render, because what this touches
+    # 4. Stage the checks — before the render, because what this touches
     #    (plugins/ and machines/, installed by exist.initial.sh, and the webhook route table) is read at boot.
     log "Staging checks..."
     stage_checks "$WORK"
@@ -545,28 +502,8 @@ log "Building existential-adhoc image..."
 EXIST_DECREE_CONTEXT="$(adhoc_context_hash)" \
     docker compose -p "$E2E_PROJECT" -f "${REPO_DIR}/existential-compose.yml" build existential-adhoc
 
-declare -a SELECTED=()
-if [ "$#" -gt 0 ]; then
-    mapfile -t SELECTED < <(units_by_names "$@" | awk '!seen[$0]++')
-    [ "${#SELECTED[@]}" -gt 0 ] || die "No e2e unit matched: $*"
-else
-    mapfile -t SELECTED < <(units)
-fi
-
-log "Selected:"
-for u in "${SELECTED[@]}"; do log "  • $(unit_name "$u")"; done
-
 declare -a PASS=() FAIL=()
-for u in "${SELECTED[@]}"; do
-    name=$(unit_name "$u")
-    if run_unit "$u"; then
-        PASS+=("$name")
-    else
-        FAIL+=("$name")
-        log "${name} — FAILED"
-        cleanup
-    fi
-done
+if run_unit; then PASS+=(Core); else FAIL+=(Core); log "Core — FAILED"; cleanup; fi
 
 hr
 log "Results: ${#PASS[@]} passed, ${#FAIL[@]} failed"

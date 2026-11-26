@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-[[ -f "${SRC_DIR}/flows.sh" ]] || SRC_DIR="/src"
+[[ -f "${SRC_DIR}/plugins.sh" ]] || SRC_DIR="/src"
 REPO_DIR="$(cd "${SRC_DIR}/.." && pwd)"
 [[ -f "${REPO_DIR}/existential.sh" ]] || REPO_DIR="/repo"
 
@@ -74,8 +74,8 @@ RUNNING="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"
 NO_HTTPS="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": null}"
 
 printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_IS_HOSTING_LOKI=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
-# This host is the controller: the report-host flow on, no EXIST_CONTROLLER, Loki on.
-mkdir -p "$WORK/automation"; printf 'on:\n  - report-host\n' > "$WORK/automation/plugins.yml"
+# This host is the controller: report_host on, no EXIST_CONTROLLER, Loki on.
+mkdir -p "$WORK/.decree/plugins"; echo report_host > "$WORK/.decree/plugins/.on"
 cp "$WORK/.env.shared" "$WORK/env.fresh"
 
 # _serve <path> — runs _tailscale_serve_core as existential.sh does (set -euo pipefail).
@@ -132,7 +132,7 @@ _has "Loki is served on 3100 over http" "$(cat "$TS_CALLS")" "serve --bg --http=
 _lacks "a worker with a controller answers no one: no 4480" "$(cat "$TS_CALLS")" "4480"
 
 # Not a worker, no web app enabled: nothing to say.
-printf 'EXIST_IS_SERVICES_AUTOMATION=true\n' > "$WORK/.env.shared"; rm -f "$WORK/automation/plugins.yml"
+printf 'EXIST_IS_SERVICES_AUTOMATION=true\n' > "$WORK/.env.shared"; rm -f "$WORK/.decree/plugins/.on"
 out="$(_serve "$WORK/nobin")"
 [[ "$out" == "rc=0" ]] && _ok "no Core web app enabled: silent" || _fail "no Core web app enabled: silent" "$out"
 

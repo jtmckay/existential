@@ -37,7 +37,7 @@ workspace runs there.
 ## Offers
 
 Something the stack writes on its own still waits for you. [`note-to-automation`](../flows/note-to-automation.md)'s
-`develop` and another stack (the [`plugin-sharing`](./index.md#between-stacks) flow) write a plugin
+`develop` and another stack ([plugin sharing](./index.md#between-stacks)) write a plugin
 file to `workspace/ai/proposed/<name>.md`, and your phone says so. Read it: its scripts run in the
 `automation` container with that container's credentials. To install it:
 

@@ -57,10 +57,10 @@ password hash changed after a restart). `LOWCODER_API_KEY_SECRET` and
 them, but existing API keys stop verifying and existing stored datasource credentials
 stop decrypting once you do.
 
-**Backup.** `lowcoder_mongo_data` (`db: true` — WiredTiger, never NFS) is covered by
-`lowcoder-db-backup-{nightly,weekly}.md`, and `lowcoder_data` + `lowcoder_assets_data` by
-`lowcoder-volume-backup-{nightly,weekly}.md`. `./existential.sh flow on backup-lowcoder`
-schedules both in `automation-backup`; nothing else is needed.
+**Backup.** `lowcoder_mongo_data` (`db: true` — WiredTiger, never NFS) is in
+`db_backup`'s cron files, and `lowcoder_data` + `lowcoder_assets_data` in `volume_backup`'s.
+`./existential.sh plugin on db_backup volume_backup` schedules both in `automation-backup`;
+nothing else is needed.
 
 **Memory.** `lowcoder-api-service` and `lowcoder-node-service` are both JVM/V8 processes
 that size their default heap off the container's memory limit, not off actual load — the

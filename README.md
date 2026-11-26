@@ -89,9 +89,9 @@ You work in one folder, `workspace/`: `notes/` (plain markdown, starting with
 `.capture/` (your agent prompts and anything else you capture, secrets redacted, once you turn capture on). code-server
 opens it in a browser; start `claude` there and say what should happen, and it writes the
 automation as one file for you to read, already knowing how from the decree skill in `.claude/`.
-It installs it with `decree install <name>`, and decree runs what is in `.decree/`. Turn on the `you-were-here` flow and every morning it writes `ai/you-were-here.md`: what is waiting on
+It installs it with `decree install <name>`, and decree runs what is in `.decree/`. Every morning (`you_were_here`, on by default) it writes `ai/you-were-here.md`: what is waiting on
 you, what is holding steady and where you left off, pushed to your phone through ntfy. The
-`look-back` flow turns those days into what you did this week, month or year. Anything that needs a model reaches it through one OpenAI-compatible `/v1` URL,
+`look_back` plugin turns those days into what you did this week, month or year. Anything that needs a model reaches it through one OpenAI-compatible `/v1` URL,
 served by ollama, llama.cpp or anything else, on this box or another one.
 
 ```mermaid
@@ -138,8 +138,9 @@ templates render, no secrets are generated, nothing lands on disk.
 
 ## Optional add-ons
 
-Everything else is an add-on: a flow (`./existential.sh flow`) or one `EXIST_IS_*` flag, and
-none of it is needed for Core to work.
+Everything else is an add-on: a service (`./existential.sh service on <slug>`) or a decree plugin
+(`./existential.sh plugin on <name>`), and none of it is needed for Core to work. The
+[Flows](https://existential.company/docs/flows/) page says which to turn on for what.
 
 ### Local AI
 

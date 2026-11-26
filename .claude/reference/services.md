@@ -43,7 +43,7 @@ On demand:
 | `entrypoint.sh` | Config the service owns, seeds at first boot, and re-reads only at startup — see below. |
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | order file (a plugin's `order:`) | Post-startup setup (API calls, user creation, seeds). Runs once, and again if edited. |
-| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or in a flow's body. |
+| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or in a flow's row on the Flows page. |
 | `exist.test.sh` | Every service with a container ships one. Also what triage and the order-file gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and
@@ -247,7 +247,7 @@ decree project:
 - **`automation-backup`** wholesale-mounts `services/automation-backup/`, with the
   `plugins/`, `machines/` and `lib/` its plugins install there mounted read-only over its
   `.decree/`, so nothing a run does changes the code it runs; each machine's `state/` is a
-  link to its writable `store/`. Its cron files are the flows' that are on, in their machines' folders.
+  link to its writable `store/`. Its cron files are its plugins' that are on, in their machines' folders.
 
 | | `automation` | `automation-backup` |
 |---|---|---|
@@ -282,9 +282,10 @@ This replaced a `<slug>-decree` sidecar per backup-eligible service. Those isola
 to its own volumes and creds, which was stricter — the trade was deliberate: ten sidecars meant a
 `decree/` subdir, a `cron.example/`, five gitignored runtime dirs and ~30 lines of hand-maintained
 volume and credential YAML **per service**, against a repo whose whole claim is that adding a
-service is adding a folder. Now a new service's backup is one flow file,
-`automation/plugins/flows/backup-<slug>.md` (`x-exist-project: backup`), because `volumes/` is mounted wholesale and its dir appears there
-the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
+service is adding a folder. Now a new service's backup is one line in a backup plugin's cron files
+(`automation/plugins/volume_backup.md`, `db_backup.md`, `sqlite_backup.md`), which list every
+service they know and skip one that is off here, because `volumes/` is mounted wholesale and its
+dir appears there the moment `generate-compose.ts` creates it. **Do not add a new `*-decree` sidecar.**
 
 **Order-file ordering.** There is no gate. An order file for a service runs a machine that starts
 with a `wait_for_<service>` state (`script: { name: wait_for_<service>, timeout: 10m }`) that

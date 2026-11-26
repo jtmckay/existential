@@ -30,7 +30,7 @@ A link is never in two issues: the machine remembers every one it has sent, in i
 3. Turn the schedule on:
 
    ```bash
-   ./existential.sh flow on weekly-newsletter
+   ./existential.sh plugin on newsletter
    ```
 
    Run one now from code-server's terminal with `cd /workspace && echo | decree emit

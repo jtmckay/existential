@@ -40,7 +40,7 @@ publishing identity.
   - `./existential.sh test <name>` runs `src/test/unit/test-<name>.sh` or
     `src/test/integration/test-<name>.sh` when one exists, else that service's
     `exist.test.sh`. No suite names are listed by hand.
-  - The bare command and `flow` share one render-and-build sequence.
+  - The bare command and `service` share one render-and-build sequence.
   - `reset` is reached only as `./existential.sh reset`, which offers to stop the stack
     first; it is not listed or runnable as a `run` utility.
   - Unknown flags are unknown actions; `--help`, `-h` and `help` print the usage, which

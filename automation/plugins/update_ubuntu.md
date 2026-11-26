@@ -31,7 +31,7 @@ scripts:
         printf '%s\n' "$2" | ${DOCKER_CMD:-false} exec -i automation decree emit --machine notify --param ntfy_topic=host \
             --param ntfy_title="$1" --param ntfy_tags=package >/dev/null 2>&1 || true
     }
-    grep -qs '^ID=ubuntu$' /etc/os-release || { echo "update_ubuntu: this host is not Ubuntu; turn the flow off here" >&2; exit 1; }
+    grep -qs '^ID=ubuntu$' /etc/os-release || { echo "update_ubuntu: this host is not Ubuntu: ./existential.sh plugin off update_ubuntu" >&2; exit 1; }
     # Not set up, or the repo's upgrade.sh changed since: a person runs setup again.
     if ! cmp -s "${lib}/upgrade.sh" "$root" || ! sudo -n -l "$root" >/dev/null 2>&1; then
         echo "update_ubuntu: set it up once, as root, then retry:  sudo bash ${lib}/setup.sh" >&2
@@ -71,7 +71,7 @@ x-exist-lib:
     fi
   update_ubuntu/setup.sh: |
     #!/usr/bin/env bash
-    # setup.sh — the one root step of the update-ubuntu flow. Safe to run again;
+    # setup.sh — the one root step of update_ubuntu. Safe to run again;
     # run it again when update_ubuntu says upgrade.sh changed.
     #
     #   sudo bash .decree/lib/update_ubuntu/setup.sh
@@ -90,7 +90,7 @@ x-exist-lib:
     dpkg -s unattended-upgrades >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get -y install unattended-upgrades
     conf=/etc/apt/apt.conf.d/52existential-updates
     [ -f "$conf" ] || cat > "$conf" <<'EOF'
-    // existential's update-ubuntu flow wrote this once; it is yours to edit.
+    // existential's update_ubuntu wrote this once; it is yours to edit.
     APT::Periodic::Update-Package-Lists "1";
     APT::Periodic::Unattended-Upgrade "1";
     // "false": nothing reboots this host, and your phone says when one is due.
@@ -123,5 +123,5 @@ that is coming. The daily half, security updates, is Ubuntu's own `unattended-up
 `setup.sh` turns on.
 
 It runs in the host's own decree project, the repo's own `.decree`, without root: `setup.sh`, run once
-with sudo, installs the one script sudo then lets it run. The `update-ubuntu` flow turns it on:
-`./existential.sh flow on update-ubuntu`.
+with sudo, installs the one script sudo then lets it run. `./existential.sh plugin on update_ubuntu`
+turns it on.

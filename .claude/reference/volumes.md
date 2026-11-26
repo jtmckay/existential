@@ -66,7 +66,6 @@ x-exist-volumes:
 |---|---|---|
 | `nfs`    | `false` | May live on the NAS. With `EXIST_NFS_ADDRESS` set and a path in `EXIST_NFS_PATH_<VOLUME>`, `generate-compose.ts` makes it a top-level `local` volume with NFS `driver_opts`, mounted `nocopy`; with no address or `none`, it stays in `volumes/`. |
 | `db`     | `false` | Holds an embedded or managed database (SQLite WAL, bbolt, a TSDB, a postgres/mysql/mongo data dir). NFS corrupts these — `validate conventions` rejects `db: true` together with `nfs: true`. |
-| `backup` | `false` | `decree-backup` archives it into `<name>_backup`. |
 
 **A bare name with no declaration is a hard error.** `generate-compose.ts` exits non-zero and
 prints the block to add, rather than letting compose fall through to a Docker-managed volume —
@@ -82,11 +81,11 @@ The name's suffix is the thing a human reads before running `rm -rf`, so it is *
 |---|---|---|
 | `_data`   | user data or a live database | never touched |
 | `_share`  | your own files and folders, as you keep them; on a NAS, `EXIST_NFS_SHARE_<NAME>` | never touched |
-| `_backup` | archives of a `_data` volume, written by `decree-backup` | never touched |
+| `_backup` | archives of a `_data` volume (none today: backups go straight to rclone) | never touched |
 | `_cache`  | regenerable — models, HF caches, scratch; refetched or rebuilt on next start | offers to delete |
 
-`_cache` may not declare `backup: true` (there is nothing worth archiving). Name volumes
-`<service>_<purpose>_<suffix>`.
+Name volumes `<service>_<purpose>_<suffix>`. What is backed up is not a volume property: it is
+a line in a backup plugin's cron files (`automation/plugins/volume_backup.md`, `db_backup.md`).
 
 A `_backup` volume only exists once something mounts and writes it, and today nothing does:
 `db-backup` and `volume-backup` rclone straight to a remote (`EXIST_BACKUP_RCLONE_REMOTE`)

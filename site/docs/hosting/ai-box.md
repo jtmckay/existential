@@ -17,8 +17,8 @@ only ever sees the addresses below. Which keys exist and how they fall back is i
 
 One 24 GB card fits **one** GPU-heavy service at a time, and no service on the box knows another
 is there: llama.cpp does not unload for ComfyUI, ComfyUI does not free memory for TTS, and a
-service that cannot get its VRAM fails on its first request. The `lease-gpu` flow makes the switch
-for you. Turn it on in the box's own checkout (`./existential.sh flow on lease-gpu`), and its host
+service that cannot get its VRAM fails on its first request. `lease_gpu` makes the switch
+for you. Turn it on in the box's own checkout (`./existential.sh plugin on lease_gpu`), and its host
 daemon gets `lease_gpu`, decree's `decree_lease` with one resource, `gpu`, in mode `llm`,
 `comfy`, `tts` or `strata`. A lease in one mode frees the card first: the llama.cpp router
 unloads its models, ComfyUI finishes its queue and unloads, TTS and Strata stop. A `tts` or
@@ -33,14 +33,14 @@ decree reply <lease id> release
 
 Only work that asks takes part. A chat request or a ComfyUI prompt sent straight to the box
 still loads its model, so keep llama.cpp at `--models-max 1` (loading a model unloads the last)
-and check `nvidia-smi` when a request fails for memory. The flow needs Linux (`flock`), and it
+and check `nvidia-smi` when a request fails for memory. `lease_gpu` needs Linux (`flock`), and it
 reads `.decree/.env` on the box: `AI_BOX_LLAMA_URL` and `AI_BOX_COMFYUI_URL` when they are not on
 `localhost:8080` and `localhost:8188`, and `AI_BOX_TTS_COMMAND` (below).
 
 ### From another host
 
 With [decree-go-rest](#leases-from-another-host) in front of the box's `.decree`, the
-flow serves the lease over HTTP too, each call with the bearer secret:
+lease is served over HTTP too, each call with the bearer secret:
 
 | Call | What it does |
 |---|---|
@@ -124,7 +124,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-Then start it at boot with the `boot-daemon` flow (`./existential.sh flow on boot-daemon`): one line in
+Then start it at boot with `boot_daemon` (`./existential.sh plugin on boot_daemon`): one line in
 `.decree/boot.sh`, which runs once each time the host daemon starts.
 
 ```bash
@@ -206,7 +206,7 @@ the Gradio UI and its API.
 For another host to take a lease, the box needs [decree-go-rest](../plugins/http.md) in front of
 its `.decree`, on `:8801` with the fleet's secret ([Leases](./controller-and-workers.md#leases)).
 One command writes its config (`.decree/decree-go-rest.yml`, the box's own), starts it, and adds
-it to `.decree/boot.sh` with the `boot-daemon` flow, so it starts at boot; the flow adds its
+it to `.decree/boot.sh` with `boot_daemon`, so it starts at boot; each plugin adds its
 endpoints at each `./existential.sh`:
 
 ```bash
@@ -230,7 +230,7 @@ calls Qwen3-TTS leases it and uses the box's address directly.
 
 ## Checking it works
 
-With the host daemon running and the flow on:
+With the host daemon running and `lease_gpu` on:
 
 1. `id=$(./existential.sh run peers lease <ai-box> tts check)` returns once TTS answers:
    `tmux has-session -t =tts` on the box, and `curl -I http://<ai-box>:8000/`.

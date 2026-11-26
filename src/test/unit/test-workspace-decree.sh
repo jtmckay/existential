@@ -3,7 +3,7 @@
 # workspace/.decree, the `automation` daemon's project, from the repo's
 # automation/: the plugins that are on are written to plugins/ and decree
 # installs them, a person's own files stay, an older install's crons and migrations move over,
-# only note-to-automation, clean-runs, health-checks, file-advice and you-were-here are on by default, notes/my-first-note.md
+# only the defaults (PLUGIN_DEFAULTS) are on, in the project's own list, notes/my-first-note.md
 # is written once, and nothing secret is written under workspace/.
 #
 # Runs the real script, and the real decree, against a scratch copy of the files
@@ -29,11 +29,9 @@ mkdir -p "${R}/services/automation" "${R}/automation"
 cp "${REPO_DIR}/services/automation/exist.initial.sh" "${R}/services/automation/"
 cp -rp "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${R}/automation/"
 cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${REPO_DIR}/automation/handlers.exist.yml" "${R}/automation/"
-mkdir -p "${R}/src/utils" "${R}/src/lib"
-cp "${REPO_DIR}/src/lib/plugin.sh" "${R}/src/lib/"
+mkdir -p "${R}/src"
+cp "${REPO_DIR}/src/plugins.sh" "${R}/src/"
 grep -E "^EXIST_IS_" "${REPO_DIR}/.env.exist.shared" > "${R}/.env.shared"
-cp "${REPO_DIR}/automation/plugins.exist.yml" "${R}/automation/"
-cp "${REPO_DIR}/src/utils/flows.sh" "${R}/src/utils/"
 # An install from before workspace/.decree: an active cron, a migration and its ledger.
 mkdir -p "${R}/automation/cron" "${R}/automation/migrations" "${R}/automation/secrets/rclone"
 printf -- '---\ncron: "* * * * *"\nmachine: notify\n---\n' > "${R}/automation/cron/old.md"
@@ -67,18 +65,17 @@ check "an old install's cron moves over" "[[ -f '${P}/cron/old.md' && ! -e '${R}
 check "an old install's migration and its ledger move over, then to the archive (decree 0.6 has none)" "[[ -f '${P}/archive/0.5/migrations/01-old.md' && -f '${P}/archive/0.5/processed.md' ]]"
 check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/workspace_data'"
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
-check "plugins.yml, what is on, is written from its example" "cmp -s '${R}/automation/plugins.exist.yml' '${R}/automation/plugins.yml'"
-check "...beside the plugins, not in the workspace the automation daemon can write" "[[ ! -e '${P}/plugins.yml' ]]"
+check "what is on is the project's own list, the defaults the first time" "[[ \"\$(xargs < '${P}/plugins/.on')\" == 'note_watch reconcile service_health pi file_advise you_were_here' ]]"
 check "nothing tagged for another project is installed (x-exist-project: backup, host)" "[[ ! -e '${P}/machines/triage/machine.yml' && ! -e '${P}/machines/pull_existential/machine.yml' ]]"
-check "plugins.exist.yml turns on six flows and nothing else" "[[ \"\$(yq -r '.on | join(\" \")' '${R}/automation/plugins.exist.yml')\" == 'note-to-automation clean-runs health-checks pi file-advice you-were-here' ]]"
 check "pi and the model are installed, for code-server's agents" "[[ -f '${P}/lib/pi.sh' && -f '${P}/lib/model.sh' ]]"
-check "the morning digest is on" "[[ -f '${P}/machines/flow_you_were_here/cron/you-were-here.md' ]]"
-check "the look backs and capture are off until asked for" "[[ ! -e '${P}/machines/flow_look_back' && ! -e '${P}/machines/capture/machine.yml' ]]"
-check "clean-runs (decree's decree_prune) and health-checks are on" "[[ -f '${P}/machines/decree_prune/cron/weekly.md' && -f '${P}/machines/flow_health_checks/cron/health-checks.md' ]]"
-check "a flow that is not on is not installed" "[[ ! -e '${P}/machines/flow_weekly_newsletter' ]]"
-yq -i '.on -= ["health-checks"]' "${R}/automation/plugins.yml"; run_init
-check "a flow taken out of plugins.yml goes" "[[ ! -e '${P}/machines/flow_health_checks/cron/health-checks.md' ]]"
-check "...and stays out: plugins.yml is never rewritten" "! grep -q 'health-checks' '${R}/automation/plugins.yml'"
+check "the morning digest is on" "[[ -f '${P}/machines/you_were_here/cron/you-were-here.md' ]]"
+check "the look backs and capture are off until asked for" "[[ ! -e '${P}/machines/look_back/machine.yml' && ! -e '${P}/machines/capture/machine.yml' ]]"
+check "decree_prune and the health check are on" "[[ -f '${P}/machines/decree_prune/cron/weekly.md' && -f '${P}/machines/service_health/cron/health-checks.md' ]]"
+check "a plugin that is not on is not installed" "[[ ! -e '${P}/machines/newsletter/machine.yml' ]]"
+check "file_advise's list of what could be on is written" "grep -q '^newsletter	off	' '${P}/plugins.tsv'"
+grep -vxF service_health "${P}/plugins/.on" > "${P}/plugins/.on.new"; mv "${P}/plugins/.on.new" "${P}/plugins/.on"; run_init
+check "one taken out of the list goes" "[[ ! -e '${P}/machines/service_health/machine.yml' ]]"
+check "...and stays out: the list is never rewritten" "! grep -q 'service_health' '${P}/plugins/.on'"
 N="${R}/volumes/workspace_data/notes/my-first-note.md"
 check "notes/my-first-note.md is written" "[[ -s '${N}' ]]"
 for _w in claude .decree ntfy 'matching file' .gitignore; do

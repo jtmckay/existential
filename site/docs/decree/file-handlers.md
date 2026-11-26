@@ -25,7 +25,7 @@ Two ship with the stack, in the `handlers.yml` seeded on first install (yours to
 `notes/**/*.md` runs `note_watch`, which offers to automate a standing instruction in a note
 ([Note → Automation](../flows/note-to-automation.md)), and `notes/automations/*.md` runs
 `reconcile`, which has `develop` build each one as an [offer you read and install](../plugins/offer-and-accept.md).
-A plugin adds its own (`x-exist-handlers`): the [`file-advice` flow](../flows/index.md#file-advice), on
+A plugin adds its own (`x-exist-handlers`): [`file_advise`](../flows/index.md#file-advice), on
 by default, adds `"[!.]**"`, every file outside a hidden top folder, for `file_advise`.
 
 - **A change matching no handler does nothing.** A change matching several runs each of them.

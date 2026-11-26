@@ -91,7 +91,7 @@ workflow in `comfy/workflows/`, which the comfy [plugin](../plugins/index.md) in
 Each workflow JSON carries the HuggingFace URL for every model it loads, so the download list is the file itself. The shipped graphs have their prompts blanked to `prompt text` — you always supply your own, so there is nothing to inherit.
 
 There is a ready-made message per workflow under `examples:` in the comfyui flow,
-`automation/plugins/flows/comfyui.md`. Copy one into a file and edit it:
+`automation/plugins/comfy.md` (`x-exist-examples`). Copy one into a file and edit it:
 
 ```bash
 # the comfy-image-text example, saved as comfy-image-text.md
@@ -113,7 +113,7 @@ to override the workflow's own value, leave it out to keep it:
 
 `image-qwen-angles` is the batch flow: one input image, up to eight edits of it in a single
 queue. Its body is a YAML list instead of prompt text, so a prompt sits next to the name its
-output gets (the comfyui flow's `comfy-image-qwen-angles` example):
+output gets (`comfy`'s `comfy-image-qwen-angles` example):
 
 ```yaml
 ---

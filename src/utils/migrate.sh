@@ -10,13 +10,15 @@
 # Every step here: remove after 2027-03-01.
 
 # The host's project was host/.decree, and is the repo's own .decree now. What an
-# older install has there moves over once (its list of what is on first, into
-# automation/plugins.yml), and the rest of host/ is kept in archive/.
+# older install has there moves over once (what its sync wrote first, which
+# _plugins_on turns into its list of what is on), and the rest of host/ is kept in archive/.
 _host_move() {
     local old="${SCRIPT_DIR}/host" new="${SCRIPT_DIR}/.decree" d f
     [[ -d "$old" ]] || return 0
-    ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_seed )
-    mkdir -p "$new"
+    mkdir -p "${new}/plugins"
+    if [[ -f "${old}/.decree/plugins/.existential" && ! -e "${new}/plugins/.existential" ]]; then
+        mv "${old}/.decree/plugins/.existential" "${new}/plugins/"
+    fi
     for f in boot.sh exist.json controller.json; do
         if [[ -e "${old}/${f}" && ! -e "${new}/${f}" ]]; then mv "${old}/${f}" "${new}/${f}"; fi
     done
@@ -48,36 +50,55 @@ _host_move() {
 # Loki's host. The speech keys moved to their services, which took their values at render.
 # EXIST_MODEL_API_KEY was merged into EXIST_FLEET_SECRET.
 _RETIRED_KEYS='EXIST_(MODEL_API_KEY|REPORTING_URL|HOST_ADDRESS|MODEL_SERVICE|COMFYUI_URL|MODEL_URL_CHAT|MODEL_URL_VISION|MODEL_STT|MODEL_STT_LANGUAGE|MODEL_TTS_VOICE)'
-# Flows that were renamed, in automation/plugins.yml's on: list, so a host that had one on
-# keeps it on, under the name its machine has: <old> <new>.
-_RENAMED_FLOWS='auto-update pull-existential
-worker report-host
-on-boot boot-daemon
-ai-box lease-gpu'
-_rename_flows() {
-    local f="${SCRIPT_DIR}/automation/plugins.yml" old new t
-    [[ -f "$f" ]] || return 0
-    while read -r old new; do
-        grep -qE "(^[[:space:]]*-[[:space:]]*|[[, ])${old}([[:space:]]*$|[], ])" "$f" || continue
-        t="$(mktemp)"
-        sed -e "s/^\([[:space:]]*-[[:space:]]*\)${old}[[:space:]]*\$/\1${new}/" \
-            -e "s/\([[, ]\)${old}\([], ]\)/\1${new}\2/g" "$f" > "$t" && cat "$t" > "$f"
-        rm -f "$t"
-        echo "  The ${old} flow is ${new} now; it stays on."
-    done <<<"$_RENAMED_FLOWS"
+# What is on was automation/plugins.yml, one list of flows and plugins for every project,
+# and is each project's own .decree/plugins/.on, the plugins you turned on. A project an
+# older sync wrote keeps what it had: each plugin that sync wrote (its .existential) is on,
+# under its new name, a flow's lib by the plugin of its name; a flow that was only a list of
+# plugins is gone (each it named is on itself). The cron files a flow installed are yours,
+# edited or not: each moves to the machine it names, whose plugin carries it now.
+# plugins.yml is kept in archive/, and the flows' list for file_advise goes.
+_plugins_on() {
+    local d n m on f t
+    for d in "${SCRIPT_DIR}/.decree" "${SCRIPT_DIR}/volumes/workspace_data/.decree" "${SCRIPT_DIR}/services/automation-backup"; do
+        [[ -f "${d}/plugins/.existential" && ! -f "${d}/plugins/.on" ]] || continue
+        on=""
+        while IFS= read -r n; do
+            n="${n#flow_}"
+            m="$(awk -v o="$n" '$1 == o { print $2 }' <<<"$_RENAMED_MACHINES")"; n="${m:-$n}"
+            case "$n" in notify|skill) continue ;; esac   # the plugin system's own: always there
+            [[ -f "${SCRIPT_DIR}/automation/plugins/${n}.md" && " ${on} " != *" ${n} "* ]] && on+="${n} "
+        done < "${d}/plugins/.existential"
+        for f in "${d}"/machines/flow_*/cron/*.md; do
+            [[ -f "$f" ]] || continue
+            t="$(awk '/^---$/ { if (++s == 2) exit; next } s == 1 && /^machine:/ { print $2; exit }' "$f")"
+            [[ -n "$t" && ! -e "${d}/machines/${t}/cron/${f##*/}" ]] || continue
+            mkdir -p "${d}/machines/${t}/cron"; mv "$f" "${d}/machines/${t}/cron/"
+        done
+        for n in $on; do echo "$n"; done > "${d}/plugins/.on"
+        rm -f "${d}/plugins/.existential" "${d}"/plugins/flow_*.md "${d}/flows.tsv"
+        echo "  ${d#"${SCRIPT_DIR}/"}: what is on is ${d#"${SCRIPT_DIR}/"}/plugins/.on now: ${on:-nothing}"
+    done
+    if [[ -f "${SCRIPT_DIR}/automation/plugins.yml" ]]; then
+        mkdir -p "${SCRIPT_DIR}/archive"
+        mv "${SCRIPT_DIR}/automation/plugins.yml" "${SCRIPT_DIR}/archive/plugins-$(date +%Y%m%d-%H%M%S).yml"
+        echo "  automation/plugins.yml is gone (kept in archive/): ./existential.sh plugin list says what is on."
+    fi
 }
 
 # Machines that were renamed: <old> <new>. decree removes a machine whose plugin is gone but
 # keeps its state/ (and leaves its graph.md): what it kept moves to the new machine, as long as
 # the new one has none of its own yet (report_host's alloy positions, so no run log ships
-# twice), and the old folder goes once nothing but its graph is left.
+# twice), and the old folder goes once nothing but its graph is left. A flow's old name
+# (worker, ai_box) is here for _plugins_on.
 _RENAMED_MACHINES='reporting report_host
+worker report_host
 update pull_existential
 auto_update pull_existential
 boot boot_daemon
 on_boot boot_daemon
 ubuntu_upgrade update_ubuntu
-ai_box_gpu lease_gpu'
+ai_box_gpu lease_gpu
+ai_box lease_gpu'
 _rename_machines() {
     local m="${SCRIPT_DIR}/.decree/machines" old new f
     while read -r old new; do
@@ -149,5 +170,5 @@ _migrate() {
     _host_move
     _decree_code_mounts
     _retire_env_keys
-    _rename_flows
+    _plugins_on
 }

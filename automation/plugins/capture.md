@@ -199,7 +199,7 @@ x-exist-lib:
 x-exist-endpoints:
   # The capture stream, workspace/.capture/: a phone shortcut or any tool adds a
   # line. The body is {"source": "...", "text": "..."} or plain text. Delete this
-  # entry, or `./existential.sh run plugin off capture`, to turn webhook capture off.
+  # entry, or `./existential.sh plugin off capture`, to turn webhook capture off.
   - path: /capture
     message:
       machine: capture

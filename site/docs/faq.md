@@ -17,8 +17,8 @@ sidebar_position: 2
 ### Is it hard to set up?
 
 Hostnames, TLS, secrets, logging and the automation engine are [set up once for every
-service](./how-it-works.md). Setup is `./existential.sh`, then `./existential.sh flow on` for each
-thing you want. Most automations are configured in a cron file's frontmatter, not code: see
+service](./how-it-works.md). Setup is `./existential.sh`, then the [Flows](./flows/index.md) page's `plugin on` and `service on`
+lines for each thing you want. Most automations are configured in a cron file's frontmatter, not code: see
 [the four knobs](./flows/index.md#the-four-knobs).
 
 ### Is it only for homelab people?

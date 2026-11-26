@@ -21,7 +21,7 @@ LABELS_FILE="${SECRETS_DIR}/gmail/labels.json"
 ACCOUNTS_FILE="${SECRETS_DIR}/actual-budget/accounts.json"
 OFFER="/repo/volumes/workspace_data/ai/proposed/gmail_transactions.md"
 ACCEPTED="/repo/volumes/workspace_data/.decree/plugins/gmail_transactions.md"
-# Installed by the actual_budget_parse plugin (the budget flow), with any parser of yours beside it.
+# Installed by the actual_budget_parse plugin (gmail_sync needs it), with any parser of yours beside it.
 PARSE_SCRIPTS_DIR="${PARSE_SCRIPTS_DIR:-/repo/volumes/workspace_data/.decree/lib/actual-budget}"
 DECREE_LIB_DIR="/work/.decree/lib/actual-budget"
 

@@ -108,7 +108,8 @@ Any Ollama-compatible vision model works. `llava` is a solid general-purpose cho
 
 ### Step 2 — turn it on
 
-`./existential.sh flow on image-ocr` turns on Nextcloud's file events (two migrations: the
+`./existential.sh service on nextcloud automation-webhook`, then
+`./existential.sh plugin on ocr nextcloud_file_events`: Nextcloud's file events (two order files: the
 `nextcloud` rclone remote and the webhooks, see
 [File Processor → Setup](../decree/file-change-processing.md#setup)) and copies the `ollama-ocr`
 processor into `workspace/.decree/lib/file-processors/`.

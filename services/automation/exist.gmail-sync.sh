@@ -222,7 +222,7 @@ echo ""
 echo "    echo '${HISTORY_ID}' > ${GMAIL_DIR}/history_id.inbox"
 echo ""
 
-echo "To sync on a schedule:  ./existential.sh flow on gmail-inbox"
+echo "To sync on a schedule:  ./existential.sh plugin on gmail_sync"
 
 # ── Sync label cache ──────────────────────────────────────────────────────────
 

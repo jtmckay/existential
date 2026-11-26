@@ -18,9 +18,9 @@ containers the health gate then found perfectly healthy. Order files are setup;
 this is verification, and verification runs once the stack is up. e2e drops it
 after the container-health gate for exactly that reason.
 
-Without this, a unit with no order files and no object store verifies *nothing*: Core
-and a flow made only of services write no files, so without this check they bring
-their containers up and report `0 of 0 checks` —
+Without this, a stack with no order files and no object store verifies *nothing*: Core
+writes no files, so without this check it brings
+its containers up and reports `0 of 0 checks` —
 a fair verdict on a run that demonstrated nothing, and a useless one to ship.
 
 `TRIAGE_ALWAYS` because the backoff exists to stop a long-lived daemon

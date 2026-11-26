@@ -118,7 +118,7 @@ _opencode_config() {
     }'
 }
 # What ./existential.sh installs into the workspace: the model and pi plugins' lib
-# (on by default) and capture's (the code-server-agents flow). Without one, what
+# (on by default) and capture's (./existential.sh plugin on capture). Without one, what
 # needs it is skipped.
 _LIB=/workspace/.decree/lib
 # Capture (lib/capture/): what a person types into claude or opencode
@@ -127,7 +127,7 @@ _LIB=/workspace/.decree/lib
 # CODE_SERVER_CAPTURE=false plus a recreate is the whole off switch. Never fatal.
 _capture_plugin=""
 if [[ ! -f "${_LIB}/capture/capture.sh" ]]; then
-    :   # capture is off until the code-server-agents flow is on
+    :   # capture is off until the capture plugin is on
 elif [[ "${CODE_SERVER_CAPTURE:-true}" != false ]]; then
     bash "${_LIB}/capture/capture.sh" install /workspace >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not installed"

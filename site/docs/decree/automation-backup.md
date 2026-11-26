@@ -26,10 +26,11 @@ sed -i 's/^EXIST_IS_SERVICES_AUTOMATION_BACKUP=false/EXIST_IS_SERVICES_AUTOMATIO
 docker compose up -d
 ```
 
-Enabling it schedules only `clean-runs`. Everything else it can do is a flow you turn on:
-`service-triage`, `workspace-sync`, `notes-pull`, and one `backup-<service>` per thing to back
-up (`./existential.sh flow on backup-workspace`). A flow's crons land in
-`services/automation-backup/machines/flow_<name>/cron/`, where you can change a schedule.
+Enabling it schedules only the pruning of its finished runs. Everything else it can do is a
+plugin you turn on: `triage`, `workspace_sync`, `notes_pull`, and the backups
+(`./existential.sh plugin on volume_backup db_backup sqlite_backup`, each listing every service
+it knows). A plugin's crons land in `services/automation-backup/machines/<plugin>/cron/`, where
+you can change a schedule, or delete a service's line.
 Restore with `./existential.sh run backup-restore`.
 
 ```bash

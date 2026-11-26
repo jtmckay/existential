@@ -29,7 +29,7 @@ scripts:
     #
     # Fetches new Gmail messages via the Gmail REST API and emits each one to
     # GMAIL_ROUTINE (gmail, or actual_budget_parse): the email body as the message
-    # body, its headers as params. Triggered by volumes/workspace_data/.decree/machines/flow_gmail_inbox/cron/gmail-sync.md.
+    # body, its headers as params. Triggered by volumes/workspace_data/.decree/machines/gmail_sync/cron/gmail-sync.md.
     #
     # GMAIL_FORWARD carries extra params to every emitted message, one key=value
     # per line — how a bank-label cron hands actual_budget_parse its parse_script
@@ -391,6 +391,14 @@ scripts:
     else
         incremental_sync "$ACCESS_TOKEN" "$HISTORY_ID"
     fi
+cron:
+  gmail-sync.md: |
+    ---
+    cron: "*/15 * * * *"
+    machine: gmail_sync
+    ---
+
+    Fetch new Gmail messages and write them to the decree inbox.
 ---
 # gmail_sync
 

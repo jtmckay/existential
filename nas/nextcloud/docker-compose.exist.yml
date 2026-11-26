@@ -190,8 +190,8 @@ services:
       - exist
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      # MariaDB — db: true. Backup: ./existential.sh flow on backup-nextcloud
-      # (automation/plugins/flows/backup-nextcloud.md).
+      # MariaDB — db: true. Backup: ./existential.sh plugin on db_backup
+      # (automation/plugins/db_backup.md lists it).
       - nextcloud_sql_data:/var/lib/mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${NEXTCLOUD_ROOT_PASSWORD}
