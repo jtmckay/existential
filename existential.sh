@@ -37,6 +37,11 @@ if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
     # shellcheck source=src/utils/service-common.sh
     . "${SCRIPT_DIR}/src/utils/service-common.sh"
 fi
+# What an older install needs once (_migrate, _rename_machines); a fresh clone, nothing.
+if [[ -f "${SCRIPT_DIR}/src/utils/migrate.sh" ]]; then
+    # shellcheck source=src/utils/migrate.sh
+    . "${SCRIPT_DIR}/src/utils/migrate.sh"
+fi
 
 # The PATH your shell gave us, before the line below adds to it: _check_local_bin reads it.
 _SHELL_PATH="$PATH"
@@ -173,6 +178,22 @@ _ensure_host_access() {
     fi
 }
 
+# Where code-server and ntfy listen (EXIST_CORE_BIND, read by their compose
+# files): loopback while Tailscale serves them, else the LAN, so a fresh install
+# is reachable either way. Set every run, since it follows Tailscale.
+_core_bind() {
+    local f="${SCRIPT_DIR}/.env.shared" ip
+    if grep -q '^EXIST_CORE_BIND=' "$f"; then _sed_i "s|^EXIST_CORE_BIND=.*|EXIST_CORE_BIND=$1|" "$f"
+    else printf 'EXIST_CORE_BIND=%s\n' "$1" >> "$f"; fi
+    [[ "$1" == 0.0.0.0 ]] || return 0
+    ip="$(_detect_host_ip)"
+    echo "Core is on your network (password: EXIST_PASSWORD in .env.shared):"
+    grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" && echo "  code-server  http://${ip:-<this host>}:42080"
+    grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" && echo "  ntfy         http://${ip:-<this host>}:44680"
+    echo "  Tailscale gives both HTTPS, which code-server's previews need: https://tailscale.com/download"
+    return 0
+}
+
 # ── Core over Tailscale ───────────────────────────────────────────────────────
 #
 # Core's two web apps need a certificate every device already trusts: the editor
@@ -203,20 +224,13 @@ _tailscale_serve_core() {
     [[ ${#serves[@]} -gt 0 ]] || return 0
 
     echo ""
-    if ! command -v tailscale >/dev/null 2>&1; then
-        echo "  ⚠  Core needs Tailscale, and it isn't installed on this host."
-        echo "     Install it and log in, here and on every device that should reach Core:"
-        echo "       https://tailscale.com/download"
-        echo "     then re-run ./existential.sh. Without Tailscale, the Caddy add-on serves"
-        echo "     https://<slug>.<domain> instead: set EXIST_IS_HOSTING_CADDY=true"
-        return 0
-    fi
+    command -v tailscale >/dev/null 2>&1 || return 1
 
     status=$(tailscale status --json 2>/dev/null | tr -d ' \t\n') || true
     if [[ "$status" != *'"BackendState":"Running"'* ]]; then
         echo "  ⚠  Tailscale is installed but not logged in. Log in (sudo tailscale up),"
         echo "     then re-run ./existential.sh to serve Core over HTTPS."
-        return 0
+        return 1
     fi
     name=$(sed 's/.*"Self":{//' <<<"$status" | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4) || true
     name="${name%.}"
@@ -225,7 +239,7 @@ _tailscale_serve_core() {
     if [[ -z "$name" || "$status" != *"\"CertDomains\":[\"${name}\""* ]] ||
         ! serving=$(timeout 10 tailscale serve status --json </dev/null 2>&1); then
         _tailscale_serve_steps "${serving:-}"
-        return 0
+        return 1
     fi
     serving=$(tr -d ' \t\n' <<<"$serving")
 
@@ -235,7 +249,7 @@ _tailscale_serve_core() {
         [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"${kind}\":\"${target}\""* ]] && continue
         if ! out=$(timeout 30 tailscale serve --bg --"${scheme}"="$port" "$target" </dev/null 2>&1); then
             _tailscale_serve_steps "$out"
-            return 0
+            return 1
         fi
     done
 
@@ -265,88 +279,6 @@ _is_controller() {
         grep -q '^EXIST_IS_HOSTING_LOKI=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
 }
 
-# Keys .env.shared no longer has, dropped from an install that still does. Before
-# EXIST_CONTROLLER was the one setting, a host named its Loki in EXIST_REPORTING_URL, and
-# one with that and no controller took itself for the controller: its controller is that
-# Loki's host. The speech keys moved to their services, which took their values at render.
-# EXIST_MODEL_API_KEY was merged into EXIST_FLEET_SECRET.
-_RETIRED_KEYS='EXIST_(MODEL_API_KEY|REPORTING_URL|HOST_ADDRESS|MODEL_SERVICE|COMFYUI_URL|MODEL_URL_CHAT|MODEL_URL_VISION|MODEL_STT|MODEL_STT_LANGUAGE|MODEL_TTS_VOICE)'
-# Flows that were renamed, in automation/plugins.yml's on: list, so a host that had one on
-# keeps it on, under the name its machine has: <old> <new>.
-_RENAMED_FLOWS='auto-update pull-existential
-worker report-host
-on-boot boot-daemon
-ai-box lease-gpu'
-_rename_flows() {
-    local f="${SCRIPT_DIR}/automation/plugins.yml" old new t
-    [[ -f "$f" ]] || return 0
-    while read -r old new; do
-        grep -qE "(^[[:space:]]*-[[:space:]]*|[[, ])${old}([[:space:]]*$|[], ])" "$f" || continue
-        t="$(mktemp)"
-        sed -e "s/^\([[:space:]]*-[[:space:]]*\)${old}[[:space:]]*\$/\1${new}/" \
-            -e "s/\([[, ]\)${old}\([], ]\)/\1${new}\2/g" "$f" > "$t" && cat "$t" > "$f"
-        rm -f "$t"
-        echo "  The ${old} flow is ${new} now; it stays on."
-    done <<<"$_RENAMED_FLOWS"
-}
-
-# Machines that were renamed: <old> <new>. decree removes a machine whose plugin is gone but
-# keeps its state/ (and leaves its graph.md): what it kept moves to the new machine, as long as
-# the new one has none of its own yet (report_host's alloy positions, so no run log ships
-# twice), and the old folder goes once nothing but its graph is left.
-_RENAMED_MACHINES='reporting report_host
-update pull_existential
-auto_update pull_existential
-boot boot_daemon
-on_boot boot_daemon
-ubuntu_upgrade update_ubuntu
-ai_box_gpu lease_gpu'
-_rename_machines() {
-    local m="${SCRIPT_DIR}/.decree/machines" old new f
-    while read -r old new; do
-        [[ -d "${m}/${old}" && ! -f "${m}/${old}/machine.yml" && -f "${m}/${new}/machine.yml" ]] || continue
-        # reporting's alloy writes into its state: stopped first, and report_host's next run
-        # starts it on the new folder. alloy takes a closing session's hangup as "reload".
-        if [[ "$old" == reporting ]]; then
-            tmux kill-session -t '=reporting-alloy' 2>/dev/null || true
-            pkill -f 'alloy run .decree/lib/reporting/decree.alloy' 2>/dev/null || true
-        fi
-        if [[ -d "${m}/${old}/state" ]]; then
-            mkdir -p "${m}/${new}/state"
-            for f in "${m}/${old}/state"/* "${m}/${old}/state"/.[!.]*; do
-                [[ -e "$f" ]] || continue
-                # The new machine's own copy wins; the old one is stale.
-                if [[ -e "${m}/${new}/state/${f##*/}" ]]; then rm -rf "$f"; else mv "$f" "${m}/${new}/state/"; fi
-            done
-            rmdir "${m}/${old}/state" 2>/dev/null || continue
-        fi
-        rm -f "${m}/${old}/graph.md"
-        rmdir "${m}/${old}" 2>/dev/null && echo "  ${old} is ${new} now; what it kept moved with it."
-    done <<<"$_RENAMED_MACHINES"
-}
-
-_retire_env_keys() {
-    local f="${SCRIPT_DIR}/.env.shared" url ctl t key
-    grep -qE "^${_RETIRED_KEYS}=" "$f" 2>/dev/null || return 0
-    url=$(grep -m1 '^EXIST_REPORTING_URL=' "$f" | cut -d= -f2-) || true
-    ctl=$(grep -m1 '^EXIST_CONTROLLER=' "$f" | cut -d= -f2-) || true
-    t="$(mktemp)"
-    grep -vE "^${_RETIRED_KEYS}=" "$f" > "$t" || true
-    # EXIST_MODEL_API_KEY is EXIST_FLEET_SECRET now: a host with no secret takes its value.
-    key=$(grep -m1 '^EXIST_MODEL_API_KEY=' "$f" | cut -d= -f2-) || true
-    if [[ -n "$key" ]] && ! grep -qE '^EXIST_FLEET_SECRET=.+' "$t"; then
-        grep -v '^EXIST_FLEET_SECRET=' "$t" > "${t}.2" || true
-        echo "EXIST_FLEET_SECRET=${key}" >> "${t}.2"; mv "${t}.2" "$t"
-    fi
-    if [[ -n "$url" && -z "$ctl" ]] && ! grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f"; then
-        ctl="${url#*://}"; ctl="${ctl%%[:/]*}"
-        awk -v c="$ctl" '/^EXIST_CONTROLLER=/ && !d { print "EXIST_CONTROLLER=" c; d = 1; next } { print }' "$t" > "${t}.2"
-        grep -q '^EXIST_CONTROLLER=' "${t}.2" || echo "EXIST_CONTROLLER=${ctl}" >> "${t}.2"
-        mv "${t}.2" "$t"
-        echo "  EXIST_REPORTING_URL is gone: this host now names its controller, EXIST_CONTROLLER=${ctl}."
-    fi
-    cat "$t" > "$f"; rm -f "$t"
-}
 
 # The controller's answer to "where do I report?", .decree/exist.json, served on 4480
 # (_tailscale_serve_core) and read by the reporting plugin on every worker: the
@@ -471,38 +403,6 @@ _start_on_boot() {
     return 0
 }
 
-# The host's project was host/.decree, and is the repo's own .decree now. What an
-# older install has there moves over once (its list of what is on first, into
-# automation/plugins.yml), and the rest of host/ is kept in archive/.
-_host_move() {
-    local old="${SCRIPT_DIR}/host" new="${SCRIPT_DIR}/.decree" d f
-    [[ -d "$old" ]] || return 0
-    ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_seed )
-    mkdir -p "$new"
-    for f in boot.sh exist.json controller.json; do
-        if [[ -e "${old}/${f}" && ! -e "${new}/${f}" ]]; then mv "${old}/${f}" "${new}/${f}"; fi
-    done
-    for d in inbox runs store attention; do
-        [[ -d "${old}/.decree/${d}" ]] || continue
-        mkdir -p "${new}/${d}"
-        for f in "${old}/.decree/${d}"/*; do
-            if [[ -e "$f" && ! -e "${new}/${d}/${f##*/}" ]]; then mv "$f" "${new}/${d}/"; fi
-        done
-    done
-    # Its daemon would go on running the old project from archive/: stopped here, and
-    # _host_plugins says how to start it in the repo.
-    if [[ "$(tmux display-message -p -t '=existential-host:' '#{session_path}' 2>/dev/null)" == */host ]]; then
-        tmux kill-session -t '=existential-host' 2>/dev/null || true
-        # What reporting started from the old lib and store; its next run starts them again.
-        # alloy takes the hangup a closing session sends as "reload", so it is killed by name.
-        tmux kill-session -t '=reporting-alloy' 2>/dev/null || true
-        pkill -f "alloy run ${old}/" 2>/dev/null || true
-        tmux kill-session -t '=notify-relay' 2>/dev/null || true
-    fi
-    d="${SCRIPT_DIR}/archive/host-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "${SCRIPT_DIR}/archive" && mv "$old" "$d"
-    echo "  The host's decree project moved from host/.decree to .decree (boot.sh too); what was left of host/ is in ${d#"${SCRIPT_DIR}/"}/."
-}
 
 # The host's plugins (the repo's own .decree: none, by default) at this checkout's
 # version, then whether a decree daemon is there to run them. Nothing starts one
@@ -624,41 +524,7 @@ _worker_only() {
         && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared"
 }
 
-# The first run's one question, asked here and not in adhoc so that a worker never
-# builds the image. Echoes core, controller, worker or none; Enter, anything else
-# and no terminal are core. The arrow-key picker every other question uses when
-# the host has fzf (adhoc has it, the host may not); typed otherwise.
-_ask_role() {
-    local pick=""
-    if [[ -t 0 && -t 2 ]] && command -v fzf >/dev/null 2>&1; then
-        # fzf draws on stderr and answers on stdout: never redirect its stderr.
-        pick="$(printf '%s\t%s\n' \
-            core       "core        workspace, automation and notifications" \
-            controller "controller  Core, and the host your other hosts report to" \
-            worker     "worker      no services; reports this host to a controller" \
-            none       "none        nothing yet: turn services on with ./existential.sh service" \
-            | fzf --delimiter=$'\t' --with-nth=2 --layout=reverse --no-info \
-                --header="  What should this install start with?
-  ↑↓ navigate   Enter confirm" --prompt="Start with ❯ " | cut -f1)" || true
-    elif [[ -t 0 && -t 2 ]]; then
-        {
-            echo "What should this install start with?"
-            echo "  core        workspace, automation and notifications (Enter)"
-            echo "  controller  Core, and the host your other hosts report to"
-            echo "  worker      no services; reports this host to a controller"
-            echo "  none        nothing yet: turn services on with ./existential.sh service"
-        } >&2
-        read -r -p "Start with [core]: " pick || true
-    fi
-    case "$(printf '%s' "$pick" | tr 'A-Z' 'a-z')" in
-        controller) echo controller ;;
-        worker)     echo worker ;;
-        none)       echo none ;;
-        *)          echo core ;;
-    esac
-}
-
-# A worker, by the first run's answer, by having no engine, or by already being one
+# A worker, by having no engine or by already being one
 # (_worker_only): nothing runs in a container, so adhoc is never built. Its
 # plugins run in a decree daemon on the host. The two steps that run in adhoc
 # elsewhere run here instead: .env.shared is written with every service off and
@@ -685,8 +551,6 @@ _worker_without_engine() {
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
         ( REPO_DIR="$SCRIPT_DIR"; . "${SCRIPT_DIR}/src/utils/flows.sh"; plugins_turn on report-host )
     fi
-    _retire_env_keys
-    _rename_flows
     _controller_answer
     _fleet_gpu_plugin
     _build
@@ -830,20 +694,30 @@ _report_dashboard() {
     echo "  Every core service is linked from there."
 }
 
-# The first run asked for a username and a password, and pressing Enter at both
-# is the expected answer — so say what you got and where it lives, at the end,
-# where the next step (logging in) happens. The password itself is never printed.
-_report_login() {
-    local f="${SCRIPT_DIR}/.env.shared" user tailnet
-    user=$(grep -m1 '^EXIST_USERNAME=' "$f" 2>/dev/null | cut -d= -f2-)
-    [[ -n "$user" ]] || return 0   # nothing that logs in is on yet
+# No model yet: the one thing left to set, said at the end of every run until it is.
+_report_model() {
+    grep -qE '^EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER)=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null || return 0
+    grep -qE '^EXIST_MODEL_URL=.+' "${SCRIPT_DIR}/.env.shared" && return 0
     echo ""
-    echo "  Your login:  ${user}   (EXIST_USERNAME in .env.shared)"
-    echo "  Password:    EXIST_PASSWORD in .env.shared"
+    echo "  No model yet. In .env.shared set EXIST_MODEL_URL (an OpenAI-compatible /v1 URL: a hosted"
+    echo "  LLM, or your controller's) and, for a hosted LLM, EXIST_MODEL_KEY. Then run this again."
+}
+
+# The first run made the login (admin and a generated password): say it once, at
+# the end, where the next step (logging in) happens.
+_report_login() {
+    local f="${SCRIPT_DIR}/.env.shared" user pass tailnet
+    user=$(grep -m1 '^EXIST_USERNAME=' "$f" 2>/dev/null | cut -d= -f2-)
+    pass=$(grep -m1 '^EXIST_PASSWORD=' "$f" 2>/dev/null | cut -d= -f2-)
+    echo ""
+    echo "  Your login:  ${user}  ${pass}   (EXIST_USERNAME / EXIST_PASSWORD in .env.shared)"
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null || return 0
     tailnet=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-)
-    echo "  ntfy's phone app: add the server https://${tailnet:-<host>.<tailnet>.ts.net}:8443"
-    echo "  and log in with both (also in services/ntfy/.env as NTFY_ADMIN_USER / NTFY_ADMIN_PASSWORD)."
+    if [[ -n "$tailnet" ]]; then
+        echo "  ntfy's phone app: add the server https://${tailnet}:8443 and log in with the same."
+    else
+        echo "  ntfy's phone app: add the server http://$(_detect_host_ip):44680 and log in with the same."
+    fi
 }
 
 # ── Service init scripts (exist.initial.sh) ───────────────────────────────────
@@ -1007,7 +881,7 @@ run_setup() {
 # templates.sh fills both itself there.
 _render() {
     _ensure_host_access
-    run_adhoc env REPO_DIR=/repo EXIST_ROLE="${EXIST_ROLE:-}" EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
+    run_adhoc env REPO_DIR=/repo EXIST_DETECTED_HOST_IP="$(_detect_host_ip)" bash /src/templates.sh
     _reload_env_shared
 }
 
@@ -1062,26 +936,6 @@ _set_image() {
 # and ask before updating the rendered file; `docker compose up -d` pulls it.
 # No terminal is the pull-existential flow, which you turned on to follow the branch,
 # so there they are applied: listed only, the pins would never move.
-# A compose file rendered before, without asking: decree 0.6's code is plugins/,
-# where 0.5's was scripts/, and the workspace's .decree is no longer mounted
-# read-only over it (automation-backup's own project still is).
-_decree_code_mounts() {
-    local d f
-    while IFS= read -r d; do
-        f="${d}/docker-compose.yml"
-        [[ -f "$f" ]] || continue
-        if grep -q '/\.decree/scripts:' "$f"; then
-            sed -i.bak 's#\([./a-z_]*\)/scripts:\([^:]*\)/\.decree/scripts:#\1/plugins:\2/.decree/plugins:#' "$f" && rm -f "${f}.bak"
-            echo "  ${f#"${SCRIPT_DIR}/"}: .decree/plugins/ is mounted read-only (decree 0.6)"
-        fi
-        # The workspace's own decree code was mounted read-only over it; now it is yours to write.
-        if grep -qE '^[[:space:]]*- workspace_data/\.decree/(machines|plugins|lib):' "$f"; then
-            sed -i.bak -E '/^[[:space:]]*- workspace_data\/\.decree\/(machines|plugins|lib):/d' "$f" && rm -f "${f}.bak"
-            echo "  ${f#"${SCRIPT_DIR}/"}: workspace/.decree is writable (your own plugins go in its plugins/)"
-        fi
-    done < <(_find_service_dirs)
-}
-
 _offer_image_updates() {
     local svc_dir out svc old new reply changes=""
     while IFS= read -r svc_dir; do
@@ -1215,12 +1069,9 @@ _nas_read_only() {
 
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
-    _host_move
-    _decree_code_mounts
+    _migrate
     _offer_image_updates
     _ensure_host_ids
-    _retire_env_keys
-    _rename_flows
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
         _host_plugins
@@ -1236,7 +1087,7 @@ _build() {
         [[ -f "${SCRIPT_DIR}/docker-compose.yml" ]] && echo "Anything still running stops with:  docker compose down"
         return 0
     fi
-    _tailscale_serve_core
+    if _tailscale_serve_core; then _core_bind 127.0.0.1; else _core_bind 0.0.0.0; fi
     _controller_answer
     _fleet_gpu_plugin
     _controller_fetch
@@ -1317,16 +1168,12 @@ case "$action" in
         ensure_git_hooks
         _check_local_bin
         if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
-        if [[ "$_is_first_run" == "true" ]]; then
-            EXIST_ROLE="$(_ask_role)"
-            # DOCKER_CMD blank is what sends _host_plugins to the host's own yq and decree.
-            if [[ "$EXIST_ROLE" == worker ]]; then DOCKER_CMD=""; _worker_without_engine; exit $?; fi
-        fi
         ensure_adhoc_built
         _render
         _ask_hardware_if_needed
         _build
         [[ "$_is_first_run" == "true" ]] && _report_login
+        _report_model
         echo ""
         echo "Tip: ./existential.sh flow  picks what else the stack does for you."
         ;;

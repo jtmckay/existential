@@ -45,7 +45,7 @@ UPDATE="${I}/.decree/machines/pull_existential/scripts/pull.sh"
 mkdir -p "${TMP}/bin"
 printf '#!/usr/bin/env bash\n[[ "$1" == --version || "$1" == info ]] && exit 0\necho "$*" >> "%s/docker"; cat >> "%s/told" 2>/dev/null || true\n' "$TMP" "$TMP" > "${TMP}/bin/docker"
 chmod +x "${TMP}/bin/docker"
-run() { (cd "${I}" && env PATH="${TMP}/bin:${PATH}" bash "$UPDATE") > "${TMP}/log" 2>&1; echo $?; }
+run() { (cd "${I}" && env PATH="${TMP}/bin:${PATH}" bash "$UPDATE") </dev/null > "${TMP}/log" 2>&1; echo $?; }
 reset() { rm -f "${TMP}/existential-ran" "${TMP}/docker" "${TMP}/told" "${I}/docker-compose.yml"; }
 
 echo ""; echo "=== current ==="

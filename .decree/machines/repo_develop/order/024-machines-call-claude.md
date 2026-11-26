@@ -29,8 +29,8 @@ that is how an automation a person accepts gets built.
   - `agent_ready` exits 0 when `claude` is installed and signed in;
   - `agent "<task>"` prints Claude's answer, run in the workspace, through `ai`, and fails with
     a message naming how to sign in when it is not signed in.
-- Signing in is once per install: `docker exec -it automation claude`, then `/login`. The login
-  lives in the container's home, the `decree_data` volume. As an alternative,
+- Signing in is once per install, in code-server's terminal: `claude`, then `/login`. automation
+  shares that login (its `CLAUDE_CONFIG_DIR` is code-server's, on `code_server_data`). As an alternative,
   `AUTOMATION_ANTHROPIC_API_KEY` or `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN` in
   `services/automation/.env` reach the container as `ANTHROPIC_API_KEY` and
   `CLAUDE_CODE_OAUTH_TOKEN`.
@@ -72,7 +72,7 @@ that is how an automation a person accepts gets built.
   **Then** it prints the pinned version
 - **Given** no login, no key and no token
   **When** a script calls `agent "x"`
-  **Then** it exits non-zero and its stderr says `docker exec -it automation claude`
+  **Then** it exits non-zero and its stderr says to sign in from code-server's terminal
 - **Given** Claude is signed in
   **When** `develop` builds an automation
   **Then** the build request goes to Claude rather than the chat model, and mentions `agent`

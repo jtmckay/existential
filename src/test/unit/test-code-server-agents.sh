@@ -48,13 +48,18 @@ else
     assert_eq "opencode declares the chat model" "gemma4:e2b-it-qat" \
         "$(jq -r '.provider.existential.models["gemma4:e2b-it-qat"].name' <<<"$cfg")"
     assert_eq "opencode loads no plugin when capture is off" "[]" "$(jq -c .plugin <<<"$cfg")"
-    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "file:///opt/capture/opencode.ts")"
+    assert_eq "opencode sends no key as 'none'" "none" "$(jq -r .provider.existential.options.apiKey <<<"$cfg")"
+    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "sk-hosted")"
+    assert_eq "opencode sends EXIST_MODEL_KEY's value" "sk-hosted" "$(jq -r .provider.existential.options.apiKey <<<"$cfg")"
+    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "" "file:///opt/capture/opencode.ts")"
     assert_eq "opencode loads the capture plugin when on" '["file:///opt/capture/opencode.ts"]' \
         "$(jq -c .plugin <<<"$cfg")"
     assert_eq "opencode has no MCP server with search off" "{}" "$(jq -c .mcp <<<"$cfg")"
-    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "" "http://qmd:8181/mcp")"
+    cfg="$(_opencode_config "http://chatbox:11434/v1" "m" "" "" '{"qmd":"http://qmd:8181/mcp","firecrawl":"http://firecrawl-mcp:3003/mcp"}')"
     assert_eq "opencode reaches search as a remote MCP server" '{"type":"remote","url":"http://qmd:8181/mcp","enabled":true}' \
         "$(jq -c .mcp.qmd <<<"$cfg")"
+    assert_eq "...and the web, through firecrawl" '{"type":"remote","url":"http://firecrawl-mcp:3003/mcp","enabled":true}' \
+        "$(jq -c .mcp.firecrawl <<<"$cfg")"
 fi
 
 # ── mermaid ───────────────────────────────────────────────────────────────────

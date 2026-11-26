@@ -77,7 +77,7 @@ YML
 }
 
 cmd_controller() {
-    [[ -f "$ENV" ]] || die "run ./existential.sh first (pick Controller)"
+    [[ -f "$ENV" ]] || die "run ./existential.sh first"
     echo "This host is the controller:"
     env_set "$ENV" EXIST_CONTROLLER ""
     local secret; secret="$(env_get "$ENV" EXIST_FLEET_SECRET)"
@@ -87,16 +87,17 @@ cmd_controller() {
         echo "  secret   made"
     fi
     exist flow on report-host
-    exist service on loki grafana
+    exist service on loki grafana model-gateway
     # Loki on the network, so the workers can push to it and ask it who the controller is.
     env_set "$LOKI_ENV" LOKI_BIND 0.0.0.0
     echo "  loki     on the network at :43100"
     cmd_api
     start_daemon
     echo ""
-    echo "Start Loki and Grafana:  docker compose up -d"
+    echo "Start Loki, Grafana and the model gateway:  docker compose up -d"
     echo "Then on every other host:"
     echo "  ./existential.sh run fleet join $(address) ${secret}"
+    echo "and, to code against the fleet's GPUs, in its .env.shared:  EXIST_MODEL_URL=http://$(address):4400/v1"
     echo "And in a decree project of your own, with EXIST_CONTROLLER=$(address) and EXIST_FLEET_SECRET in its .decree/.env:"
     echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"http://\$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md\" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c \"{host, service, models}\"'"
 }
@@ -104,7 +105,7 @@ cmd_controller() {
 cmd_join() {
     local ctl="${1:-}" secret="${2:-}"
     [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || die "usage: fleet join <controller's address> [<secret>]"
-    [[ -f "$ENV" ]] || die "run ./existential.sh first (pick Worker), then this again"
+    [[ -f "$ENV" ]] || die "run ./existential.sh first, then this again"
     if [[ -z "$secret" && -t 0 ]]; then
         read -r -s -p "Fleet secret (from the controller's fleet controller): " secret; echo ""
     fi

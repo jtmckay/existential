@@ -27,8 +27,8 @@ EXIST_IS_SERVICES_CODE_SERVER=true
 
 Then `./existential.sh && docker compose up -d` from the repo root.
 
-- First boot installs code-server, five extensions, Claude Code and opencode: a couple of
-  minutes, `unhealthy` until done.
+- First boot installs code-server and five extensions: a couple of minutes, `unhealthy` until
+  done. `claude`, `opencode` and `pi` are in the image.
 - About 210 MB idle; 1.3 GB peak during the first install. The 2 GB limit is headroom.
 
 ## Shared workspace
@@ -46,7 +46,9 @@ boot).
 
 The terminal has `claude`, `opencode` and `pi`. Talking to one is how you make new
 automations: it writes one as a file in `.decree/plugins/` and
-[installs it](../plugins/offer-and-accept.md) with `decree install <name>`. Machines have their own Claude login: [Decree](../decree/decree.md#claude-for-machines).
+[installs it](../plugins/offer-and-accept.md) with `decree install <name>`. `/login` once in `claude` signs in the automations too: [Decree](../decree/decree.md#claude-for-machines).
+All three reach the stack's model (`EXIST_MODEL_URL`), and Claude and opencode get search (qmd)
+and the web (Firecrawl) as tools, as pi does.
 
 **`claude`** is Claude Code. Log in once; to keep the conversation going from your phone, start
 a remote-control session in tmux:

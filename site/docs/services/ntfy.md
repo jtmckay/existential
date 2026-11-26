@@ -57,7 +57,8 @@ curl -d "Backup completed successfully" \
 ## Services
 
 In Core, ntfy is on the host's tailnet name, port 8443: `./existential.sh` runs `tailscale serve`
-for it, and the container publishes on loopback only. With the Caddy add-on and no tailnet name,
+for it, and the container publishes on loopback only. Without Tailscale it is on your network
+at `http://<host-ip>:44680`. With the Caddy add-on and no tailnet name,
 it is `https://ntfy.<domain>`. `entrypoint.sh` sets ntfy's base URL, the address the phone app
 and ntfy's own links use, to whichever applies; `NTFY_BASE_URL` in `services/ntfy/.env`
 overrides it.

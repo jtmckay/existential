@@ -21,8 +21,8 @@ x-exist-lib:
     #   agent_ready        0 when claude is installed and signed in here
     #   agent <prompt>     its answer on stdout; fails, saying how to sign in, when not
     #
-    # Signing in is once per install: `docker exec -it automation claude`, then
-    # /login, and the login lives in the container's home (the decree_data volume).
+    # Signing in is once per install, in code-server's terminal: claude, then /login.
+    # automation shares that login (CLAUDE_CONFIG_DIR, code-server's volume).
     # Or set AUTOMATION_ANTHROPIC_API_KEY or AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN in
     # services/automation/.env, which compose passes in under the names Claude reads.
     #
@@ -34,12 +34,12 @@ x-exist-lib:
 
     agent_ready() {
         command -v claude >/dev/null 2>&1 || return 1
-        [[ -n "${ANTHROPIC_API_KEY:-}${CLAUDE_CODE_OAUTH_TOKEN:-}" || -s "${HOME}/.claude/.credentials.json" ]]
+        [[ -n "${ANTHROPIC_API_KEY:-}${CLAUDE_CODE_OAUTH_TOKEN:-}" || -s "${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/.credentials.json" ]]
     }
 
     agent() {
         if ! agent_ready; then
-            echo "agent: Claude is not signed in here. Once: docker exec -it automation claude, then /login" >&2
+            echo "agent: Claude is not signed in. Once, in code-server's terminal: claude, then /login" >&2
             return 1
         fi
         ( cd "${AUTOMATIONS_WORKSPACE:-/workspace}" && AI_CLI=claude ai "$1" )

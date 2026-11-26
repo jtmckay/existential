@@ -42,15 +42,24 @@ enabled image without touching running containers; `docker compose up -d` switch
 
 ## Models
 
-Every model is named once, in the *Model Selection* block; everything else reads it. The block
-is filled from a tier table when the first GPU service is enabled (**GPU vendor**, then
-**VRAM**). To change it:
+Every model is named once, in the *Model Selection* block; everything else reads it. Three keys
+point the stack at a model:
+
+| Key | |
+|---|---|
+| `EXIST_MODEL_URL` | Any OpenAI-compatible base URL ending `/v1`: a hosted LLM, a server of your own, or your controller's model endpoint. Blank: no model yet, and what needs one skips. |
+| `EXIST_MODEL_KEY` | The API key that URL wants. Blank sends `EXIST_FLEET_SECRET`, which a controller takes. |
+| `EXIST_MODEL_CHAT` | The chat model. Blank: the first model the URL lists (`/v1/models`). |
+
+With a local GPU, the block is filled from a tier table when the first GPU service is enabled
+(**GPU vendor**, then **VRAM**), and turning on Ollama points `EXIST_MODEL_URL` at it. To change
+the tier:
 
 ```bash
 ./existential.sh run models
 ```
 
-After editing anything in the block by hand:
+After editing the block by hand, with Ollama on:
 
 ```bash
 ./existential.sh run ollama pull-models

@@ -422,19 +422,22 @@ function checkRestartPolicy(): string[] {
   return errors;
 }
 
-// One decree version: the decree image's DECREE_TAG, which the webhook image bundles, CI
-// installs, and the host daemon's page says to install.
+// One decree version: the decree image's DECREE_TAG, which CI installs and the host
+// daemon's page says to install. The webhook image bundles decree too, and is released
+// on its own: its version only has to share the minor (0.6.x), as patches stay compatible.
 function checkDecreeVersions(): string[] {
   const read = (f: string) => fs.existsSync(path.join(REPO_ROOT, f)) ? fs.readFileSync(path.join(REPO_ROOT, f), 'utf8') : '';
   const tag = /^ARG DECREE_TAG=v(\S+)$/m.exec(read('services/automation/decree/Dockerfile'))?.[1];
   if (!tag) return [];
-  const pins: Array<[string, RegExp]> = [
-    ['services/automation-webhook/docker-compose.exist.yml', /image: ghcr\.io\/jtmckay\/decree-go-rest:(\S+)/g],
-    ['.github/workflows/ci.yml', /install\.sh \| sh -s -- v(\S+)/g],
-    ['site/docs/hosting/host-daemon.md', /install\.sh \| sh -s -- v(\S+)/g],
+  const minor = (v: string) => v.split('.').slice(0, 2).join('.');
+  const pins: Array<[string, RegExp, boolean]> = [
+    ['services/automation-webhook/docker-compose.exist.yml', /image: ghcr\.io\/jtmckay\/decree-go-rest:(\S+)/g, true],
+    ['.github/workflows/ci.yml', /install\.sh \| sh -s -- v(\S+)/g, false],
+    ['site/docs/hosting/host-daemon.md', /install\.sh \| sh -s -- v(\S+)/g, false],
   ];
-  return pins.flatMap(([f, re]) => [...read(f).matchAll(re)].filter(m => m[1] !== tag)
-    .map(m => `${f}: decree ${m[1]} must be the decree image's DECREE_TAG (v${tag})`));
+  return pins.flatMap(([f, re, sameMinor]) => [...read(f).matchAll(re)]
+    .filter(m => sameMinor ? minor(m[1]) !== minor(tag) : m[1] !== tag)
+    .map(m => `${f}: decree ${m[1]} must be ${sameMinor ? `0.${minor(tag).split('.')[1]}.x, as` : ''} the decree image's DECREE_TAG (v${tag})`));
 }
 
 function checkHardcodedUids(): string[] {

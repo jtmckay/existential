@@ -409,19 +409,20 @@ else
         "ai/newsvc/.env absent — the new flag was not reloaded"
 fi
 
-# ── A first run asks one thing: Core or none ──────────────────────────────────
+# ── A first run asks nothing ──────────────────────────────────────────────────
 #
-# .env.exist.shared itself asks nothing: the login and email ship blank and are
-# asked when an enabled service first uses them. Checked on the real templates,
-# since that is where a question would creep back in.
+# .env.exist.shared asks nothing: the login is admin and a generated password, and
+# the email ships blank, asked when an enabled service first uses it. Checked on
+# the real templates, since that is where a question would creep back in.
 _REAL=/repo; [[ -f "$_REAL/.env.exist.shared" ]] || _REAL="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 assert_eq ".env.exist.shared asks nothing" "" "$(grep -E '=EXIST_CLI$' "$_REAL/.env.exist.shared")"
 out="$(render "$_REAL/.env.exist.shared" "$TMP/.env.shared")"
-for _k in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do
-    assert_eq "${_k} ships blank (not yet asked)" "${_k}=" "$(grep "^${_k}=" <<<"$out")"
-done
-for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist.shared"); do
-    _svc="${_svc,,}"; _svc="services/${_svc//_/-}"
+assert_eq "the login is admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' <<<"$out")"
+if grep -qE '^EXIST_PASSWORD=PW[0-9]+_a+$' <<<"$out"; then _ok "...with a generated password"
+else _fail "...with a generated password" "$(grep '^EXIST_PASSWORD=' <<<"$out")"; fi
+assert_eq "EXIST_EMAIL ships blank (not yet asked)" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' <<<"$out")"
+for _flag in $(sed -n 's/^EXIST_IS_\(.*\)=true$/\1/p' "$_REAL/.env.exist.shared"); do
+    _cat="${_flag%%_*}"; _svc="${_flag#*_}"; _svc="${_svc,,}"; _svc="${_cat,,}/${_svc//_/-}"
     if grep -rqsE --include='*.exist*' 'EXIST_EMAIL|EXIST_CLI' "$_REAL/$_svc"; then
         _fail "Core's ${_svc} asks nothing and needs no email"
     else
@@ -429,29 +430,13 @@ for _svc in $(sed -n 's/^EXIST_IS_SERVICES_\(.*\)=true$/\1/p' "$_REAL/.env.exist
     fi
 done
 
-printf 'EXIST_IS_AI_X=true\nEXIST_IS_SERVICES_Y=true\nEXIST_IS_SERVICES_Z=false\n' > "$TMP/.env.shared"
-( EXIST_ROLE=none _apply_role ) >/dev/null 2>&1
-assert_eq "none turns every flag off" "" "$(grep '=true$' "$TMP/.env.shared")"
-printf 'EXIST_IS_AI_X=true\n' > "$TMP/.env.shared"
-( EXIST_ROLE="" _apply_role ) >/dev/null 2>&1
-assert_eq "no answer keeps Core" "EXIST_IS_AI_X=true" "$(cat "$TMP/.env.shared")"
-# A controller turns on the host's report-host flow (report_host) and keeps Core.
-mkdir -p "$TMP/automation/plugins/flows"
-cp "$_REAL/automation/plugins.exist.yml" "$TMP/automation/"
-cp "$_REAL/automation/plugins/flows/report-host.md" "$TMP/automation/plugins/flows/"
-printf 'EXIST_IS_AI_X=true\nEXIST_CONTROLLER=\n' > "$TMP/.env.shared"
-( EXIST_ROLE=controller _apply_role ) >/dev/null 2>&1
-assert_eq "a controller keeps Core, and names no controller" "EXIST_IS_AI_X=true EXIST_CONTROLLER=" "$(xargs < "$TMP/.env.shared")"
-assert_eq "...and turns the report-host flow on" "report-host" "$(sed -n 's/^  - //p' "$TMP/automation/plugins.yml" | grep -x report-host)"
-rm -f "$TMP/automation/plugins.yml"
-
 printf '# Who you are\n# DEFAULT: admin\nWHO=EXIST_CLI\n' > "$TMP/t_default"
 assert_contains "# DEFAULT: is the literal default when nobody answers" "WHO=admin" "$(render "$TMP/t_default")"
 
-# The login and email are asked once, the first time an enabled service uses them.
+# The email is asked once, the first time an enabled service uses it.
 mkdir -p "$TMP/ai/mailsvc"
-printf 'MAILSVC_ADMIN_EMAIL=EXIST_EMAIL\nMAILSVC_USER=EXIST_USERNAME\nMAILSVC_PW=${EXIST_PASSWORD}\n' > "$TMP/ai/mailsvc/.env.exist"
-_blank() { printf 'EXIST_USERNAME=\nEXIST_PASSWORD=\nEXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=%s\n' "$1" > "$TMP/.env.shared"; }
+printf 'MAILSVC_ADMIN_EMAIL=EXIST_EMAIL\n' > "$TMP/ai/mailsvc/.env.exist"
+_blank() { printf 'EXIST_EMAIL=\nEXIST_IS_AI_MAILSVC=%s\n' "$1" > "$TMP/.env.shared"; }
 _ask() { ( _prompt_available() { true; }
            _prompt_tty() { echo asked >> "$TMP/.asked"; printf 'me@example.test'; }
            _reload_env_shared; _ask_if_needed EXIST_EMAIL ) >/dev/null 2>&1 </dev/null; }
@@ -459,8 +444,6 @@ _blank false
 _ask
 assert_eq "no enabled service needs an email → not asked" "" "$(cat "$TMP/.asked" 2>/dev/null)"
 assert_contains "and EXIST_EMAIL stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
-( _reload_env_shared; for _k in EXIST_USERNAME EXIST_PASSWORD; do _ask_if_needed "$_k"; done ) >/dev/null 2>&1 </dev/null
-assert_eq "...nor a login" "EXIST_USERNAME= EXIST_PASSWORD=" "$(grep -E '^EXIST_(USERNAME|PASSWORD)=' "$TMP/.env.shared" | xargs)"
 sed -i 's/^EXIST_IS_AI_MAILSVC=false$/EXIST_IS_AI_MAILSVC=true/' "$TMP/.env.shared"
 _ask
 assert_eq "an enabled service that uses it → asked once" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
@@ -468,12 +451,20 @@ assert_eq "the answer is filled in" "EXIST_EMAIL=me@example.test" "$(grep '^EXIS
 _ask
 assert_eq "and never asked again" "asked" "$(cat "$TMP/.asked" 2>/dev/null)"
 _blank true
-( _reload_env_shared; for _k in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do _ask_if_needed "$_k"; done ) >/dev/null 2>&1 </dev/null
-assert_eq "no terminal → the username is admin" "EXIST_USERNAME=admin" "$(grep '^EXIST_USERNAME=' "$TMP/.env.shared")"
-if grep -qE '^EXIST_PASSWORD=.{8,}$' "$TMP/.env.shared"; then _ok "no terminal → a password is generated"
-else _fail "no terminal → a password is generated" "$(grep '^EXIST_PASSWORD=' "$TMP/.env.shared")"; fi
-assert_eq "...and the email stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
+( _reload_env_shared; _ask_if_needed EXIST_EMAIL ) >/dev/null 2>&1 </dev/null
+assert_eq "no terminal → the email stays blank" "EXIST_EMAIL=" "$(grep '^EXIST_EMAIL=' "$TMP/.env.shared")"
 rm -rf "$TMP/ai/mailsvc"
+
+# With Ollama on and no model URL, the model is that Ollama; a URL you set stays.
+printf 'EXIST_IS_AI_OLLAMA=true\nEXIST_MODEL_URL=\n' > "$TMP/.env.shared"
+( _reload_env_shared; _ollama_model_url ) >/dev/null 2>&1
+assert_eq "Ollama on, no model URL → Ollama's" "EXIST_MODEL_URL=http://ollama:11434/v1" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
+printf 'EXIST_IS_AI_OLLAMA=true\nEXIST_MODEL_URL=https://llm.example/v1\n' > "$TMP/.env.shared"
+( _reload_env_shared; _ollama_model_url ) >/dev/null 2>&1
+assert_eq "...a URL you set stays" "EXIST_MODEL_URL=https://llm.example/v1" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
+printf 'EXIST_IS_AI_OLLAMA=false\nEXIST_MODEL_URL=\n' > "$TMP/.env.shared"
+( _reload_env_shared; _ollama_model_url ) >/dev/null 2>&1
+assert_eq "...and Ollama off leaves it blank" "EXIST_MODEL_URL=" "$(grep '^EXIST_MODEL_URL=' "$TMP/.env.shared")"
 
 # The NAS address is asked once, then a path for each nfs: true volume of an
 # enabled service; a db: true volume and a disabled service are never asked.

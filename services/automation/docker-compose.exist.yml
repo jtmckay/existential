@@ -57,7 +57,9 @@ services:
       # rclone_src download then depends on. /data is the decree_data volume:
       # the writable path this container already has that survives a restart.
       - HOME=/data
-      # Claude Code for machines (lib/agent.sh) keeps its login there too.
+      # Claude Code for machines (lib/agent.sh) shares code-server's login: sign in
+      # once, in code-server's terminal, and both are.
+      - CLAUDE_CONFIG_DIR=/claude
       # `auto`: Claude acts on its own. It still cannot change your notes, which
       # are mounted read-only below.
       - CLAUDE_PERMISSION_MODE=${AUTOMATION_CLAUDE_PERMISSION_MODE:-auto}
@@ -94,11 +96,12 @@ services:
       # Model globals from .env.shared. lib/model.sh resolves a role against
       # these, so a script or migration names a role, never a tag or a host.
       # See the "Model Selection" block in .env.exist.shared.
-      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
-      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
+      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT:-}
+      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX:-65536}
       - EXIST_MODEL_VISION=${EXIST_MODEL_VISION:-}
       # ...and where a call goes when no host offers its model.
-      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
+      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-}
+      - EXIST_MODEL_KEY=${EXIST_MODEL_KEY:-}
       # ollama_pull and the health checks touch ollama's own API only when it runs.
       - EXIST_IS_AI_OLLAMA=${EXIST_IS_AI_OLLAMA:-false}
       # A GPU service another host offers, under its lease (the fleet lib): the secret,
@@ -138,6 +141,8 @@ services:
       # Your notes are what you tell the stack to do: an automation, or the Claude
       # it calls, reads them and never changes them. What it makes goes in ai/.
       - workspace_data/notes:/workspace/notes:ro,z
+      # code-server's Claude Code login and settings (its CLAUDE_CONFIG_DIR).
+      - code_server_data/home/.claude:/claude:z
     tty: false
 
 x-exist-volumes:
@@ -145,3 +150,5 @@ x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop
   # client), code-server and decree. Declared identically everywhere it is mounted.
   workspace_data: {}
+  # code-server's, for its Claude Code login. Declared identically everywhere it is mounted.
+  code_server_data: {}

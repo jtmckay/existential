@@ -63,9 +63,9 @@ scripts:
 
     : "${HOMEASSISTANT_ADMIN_USER:?HOMEASSISTANT_ADMIN_USER not set}"
     : "${HOMEASSISTANT_ADMIN_PASSWORD:?HOMEASSISTANT_ADMIN_PASSWORD not set}"
-    : "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
     # shellcheck source=../../lib/model.sh
     source "${LIB_DIR}/model.sh"
+    EXIST_MODEL_CHAT="$(model_tag chat)"; : "${EXIST_MODEL_CHAT:?no chat model: set EXIST_MODEL_URL in .env.shared}"
 
     # _api METHOD PATH [JSON_BODY] — authenticated REST call. Checks the HTTP
     # status itself: HA answers a bad flow step with a 2xx-shaped JSON error in
@@ -201,7 +201,7 @@ scripts:
         [[ "$(_entries extended_openai_conversation | jq 'length')" -gt 0 ]] && return 0
         local flow_id
         flow_id=$(_api POST /api/config/config_entries/flow '{"handler":"extended_openai_conversation"}' | jq -r .flow_id)
-        _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg url "$(model_url chat)" --arg key "${EXIST_FLEET_SECRET:-none}" \
+        _api POST "/api/config/config_entries/flow/${flow_id}" "$(jq -n --arg url "$(model_url)" --arg key "$(model_key)" \
             '{name:"Local model", api_key:$key, base_url:$url, api_provider:"openai"}')" >/dev/null
         echo "Created the conversation-agent entry."
     }

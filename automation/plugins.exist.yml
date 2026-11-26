@@ -7,5 +7,6 @@ on:
   - note-to-automation
   - clean-runs
   - health-checks
+  - pi
 # false: a plugin whose file changed is named on ./existential.sh, not installed.
 auto_update: true

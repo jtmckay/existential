@@ -201,6 +201,13 @@ Any host reads the latest offers back from the Loki its controller names:
 <ai-box>         tts      http://<ai-box>:8000                     lease http://<ai-box>:<port>/gpu/tts/<client>
 ```
 
+### The model gateway
+
+`fleet controller` turns on the [model gateway](../ai/model-gateway.md): one OpenAI-compatible
+URL, `http://<controller>:4400/v1`, for every host. Set it as `EXIST_MODEL_URL` (and leave
+`EXIST_MODEL_KEY` blank) and opencode, pi and every automation reach whichever GPU box offers the
+model they ask for, leasing it the way below.
+
 ### Leases
 
 Each GPU box has room for one GPU service at a time, so anything that uses one leases it from

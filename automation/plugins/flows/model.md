@@ -15,7 +15,9 @@ x-exist-lib:
     #
     #   source ".decree/lib/model.sh"
     #
-    #   model_url                                → this host's own model URL
+    #   model_url                                → this host's own model URL (empty: none yet)
+    #   model_key                                → the bearer token for it
+    #   model_ready                              → 0 when a model can be reached at all
     #   model_chat <system> <user> [max_tokens]  → assistant text on stdout
     #   model_gate <criteria> <text>             → 0 = YES, 1 = NO, 2 = no verdict
     #
@@ -25,13 +27,15 @@ x-exist-lib:
     # rather than silently treating "no answer" as "no match".
     #
     # Env vars:
-    #   EXIST_MODEL_URL      this host's own model URL (compose passes it)
-    #   EXIST_MODEL_<ROLE>   the model a role (chat, vision) sends as "model"
+    #   EXIST_MODEL_URL      this host's own model URL (compose passes it); blank: none yet
+    #   EXIST_MODEL_KEY      its API key; blank: EXIST_FLEET_SECRET (a controller takes that)
+    #   EXIST_MODEL_<ROLE>   the model a role (chat, vision) sends as "model"; a blank
+    #                        chat is the first model the server lists
     #   MODEL_ROLE       role model_chat talks to, default chat
     #   MODEL_URL        overrides the role's URL
     #   MODEL_NAME       overrides the role's tag; set but EMPTY sends no "model" at
     #                    all, so the server's own default answers
-    #   MODEL_API_KEY    bearer token, default EXIST_FLEET_SECRET; omitted when empty
+    #   MODEL_API_KEY    bearer token, default model_key; omitted when empty
     #   MODEL_TIMEOUT    seconds, default 120
     #   MODEL_TEMPERATURE  default 0
     #
@@ -41,12 +45,27 @@ x-exist-lib:
     # offers that model: EXIST_MODEL_URL.
 
     # model_url — this host's own model URL, where a call goes when the fleet has none.
-    model_url() { printf '%s\n' "${EXIST_MODEL_URL:-http://ollama:11434/v1}"; }
+    model_url() { printf '%s\n' "${EXIST_MODEL_URL:-}"; }
 
-    # model_tag <role> — the EXIST_MODEL_* tag for a role (empty when unset).
+    # model_key — the bearer token model_url takes: a hosted LLM's API key, or the fleet
+    # secret, which a controller's model endpoint and every fleet host take.
+    model_key() { printf '%s\n' "${MODEL_API_KEY:-${EXIST_MODEL_KEY:-${EXIST_FLEET_SECRET:-}}}"; }
+
+    # model_first — the first model model_url lists (/v1/models), once per shell.
+    model_first() {
+        if [ -z "${_MODEL_FIRST+x}" ]; then
+            local key; key="$(model_key)"
+            _MODEL_FIRST="$(curl -fsS --max-time 10 ${key:+-H "Authorization: Bearer $key"} \
+                "$(model_url)/models" 2>/dev/null | jq -r '.data[0].id // empty' 2>/dev/null || true)"
+        fi
+        printf '%s\n' "$_MODEL_FIRST"
+    }
+
+    # model_tag <role> — the EXIST_MODEL_* tag for a role; chat falls back to model_first.
     model_tag() {
         case "${1:-}" in
-            chat|chat-ctx) printf '%s\n' "${EXIST_MODEL_CHAT:-}" ;;
+            chat|chat-ctx) if [ -n "${EXIST_MODEL_CHAT:-}" ]; then printf '%s\n' "$EXIST_MODEL_CHAT"
+                           elif [ -n "$(model_url)" ]; then model_first; fi ;;
             vision)        printf '%s\n' "${EXIST_MODEL_VISION:-}" ;;
             *)             return 1 ;;
         esac
@@ -58,6 +77,9 @@ x-exist-lib:
     else
         fleet_on() { return 1; }; fleet_use() { return 3; }; fleet_done() { :; }
     fi
+
+    # model_ready — true when a call can go anywhere: this host's model URL, or the fleet.
+    model_ready() { [ -n "$(model_url)" ] || fleet_on 2>/dev/null; }
 
     # model_service <model> — the fleet service (llm or strata) whose offer lists this
     # model, or nothing.
@@ -84,6 +106,7 @@ x-exist-lib:
             fi
         fi
         MODEL_BASE="${MODEL_URL:-$(model_url)}"
+        [ -n "$MODEL_BASE" ] || { echo "model: no model yet: set EXIST_MODEL_URL (and EXIST_MODEL_KEY) in .env.shared" >&2; return 1; }
     }
 
     model_chat() {
@@ -96,7 +119,8 @@ x-exist-lib:
             "${url%/}/chat/completions"
             -H "Content-Type: application/json")
 
-        local key="${MODEL_API_KEY:-${EXIST_FLEET_SECRET:-}}"
+        local key; key="$(model_key)"
+        [ -z "$MODEL_SERVICE" ] || key="${EXIST_FLEET_SECRET:-}"   # a fleet host takes the fleet's secret
         if [ -n "$key" ]; then
             args+=(-H "Authorization: Bearer $key")
         fi

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# test-remote-access.sh — Core is reached over Tailscale; the Caddy add-on is the other path.
+# test-remote-access.sh — Core is reached over Tailscale, else on the network; Caddy is the add-on.
 #
 # existential.sh serves code-server on 443 and ntfy on 8443 of this host's tailnet name with
 # `tailscale serve`, once each however often it runs, and never runs sudo or fails when
-# Tailscale is missing or not set up yet: it prints the next step. Core publishes its ports
-# on loopback only. Host detection still prefers a tailnet address, for Caddy's nip.io domain.
+# Tailscale is missing or not set up yet: it prints the next step and Core listens on the
+# network instead (EXIST_CORE_BIND). Core publishes its ports on loopback by default. Host detection still prefers a tailnet address, for Caddy's nip.io domain.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,12 +22,13 @@ _lacks() { if grep -qF -- "$3" <<<"$2"; then _fail "$1" "unexpected '$3' in: $2"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# ── Core binds loopback only (Loki by default: LOKI_BIND is how a host without Tailscale opens it) ──
+# ── Core binds loopback by default: EXIST_CORE_BIND (code-server, ntfy) and LOKI_BIND are
+# how a host without Tailscale opens them, both defaulting to 127.0.0.1 ──
 
 for svc in services/code-server services/ntfy services/automation hosting/loki; do
     f="${REPO_DIR}/${svc}/docker-compose.exist.yml"
-    bad="$(awk '/^ *ports:/{on=1; next} on && /^ *- /{print; next} {on=0}' "$f" | grep -v -e '"127\.0\.0\.1:' -e '"${LOKI_BIND:-127\.0\.0\.1}:' || true)"
-    if [[ -z "$bad" ]]; then _ok "${svc} publishes only on 127.0.0.1"; else _fail "${svc} publishes only on 127.0.0.1" "$bad"; fi
+    bad="$(awk '/^ *ports:/{on=1; next} on && /^ *- /{print; next} {on=0}' "$f" | grep -v -e '"127\.0\.0\.1:' -e '"${LOKI_BIND:-127\.0\.0\.1}:' -e '"${EXIST_CORE_BIND:-127\.0\.0\.1}:' || true)"
+    if [[ -z "$bad" ]]; then _ok "${svc} publishes only on 127.0.0.1 by default"; else _fail "${svc} publishes only on 127.0.0.1 by default" "$bad"; fi
 done
 
 # ── No auth of its own, so no name on the LAN ─────────────────────────────────
@@ -87,23 +88,20 @@ _serve() {
     echo "rc=$rc"
 }
 
-# No binary: carries on, says what Core needs and the alternative.
+# No binary: serves nothing, quietly (rc 1), so Core goes on the network (_core_bind says where).
 out="$(_serve "$WORK/nobin")"
-_has "no tailscale: exits 0" "$out" "rc=0"
-_has "no tailscale: says Core needs it" "$out" "Core needs Tailscale"
-_has "no tailscale: says how to install it" "$out" "https://tailscale.com/download"
-_has "no tailscale: names the Caddy add-on" "$out" "EXIST_IS_HOSTING_CADDY=true"
+_has "no tailscale: serves nothing, without failing the run" "$out" "rc=1"
 
 # Up, but HTTPS not enabled for the tailnet: the exact steps, no serve, no sudo.
 out="$(TS_STATUS="$NO_HTTPS" _serve "$WORK/bin:$WORK/nobin")"
-_has "no HTTPS yet: exits 0" "$out" "rc=0"
+_has "no HTTPS yet: serves nothing, without failing the run" "$out" "rc=1"
 _has "no HTTPS yet: points at the admin console" "$out" "MagicDNS and HTTPS Certificates"
 _has "no HTTPS yet: gives the operator command" "$out" 'sudo tailscale set --operator=$USER'
 [[ ! -e "$TS_CALLS" ]] && _ok "no HTTPS yet: serves nothing" || _fail "no HTTPS yet: serves nothing" "$(cat "$TS_CALLS")"
 
 # Serve refused (no operator): carries on with the steps.
 out="$(TS_STATUS="$RUNNING" TS_SERVE_FAIL=1 _serve "$WORK/bin:$WORK/nobin")"
-_has "serve refused: exits 0" "$out" "rc=0"
+_has "serve refused: serves nothing, without failing the run" "$out" "rc=1"
 _has "serve refused: shows why" "$out" "Access denied"
 _has "serve refused: gives the operator command" "$out" "--operator="
 grep -qx "EXIST_TAILNET_NAME=" "$WORK/.env.shared" && _ok "serve refused: EXIST_TAILNET_NAME stays blank" \

@@ -60,15 +60,15 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-The first run asks one thing: core, controller, worker or nothing (`_ask_role` in
-`existential.sh`, on the host and before adhoc is built, so a worker never builds it; the answer
-reaches `src/templates.sh` as `EXIST_ROLE`, where `_apply_role` acts on `none` and `controller`). Core is what `.env.exist.shared` ships on, and Enter, Esc or no terminal
-keeps it. Nothing sets every `EXIST_IS_*` false and `_build` stops at "nothing is on yet".
-Controller is Core plus the host flow `report-host`; worker is nothing plus `report-host`, and asks
-`EXIST_CONTROLLER`. A worker is any host whose `automation/plugins.yml` has `worker` on
+The first run asks nothing: it is Core, what `.env.exist.shared` ships on (code-server, ntfy,
+automation, qmd, Firecrawl), with `EXIST_USERNAME=admin` and a generated `EXIST_PASSWORD`
+(`_report_login` prints both once) and no model (`_report_model` says so every run until
+`EXIST_MODEL_URL` is set). A controller is `run fleet controller` (report-host, Loki, Grafana,
+the model gateway); a host that reports to one, `run fleet join <controller>`. With every
+`EXIST_IS_*` false, `_build` stops at "nothing is on yet". A worker is any host whose `automation/plugins.yml` has `worker` on
 (`_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 `_build` syncs the host plugins even with nothing on.
-A worker picked there, a host with neither docker nor podman (`adhoc_find_runtime` fails), and
+A host with neither docker nor podman (`adhoc_find_runtime` fails), and
 one that is already a worker with no service on (`_worker_only`) all skip adhoc altogether, on
 the bare run, `flow` and `run plugin` alike (a tool missing is named, never a reason to build):
 `_worker_without_engine` checks decree, yq, curl and tmux (`_worker_needs`, each missing one
@@ -79,9 +79,9 @@ host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources
 bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
 (`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
 and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, `LOKI_BIND=0.0.0.0` (`hosting/loki/.env`) puts the controller's Loki on the LAN at 43100, and each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `report_host` and `_controller_fetch` use `http://<controller>:43100`, and read the controller's domain from its answer, which its `report_host` pushes there (`kind="answer"`). A flow with
-`x-exist-project: host` (`report-host`, `pull-existential`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_USERNAME`, `EXIST_PASSWORD`
-and `EXIST_EMAIL` are asked by `_ask_if_needed` before the first enabled service that uses them
-renders, so Core asks for a login and none asks nothing.
+`x-exist-project: host` (`report-host`, `pull-existential`) is in the same `automation/plugins.yml` as every other and installed into the repo's `.decree`; `_host_move` moves an older install's `host/` there once. `EXIST_EMAIL` is asked by `_ask_if_needed` before the first enabled service that uses it
+renders; Core uses none. What an older install needs once lives in `src/utils/migrate.sh`
+(`_migrate`, `_rename_machines`), each step dated for removal.
 
 Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `flow`
 (with `EXIST_GPU_VENDOR` blank and a terminal) runs `src/lib/models.sh` with `FIRST_RUN=1`

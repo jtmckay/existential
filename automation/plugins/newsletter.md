@@ -140,7 +140,7 @@ scripts:
     main().then((code) => process.exit(code));
   write.sh: |
     #!/usr/bin/env bash
-    # newsletter's write: the chat model (EXIST_MODEL_CHAT, on its own endpoint) reads
+    # newsletter's write: the chat model reads
     # $DECREE_STATE_DIR/taste.md and the run's items.jsonl, and picks and summarises
     # the items worth reading. Writes $DECREE_RUN_DIR/issue.md: a title with the date,
     # then the model's picks as markdown links. With no new items it says so, without
@@ -152,7 +152,7 @@ scripts:
     taste="${DECREE_STATE_DIR}/taste.md"
     issue="${DECREE_RUN_DIR}/issue.md"
     today="$(date +%F)"
-    : "${EXIST_MODEL_CHAT:?EXIST_MODEL_CHAT not set}"
+    model_ready || { echo "write: no model yet (EXIST_MODEL_URL in .env.shared)" >&2; exit 1; }
     export MODEL_TIMEOUT=600
 
     if [ ! -s "${items}" ]; then
@@ -165,7 +165,7 @@ scripts:
 
     $(cat "${taste}")"
 
-    echo "write: asking ${EXIST_MODEL_CHAT} at $(model_url chat) about $(wc -l < "${items}") items"
+    echo "write: asking $(model_tag chat) at $(model_url) about $(wc -l < "${items}") items"
     picks="$(model_chat "${instructions}" "The new items, one JSON object per line:
 
     $(cat "${items}")" 4000)"

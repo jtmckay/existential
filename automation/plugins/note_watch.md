@@ -36,6 +36,7 @@ scripts:
     set -euo pipefail
     # shellcheck source=../../lib/model.sh
     source ".decree/lib/model.sh"
+    model_ready || { echo "note_watch: no model yet (EXIST_MODEL_URL in .env.shared)"; exit 0; }
 
     WS="${AUTOMATIONS_WORKSPACE:-/workspace}"
     rel="${DECREE_DATA_PATH:?run by the notes file handler, with a path}"

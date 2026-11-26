@@ -205,10 +205,11 @@ fresh. → `setup.md`
 (`<cat>/<slug>/exist.<action>.sh`). Bare `./existential.sh run` lists every available action —
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e [pattern...]`, and `flow`/`service [list|on|off]` (pickers). The
-first bare run asks one thing: Core (the default), controller (Core, reporting the others), worker
-(no services; reports to a controller) or nothing. It is asked on the host, before the image is
-built: a worker never builds it, and is set up with the host's own decree and yq, so the host
-plugin sync is host code (bash 3.2). A host with neither docker nor podman is always a worker. A login is asked when an enabled
+first bare run asks nothing: it builds Core (code-server, ntfy, automation, qmd, Firecrawl), makes
+the login (`admin`, a generated password, printed once) and leaves one step, the model
+(`EXIST_MODEL_URL`, `EXIST_MODEL_KEY`). Controller and worker are `run fleet controller|join`. A
+host with neither docker nor podman is always a worker, set up with the host's own decree and
+yq, so the host plugin sync is host code (bash 3.2). Only an email is asked, when an enabled
 service first uses one; the hardware questions
 (`src/lib/models.sh`) wait for the first enabled service that reserves a GPU. e2e answers one question — **does a fresh
 install come up working?** — and **an e2e check is a markdown file in `src/test/e2e/checks/`**,
@@ -281,7 +282,8 @@ from the repo root against the generated `docker-compose.yml`.
   relative bind source is for tracked config only, never for state, however regenerable. **No
   `.gitkeep`** — `generate-compose.ts` creates the dirs for enabled services. → `volumes.md`
 - **Addressing.** Core's two web apps → `https://<host>.<tailnet>.ts.net` (code-server) and
-  `:8443` (ntfy) via `tailscale serve`, from ports published on `127.0.0.1` only; add-ons in a
+  `:8443` (ntfy) via `tailscale serve`, from ports published on `EXIST_CORE_BIND` (`127.0.0.1`
+  while Tailscale serves them, else `0.0.0.0`, set every run); add-ons in a
   browser → `https://<slug>.<domain>` through Caddy, which ships off;
   container-to-container → `http://<container>:<port>` over Docker DNS; one whose service is
   off here → the controller's `https://<slug>.<domain>` (`resolveOffServices` in
@@ -300,7 +302,9 @@ from the repo root against the generated `docker-compose.yml`.
   `.env.exist.shared`'s *Model Selection* block. **Never hardcode a model tag in a service** —
   consumers read those keys (ollama migrations name an `OLLAMA_ROLE`, not a tag). → `models.md`
 - **One model address; the fleet spreads models.** `EXIST_MODEL_URL` is this host's
-  **OpenAI-compatible `/v1` base URL**, so ollama, llama.cpp and Strata all serve it;
+  **OpenAI-compatible `/v1` base URL** (blank: no model yet), with `EXIST_MODEL_KEY` its key
+  (blank: the fleet secret) and `EXIST_MODEL_CHAT` blank meaning the first model it lists; a
+  hosted LLM, ollama, llama.cpp, Strata and the controller's `ai/model-gateway` all serve it;
   ollama-only steps (pull, unload, `/api/*`) run only when ollama is enabled. Decree scripts
   reach a model through `model_base` (lib/model.sh), which leases the host whose offer lists
   the model and falls back to `EXIST_MODEL_URL`: never add a per-role or per-service address.
@@ -371,7 +375,7 @@ like any other (`decree install --cron <name>` installs its cron files again aft
 `x-exist-project: backup`): a new one is one flow file. The daemon rescans cron files every tick.
 
 **Opt-in is the rule.** `automation/plugins.exist.yml` turns on `note-to-automation`,
-`clean-runs` and `health-checks` and nothing else, and only `notify` (and, in `automation`, `skill`) is
+`clean-runs`, `health-checks` and `pi` (code-server's agents need its lib) and nothing else, and only `notify` (and, in `automation`, `skill`) is
 installed regardless. Anything new ships off, as a flow a person turns on; never add a default, an
 always-installed machine, or an example file to copy by hand.
 

@@ -91,14 +91,14 @@ OUT="$(_tsc_in_container)"
 # ../opt/decree/node_modules/.pnpm/... — a path that starts with neither. An
 # allowlist of the three roots tsconfig actually includes cannot drift from it.
 OURS="$(printf '%s\n' "$OUT" \
-    | grep -E '^(src|automation|services/automation/src)/[^ ]*\.tsx?\([0-9]+,[0-9]+\): error TS' \
+    | grep -E '^(src|automation|services/automation/src|ai)/[^ ]*\.tsx?\([0-9]+,[0-9]+\): error TS' \
     | sed -E "s#^${_PLUGINS_TS}/decree/(machines/[^/]+/scripts|lib)/#(an installed plugin) \\1/#" \
     || true)"
 
 # `git ls-files 'src/**/*.ts'` misses src/generate-compose.ts — a pathspec ** in
 # git needs a directory to descend into. Match the roots and filter instead.
 _count="$(git -C "$REPO" ls-files '*.ts' 2>/dev/null \
-    | grep -E '^(src|automation|services/automation/src)/' | wc -l)"
+    | grep -E '^(src|automation|services/automation/src|ai)/' | wc -l)"
 
 _count=$(( _count + $(cat "${REPO}"/automation/plugins/*.md "${REPO}"/automation/plugins/flows/*.md | grep -cE '^  [A-Za-z0-9_./-]+\.ts: [|]') ))
 if [ -z "$OURS" ]; then

@@ -82,20 +82,28 @@ adhoc_context_hash() {
            done | cksum | cut -d' ' -f1)
 }
 
-# Build the adhoc image if it is missing, or rebuild it when its build context
-# has changed since. Running containers keep the old image until the next
-# `docker compose up -d`. All interactive setup runs inside it.
+# Where CI publishes the decree image, tagged with adhoc_context_hash
+# (.github/workflows/images.yml): what an unchanged checkout pulls instead of building.
+EXIST_DECREE_IMAGE="${EXIST_DECREE_IMAGE:-ghcr.io/jtmckay/existential-decree}"
+
+# Get the adhoc image if it is missing, or again when its build context has
+# changed since: pulled when CI published that exact context, else built here.
+# Running containers keep the old image until the next `docker compose up -d`.
+# All interactive setup runs inside it.
 ensure_adhoc_built() {
     adhoc_detect_runtime
     local want have
     want="$(adhoc_context_hash)"
-    if ! $DOCKER_CMD image inspect existential/decree:local &>/dev/null 2>&1; then
-        echo "Building existential-adhoc (first run)..."
-    else
+    if $DOCKER_CMD image inspect existential/decree:local &>/dev/null 2>&1; then
         have="$($DOCKER_CMD image inspect -f '{{index .Config.Labels "exist.context"}}' existential/decree:local 2>/dev/null)"
         [[ "$have" == "$want" ]] && return 0
-        echo "Rebuilding the automation image (services/automation/decree changed)..."
     fi
+    if $DOCKER_CMD pull -q "${EXIST_DECREE_IMAGE}:${want}" >/dev/null 2>&1 &&
+        $DOCKER_CMD tag "${EXIST_DECREE_IMAGE}:${want}" existential/decree:local; then
+        echo "Pulled the automation image (${EXIST_DECREE_IMAGE}:${want})."
+        return 0
+    fi
+    echo "Building the automation image (a few minutes, once)..."
     EXIST_DECREE_CONTEXT="$want" \
         $DOCKER_CMD compose -f "${_ADHOC_REPO}/existential-compose.yml" build existential-adhoc
 }

@@ -61,11 +61,10 @@ services:
     entrypoint: ["/entrypoint.sh"]
     networks:
       - exist
-    # Loopback only: nothing in Core listens on the LAN. existential.sh puts
-    # this behind `tailscale serve` at https://<machine>.<tailnet>.ts.net; the
-    # Caddy add-on reaches the container over the exist network instead.
+    # EXIST_CORE_BIND: loopback behind `tailscale serve` (https://<machine>.<tailnet>.ts.net),
+    # or the LAN, password-protected, when Tailscale cannot serve it (existential.sh sets it).
     ports:
-      - "127.0.0.1:42080:8080"
+      - "${EXIST_CORE_BIND:-127.0.0.1}:42080:8080"
     environment:
       - IN_CONTAINER=1
       - PASSWORD=${CODE_SERVER_PASSWORD}
@@ -80,9 +79,10 @@ services:
       - OPENCODE_CONFIG=/code-server-data/opencode.json
       # pi's settings, provider and login, on the volume like Claude's.
       - PI_CODING_AGENT_DIR=/code-server-data/home/.pi/agent
-      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT}
-      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX}
-      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-http://ollama:11434/v1}
+      - EXIST_MODEL_CHAT=${EXIST_MODEL_CHAT:-}
+      - EXIST_MODEL_CHAT_NUM_CTX=${EXIST_MODEL_CHAT_NUM_CTX:-65536}
+      - EXIST_MODEL_URL=${EXIST_MODEL_URL:-}
+      - EXIST_MODEL_KEY=${EXIST_MODEL_KEY:-}
       - EXIST_FLEET_SECRET=${EXIST_FLEET_SECRET:-}
       # What you type into claude and opencode lands in workspace/.capture/
       # (the capture plugin's lib/capture/); entrypoint.sh wires both unless this is false.

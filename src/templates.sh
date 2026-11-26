@@ -701,17 +701,10 @@ _process_templates_in() {
         -not -path '*/node_modules/*' -not -path '*/site/*' 2>/dev/null | sort)
 }
 
-# EXIST_USERNAME, EXIST_PASSWORD and EXIST_EMAIL ship blank, meaning "not yet
-# asked": nothing has to be answered before something needs it. Each is asked the
-# first time an enabled service uses it, before that service renders, and then
-# filled in — only ever filled in, like EXIST_DOMAIN — so never again. Without a
-# terminal the username is admin and the password generated, because a blank one
-# would be rendered into that service; a blank email stays blank and asks next run.
-#
-# A typed answer is held to the generator's own alphabet: these values are
-# substituted unquoted into .env files, YAML, JSON and a sed replacement, so a
-# shell metacharacter does not fail here, it fails later in whichever file could
-# not carry it. Re-ask rather than silently mangle.
+# EXIST_EMAIL ships blank, meaning "not yet asked": it is asked the first time an
+# enabled service uses it, before that service renders, and then filled in, so
+# never again. Without a terminal it stays blank and asks next run. A typed answer
+# is held to what the files it is substituted into (unquoted) can carry.
 _ask_if_needed() {
     local key="$1" f="${REPO_DIR}/.env.shared" svc_dir needs="" val="" hint re why
     grep -q "^${key}=\$" "$f" 2>/dev/null || return 0
@@ -723,53 +716,27 @@ _ask_if_needed() {
     done < <(_find_service_dirs)
     [[ -n "$needs" ]] || return 0
 
-    case "$key" in
-        EXIST_USERNAME) hint='admin'; re='^[A-Za-z0-9._-]+$'
-            why='Your login name, for it and every admin account the stack creates.' ;;
-        EXIST_PASSWORD) hint='press Enter to generate'; re='^[A-Za-z0-9._-]{8,}$'
-            why='Your password for the same logins. It is never printed.' ;;
-        EXIST_EMAIL)    hint='you@example.com'; re='^[^[:space:]|&\\]+@[^[:space:]|&\\]+$'
-            why='It creates an admin account, and that needs an email.' ;;
-    esac
+    hint='you@example.com'; re='^[^[:space:]|&\\]+@[^[:space:]|&\\]+$'
+    why='It creates an admin account, and that needs an email.'
     if _prompt_available; then
         printf '\n# %s: %s\n' "$needs" "$why" >&2
         while :; do
             val="$(_prompt_tty "$key" "$hint")"
             [[ -z "$val" || "$val" =~ $re ]] && break
-            if [[ "$key" == EXIST_EMAIL ]]; then
-                printf '  That does not look like an email address.\n' >&2
-            else
-                printf '  Only A-Z a-z 0-9 . _ -%s: anything else breaks the files it is written into.\n' \
-                    "$([[ "$key" == EXIST_PASSWORD ]] && echo ', 8 or more')" >&2
-            fi
+            printf '  That does not look like an email address.\n' >&2
         done
     fi
-    case "$key" in
-        EXIST_USERNAME) val="${val:-admin}" ;;
-        EXIST_PASSWORD) val="${val:-$(gen_password)}" ;;
-    esac
     [[ -n "$val" ]] || return 0
     sed -i "s|^${key}=\$|${key}=${val}|" "$f"
     _reload_env_shared
 }
 
-# The first run's one choice, asked on the host (existential.sh, _ask_role) so a
-# worker never builds this image, and handed in as EXIST_ROLE:
-#   core        what .env.exist.shared ships on; also anything else, and blank.
-#   controller  Core, and the report-host flow on with no EXIST_CONTROLLER: the host's
-#               decree reports this host, and the others ask it where to report.
-#   none        nothing on yet.
-# A worker is set up on the host (_worker_without_engine) and never gets here.
-_apply_role() {
-    case "${EXIST_ROLE:-}" in
-        none)
-            sed -i 's/^\(EXIST_IS_[A-Z0-9_]*\)=true$/\1=false/' "${REPO_DIR}/.env.shared"
-            echo "Nothing is on: ./existential.sh service or ./existential.sh flow turns things on." >&2 ;;
-        controller)
-            # shellcheck source=src/utils/flows.sh
-            ( . "${_SRC_DIR}/utils/flows.sh"; plugins_turn on report-host ) ;;
-        *) return 0 ;;
-    esac
+# With Ollama on and no model URL yet, the stack's model is that Ollama: filled in
+# once, like EXIST_DOMAIN, so a URL you set (or Ollama turned off later) stays.
+_ollama_model_url() {
+    local f="${REPO_DIR}/.env.shared"
+    grep -q '^EXIST_IS_AI_OLLAMA=true' "$f" 2>/dev/null && grep -q '^EXIST_MODEL_URL=$' "$f" || return 0
+    sed -i 's|^EXIST_MODEL_URL=$|EXIST_MODEL_URL=http://ollama:11434/v1|' "$f"
     _reload_env_shared
 }
 
@@ -848,11 +815,10 @@ _main() {
         # service_is_enabled below, and the service it enables would be skipped
         # for one whole run.
         if [[ "$_rc" == 0 || "$_STATS_KEYS_ADDED" -gt 0 ]]; then _reload_env_shared; fi
-        if [[ "$_rc" == 0 ]]; then _apply_role; fi
     fi
     _load_env_shared
-    local key
-    for key in EXIST_USERNAME EXIST_PASSWORD EXIST_EMAIL; do _ask_if_needed "$key"; done
+    _ollama_model_url
+    _ask_if_needed EXIST_EMAIL
     _ask_nas_if_needed
 
     while IFS= read -r svc_dir; do

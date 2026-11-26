@@ -1,0 +1,39 @@
+# Images — publishes the decree image (code-server, automation, automation-backup and the
+# adhoc container all run it) to GHCR, tagged with its build context's checksum
+# (adhoc_context_hash, src/utils/adhoc.sh). ensure_adhoc_built pulls that exact tag, so a
+# fresh clone of main pulls instead of building for minutes; a checkout whose context
+# differs (a fork, a local edit) still builds its own.
+#
+# Once, after the first run: make the package public (GitHub → Packages →
+# existential-decree → Package settings → Change visibility), or pulls need a login.
+name: Images
+
+on:
+  push:
+    branches: [main]
+    paths: [services/automation/decree/**, src/utils/adhoc.sh, .github/workflows/images.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  decree:
+    name: Publish the decree image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - name: Build and push, unless this context is already published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/existential-decree"
+          ctx="$(bash -c '. src/utils/adhoc.sh; adhoc_context_hash')"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          if docker manifest inspect "${image}:${ctx}" >/dev/null 2>&1; then
+            echo "${image}:${ctx} is already published"; exit 0
+          fi
+          docker build --label "exist.context=${ctx}" -t "${image}:${ctx}" services/automation/decree
+          docker push "${image}:${ctx}"

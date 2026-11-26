@@ -281,7 +281,7 @@ assert_eq "agent answers when signed in" "0" "$(run "${TMP}/agent-call.sh" "$SIG
 assert_has "...with Claude's reply" "$(cat "${TMP}/last.log")" "That is the function"
 assert_has "...and the call is logged" "$(cat "$W/.decree/ai-use.md" 2>/dev/null)" "| claude |"
 assert_eq "agent fails when not signed in" "1" "$(run "${TMP}/agent-call.sh")"
-assert_has "...saying how to sign in" "$(cat "${TMP}/last.log")" "docker exec -it automation claude"
+assert_has "...saying how to sign in" "$(cat "${TMP}/last.log")" "in code-server's terminal: claude, then /login"
 printf 'TRIGGER: {"kind": "note", "when": "x"}\nsteps() { agent "x"; }\n' > "${TMP}/build-reply"
 assert_eq "not signed in, steps that call agent fail the gate" "1" "$(develop unsigned_thing)"
 assert_has "...saying why" "$(cat "${TMP}/last.log")" "agent needs Claude signed in"

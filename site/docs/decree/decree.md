@@ -47,13 +47,10 @@ file in `.decree/plugins/` and [installs it](../plugins/offer-and-accept.md). Ma
 - `model_chat` (`workspace/.decree/lib/model.sh`) is one answer from the stack's own model endpoint.
 - `agent` (`workspace/.decree/lib/agent.sh`) is Claude Code, which can read and search your workspace.
 
-The automation container comes with Claude Code installed. Sign it in once:
+The automation container comes with Claude Code installed, and shares code-server's login:
+start `claude` once in code-server's terminal and `/login`, and machines are signed in too.
 
-```bash
-docker exec -it automation claude    # then /login, then /exit
-```
-
-The login is kept in `volumes/decree_data`. To use an API key or a `claude setup-token` token
+The login is kept in `volumes/code_server_data/home/.claude`. To use an API key or a `claude setup-token` token
 instead, set `AUTOMATION_ANTHROPIC_API_KEY` or `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN` in
 `services/automation/.env`, then `docker compose up -d`.
 

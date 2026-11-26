@@ -30,6 +30,8 @@ ARG CLAUDE_CODE_VERSION=2.1.310
 # lib/pi.sh, and code-server's terminal shares this image. Pinned,
 # --ignore-scripts like its own install docs, and nothing updates it at runtime.
 ARG PI_VERSION=1.4.0
+# opencode, the other agent code-server's terminal ships, on the stack's model.
+ARG OPENCODE_VERSION=1.19.6
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         poppler-utils curl jq dnsutils xz-utils fzf rsync openssh-client \
@@ -60,6 +62,7 @@ RUN apt-get update \
     && npm install -g npm@11.16.0 \
     && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
     && npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+    && npm install -g "opencode-ai@${OPENCODE_VERSION}" \
     && curl -fsSL "https://github.com/jtmckay/decree/releases/download/${DECREE_TAG}/install.sh" \
         -o /tmp/decree-install.sh \
     && XDG_BIN_HOME=/usr/local/bin sh /tmp/decree-install.sh "${DECREE_TAG}" \

@@ -15,8 +15,8 @@ sidebar_position: 2
 - A computer to host it (see [Hosting](./hosting/index.md)): Linux, or a Mac with Docker Desktop.
   - Windows: run everything inside WSL2. Clone the repo on the Linux side (not under `/mnt/c`)
     and install Tailscale inside WSL.
-- For Core, [Tailscale](https://tailscale.com/download), logged in on that host and on every
-  device that should reach it. Without it, see
+- Optional: [Tailscale](https://tailscale.com/download), logged in on that host and on every
+  device that should reach it, for HTTPS. Without it, Core is on your network over HTTP; see
   [Reaching it without Tailscale](#reaching-it-without-tailscale).
 - The repo:
   ```
@@ -31,21 +31,33 @@ sidebar_position: 2
 docker compose up -d
 ```
 
-The first run asks one thing: what to start with.
-
-- **Core** (Enter): it then asks for a username and password. No GPU, no model downloads.
-- **Controller**: Core, and the host your other hosts report to. See
-  [Controller and Workers](./hosting/controller-and-workers.md).
-- **Worker**: no services. It asks for its controller's address and reports this host's
-  disks and automations there.
-- **Nothing**: `./existential.sh service` turns on what you want; the login is asked when the
-  first service that needs it comes on.
+The first run asks nothing. It builds **Core**, makes your login (`admin` and a generated
+password, both printed at the end and kept in `.env.shared`), and prints where Core is.
 
 | | |
 |---|---|
-| **Access** | Tailscale on the host: HTTPS on every device you log in |
-| **Workspace** | code-server (editor + terminal over the work dir) |
+| **Access** | Tailscale on the host: HTTPS on every device you log in. Without it: HTTP on your network |
+| **Workspace** | code-server (editor + terminal with `claude`, `opencode`, `pi` and the decree skill) |
+| **Search and the web** | qmd over the workspace, Firecrawl for the web: tools every agent gets |
 | **Automation** | Decree (the automation daemon), ntfy (where automations report in) |
+
+### Point it at a model
+
+In `.env.shared`:
+
+- `EXIST_MODEL_URL`: any OpenAI-compatible base URL ending `/v1`. A hosted LLM, a server of your
+  own, or your [controller](./hosting/controller-and-workers.md)'s model endpoint, which leases a
+  GPU host for each run of calls.
+- `EXIST_MODEL_KEY`: the API key a hosted LLM wants. Blank sends the fleet secret, which the
+  controller takes.
+- `EXIST_MODEL_CHAT`: the model. Blank is the first one the server lists.
+
+Then `./existential.sh && docker compose up -d`. opencode, pi and every automation use it. Until
+then the automations that need a model skip, and Claude Code works on its own login: start
+`claude` in code-server's terminal and `/login` once, which signs in the automations too.
+
+To make this host a controller or have it report to one: `./existential.sh run fleet controller`
+or `./existential.sh run fleet join <controller>`.
 
 Three [flows](./flows/index.md) are on by default: [note-to-automation](./flows/note-to-automation.md),
 run cleanup, and a health check on ntfy. The rest are off until you turn them on, the
@@ -85,7 +97,7 @@ With Tailscale up, it also runs `tailscale serve`:
 
 - code-server at `https://<host>.<tailnet>.ts.net`, ntfy at `:8443`, with a Let's Encrypt
   certificate.
-- Both containers publish on loopback only, so only your tailnet can connect.
+- Both containers publish on loopback only (`EXIST_CORE_BIND=127.0.0.1`), so only your tailnet can connect.
 - The name is saved as `EXIST_TAILNET_NAME`, which ntfy and the digest's links use.
 - The name appears in public certificate transparency logs (visible, not reachable).
 
@@ -96,7 +108,10 @@ If Tailscale can't serve yet, the run prints what is missing and carries on:
 
 ### Reaching it without Tailscale
 
-Turn on [Caddy](./hosting/caddy.md) (`EXIST_IS_HOSTING_CADDY=true`). Every service gets
+Without Tailscale, code-server and ntfy listen on your network (`EXIST_CORE_BIND=0.0.0.0`, set by
+each run): `http://<host-ip>:42080` and `http://<host-ip>:44680`, behind your login. code-server's
+previews (markdown, the machines' graphs) need HTTPS, so for those, and for names on every
+service, turn on [Caddy](./hosting/caddy.md) (`EXIST_IS_HOSTING_CADDY=true`). Every service gets
 `https://<slug>.<domain>`, with certificates from Caddy's own CA, trusted once per device.
 
 - `EXIST_DOMAIN` defaults to `<lan-ip-with-dashes>.nip.io`: public wildcard DNS that resolves on

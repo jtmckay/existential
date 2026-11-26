@@ -20,7 +20,9 @@ tiers, and the tier table below can no longer keep the stack consistent.
 ## One model address, OpenAI-compatible; the fleet routes by model
 
 `EXIST_MODEL_URL` is this host's model server, an **OpenAI-compatible base URL ending `/v1`**
-(default `http://ollama:11434/v1`). ollama, llama.cpp and Strata all answer it, so every caller
+(ships blank: no model yet, and `model_ready` is false; turning Ollama on fills
+`http://ollama:11434/v1`, `_ollama_model_url` in `src/templates.sh`). A hosted LLM, ollama,
+llama.cpp, Strata and the controller's `ai/model-gateway` all answer it, so every caller
 that sends a prompt speaks `/v1/chat/completions` and nothing else. Only ollama's own API —
 pulling, unloading, `/api/show`, `/api/ps`, its health probe — lives at the root (the URL less
 `/v1`), and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**. The key used to be
@@ -32,7 +34,10 @@ Spreading models across hosts is the fleet's job, not an address's: in decree sc
 service (`llm` or `strata`) whose offer lists the role's model (`EXIST_MODEL_CHAT`,
 `EXIST_MODEL_VISION`), takes that host's lease, and falls back to `model_url`
 (`EXIST_MODEL_URL`) when no host offers it. Apps that cannot lease (Home Assistant, Open WebUI,
-opencode) read `EXIST_MODEL_URL`.
+opencode) read `EXIST_MODEL_URL`; pointing it at the controller's gateway
+(`http://<controller>:4400/v1`) gives them the same leasing, since `gateway.ts` holds each call
+under `fleet_use` / `fleet_done`. A blank `EXIST_MODEL_CHAT` is the first model the URL lists
+(`model_first`, `/v1/models`).
 
 **A decree script reaches a model through `lib/model.sh`** (`model_chat`,
 `model_gate`), straight at the role's URL. Work that needs an agent with tools runs pi through
@@ -40,10 +45,11 @@ opencode) read `EXIST_MODEL_URL`.
 address, so pi cannot disagree with a script. `src/test/unit/test-model-client.sh` runs every prompt path
 against a stub that serves only `/v1`.
 
-**One secret, `EXIST_FLEET_SECRET`, for leases and models.** Generated in `.env.exist.shared`
-and the same on every host, it is the bearer for leases (decree-go-rest), sent by every model
-caller (`model_chat`, `ocr.ts`, pi, opencode, open-webui, Home Assistant), and Strata's
-`API_KEY`. ollama ignores it. It was `EXIST_MODEL_API_KEY` too until the two were merged.
+**`EXIST_MODEL_KEY` for `EXIST_MODEL_URL`, `EXIST_FLEET_SECRET` for the fleet.** `model_key`
+is `EXIST_MODEL_KEY` (a hosted LLM's API key), else the fleet secret, which the gateway and
+Strata take; every model caller sends it (`model_chat`, `ocr.ts`, pi, opencode, Home Assistant).
+A call under a fleet lease sends the fleet secret, the GPU host's key. `EXIST_FLEET_SECRET` is
+generated and the same on every host, the bearer for leases (decree-go-rest). ollama ignores both.
 
 **STT/TTS get no endpoint keys.** The wyoming services are CPU-only, so there is no VRAM to
 spread, and Home Assistant is told where they live in its own UI.
@@ -62,11 +68,11 @@ here knows what the model holds), and **`EXIST_VRAM_GB` is left untouched** — 
 says nothing about the card, and `EXIST_GPU_VENDOR` is already answered by then. Nothing
 validates the tag; only ollama can, and `run ollama pull-models` is where a bad one surfaces.
 
-`.env.exist.shared` ships the **default tier's model values (8 GB)** but ships `EXIST_VRAM_GB`
-**blank**. The blank is the record of not-yet-asked, and the first run asks only while it is
-empty — shipping a value there makes the question unreachable forever. A unit test asserts both
-that the shipped model values match the 8 GB tier and that `EXIST_VRAM_GB` is blank, so **edit
-the table, not the individual defaults**.
+`.env.exist.shared` ships **no model**: `EXIST_MODEL_CHAT`, `EXIST_MODEL_VISION`,
+`EXIST_MODEL_URL`, `EXIST_GPU_VENDOR` and `EXIST_VRAM_GB` blank, and the rest of what a tier sets
+(the context) at the **default tier's (8 GB)** values. The blank GPU answers are the record of
+not-yet-asked, and the question comes only while they are empty. A unit test asserts both, so
+**edit the table, not the individual defaults**.
 
 Every tier tag must satisfy three constraints (a hand-typed **Custom** model is the user's
 problem, not the table's — the same three still apply to it, and nothing checks them):

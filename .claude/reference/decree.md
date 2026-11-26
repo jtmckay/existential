@@ -202,9 +202,9 @@ One name space across both folders (validate conventions). A `decree_*` name in 
   `model_gate`), one answer from the role's OpenAI-compatible `/v1` URL; and
   `lib/agent.sh` (`agent`, `agent_ready`), Claude Code with tools through `ai`, from decree's
   official `decree_ai` plugin (`.decree/machines/decree_ai/scripts/ai.sh`), which the `agent` flow needs.
-  `automation`'s image ships `claude` (pinned, updater and telemetry off). It is
-  signed in once with `docker exec -it automation claude` and `/login`, which lives in
-  `/data`, or with `AUTOMATION_ANTHROPIC_API_KEY` / `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN`.
+  `automation`'s image ships `claude` (pinned, updater and telemetry off). It shares
+  code-server's login (`code_server_data/home/.claude`, mounted as its `CLAUDE_CONFIG_DIR`):
+  `/login` once in code-server's terminal signs in both, or `AUTOMATION_ANTHROPIC_API_KEY` / `AUTOMATION_CLAUDE_CODE_OAUTH_TOKEN`.
   Headless calls use `AUTOMATION_CLAUDE_PERMISSION_MODE`, default `auto`; notes, which
   Claude may not change, are mounted read-only. The workspace's `develop` writes a
   machine with Claude when `agent_ready`, else with the chat model, and tells it about

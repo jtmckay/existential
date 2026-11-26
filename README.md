@@ -41,20 +41,23 @@ an AI of your choice that can act on everything in it.
 
 ## 🚀 Quick start
 
-Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a machine to
-host it, this repo, and, for Core, [Tailscale](https://tailscale.com/download) logged in on that
-machine and on every device that should reach it. Core is then served over HTTPS on the
-machine's tailnet name, with no certificate to install anywhere. Without Tailscale, the Caddy
-add-on serves `https://<slug>.<domain>` on your network or
-[any VPN](https://existential.company/docs/hosting/vpn).
+Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo and a machine to
+host it. [Tailscale](https://tailscale.com/download) logged in on that machine is optional: with
+it, Core is served over HTTPS on the machine's tailnet name; without it, on your network over
+HTTP.
 
 ```bash
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # builds Core (or nothing), asks for a login
+./existential.sh            # asks nothing; prints your login and where Core is
 docker compose up -d
 ```
+
+Then point it at a model: in `.env.shared` set `EXIST_MODEL_URL` (any OpenAI-compatible `/v1`
+URL: a hosted LLM, or your existential controller, which leases a GPU host for each run of
+calls) and, for a hosted LLM, `EXIST_MODEL_KEY`. Run `./existential.sh && docker compose up -d`
+again. `EXIST_MODEL_CHAT` picks the model; blank is the first one the server lists.
 
 `./existential.sh` renders each enabled service's templates and merges them into one
 `docker-compose.yml` and one `.env` at the repo root. Always run compose from the root, never
@@ -65,14 +68,16 @@ from a service folder.
 ## What Core installs
 
 The first run builds **Core**: open the work dir, talk to an AI about it, have decree
-automate it. Three services on one ordinary box, no GPU and no model downloads, reached over
-Tailscale's own HTTPS from every device you log in.
+automate it. One ordinary box, no GPU, reached over Tailscale's own HTTPS from every device you
+log in, or over plain HTTP on your network without it.
 
 | | |
 |---|---|
-| [code-server](https://existential.company/docs/services/code-server) | The work dir in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
+| [code-server](https://existential.company/docs/services/code-server) | The work dir in a browser tab: editor, plus a terminal with `claude`, `opencode` and `pi` ready, and the decree skill |
 | [Decree](https://existential.company/docs/decree/) | The automation daemon: machines run on a schedule or an inbox message |
 | [ntfy](https://existential.company/docs/services/ntfy) | How an automation tells you it finished, failed or is waiting for you |
+| [Search](https://existential.company/docs/ai/qmd) | qmd over the whole work dir, a tool every agent has |
+| [Firecrawl](https://existential.company/docs/ai/firecrawl) | The web, searched and read, a tool every agent has |
 
 Everything else is an add-on, one flow or flag away: Caddy hostnames, monitoring, the webhook and
 Nextcloud for capture, apps, local AI, voice and the house.

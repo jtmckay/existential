@@ -60,33 +60,34 @@ model_tier_row "$MODEL_TIER_DEFAULT_GB" >/dev/null 2>&1 \
     && _ok "MODEL_TIER_DEFAULT_GB names a real tier" \
     || _fail "MODEL_TIER_DEFAULT_GB names a real tier" "no tier for '${MODEL_TIER_DEFAULT_GB}'"
 
-# .env.exist.shared ships the default tier's values. If they drift apart, a
-# non-interactive install silently gets different models than the picker's
-# default hands out.
+# .env.exist.shared ships no model: the tier table fills the model keys when a
+# local GPU is picked. The names ship blank (chat: the first model EXIST_MODEL_URL
+# lists; vision: off), and so do EXIST_VRAM_GB and EXIST_GPU_VENDOR, the record of
+# not having been asked. The rest of what a tier sets must agree with the default
+# tier, or a non-interactive install gets other values than the picker hands out.
 _shipped="${REPO_DIR}/.env.exist.shared"
 [[ -f "$_shipped" ]] || _shipped="/repo/.env.exist.shared"
 if [[ -f "$_shipped" ]]; then
-    _drift=""
+    _drift="" _filled=""
     while IFS='=' read -r _k _v; do
         [[ -n "$_k" ]] || continue
-        # EXIST_VRAM_GB is the record of HAVING BEEN ASKED, not a model value, so
-        # it ships blank on purpose — the first run asks only while it is empty.
-        # Asserting it against the default tier is what pinned it at 8 and made
-        # the question unreachable. The six model keys still have to agree.
-        [[ "$_k" == "EXIST_VRAM_GB" ]] && continue
         _shipped_v="$(grep -m1 "^${_k}=" "$_shipped" | cut -d= -f2-)"
-        [[ "$_shipped_v" == "$_v" ]] || _drift+="${_k} (ships '${_shipped_v}', tier says '${_v}') "
+        case "$_k" in
+            EXIST_VRAM_GB|EXIST_MODEL_CHAT|EXIST_MODEL_VISION) [[ -z "$_shipped_v" ]] || _filled+="${_k}=${_shipped_v} " ;;
+            *) [[ "$_shipped_v" == "$_v" ]] || _drift+="${_k} (ships '${_shipped_v}', tier says '${_v}') " ;;
+        esac
     done < <(model_tier_env "$MODEL_TIER_DEFAULT_GB")
+    for _k in EXIST_GPU_VENDOR EXIST_MODEL_URL; do
+        _shipped_v="$(grep -m1 "^${_k}=" "$_shipped" | cut -d= -f2-)"
+        [[ -z "$_shipped_v" ]] || _filled+="${_k}=${_shipped_v} "
+    done
 
-    # ...and the blankness itself is load-bearing, so assert it directly.
-    [[ -z "$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)" ]] \
-        && _ok "EXIST_VRAM_GB ships blank (so it gets asked)" \
-        || _fail "EXIST_VRAM_GB ships blank (so it gets asked)" \
-                 "ships '$(grep -m1 '^EXIST_VRAM_GB=' "$_shipped" | cut -d= -f2-)'"
-
+    [[ -z "$_filled" ]] \
+        && _ok "the model, its URL and the GPU answers ship blank" \
+        || _fail "the model, its URL and the GPU answers ship blank" "$_filled"
     [[ -z "$_drift" ]] \
-        && _ok ".env.exist.shared matches the default tier" \
-        || _fail ".env.exist.shared matches the default tier" "$_drift"
+        && _ok ".env.exist.shared matches the default tier elsewhere" \
+        || _fail ".env.exist.shared matches the default tier elsewhere" "$_drift"
 else
     _fail ".env.exist.shared matches the default tier" "could not find .env.exist.shared"
 fi

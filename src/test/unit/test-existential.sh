@@ -292,23 +292,19 @@ assert_output_contains "existential.sh --help → mentions reset" \
 
 # ── Section: _report_login — the end of a first run ──────────────────────────
 #
-# A first run where both defaults were accepted has to say what the username is
-# and where both live, next to ntfy's phone-app login — and never the password.
+# The first run made the login, so it says both and where they live, next to
+# ntfy's phone-app address.
 
 FAKE_LOGIN="$(make_fake_repo login)"
 printf 'EXIST_USERNAME=admin\nEXIST_PASSWORD=s3cretPassw0rdValue\nEXIST_IS_SERVICES_NTFY=true\nEXIST_TAILNET_NAME=box.tail1.ts.net\n' \
     > "${FAKE_LOGIN}/.env.shared"
 _login_out="$(_source_existential "$FAKE_LOGIN" "_report_login" 2>&1)"
-for _want in "admin" "EXIST_USERNAME in .env.shared" "EXIST_PASSWORD in .env.shared" \
-             "https://box.tail1.ts.net:8443" "services/ntfy/.env"; do
+# Nobody chose the password, so the first run prints it, once.
+for _want in "admin" "s3cretPassw0rdValue" "EXIST_USERNAME / EXIST_PASSWORD in .env.shared" \
+             "https://box.tail1.ts.net:8443"; do
     if grep -qF -- "$_want" <<<"$_login_out"; then _ok "_report_login names: ${_want}"
     else _fail "_report_login names: ${_want}" "$_login_out"; fi
 done
-if grep -qF "s3cretPassw0rdValue" <<<"$_login_out"; then
-    _fail "_report_login never prints the password" "$_login_out"
-else
-    _ok "_report_login never prints the password"
-fi
 
 # ── Section: _start_on_boot — the stack comes back after a reboot ────────────
 #
@@ -480,13 +476,13 @@ assert_exit "validate unknown-name → exit 1"         1 bash "$EXISTENTIAL" val
 echo ""
 echo "=== Core: membership ==="
 
-assert_eq "Core ships exactly its three services on" \
-    "EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_NTFY" \
+assert_eq "Core ships exactly its five services on" \
+    "EXIST_IS_AI_FIRECRAWL EXIST_IS_AI_QMD EXIST_IS_SERVICES_AUTOMATION EXIST_IS_SERVICES_CODE_SERVER EXIST_IS_SERVICES_NTFY" \
     "$(grep -oE '^EXIST_IS_[A-Z_]+=true' "${REPO}/.env.exist.shared" | cut -d= -f1 | sort | xargs)"
 _beyond_core="$(REPO_DIR="$REPO"; . "${REPO}/src/utils/flows.sh"
     for n in $(flow_defaults); do
         for f in $(flow_closure "$n"); do flow_list "$f" services; done
-    done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)' || true; } | sort -u | xargs)"
+    done | { grep -vxE 'EXIST_IS_SERVICES_(AUTOMATION|CODE_SERVER|NTFY)|EXIST_IS_AI_(QMD|FIRECRAWL)' || true; } | sort -u | xargs)"
 assert_eq "a flow every install starts with (plugins.exist.yml) needs nothing beyond Core" "" "$_beyond_core"
 
 # ── Image updates reach a rendered compose file ───────────────────────────────

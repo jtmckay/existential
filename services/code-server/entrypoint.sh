@@ -91,16 +91,8 @@ for extension in "${DEFAULT_EXTENSIONS[@]}"; do
     fi
 done
 
-# The two AI CLIs this terminal ships, for a person to drive (machines get
-# their own claude in the automation image). Installed into the persisted npm
-# prefix, so only the first boot pays for it; `npm i -g <pkg>` in the terminal
-# updates either in place.
-for _pkg in claude:@anthropic-ai/claude-code opencode:opencode-ai; do
-    if [[ ! -x "$NPM_BIN/${_pkg%%:*}" ]]; then
-        echo "[code-server] Installing ${_pkg#*:}..."
-        npm install -g "${_pkg#*:}"
-    fi
-done
+# claude, opencode and pi are baked into the image (/usr/local/bin); one you
+# `npm i -g` in the terminal lands in the persisted prefix above and wins.
 
 # opencode's provider is the stack's chat endpoint, resolved by model.sh like
 # every other container caller, and its tag. Rewritten every boot so a changed
@@ -109,23 +101,25 @@ done
 # ~/.config/opencode, so a person's settings there still win. share is off:
 # opencode sends nothing by default, but /share uploads a session to opncd.ai.
 _opencode_config() {
-    local url="$1" model="$2" plugin="${3:-}" search="${4:-}"
-    jq -n --arg url "$url" --arg model "$model" --arg plugin "$plugin" --arg search "$search" '{
+    local url="$1" model="$2" key="${3:-}" plugin="${4:-}" mcp="${5:-}"
+    [[ -n "$mcp" ]] || mcp='{}'
+    jq -n --arg url "$url" --arg model "$model" --arg key "${key:-none}" --arg plugin "$plugin" --argjson mcp "$mcp" '{
         "$schema": "https://opencode.ai/config.json",
         model: ("existential/" + $model),
         share: "disabled",
         plugin: (if $plugin == "" then [] else [$plugin] end),
-        mcp: (if $search == "" then {} else {qmd: {type: "remote", url: $search, enabled: true}} end),
+        mcp: ($mcp | map_values({type: "remote", url: ., enabled: true})),
         provider: {existential: {
             name: "existential",
             npm: "@ai-sdk/openai-compatible",
-            options: {baseURL: $url, apiKey: ((env.EXIST_FLEET_SECRET // "") | if . == "" then "none" else . end)},
+            options: {baseURL: $url, apiKey: $key},
             models: {($model): {name: $model}}
         }}
     }'
 }
-# What the decree daemon installs: the model, pi and capture plugins' lib
-# (the code-server-agents flow). Without them, what needs them is skipped.
+# What ./existential.sh installs into the workspace: the model and pi plugins' lib
+# (on by default) and capture's (the code-server-agents flow). Without one, what
+# needs it is skipped.
 _LIB=/workspace/.decree/lib
 # Capture (lib/capture/): what a person types into claude or opencode
 # is appended to workspace/.capture/. Claude Code's prompt hook goes into its
@@ -133,7 +127,7 @@ _LIB=/workspace/.decree/lib
 # CODE_SERVER_CAPTURE=false plus a recreate is the whole off switch. Never fatal.
 _capture_plugin=""
 if [[ ! -f "${_LIB}/capture/capture.sh" ]]; then
-    echo "[code-server] WARN: no capture plugin in the workspace (./existential.sh flow on code-server-agents)"
+    :   # capture is off until the code-server-agents flow is on
 elif [[ "${CODE_SERVER_CAPTURE:-true}" != false ]]; then
     bash "${_LIB}/capture/capture.sh" install /workspace >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not installed"
@@ -142,34 +136,44 @@ else
     bash "${_LIB}/capture/capture.sh" uninstall >/dev/null \
         || echo "[code-server] WARN: Claude Code capture hook not removed"
 fi
-# Search (ai/qmd, when EXIST_IS_AI_QMD is true): one index for
-# both CLIs. Claude Code gets it at user scope with its read-only tools allowed
-# without a prompt, plus the recall skill at the workspace root, which says when
-# and how to search; opencode gets it in the config below; the terminal gets a
-# `search` command (ai/qmd/recall/search.sh). Turning the add-on off
-# removes all of it on the next boot. Never fatal: search is optional.
-_search=""; [[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _search=http://qmd:8181/mcp
+# The add-ons' MCP servers, for both CLIs: search (ai/qmd) over the workspace and
+# the web through firecrawl, each when its add-on is on. Claude Code gets them at
+# user scope with their tools allowed without a prompt, plus the recall skill at
+# the workspace root, which says when and how to search; opencode gets them in its
+# config; the terminal gets a `search` command (ai/qmd/recall/search.sh). An
+# add-on turned off is removed on the next boot. Never fatal.
+_mcp='{}'
+[[ "${EXIST_IS_AI_QMD:-false}" == true ]] && _mcp="$(jq -c '. + {qmd: "http://qmd:8181/mcp"}' <<<"$_mcp")"
+[[ "${EXIST_IS_AI_FIRECRAWL:-false}" == true ]] && _mcp="$(jq -c '. + {firecrawl: "http://firecrawl-mcp:3003/mcp"}' <<<"$_mcp")"
 _claude_settings="${CLAUDE_CONFIG_DIR}/settings.json"
 {
-    "$NPM_BIN/claude" mcp remove qmd --scope user >/dev/null 2>&1 || true
     [[ -s "$_claude_settings" ]] || echo '{}' > "$_claude_settings"
-    jq --arg on "${_search:+1}" '.permissions.allow = (((.permissions.allow // []) - ["mcp__qmd"]) + (if $on == "1" then ["mcp__qmd"] else [] end))' \
+    for _name in qmd firecrawl; do
+        claude mcp remove "$_name" --scope user >/dev/null 2>&1 || true
+        _url="$(jq -r --arg n "$_name" '.[$n] // empty' <<<"$_mcp")"
+        [[ -z "$_url" ]] || claude mcp add --transport http --scope user "$_name" "$_url" >/dev/null
+    done
+    jq --argjson mcp "$_mcp" '.permissions.allow = (((.permissions.allow // []) - ["mcp__qmd", "mcp__firecrawl"]) + ($mcp | keys | map("mcp__" + .)))' \
         "$_claude_settings" > "$_claude_settings.tmp" && mv "$_claude_settings.tmp" "$_claude_settings"
-    if [[ -n "$_search" ]]; then
-        "$NPM_BIN/claude" mcp add --transport http --scope user qmd "$_search" >/dev/null
+    if [[ "${EXIST_IS_AI_QMD:-false}" == true ]]; then
         mkdir -p /workspace/.claude/skills/recall
         cp /opt/recall/SKILL.md /workspace/.claude/skills/recall/SKILL.md
         ln -sfn /opt/recall/search.sh "$NPM_BIN/search"
     else
         rm -rf /workspace/.claude/skills/recall "$NPM_BIN/search"
     fi
-} || echo "[code-server] WARN: search (ai/qmd) not wired into Claude Code"
-if [[ -f "${_LIB}/model.sh" ]]; then
+} || echo "[code-server] WARN: MCP servers (qmd, firecrawl) not wired into Claude Code"
+if [[ ! -f "${_LIB}/model.sh" ]]; then
+    echo "[code-server] WARN: no model lib in the workspace (is automation on?), so opencode is not configured"
+else
     # shellcheck source=/dev/null
     . "${_LIB}/model.sh"
-    _opencode_config "$(model_url chat)" "${EXIST_MODEL_CHAT:-}" "$_capture_plugin" "$_search" > "$INSTALL_PREFIX/opencode.json"
-else
-    echo "[code-server] WARN: no model plugin in the workspace, so opencode is not configured (./existential.sh flow on code-server-agents)"
+    if [[ -z "$(model_url)" ]]; then
+        rm -f "$INSTALL_PREFIX/opencode.json"
+        echo "[code-server] no model yet: set EXIST_MODEL_URL (and EXIST_MODEL_KEY) in .env.shared for opencode and pi"
+    else
+        _opencode_config "$(model_url)" "$(model_tag chat)" "$(model_key)" "$_capture_plugin" "$_mcp" > "$INSTALL_PREFIX/opencode.json"
+    fi
 fi
 
 # `python` for the tools that assume it; the image ships python3 only. PATH

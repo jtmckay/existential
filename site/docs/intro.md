@@ -69,29 +69,33 @@ Which projects provide each piece: [Services](./how-it-works.md).
 
 ## What Core installs
 
-The first `./existential.sh` builds **Core**. No GPU, no model downloads. Tailscale gives it
-HTTPS on every device you log in.
+The first `./existential.sh` builds **Core**. No GPU. Tailscale gives it HTTPS on every device
+you log in; without it, it is on your network over HTTP.
 
 | | |
 |---|---|
-| [code-server](./services/code-server.md) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude` and `opencode` ready |
+| [code-server](./services/code-server.md) | Your work dir, `workspace/`, in a browser tab: editor, plus a terminal with `claude`, `opencode` and `pi` ready, and the decree skill |
 | [Decree](./decree/decree.md) | Runs the automations in `workspace/.decree/` on a schedule or an inbox message |
 | [ntfy](./services/ntfy.md) | How an automation tells you it finished, failed or is waiting for you |
+| [Search](./ai/qmd.md) | qmd over the whole work dir, a tool every agent has |
+| [Firecrawl](./ai/firecrawl.md) | The web, searched and read, a tool every agent has |
 
 Everything else is an add-on, one flow or one flag away: [Services](./how-it-works.md).
 
 ## Try it
 
-Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo, a computer to
-host it, this repo, and, for Core, [Tailscale](https://tailscale.com/download) logged in on that
-machine and on every device that should reach it.
+Prerequisites: [Docker](https://www.docker.com/get-started/) usable without sudo and a computer
+to host it. [Tailscale](https://tailscale.com/download) is optional: it gives Core HTTPS.
 
 ```bash
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # builds Core (or nothing), asks for a login
+./existential.sh            # asks nothing; prints your login and where Core is
 docker compose up -d
 ```
+
+Then set `EXIST_MODEL_URL` (and, for a hosted LLM, `EXIST_MODEL_KEY`) in `.env.shared`, and run
+both again.
 
 Full walkthrough in [Getting Started](./getting-started.md).

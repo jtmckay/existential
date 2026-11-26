@@ -41,7 +41,8 @@ x-exist-lib:
     source /work/.decree/lib/model.sh
     # The fleet's vision model under its lease, else EXIST_MODEL_URL.
     model_base vision
-    _text=$(MODEL_URL="$MODEL_BASE" /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
+    _key="$(model_key)"; [ -z "$MODEL_SERVICE" ] || _key="${EXIST_FLEET_SECRET:-}"
+    _text=$(MODEL_URL="$MODEL_BASE" MODEL_API_KEY="$_key" /work/.decree/lib/node_modules/.bin/tsx /work/.decree/lib/ocr.ts "$PROMPT")
     [ -z "$MODEL_SERVICE" ] || fleet_done "$MODEL_SERVICE"
 
     printf '%s' "$_text" | rclone rcat "$_output_path" \
@@ -117,7 +118,7 @@ x-exist-lib:
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(process.env.EXIST_FLEET_SECRET && { Authorization: `Bearer ${process.env.EXIST_FLEET_SECRET}` }),
+          ...(process.env.MODEL_API_KEY && { Authorization: `Bearer ${process.env.MODEL_API_KEY}` }),
         },
         body: JSON.stringify({
           model,

@@ -39,9 +39,9 @@ if [[ "${FILE_HANDLERS:-}" == 1 && -d /workspace/.decree ]]; then
 fi
 
 # pi's provider and MCP servers (lib/pi.sh), rewritten every boot so a
-# changed chat endpoint or a disabled add-on follows. Only where a chat model is
-# named: automation-backup runs no agent.
-if [[ -n "${EXIST_MODEL_CHAT:-}" && -f .decree/lib/pi.sh ]]; then
+# changed chat endpoint or a disabled add-on follows. Only where pi is installed:
+# automation-backup runs no agent.
+if [[ -f .decree/lib/pi.sh ]]; then
   ( . .decree/lib/pi.sh && pi_configure ) || echo "[entrypoint] pi not configured" >&2
 fi
 

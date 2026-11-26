@@ -38,8 +38,9 @@ x-exist-lib:
             [[ -s "$dir/$f" ]] || echo '{}' > "$dir/$f"
         done
 
-        jq --arg url "$(model_url chat)" --arg model "${EXIST_MODEL_CHAT:-}" \
-           --arg key "${EXIST_FLEET_SECRET:-none}" \
+        local model key; model="$(model_tag chat)"; key="$(model_key)"
+        jq --arg url "$(model_url)" --arg model "$model" \
+           --arg key "${key:-none}" \
            --argjson ctx "${EXIST_MODEL_CHAT_NUM_CTX:-65536}" '
             .providers.existential = {
                 baseUrl: $url, api: "openai-completions", apiKey: $key,
@@ -59,7 +60,7 @@ x-exist-lib:
             ' "$dir/mcp.json" > "$dir/mcp.json.tmp" && mv "$dir/mcp.json.tmp" "$dir/mcp.json"
 
         # Telemetry ships off; the stack's model is the default for a bare `pi`.
-        jq --arg model "${EXIST_MODEL_CHAT:-}" '.enableInstallTelemetry = false
+        jq --arg model "$model" '.enableInstallTelemetry = false
             | .defaultProvider //= "existential" | .defaultModel //= $model' \
             "$dir/settings.json" > "$dir/settings.json.tmp" && mv "$dir/settings.json.tmp" "$dir/settings.json"
     }
@@ -94,11 +95,12 @@ x-exist-lib:
         if [ -n "${FLEET_TOKEN:-}" ]; then
             run_dir="$(mktemp -d)"
             cp -R "$dir/." "$run_dir/"
-            jq --arg url "$MODEL_BASE" '.providers.existential.baseUrl = $url' "$dir/models.json" > "$run_dir/models.json"
+            jq --arg url "$MODEL_BASE" --arg key "${EXIST_FLEET_SECRET:-none}" '.providers.existential.baseUrl = $url
+                | .providers.existential.apiKey = $key' "$dir/models.json" > "$run_dir/models.json"
         fi
         ( cd "${AUTOMATIONS_WORKSPACE:-/workspace}" \
             && PI_CODING_AGENT_DIR="${run_dir:-$dir}" timeout "${PI_TIMEOUT:-900}" pi -p --no-session --offline \
-                --provider existential --model "${EXIST_MODEL_CHAT:-}" "${args[@]}" \
+                --provider existential --model "$(model_tag chat)" "${args[@]}" \
                 --append-system-prompt "$system" -- "$prompt" ) || rc=$?
         [ -z "$run_dir" ] || rm -rf "$run_dir"
         [ -z "$MODEL_SERVICE" ] || fleet_done "$MODEL_SERVICE"

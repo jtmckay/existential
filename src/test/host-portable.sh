@@ -67,13 +67,26 @@ assert_eq "...and written to .env.shared" "EXIST_LOCAL_HOST_IP=$ip" "$(grep '^EX
 assert_eq "...with a nip.io domain from it" "EXIST_DOMAIN=${ip//./-}.nip.io" "$(grep '^EXIST_DOMAIN=' .env.shared)"
 assert_eq "...leaving no sed backup behind" "no" "$([[ -e .env.shared.bak ]] && echo yes || echo no)"
 out="$(es 'tailscale() { echo "{\"BackendState\":\"NeedsLogin\"}"; }; _tailscale_serve_core; echo "rc=$?"')"
-assert_has "a logged-out Tailscale is a next step, not a failure" "$out" "rc=0"
+assert_has "a logged-out Tailscale is a next step, and serves nothing" "$out" "rc=1"
+out="$(es '_core_bind 0.0.0.0')"
+assert_eq "...so Core listens on the network" "EXIST_CORE_BIND=0.0.0.0" "$(grep '^EXIST_CORE_BIND=' .env.shared)"
+assert_has "...and says where" "$out" ":42080"
+es '_core_bind 127.0.0.1' >/dev/null
+assert_eq "Tailscale serving it puts it back on loopback" "EXIST_CORE_BIND=127.0.0.1" "$(grep '^EXIST_CORE_BIND=' .env.shared)"
+# The decree image: pulled when CI published this exact build context, else built.
+out="$(es 'stub() { echo "$*" >> .stub-docker; case "$1 $2" in "image inspect") return 1 ;; "pull -q") [[ "$3" == *":$(adhoc_context_hash)" ]] ;; esac; }; DOCKER_CMD=stub; ensure_adhoc_built; cat .stub-docker')"
+rm -f .stub-docker
+assert_has "a published image of this context is pulled" "$out" "pull -q ghcr.io/jtmckay/existential-decree:"
+assert_has "...tagged as the local image" "$out" "tag ghcr.io/jtmckay/existential-decree:"
+assert_eq "...and nothing is built" "" "$(grep 'compose' <<<"$out")"
+out="$(es 'stub() { echo "$*" >> .stub-docker; case "$1 $2" in "image inspect") return 1 ;; "pull -q") return 1 ;; esac; }; DOCKER_CMD=stub; ensure_adhoc_built; cat .stub-docker')"
+rm -f .stub-docker
+assert_has "no published image: it is built here" "$out" "compose -f"
 t0=$SECONDS
 es 'timeout 1 sleep 5' >/dev/null
 assert_eq "timeout stops a command" "yes" "$([[ $((SECONDS - t0)) -lt 4 ]] && echo yes || echo no)"
 
 echo ""; echo "=== a worker without docker ==="
-assert_eq "the first run's question is core with no terminal" "core" "$(es _ask_role </dev/null)"
 assert_eq "adhoc never passes -it, which podman-compose does not have" "0" "$(grep -c 'tty_flags=(-it)' src/utils/adhoc.sh)"
 out="$(es 'command() { [[ "$2" == yq ]] && return 1; builtin command "$@"; }; _worker_needs; echo "rc=$?"')"
 assert_has "a missing tool is named" "$out" "yq is not here"

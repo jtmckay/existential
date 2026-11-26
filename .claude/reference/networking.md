@@ -5,12 +5,15 @@ There are two paths to a browser, and **Core uses Tailscale**.
 **Core: `tailscale serve` on the tailnet name.** Core's two web apps need a certificate every
 device already trusts (code-server's webviews and the ntfy phone app refuse a warning), and a
 private CA means a root install on every device. So code-server and ntfy publish
-`127.0.0.1:42080` / `127.0.0.1:44680` — loopback only, nothing in Core listens on the LAN — and
+`${EXIST_CORE_BIND}:42080` / `:44680`. While Tailscale serves them that is `127.0.0.1`, and
+nothing in Core listens on the LAN; when it cannot (`_tailscale_serve_core` returns 1: no
+binary, not logged in, no HTTPS, no operator), `_core_bind` sets `0.0.0.0` and prints the LAN
+addresses, so a fresh install is reachable either way (behind the login; webviews need HTTPS). And
 `_tailscale_serve_core` in `existential.sh` puts them on `https://<host>.<tailnet>.ts.net` and
 `:8443` with `tailscale serve --bg` (persists across reboots; re-setting a port replaces its
 handler, and it skips one already set). It fills `EXIST_TAILNET_NAME` once serving works (fill
 only); ntfy's entrypoint builds its base URL from it and the digest links to it. It **never runs
-sudo and never fails**: no binary, not logged in, MagicDNS/HTTPS off (`CertDomains` empty) or
+sudo and never fails the run**: not logged in, MagicDNS/HTTPS off (`CertDomains` empty) or
 no operator (`sudo tailscale set --operator=$USER`) each print the next step and the run goes on.
 `src/test/unit/test-remote-access.sh` drives it against a stub `tailscale`. Serve gives one
 hostname per node, so it stays Core's two apps on two ports; per-service tailscale sidecars

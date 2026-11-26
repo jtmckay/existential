@@ -12,11 +12,10 @@ services:
           memory: 64M
     networks:
       - exist
-    # Loopback only: nothing in Core listens on the LAN. existential.sh puts
-    # this behind `tailscale serve` at https://<machine>.<tailnet>.ts.net:8443;
-    # the Caddy add-on reaches the container over the exist network instead.
+    # EXIST_CORE_BIND: loopback behind `tailscale serve` (https://<machine>.<tailnet>.ts.net:8443),
+    # or the LAN when Tailscale cannot serve it (existential.sh sets it).
     ports:
-      - "127.0.0.1:44680:80"
+      - "${EXIST_CORE_BIND:-127.0.0.1}:44680:80"
     # entrypoint.sh creates the admin and bot users from the env below, then
     # execs `ntfy serve`. server.yml denies every publish by default, so without
     # it a fresh install would accept nothing.
