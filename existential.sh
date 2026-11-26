@@ -407,7 +407,29 @@ _start_on_boot() {
 # The host's plugins (the repo's own .decree: none, by default) at this checkout's
 # version, then whether a decree daemon is there to run them. Nothing starts one
 # for you: it has to start at boot, which is the host's to set up.
+# True when a flow that is on runs on the host (x-exist-project: host), read from
+# automation/plugins.yml (its first copy, before there is one) with no yq: the host
+# project is not part of Core, and is left alone until one is.
+_host_flows_on() {
+    local f="${SCRIPT_DIR}/automation/plugins.yml" n p
+    [[ -f "$f" ]] || f="${SCRIPT_DIR}/automation/plugins.exist.yml"
+    for n in $(awk '/^on:[[:space:]]*\[/ { sub(/^on:[[:space:]]*\[/, ""); sub(/\].*/, ""); gsub(/,/, " "); print; next }
+                   /^on:/ { o = 1; next } o && /^[^[:space:]-]/ { o = 0 }
+                   o && /^[[:space:]]*-/ { sub(/^[[:space:]]*-[[:space:]]*/, ""); sub(/[[:space:]#].*/, ""); print }' "$f" 2>/dev/null); do
+        for p in "${SCRIPT_DIR}/automation/plugins/${n}.md" "${SCRIPT_DIR}/automation/plugins/flows/${n}.md"; do
+            [[ -f "$p" ]] || continue
+            awk '/^---$/ { if (++d == 2) exit; next } d != 1 { next }
+                 /^x-exist-project:/ { l = 1; if ($2 == "host") h = 1; next }
+                 l && /^[[:space:]]+-/ { if ($2 == "host") h = 1; next } { l = 0 }
+                 END { exit !h }' "$p" && return 0
+        done
+    done
+    return 1
+}
+
 _host_plugins() {
+    # Nothing for the host on, and nothing an earlier sync left to take back out.
+    _host_flows_on || [[ -s "${SCRIPT_DIR}/.decree/plugins/.existential" ]] || return 0
     local want; want="$(sed -n 's/^ARG DECREE_TAG=v//p' "${SCRIPT_DIR}/services/automation/decree/Dockerfile")"
     # A daemon on another decree would lose what it runs (update, reporting) to a sync
     # for this one: the project is left as it is until the host has this checkout's decree.

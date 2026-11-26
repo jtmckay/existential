@@ -60,10 +60,12 @@ One name space across both folders (validate conventions). A `decree_*` name in 
 
 - **What is on is one file**: `automation/plugins.yml` (`on:`, `auto_update`; gitignored),
   written the first time from `automation/plugins.exist.yml`, which is what every install
-  starts with: `note-to-automation`, `clean-runs` and `health-checks`, and nothing else.
+  starts with: `note-to-automation`, `clean-runs`, `health-checks` and `pi`, and nothing else.
   **Opt-in is the rule**: every other flow, in every project, is off until a person turns it
-  on. `clean-runs` (decree's `decree_prune`) is tagged for all three projects; on the host it asks for
-  no daemon (`_host_plugins` does not count it). An install from when each project had its
+  on. `clean-runs` (decree's `decree_prune`) is tagged for `automation` and `backup`;
+  **the host's project is not Core**, so each host flow `needs: decree_prune` itself, and
+  `_host_plugins` syncs the host only when a host flow is on (`_host_flows_on`) or an earlier
+  sync left plugins there to take out. An install from when each project had its
   own list has them folded in once (`plugins_seed` in `src/utils/flows.sh`, awk: a worker with
   no engine runs it), and one from before any list keeps what it had (`plugin.sh seed`).
   A project has exactly what `on:` lists for it plus everything that `needs:`.

@@ -132,8 +132,9 @@ an automation writes where its own handler does not match (agent output in `work
 Nextcloud's file events are an optional second path. User-facing detail:
 `site/docs/decree/file-handlers.md`.
 
-- `.decree/` = the **host's** decree project, run by a decree daemon on the host: host plugins
-  like `pull_existential` and `report_host`, and the machines that develop this repo (`repo_develop` and
+- `.decree/` = the **host's** decree project, run by a decree daemon on the host. **Not part of
+  Core:** nothing Core turns on is tagged for it, and `./existential.sh` leaves it alone until a
+  host flow is on (each needs its own `decree_prune`). Host plugins like `pull_existential` and `report_host`, and the machines that develop this repo (`repo_develop` and
   `repo_qa`, extending `decree_develop` and `decree_qa`: host plugins too, off until turned
   on). Tracked there: only `machines/repo_develop/order/` (the repo's migrations, as order
   files), `machines/repo_develop/state/order.git.txt` (which ran) and `.gitignore`.

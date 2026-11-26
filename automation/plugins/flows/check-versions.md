@@ -6,6 +6,7 @@ x-exist-docs: /docs/hosting/updates#pinned-images
 x-exist-project: host
 needs:
   - check_versions
+  - decree_prune   # the host's runs, pruned like every project's (clean-runs is not the host's)
 cron:
   check-versions.md: |
     ---

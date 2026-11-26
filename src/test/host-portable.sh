@@ -73,6 +73,16 @@ assert_eq "...so Core listens on the network" "EXIST_CORE_BIND=0.0.0.0" "$(grep 
 assert_has "...and says where" "$out" ":42080"
 es '_core_bind 127.0.0.1' >/dev/null
 assert_eq "Tailscale serving it puts it back on loopback" "EXIST_CORE_BIND=127.0.0.1" "$(grep '^EXIST_CORE_BIND=' .env.shared)"
+# The host's decree project is not Core: untouched until a flow for the host is on.
+rm -f automation/plugins.yml
+assert_eq "Core turns on no flow for the host" "no" "$(es '_host_flows_on && echo yes || echo no')"
+assert_eq "...so the host sync does not run" "" "$(es 'run_adhoc() { echo synced; }; _host_plugins')"
+printf 'on:\n  - clean-runs\n  - report-host  # mine\n' > automation/plugins.yml
+assert_eq "a host flow on, listed" "yes" "$(es '_host_flows_on && echo yes || echo no')"
+printf 'on: [pi, report-host]\n' > automation/plugins.yml
+assert_eq "...or inline" "yes" "$(es '_host_flows_on && echo yes || echo no')"
+rm -f automation/plugins.yml
+
 # The decree image: pulled when CI published this exact build context, else built.
 out="$(es 'stub() { echo "$*" >> .stub-docker; case "$1 $2" in "image inspect") return 1 ;; "pull -q") [[ "$3" == *":$(adhoc_context_hash)" ]] ;; esac; }; DOCKER_CMD=stub; ensure_adhoc_built; cat .stub-docker')"
 rm -f .stub-docker
@@ -183,8 +193,8 @@ fi
 # A host whose daemon runs another decree: a sync would take what that daemon runs.
 printf '#!/bin/sh\necho "decree 0.5.0"\n' > "${R}/.stub/decree"; chmod +x "${R}/.stub/decree"
 : > "${R}/.stub/asked"
-out="$(es 'PATH="${R}/.stub:${PATH}"; DOCKER_CMD=docker; _host_plugins')"
-assert_has "a host on another decree is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
+out="$(es '_host_flows_on() { return 0; }; PATH="${R}/.stub:${PATH}"; DOCKER_CMD=docker; _host_plugins')"
+assert_has "a host on another decree, with a host flow on, is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
 assert_eq "...and its project is not synced" "" "$(grep 'sync host' "${R}/.stub/asked")"
 rm -f "${R}/.stub/decree"
 

@@ -6,6 +6,7 @@ x-exist-docs: /docs/hosting/controller-and-workers
 x-exist-project: host
 needs:
   - report_host
+  - decree_prune   # the host's runs, pruned like every project's (clean-runs is not the host's)
 ---
 It runs in a decree daemon on the host (the repo's own .decree): start one, and have it start at boot,
 as https://existential.company/docs/hosting/host-daemon says.

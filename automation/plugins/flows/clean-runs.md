@@ -3,7 +3,6 @@ name: clean-runs
 x-exist-project:
   - automation
   - backup
-  - host
 x-exist-title: Clean runs
 x-exist-tagline: Prune decree's finished run logs after 30 days, so runs/ never fills the disk
 x-exist-docs: /docs/flows#housekeeping

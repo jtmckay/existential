@@ -6,6 +6,7 @@ x-exist-docs: /docs/hosting/ai-box
 x-exist-project: host
 needs:
   - lease_gpu
+  - decree_prune   # the host's runs, pruned like every project's (clean-runs is not the host's)
 ---
 It runs in the host daemon of the box with the GPU (see the host daemon docs).
 In .decree/.env on that box, set AI_BOX_TTS_COMMAND to the command that runs your TTS server,

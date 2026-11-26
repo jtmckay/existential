@@ -33,7 +33,7 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 |---|---|---|
 | `you-were-here` | Every morning, yesterday in one notification | a chat model |
 | `look-back` | The week and the month in review, next to your notes | a chat model |
-| `clean-runs` | Prunes decree's finished run logs after 30 days, the host daemon's too. **On by default** | — |
+| `clean-runs` | Prunes decree's finished run logs after 30 days. **On by default** | — |
 | `health-checks` | Probes a service every 15 minutes, and tells your phone when it stops. **On by default** | — |
 | `note-to-automation` | [Write "next time X, do Y" in a note](./note-to-automation.md), review what is built, install it, and it runs. **On by default** | a chat model |
 | `capture-stream` | What you type to an agent, and anything you POST, in one stream in `workspace/.capture/` | — |
@@ -79,7 +79,7 @@ turns on, and any step only you can do. What you have on is one list, `automatio
 
 ### Housekeeping
 
-- **`clean-runs`** (decree's `decree_prune`) prunes finished runs in `workspace/.decree/runs/`, and in automation-backup's and the host daemon's when those run (logs also go to Loki when it's on).
+- **`clean-runs`** (decree's `decree_prune`) prunes finished runs in `workspace/.decree/runs/`, and in automation-backup's when it runs (logs also go to Loki when it's on). A host flow prunes the host daemon's runs itself.
 - **`health-checks`** probes ntfy. For another service, copy its cron,
   `workspace/.decree/machines/flow_health_checks/cron/health-checks.md`, into a
   [schedules plugin of your own](../plugins/writing-a-plugin.md#cron--on-a-schedule) as
