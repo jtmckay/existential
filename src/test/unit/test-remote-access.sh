@@ -74,7 +74,7 @@ RUNNING="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"
 NO_HTTPS="{\"BackendState\": \"Running\", \"Self\": {\"DNSName\": \"${TS_NAME}.\"}, \"CertDomains\": null}"
 
 printf 'EXIST_IS_SERVICES_CODE_SERVER=true\nEXIST_IS_SERVICES_NTFY=true\nEXIST_IS_HOSTING_LOKI=true\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"
-# This host is the controller: report_host on, no EXIST_CONTROLLER, Loki on.
+# A controller: report_host on, no EXIST_CONTROLLER, Loki on (which tailscale never serves).
 mkdir -p "$WORK/.decree/plugins"; echo report_host > "$WORK/.decree/plugins/.on"
 cp "$WORK/.env.shared" "$WORK/env.fresh"
 
@@ -82,7 +82,7 @@ cp "$WORK/.env.shared" "$WORK/env.fresh"
 _serve() {
     local rc=0
     ( set -euo pipefail
-      eval "$(awk '/^_sed_i\(\)/; /^_is_worker\(\)/,/^}/; /^_is_controller\(\)/,/^}/; /^_tailscale_serve_core\(\)/,/^}/; /^_tailscale_serve_steps\(\)/,/^}/' "${REPO_DIR}/existential.sh")"
+      eval "$(awk '/^_sed_i\(\)/; /^_is_worker\(\)/,/^}/; /^_tailscale_serve_core\(\)/,/^}/; /^_tailscale_serve_steps\(\)/,/^}/' "${REPO_DIR}/existential.sh")"
       PATH="$1"; SCRIPT_DIR="$WORK"
       _tailscale_serve_core ) 2>&1 || rc=$?
     echo "rc=$rc"
@@ -118,18 +118,12 @@ status="$(TS_STATE="$TS_STATE" "$WORK/bin/tailscale" serve status --json)"
 _has "serve status: code-server on 443" "$status" "\"${TS_NAME}:443\": {\"Handlers\": {\"/\": {\"Proxy\": \"http://127.0.0.1:42080\"}}}"
 _has "serve status: ntfy on 8443" "$status" "\"${TS_NAME}:8443\": {\"Handlers\": {\"/\": {\"Proxy\": \"http://127.0.0.1:44680\"}}}"
 calls="$(cat "$TS_CALLS" 2>/dev/null | wc -l | tr -d " ")"
-[[ "$calls" == 4 ]] && _ok "two runs set each port once" || _fail "two runs set each port once" "$(cat "$TS_CALLS")"
-_has "a controller serves its answer to workers on 4480, as http" "$status" "\"${TS_NAME}:4480\": {\"Handlers\": {\"/\": {\"Path\": \"$WORK/.decree/exist.json\"}}}"
-_has "...which exists before anything asks" "$(cat "$WORK/.decree/exist.json" 2>/dev/null)" "{}"
+[[ "$calls" == 2 ]] && _ok "two runs set each port once" || _fail "two runs set each port once" "$(cat "$TS_CALLS")"
+_lacks "Loki is never on the tailnet: workers report over HTTPS, through Caddy" "$(cat "$TS_CALLS")" "3100"
+_lacks "...and no controller answer on 4480" "$(cat "$TS_CALLS")" "4480"
 _has "uses --bg, which persists across reboots" "$(cat "$TS_CALLS")" "serve --bg --https=443 http://127.0.0.1:42080"
 _has "EXIST_TAILNET_NAME is filled in" "$(cat "$WORK/.env.shared")" "EXIST_TAILNET_NAME=${TS_NAME}"
 [[ ! -e "$WORK/sudo-ran" ]] && _ok "never runs sudo" || _fail "never runs sudo"
-
-# Loki on: its push port on 3100, plain http on the tailnet, for every host to report to.
-printf 'EXIST_IS_HOSTING_LOKI=true\nEXIST_CONTROLLER=ctl\nEXIST_TAILNET_NAME=\n' > "$WORK/.env.shared"; rm -f "$TS_STATE" "$TS_CALLS"
-out="$(TS_STATUS="$RUNNING" _serve "$WORK/bin:$WORK/nobin")"
-_has "Loki is served on 3100 over http" "$(cat "$TS_CALLS")" "serve --bg --http=3100 http://127.0.0.1:43100"
-_lacks "a worker with a controller answers no one: no 4480" "$(cat "$TS_CALLS")" "4480"
 
 # Not a worker, no web app enabled: nothing to say.
 printf 'EXIST_IS_SERVICES_AUTOMATION=true\n' > "$WORK/.env.shared"; rm -f "$WORK/.decree/plugins/.on"

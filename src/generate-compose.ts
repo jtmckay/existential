@@ -599,15 +599,6 @@ const LOG_CAP = { driver: 'json-file', options: { 'max-size': '10m', 'max-file':
 
 // ── Master .env generation ─────────────────────────────────────────────────────
 
-// The controller's answer (.decree/exist.json, served on :4480): another host's copy
-// is .decree/controller.json, the controller's own is .decree/exist.json.
-function controllerAnswer(repoRoot: string): { loki?: string; domain?: string } {
-  for (const f of ['controller.json', 'exist.json']) {
-    try { return JSON.parse(fs.readFileSync(path.join(repoRoot, '.decree', f), 'utf8')); } catch { /* next */ }
-  }
-  return {};
-}
-
 // Every service's slug: each folder that ships a compose template.
 function allServiceSlugs(repoRoot: string): Set<string> {
   const slugs = new Set<string>();
@@ -621,25 +612,27 @@ function allServiceSlugs(repoRoot: string): Set<string> {
 }
 
 // A service that is off here is the controller's: an address naming its
-// container (http://ollama:11434/v1) becomes https://<slug>.<domain>/v1, the
-// controller's domain. ntfy is the one exception: with none here, EXIST_NTFY_URL
-// becomes a Loki push address (loki by the same rule), notify.sh pushes there,
-// and the controller's notify-relay publishes to its ntfy, so no ntfy password
-// leaves the controller. Anything else, your own https://... included, is left as it is.
+// container (http://ollama:11434/v1) becomes https://<slug>.<domain>/v1, where
+// <domain> is EXIST_CONTROLLER, the controller's domain, served by its Caddy. ntfy is
+// the one exception: with none here, EXIST_NTFY_URL becomes the controller's Loki push
+// address, through its gateway, notify.sh pushes there, and the controller's notify-relay
+// publishes to its ntfy, so no ntfy password leaves the controller. Anything else,
+// your own https://... included, is left as it is.
 function resolveOffServices(
-  merged: Record<string, string>, here: Set<string>, all: Set<string>, ctl: { loki?: string; domain?: string },
+  merged: Record<string, string>, here: Set<string>, all: Set<string>, domain: string,
 ): void {
-  const push = '/loki/api/v1/push';
-  if (!here.has('ntfy') && /^http:\/\/ntfy[:/]/.test(merged.EXIST_NTFY_URL ?? '')) {
-    merged.EXIST_NTFY_URL = here.has('loki') || ctl.domain ? `http://loki:3100${push}`
-      : ctl.loki ? `${ctl.loki.replace(/\/$/, '')}${push}` : merged.EXIST_NTFY_URL;
+  // Loki here, else the controller's, behind its gateway (Loki has no login of its own):
+  // http://model-gateway:4400, rewritten below to https://model-gateway.<domain>.
+  const loki = here.has('loki') ? 'http://loki:3100' : domain ? 'http://model-gateway:4400' : '';
+  if (!here.has('ntfy') && loki && /^http:\/\/ntfy[:/]/.test(merged.EXIST_NTFY_URL ?? '')) {
+    merged.EXIST_NTFY_URL = `${loki}/loki/api/v1/push`;
   }
-  // Where every host's offers are, for the fleet lib: this host's Loki, else the controller's.
-  merged.EXIST_FLEET_LOKI = here.has('loki') ? 'http://loki:3100' : (ctl.loki ?? '').replace(/\/$/, '');
-  if (!ctl.domain) return;
+  // Where every host's offers are, for the fleet lib.
+  merged.EXIST_FLEET_LOKI = loki;
+  if (!domain) return;
   for (const [k, v] of Object.entries(merged)) {
     const m = v.match(/^http:\/\/([a-z0-9-]+)(?::\d+)?(\/.*)?$/);
-    if (m && all.has(m[1]) && !here.has(m[1])) merged[k] = `https://${m[1]}.${ctl.domain}${m[2] ?? ''}`;
+    if (m && all.has(m[1]) && !here.has(m[1])) merged[k] = `https://${m[1]}.${domain}${m[2] ?? ''}`;
   }
 }
 
@@ -650,7 +643,9 @@ function mergeEnv(repoRoot: string, enabled: string[]): void {
     ...enabled.map(r => path.join(repoRoot, r, '.env')),
   ];
   for (const p of paths) Object.assign(merged, loadEnv(p));
-  resolveOffServices(merged, new Set(enabled.map(r => path.basename(r))), allServiceSlugs(repoRoot), controllerAnswer(repoRoot));
+  resolveOffServices(merged, new Set(enabled.map(r => path.basename(r))), allServiceSlugs(repoRoot),
+    // An address names no domain: nothing is resolved until it is one.
+    /^[0-9.]*$/.test(merged.EXIST_CONTROLLER ?? '') ? '' : merged.EXIST_CONTROLLER);
 
   const header = [
     '# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n',

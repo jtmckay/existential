@@ -59,9 +59,6 @@ again changes nothing; run it after moving the checkout, since the unit names it
 `./existential.sh` offers the same install, with Enter, on any run where a host plugin is on and
 no daemon runs, and warns when one runs but nothing would start it after a reboot.
 
-An install from before the host's project was the checkout's `.decree` ran this daemon in
-`host/`. `./existential.sh` moves what was there and stops that daemon: run `install` again.
-
 ## When decree's version changes
 
 A pull that pins a new decree leaves the host's `.decree` as it is, so the daemon you have

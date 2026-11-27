@@ -83,6 +83,15 @@ firecrawl.{$CADDY_DOMAIN} {
   }
 }
 
+# The controller, for every other host, and only with the fleet secret: the fleet's models
+# (/v1), fleet_gpu.md, and its Loki's push and query paths (Loki has no login), where reports,
+# runs, offers and notify from a host with ntfy off land (site/docs/hosting/controller-and-workers.md).
+model-gateway.{$CADDY_DOMAIN} {
+  import internal_tls
+  import error_handling
+  reverse_proxy model-gateway:4400
+}
+
 ollama.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
@@ -180,14 +189,6 @@ grafana.{$CADDY_DOMAIN} {
   import internal_tls
   import error_handling
   reverse_proxy grafana:3000
-}
-
-# Other hosts push here: reports, and notify from a host with ntfy off, which the
-# controller relays to ntfy (site/docs/hosting/controller-and-workers.md).
-loki.{$CADDY_DOMAIN} {
-  import internal_tls
-  import error_handling
-  reverse_proxy loki:3100
 }
 
 pihole.{$CADDY_DOMAIN} {

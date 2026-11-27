@@ -10,7 +10,7 @@
 //   POST /v1/...      to the host serving body.model (blank: the first one offered)
 //   GET  /plugins/fleet_gpu.md   the fleet lib as a decree plugin, for a project of your own
 //   *    /loki/api/v1/{push,query_range,labels,status/buildinfo}   this host's Loki, for the
-//                     hosts on your own network (Loki itself listens on loopback only)
+//                     other hosts, as https://model-gateway.<domain> through Caddy (Loki has no login)
 //   GET  /health, /ready   200, for the healthcheck; /ready is Loki's
 //
 // Everything else takes the fleet secret as its key. It reads nothing of the host's, and
@@ -108,12 +108,12 @@ asking the fleet's controller, and used under that host's lease.
 
 In \`.decree/.env\`:
 
-    EXIST_CONTROLLER=<the controller's address>
+    EXIST_CONTROLLER=<the controller's domain>
     EXIST_FLEET_SECRET=<the fleet's secret>
 
 Installed, and updated, from the project's root:
 
-    set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md" | decree install -
+    set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "https://model-gateway.$EXIST_CONTROLLER/plugins/fleet_gpu.md" | decree install -
 
 In a script:
 

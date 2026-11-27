@@ -8,8 +8,6 @@
 #   list      every plugin, what is on and what is on because something needs it
 #   off       out of the list; it, and each need nothing on needs, removed
 #   yours     a plugin file of yours stays, and gets the repo plugins it needs
-#   migrate   an older install's lists (what its sync wrote) become .on, and the
-#             cron files a flow installed move to the machine that runs them
 #   topics    every ntfy topic used is in the Topics table, and every one there is used
 #
 # Runs src/plugins.sh against a scratch repo: the shipped plugins and the real
@@ -37,7 +35,6 @@ mkdir -p "${R}/src/utils" "${R}/automation"
 cp -r "${REPO_DIR}/automation/plugins" "${REPO_DIR}/automation/lib" "${R}/automation/"
 cp "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${R}/automation/"
 cp "${SRC_DIR}/plugins.sh" "${R}/src/"
-cp "${SRC_DIR}/utils/migrate.sh" "${R}/src/utils/"
 D="${R}/volumes/workspace_data/.decree"
 mkdir -p "$D"; cp "${REPO_DIR}/automation/decree-go-rest.exist.yml" "${D}/decree-go-rest.yml"
 
@@ -103,24 +100,6 @@ plug sync automation >/dev/null
 assert_eq "a plugin file of yours stays" "yes" "$(is_file "${D}/plugins/mine.md")"
 assert_eq "...and gets the repo plugin it needs (transcribe's lib)" "yes" "$(is_file "${D}/lib/file-processors/whisperx-transcribe.sh")"
 assert_lacks "...and is not in file_advise's list of the repo's" "$(cut -f1 "${D}/plugins.tsv")" "mine"
-
-echo ""; echo "=== migrate ==="
-O="${TMP}/old"; OD="${O}/volumes/workspace_data/.decree"
-mkdir -p "${O}/automation" "${OD}/plugins" "${OD}/machines/flow_you_were_here/cron" "${O}/.decree/plugins"
-cp -r "${REPO_DIR}/automation/plugins" "${O}/automation/"
-printf 'flow_you_were_here\nflow_clean_runs\nnotify\nskill\nyou_were_here\nflow_model\n' > "${OD}/plugins/.existential"
-printf -- '---\ncron: "30 6 * * *"\nmachine: you_were_here\n---\nmine, edited\n' > "${OD}/machines/flow_you_were_here/cron/you-were-here.md"
-touch "${OD}/plugins/flow_clean_runs.md" "${OD}/flows.tsv"
-printf 'flow_worker\nreporting\n' > "${O}/.decree/plugins/.existential"
-printf 'on:\n  - you-were-here\n' > "${O}/automation/plugins.yml"
-assert_has "a sync before the migration says to run ./existential.sh" \
-    "$(cd "$O/volumes/workspace_data" && bash -c 'source "$1"; plugin_sync "$2" automation' _ "${R}/automation/lib/plugin.sh" "${O}/automation/plugins" 2>&1)" "run ./existential.sh once first"
-( SCRIPT_DIR="$O"; . "${R}/src/utils/migrate.sh"; _plugins_on ) >/dev/null
-assert_eq "what the old sync wrote is on, a flow's lib by its plugin's name" "you_were_here model" "$(on_list "$OD")"
-assert_eq "...an old name by its new one, the host's too" "report_host" "$(on_list "${O}/.decree")"
-assert_eq "a flow's cron file moves to the machine it runs, edits and all" "mine, edited" "$(tail -1 "${OD}/machines/you_were_here/cron/you-were-here.md" 2>/dev/null)"
-assert_eq "the old list, the flows' files and their list for file_advise go" "no" "$( [[ -e "${OD}/plugins/.existential" || -e "${OD}/plugins/flow_clean_runs.md" || -e "${OD}/flows.tsv" ]] && echo yes || echo no)"
-assert_eq "plugins.yml goes to archive/" "no yes" "$(is_file "${O}/automation/plugins.yml") $(ls "${O}"/archive/plugins-*.yml >/dev/null 2>&1 && echo yes || echo no)"
 
 echo ""; echo "=== topics ==="
 # ntfy topics: the table on the ntfy docs page is the list, and every sender names one in it.

@@ -182,9 +182,9 @@ What it changes, in `src/generate-compose.ts`:
 
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
   works. ntfy and the digest's links use it. See [Core over Tailscale](./networking.md#core-over-tailscale).
-- **`EXIST_CONTROLLER`**: with `report_host` on, the controller this host reports to, its
-  tailnet name, 100.x address, or address on your own network. Blank, this host is the
-  controller, and has Loki on. See [Controller and Workers](./hosting/controller-and-workers.md).
+- **`EXIST_CONTROLLER`**: with `report_host` on, the controller this host reports to: its
+  domain (its `EXIST_DOMAIN`), as reports go to `https://model-gateway.<domain>`; never an address.
+  Blank, this host is the controller, and has Loki on. See [Controller and Workers](./hosting/controller-and-workers.md).
 - **`EXIST_FLEET_SECRET`**: the same on every host; the secret for leasing another host's GPU
   ([Leases](./hosting/controller-and-workers.md#leases)) and every model call. Generated on the
   first run; copy the controller's to every other host (`fleet join` does).

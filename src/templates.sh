@@ -426,24 +426,6 @@ _compose_always_render() {
 # src/test/unit/check-drift.ts.
 _RECONCILE_MARKER="Added by ./existential.sh — new keys from the template"
 
-# _renamed_value <new key> <dst> — the value an existing install set under the
-# key's old name, on stdout; fails when there is none. EXIST_MODEL_URL replaced
-# EXIST_OLLAMA_URL, which held ollama's root rather than its OpenAI /v1 base. The
-# speech services' keys were .env.shared's (./existential.sh drops those after).
-_renamed_value() {
-    local key="$1" dst="$2" old v from="$2"
-    case "$key" in
-        EXIST_MODEL_URL) old="EXIST_OLLAMA_URL" ;;
-        WYOMING_WHISPER_MODEL) old="EXIST_MODEL_STT" from="${REPO_DIR}/.env.shared" ;;
-        WYOMING_WHISPER_LANGUAGE) old="EXIST_MODEL_STT_LANGUAGE" from="${REPO_DIR}/.env.shared" ;;
-        WYOMING_PIPER_VOICE) old="EXIST_MODEL_TTS_VOICE" from="${REPO_DIR}/.env.shared" ;;
-        *) return 1 ;;
-    esac
-    v="$(sed -n "s/^${old}=//p" "$from" 2>/dev/null | tail -1)"
-    [[ -n "$v" ]] || return 1
-    if [[ "$key" == EXIST_MODEL_URL ]]; then v="${v%/}"; printf '%s/v1\n' "${v%/v1}"; else printf '%s\n' "$v"; fi
-}
-
 # Key-level upgrade path for rendered .env files.
 #
 # A rendered destination is written once and never again (_process_one_template),
@@ -466,10 +448,6 @@ _renamed_value() {
 # New keys arrive with their placeholders resolved by render_template itself
 # rather than by a second implementation here — that is the whole reason this
 # renders the full template and then throws away all but the missing keys.
-#
-# A renamed key arrives as a new one, so it would land with the template default
-# and silently undo what the user set under the old name. _renamed_value carries
-# the old value across instead.
 _reconcile_env_keys() {
     local src="$1" dst="$2"
     [[ -f "$src" && -f "$dst" ]] || return 0
@@ -522,8 +500,6 @@ _reconcile_env_keys() {
         if [[ "$_tpl_line" == *EXIST_CLI* ]]; then
             _line="${k}="
             _needs+=" ${k}"
-        elif _line="$(_renamed_value "$k" "$dst")"; then
-            _line="${k}=${_line}"
         else
             _line="$(grep -m1 "^${k}=" <<<"$rendered" || true)"
             [[ -n "$_line" ]] || continue

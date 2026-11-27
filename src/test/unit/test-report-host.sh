@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# test-report-host.sh — the report_host plugin sends this host to the Loki its
-# controller names, with curl stubbed (the push body is kept, the controller's
-# answer is a file):
+# test-report-host.sh — the report_host plugin sends this host to its controller's
+# Loki, https://model-gateway.<EXIST_CONTROLLER>, with curl stubbed (the push body is kept):
 #
-#   worker      asks the controller, sends disks, load and machines, and starts
-#               alloy (tmux stubbed) to ship the runs to that Loki
+#   worker      sends disks, load and machines over HTTPS with the fleet secret, and
+#               starts alloy (tmux stubbed) to ship the runs to that Loki
 #   again       alloy, already running, is left alone
-#   away        the controller does not answer: the Loki it gave last time is used
-#   nowhere     the controller, naming no Loki: nothing is sent, and the run is still done
-#   controller  no EXIST_CONTROLLER: this is it, and reads .decree/exist.json itself;
-#               a new Loki restarts alloy
+#   address     EXIST_CONTROLLER an address, not a domain: nothing is sent, and it fails
+#   nowhere     no controller and no Loki: nothing is sent, and the run is still done
+#   controller  no EXIST_CONTROLLER, Loki on: its own Loki on loopback; a new Loki
+#               restarts alloy
 #   no alloy    still done, and it says the runs are not shipped
 #
 # Everything is written under a temp dir, removed in the trap.
@@ -39,11 +38,9 @@ printf '{"type":"transition","machine":"notify"}\n{"type":"run_finished","machin
 printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.jsonl"
 ( source "${REPO_DIR}/automation/lib/plugin.sh"
   plugin_unpack report_host "${I}" ) >/dev/null
-printf 'EXIST_CONTROLLER=ctl\nEXIST_FLEET_SECRET=s3cret\n' > "${I}/.env.shared"
+printf 'EXIST_CONTROLLER=ctl.example\nEXIST_FLEET_SECRET=s3cret\n' > "${I}/.env.shared"
 
-# curl: a GET of the controller prints $TMP/answer (fails without one); its Loki behind the
-# gateway on 4400 answers when $TMP/lan exists; a header file is kept in $TMP/header; a push
-# keeps its body in $TMP/body.
+# curl: a header file is kept in $TMP/header; a push keeps its body in $TMP/body.
 mkdir -p "${TMP}/bin"
 cat > "${TMP}/bin/curl" <<EOF
 #!/usr/bin/env bash
@@ -52,11 +49,9 @@ for a in "\$@"; do
     case "\$prev|\$a" in
         -H\|@*) cp "\${a#@}" "${TMP}/header" ;;
         *\|@*) cp "\${a#@}" "${TMP}/body"; echo "\${@: -1}" > "${TMP}/pushed-to"; exit 0 ;;
-        *\|*:4400/*) [[ -f "${TMP}/lan" ]]; exit \$? ;;
     esac
     prev="\$a"
 done
-[[ -f "${TMP}/answer" ]] && cat "${TMP}/answer" || exit 7
 EOF
 chmod +x "${TMP}/bin/curl"
 
@@ -103,10 +98,11 @@ field() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p"; }
 lines() { yq -p json -o yaml -r ".streams[] | select(.stream.kind == \"$1\") | .values[][1]" "${TMP}/body" 2>/dev/null; }
 
 echo ""; echo "=== worker ==="
-echo '{"loki": "http://loki-box:3100"}' > "${TMP}/answer"
 out="$(report)"; rc=$?
 assert_eq "it ends done" "0" "$rc"
-assert_eq "it pushes to the Loki the controller names" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "it pushes to the controller's Loki, over HTTPS through its Caddy" "https://model-gateway.ctl.example/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "...with the fleet secret as the key, from a file" "Authorization: Bearer s3cret" "$(cat "${TMP}/header" 2>/dev/null)"
+assert_eq "...which only its owner reads" "600" "$(stat -c %a "${I}/.decree/machines/report_host/state/loki-header" 2>/dev/null || stat -f %Lp "${I}/.decree/machines/report_host/state/loki-header")"
 assert_eq "the body is JSON Loki takes" "ok" "$(yq -p json -o yaml '.streams[0].stream.job' "${TMP}/body" >/dev/null 2>&1 && echo ok)"
 assert_has "every line names this host" "$(yq -p json -o yaml -r '.streams[].stream.host' "${TMP}/body" | sort -u)" "$(hostname -s 2>/dev/null || hostname)"
 assert_eq "a line per installed machine, in every project" "look_back notify report_host" "$(lines machine | field machine | sort | xargs)"
@@ -121,7 +117,7 @@ assert_eq ".../ among them, by that name" "/" "$(lines disk | field mount | grep
 assert_has "its CPU and RAM" "$(lines load)" '"mem_total_kb":'
 assert_eq "it starts alloy, once" "1" "$(started)"
 assert_has "...in its own tmux session" "$(cat "${TMP}/tmux")" "-s reporting-alloy"
-assert_has "...shipping to the same Loki" "$(cat "${TMP}/tmux")" "EXIST_LOKI='http://loki-box:3100/loki/api/v1/push'"
+assert_has "...shipping to the same Loki" "$(cat "${TMP}/tmux")" "EXIST_LOKI='https://model-gateway.ctl.example/loki/api/v1/push'"
 assert_has "...this install's runs" "$(cat "${TMP}/tmux")" "EXIST_REPO='$(cd "$I" && pwd)'"
 assert_has "...with the config the plugin ships" "$(cat "${TMP}/tmux")" "'.decree/lib/reporting/decree.alloy'"
 assert_has "it says so" "$out" "runs shipped live by alloy"
@@ -134,38 +130,29 @@ report >/dev/null
 assert_eq "alloy, running, is left alone" "1" "$(started)"
 assert_eq "...and the machines are sent every time" "3" "$(lines machine | wc -l | tr -d ' ')"
 
-echo ""; echo "=== away ==="
-rm -f "${TMP}/answer"
-report >/dev/null
-assert_eq "an unreachable controller: the Loki it gave last time" "http://loki-box:3100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
-
-echo ""; echo "=== your own network ==="
-find "${I}/.decree/machines/report_host/state/" -mindepth 1 -delete
-touch "${TMP}/lan"
-report >/dev/null
-assert_eq "no answer on 4480: the controller's Loki through its gateway on 4400" "http://ctl:4400/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
-assert_eq "...with the fleet secret as the key, from a file" "Authorization: Bearer s3cret" "$(cat "${TMP}/header" 2>/dev/null)"
-assert_eq "...which only its owner reads" "600" "$(stat -c %a "${I}/.decree/machines/report_host/state/loki-header" 2>/dev/null || stat -f %Lp "${I}/.decree/machines/report_host/state/loki-header")"
-rm -f "${TMP}/lan"
+echo ""; echo "=== address ==="
+printf 'EXIST_CONTROLLER=192.168.1.10\nEXIST_FLEET_SECRET=s3cret\n' > "${I}/.env.shared"
+out="$(report)"; rc=$?
+assert_eq "an address, not a domain: it fails" "1" "$rc"
+assert_eq "...and nothing is sent, the secret least of all" "no" "$([[ -f "${TMP}/body" ]] && echo yes || echo no)"
+assert_has "...and it says why" "$out" "is an address"
 
 echo ""; echo "=== nowhere ==="
 find "${I}/.decree/machines/report_host/state/" -mindepth 1 -delete
 printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
 out="$(report)"; rc=$?
-assert_eq "no Loki named: still done" "0" "$rc"
+assert_eq "no controller named: still done" "0" "$rc"
 assert_eq "...and nothing sent" "no" "$([[ -f "${TMP}/body" ]] && echo yes || echo no)"
-assert_has "...and it says why" "$out" "no Loki named"
+assert_has "...and it says why" "$out" "no controller named"
 
 echo ""; echo "=== controller ==="
-printf 'EXIST_CONTROLLER=\n' > "${I}/.env.shared"
-echo '{"loki":"http://127.0.0.1:43100"}' > "${I}/.decree/exist.json"
+printf 'EXIST_CONTROLLER=\nEXIST_IS_HOSTING_LOKI=true\n' > "${I}/.env.shared"
 report >/dev/null
-assert_eq "a controller reads .decree/exist.json" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
-assert_eq "...and pushes its answer, for a host on your own network" '{"loki":"http://127.0.0.1:43100"}' "$(lines answer)"
+assert_eq "a controller pushes to its own Loki, on loopback" "http://127.0.0.1:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
 assert_eq "...and a new Loki restarts alloy" "kill" "$(tail -2 "${TMP}/tmux" | head -1)"
 assert_has "...on that Loki" "$(tail -1 "${TMP}/tmux")" "EXIST_LOKI='http://127.0.0.1:43100/loki/api/v1/push'"
 assert_eq "no ntfy here: no notify-relay" "0" "$(grep -c 's notify-relay' "${TMP}/tmux")"
-printf 'EXIST_CONTROLLER=\nEXIST_IS_SERVICES_NTFY=true\n' > "${I}/.env.shared"
+printf 'EXIST_CONTROLLER=\nEXIST_IS_HOSTING_LOKI=true\nEXIST_IS_SERVICES_NTFY=true\n' > "${I}/.env.shared"
 report >/dev/null
 assert_has "the controller with ntfy starts notify-relay" "$(cat "${TMP}/tmux")" "-s notify-relay"
 assert_has "...with the relay the plugin ships" "$(cat "${TMP}/tmux")" "'.decree/lib/reporting/relay.sh'"

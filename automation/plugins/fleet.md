@@ -29,15 +29,15 @@ x-exist-lib:
     #   fleet_answer <offer> <id> <release|renew>
     #
     # Env: EXIST_FLEET_SECRET (every host's decree-go-rest takes it, and the controller's
-    # gateway, in front of its Loki on your own network) and EXIST_CONTROLLER (its Loki holds
-    # the offers, at :4400/loki; the stack sets EXIST_FLEET_LOKI instead), FLEET_HOLDER
+    # gateway, in front of its Loki) and EXIST_CONTROLLER (the controller's domain: its Loki,
+    # which holds the offers, is https://model-gateway.<that>; the stack sets EXIST_FLEET_LOKI instead), FLEET_HOLDER
     # (default this host's name), FLEET_STATE_DIR.
     # Needs curl and jq. bash 3.2: the host's `./existential.sh run peers` sources it too.
 
     FLEET_IDLE="${FLEET_IDLE:-5}"
     FLEET_STATE_DIR="${FLEET_STATE_DIR:-${TMPDIR:-/tmp}/fleet}"
 
-    _fleet_loki() { echo "${EXIST_FLEET_LOKI:-${EXIST_CONTROLLER:+http://${EXIST_CONTROLLER}:4400}}"; }
+    _fleet_loki() { echo "${EXIST_FLEET_LOKI:-${EXIST_CONTROLLER:+https://model-gateway.${EXIST_CONTROLLER}}}"; }
     fleet_on() { [ -n "${EXIST_FLEET_SECRET:-}" ] && [ -n "$(_fleet_loki)" ]; }
 
     fleet_offers() {

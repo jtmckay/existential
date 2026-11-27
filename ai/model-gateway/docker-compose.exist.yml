@@ -4,8 +4,8 @@
 # model-gateway — the controller's model endpoint: an OpenAI-compatible /v1 that
 # leases whichever GPU host offers the model a call names. Turned on by
 # `./existential.sh run fleet controller`; every host then sets
-# EXIST_MODEL_URL=http://<controller>:4400/v1 and leaves EXIST_MODEL_KEY blank (the
-# fleet secret is the key).
+# EXIST_MODEL_URL=https://model-gateway.<controller's domain>/v1 and leaves EXIST_MODEL_KEY
+# blank (the fleet secret is the key).
 
 services:
   model-gateway:
@@ -30,10 +30,9 @@ services:
     entrypoint: ["/opt/decree/node_modules/.bin/tsx", "/gateway.ts"]
     networks:
       - exist
-    # On the network: every host's clients call it, and the hosts on your own network reach
-    # this host's Loki through it (/loki/...). The fleet secret is its key.
-    ports:
-      - "${MODEL_GATEWAY_BIND:-0.0.0.0}:4400:4400"
+    # No port: the other hosts reach it over HTTPS, through Caddy, as
+    # https://model-gateway.<domain>, this host's Loki (/loki/...) included.
+    # The fleet secret is its key.
     environment:
       - EXIST_FLEET_SECRET=${EXIST_FLEET_SECRET:-}
       # Where the offers are: this host's Loki (the controller's).

@@ -37,11 +37,6 @@ if [[ -f "${SCRIPT_DIR}/src/utils/service-common.sh" ]]; then
     # shellcheck source=src/utils/service-common.sh
     . "${SCRIPT_DIR}/src/utils/service-common.sh"
 fi
-# What an older install needs once (_migrate, _rename_machines); a fresh clone, nothing.
-if [[ -f "${SCRIPT_DIR}/src/utils/migrate.sh" ]]; then
-    # shellcheck source=src/utils/migrate.sh
-    . "${SCRIPT_DIR}/src/utils/migrate.sh"
-fi
 
 # The PATH your shell gave us, before the line below adds to it: _check_local_bin reads it.
 _SHELL_PATH="$PATH"
@@ -203,10 +198,8 @@ _core_bind() {
 # publish. tailscaled keeps a `--bg` config across reboots, and setting a port
 # again replaces its handler, so a re-run never stacks a second one.
 #
-# Reporting rides the same tailnet, as plain http (WireGuard already encrypts it,
-# and a worker may know its controller by 100.x address, which no cert names): a
-# controller serves .decree/exist.json on 4480, the answer to "where do I report?",
-# and any machine with Loki on serves its push port on 3100.
+# Reporting is not served here: a worker reports to https://model-gateway.<the controller's
+# domain>, through the controller's Caddy (site/docs/hosting/controller-and-workers.md).
 #
 # Never sudo, never fail: whatever is missing is printed as the next step and the
 # run carries on. EXIST_TAILNET_NAME is only ever filled in, like EXIST_DOMAIN.
@@ -215,12 +208,6 @@ _tailscale_serve_core() {
     local -a serves=()
     grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" 2>/dev/null && serves+=("https 443 http://127.0.0.1:42080")
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("https 8443 http://127.0.0.1:44680")
-    grep -q '^EXIST_IS_HOSTING_LOKI=true' "$f" 2>/dev/null && serves+=("http 3100 http://127.0.0.1:43100")
-    if _is_controller; then
-        mkdir -p "${SCRIPT_DIR}/.decree"
-        [[ -f "${SCRIPT_DIR}/.decree/exist.json" ]] || echo '{}' > "${SCRIPT_DIR}/.decree/exist.json"
-        serves+=("http 4480 ${SCRIPT_DIR}/.decree/exist.json")
-    fi
     [[ ${#serves[@]} -gt 0 ]] || return 0
 
     echo ""
@@ -245,8 +232,7 @@ _tailscale_serve_core() {
 
     for s in "${serves[@]}"; do
         read -r scheme port target <<<"$s"
-        kind=Proxy; [[ "$target" == /* ]] && kind=Path
-        [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"${kind}\":\"${target}\""* ]] && continue
+        [[ "$serving" == *"\"${name}:${port}\":{\"Handlers\":{\"/\":{\"Proxy\":\"${target}\""* ]] && continue
         if ! out=$(timeout 30 tailscale serve --bg --"${scheme}"="$port" "$target" </dev/null 2>&1); then
             _tailscale_serve_steps "$out"
             return 1
@@ -259,67 +245,15 @@ _tailscale_serve_core() {
     echo "Core is served over Tailscale (HTTPS, trusted on every device in your tailnet):"
     [[ " ${serves[*]} " == *" 443 "* ]] && echo "  code-server  https://${name}"
     [[ " ${serves[*]} " == *" 8443 "* ]] && echo "  ntfy         https://${name}:8443"
-    [[ " ${serves[*]} " == *" 3100 "* ]] && echo "  Loki         http://${name}:3100   (where machines report)"
-    [[ " ${serves[*]} " == *" 4480 "* ]] && echo "  controller   http://${name}:4480   (workers ask here where to report)"
     return 0
 }
 
-# A worker is a host whose decree has report_host on, in the host project's list of
-# what is on (or, until _migrate turns it into that list, in what an older sync wrote).
-# Its EXIST_CONTROLLER names the controller it reports to. The controller is the host
-# with Loki on and no EXIST_CONTROLLER: where the reports land. It runs nothing on the host
-# itself; it reports itself only if it is also made a worker (plugin on report_host).
+# A worker is a host whose decree has report_host on, in the host project's list of what is on.
+# Its EXIST_CONTROLLER is the controller's domain: it reports to https://model-gateway.<that>, through
+# the controller's Caddy. The controller is the host with Loki on and no EXIST_CONTROLLER.
 _is_worker() {
-    grep -qxE 'report_host|reporting' "${SCRIPT_DIR}/.decree/plugins/.on" "${SCRIPT_DIR}/.decree/plugins/.existential" 2>/dev/null
+    grep -qxF report_host "${SCRIPT_DIR}/.decree/plugins/.on" 2>/dev/null
 }
-_is_controller() {
-    ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null &&
-        grep -q '^EXIST_IS_HOSTING_LOKI=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
-}
-
-
-# The controller's answer to "where do I report?", .decree/exist.json, served on 4480
-# (_tailscale_serve_core) and read by the reporting plugin on every worker: the
-# controller's own Loki. Any other host has none, so it never answers for one.
-_controller_answer() {
-    local f="${SCRIPT_DIR}/.env.shared" url name domain
-    _is_controller || { rm -f "${SCRIPT_DIR}/.decree/exist.json"; return 0; }
-    name=$(grep -m1 '^EXIST_TAILNET_NAME=' "$f" 2>/dev/null | cut -d= -f2-) || true
-    if [[ -n "$name" ]]; then url="http://${name}:3100"; else url="http://127.0.0.1:43100"; fi
-    # Its domain: where a service another host has off is found (https://<slug>.<domain>).
-    domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2-) || true
-    mkdir -p "${SCRIPT_DIR}/.decree"
-    printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
-}
-
-# The fleet secret as a header, for curl -H @- (never on a command line, where ps shows it).
-_fleet_header() {
-    printf 'Authorization: Bearer %s\n' "$(grep -m1 '^EXIST_FLEET_SECRET=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)"
-}
-
-# Another host's copy of its controller's answer, .decree/controller.json, for
-# generate-compose's .env (the controller reads its own .decree/exist.json). The
-# last answer stays while the controller is away.
-_controller_fetch() {
-    local ctl ans
-    ctl=$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
-    [[ -n "$ctl" ]] || return 0
-    ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null)" || true
-    # Without Tailscale, on your own network: the controller's Loki, behind its gateway on
-    # 4400 (the fleet secret is the key), holds its answer (reporting pushes it as
-    # kind=answer); with none yet, that Loki is the answer.
-    if [[ "$ans" != "{"* ]] && _fleet_header | curl -fsS --max-time 5 -o /dev/null -H @- "http://${ctl}:4400/loki/api/v1/status/buildinfo" 2>/dev/null; then
-        ans="$(_fleet_header | curl -fsSG --max-time 10 -H @- "http://${ctl}:4400/loki/api/v1/query_range" \
-            --data-urlencode 'query={job="exist", kind="answer"}' --data-urlencode direction=backward \
-            --data-urlencode limit=1 --data-urlencode "start=$(( $(date +%s) - 86400 ))000000000" 2>/dev/null |
-            sed -n 's/.*"values":\[\["[0-9]*","\({.*}\)"\]\].*/\1/p' | sed 's/\\"/"/g' |
-            sed "s#\"loki\":\"[^\"]*\"#\"loki\":\"http://${ctl}:4400\"#")" || true
-        [[ "$ans" == "{"* ]] || ans="{\"loki\":\"http://${ctl}:4400\",\"domain\":\"\"}"
-    fi
-    if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/.decree"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/.decree/controller.json"
-    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480 or :4400; using its last answer, if any."; fi
-}
-
 _tailscale_serve_steps() {
     echo "  ⚠  Tailscale can't serve Core over HTTPS yet. Do this once, then re-run ./existential.sh:"
     [[ -n "$1" ]] && head -3 <<<"$1" | sed "s/^/       /"
@@ -565,9 +499,9 @@ _worker_without_engine() {
     if [[ ! -f "$f" ]]; then
         echo "A worker runs no containers: this host reports itself to a controller, with its own tools."
         if [[ -t 0 ]]; then
-            echo "Which host is the controller? This worker sends its reports there."
-            echo "Give its Tailscale name (e.g. myserver) or IP address. Leave it blank to skip for now;"
-            echo "you can set EXIST_CONTROLLER in .env.shared later."
+            echo "Which host is the controller? This worker sends its reports there, over HTTPS."
+            echo "Give its domain, EXIST_DOMAIN on the controller (e.g. home.example.com). Leave it blank"
+            echo "to skip for now; you can set EXIST_CONTROLLER in .env.shared later."
             read -r -p "Controller: " ctl || true
             [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || ctl=""
         fi
@@ -585,10 +519,7 @@ _worker_without_engine() {
         echo "    Or, to make this host a worker only, set each EXIST_IS_*=true there to false."
         return 1
     fi
-    _controller_answer
     _build
-    # The controller's answer, on 4480 or (your own network) from its Loki; it warns when neither answers.
-    _controller_fetch
     _worker_summary
 }
 
@@ -599,8 +530,9 @@ _worker_summary() {
     ctl="$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)" || true
     echo ""
     echo "This worker:"
-    if [[ -n "$ctl" ]]; then echo "  ✓ reports to ${ctl}"
-    else echo "  ✗ names no controller: set EXIST_CONTROLLER= in .env.shared (its Tailscale name or address)"; fi
+    if [[ "$ctl" =~ ^[0-9.]+$ ]]; then echo "  ✗ EXIST_CONTROLLER=${ctl} is an address: set it to the controller's domain (its EXIST_DOMAIN)"
+    elif [[ -n "$ctl" ]]; then echo "  ✓ reports to https://model-gateway.${ctl}"
+    else echo "  ✗ names no controller: set EXIST_CONTROLLER= in .env.shared (the controller's EXIST_DOMAIN)"; fi
     if command -v alloy >/dev/null 2>&1; then echo "  ✓ ships its decree runs (alloy)"
     else echo "  ⚠  sends reports but not its decree runs until alloy is here: ./existential.sh offers it"; fi
     bash "${SCRIPT_DIR}/src/lib/host-daemon.sh" status | tail -n +2
@@ -784,15 +716,10 @@ _host_role() {
     echo "$r"
 }
 
-# Into .env.shared once it exists, and only where it is blank. An install from before the
-# question gets what it already is: a worker with no services worker, anything else core.
+# Into .env.shared once it exists, and only where it is blank. A worker never gets here.
 _record_role() {
-    local f="${SCRIPT_DIR}/.env.shared" r="$1"
+    local f="${SCRIPT_DIR}/.env.shared" r="${1:-core}"
     [[ -f "$f" ]] || return 0
-    if [[ -z "$r" ]]; then
-        if _is_worker && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f"; then r=worker
-        else r=core; fi
-    fi
     if grep -q '^EXIST_HOST_ROLE=$' "$f"; then _sed_i "s|^EXIST_HOST_ROLE=\$|EXIST_HOST_ROLE=${r}|" "$f"
     elif ! grep -q '^EXIST_HOST_ROLE=' "$f"; then printf 'EXIST_HOST_ROLE=%s\n' "$r" >> "$f"; fi
     rm -f "${SCRIPT_DIR}/.env.role"
@@ -1164,15 +1091,12 @@ _nas_read_only() {
 
 # Everything after rendering: ids, Tailscale, the compose file, setup scripts.
 _build() {
-    _migrate
     _offer_image_updates
     _ensure_host_ids
     if ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null; then
         echo ""
         _host_plugins
-        _rename_machines
         if _is_worker; then
-            _controller_answer
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
             echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'nowhere: set EXIST_CONTROLLER in .env.shared')."
         else
@@ -1182,8 +1106,6 @@ _build() {
         return 0
     fi
     if _tailscale_serve_core; then _core_bind 127.0.0.1; else _core_bind 0.0.0.0; fi
-    _controller_answer
-    _controller_fetch
     _start_on_boot
     _check_nas || exit 1
     echo ""
@@ -1192,7 +1114,6 @@ _build() {
     _warn_if_no_gateway
     run_initials
     _host_plugins
-    _rename_machines
     _stage_images
     echo "Done! Next step:  docker compose up -d"
     _report_dashboard

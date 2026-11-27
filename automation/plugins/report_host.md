@@ -5,7 +5,7 @@ x-exist-project: host
 machine:
   description: Report this host to the Loki its controller names - free disk space, CPU, RAM and VRAM use, the decree machines, plugins and crons installed, the containers running - and keep alloy shipping every decree run there live.
   state_files:
-    loki: The Loki push address the controller last gave, used while it cannot be reached. report reads and writes it.
+    loki: The Loki address reports go to; notify-relay reads it. report writes it.
     alloy-loki: The Loki address the running alloy was started with; a new one restarts it. report reads and writes it.
     alloy: alloy's own state, its read position in each run's files. alloy writes it.
     cpu: The /proc/stat CPU counters at the last report, so the next one averages over the time between. report reads and writes it.
@@ -22,13 +22,11 @@ scripts:
     # report — this host, to the Loki its controller names.
     #
     # Runs in the host project (the repo's own .decree), so it runs in the repo and every
-    # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
-    # asks that controller at http://<controller>:4480, which serves .decree/exist.json
-    # over the tailnet, else (your own network) uses its Loki through its gateway,
-    # http://<controller>:4400/loki, which takes the fleet secret;
-    # blank, this host is the controller and reads that file. The
-    # answer is kept in $DECREE_STATE_DIR/loki for when the controller is away. No
-    # answer is not a failure: nothing is sent and the run ends done.
+    # decree project on the box is in reach. EXIST_CONTROLLER in .env.shared is the
+    # controller's domain: reports go to https://model-gateway.<that>, its Caddy, which hands them
+    # to its gateway, which takes the fleet secret. Blank, with Loki on, this host is the
+    # controller and reports to its own Loki on loopback. Neither is not a failure:
+    # nothing is sent and the run ends done.
     #
     # One push, labelled {job="exist", host, kind}: kind=disk per disk, kind=load
     # (CPU, RAM, VRAM) once, kind=machine per installed decree machine, kind=plugin
@@ -41,25 +39,18 @@ scripts:
     repo="$(pwd)"
     store="${DECREE_STATE_DIR:-.decree/machines/report_host/state}"; mkdir -p "$store"
     env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
-    # The fleet secret, the key the controller's gateway asks for (a tailnet Loki ignores it).
+    # The fleet secret, the key the controller's gateway asks for (its own Loki ignores it).
     # In a file of the store's, never on a command line, where any user's ps would see it.
     ( umask 077; printf 'Authorization: Bearer %s\n' "$(env_get EXIST_FLEET_SECRET)" > "${store}/loki-header"
       s="$(env_get EXIST_FLEET_SECRET)"; printf '%s\n' "${s:-none}" > "${store}/loki-token" )
-    loki_of() { sed -n 's/.*"loki"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'; }
 
     ctl="$(env_get EXIST_CONTROLLER)"
-    if [[ -n "$ctl" ]]; then
-        loki="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null | loki_of || true)"
-        # Without Tailscale, on your own network: the controller's Loki, through its gateway.
-        if [[ -z "$loki" ]] && curl -fsS --max-time 5 -o /dev/null -H @"${store}/loki-header" "http://${ctl}:4400/loki/api/v1/status/buildinfo" 2>/dev/null; then
-            loki="http://${ctl}:4400"
-        fi
-    else
-        loki="$(loki_of < "${repo}/.decree/exist.json" 2>/dev/null || true)"
-    fi
-    if [[ -n "$loki" ]]; then printf '%s\n' "$loki" > "${store}/loki"
-    else loki="$(cat "${store}/loki" 2>/dev/null || true)"; fi
-    [[ -n "$loki" ]] || { echo "reporting: no Loki named yet (set EXIST_CONTROLLER, or turn Loki on if this is the controller), so nothing is sent"; exit 0; }
+    if [[ "$ctl" =~ ^[0-9.]+$ ]]; then
+        echo "reporting: EXIST_CONTROLLER=${ctl} is an address; set it to the controller's domain (its EXIST_DOMAIN), so reports go over HTTPS"; exit 1
+    elif [[ -n "$ctl" ]]; then loki="https://model-gateway.${ctl}"
+    elif grep -q '^EXIST_IS_HOSTING_LOKI=true' "${repo}/.env.shared" 2>/dev/null; then loki="http://127.0.0.1:43100"
+    else echo "reporting: no controller named (set EXIST_CONTROLLER to its domain), so nothing is sent"; exit 0; fi
+    printf '%s\n' "$loki" > "${store}/loki"
 
     tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
@@ -144,11 +135,6 @@ scripts:
         break
     done
 
-    # The controller's answer, in its own Loki (kind=answer), for a host on your own network
-    # that finds the controller there rather than on 4480: existential.sh reads its domain back.
-    : > "${tmp}/answer"
-    [[ -n "$ctl" ]] || grep '^{.*}$' "${repo}/.decree/exist.json" > "${tmp}/answer" 2>/dev/null || true
-
     # What this host offers the others: each host machine's scripts/offers.sh prints one
     # JSON object per line ({"service", "url", ...}), localhost meaning this host, which is
     # swapped for the address the others reach it by. `./existential.sh run peers` reads them back.
@@ -197,7 +183,7 @@ scripts:
     {
         printf '{"streams":['
         sep=""
-        for kind in disk load machine plugin cron container offer answer; do
+        for kind in disk load machine plugin cron container offer; do
             [[ -s "${tmp}/${kind}" ]] || continue
             printf '%s{"stream":{"job":"exist","host":"%s","kind":"%s"},"values":[' "$sep" "$host" "$kind"
             sed 's/\\/\\\\/g; s/"/\\"/g' "${tmp}/${kind}" \
@@ -208,7 +194,7 @@ scripts:
         printf ']}'
     } > "${tmp}/body"
 
-    curl -fsS --max-time 20 -H 'Content-Type: application/json' -H @"${store}/loki-header" \
+    curl --proto =http,https -fsS --max-time 20 -H 'Content-Type: application/json' -H @"${store}/loki-header" \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
     echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, $(wc -l < "${tmp}/offer" | tr -d ' ') offers, ${runs}"
 x-exist-lib:
@@ -352,6 +338,7 @@ cron:
 Every 5 minutes, this host's free space on `/` and each disk under `/mnt`, its average CPU %, RAM and GPU VRAM used and total, the decree machines, plugins and crons installed in each of its
 projects, the containers running, what its host plugins offer the other hosts (kind=offer, read back by `./existential.sh run peers`), and every run that finished since the last report, sent to the Loki its controller
 names. Grafana's **Hosts** dashboard shows every host that reports. `./existential.sh plugin on
-report_host` turns it on. With `EXIST_CONTROLLER` set, it asks that controller; blank, this host is the
-controller, and names its own Loki. See
+report_host` turns it on. With `EXIST_CONTROLLER` set to the controller's domain, it reports to
+`https://model-gateway.<domain>`, through the controller's Caddy; blank, this host is the controller, and
+reports to its own Loki. See
 /docs/hosting/controller-and-workers.

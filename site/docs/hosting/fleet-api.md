@@ -29,8 +29,7 @@ On the GPU box:
 That turns the service on (`EXIST_IS_HOSTING_FLEET_API=true`), writes its config once
 (`.decree/decree-go-rest.yml`, the box's own, to which each host plugin adds its endpoints) and
 starts it. It is `restart: unless-stopped`, so it comes back with the container engine after a
-reboot. A box set up before this, which started decree-go-rest from `.decree/boot.sh`, has that
-line, its tmux session and its container taken away by the same command.
+reboot.
 
 After a new fleet secret (`./existential.sh run fleet join`), it is recreated so it takes it.
 

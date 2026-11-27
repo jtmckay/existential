@@ -62,8 +62,8 @@ is a chance to stall, and for this audience a stall on day one is often the end.
   **Then** `EXIST_USERNAME=admin`, the generated password is kept, Loki, Grafana and the model
   gateway are off, `.decree/plugins/.on` does not name `report_host`, and no
   `existential-host.service` was written
-- **Given** a first run that answers b and a controller's address
-  **Then** every `EXIST_IS_*` is false, `EXIST_CONTROLLER` is that address, and `report_host`
+- **Given** a first run that answers b and a controller's domain
+  **Then** every `EXIST_IS_*` is false, `EXIST_CONTROLLER` is that domain, and `report_host`
   is on
 - **Given** an install that then enables an add-on needing an email
   **When** `./existential.sh` runs

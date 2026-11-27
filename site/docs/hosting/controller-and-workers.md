@@ -9,14 +9,16 @@ itself, with `report_host` on. Every 5 minutes it reports its free disk space, C
 VRAM use, the decree machines and plugins it has installed and the containers it runs to one Loki, and ships every decree run there
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
-- The **controller** is the one host the others ask "where do I report?". It answers with a
-  Loki's address. It is usually a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host
-  with `EXIST_CONTROLLER` blank and no Loki reports nowhere.
-- Every other worker names it in `EXIST_CONTROLLER`.
+- The **controller** is the one host the others report to: its Loki holds the reports, and its
+  Caddy is the one way in, over HTTPS. It is usually a worker too, with `EXIST_CONTROLLER` blank
+  and Loki on. A host with `EXIST_CONTROLLER` blank and no Loki reports nowhere.
+- Every other worker names the controller's domain (its `EXIST_DOMAIN`) in `EXIST_CONTROLLER`,
+  and reports to `https://model-gateway.<that domain>`.
 - A host doesn't have to be a worker at all. Without `report_host`, nothing runs on the
   host and nothing is reported.
 
-Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already needs.
+Any network works, your own or a [Tailscale](https://tailscale.com) tailnet: every worker only
+has to resolve and reach the controller's `<slug>.<domain>` names ([Networking](../networking.md)).
 
 ## Set up the controller
 
@@ -31,9 +33,15 @@ docker compose up -d
 ```
 
 This makes the fleet secret and turns on where the reports land, Loki and Grafana, with the
-[model gateway](../ai/model-gateway.md), the fleet's API. All three are containers: nothing is
-set up on the host itself, no systemd unit and no host daemon. It prints the line each worker
-joins with.
+[model gateway](../ai/model-gateway.md), the fleet's API, and [Caddy](./caddy.md), the way in.
+All four are containers: nothing is set up on the host itself, no systemd unit and no host
+daemon. It prints the line each worker joins with.
+
+Every worker has to trust the controller's certificate. With a certificate of your own (a
+domain you own, [Networking](../networking.md)) there is nothing to do. With the one Caddy
+makes, signed by the controller's own CA, `fleet controller` says so: install
+`hosting/caddy/certs/internal-ca.pem` on every worker first (the Caddyfile's header has the
+command for each system).
 
 ### 2. Make it a worker too (recommended)
 
@@ -45,33 +53,34 @@ joins with.
 Most controllers want this. Its own `report_host` is what:
 
 - puts the controller itself on the **Hosts** dashboard and ships its own decree runs;
-- relays the other hosts' notifications to its ntfy (`notify-relay`, [below](#services-a-host-has-off));
-- pushes its answer (its domain) to Loki, which workers on your own network read
-  ([Without Tailscale](#without-tailscale-your-own-network)).
+- relays the other hosts' notifications to its ntfy (`notify-relay`, [below](#services-a-host-has-off)).
 
 It is a separate step because it runs on the host: the [host daemon](./host-daemon.md) is a
 systemd user unit (a LaunchAgent on a Mac) running decree outside any container. Skip it and
 the controller still collects every other host's reports.
 
-`./existential.sh` serves two things on the tailnet, plain http (WireGuard already encrypts the
-traffic):
+The controller's Caddy serves one name to the other hosts, `https://model-gateway.<domain>`, the
+model gateway, which asks for the fleet secret:
 
-| Address | What it is |
+| Path | What it is |
 |---|---|
-| `http://<controller>:4480` | The answer to "where do I report?", `.decree/exist.json` (on your own network, the controller's Loki holds it instead: [Without Tailscale](#without-tailscale-your-own-network)) |
-| `http://<host>:3100` | Loki's push address, on whichever host has Loki on |
+| `/loki/api/v1/…` | The controller's Loki: reports, decree runs, offers and notifications are pushed here, and offers read back |
+| `/v1` | The fleet's models |
+| `/plugins/fleet_gpu.md` | The `fleet_gpu` plugin |
+
+Loki itself has no login and listens only on the controller's loopback; the gateway hands on
+only Loki's push and query paths.
 
 ## Services a host has off
 
-The controller's answer also names its `EXIST_DOMAIN`. On every other host, each
-`./existential.sh` keeps a copy (`.decree/controller.json`, the last one while the controller is
-away), and any address in `.env` that names the container of a service that is off on that host
-points at the controller's domain instead: `EXIST_MODEL_URL=http://ollama:11434/v1` becomes
+On every other host, each `./existential.sh` makes any address in `.env` that names the
+container of a service that is off on that host point at the controller's domain
+(`EXIST_CONTROLLER`) instead: `EXIST_MODEL_URL=http://ollama:11434/v1` becomes
 `https://ollama.<domain>/v1`. An address you set to anything else is left alone. The
 controller's Caddy (or yours) has to serve each of those names.
 
 Notifications are the exception, so no ntfy password leaves the controller. On a host with ntfy
-off, `EXIST_NTFY_URL` becomes the controller's Loki (`https://loki.<domain>/loki/api/v1/push`),
+off, `EXIST_NTFY_URL` becomes the controller's Loki (`https://model-gateway.<domain>/loki/api/v1/push`),
 `notify` pushes each message there as `{job="exist", kind="notify"}`, and the controller,
 with ntfy on, publishes it to ntfy within 15 seconds. That relay runs in the controller's tmux
 session `notify-relay` (`tmux attach -t notify-relay`), started by its `report_host`, and needs
@@ -100,11 +109,11 @@ What is this computer?
   a) Core: your editor, notifications, automation and search (default)
   b) A worker: it reports this host to a controller, and runs nothing else
 a or b [a]: b
-Which host is the controller? This worker sends its reports there.
-Controller: myserver
+Which host is the controller? This worker sends its reports there, over HTTPS.
+Controller: home.example.com
 ```
 
-Give the controller's Tailscale name (`myserver`) or its address. A computer with neither docker
+Give the controller's domain, `EXIST_DOMAIN` in its `.env.shared`, not its address. A computer with neither docker
 nor podman isn't asked the first question: it can only be a worker. Every answer is kept as soon
 as you give it, so nothing is asked twice, even if setup stops halfway.
 
@@ -160,12 +169,12 @@ Every run ends with where the worker stands:
 
 ```
 This worker:
-  ✓ reports to myserver
+  ✓ reports to https://model-gateway.home.example.com
   ✓ ships its decree runs (alloy)
   ✓ running (tmux attach -t existential-host)
   ✓ starts at boot (systemd user unit)
   ✓ linger on: before anyone logs in
-  Last report: myworker to http://myserver:3100: 1 disks, {"cpu_pct":…}, 1 machines, runs shipped live by alloy
+  Last report: myworker to https://model-gateway.home.example.com: 1 disks, {"cpu_pct":…}, 1 machines, runs shipped live by alloy
 ```
 
 `./existential.sh run host-daemon status` prints the same at any time. The first report comes
@@ -173,56 +182,41 @@ within 5 minutes of the daemon starting.
 
 | `Last report:` says | Which means |
 |---|---|
-| `<hostname> to http://…: 1 disks, {"cpu_pct":…}, …` | Sent. The host is on the controller's **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`; its runs are on **Decree Overview**. |
-| `no Loki named yet …, so nothing is sent` | The controller didn't answer, or names no Loki. Re-run `./existential.sh`: it warns when `http://<controller>:4480` doesn't answer. |
+| `<hostname> to https://…: 1 disks, {"cpu_pct":…}, …` | Sent. The host is on the controller's **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`; its runs are on **Decree Overview**. |
+| `no controller named …, so nothing is sent` | `EXIST_CONTROLLER` is blank. Set it to the controller's domain. |
+| `EXIST_CONTROLLER=… is an address` | It names the controller by IP, as before reports went over HTTPS. Set it to the controller's domain. |
+| a failed run, `curl: (60)` | The worker doesn't trust the controller's certificate: install its CA ([Set up the controller](#1-make-it-the-controller)). |
+| a failed run, `401` | The worker's `EXIST_FLEET_SECRET` isn't the controller's. |
 | nothing at all | No report has run yet. If that lasts past 5 minutes, the daemon isn't running: `./existential.sh run host-daemon status` says why. |
 
 To name the controller later, or change it, edit the `EXIST_CONTROLLER=` line already in
 `.env.shared` (only the first one is read). The next report uses it: nothing to restart.
 
-Tailscale isn't checked: the worker only has to reach `http://<controller>:4480` and the Loki it
-names. Both are served on the controller's tailnet, so in practice that's Tailscale.
+`./existential.sh run fleet status` asks `https://model-gateway.<controller's domain>` with this host's
+secret, and says whether it answers.
 
 ### A host that already runs services
 
-`./existential.sh plugin on report_host`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
+`./existential.sh plugin on report_host`, set `EXIST_CONTROLLER=<controller's domain>` in `.env.shared`, then
 `./existential.sh run host-daemon install` and step 5.
 
-## Without Tailscale: your own network
+## The fleet command
 
-When every host is on one network, that network is already private and nothing more is needed:
-no tailnet and no DNS record. The controller's Loki stays on its own loopback, reached through its
-model gateway on `:4400` with the fleet secret, and every other host names it by address.
-
-`./existential.sh run fleet` does all of this section, plus the fleet secret, the host's address
-and the host daemon, in one command per host. Run it again any time; it changes only what is
-missing:
+`./existential.sh run fleet` does all of the above, plus the fleet secret and the host daemon, in
+one command per host. Run it again any time; it changes only what is missing:
 
 ```bash
-./existential.sh run fleet controller                 # on the controller: prints the join line
-./existential.sh run fleet join <controller> <secret> # on every other host, after ./existential.sh
-./existential.sh run fleet api                        # on a GPU box: its lease API, the fleet-api container
-./existential.sh run fleet status                     # on any host: controller, secret, daemon, last report
+./existential.sh run fleet controller                          # on the controller: prints the join line
+./existential.sh run fleet join <controller's domain> <secret> # on every other host, after ./existential.sh
+./existential.sh run fleet api                                 # on a GPU box: its lease API, the fleet-api container
+./existential.sh run fleet status                              # on any host: controller, secret, daemon, last report
 ```
 
-By hand:
-
-On the controller, turn on the model gateway (`./existential.sh service on model-gateway`), set
-`EXIST_FLEET_SECRET` in `.env.shared`, then `./existential.sh` and `docker compose up -d`. Loki
-itself stays on loopback: the other hosts reach it through the gateway, at
-`http://<controller's-ip>:4400/loki`, with the fleet secret as the key.
-
-Every other host follows [Add a worker](#add-a-worker) and answers the controller question with
-the controller's address:
-
-```bash
-EXIST_CONTROLLER=192.168.1.10   # the controller's address on your network
-```
-
-A worker asks the controller at `:4480` first. With no answer there, it uses the controller's
-Loki through the gateway on `:4400`, and reads the controller's answer (its domain) from that
-Loki, where the controller's own report puts it. A worker needs the same `EXIST_FLEET_SECRET`
-(`fleet join` sets it); without it the gateway turns its reports away.
+By hand: on the controller, turn on Loki, Grafana, the model gateway and Caddy
+(`./existential.sh service on loki grafana model-gateway caddy`), set `EXIST_FLEET_SECRET` in
+`.env.shared`, then `./existential.sh` and `docker compose up -d`. Every other host follows
+[Add a worker](#add-a-worker), with the same `EXIST_FLEET_SECRET` (`fleet join` sets it); without
+it the gateway turns its reports away.
 
 ## Updating on its own
 
@@ -256,8 +250,9 @@ output, as `{job="decree_script"}`, labelled with `host` and `project` ([Loki](.
 keeps its place in each run's files, so a run that ends while it is down, or while the Loki is
 away, is sent once it is back, within the 7 days Loki accepts. A new Loki address restarts it.
 
-When the controller can't be reached, a worker uses the Loki it named last time. With no Loki
-named anywhere, nothing is sent and nothing fails.
+When the controller can't be reached, the report fails and the next one tries again; alloy
+sends the runs it missed once it is back. With no controller named, nothing is sent and nothing
+fails.
 
 ## Peers: what the other hosts offer
 
@@ -281,7 +276,7 @@ Any host reads the latest offers back from the Loki its controller names:
 ### The model gateway
 
 `fleet controller` turns on the [model gateway](../ai/model-gateway.md): one OpenAI-compatible
-URL, `http://<controller>:4400/v1`, for every host. Set it as `EXIST_MODEL_URL` (and leave
+URL, `https://model-gateway.<controller's domain>/v1`, for every host. Set it as `EXIST_MODEL_URL` (and leave
 `EXIST_MODEL_KEY` blank) and opencode, pi and every automation reach whichever GPU box offers the
 model they ask for, leasing it the way below.
 
@@ -321,11 +316,11 @@ id=$(./existential.sh run peers lease <ai-box> comfy my-batch)
 
 Any decree project, existential or not, can lease the fleet's GPUs through the `fleet_gpu` plugin,
 the same lib the stack uses, which the controller's [model gateway](../ai/model-gateway.md) serves
-on `:4400` (built from the fleet lib it already leases through; it reads nothing of the host's).
+at `https://model-gateway.<domain>` (built from the fleet lib it already leases through; it reads nothing of the host's).
 Two lines in the project's `.decree/.env`:
 
 ```bash
-EXIST_CONTROLLER=<the controller's address>
+EXIST_CONTROLLER=<the controller's domain>
 EXIST_FLEET_SECRET=<secret>
 ```
 
@@ -333,7 +328,7 @@ Then, from the project's root, one command installs it (or updates it) and lists
 offers:
 
 ```bash
-set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
+set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "https://model-gateway.$EXIST_CONTROLLER/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
 ```
 
 and in its scripts, the same calls as the stack's:
@@ -364,16 +359,10 @@ helper needs `jq` and `yq`.
 
 ## Things to know
 
-- **Loki has no login of its own.** On your own network it is reached only through the
-  gateway, which asks for the fleet secret. Over Tailscale it is served on the tailnet at
-  `:3100` as it is, so anyone on your tailnet can push to it and read every log it holds,
-  which includes every container's output: use Tailscale's access controls to narrow it.
-  Never set `LOKI_BIND=0.0.0.0`: anyone on your network could then read those logs, and write
+- **Loki has no login of its own.** It listens only on the controller's loopback, and the other
+  hosts reach it only through the gateway, which asks for the fleet secret. Never set
+  `LOKI_BIND=0.0.0.0`: anyone on your network could then read every container's logs, and write
   offers that send other hosts' calls, and the fleet secret with them, to a host of theirs.
-- **A controller set up before the gateway fronted Loki** has `LOKI_BIND=0.0.0.0`. Run
-  `./existential.sh run fleet controller` again (it sets `127.0.0.1` and turns the gateway on),
-  `docker compose up -d`, and update the workers (`git pull && ./existential.sh`), which then
-  report through `:4400`.
-- **An install from before this page** has Loki's compose file already rendered without the
-  loopback port. Add `ports: ["${LOKI_BIND:-127.0.0.1}:43100:3100"]` to the `loki` service in
-  `hosting/loki/docker-compose.yml`, or `./existential.sh reset`, then re-run.
+- **A GPU box's lease API is still plain HTTP**, on `:8801` with the fleet secret: a worker runs
+  no Caddy. Between hosts on Tailscale, WireGuard encrypts it; on your own network, anyone who
+  can watch its traffic can read the secret.

@@ -117,28 +117,6 @@ else
     echo "  (no yq and decree here: the host sync is not run)"
 fi
 
-echo ""; echo "=== the controller is one setting ==="
-cp .env.shared .env.shared.keep
-printf 'EXIST_IS_HOSTING_LOKI=false\nEXIST_CONTROLLER=\nEXIST_REPORTING_URL=http://ctl.lan:43100\nEXIST_HOST_ADDRESS=x\n' > .env.shared
-es _retire_env_keys >/dev/null
-assert_eq "a host with a reporting URL and no controller names that host its controller" \
-    "EXIST_IS_HOSTING_LOKI=false EXIST_CONTROLLER=ctl.lan" "$(xargs < .env.shared)"
-printf 'EXIST_IS_HOSTING_LOKI=true\nEXIST_CONTROLLER=\nEXIST_REPORTING_URL=http://other:3100\n' > .env.shared
-es _retire_env_keys >/dev/null
-assert_eq "...and one with Loki on stays the controller" "EXIST_IS_HOSTING_LOKI=true EXIST_CONTROLLER=" "$(xargs < .env.shared)"
-printf 'EXIST_FLEET_SECRET=\nEXIST_MODEL_API_KEY=abc\n' > .env.shared
-es _retire_env_keys >/dev/null
-assert_eq "a host with no fleet secret takes its old model key" "EXIST_FLEET_SECRET=abc" "$(xargs < .env.shared)"
-printf 'EXIST_FLEET_SECRET=fleet\nEXIST_MODEL_API_KEY=abc\n' > .env.shared
-es _retire_env_keys >/dev/null
-assert_eq "...and one with a secret keeps it" "EXIST_FLEET_SECRET=fleet" "$(xargs < .env.shared)"
-mv .env.shared.keep .env.shared
-mkdir -p .decree/plugins; printf 'flow_worker\nflow_auto_update\nreporting\nflow_clean_runs\n' > .decree/plugins/.existential
-es _plugins_on >/dev/null
-assert_eq "what an older sync wrote is on, under its new name" "report_host pull_existential" "$(xargs < .decree/plugins/.on)"
-assert_eq "...and the old list is gone" "no" "$([[ -e .decree/plugins/.existential ]] && echo yes || echo no)"
-rm -rf .decree/plugins
-
 echo ""; echo "=== Core's setup ==="
 # The plugin sync runs in adhoc (yq, decree), which a Mac host has no part in:
 # a docker that writes down what it was asked stands in for it.
@@ -160,12 +138,13 @@ H="${R}/.stub/host"; mkdir -p "${H}/rep" "${R}/.decree/machines/report_host"
 touch "${R}/.decree/machines/report_host/machine.yml"
 awk '/^  report\.sh: \|$/ { f = 1; next } f && /^  [^ ]/ { exit } f && /^[^ ]/ { exit } f { sub(/^    /, ""); print }' \
     automation/plugins/report_host.md > "${H}/report.sh"
-echo '{"loki":"http://loki:3100"}' > "${R}/.decree/exist.json"
+cp .env.shared .env.shared.keep; echo 'EXIST_CONTROLLER=ctl.example' >> .env.shared
 printf '#!/bin/sh\nfor a in "$@"; do case "$a" in @*) cp "${a#@}" "%s/body" ;; esac; done\nexit 0\n' "$H" > "${R}/.stub/curl"
 printf '#!/bin/sh\n[ "$1" = has-session ] && exit 1\necho "$*" >> "%s/tmux"\n' "$H" > "${R}/.stub/tmux"
 printf '#!/bin/sh\n' > "${R}/.stub/alloy"
 chmod +x "${R}/.stub/curl" "${R}/.stub/tmux" "${R}/.stub/alloy"
 out="$(cd "$R" && DECREE_STATE_DIR="${H}/rep" "$BASH" "${H}/report.sh" 2>&1)"; rc=$?
+mv .env.shared.keep .env.shared
 assert_eq "report_host runs" "0" "$rc"
 [[ "$rc" == 0 ]] || printf '%s\n' "$out" | tail -5 | sed 's/^/        /'
 assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'
@@ -180,20 +159,6 @@ rm -f "${R}/.decree/plugins/.on"
 assert_has "a host on another decree, with a host plugin on, is told to install this one" "$out" "the host's plugins (.decree) are left as they are"
 assert_eq "...and its project is not synced" "" "$(grep 'sync host' "${R}/.stub/asked")"
 rm -f "${R}/.stub/decree"
-
-# A compose file rendered for decree 0.5 mounts scripts/ read-only, and 0.6's code is plugins/.
-for d in services/automation-backup nas/nextcloud; do
-    sed 's#/\.decree/plugins:#/.decree/scripts:#; s#\./plugins:#./scripts:#; s#\.decree/plugins:#.decree/scripts:#' "${d}/docker-compose.exist.yml" > "${d}/docker-compose.yml"
-    echo "      - workspace_data/.decree/scripts:/workspace/.decree/scripts:ro" >> "${d}/docker-compose.yml"
-done
-es '_decree_code_mounts' >/dev/null
-assert_eq "an old rendered compose mounts its own plugins/ read-only, as the template does" \
-    "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.exist.yml nas/nextcloud/docker-compose.exist.yml | cut -d: -f2 | xargs)" \
-    "$(grep -c '\.decree/plugins:[^ ]*:ro' services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | cut -d: -f2 | xargs)"
-assert_eq "...and keeps no scripts/ mount" "0" "$(cat services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | grep -c 'scripts:')"
-assert_eq "...and no read-only workspace .decree" "0" "$(cat services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml | grep -c 'workspace_data/\.decree')"
-assert_eq "...and a second run changes nothing" "" "$(es '_decree_code_mounts')"
-rm -f services/automation-backup/docker-compose.yml nas/nextcloud/docker-compose.yml
 
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→exit path is proven.

@@ -53,6 +53,12 @@ can have a real cert), acme.sh for the DNS-01 wildcard, dropped in as `internal.
   — **not** `tls internal`; minted once by caddy's `exist.initial.sh` into `hosting/caddy/certs/`,
   so trust survives reboots and `caddy_data` wipes), reverse-proxies `<container>:<port>`; Dashy
   links navigable slugs.
+- **Host to controller → `https://<slug>.<controller's domain>`**, always, on any network: a
+  worker names the controller by its domain (`EXIST_CONTROLLER`) and reports to
+  `https://model-gateway.<domain>`, the controller's Caddy in front of its model gateway (the
+  fleet secret is its key; it passes Loki's push and query paths, as Loki has no login). One
+  name, as one container has one `<slug>.<domain>`. Nothing between hosts goes plain HTTP to the controller. (A GPU box's
+  lease API, `:8801`, is host to host and still HTTP: a worker runs no Caddy.)
 - **Container-to-container → `http://<container>:<port>`** (Docker service DNS). Use this in
   service env vars and routine fallbacks (`${X_URL:-http://service:port}`) — faster, no TLS, no
   CA trust needed.

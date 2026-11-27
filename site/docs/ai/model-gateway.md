@@ -29,7 +29,7 @@ and nothing of the host's.
 On every host that should use it, in `.env.shared`:
 
 ```
-EXIST_MODEL_URL=http://<controller>:4400/v1
+EXIST_MODEL_URL=https://model-gateway.<controller's domain>/v1
 EXIST_MODEL_KEY=
 ```
 
@@ -52,5 +52,5 @@ scripts on the controller lease the same way, so they wait their turn with your 
 
 ```bash
 ./existential.sh run model-gateway test
-curl -H "Authorization: Bearer $EXIST_FLEET_SECRET" http://<controller>:4400/v1/models
+curl -H "Authorization: Bearer $EXIST_FLEET_SECRET" https://model-gateway.<controller's domain>/v1/models
 ```

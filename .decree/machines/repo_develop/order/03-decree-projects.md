@@ -54,9 +54,6 @@ plugin) and one switch per project.
   automation-backup, each with one nightly and one weekly cron file listing every service it
   knows; one that is off is skipped. The destination is `EXIST_BACKUP_RCLONE_REMOTE`, which
   `./existential.sh run rclone` asks for at its end.
-- **An older install keeps what it had**: `_plugins_on` (`src/utils/migrate.sh`) makes each
-  project's `.on` from what its last sync wrote, moves the cron files a flow installed to the
-  machine each names, and archives `automation/plugins.yml`.
 
 ## Constraints
 
@@ -78,4 +75,4 @@ plugin) and one switch per project.
   plugin alone with only its `needs:`
 - **Given** the repo
   **When** it is searched for `existential.sh flow`, `plugins.yml` or `plugins/flows`
-  **Then** only `archive/`, the migration and the `.decree/` history mention them
+  **Then** only `archive/` and the `.decree/` history mention them

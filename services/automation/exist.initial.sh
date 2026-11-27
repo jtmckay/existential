@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# automation — pre-startup init: the project's runtime dirs, its plugins, and the
-# one-time move of an older install's active files (decree 0.4, then 0.5: the
-# plugin sync converts that).
+# automation — pre-startup init: the project's runtime dirs and its plugins.
 #
 # Runs on the host (and in adhoc — it is a plain file copy inside the repo).
 # Called every `./existential.sh` for an enabled decree; idempotent.
@@ -22,36 +20,6 @@ mkdir -p "${REPO}"/automation/secrets \
 # never lands in the synced workspace. A file mount needs its source to exist.
 touch "${REPO}/automation/.env" "${PROJECT}/.env"
 
-# ── decree 0.4 -> 0.5 ────────────────────────────────────────────────────────
-#
-# cron/ and migrations/ are the user's active copies: gitignored, copied once
-# from a template and never re-rendered. A 0.4 copy names `routine:`, which 0.5
-# rejects — the daemon refuses to start on one invalid pending migration, and a
-# 0.4 cron file is a failed run every time it fires. So each one is archived and
-# removed: the plugin that runs it writes the current one. Processed migrations
-# are left alone: decree never reads them again.
-_archive="${REPO}/archive/decree-0.4-$(date +%Y%m%d-%H%M%S)"
-_upgrade_dir() {         # <active dir> [processed.md]
-    local active="$1" processed="${2:-}" f name
-    for f in "$active"/*.md; do
-        [[ -f "$f" ]] && grep -q '^routine:' "$f" || continue
-        name="${f##*/}"
-        [[ -n "$processed" && -f "$processed" ]] && grep -qxF "$name" "$processed" && continue
-        mkdir -p "${_archive}/${active#"${REPO}/"}"
-        cp -p "$f" "${_archive}/${active#"${REPO}/"}/"
-        rm -f "$f"
-        echo "[automation] ${active#"${REPO}/"}/${name}: removed — the plugin that runs it writes the current one."
-    done
-}
-_upgrade_dir "${REPO}/automation/cron"
-_upgrade_dir "${REPO}/automation/migrations" "${REPO}/automation/processed.md"
-[[ -d "$_archive" ]] && echo "[automation] the 0.4 copies are in ${_archive#"${REPO}/"}/ — re-apply any schedule you had customised."
-# The 0.4 daemon configs and their hash files: nothing reads them any more.
-rm -f "${SCRIPT_DIR}/decree/config.yml" "${REPO}/automation/config.hash" \
-      "${SCRIPT_DIR}/webhook/config.yml" "${REPO}/automation/config.yml" \
-      "${REPO}/automation/precheck.log"
-rmdir "${REPO}/automation/outbox" 2>/dev/null || true
-
 # ── workspace/.decree ────────────────────────────────────────────────────────
 #
 # The `automation` project is workspace/.decree. The repo's plugins are
@@ -59,17 +27,6 @@ rmdir "${REPO}/automation/outbox" 2>/dev/null || true
 # version every run; a plugin of yours is a file in its .decree/plugins/, which
 # `decree install <name>` installs from the workspace. `decree install` draws the graphs.
 #
-# An install from before this keeps its active crons and migrations, and its
-# record of which migrations ran, in automation/. Each moves over once, unless
-# the workspace already has that file; the sync then converts them (decree 0.6:
-# a migration that ran is an order file that ran; your crons are not read, and it says so).
-for _f in "${REPO}"/automation/{cron,migrations}/*.md "${REPO}/automation/processed.md"; do
-    _dst="${PROJECT}/${_f#"${REPO}/automation/"}"
-    if [[ -f "$_f" && ! -e "$_dst" ]]; then
-        mkdir -p "${_dst%/*}"; mv "$_f" "$_dst"
-        echo "[automation] ${_f#"${REPO}/"} moved to workspace/.decree/."
-    fi
-done
 # Yours from their examples, once: what the webhook answers and which file
 # changes start a run. An edit stays.
 [[ -e "${PROJECT}/.gitignore" ]] || cp -p "${REPO}/automation/.gitignore" "${PROJECT}/.gitignore"

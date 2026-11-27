@@ -10,16 +10,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${SCRIPT_DIR}/../.."
 
-# An install from before this was its own folder kept the project in
-# services/automation/backup/. Each piece of runtime state moves over once.
-_old="${REPO}/services/automation/backup"
-for _f in cron inbox runs store processed.md; do
-    if [[ -e "${_old}/${_f}" && ! -e "${SCRIPT_DIR}/${_f}" ]]; then
-        mv "${_old}/${_f}" "${SCRIPT_DIR}/${_f}"
-        echo "[automation-backup] services/automation/backup/${_f} moved here."
-    fi
-done
-
 # A missing bind-mount source is created root-owned by Docker.
 mkdir -p "${SCRIPT_DIR}"/{inbox,runs,store,lib,machines,plugins} "${REPO}/automation/secrets"
 

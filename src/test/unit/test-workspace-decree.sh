@@ -2,7 +2,7 @@
 # test-workspace-decree.sh — services/automation/exist.initial.sh seeds
 # workspace/.decree, the `automation` daemon's project, from the repo's
 # automation/: the plugins that are on are written to plugins/ and decree
-# installs them, a person's own files stay, an older install's crons and migrations move over,
+# installs them, a person's own files stay,
 # only the defaults (PLUGIN_DEFAULTS) are on, in the project's own list, notes/my-first-note.md
 # is written once, and nothing secret is written under workspace/.
 #
@@ -32,11 +32,7 @@ cp -p "${REPO_DIR}/automation/.gitignore" "${REPO_DIR}/automation/decree-go-rest
 mkdir -p "${R}/src"
 cp "${REPO_DIR}/src/plugins.sh" "${R}/src/"
 grep -E "^EXIST_IS_" "${REPO_DIR}/.env.exist.shared" > "${R}/.env.shared"
-# An install from before workspace/.decree: an active cron, a migration and its ledger.
-mkdir -p "${R}/automation/cron" "${R}/automation/migrations" "${R}/automation/secrets/rclone"
-printf -- '---\ncron: "* * * * *"\nmachine: notify\n---\n' > "${R}/automation/cron/old.md"
-printf -- '---\nmachine: notify\n---\n' > "${R}/automation/migrations/01-old.md"
-printf '01-old.md\n' > "${R}/automation/processed.md"
+mkdir -p "${R}/automation/secrets/rclone"
 printf 'secret\n' > "${R}/automation/secrets/rclone/rclone.conf"
 
 # In adhoc, as on a real install: the plugin sync needs yq.
@@ -61,8 +57,6 @@ done
 check "lib/ holds the plugin system's lib" "cmp -s '${R}/automation/lib/plugin.sh' '${P}/lib/plugin.sh'"
 check "...and the lib of plugins that are on (note-to-automation: model)" "[[ -f '${P}/lib/model.sh' ]]"
 check "...and no plugin's lib that is not on" "[[ ! -e '${P}/lib/comfy' ]]"
-check "an old install's cron moves over" "[[ -f '${P}/cron/old.md' && ! -e '${R}/automation/cron/old.md' ]]"
-check "an old install's migration and its ledger move over, then to the archive (decree 0.6 has none)" "[[ -f '${P}/archive/0.5/migrations/01-old.md' && -f '${P}/archive/0.5/processed.md' ]]"
 check "no secret lands under workspace/" "! grep -rqx 'secret' '${R}/volumes/workspace_data'"
 check "the .env mount point is empty" "[[ -f '${P}/.env' && ! -s '${P}/.env' ]]"
 check "what is on is the project's own list, the defaults the first time" "[[ \"\$(xargs < '${P}/plugins/.on')\" == 'note_watch reconcile service_health pi file_advise you_were_here' ]]"

@@ -69,8 +69,7 @@ unseen, 8+ of `A-Za-z0-9._-`), and nothing else: no Loki, Grafana or model gatew
 controller is never made by setup, only by `run fleet controller`, by choice. **b)** goes straight
 to `_worker_without_engine`, which writes the answers (`EXIST_HOST_ROLE=worker`,
 `EXIST_CONTROLLER`) before it checks a tool. The first answer is `.env.role` until
-`.env.shared` exists, then `EXIST_HOST_ROLE` (`_record_role`, which records an older install as
-what it already is: `core` or `worker`; a `main` from before means nothing now). A missing tool is offered (`_offer_install`: `_install_cmd` per tool, shown, Enter
+`.env.shared` exists, then `EXIST_HOST_ROLE` (`_record_role`). A missing tool is offered (`_offer_install`: `_install_cmd` per tool, shown, Enter
 runs; sudo only for a package manager, on that yes), and `_host_plugins` offers to start the
 host daemon now and at every boot (`src/lib/host-daemon.sh install`: a systemd user unit,
 `existential-host.service`, enabled with linger, or a LaunchAgent; `status`, `uninstall`). A
@@ -88,12 +87,19 @@ printed with `_install_steps`), writes `.env.shared` as every `EXIST_IS_*=false`
 `EXIST_CONTROLLER` (a later run with an engine appends the rest of the keys, rendered), puts
 `report_host` in the host project's list, and runs `_build`, whose `_host_plugins` runs `src/plugins.sh sync host` on the
 host when `DOCKER_CMD` is unset. So that sync, and the plugin library it sources, is host code:
-bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. The controller writes `.decree/exist.json`
-(`_controller_answer`: the Loki to report to), and `_tailscale_serve_core` serves it on 4480
-and, wherever Loki is on, Loki's push port on 3100, plain http on the tailnet. Without Tailscale, the controller's Loki stays on loopback (it has no login; `LOKI_BIND` stays `127.0.0.1`) and the model gateway fronts it on the LAN at `:4400/loki` (push, query_range, labels, buildinfo; `/ready` open), behind the fleet secret, since offers in that Loki decide where hosts send calls and the secret. Each worker names the controller by address in `EXIST_CONTROLLER`: with no answer on 4480, `report_host` and `_controller_fetch` use `http://<controller>:4400` with the secret (a header from a file or stdin, never argv), and read the controller's domain from its answer, which its `report_host` pushes there (`kind="answer"`). A plugin with
-`x-exist-project: host` (`report_host`, `pull_existential`) is on in the host project's own list and installed into the repo's `.decree`; `_host_plugins` leaves that project alone until its list names something; `_host_move` moves an older install's `host/` there once. `EXIST_EMAIL` is asked by `_ask_if_needed` before the first enabled service that uses it
-renders; Core uses none. What an older install needs once lives in `src/utils/migrate.sh`
-(`_migrate`, `_rename_machines`), each step dated for removal.
+bash 3.2 and BSD tools, covered by `test host` when yq and decree are installed. **Everything between hosts and the controller is HTTPS through the controller's Caddy**, on
+any network: `EXIST_CONTROLLER` is the controller's domain (its `EXIST_DOMAIN`, never an
+address, which `report_host`, `fleet join` and `_worker_summary` refuse), and every address is
+derived from it, with nothing to ask the controller: reports, runs (alloy), offers,
+notifications, models and `fleet_gpu.md` at `https://model-gateway.<domain>`, and a service
+off here at `https://<slug>.<domain>` (`resolveOffServices`). Caddy hands that name to the
+model gateway, which has no host port
+and passes only Loki's push, query_range, labels and buildinfo (`/ready` open), behind the
+fleet secret (a header from a file or stdin, never argv), since offers in that Loki decide where
+hosts send calls and the secret. Loki has no login and stays on loopback (`LOKI_BIND`
+`127.0.0.1`), where the controller's own `report_host` and `peers` reach it. A plugin with
+`x-exist-project: host` (`report_host`, `pull_existential`) is on in the host project's own list and installed into the repo's `.decree`; `_host_plugins` leaves that project alone until its list names something. `EXIST_EMAIL` is asked by `_ask_if_needed` before the first enabled service that uses it
+renders; Core uses none.
 
 Core reserves no GPU, so the hardware questions wait. After rendering, a bare run or `service`
 (with `EXIST_GPU_VENDOR` blank and a terminal) runs `src/lib/models.sh` with `FIRST_RUN=1`
@@ -128,11 +134,6 @@ problem), the `service on` and `plugin on` lines for one job and what is left fo
 and a plugin a person turns on (a machine nothing needs) whose `plugin on` line is on no docs
 page (a host or multi-host plugin's line can live on its hosting page). The setup steps for a service on its own live on the
 service's docs page.
-
-An install from before this kept one list, `automation/plugins.yml`, and each project's sync
-wrote `.decree/plugins/.existential`: `_plugins_on` (`src/utils/migrate.sh`) turns that into
-`.on`, moves the cron files a flow installed to the machine each names, and archives the old
-list. A sync that finds `.existential` and no `.on` refuses until it has.
 
 ## e2e
 

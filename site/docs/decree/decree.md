@@ -68,7 +68,14 @@ A machine's Claude runs unattended in Claude Code's `auto` mode.
   email or web page can't rewrite them.
 - It can use everything else the container reaches: the rest of the workspace, automation's
   service credentials, the network. Output goes to `workspace/ai/`.
-- `AUTOMATION_CLAUDE_PERMISSION_MODE=default` limits it to reading and searching.
+- **That includes your stored passwords.** `/secrets` (rclone, Gmail, Actual Budget, SSH keys)
+  and `automation/.env` are in the same container. A machine that hands Claude something from
+  outside, an email, a newsletter, a web page, hands it whatever instructions are hidden in
+  it, and in `auto` mode a prompt injection that gets past Claude's own checks could read those
+  files and send them out over the network. Turn on only the machines that feed Claude outside
+  content when you accept that, and keep in `/secrets` only what your plugins need.
+- `AUTOMATION_CLAUDE_PERMISSION_MODE=default` limits it to reading and searching, : it can
+  still read them, but it can't run a command or reach the network on its own.
 - Calls go to Anthropic under your account's terms.
 
 ## When a run needs you

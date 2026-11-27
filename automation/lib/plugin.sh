@@ -111,7 +111,6 @@ plugin_write() {
 plugin_sync() {
     local dir="$1" project="$2" wanted n src rc=0 when="" check f mine="" theirs="" names=""
     shift 2
-    plugin_convert_05 "$dir"
     plugin_seed "$dir" "$project" || return 1
     mkdir -p .decree/machines .decree/lib
     # Your own plugin files in the workspace project, installed by `decree install`:
@@ -175,15 +174,11 @@ plugin_sync() {
 }
 
 # plugin_seed <dir> <project>: a project with no list of what is on starts with the
-# defaults tagged for it. One an older checkout synced has its list in its old form
-# until ./existential.sh's migration turns it into this one.
+# defaults tagged for it.
 plugin_seed() {
     local n src
     mkdir -p .decree/plugins
     [[ ! -f "$ON" ]] || return 0
-    if [[ -f .decree/plugins/.existential ]]; then
-        echo "plugin: run ./existential.sh once first: it turns this project's old list of what is on into ${ON}" >&2; return 1
-    fi
     for n in $PLUGIN_DEFAULTS; do
         src="$(plugin_src "$1" "$n")" && plugin_tags "$src" | grep -qxF "$2" && echo "$n"
     done > "$ON"
@@ -274,64 +269,20 @@ plugin_extras() {  # <dir> <wanted>
     done
 }
 
-# A migration that ran (decree 0.5's processed.md) is an order file that ran: it
-# is recorded in its machine's state/order.git.txt, so `order` does not run it
-# again. Then any order file that has not run waits for the next daemon start, so
-# one run of `order` is queued for it now.
+# An order file that has not run waits for the next daemon start, so one run of
+# `order` is queued for it now.
 plugin_order_record() {
-    local f m name rec pending=false
+    local f m name pending=false
     for f in .decree/machines/*/order/*.md; do
         [[ -f "$f" ]] || continue
-        m="${f#.decree/machines/}"; m="${m%%/*}"; name="$(basename "$f")"; rec=".decree/machines/${m}/state/order.git.txt"
-        grep -q "^${name} " "$rec" 2>/dev/null && continue
-        if grep -qxF "$name" .decree/processed.md 2>/dev/null; then
-            mkdir -p "$(dirname "$rec")"
-            echo "${name} $( { sha256sum "$f" 2>/dev/null || shasum -a 256 "$f"; } | cut -d' ' -f1)" >> "$rec"
-        else pending=true; fi
+        m="${f#.decree/machines/}"; m="${m%%/*}"; name="$(basename "$f")"
+        grep -q "^${name} " ".decree/machines/${m}/state/order.git.txt" 2>/dev/null || pending=true
     done
-    [[ ! -f .decree/processed.md ]] || { mkdir -p .decree/archive/0.5; mv .decree/processed.md .decree/archive/0.5/; }
     $pending && [[ -f .decree/machines/decree_order/machine.yml ]] && ! grep -qlx 'machine: decree_order' .decree/inbox/*.md 2>/dev/null &&
         echo "Run the order files that have not run." |
         decree emit --machine decree_order >/dev/null && echo "plugin: order files are queued to run"
     return 0
 }
-
-# decree 0.5's layout, once: what a plugin installed goes (the plugin installs it
-# again where decree 0.6 keeps it), a machine of yours moves to machines/<name>/,
-# and the rest (registry, applied copies, migrations, flat scripts) is kept in
-# .decree/archive/0.5/. processed.md stays until plugin_order_record has read it.
-plugin_convert_05() {  # <dir>
-    local f n keep=.decree/archive/0.5 reg=.decree/automations.yml
-    compgen -G '.decree/machines/*.yml' >/dev/null || [[ -f "$reg" || -d .decree/migrations || -d .decree/applied ]] || return 0
-    mkdir -p "$keep"
-    for f in .decree/machines/*.yml; do
-        [[ -f "$f" ]] || continue
-        n="$(basename "$f" .yml)"
-        if plugin_src "$1" "$n" >/dev/null || { [[ -f "$reg" ]] && n="$n" yq -e '.[] | select(.machine == strenv(n) and .kind == "plugin")' "$reg" >/dev/null 2>&1; }; then
-            rm -f "$f"; rm -rf ".decree/scripts/${n}"
-        else
-            mkdir -p ".decree/machines/${n}"; mv "$f" ".decree/machines/${n}/machine.yml"
-            [[ ! -d ".decree/scripts/${n}" ]] || mv ".decree/scripts/${n}" ".decree/machines/${n}/scripts"
-            echo "plugin: your machine ${n} is now .decree/machines/${n}/ (decree 0.6)"
-        fi
-    done
-    # Lib files a plugin wrote: written again from x-exist-lib.
-    [[ ! -f "$reg" ]] || for f in $(yq -r '.[] | .libs[]?' "$reg"); do rm -f ".decree/lib/${f}"; done
-    # Their handlers and endpoints go too: the sync adds back those of the plugins still on.
-    if [[ -f "$reg" ]]; then
-        n="$(yq -r '[.[] | select(.kind == "plugin") | .machine] | join(",")' "$reg")"
-        [[ ! -f "$HANDLERS" ]] || m="$n" yq -i 'del(.[] | select(.machine as $x | strenv(m) | split(",") | any_c(. == $x)))' "$HANDLERS"
-        [[ ! -f "$REST" ]] || m="$n" yq -i 'del(.endpoints[] | select(.message.machine as $x | strenv(m) | split(",") | any_c(. == $x)))' "$REST"
-    fi
-    # The plugins' cron files are installed again in their machine's folder (an
-    # edit of one is kept in the archive, to make again); yours stay in .decree/cron/,
-    # which decree 0.6 does not read, and the sync says so.
-    mkdir -p "$keep/cron"
-    [[ ! -f "$reg" ]] || for f in $(yq -r '.[] | .crons[]?' "$reg"); do [[ ! -f ".decree/cron/${f}.md" ]] || mv ".decree/cron/${f}.md" "$keep/cron/"; done
-    for f in "$reg" .decree/applied .decree/migrations .decree/scripts .decree/graph; do [[ ! -e "$f" ]] || mv "$f" "$keep/"; done
-    echo "plugin: decree 0.5's installed copies are replaced; what is left of them is in ${keep}/"
-}
-
 
 # plugin_try <file>: install one plugin file into a scratch copy of this project
 # and decree check it; why not, on stderr. Nothing here changes.

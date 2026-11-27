@@ -25,9 +25,7 @@ tiers, and the tier table below can no longer keep the stack consistent.
 llama.cpp, Strata and the controller's `ai/model-gateway` all answer it, so every caller
 that sends a prompt speaks `/v1/chat/completions` and nothing else. Only ollama's own API —
 pulling, unloading, `/api/show`, `/api/ps`, its health probe — lives at the root (the URL less
-`/v1`), and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**. The key used to be
-`EXIST_OLLAMA_URL`, holding ollama's root; `_renamed_value` in `src/templates.sh` carries an old
-value across, `/v1` appended.
+`/v1`), and those steps run **only when `EXIST_IS_AI_OLLAMA=true`**.
 
 Spreading models across hosts is the fleet's job, not an address's: in decree scripts, with
 `EXIST_FLEET_SECRET` set, `model_base <role>` (lib/model.sh) asks the controller for the
@@ -35,7 +33,7 @@ service (`llm` or `strata`) whose offer lists the role's model (`EXIST_MODEL_CHA
 `EXIST_MODEL_VISION`), takes that host's lease, and falls back to `model_url`
 (`EXIST_MODEL_URL`) when no host offers it. Apps that cannot lease (Home Assistant, Open WebUI,
 opencode) read `EXIST_MODEL_URL`; pointing it at the controller's gateway
-(`http://<controller>:4400/v1`) gives them the same leasing, since `gateway.ts` holds each call
+(`https://model-gateway.<controller's domain>/v1`) gives them the same leasing, since `gateway.ts` holds each call
 under `fleet_use` / `fleet_done`. A blank `EXIST_MODEL_CHAT` is the first model the URL lists
 (`model_first`, `/v1/models`).
 

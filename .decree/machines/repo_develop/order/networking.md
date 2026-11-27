@@ -32,11 +32,11 @@ through Caddy, and nothing is ever exposed to the internet.
   `Caddyfile.exist.Caddyfile` is the single source of truth for which hostnames exist.
 - **Nothing without a login listens on the LAN.** Loki has none, and the offers in it decide
   where every host sends its calls and the fleet secret, so it stays on loopback
-  (`LOKI_BIND=127.0.0.1`, which `run fleet controller` sets). The hosts on your own network
-  reach it only through the controller's model gateway (`:4400/loki`: push, query_range,
-  labels, buildinfo), which takes the fleet secret, compared in constant time, and never passes
-  it on to Loki. Over Tailscale, Loki is on the tailnet at `:3100`, where the tailnet's own
-  access controls are the boundary. A host sends the secret from a file or stdin, never on a
+  (`LOKI_BIND=127.0.0.1`, which `run fleet controller` sets). The other hosts
+  reach it only through `https://model-gateway.<domain>`, the controller's Caddy in front of
+  its model gateway (no host port; push, query_range, labels, buildinfo), which takes the fleet secret, compared
+  in constant time, and never passes it on to Loki. Every host reaches the controller over
+  HTTPS through its Caddy, on any network. A host sends the secret from a file or stdin, never on a
   command line. The gateway runs the fleet lib from the repo's own plugin file, never from the
   workspace, which anything with write access to the workspace could change.
 - **Nothing is published to the internet.** There is no peer or front-door mode
@@ -67,5 +67,5 @@ through Caddy, and nothing is ever exposed to the internet.
   **Then** it exits 0: `/loki/...` is 401 without the fleet secret or with a wrong one, a query
   with it reaches Loki without the secret, and no other Loki path is reachable
 - **Given** `./existential.sh test report-host`
-  **Then** a worker on your own network pushes to `http://<controller>:4400` with the secret
-  from a file only its owner reads
+  **Then** a worker pushes to `https://model-gateway.<controller's domain>` with the secret from a file
+  only its owner reads, and one whose `EXIST_CONTROLLER` is an address sends nothing and fails

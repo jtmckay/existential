@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fleet — set a host up as the controller or as a worker on your own network, in one command.
 #   ./existential.sh run fleet controller            on the controller: prints the join command
-#   ./existential.sh run fleet join <controller> [<secret>]   on every other host
+#   ./existential.sh run fleet join <controller's domain> [<secret>]   on every other host
 #   ./existential.sh run fleet api                   a GPU box's lease API, hosting/fleet-api, on :8801
 #   ./existential.sh run fleet status                what this host has, and what it can reach
 # Each step is what site/docs/hosting/controller-and-workers.md does by hand; running one twice
@@ -42,18 +42,11 @@ start_daemon() {
 # Compose (restart: unless-stopped, so it comes back with the engine), in front of this host's
 # .decree on the LAN at :8801 behind the fleet secret. lease_gpu, a host plugin in this host's
 # decree daemon, does the leasing, so a GPU box is a worker by choice. The controller never runs
-# it: its API is the model gateway. A box set up before this started decree-go-rest from
-# .decree/boot.sh in tmux: that line, session and container go.
+# it: its API is the model gateway.
 cmd_api() {
-    local boot="${REPO_DIR}/.decree/boot.sh" engine t
+    local engine
     engine="$(command -v podman || command -v docker || true)"
     [[ -n "$engine" ]] || die "the lease API runs in a container: install podman or docker"
-    if grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
-        t="$(mktemp)"; grep -v 'decree-go-rest' "$boot" > "$t" || true; cat "$t" > "$boot"; rm -f "$t"
-        tmux kill-session -t "=decree-go-rest" 2>/dev/null || true
-        "$engine" rm -f decree-go-rest >/dev/null 2>&1 || true
-        echo "  api      took the old decree-go-rest out of .decree/boot.sh"
-    fi
     exist service on fleet-api
     ( cd "$REPO_DIR" && "$engine" compose up -d fleet-api )
     echo "  api      http://$(address):8801 (docker logs fleet-api), back after every reboot with the engine"
@@ -69,36 +62,41 @@ cmd_controller() {
         env_set "$ENV" EXIST_FLEET_SECRET "$secret"
         echo "  secret   made"
     fi
-    # Containers only: where the reports land (Loki, Grafana) and the fleet's API (the model
-    # gateway). Nothing on the host itself: this host reports itself only if it is also made a
-    # worker, by choice (./existential.sh plugin on report_host).
-    exist service on loki grafana model-gateway
-    # Loki stays on loopback (it has no login): the hosts on your own network reach it through
-    # the model gateway, at :4400/loki, with the fleet secret; over Tailscale, at :3100 on the
-    # tailnet. A controller set up before this had it open on 43100: closed again here.
-    env_set "$LOKI_ENV" LOKI_BIND 127.0.0.1
-    echo "  loki     reached by the workers through the gateway at :4400/loki, with the secret"
+    # Containers only: where the reports land (Loki, Grafana), the fleet's API (the model
+    # gateway) and Caddy, the one way in: every other host reaches it over HTTPS, as
+    # https://model-gateway.<domain> (models, and Loki's paths), which takes the fleet secret.
+    # Loki itself stays on loopback (it has no login). Nothing on the host itself: this host
+    # reports itself only if it is also made a worker, by choice (./existential.sh plugin on report_host).
+    exist service on loki grafana model-gateway caddy
+    local domain; domain="$(env_get "$ENV" EXIST_DOMAIN)"
+    echo "  loki     reached by the workers at https://model-gateway.${domain}, with the secret"
     echo ""
-    echo "Start Loki, Grafana and the model gateway:  docker compose up -d"
+    echo "Start Loki, Grafana, the model gateway and Caddy:  docker compose up -d"
+    # Caddy's own CA signed its certificate (no certificate of yours in hosting/caddy/certs):
+    # every worker must trust it, or no report gets through.
+    if openssl verify -CAfile "${REPO_DIR}/hosting/caddy/certs/internal-ca.pem" "${REPO_DIR}/hosting/caddy/certs/internal.pem" >/dev/null 2>&1; then
+        echo "⚠  Caddy's certificate is signed by this host's own CA: install hosting/caddy/certs/internal-ca.pem"
+        echo "   on every worker first (docs: Controller and Workers), or use a certificate of your own."
+    fi
     if ! grep -qxF report_host "${REPO_DIR}/.decree/plugins/.on" 2>/dev/null; then
         echo "Recommended, to report this host too and relay the others' notifications (runs on the host):"
         echo "  ./existential.sh plugin on report_host && ./existential.sh run host-daemon install"
     fi
     echo "Then on every other host:"
-    echo "  ./existential.sh run fleet join $(address) ${secret}"
-    echo "and, to code against the fleet's GPUs, in its .env.shared:  EXIST_MODEL_URL=http://$(address):4400/v1"
-    echo "And in a decree project of your own, with EXIST_CONTROLLER=$(address) and EXIST_FLEET_SECRET in its .decree/.env:"
-    echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"http://\$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md\" | decree install -"
+    echo "  ./existential.sh run fleet join ${domain} ${secret}"
+    echo "and, to code against the fleet's GPUs, in its .env.shared:  EXIST_MODEL_URL=https://model-gateway.${domain}/v1"
+    echo "And in a decree project of your own, with EXIST_CONTROLLER=${domain} and EXIST_FLEET_SECRET in its .decree/.env:"
+    echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"https://model-gateway.\$EXIST_CONTROLLER/plugins/fleet_gpu.md\" | decree install -"
 }
 
 cmd_join() {
     local ctl="${1:-}" secret="${2:-}"
-    [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || die "usage: fleet join <controller's address> [<secret>]"
+    [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ && ! "$ctl" =~ ^[0-9.]+$ ]] || die "usage: fleet join <controller's domain, its EXIST_DOMAIN> [<secret>]"
     [[ -f "$ENV" ]] || die "run ./existential.sh first, then this again"
     if [[ -z "$secret" && -t 0 ]]; then
         read -r -s -p "Fleet secret (from the controller's fleet controller): " secret; echo ""
     fi
-    echo "This host reports to ${ctl}:"
+    echo "This host reports to https://model-gateway.${ctl}:"
     env_set "$ENV" EXIST_CONTROLLER "$ctl"
     [[ -z "$secret" ]] || env_set "$ENV" EXIST_FLEET_SECRET "$secret"
     exist plugin on report_host
@@ -119,15 +117,14 @@ cmd_status() {
     secret="$(env_get "$ENV" EXIST_FLEET_SECRET)"
     if [[ -z "$ctl" ]]; then
         if grep -q '^EXIST_IS_HOSTING_LOKI=true' "$ENV"; then
-            echo "  role        controller (Loki bind: $(env_get "$LOKI_ENV" LOKI_BIND); the workers reach it through :4400)"
+            echo "  role        controller (Loki bind: $(env_get "$LOKI_ENV" LOKI_BIND); the workers reach it at https://model-gateway.$(env_get "$ENV" EXIST_DOMAIN))"
         else
             echo "  role        NONE: no EXIST_CONTROLLER and no Loki here (fleet join <controller>)"
         fi
-    elif curl -fsS --max-time 5 "http://${ctl}:4480/" >/dev/null 2>&1 ||
-        printf 'Authorization: Bearer %s\n' "$secret" | curl -fsS --max-time 5 -H @- "http://${ctl}:4400/loki/api/v1/labels" >/dev/null 2>&1; then
-        echo "  role        worker of ${ctl} (it answers)"
+    elif printf 'Authorization: Bearer %s\n' "$secret" | curl -fsS --max-time 5 -H @- "https://model-gateway.${ctl}/loki/api/v1/labels" >/dev/null 2>&1; then
+        echo "  role        worker of ${ctl} (https://model-gateway.${ctl} answers)"
     else
-        echo "  role        worker of ${ctl} (NO ANSWER on :4480, or on :4400 with this secret)"
+        echo "  role        worker of ${ctl} (NO ANSWER at https://model-gateway.${ctl} with this secret)"
     fi
     echo "  address     $(address)"
     if [[ -n "$secret" ]]; then echo "  secret      set, starts ${secret:0:6}"; else echo "  secret      NOT SET: leases off"; fi

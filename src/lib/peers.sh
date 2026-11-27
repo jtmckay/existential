@@ -21,21 +21,13 @@ yq --front-matter=extract -r '.["x-exist-lib"]["fleet.sh"]' "${REPO_DIR}/automat
 # shellcheck source=/dev/null
 . "$lib"
 
-# The Loki the controller names: asked fresh when this host has one, else its last answer;
-# the controller reads its own. Then what reporting last used.
-loki_url() {
-    local ctl ans="" f
-    ctl="$(env_get EXIST_CONTROLLER)"
-    [[ -z "$ctl" ]] || ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null || true)"
-    for f in "${REPO_DIR}/.decree/controller.json" "${REPO_DIR}/.decree/exist.json"; do
-        [[ -n "$ans" ]] || ans="$(cat "$f" 2>/dev/null || true)"
-    done
-    ans="$(jq -r '.loki // empty' <<<"$ans" 2>/dev/null || true)"
-    [[ -n "$ans" ]] || ans="$(cat "${REPO_DIR}/.decree/machines/report_host/state/loki" 2>/dev/null || true)"
-    [[ -n "$ans" ]] || die "no Loki named: turn on the report-host flow, and set EXIST_CONTROLLER (blank on the controller)"
-    echo "$ans"
-}
-EXIST_FLEET_LOKI="$(loki_url)"
+# The controller's Loki: https://model-gateway.<EXIST_CONTROLLER>, through its Caddy; on the controller
+# (no EXIST_CONTROLLER, Loki on), its own on loopback.
+EXIST_FLEET_LOKI=""
+grep -q '^EXIST_IS_HOSTING_LOKI=true' "${REPO_DIR}/.env.shared" 2>/dev/null && EXIST_FLEET_LOKI="http://127.0.0.1:43100"
+ctl="$(env_get EXIST_CONTROLLER)"
+[[ -z "$ctl" ]] || EXIST_FLEET_LOKI="https://model-gateway.${ctl}"
+[[ -n "$EXIST_FLEET_LOKI" ]] || die "no Loki named: set EXIST_CONTROLLER to the controller's domain (blank on the controller)"
 EXIST_FLEET_SECRET="$(env_get EXIST_FLEET_SECRET)"
 
 # The one offer of <service> by <host>, or fail.

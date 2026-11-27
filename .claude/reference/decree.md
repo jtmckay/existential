@@ -63,10 +63,7 @@ its `plugin on` line on some docs page (validate conventions).
   project, is off until a person turns it on. `decree_prune` is in the kernel, so every project
   prunes its runs; **the host's project is not Core**, and `_host_plugins` syncs it only while
   its list names something (`plugin off` syncs it at once, so the last one off is removed). A
-  project has exactly what its list names, the kernel, and everything those `needs:`. An
-  install from before kept one `automation/plugins.yml` and each sync's `.existential`:
-  `_plugins_on` (`src/utils/migrate.sh`) makes each `.on` from the latter, moving a flow's
-  installed cron files to the machine each names, and archives the former.
+  project has exactly what its list names, the kernel, and everything those `needs:`.
 - **`./existential.sh plugin on|off <name>...`** (`src/plugins.sh`) edits the list of each
   project the plugin is tagged for (backup only while automation-backup is on) and syncs each
   at once. `plugin` (exit 3) lists every plugin: `on`, `+` for one something on needs, or off.
@@ -80,14 +77,10 @@ its `plugin on` line on some docs page (validate conventions).
   `state/` and `order/` stay). Cron files are installed with a plugin once and are then the
   project's (decree's rule). After that, what decree does not install (`plugin_extras`): each
   plugin's `x-exist-lib`, handlers and endpoints, the ones it added last time taken out first.
-  Then the order files: a migration decree 0.5 ran is recorded as run, and one that has not
-  run queues one `decree_order` run. It never touches a machine folder no plugin names. It runs in
+  Then the order files: one that has not run queues one `decree_order` run. It never touches a machine folder no plugin names. It runs in
   adhoc (yq, decree) from each project's `exist.initial.sh` and from `_host_plugins` in
   `existential.sh`; on a worker with no engine, on the host. `./existential.sh plugin` is
   the CLI (`list`, `on`, `off`, `sync`, `export`).
-- **decree 0.5's layout is converted once** (`plugin_convert_05`): a copy a plugin installed
-  goes (the plugin installs it again), a machine of yours moves to `machines/<name>/`, and the
-  registry, applied copies, migrations and flat scripts are kept in `.decree/archive/0.5/`.
 - **`plugin export <name>`** is `decree export` in the source project, with `note_watch`'s
   emits as the repo has them: change it live,
   export, commit, and every install that has it on gets it on its next pull.
@@ -258,8 +251,8 @@ meaning this host. `report_host` pushes them as `kind="offer"`, with `localhost`
 `EXIST_TAILNET_NAME` (else `EXIST_LOCAL_HOST_IP`, else the hostname), and `src/lib/peers.sh`
 (`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
 The controller's model gateway serves the fleet lib as a plain decree plugin
-(`GET /plugins/fleet_gpu.md` on `:4400`, built from the workspace's `.decree/lib/fleet.sh` it
-mounts read-only; nothing of the host's `.decree` is read), so a decree project of your own
+(`GET https://model-gateway.<domain>/plugins/fleet_gpu.md`, built from the repo's
+`automation/plugins/fleet.md` it mounts read-only; nothing of the host's `.decree` is read), so a decree project of your own
 installs it with `curl ... | decree install -`.
 The controller only answers the question; traffic goes host to host.
 The **fleet** lib (`plugins/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
