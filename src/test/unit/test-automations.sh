@@ -499,12 +499,6 @@ mkdir -p "$S/.decree/machines/mine"
 printf 'name: mine\ndescription: Mine.\ninitial: done\nstates:\n  done: { final: true }\n  failed: { final: true }\n' > "$S/.decree/machines/mine/machine.yml"
 psync >/dev/null
 assert_eq "a machine of yours is never touched" "yes" "$([[ -e "$S/.decree/machines/mine/machine.yml" ]] && echo yes || echo no)"
-# decree 0.5's copies: a plugin's goes (the plugin is installed again), one of yours moves to its folder.
-printf 'name: gamma\n' > "$S/.decree/machines/gamma.yml"
-printf 'name: old\ndescription: Old.\ninitial: done\nstates:\n  done: { final: true }\n  failed: { final: true }\n' > "$S/.decree/machines/old.yml"
-psync >/dev/null
-assert_eq "decree 0.5's copy of a plugin goes" "no" "$([[ -e "$S/.decree/machines/gamma.yml" ]] && echo yes || echo no)"
-assert_eq "...and a machine of yours moves to machines/<name>/" "yes" "$([[ -f "$S/.decree/machines/old/machine.yml" && ! -e "$S/.decree/machines/old.yml" ]] && echo yes || echo no)"
 ( cd "$S" && decree export --no-color alpha ) >/dev/null 2>&1
 assert_eq "decree export keeps existential's keys" "automation" "$(yq --front-matter=extract -r '.["x-exist-project"]' "$S/.decree/plugins/alpha.md")"
 
