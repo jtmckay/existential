@@ -80,6 +80,10 @@ cmd_controller() {
     echo "  loki     reached by the workers through the gateway at :4400/loki, with the secret"
     echo ""
     echo "Start Loki, Grafana and the model gateway:  docker compose up -d"
+    if ! grep -qxF report_host "${REPO_DIR}/.decree/plugins/.on" 2>/dev/null; then
+        echo "Recommended, to report this host too and relay the others' notifications (runs on the host):"
+        echo "  ./existential.sh plugin on report_host && ./existential.sh run host-daemon install"
+    fi
     echo "Then on every other host:"
     echo "  ./existential.sh run fleet join $(address) ${secret}"
     echo "and, to code against the fleet's GPUs, in its .env.shared:  EXIST_MODEL_URL=http://$(address):4400/v1"

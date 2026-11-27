@@ -31,9 +31,8 @@ The first run asks what this computer is:
 - **Core** (Enter): [Core](./intro.md#what-core-installs) and nothing more. It asks for a
   username (Enter keeps `admin`) and a password (Enter generates one), prints both at the end,
   and keeps them in `.env.shared`.
-- **A worker**: another computer of yours that only reports in to the one you made the
-  controller. It asks for that computer's address and runs nothing else
-  ([Controller and Workers](./hosting/controller-and-workers.md)).
+- **A worker**: for when you have more than one computer, set up as
+  [Controller and Workers](./hosting/controller-and-workers.md) describes. Not for your first.
 
 Every answer is kept as soon as you give it, and anything the computer is missing is offered
 for install with the command shown: Enter installs it and setup goes on. It prints where to

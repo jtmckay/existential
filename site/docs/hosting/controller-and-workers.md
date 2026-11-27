@@ -10,27 +10,48 @@ VRAM use, the decree machines and plugins it has installed and the containers it
 as it happens. Grafana's **Hosts** dashboard shows the hosts, and **Decree Overview** every run.
 
 - The **controller** is the one host the others ask "where do I report?". It answers with a
-  Loki's address. It is a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host with
-  `EXIST_CONTROLLER` blank and no Loki reports nowhere.
+  Loki's address. It is usually a worker too, with `EXIST_CONTROLLER` blank and Loki on. A host
+  with `EXIST_CONTROLLER` blank and no Loki reports nowhere.
 - Every other worker names it in `EXIST_CONTROLLER`.
 - A host doesn't have to be a worker at all. Without `report_host`, nothing runs on the
   host and nothing is reported.
 
 Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already needs.
 
-## The controller
+## Set up the controller
 
-Setup never makes a controller: on the computer you choose, after its first run, run
-`./existential.sh run fleet controller`. It makes the fleet secret and turns on where the
-reports land, Loki and Grafana, with the [model gateway](../ai/model-gateway.md), the fleet's
-API. All three are containers: becoming the controller sets nothing up on the host itself, no
-systemd unit and no host daemon. To have the controller report itself too, make it a worker as
-well, by choice: `./existential.sh plugin on report_host`, which offers the
-[host daemon](./host-daemon.md). Then:
+Setup never makes a controller. Pick the computer that stays on (usually the one running Core)
+and, after its first run:
+
+### 1. Make it the controller
 
 ```bash
+./existential.sh run fleet controller
 docker compose up -d
 ```
+
+This makes the fleet secret and turns on where the reports land, Loki and Grafana, with the
+[model gateway](../ai/model-gateway.md), the fleet's API. All three are containers: nothing is
+set up on the host itself, no systemd unit and no host daemon. It prints the line each worker
+joins with.
+
+### 2. Make it a worker too (recommended)
+
+```bash
+./existential.sh plugin on report_host
+./existential.sh run host-daemon install
+```
+
+Most controllers want this. Its own `report_host` is what:
+
+- puts the controller itself on the **Hosts** dashboard and ships its own decree runs;
+- relays the other hosts' notifications to its ntfy (`notify-relay`, [below](#services-a-host-has-off));
+- pushes its answer (its domain) to Loki, which workers on your own network read
+  ([Without Tailscale](#without-tailscale-your-own-network)).
+
+It is a separate step because it runs on the host: the [host daemon](./host-daemon.md) is a
+systemd user unit (a LaunchAgent on a Mac) running decree outside any container. Skip it and
+the controller still collects every other host's reports.
 
 `./existential.sh` serves two things on the tailnet, plain http (WireGuard already encrypts the
 traffic):
@@ -170,8 +191,8 @@ names. Both are served on the controller's tailnet, so in practice that's Tailsc
 ## Without Tailscale: your own network
 
 When every host is on one network, that network is already private and nothing more is needed:
-no tailnet and no DNS record. The controller is the host whose Loki listens on that network, and
-every other host names it by address.
+no tailnet and no DNS record. The controller's Loki stays on its own loopback, reached through its
+model gateway on `:4400` with the fleet secret, and every other host names it by address.
 
 `./existential.sh run fleet` does all of this section, plus the fleet secret, the host's address
 and the host daemon, in one command per host. Run it again any time; it changes only what is
