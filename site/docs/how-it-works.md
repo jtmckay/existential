@@ -2,14 +2,11 @@
 sidebar_position: 3
 ---
 
-# Services
+# How It's Built
 
-:::info[What runs]
-The services that run, on which hosts, and how they fit together. Back to
-[What It Is](./intro.md), or on to [Flows](./flows/index.md) to follow one job end to end.
-:::
-
-Each project named here fills a slot and can be swapped.
+The services that run, on which hosts, and how they are put together. What they do for a
+person: [What It Does](./flows/index.md). Each project named here fills a slot and can be
+swapped.
 
 ## The map
 
@@ -59,25 +56,24 @@ flowchart TB
 
 ### In short
 
-1. **One folder.** `workspace/` holds `notes/`, `.decree/` (your automations) and `.capture/`
-   ([Capture](./getting-started.md#capture)). code-server opens it with `claude` and `opencode` in
-   the terminal. [Nextcloud](./storage/nextcloud.md) can sync it to other devices.
-2. **decree runs it.** Machines in `workspace/.decree/` run on a schedule, an inbox message or a
-   webhook, and report through ntfy. [Flows](./flows/index.md) you turn on add a daily
-   [digest](./getting-started.md#you-were-here) and weekly and monthly
-   [look backs](./getting-started.md#look-back). With Monitoring, run logs go to Loki.
+1. **One folder.** [`workspace/`](./workspace.md) holds `notes/`, `ai/` and `.decree/` (your
+   automations). code-server opens it with `claude` and `opencode` in the terminal.
+   [Nextcloud](./storage/nextcloud.md) can sync it to other devices.
+2. **decree runs it.** Machines in `workspace/.decree/` run on a schedule, a file change, an
+   inbox message or a webhook, and report through ntfy. Each is a [plugin](./plugins/index.md),
+   off until turned on. With Monitoring, run logs go to Loki.
 3. **A model is a URL.** Everything that needs one uses an OpenAI-compatible `/v1` address:
    Ollama here, llama.cpp on [another box](./hosting/ai-box.md), anything that serves `/v1`.
 
 ## The AI, slot by slot
 
-None of this is in Core. Each row is a flag; the [Flows](./flows/index.md) page says which a flow needs.
+Search, the web and pi are in Core; every other row is a flag.
 
 | Slot | Ships as | What it does |
 |---|---|---|
-| **Models** | [Ollama](./ai/ollama.md), or any OpenAI-compatible server | Serves the models at `EXIST_MODEL_URL`. Each role can point elsewhere: [Configuration](./configuration.md#endpoints--putting-roles-on-different-hosts). |
+| **Models** | [Ollama](./ai/ollama.md), or any OpenAI-compatible server | Serves the models at `EXIST_MODEL_URL`, the one address everything uses: [Configuration](./configuration.md#endpoints--where-model-calls-go). |
 | **Agent** | [pi](./ai/pi.md) | An agent with tools on the same model URL, in code-server's terminal and your automations. Baked in. |
-| **Search** | [qmd](./ai/qmd.md) | Your notes, PDFs and Word files by meaning and exact words, for you and every agent. |
+| **Search** | [qmd](./ai/qmd.md) | Your notes, PDFs and Word files by meaning and exact words, for you and every agent. CPU only, no model needed. |
 | **The web** | [Firecrawl](./ai/firecrawl.md) | Turns a URL into markdown a model can read. |
 | **Speech → text (voice)** | [wyoming-whisper](./ai/wyoming-whisper.md) | What Home Assistant listens with. CPU only, so it never evicts a model from the GPU. |
 | **Text → speech (voice)** | [wyoming-piper](./ai/wyoming-piper.md) | The voice Home Assistant answers in. CPU only. |
@@ -85,7 +81,6 @@ None of this is in Core. Each row is a flag; the [Flows](./flows/index.md) page 
 | **Speech → text (recordings)** | [WhisperX](./ai/whisperx.md) | Long recordings with speaker labels, on the GPU, run by decree. |
 | **Text → speech (HTTP)** | [Chatterbox](./ai/chatterbox.md) | Cloneable voices over an OpenAI-compatible API. Nothing in the stack calls it yet. |
 | **Chat front end** | [Open WebUI](./ai/open-web-ui.md) | Chat in a browser. |
-| **Search** | [qmd](./ai/qmd.md) | Searches your notes, PDFs and Word files by words and by meaning, for you or for Claude in code-server. CPU only, no model needed. |
 
 :::caution[pi doesn't edit the stack]
 Change the stack with a coding agent on the host, against a frontier model. pi works on
@@ -97,7 +92,7 @@ Change the stack with a coding agent on the host, against a frontier model. pi w
 > **A true/false flag per service. Everything enabled is rendered, merged into one compose file
 > and one env file, and run on one network.**
 
-No plugin system, no registry, no orchestrator.
+No registry, no orchestrator: a service is a folder.
 
 ### 1. Choose — a flag per service
 
@@ -165,132 +160,11 @@ http://ollama:11434     http://firecrawl:3002     http://automation-webhook:8801
 - Other services publish nothing; browsers reach them through Caddy at `https://<slug>.<domain>`.
 - Containers talk plain HTTP by name.
 
-## Core over Tailscale
+How a browser gets in, at home and away: [Networking](./networking.md).
 
-code-server's previews and the ntfy phone app both need a certificate every device trusts.
-Tailscale issues a Let's Encrypt certificate for the host's tailnet name, so
-`./existential.sh` runs `tailscale serve`:
-
-```
-https://<host>.<tailnet>.ts.net       →  127.0.0.1:42080  (code-server)
-https://<host>.<tailnet>.ts.net:8443  →  127.0.0.1:44680  (ntfy)
-```
-
-Nothing to install on devices, nothing on the LAN. Setup steps:
-[Getting Started](./getting-started.md#setup).
-
-## Hostnames that just work
-
-For the Caddy add-on. `EXIST_DOMAIN` defaults to `<host-ip-with-dashes>.nip.io`, from this
-host's LAN address:
-
-```
-EXIST_LOCAL_HOST_IP=192.168.1.20          (LAN address)
-        ↓
-EXIST_DOMAIN=192-168-1-20.nip.io   →  https://dashy.192-168-1-20.nip.io
-```
-
-- [nip.io](https://nip.io) is public wildcard DNS: `<anything>.<ip>.nip.io` resolves to that
-  IP. No DNS setup, and a new service needs no DNS change.
-- A LAN address only routes inside your network. Nothing is exposed. From elsewhere, use a
-  [VPN](./hosting/vpn.md).
-- With Tailscale up, the tailnet IP (`tailscale ip -4`) is used instead.
-
-:::danger If you use Tailscale, don't use a MagicDNS name
-`EXIST_DOMAIN=my-box.tailnet.ts.net` fails: MagicDNS has no wildcard under a node name, so
-`dashy.my-box.tailnet.ts.net` doesn't resolve. Use the tailnet **IP** in nip.io form.
-`tailscale serve` has the same limit, one hostname per node, which is why it serves only Core.
-:::
-
-Downsides of the default:
-
-- The certificate is from the stack's own CA, so a browser warns until you
-  [trust it on that device](./hosting/caddy.md#trust-its-ca-once-per-device).
-  [A domain you own](#owned-domain-without-exposing-your-network) gets a certificate every
-  device already trusts.
-- Without internet, names stop resolving, even on the host. [pihole](./hosting/pihole.md)
-  answers them locally.
-- nip.io sees your host's IP and each service name you look up.
-
-### Upgrading an existing install
-
-Services read `EXIST_DOMAIN` at container start, so changing it applies on the next
-`docker compose up -d`. An older install may still have baked values in its rendered `.env`
-files. Delete these lines if present:
-
-| File | Delete |
-|---|---|
-| `hosting/caddy/.env` | `CADDY_DOMAIN=` |
-| `services/mealie/.env` | `MEALIE_BASE_URL=` |
-| `nas/collabora/.env` | `COLLABORA_DOMAIN=`, `COLLABORA_NEXTCLOUD_DOMAIN=` |
-
-- **A Caddyfile missing a newly enabled service's block:** copy the block from
-  `Caddyfile.exist.Caddyfile`, or run `./existential.sh reset`.
-- **`reset`** archives every rendered file plus decree's run logs, cron files and record of what ran, lists what
-  it will move, and asks first. It never touches `_data` or `_backup` volumes; it offers to
-  delete `_cache` ones.
-- **`Permission denied`:** Docker created a missing bind-mount directory as root, usually from
-  `docker compose up -d` in a tree that was never rendered. `./existential.sh run fix-permissions`
-  (`--dry-run` first) gives them back to you without `sudo`.
-
-## Owned domain without exposing your network
-
-The default works with no setup, but its certificate comes from the stack's own CA, so a browser
-warns until that CA is [trusted on the device](./hosting/caddy.md#trust-its-ca-once-per-device).
-With a domain you own, every device trusts `https://<slug>.<domain>` with nothing to install.
-
-Nothing on your network becomes reachable from outside. The DNS record points at a LAN address,
-which only routes inside your network, and the certificate is issued by a DNS challenge:
-Let's Encrypt reads a record from public DNS and never connects to you.
-
-The steps use a subdomain, `home.example.com`, so the rest of the domain is untouched, and
-Cloudflare as the DNS provider. [acme.sh](https://github.com/acmesh-official/acme.sh) issues
-the certificate and [supports most other providers](https://github.com/acmesh-official/acme.sh/wiki/dnsapi).
-
-### 1. One DNS record
-
-At your DNS provider, add a wildcard `A` record at this host's LAN address
-(`EXIST_LOCAL_HOST_IP` in `.env.shared`):
-
-```
-*.home.example.com   A   192.168.1.20
-```
-
-On Cloudflare, set it to **DNS only**, not proxied. A new service needs no further record.
-
-### 2. A certificate
-
-Make an API token that can edit the domain's DNS (Cloudflare: **My Profile → API Tokens →
-Create Token → Edit zone DNS**, for that one zone). [Install acme.sh](https://github.com/acmesh-official/acme.sh#1-how-to-install),
-then, from the repo:
-
-```bash
-acme.sh --set-default-ca --server letsencrypt
-read -rs CF_Token && export CF_Token      # paste the token and press Enter; nothing is shown
-acme.sh --issue --dns dns_cf -d '*.home.example.com' -d home.example.com
-acme.sh --install-cert -d '*.home.example.com' \
-  --fullchain-file "$PWD/hosting/caddy/certs/internal.pem" \
-  --key-file       "$PWD/hosting/caddy/certs/internal-key.pem" \
-  --reloadcmd      "docker restart caddy"
-acme.sh --install-cronjob
-```
-
-Caddy serves whatever certificate is in those two files, and `./existential.sh` leaves one it
-did not mint alone. The cron job renews it about every 60 days, copies it in and restarts Caddy.
-
-### 3. Point the stack at it
-
-```bash
-EXIST_DOMAIN=home.example.com          # in .env.shared
-./existential.sh && docker compose up -d
-```
-
-Every service now answers at `https://<slug>.home.example.com`. The old names stop working, so
-update bookmarks and the ntfy app.
-
-A name that doesn't resolve on your network is usually the router's DNS rebind protection, which
-drops public answers that point at a private address. Allow the domain there, or answer it
-locally with [pihole](./hosting/pihole.md).
+**`Permission denied`** on a volume: Docker created a missing bind-mount directory as root,
+usually from `docker compose up -d` in a tree that was never rendered.
+`./existential.sh run fix-permissions` (`--dry-run` first) gives them back to you without `sudo`.
 
 ## Core vs. complementary services
 
@@ -335,7 +209,7 @@ Even on one host, think of it as separate stacks, so moving one later is a confi
 ```
 
 - **NAS:** storage wants disks and its own reboot schedule. Moving it is an endpoint change;
-  `workspace/` [stays in sync](./getting-started.md#syncing-with-a-nas-or-a-nextcloud-optional).
+  `workspace/` [stays in sync](./flows/one-place.md#the-workspace-on-your-other-devices).
 - **Models:** restarting a model server shouldn't interrupt anything. The
   [AI box](./hosting/ai-box.md) is one URL in `.env.shared`.
 - **pi-hole:** your LAN's DNS should stay up while you rebuild the stack.

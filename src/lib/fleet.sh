@@ -2,7 +2,7 @@
 # fleet — set a host up as the controller or as a worker on your own network, in one command.
 #   ./existential.sh run fleet controller            on the controller: prints the join command
 #   ./existential.sh run fleet join <controller> [<secret>]   on every other host
-#   ./existential.sh run fleet api                   this host's decree-go-rest on :8801, now and at boot
+#   ./existential.sh run fleet api                   a GPU box's lease API, hosting/fleet-api, on :8801
 #   ./existential.sh run fleet status                what this host has, and what it can reach
 # Each step is what site/docs/hosting/controller-and-workers.md does by hand; running one twice
 # changes nothing. Runs on the host, a Mac included: bash 3.2, BSD tools.
@@ -32,48 +32,31 @@ address() {
     echo "${a:-$(hostname)}"
 }
 
-# The host daemon runs the host plugins (report_host, pull_existential, lease_gpu): started here when it isn't.
+# The host daemon runs the host plugins (report_host, pull_existential, lease_gpu): started now
+# and at every boot (host-daemon.sh install), whatever already runs.
 start_daemon() {
-    if tmux has-session -t "=existential-host" 2>/dev/null; then echo "  daemon   running (tmux existential-host)"; return 0; fi
-    command -v decree >/dev/null 2>&1 || { echo "  daemon   not started: install decree (./existential.sh says how), then rerun"; return 0; }
-    tmux new -d -s existential-host -c "$REPO_DIR" decree daemon
-    echo "  daemon   started (tmux existential-host); have it start at boot: site/docs/hosting/host-daemon.md"
+    bash "${SCRIPT_DIR}/host-daemon.sh" install || echo "  daemon   not started (above); then: ./existential.sh run host-daemon install"
 }
 
-# decree-go-rest in front of this host's .decree, on the LAN at :8801 with the fleet secret: the
-# leases a GPU box serves, and fleet_gpu.md for a decree project of your own. Its config is
-# this host's (.decree/decree-go-rest.yml, written once); each ./existential.sh adds the
-# endpoints its plugins declare. Started now, and by .decree/boot.sh (the boot_daemon plugin) at
-# boot; started again, so it takes the secret as .env.shared has it now.
+# A GPU box's lease API: hosting/fleet-api, decree-go-rest pulled as an image and run by
+# Compose (restart: unless-stopped, so it comes back with the engine), in front of this host's
+# .decree on the LAN at :8801 behind the fleet secret. lease_gpu, a host plugin in this host's
+# decree daemon, does the leasing, so a GPU box is a worker by choice. The controller never runs
+# it: its API is the model gateway. A box set up before this started decree-go-rest from
+# .decree/boot.sh in tmux: that line, session and container go.
 cmd_api() {
-    local rest="${REPO_DIR}/.decree/decree-go-rest.yml" boot="${REPO_DIR}/.decree/boot.sh" engine flags line
+    local boot="${REPO_DIR}/.decree/boot.sh" engine t
     engine="$(command -v podman || command -v docker || true)"
-    [[ -n "$engine" ]] || die "decree-go-rest runs in a container: install podman or docker"
-    if [[ ! -f "$rest" ]]; then
-        cat > "$rest" <<'YML'
-# This host's own (gitignored), written by ./existential.sh run fleet api. The plugins add their endpoints.
-listen: 0.0.0.0:8801 # open to the LAN, plain HTTP: the bearer secret is readable on the wire
-secret_env: EXIST_FLEET_SECRET # from .env.shared, the same on every host
-decree: decree
-daemon:
-  enabled: false # the host daemon (existential-host) works the queue
-endpoints: []
-YML
-        echo "  api      wrote .decree/decree-go-rest.yml"
+    [[ -n "$engine" ]] || die "the lease API runs in a container: install podman or docker"
+    if grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
+        t="$(mktemp)"; grep -v 'decree-go-rest' "$boot" > "$t" || true; cat "$t" > "$boot"; rm -f "$t"
+        tmux kill-session -t "=decree-go-rest" 2>/dev/null || true
+        "$engine" rm -f decree-go-rest >/dev/null 2>&1 || true
+        echo "  api      took the old decree-go-rest out of .decree/boot.sh"
     fi
-    flags="--user $(id -u):$(id -g)"
-    [[ "$engine" == *podman ]] && flags="--userns keep-id ${flags} --security-opt label=disable"
-    line="tmx -d decree-go-rest \"exec ${engine##*/} run --rm --name decree-go-rest --label exist.watch=true ${flags} -p 8801:8801 -e EXIST_FLEET_SECRET=\\\"\\\$(sed -n 's/^EXIST_FLEET_SECRET=//p' '${REPO_DIR}/.env.shared')\\\" -v '${REPO_DIR}/.decree:/project/.decree:ro' -v '${REPO_DIR}/.decree/inbox:/project/.decree/inbox' ghcr.io/jtmckay/decree-go-rest:0.6.0\""
-    if ! grep -q 'decree-go-rest' "$boot" 2>/dev/null; then
-        printf '# decree-go-rest in front of this .decree, on :8801 (./existential.sh run fleet api).\n%s\n' "$line" >> "$boot"
-        exist plugin on boot_daemon
-        echo "  api      started at boot by .decree/boot.sh"
-    fi
-    exist
-    tmux kill-session -t "=decree-go-rest" 2>/dev/null || true
-    "$engine" rm -f decree-go-rest >/dev/null 2>&1 || true
-    ( cd "$REPO_DIR" && . services/automation/decree/tmx.sh && eval "$line" )
-    echo "  api      http://$(address):8801 (tmux attach -t decree-go-rest)"
+    exist service on fleet-api
+    ( cd "$REPO_DIR" && "$engine" compose up -d fleet-api )
+    echo "  api      http://$(address):8801 (docker logs fleet-api), back after every reboot with the engine"
 }
 
 cmd_controller() {
@@ -86,20 +69,20 @@ cmd_controller() {
         env_set "$ENV" EXIST_FLEET_SECRET "$secret"
         echo "  secret   made"
     fi
-    exist plugin on report_host
+    # Containers only: where the reports land (Loki, Grafana) and the fleet's API (the model
+    # gateway). Nothing on the host itself: this host reports itself only if it is also made a
+    # worker, by choice (./existential.sh plugin on report_host).
     exist service on loki grafana model-gateway
     # Loki on the network, so the workers can push to it and ask it who the controller is.
     env_set "$LOKI_ENV" LOKI_BIND 0.0.0.0
     echo "  loki     on the network at :43100"
-    cmd_api
-    start_daemon
     echo ""
     echo "Start Loki, Grafana and the model gateway:  docker compose up -d"
     echo "Then on every other host:"
     echo "  ./existential.sh run fleet join $(address) ${secret}"
     echo "and, to code against the fleet's GPUs, in its .env.shared:  EXIST_MODEL_URL=http://$(address):4400/v1"
     echo "And in a decree project of your own, with EXIST_CONTROLLER=$(address) and EXIST_FLEET_SECRET in its .decree/.env:"
-    echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"http://\$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md\" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c \"{host, service, models}\"'"
+    echo "  set -a; . .decree/.env; set +a; curl -fsSL -H \"Authorization: Bearer \$EXIST_FLEET_SECRET\" \"http://\$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md\" | decree install -"
 }
 
 cmd_join() {
@@ -115,8 +98,10 @@ cmd_join() {
     exist plugin on report_host
     exist
     start_daemon
-    # A go-rest that runs takes the secret only when it starts.
-    if tmux has-session -t "=decree-go-rest" 2>/dev/null; then cmd_api; fi
+    # The lease API takes the secret only when it starts: recreate it with the new one.
+    if grep -q '^EXIST_IS_HOSTING_FLEET_API=true' "$ENV"; then
+        ( cd "$REPO_DIR" && "$(command -v podman || command -v docker)" compose up -d fleet-api )
+    fi
     echo ""
     cmd_status
 }
@@ -140,7 +125,9 @@ cmd_status() {
     fi
     echo "  address     $(address)"
     if [[ -n "$secret" ]]; then echo "  secret      set, starts ${secret:0:6}"; else echo "  secret      NOT SET: leases off"; fi
-    if tmux has-session -t "=existential-host" 2>/dev/null; then echo "  daemon      running"; else echo "  daemon      NOT RUNNING"; fi
+    # The host daemon and its reports are a worker's (report_host), never set up for a controller.
+    grep -qxF report_host "${REPO_DIR}/.decree/plugins/.on" 2>/dev/null || { echo "  reports     none from this host (a worker's: plugin on report_host)"; return 0; }
+    if tmux has-session -t "=existential-host" 2>/dev/null; then echo "  daemon      running"; else echo "  daemon      NOT RUNNING (./existential.sh run host-daemon install)"; fi
     runs="${REPO_DIR}/.decree/runs"
     for r in $(ls -t "$runs" 2>/dev/null | head -n 20); do
         last="$(grep -m1 '^reporting:' "${runs}/${r}/0001-report.log" 2>/dev/null)" && break

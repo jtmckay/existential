@@ -4,43 +4,40 @@ sidebar_position: 2
 
 # FAQ
 
-### Why not cloud AI and a few SaaS apps?
+### Isn't this just another system I'll abandon?
 
-- Each app sees only its own data. A chat assistant doesn't know your notes unless you paste them in.
-- Each one is a separate account and subscription, and can change under you.
-- Here everything works on one folder, `workspace/`: code-server with `claude` and `opencode`,
-  automated by decree, using [one model URL](./how-it-works.md#the-ai-slot-by-slot).
-- With **Search** on, [qmd](./ai/qmd.md) indexes `workspace/`, and [pi](./ai/pi.md), Claude Code and
-  opencode search it with tools.
-- It runs on your hardware. No subscription.
+Every other system stopped working the week you stopped opening it. This one doesn't wait to be
+opened: yesterday comes to your phone every morning, ideas get followed up, and routines run on
+their own. When you stop paying attention is exactly when it keeps going.
 
-### Is it hard to set up?
+### Won't setting it up become the procrastination?
 
-Hostnames, TLS, secrets, logging and the automation engine are [set up once for every
-service](./how-it-works.md). Setup is `./existential.sh`, then the [Flows](./flows/index.md) page's `plugin on` and `service on`
-lines for each thing you want. Most automations are configured in a cron file's frontmatter, not code: see
-[the four knobs](./flows/index.md#the-four-knobs).
+Setup is one evening: [install](./getting-started.md), point it at a model, turn on what you
+want from [What It Does](./flows/index.md). After that it runs. Tinkering is there if you want
+it, and optional.
 
-### Is it only for homelab people?
+### Why not a chat assistant and a few apps?
 
-The flows are chores:
+- Each app sees only its own data. A chat assistant doesn't know your notes unless you paste
+  them in, and forgets them after.
+- Each is a separate account and subscription, and can change under you.
+- Here everything works on one folder of your files, which every agent can search, with the
+  model you choose.
 
-- a bank alert [becomes a budget entry](./flows/transaction-gmail-actual-budget.md)
-- an idea in your notes [gets researched](./flows/note-to-action.md), coming back with only the
-  questions you need to answer
-- a photo [becomes searchable text](./flows/image-ocr.md)
+### Do I need to be technical?
+
+Today it takes a computer you leave on, Docker and a terminal, or an AI to walk you through
+them. After setup, you write notes and answer your phone.
 
 ### What if I don't have a GPU?
 
-Core doesn't need one. For AI flows, answer `external` when asked and point `EXIST_MODEL_URL` at
-a machine that has one, or use the CPU tier. See
-[the hardware questions](./getting-started.md#the-hardware-questions).
+Core doesn't need one. Point it at a hosted model, or at another computer that has a GPU
+([Configuration](./configuration.md#gpu-vendor)).
 
 ### Do I have to turn everything on?
 
-No. Every service is a flag, and a disabled one writes nothing. The first run builds **Core**
-(work dir, terminal, automation, notifications). See
-[Enable/Disable Services](./getting-started.md#enabledisable-services).
+No. A new install is [Core](./intro.md#what-core-installs) and a few routines; everything else
+is off until you turn it on, and an app that is off writes nothing.
 
 ### What happens to my data if I stop using it?
 
@@ -48,13 +45,10 @@ It's plain files on your disks, readable without Existential running.
 
 ### Is it finished?
 
-No. Services are added, replaced, or moved to the [graveyard](./graveyard/index.md). The
-[flows](./flows/index.md) documented here all run today.
+No. Apps are added and replaced ([what was tried](./graveyard/index.md)). Everything on
+[What It Does](./flows/index.md) runs today.
 
-### Can the stack's own agent change the stack?
+### Can its own AI change the stack?
 
-Not recommended. Use a coding agent against a frontier model, on the computer with the repo.
-
-- A local model at 64k context is too small for this repo.
-- pi works on `workspace/`: the [agent automations](./flows/note-to-action.md) that write into
-  `workspace/ai/`.
+Not recommended. Change the stack with a coding agent on a frontier model, on the computer with
+the repo. The stack's own agents work on your workspace.

@@ -32,10 +32,10 @@ curl -X POST https://automation-webhook.$EXIST_DOMAIN/notify/Backup_done \
 Shipped endpoints:
 
 - `POST /capture` with `{"source": "...", "text": "..."}`: a line in your
-  [capture stream](../getting-started.md#capture).
-- `POST /you-were-here`: the [digest](../getting-started.md#you-were-here), now.
+  [capture stream](../flows/one-place.md#everything-you-typed-to-an-ai).
+- `POST /you-were-here`: the [digest](../flows/pick-up-the-thread.md#where-you-were-every-morning), now.
 - `POST /look-back`, `/look-back/{period}` (`week`, `month`, `quarter`, `year`),
-  `/look-back/{period}/work`: a [look back](../getting-started.md#look-back).
+  `/look-back/{period}/work`: a [look back](../flows/pick-up-the-thread.md#what-did-i-even-do-this-year).
 
 | Status | Meaning |
 |---|---|
@@ -89,7 +89,7 @@ disk 3 is full
 - **The body is the message content**, passed to the machine as-is.
 
 Messages come from a webhook, a cron schedule, another machine, or a file landing in Nextcloud
-([File Processor](../decree/file-change-processing.md)).
+([File Processor](./file-change-processing.md)).
 
 ## 3. Where the data lives
 

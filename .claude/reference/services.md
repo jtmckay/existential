@@ -43,7 +43,7 @@ On demand:
 | `entrypoint.sh` | Config the service owns, seeds at first boot, and re-reads only at startup — see below. |
 | image entrypoint hook | Setup that must run *inside* the container, at a moment only the image knows. |
 | order file (a plugin's `order:`) | Post-startup setup (API calls, user creation, seeds). Runs once, and again if edited. |
-| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or in a flow's row on the Flows page. |
+| `exist.<action>.sh` | Interactive on-demand ops a user triggers. Document on the service's docs page, or on the Guide page (`site/docs/flows/`) that turns it on. |
 | `exist.test.sh` | Every service with a container ships one. Also what triage and the order-file gate run. See `testing.md`. The one host-config folder (`hosting/docker-daemon`) has no container, no `EXIST_IS_*` flag and no test. |
 
 **Entrypoint true-up.** A wrapper set as the service's `entrypoint:`, which does its work and

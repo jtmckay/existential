@@ -28,7 +28,7 @@ Nothing is asked at setup: `_ensure_host_access` detects the IP and derives the 
 domain you own — a value already present is never overwritten. `_detect_host_ip` takes the
 address the kernel routes the internet through, except that a tailnet address that is up wins
 (`tailscale ip -4`, range-checked against `100.64.0.0/10`). Remote access to Caddy's names is
-any VPN (`site/docs/hosting/vpn.md` lists them side by side). Split the two jobs: **nip.io
+any VPN (`site/docs/networking.md` lists them side by side). Split the two jobs: **nip.io
 supplies the wildcard**, the network supplies the reachability — the name resolves publicly,
 but a LAN or CGNAT address only routes inside that network. **Never use a MagicDNS name as
 `EXIST_DOMAIN`**: MagicDNS answers exact node names only, so `<slug>.<node>.ts.net` is NXDOMAIN

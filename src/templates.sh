@@ -731,6 +731,47 @@ _ask_if_needed() {
     _reload_env_shared
 }
 
+# The login, asked once, when .env.shared has just been made and before any service
+# renders it into its config. Enter keeps admin and the generated password; without a
+# terminal both stay. The password is typed twice, unseen, and held to what the files it
+# is written into unquoted can carry.
+_ask_login() {
+    local f="${REPO_DIR}/.env.shared" user="" pass="" again re='^[A-Za-z0-9._-]+$'
+    _prompt_available || return 0
+    printf '\n# Your login for code-server, ntfy and every admin account the stack creates.\n' >&2
+    while :; do
+        user="$(_prompt_tty EXIST_USERNAME admin)"
+        [[ -z "$user" || "$user" =~ $re ]] && break
+        printf '  Letters, digits, . _ and - only.\n' >&2
+    done
+    while :; do
+        pass="$(_prompt_secret EXIST_PASSWORD 'Enter generates one')"
+        [[ -z "$pass" ]] && break
+        if [[ ! "$pass" =~ $re || ${#pass} -lt 8 ]]; then
+            printf '  At least 8 characters: letters, digits, . _ and - only.\n' >&2; continue
+        fi
+        again="$(_prompt_secret 'Again' 'the same')"
+        [[ "$again" == "$pass" ]] && break
+        printf '  They differ. Once more.\n' >&2
+    done
+    [[ -z "$user" ]] || sed -i "s|^EXIST_USERNAME=.*|EXIST_USERNAME=${user}|" "$f"
+    [[ -z "$pass" ]] || sed -i "s|^EXIST_PASSWORD=.*|EXIST_PASSWORD=${pass}|" "$f"
+    _reload_env_shared
+}
+
+# _prompt_secret <label> <bracket text> — _prompt_tty, without echoing what is typed.
+_prompt_secret() {
+    local val=""
+    if { true >/dev/tty; } 2>/dev/null; then
+        printf '  %s [%s]: ' "$1" "$2" >/dev/tty
+        IFS= read -rs val </dev/tty || val=""
+        printf '\n' >/dev/tty
+    else
+        read -rsp "  $1 [$2]: " val || val=""; echo "" >&2
+    fi
+    printf '%s' "$val"
+}
+
 # With Ollama on and no model URL yet, the stack's model is that Ollama: filled in
 # once, like EXIST_DOMAIN, so a URL you set (or Ollama turned off later) stays.
 _ollama_model_url() {
@@ -808,6 +849,7 @@ _main() {
         local _rc=0
         _process_one_template "${REPO_DIR}/.env.exist.shared" || _rc=$?
         _tally "$_rc"
+        [[ "$_rc" != 0 ]] || _ask_login
         # Reload when the file was just created (_rc 0) AND when reconcile
         # appended keys to an existing one — nothing else has run yet, so the
         # counter can only refer to .env.shared here. Without the second case a

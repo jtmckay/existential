@@ -38,11 +38,12 @@ services:
       # Where the offers are: this host's Loki (the controller's).
       - EXIST_FLEET_LOKI=${EXIST_FLEET_LOKI:-}
       - FLEET_HOLDER=gateway
-      - FLEET_LIB=/lib/fleet.sh
+      - FLEET_LIB=/fleet/fleet.sh
     volumes:
       - ./gateway.ts:/gateway.ts:ro
       # fleet.sh, which the model and pi plugins install into the workspace's decree project.
-      - workspace_data/.decree/lib:/lib:ro
+      # Never at /lib: that would hide the image's own libraries, and nothing would start.
+      - workspace_data/.decree/lib:/fleet:ro
 
 x-exist-volumes:
   # The user's workspace, shared with nextcloud (which serves it to the desktop

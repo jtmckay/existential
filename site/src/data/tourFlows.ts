@@ -38,7 +38,7 @@ export const FLOWS: TourFlow[] = [
       'coming back to, never one it already sent.',
     runsOn: ['Decree', 'ntfy', 'code-server'],
     needsModel: true,
-    docs: '/docs/getting-started#you-were-here',
+    docs: '/docs/flows/pick-up-the-thread#where-you-were-every-morning',
   },
   {
     tier: 'core',
@@ -49,7 +49,7 @@ export const FLOWS: TourFlow[] = [
       'Move the file to accept, and every meeting note after that gets its follow-up drafted.',
     runsOn: ['Decree', 'ntfy', 'code-server'],
     needsModel: true,
-    docs: '/docs/flows/note-to-automation',
+    docs: '/docs/flows/tell-it-once#write-next-time-and-it-offers-to-do-it',
   },
   {
     tier: 'core',
@@ -60,7 +60,7 @@ export const FLOWS: TourFlow[] = [
       'you care about.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
-    docs: '/docs/flows/newsletter',
+    docs: '/docs/flows/one-place#a-newsletter-from-only-the-feeds-you-picked',
   },
   {
     tier: 'core',
@@ -71,7 +71,7 @@ export const FLOWS: TourFlow[] = [
       'decided, each linked to the day it happened.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
-    docs: '/docs/getting-started#look-back',
+    docs: '/docs/flows/pick-up-the-thread#what-did-i-even-do-this-year',
   },
   {
     tier: 'core',
@@ -81,7 +81,7 @@ export const FLOWS: TourFlow[] = [
       'parts that can be done without you, and the questions only you can answer.',
     runsOn: ['Decree', 'ntfy'],
     needsModel: true,
-    docs: '/docs/flows/note-to-action',
+    docs: '/docs/flows/ideas#the-note-you-meant-to-come-back-to',
   },
   {
     tier: 'core',
@@ -90,7 +90,7 @@ export const FLOWS: TourFlow[] = [
       'Save a file where a routine is watching and it runs. Tell Claude in code-server ' +
       '"when an invoice lands in invoices/, file it and tell me", and it writes the routine.',
     runsOn: ['Decree', 'code-server'],
-    docs: '/docs/decree/file-handlers',
+    docs: '/docs/flows/tell-it-once#drop-a-file-in-a-folder-and-the-next-step-happens',
   },
   {
     tier: 'core',
@@ -99,7 +99,7 @@ export const FLOWS: TourFlow[] = [
       'A routine that fails or needs an answer sends one notification: what happened, and the ' +
       'command that continues it.',
     runsOn: ['Decree', 'ntfy'],
-    docs: '/docs/decree#when-a-run-needs-you',
+    docs: '/docs/flows/looks-after-itself#when-something-breaks-your-phone-says-so',
   },
   {
     tier: 'addon',
@@ -111,7 +111,7 @@ export const FLOWS: TourFlow[] = [
       'to its source.',
     runsOn: ['Firecrawl', 'Decree', 'ntfy'],
     needsModel: true,
-    docs: '/docs/flows/note-to-automation#research-on-the-web-with-firecrawl',
+    docs: '/docs/flows/tell-it-once#write-next-time-and-it-offers-to-do-it',
   },
   {
     tier: 'addon',
@@ -120,7 +120,7 @@ export const FLOWS: TourFlow[] = [
       '"What did I decide about syncing my notes?" Claude searches your notes, PDFs and Word ' +
       'files, by meaning and by exact words, and answers with the file and line.',
     runsOn: ['Search (qmd)', 'code-server'],
-    docs: '/docs/ai/qmd',
+    docs: '/docs/flows/pick-up-the-thread#ask-what-you-decided',
   },
   {
     tier: 'addon',
@@ -129,7 +129,7 @@ export const FLOWS: TourFlow[] = [
       'Each charge alert your bank emails becomes a budget transaction, payee and amount ' +
       'filled in, a few minutes after you pay.',
     runsOn: ['Gmail', 'Actual Budget', 'Decree'],
-    docs: '/docs/flows/transaction-gmail-actual-budget',
+    docs: '/docs/flows/home#bank-alerts-become-budget-entries',
   },
   {
     tier: 'addon',
@@ -139,7 +139,7 @@ export const FLOWS: TourFlow[] = [
       'saved next to the image a few seconds later, where search can find it.',
     runsOn: ['Nextcloud', 'a vision model', 'Decree'],
     needsModel: true,
-    docs: '/docs/flows/image-ocr',
+    docs: '/docs/flows/voice-and-photos#photograph-it-and-the-text-is-yours',
   },
   {
     tier: 'addon',
@@ -147,7 +147,7 @@ export const FLOWS: TourFlow[] = [
     story:
       'Record a voice memo. A transcript, with each speaker labelled, is saved beside it.',
     runsOn: ['Nextcloud', 'WhisperX', 'Decree'],
-    docs: '/docs/flows/recording-transcription',
+    docs: '/docs/flows/voice-and-photos#voice-memos-you-actually-read',
   },
   {
     tier: 'addon',
@@ -157,15 +157,16 @@ export const FLOWS: TourFlow[] = [
       'it connects to an earlier one.',
     runsOn: ['pi', 'qmd', 'Decree'],
     needsModel: true,
-    docs: '/docs/flows/note-connect',
+    docs: '/docs/flows/pick-up-the-thread#notes-that-find-their-own-connections',
   },
   {
     tier: 'addon',
     title: 'Say it out loud at home',
     story:
-      'A wake word on your phone starts a recording or runs a home automation through your ' +
-      'own Home Assistant. No cloud assistant.',
-    runsOn: ['Home Assistant', 'HAwake'],
-    docs: '/docs/flows/hawake-homeassistant',
+      'Ask the house out loud and it answers, through your own Home Assistant: speech in and ' +
+      'out on your hardware, your chat model answering. No cloud assistant.',
+    runsOn: ['Home Assistant', 'wyoming-whisper', 'wyoming-piper'],
+    needsModel: true,
+    docs: '/docs/flows/home#talk-to-the-house',
   },
 ];

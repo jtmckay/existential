@@ -30,9 +30,8 @@ scripts:
     # With Firecrawl enabled it searches the web before drafting (lib/firecrawl.sh).
     # Without it, it says so in the output rather than inventing a market.
     #
-    # Output is written locally and, when NOTE_OUTPUT_RCLONE_DEST is set, copied
-    # back beside the original note. It is NOT written into NOTES_DIR — that path is
-    # an rclone sync cache and anything left there is deleted on the next sync.
+    # Output goes to workspace/ai/note-develop/, beside nothing it reads: notes are
+    # read-only to this container. NOTE_OUTPUT_RCLONE_DEST also copies it elsewhere.
     #
     # By hand:
     #   docker exec automation decree emit --machine note_develop \
@@ -42,8 +41,8 @@ scripts:
 
     note_path="$DECREE_DATA_NOTE_PATH"
     note_reason="$DECREE_DATA_NOTE_REASON"
-    NOTES_DIR="${NOTES_DIR:-/data/notes}"
-    OUTPUT_DIR="${OUTPUT_DIR:-/data/note-triage/output}"
+    NOTES_DIR="${NOTES_DIR:-/workspace/notes}"
+    OUTPUT_DIR="${OUTPUT_DIR:-/workspace/ai/note-develop}"
     export MODEL_TIMEOUT="${MODEL_TIMEOUT:-300}"
     export MODEL_TEMPERATURE=0.2
     NOTE_OUTPUT_SUFFIX="${NOTE_OUTPUT_SUFFIX:-.plan.md}"

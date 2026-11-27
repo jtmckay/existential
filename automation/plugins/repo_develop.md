@@ -25,10 +25,11 @@ scripts:
 
     - Read CLAUDE.md first: its rules win over any habit. Delete and simplify before you add.
     - An order file (`order: <machine>/<file>` in the message's frontmatter) declares the state
-      the repository must be in for one concern. Parts may already be true; leave those alone.
+      the repository must be in for one feature (or, numbered, one piece of infrastructure).
+      Parts may already be true; leave those alone.
       If it ran before and was edited since, `git log -p -- .decree/machines/<machine>/order/<file>`
       shows how: make the repository match it as it is now, and undo whatever only the old
-      version asked for.
+      version asked for, never what another order file in that folder still asks for.
     - Documentation (README.md, site/docs/, the homepage in site/src/) describes the repository
       as it is after your change: update what your change makes untrue, in this run.
   requirements: |

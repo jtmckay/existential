@@ -44,9 +44,9 @@ runs it: `automation`, `backup` (automation-backup) or `host` (a list when more 
 Each project's `.decree/plugins/` is written from these, and `decree install` installs them into
 `.decree/machines/<name>/`; neither is committed, the repo's own `.decree` included. A plugin
 carries its own cron and order files; one with no machine is lib others need (`model`, `pi`,
-`agent`, `fleet`, a file processor). **A flow is not a file here: it is a row on
-`site/docs/flows/index.md`**, the services and plugins one job turns on and what is left for a
-person. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
+`agent`, `fleet`, a file processor). **A flow is not a file here: it is a section of a
+Guide page in `site/docs/flows/`** (one page per problem), the services and plugins one job
+turns on and what is left for a person. decree's official plugins are `decree_*` (`decree_order`, `decree_ai`,
 `decree_prune`, `decree_lease`...), which a plugin here `needs:` and decree adds, and which are
 never edited: **to change one, a plugin here `extends:` it under its own name** and holds only
 what it changes (`gpu_lease`, `lease_gpu`, `skill`, `repo_develop`, `repo_qa`); a `needs:` entry
@@ -106,7 +106,7 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
    `exist.initial.sh` (idempotent, no sentinels). Config the service owns and re-reads only at
    boot → the container's own **`entrypoint.sh`**, which is the one place that can write it
    (see `services.md`). Post-startup setup → decree order files (run once). Manual steps → the
-   flow's row on `site/docs/flows/index.md`, or the service's docs page.
+   Guide page that turns it on (`site/docs/flows/`), or the service's docs page.
 7. **Services validate themselves** via `exist.test.sh`. Every service ships one.
 8. **Tests are read-only.** No stacking state; prefer pure observation. Unavoidable writes clean
    up in a verified `trap`.
@@ -114,7 +114,12 @@ existing patterns first; invent only when you must.** When in doubt, copy the cl
     homepage untrue updates them in the same change; a checkable doc claim gets a check.
     Every service folder has one docs page, which names it in `service: <cat>/<slug>`
     frontmatter, and `README.md`/`intro.md` list Core under `## What Core installs`; both are
-    enforced by `validate conventions`.
+    enforced by `validate conventions`. **The site has two sidebars** (`site/sidebars.ts`): the
+    **Guide** (`intro`, `getting-started`, `flows/` one page per problem, `workspace`, `faq`) is
+    for the person in `audience.md`: the problem, what happens, the line that turns it on, what
+    is left for them, and nothing about how it is built. Everything else is **Technical**. A
+    retired tool is a row in `graveyard/index.md`, not a page; notes on something not built yet
+    go in `backlog/`.
 10. **Long-running processes outside compose run in a named tmux session** via the `tmx`
     pattern (`tmx -d <name> <cmd>`: start only if not already running; `tmx <name>` to
     re-attach). "Is it running?" is `tmux has-session -t =<name>` — never a pidfile. → `services.md`
@@ -130,7 +135,7 @@ by qmd (read-only; `.gitignore`d and hidden paths never indexed). **Every change
 `.gitignore`'d path or anything in `.git/` never does. The loop break is the handlers' patterns:
 an automation writes where its own handler does not match (agent output in `workspace/ai/`).
 Nextcloud's file events are an optional second path. User-facing detail:
-`site/docs/decree/file-handlers.md`.
+`site/docs/plugins/file-handlers.md`.
 
 - `.decree/` = the **host's** decree project, run by a decree daemon on the host. **Not part of
   Core:** nothing Core turns on is tagged for it, and `./existential.sh` leaves it alone until
@@ -141,10 +146,16 @@ Nextcloud's file events are an optional second path. User-facing detail:
   `repo_develop` is `decree_develop` (implement → gate → fix → verify) whose gate is
   `.githooks/pre-push` and whose `conventions.md` is this file's rules.
   **Its order files are declarative**, as decree's `decree_order` plugin runs them: each is the desired
-  state of one concern, so to change the repo you edit one and commit; `decree_order` runs an edited
-  file again at the next daemon start (or `echo | decree emit --machine decree_order`), and
-  `repo_develop`'s `commit` records it in `order.git.txt` with the work. Never hand-edit that
-  record. A host plugin carries no `order:` of its own: that folder is the repo's.
+  state of one concern, and together they rebuild the repo from nothing but decree. The
+  infrastructure comes first, numbered so it runs first (`00-repository` … `04-models`); then
+  **one file per feature**, named for it (`capture.md`, `search.md`): a feature that changes or
+  grows is the same file edited, never a new one. To change the repo you edit one and commit;
+  `decree_order` runs an edited file again at the next daemon start (or `echo | decree emit
+  --machine decree_order`), and `repo_develop`'s `commit` records it in `order.git.txt` with the
+  work. Never hand-edit that record, with one exception: a reorganization that changes no
+  intent (files merged, split or renamed) rewrites it in the same commit to each file's
+  `sha256sum`, or the next run would undo what only looks deleted. A host plugin carries no
+  `order:` of its own: that folder is the repo's.
 - `src/lib/` = interactive utilities dispatched by `./existential.sh run <name>`.
 - `src/utils/` = **sourced only**, never run directly — source them, don't reimplement.
   `service-common.sh` is the single source of truth for service discovery/enablement
@@ -200,7 +211,8 @@ reports the host to its controller, `boot_daemon` runs `.decree/boot.sh` once wh
 starts, `check_versions` says weekly which pinned images are behind, `update_ubuntu` patches an
 Ubuntu host, and `lease_gpu` (a `decree_lease`) has a GPU box's llama.cpp, ComfyUI and TTS take
 turns on its card; all six are host plugins (`x-exist-project: host`), run by a decree daemon in
-the repo's own `.decree` that the host starts at boot, and `./existential.sh` says so until it does.
+the repo's own `.decree`, started now and at every boot by `./existential.sh run host-daemon install`
+(a systemd user unit with linger, or a LaunchAgent), which every run offers while none runs.
 `reset` archives every rendered file to `archive/<timestamp>/` so the next run renders
 fresh. → `setup.md`
 
@@ -209,9 +221,16 @@ fresh. → `setup.md`
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e` (Core, from a fresh clone), `service [list|on|off]` (a
 picker) and `plugin [list|on|off|sync|export]`. The
-first bare run asks nothing: it builds Core (code-server, ntfy, automation, qmd, Firecrawl), makes
-the login (`admin`, a generated password, printed once) and leaves one step, the model
-(`EXIST_MODEL_URL`, `EXIST_MODEL_KEY`). Controller and worker are `run fleet controller|join`. A
+first bare run asks one question, what this computer is: **the main one** (Core: code-server,
+ntfy, automation, qmd, Firecrawl; then the login, Enter keeping `admin` and a generated
+password, printed once; then what `run fleet controller` does: the fleet secret and three
+containers, Loki, Grafana and the model gateway, which is the fleet's API; **nothing on the host
+itself**, no systemd unit, no host daemon, until the person makes it a worker too) or **a worker** (it asks the controller, and runs nothing but `report_host`). With
+no terminal it asks nothing and builds Core as it ships. **An answer is never asked twice**:
+each is kept the moment it is given (`EXIST_HOST_ROLE` and the rest in `.env.shared`), and a tool
+a step lacks is offered for install, commands shown, Enter to run (sudo only on that yes), so
+setup goes on with Enter after Enter. Either way one step is left, the model
+(`EXIST_MODEL_URL`, `EXIST_MODEL_KEY`). Later, `run fleet controller|join` does either by hand. A
 host with neither docker nor podman is always a worker, set up with the host's own decree and
 yq, so the host plugin sync is host code (bash 3.2). Only an email is asked, when an enabled
 service first uses one; the hardware questions
@@ -388,7 +407,7 @@ know and skip what is off here. The daemon rescans cron files every tick.
 `reconcile`, `service_health`, `pi` (code-server's agents need its lib), `file_advise` and
 `you_were_here`, and nothing else; only the kernel (`PLUGIN_KERNEL`: `notify`, `decree_prune`
 and, in `automation`, `skill`) is installed regardless. Anything new ships off, as a plugin a
-person turns on with its row on the Flows page; never add a default, an always-installed
+person turns on with its section on a Guide page; never add a default, an always-installed
 machine, or an example file to copy by hand.
 
 **Gate:** `./existential.sh test decree` runs `decree check` on each project with every plugin

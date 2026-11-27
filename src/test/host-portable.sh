@@ -171,16 +171,6 @@ assert_eq "report_host runs" "0" "$rc"
 assert_has "...and sends this host" "$(cat "${H}/body" 2>/dev/null)" '"kind":"disk"'
 assert_has "...and starts alloy" "$(cat "${H}/tmux" 2>/dev/null)" "reporting-alloy"
 
-# fleet_gpu.md: the fleet lib as a plugin a decree project of its own installs.
-es _fleet_gpu_plugin >/dev/null
-g="${R}/.decree/machines/report_host/state/fleet_gpu.md"
-assert_has "the fleet lib is written as a plugin" "$(cat "$g" 2>/dev/null)" "    fleet_use() {"
-assert_eq "...with no #! to run" "0" "$(grep -c '#!' "$g" 2>/dev/null)"
-if command -v decree >/dev/null 2>&1; then
-    B="${R}/.stub/bare"; mkdir -p "$B" && (cd "$B" && decree init >/dev/null 2>&1)
-    assert_eq "...which decree installs" "0" "$(cd "$B" && decree install - < "$g" >/dev/null 2>&1; echo $?)"
-fi
-
 # A host whose daemon runs another decree: a sync would take what that daemon runs.
 printf '#!/bin/sh\necho "decree 0.5.0"\n' > "${R}/.stub/decree"; chmod +x "${R}/.stub/decree"
 : > "${R}/.stub/asked"

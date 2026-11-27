@@ -49,7 +49,7 @@ Every notification the stack sends goes to one of these, and nothing else
 |---|---|
 | `host` | The server: every [Grafana](../hosting/grafana.md) alert (a failed backup or host run, a backup that stopped, a container that stopped), health checks, service tests (`triage`), image and Ubuntu updates, `pull-existential`, workspace sync holding a large delete, and a failed run of any plugin tagged `x-exist-topic: host` |
 | `decree` | Your automations: a run that failed or waits for you, an automation built for you to review (`develop`, `reconcile`), an agent task done, Gmail needing a new grant |
-| `suggestions` | What you could turn on: [file advice](../flows/index.md#file-advice), automations proposed from a note, machines another stack offers or asks for |
+| `suggestions` | What you could turn on: [file advice](../flows/tell-it-once.md#drop-a-file-in-a-folder-and-the-next-step-happens), automations proposed from a note, machines another stack offers or asks for |
 | `digest` | What you read: you-were-here, look-back, the newsletter, note connections, a developed idea |
 | `exist` | Whatever you POST to [automation-webhook](../decree/automation-webhook.md)'s `/notify` endpoints |
 

@@ -50,7 +50,7 @@ HTTP.
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # asks nothing; prints your login and where Core is
+./existential.sh            # asks what this computer is and your login; prints where Core is
 docker compose up -d
 ```
 
@@ -79,7 +79,7 @@ log in, or over plain HTTP on your network without it.
 | [Search](https://existential.company/docs/ai/qmd) | qmd over the whole work dir, a tool every agent has |
 | [Firecrawl](https://existential.company/docs/ai/firecrawl) | The web, searched and read, a tool every agent has |
 
-Everything else is an add-on, one flow or flag away: Caddy hostnames, monitoring, the webhook and
+Everything else is an add-on, one line away: Caddy hostnames, monitoring, the webhook and
 Nextcloud for capture, apps, local AI, voice and the house.
 
 ## How it fits together
@@ -117,7 +117,7 @@ flowchart TB
     dec --> ntfy
     cs -. "opencode" .-> model
     dec -. "workspace/.decree/lib/model.sh" .-> model
-    addons -. "a flow or a flag each" .-> core
+    addons -. "a line each" .-> core
 
     classDef me fill:#e8f4fd,stroke:#027bcb,stroke-width:2px,color:#111
     classDef hub fill:#027bcb,stroke:#014d80,stroke-width:2px,color:#fff
@@ -134,13 +134,13 @@ Every service is a folder. Its flag — `EXIST_IS_<CATEGORY>_<SLUG>` — is deri
 so **adding a service is adding a folder**. Disabled services are skipped entirely: no
 templates render, no secrets are generated, nothing lands on disk.
 
-📖 **[Services](https://existential.company/docs/how-it-works)** for the whole model.
+📖 **[How It's Built](https://existential.company/docs/how-it-works)** for the whole model.
 
 ## Optional add-ons
 
 Everything else is an add-on: a service (`./existential.sh service on <slug>`) or a decree plugin
-(`./existential.sh plugin on <name>`), and none of it is needed for Core to work. The
-[Flows](https://existential.company/docs/flows/) page says which to turn on for what.
+(`./existential.sh plugin on <name>`), and none of it is needed for Core to work.
+[What It Does](https://existential.company/docs/flows/) says which to turn on for what.
 
 ### Local AI
 
@@ -185,29 +185,30 @@ Everything else is an add-on: a service (`./existential.sh service on <slug>`) o
 | [Portainer](https://existential.company/docs/hosting/portainer) | Container management |
 | [Docker log rotation](https://existential.company/docs/hosting/docker) | Caps container logs on the host |
 
-Considered and rejected alternatives, with reasons, live in the
-[graveyard](https://existential.company/docs/graveyard/).
+Considered and rejected alternatives, with reasons:
+[Alternatives](https://existential.company/docs/graveyard/).
 
 ## What it does with all that
 
-A **flow** is one complete path from *something happened* to *it was handled*:
+One page per problem, each with the lines that turn it on:
 
-- [Note → Action](https://existential.company/docs/flows/note-to-action) — a thought worth chasing gets chased, and comes back with the right questions
-- [Camera → OCR](https://existential.company/docs/flows/image-ocr) — photograph something, get back its text
-- [Recording → Transcription](https://existential.company/docs/flows/recording-transcription) — recordings become searchable, speaker-labelled text
-- [Bank Alert → Budget](https://existential.company/docs/flows/transaction-gmail-actual-budget) — transaction emails become budget entries
+- [Pick Up the Thread](https://existential.company/docs/flows/pick-up-the-thread) — yesterday every morning, the week and the year in review, the note you already wrote
+- [Ideas That Get Followed Up](https://existential.company/docs/flows/ideas) — a thought worth chasing gets chased, and comes back with the right questions
+- [Tell It Once](https://existential.company/docs/flows/tell-it-once) — write "next time…", and it offers to automate it
+- [Voice and Photos](https://existential.company/docs/flows/voice-and-photos) — recordings and photos become searchable text
 
-📖 **[All flows](https://existential.company/docs/flows/)**
+📖 **[What It Does](https://existential.company/docs/flows/)**
 
 ## Docs
 
-Read in order, each one step deeper than the last, and stop at any of them.
+Two halves: the **Guide** is what it does for you, the **Technical** docs how it's built.
 
 | | |
 |---|---|
 | [What It Is](https://existential.company/docs/intro) | What this is and what it does for you |
-| [Services](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
-| [Flows](https://existential.company/docs/flows/) | How one job gets done, start to finish |
+| [Getting Started](https://existential.company/docs/getting-started) | One evening of setup |
+| [What It Does](https://existential.company/docs/flows/) | One problem at a time, and the lines that turn each on |
+| [How It's Built](https://existential.company/docs/how-it-works) | What's actually running and how it fits |
 | [Plugins](https://existential.company/docs/plugins) | Write your own automation, or reach the stack over HTTP |
 
 ## Third-party software

@@ -52,9 +52,9 @@ conventions fails any other key. With no `machine` (and no `extends`) it is lib 
 (`model`, `agent`, `pi` with `departments/`, `firecrawl`, `rss`, `fleet`, `repo`, the file
 processors `ocr`, `transcribe`, `agent_handoff`). A `decree_*` name in `needs:` or `extends:` is
 one of decree's official plugins, which the sync adds with `decree install <name>`. There are no
-flow files: a flow is a row on `site/docs/flows/index.md`, the `service on` and `plugin on` lines
-for one job, and a plugin a person turns on (a machine nothing needs) must have its line there
-(validate conventions).
+flow files: a flow is a section of a Guide page in `site/docs/flows/`, the `service on` and
+`plugin on` lines for one job, and a plugin a person turns on (a machine nothing needs) must have
+its `plugin on` line on some docs page (validate conventions).
 
 - **What is on is each project's own list**, `.decree/plugins/.on` (never committed): the
   plugins a person turned on there. A project with none starts with `PLUGIN_DEFAULTS` tagged for
@@ -139,7 +139,8 @@ for one job, and a plugin a person turns on (a machine nothing needs) must have 
   `lease_gpu`: modes `llm`, `comfy`, `tts`, `strata`, its swap unloading llama.cpp's router and
   ComfyUI, and stopping or starting the TTS tmux session and Strata's container; a separate host-only plugin, so a host that also runs the stack
   never has two queues for one card; its lease is served over decree-go-rest's emit, read and
-  reply endpoints, no release machine), `decree_skill`
+  reply endpoints, no release machine; that decree-go-rest is the box's `hosting/fleet-api`
+  service, pulled as an image and run by Compose, never started from the host), `decree_skill`
   (`skill`), `decree_develop` and `decree_qa` (`repo_develop`, `repo_qa`). Not
   `decree_registry` (the model endpoint resolvers do that) nor `decree_newsletter` (its
   feeds are scripts in decree 0.6, and here they are data a person edits in the store).
@@ -161,9 +162,10 @@ for one job, and a plugin a person turns on (a machine nothing needs) must have 
   declarative order files, and the `requirements` its precheck checks) and `repo_qa`
   (`decree_qa`, handing bugs to `repo_develop` by a needs map) are host plugins like
   `pull_existential`, off until `plugin on repo_develop` (and `repo_qa`); both need the `repo`
-  plugin, which needs `decree_order`. The repo's migrations are order files,
-  `.decree/machines/repo_develop/order/`, and declarative: `decree_order` runs each once and
-  again when it is edited, and `decree_develop`'s `commit` records it in
+  plugin, which needs `decree_order`. The repo's desired state is order files,
+  `.decree/machines/repo_develop/order/`: the infrastructure numbered first (`00-`…`04-`), then
+  one file per feature, named for it, run in byte order of filename. They are declarative:
+  `decree_order` runs each once and again when it is edited, and `decree_develop`'s `commit` records it in
   `state/order.git.txt` with the work. Tracked there: only those two and `.gitignore`. To
   change one of these machines, edit its plugin file or edit the installed copy and
   `plugin export`, which writes only what differs from the base.
@@ -255,14 +257,16 @@ JSON object per line (`service`, `url`, and `lease`/`api` or `start`/`stop`), `l
 meaning this host. `report_host` pushes them as `kind="offer"`, with `localhost` swapped for
 `EXIST_TAILNET_NAME` (else `EXIST_LOCAL_HOST_IP`, else the hostname), and `src/lib/peers.sh`
 (`./existential.sh run peers`) reads each host's latest back from the controller's Loki.
-`./existential.sh` writes the fleet lib as a plain decree plugin, `fleet_gpu.md`, into
-`report_host`'s state, and every host's go-rest serves it (`GET /plugins/fleet_gpu.md`), so a
-decree project of your own installs it with `curl ... | decree install -`.
+The controller's model gateway serves the fleet lib as a plain decree plugin
+(`GET /plugins/fleet_gpu.md` on `:4400`, built from the workspace's `.decree/lib/fleet.sh` it
+mounts read-only; nothing of the host's `.decree` is read), so a decree project of your own
+installs it with `curl ... | decree install -`.
 The controller only answers the question; traffic goes host to host.
 The **fleet** lib (`plugins/fleet.md`, `fleet_use`/`fleet_done`) is how the stack leases a GPU
 service another host offers: `model_chat`/`pi_run` (`llm`) and `comfy` call it, a keeper per
 container holds one lease for a run of calls and releases it `FLEET_IDLE` (5) seconds after the
 last (comfy: after ComfyUI's queue empties too), and a new lease asks the controller again, so
 a service moved between hosts is followed. Leases are 10 minutes, renewed by the keeper.
-`EXIST_FLEET_SECRET` (the same on every host) is every box's decree-go-rest secret; blank, or no
+`EXIST_FLEET_SECRET` (the same on every host) is every GPU box's `fleet-api` secret and the model
+gateway's key; blank, or no
 offer, and callers use their own addresses with no lease. `peers.sh` sources the same lib.

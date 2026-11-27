@@ -5,8 +5,8 @@ sidebar_position: 1
 # Plugins
 
 :::info[The code you write]
-What runs your automations, and how to write one. Back to [Flows](../flows/index.md) for worked
-examples. [Writing a Plugin](./writing-a-plugin.md) is the how-to;
+What runs your automations, and how to write one. What they do for a person:
+[What It Does](../flows/index.md). [Writing a Plugin](./writing-a-plugin.md) is the how-to;
 [Over HTTP](./http.md) is the contract for reaching the stack from outside.
 :::
 
@@ -82,7 +82,8 @@ sourced as `.decree/lib/<path>` (a script runs in the project's root). A plugin 
 of [decree's own](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md#official-plugins),
 named `decree_*`: `decree_order` (runs a plugin's one-time setup), `decree_ai` (Claude Code, for
 `agent`); `decree_prune` prunes finished runs in every project. What a plugin needs that is not a
-plugin (a service, a model, a step only you can do) is on the [Flows](../flows/index.md) page.
+plugin (a service, a model, a step only you can do) is on its [What It Does](../flows/index.md)
+page, or on the docs page of what it belongs to.
 
 Data that is yours to edit (the newsletter's feeds and taste, pi's departments) is a plugin's
 `state:`, written once to `workspace/.decree/store/<plugin>/` (each machine's `state/` is that

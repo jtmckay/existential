@@ -26,7 +26,7 @@ Nextcloud and handles quick edits from any device. ONLYOFFICE Desktop covers the
 against the same synced folder.
 
 ONLYOFFICE's own document server was
-[tried and retired](../graveyard/file-editors/only-office.md) from this stack; Collabora fills
+[tried and retired](../graveyard/index.md) from this stack; Collabora fills
 that role now. The desktop editors are a separate product and a separate decision.
 
 ## Setup

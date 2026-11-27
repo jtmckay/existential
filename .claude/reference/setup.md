@@ -60,11 +60,26 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-The first run asks nothing: it is Core, what `.env.exist.shared` ships on (code-server, ntfy,
-automation, qmd, Firecrawl), with `EXIST_USERNAME=admin` and a generated `EXIST_PASSWORD`
-(`_report_login` prints both once) and no model (`_report_model` says so every run until
-`EXIST_MODEL_URL` is set). A controller is `run fleet controller` (report_host, Loki, Grafana,
-the model gateway); a host that reports to one, `run fleet join <controller>`. With every
+The first run, with a terminal and an engine, asks one question (`_ask_role`): **a)** the main
+computer, the default, or **b)** a worker. **a)** is Core, what `.env.exist.shared` ships on
+(code-server, ntfy, automation, qmd, Firecrawl); `templates.sh`'s `_ask_login` asks the login
+the moment `.env.shared` is made, before any service renders it (Enter keeps
+`EXIST_USERNAME=admin` and the generated `EXIST_PASSWORD`; a typed password is asked twice,
+unseen, 8+ of `A-Za-z0-9._-`); after the build the run does `src/lib/fleet.sh controller`
+(the fleet secret, and Loki, Grafana and the model gateway: containers only; no `report_host`,
+no host daemon, no systemd: the controller reports itself only once made a worker too). **b)** goes straight
+to `_worker_without_engine`, which writes the answers (`EXIST_HOST_ROLE=worker`,
+`EXIST_CONTROLLER`) before it checks a tool. The first answer is `.env.role` until
+`.env.shared` exists, then `EXIST_HOST_ROLE` (`_record_role`, which records an older install as
+what it already is); `_finish_main` makes a `main` host the controller on any run where it is
+not yet. A missing tool is offered (`_offer_install`: `_install_cmd` per tool, shown, Enter
+runs; sudo only for a package manager, on that yes), and `_host_plugins` offers to start the
+host daemon now and at every boot (`src/lib/host-daemon.sh install`: a systemd user unit,
+`existential-host.service`, enabled with linger, or a LaunchAgent; `status`, `uninstall`). A
+worker's run ends with `_worker_summary`: controller, alloy, daemon, boot, last report. With no terminal nothing is asked:
+Core as it ships, `admin` and a generated password. `_report_login` prints the login once and
+`_report_model` says every run that there is no model until `EXIST_MODEL_URL` is set. Later,
+`run fleet controller` and `run fleet join <controller>` do either by hand. With every
 `EXIST_IS_*` false, `_build` stops at "nothing is on yet". A worker is any host whose host project has `report_host` on
 (`.decree/plugins/.on`, `_is_worker`), and the controller is the worker with no `EXIST_CONTROLLER` (`_is_controller`).
 A host with neither docker nor podman (`adhoc_find_runtime` fails), and
@@ -109,10 +124,11 @@ is no engine or the host is a worker only. It exits 3 for "nothing changed" (`li
 `service [list|on|off]` (`src/services.sh`) turns one service's `EXIST_IS_*` flag on or off,
 skips one the GPU answer forbids (`vendor_forbids_service`), and rebuilds; it exits 3 the same way.
 
-A flow is not code: it is a row on `site/docs/flows/index.md`, the `service on` and `plugin on`
-lines for one job and what is left for a person. `validate conventions` fails a `plugin on` or
-`service on` line in the docs that names nothing, and a plugin a person turns on (a machine
-nothing needs) with no line there. The setup steps for a service on its own live on the
+A flow is not code: it is a section of a Guide page in `site/docs/flows/` (one page per
+problem), the `service on` and `plugin on` lines for one job and what is left for a person.
+`validate conventions` fails a `plugin on` or `service on` line in the docs that names nothing,
+and a plugin a person turns on (a machine nothing needs) whose `plugin on` line is on no docs
+page (a host or multi-host plugin's line can live on its hosting page). The setup steps for a service on its own live on the
 service's docs page.
 
 An install from before this kept one list, `automation/plugins.yml`, and each project's sync

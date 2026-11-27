@@ -53,7 +53,7 @@ EXIST_IS_AI_OLLAMA=false                   # unless ollama still serves another 
 ```
 
 `./existential.sh && docker compose up -d` again. Open WebUI keeps the backend it was first
-rendered with ([Configuration → Endpoints](../configuration.md#endpoints)).
+rendered with ([Configuration → Endpoints](../configuration.md#endpoints--where-model-calls-go)).
 
 ## The key
 

@@ -70,6 +70,9 @@ The `/prompt` body is a workflow exported from the ComfyUI UI as JSON, wrapped i
 
 ## Using ComfyUI from Decree
 
+Turn it on with `./existential.sh service on comfyui` and `./existential.sh plugin on comfy`.
+ComfyUI ships with no models: each workflow names the files it needs and where they go.
+
 The scripts are the comfy plugin's (`automation/plugins/comfy.md`). They call ComfyUI's HTTP API using `curl`. The pattern is: POST a workflow, poll `/history` until the job finishes, then retrieve the output filename.
 
 ### The machine that ships

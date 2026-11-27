@@ -2,55 +2,39 @@
 sidebar_position: 1
 ---
 
-# Hosting Overview
+# Hosting
 
-## Standard Hosting
+Where the stack runs, beyond the one computer [Getting Started](../getting-started.md) sets up.
 
-Start with [Getting Started](https://existential.company/docs/getting-started)
+## More than one computer
 
-## Advanced Hosting
+- [Controller and Workers](./controller-and-workers.md): one host keeps your notes, the others
+  report to it and lend it what they have.
+- [A Separate AI Box](./ai-box.md): llama.cpp, ComfyUI and TTS taking turns on one GPU box.
+- [The Host Daemon](./host-daemon.md): the plugins that run on the host itself.
+- [Updates](./updates.md): following the release, pinned images, patching Ubuntu.
 
-### System OS
+Services on more than one box are [complementary](../how-it-works.md#core-vs-complementary-services),
+reached over a URL: the `exist` Docker network is a plain single-host bridge, not encrypted and
+never stretched across hosts.
 
-- [Proxmox](./proxmox.md) (alt: Unraid)
+## The host
 
-### Container Management
+- [Proxmox](./proxmox.md): running it in a VM
+- [Docker](./docker.md): the engine, and capping its logs
+- [Portainer](./portainer.md): container management
 
-- [Docker](./docker.md)
-- [Portainer](./portainer.md)
+## Reaching it
 
-### External Network (Access Remotely)
+[Networking](../networking.md) covers Tailscale, Caddy names, a domain you own and VPNs.
 
-- [VPN](./vpn.md) — the most secure option (skip Caddy/Cloudflare)
-- [Caddy](./caddy.md) — Reverse proxy (Alt: Traefik/Nginx)
-- [Cloudflare](./cloudflare.md) — DNS/domain manager
+- [Caddy](./caddy.md): the reverse proxy for every app beyond Core
+- [Cloudflare](./cloudflare.md): DNS for a domain you own
+- [Pi-hole](./pihole.md): DNS for your network, ad blocking
 
-### Networking
+## Watching it
 
-All services connect to a single Docker **bridge** network named `exist`, created
-automatically by `docker compose up`. Containers reach each other by container name
-(`http://ollama:11434`); see [How It Works](../how-it-works.md) for the full model.
-
-:::warning[Traffic on this network is not encrypted]
-A bridge network is single-host and carries plain traffic between containers. It is not an
-overlay, there is no IPsec, and it does not span hosts. To run services on more than one
-box, treat them as [complementary services](../how-it-works.md) reached over a URL rather than
-trying to stretch this network across hosts.
-:::
-
-### GPU on Another Host
-
-- [A Separate AI Box](./ai-box.md): llama.cpp, ComfyUI and TTS on one GPU box, with the stack
-  pointed at it
-
-### Observability
-
-- [Prometheus](./prometheus.md) — Metrics collection (+ Pushgateway for Decree)
-- [Loki](./loki.md) — Log aggregation (+ Alloy for Decree run logs)
-- [Grafana](./grafana.md) — Dashboards over Prometheus and Loki
-- [Uptime-Kuma](./uptime-kuma.md) — Simple availability monitoring, separate from the
-  Prometheus/Grafana stack above
-
-### Network
-
-- [Pi-hole](./pihole.md) — DNS ad blocking and DHCP
+- [Grafana](./grafana.md): dashboards over Prometheus and Loki
+- [Prometheus](./prometheus.md): metrics
+- [Loki](./loki.md): logs, decree runs included
+- [Uptime-Kuma](./uptime-kuma.md): simple availability checks

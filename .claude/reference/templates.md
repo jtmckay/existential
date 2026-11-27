@@ -23,10 +23,11 @@ actually needs it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`,
 **Keep the first run's prompt count near zero.** Anything the machine can determine, it should:
 a prompt whose right answer is "press Enter" is not setup, and a blank answer to a prompt that
 *matters* is worse than no prompt at all. `.env.exist.shared` asks nothing, which a unit test holds it
-to; the first run's one question is Core or none (`_ask_core_or_none`). `EXIST_USERNAME`,
-`EXIST_PASSWORD` and `EXIST_EMAIL` ship blank and `_ask_if_needed` asks each once, the first run an
-enabled service uses it (without a terminal: `admin`, a generated password, blank). A typed login
-is held to `A-Za-z0-9._-` (a password to 8+), because it is substituted unquoted into `.env`, YAML,
+to; the first run's one question is what this computer is (`_ask_role` in `existential.sh`: the
+main one or a worker). `EXIST_USERNAME` ships `admin` and `EXIST_PASSWORD` a generated one;
+`_ask_login` (`templates.sh`) offers to change both the moment `.env.shared` is made, before
+anything renders them (without a terminal both stay). `EXIST_EMAIL` ships blank and
+`_ask_if_needed` asks it once, the first run an enabled service uses it. A typed login is held to `A-Za-z0-9._-` (a password to 8+), because it is substituted unquoted into `.env`, YAML,
 JSON and a sed replacement. `EXIST_NFS_ADDRESS` ships blank and `_ask_nas_if_needed` asks it
 the first run an enabled service has an `nfs: true` volume (Enter is `none`), then appends an
 `EXIST_NFS_PATH_<VOLUME>` (the question shows the volume line's trailing comment) per such volume, so a key appears only once it is answered

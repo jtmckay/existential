@@ -48,7 +48,7 @@ mcp: qmd, firecrawl
 ```
 
 No department means pi's default tools and every MCP server. See
-[Routing to Departments](../decree/routing.md) for how a message picks one.
+[Routing to Departments](../plugins/routing.md) for how a message picks one.
 
 ## Upgrading
 

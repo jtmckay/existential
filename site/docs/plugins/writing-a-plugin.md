@@ -15,7 +15,7 @@ on and kept current like every automation the stack ships. The engine is
 [decree](https://github.com/jtmckay/decree) 0.6, and a plugin is
 [decree's plugin file](https://github.com/jtmckay/decree/blob/main/docs/reference/plugins.md), with
 this stack's own keys named `x-exist-…`. This page is how this stack uses it. Worked
-example: [Note → Action](../flows/note-to-action.md).
+example: [Note → Action](./note-to-action.md).
 
 ## The file
 
@@ -72,8 +72,8 @@ Every key, `x-exist-lib:` and `x-exist-endpoints:` included: [Plugins](./index.m
 ## Turning it on
 
 ```bash
-./existential.sh plugin on my_job        # into its project's list (.decree/plugins/.on), installed now
-./existential.sh plugin off my_job       # removed, schedule and endpoints included
+./existential.sh plugin on <name>        # into its project's list (.decree/plugins/.on), installed now
+./existential.sh plugin off <name>       # removed, schedule and endpoints included
 ```
 
 `plugin on` installs it, and every `./existential.sh` after installs the file's current
@@ -167,7 +167,7 @@ CRITERIA="an open question the author has not resolved"
 
 `PATTERN` is a path regex; optional `CRITERIA` adds a one-call model check on the content. No
 restart needed. To ship one, put it in a plugin's `x-exist-lib` (`ocr` and `transcribe` are examples).
-See [File Change Processing](../decree/file-change-processing.md).
+See [File Change Processing](./file-change-processing.md).
 
 ### By hand — for testing, and for one-offs
 
@@ -201,10 +201,12 @@ To fan out, emit more than once. `decree export` adds `agent_task` to `needs:`.
 
 ## Listing it
 
-A plugin a person turns on gets a row in the [Flows](../flows/index.md#turning-one-on) table:
-what it does, the `./existential.sh plugin on` line (and `service on`, for the services it
-uses), and what is left for a person to do. `./existential.sh validate conventions` fails a
-plugin nothing needs that has no row there.
+A plugin a person turns on is written up where a person looks for it: on the
+[What It Does](../flows/index.md) page for the problem it solves, or on the docs page of the
+service or host feature it belongs to. That is what it does, its `./existential.sh plugin on`
+line (and `service on`, for the services it uses), and what is left for a person to do.
+`./existential.sh validate conventions` fails a plugin nothing needs whose `plugin on` line is
+on no docs page.
 
 ## Verifying it
 
@@ -235,7 +237,7 @@ Why a job seems to do nothing:
 ## Where to go next
 
 - [Plugins](./index.md): every key, which ones you have, sharing between stacks
-- [Note → Action](../flows/note-to-action.md): four machines in one flow
-- [File Change Processing](../decree/file-change-processing.md): the file trigger
-- [Routing to Departments](../decree/routing.md): sending work to a department
+- [Note → Action](./note-to-action.md): four machines in one flow
+- [File Change Processing](./file-change-processing.md): the file trigger
+- [Routing to Departments](./routing.md): sending work to a department
 - [Over HTTP](./http.md): the contract for reaching the stack from outside

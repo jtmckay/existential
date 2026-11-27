@@ -37,4 +37,4 @@ so check the task's `error` field, not the service.
 
 - [whisperX-FastAPI](https://github.com/pavelzbornik/whisperX-FastAPI) — the server wrapper
 - [pyannote.audio](https://github.com/pyannote/pyannote-audio) — the diarization models
-- [Recording Transcription](../flows/recording-transcription.md) — the automated, diarized pipeline
+- [Recording Transcription](../flows/voice-and-photos.md#voice-memos-you-actually-read) — the automated, diarized pipeline

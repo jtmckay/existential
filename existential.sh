@@ -266,13 +266,14 @@ _tailscale_serve_core() {
 
 # A worker is a host whose decree has report_host on, in the host project's list of
 # what is on (or, until _migrate turns it into that list, in what an older sync wrote).
-# Its EXIST_CONTROLLER names the controller it reports to; blank, with Loki on here, it
-# is the controller (blank without Loki, it reports nowhere).
+# Its EXIST_CONTROLLER names the controller it reports to. The controller is the host
+# with Loki on and no EXIST_CONTROLLER: where the reports land. It runs nothing on the host
+# itself; it reports itself only if it is also made a worker (plugin on report_host).
 _is_worker() {
     grep -qxE 'report_host|reporting' "${SCRIPT_DIR}/.decree/plugins/.on" "${SCRIPT_DIR}/.decree/plugins/.existential" 2>/dev/null
 }
 _is_controller() {
-    _is_worker && ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null &&
+    ! grep -qE '^EXIST_CONTROLLER=.+' "${SCRIPT_DIR}/.env.shared" 2>/dev/null &&
         grep -q '^EXIST_IS_HOSTING_LOKI=true' "${SCRIPT_DIR}/.env.shared" 2>/dev/null
 }
 
@@ -289,49 +290,6 @@ _controller_answer() {
     domain=$(grep -m1 '^EXIST_DOMAIN=' "$f" 2>/dev/null | cut -d= -f2-) || true
     mkdir -p "${SCRIPT_DIR}/.decree"
     printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
-}
-
-# fleet_gpu.md: the fleet lib (automation/plugins/fleet.md) as a plugin any decree
-# project installs, served by this host's decree-go-rest (GET /plugins/fleet_gpu.md, the
-# report_host plugin's endpoint) from report_host's state. Written at each run, so it is this
-# checkout's. Data to serve, never run here: no #! line, so decree check takes it as data.
-_fleet_gpu_plugin() {
-    local d="${SCRIPT_DIR}/.decree/machines/report_host/state"
-    [[ -d "${SCRIPT_DIR}/.decree/machines/report_host" ]] || return 0
-    mkdir -p "$d"
-    { printf -- '---\nname: fleet_gpu\nscripts:\n  requirements: |\n    # kind    name\n    command   curl\n    command   jq\n  fleet.sh: |\n'
-      awk '/^  fleet\.sh: \|$/ { f = 1; next } f && !/^    / && !/^$/ { exit } f && !/^    #!/ { print }' \
-          "${SCRIPT_DIR}/automation/plugins/fleet.md"
-      cat <<'MD'
----
-# fleet_gpu
-
-The GPUs of an existential fleet, for a decree project of your own: llama.cpp (`llm`), Strata
-(`strata`), ComfyUI (`comfy`) and TTS (`tts`), each on whichever host offers it now, found by
-asking the fleet's controller, and used under that host's lease.
-
-In `.decree/.env`:
-
-    EXIST_CONTROLLER=<the controller's address>
-    EXIST_FLEET_SECRET=<the fleet's secret>
-
-Installed, and updated, from the project's root:
-
-    set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
-
-In a script:
-
-    source .decree/machines/fleet_gpu/scripts/fleet.sh
-    fleet_use comfy || exit 1        # FLEET_URL is ComfyUI's address, under its lease
-    curl -fsS "${FLEET_URL}/prompt" -d @workflow.json
-    fleet_done comfy
-
-The lease is taken by the first `fleet_use`, shared by every call after it, renewed while they
-come, and given back 5 seconds after the last `fleet_done` (ComfyUI: once its queue is empty).
-`fleet_use` returns 3 when no host offers the service, 1 when none would lease it.
-`fleet_offers` lists what every host offers. Needs curl and jq.
-MD
-    } > "${d}/fleet_gpu.md.tmp" && mv "${d}/fleet_gpu.md.tmp" "${d}/fleet_gpu.md"
 }
 
 # Another host's copy of its controller's answer, .decree/controller.json, for
@@ -415,7 +373,8 @@ _host_plugins() {
         echo "  ⚠  The host's decree is $(decree --version 2>/dev/null | sed 's/^decree //'), and this checkout's is ${want}, so the host's plugins (.decree) are left as they are:"
         _install_steps decree
         echo "     then ./existential.sh, and restart the host's daemon:"
-        echo "     tmux kill-session -t existential-host; tmux new -d -s existential-host -c '${SCRIPT_DIR}' decree daemon"
+        echo "     systemctl --user restart existential-host   (without the unit: tmux kill-session -t existential-host,"
+        echo "     then ./existential.sh run host-daemon install)"
         return 0
     fi
     # No engine (_worker_without_engine): the same sync, with the host's own yq and decree.
@@ -427,18 +386,32 @@ _host_plugins() {
     on="$(cd "${SCRIPT_DIR}/.decree/machines" 2>/dev/null && ls -- */machine.yml 2>/dev/null | sed 's#/machine\.yml$##' | { grep -v '^decree_' || true; } | xargs)"
     [[ -n "$on" ]] || return 0
     # Every step still to do, in one go, so one fix-and-retry covers them all.
-    local todo=false
+    local todo=false a
+    local tools="decree tmux"; [[ " ${on} " != *" report_host "* ]] || tools="${tools} alloy"
+    # shellcheck disable=SC2086 # a word list
+    _offer_install $tools || true
     if ! command -v decree >/dev/null 2>&1; then
         echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and decree is not here:"
         _install_steps decree; todo=true
     fi
-    if ! tmux has-session -t "=existential-host" 2>/dev/null; then
-        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs here. Start one:"
-        echo "     tmux new -d -s existential-host -c '${SCRIPT_DIR}' decree daemon"
-        echo "     and have it start at boot, in this folder (it was host/ before): https://existential.company/docs/hosting/host-daemon"
-        todo=true
+    # The daemon, now and at every boot (src/lib/host-daemon.sh install: a systemd user unit or
+    # a LaunchAgent), offered with Enter while none runs.
+    if ! tmux has-session -t "=existential-host" 2>/dev/null && command -v decree >/dev/null 2>&1 && command -v tmux >/dev/null 2>&1 && [[ -t 0 ]]; then
+        echo ""
+        echo "  The host's plugins (${on}) run in a decree daemon on the host, and none runs here."
+        echo "  This starts it now, and at every boot (a systemd user unit; a LaunchAgent on a Mac)."
+        read -r -p "  Start it [Y/n]: " a || a=n
+        case "$a" in n|N|no|No) ;; *) bash "${SCRIPT_DIR}/src/lib/host-daemon.sh" install || true ;; esac
     fi
-    $todo && echo "     Or turn one off:  ./existential.sh plugin off <name>"
+    if ! tmux has-session -t "=existential-host" 2>/dev/null; then
+        echo "  ⚠  The host's plugins (${on}) run in a decree daemon on the host, and none runs here."
+        echo "     Start it, now and at every boot:  ./existential.sh run host-daemon install"
+        echo "     Or turn them off:  ./existential.sh plugin off <name>"
+        todo=true
+    elif [[ ! -f "${HOME}/.config/systemd/user/existential-host.service" && ! -f "${HOME}/Library/LaunchAgents/company.existential.host.plist" ]]; then
+        echo "  ⚠  The host's decree daemon runs, but nothing starts it after a reboot:"
+        echo "     ./existential.sh run host-daemon install"
+    fi
     if [[ " ${on} " == *" report_host "* ]] && ! command -v alloy >/dev/null 2>&1; then
         echo "  ⚠  report_host ships this host's decree runs with alloy, and alloy is not here:"
         _install_steps alloy; todo=true
@@ -457,30 +430,75 @@ _host_plugins() {
 # _install_steps <tool> — how to get one of a worker's tools on this host. decree
 # and yq are the versions the decree image pins, so host and container agree.
 _install_steps() {
-    local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch
+    local c; c="$(_install_cmd "$1")"
+    if [[ -n "$c" ]]; then echo "       $c"
+    else echo "       with your package manager: sudo apt install $1, sudo dnf install $1, ..."; fi
+}
+
+# _install_cmd <tool> — one shell line that installs it on this host, or nothing when no way
+# is known. decree, yq and alloy go to ~/.local/bin without sudo; a package (curl, tmux,
+# unzip) goes through this host's package manager, with sudo unless this is root.
+_install_cmd() {
+    local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch s=sudo
     os="$(uname -s | tr 'A-Z' 'a-z')"
     case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) arch="$(uname -m)" ;; esac
+    [[ "$(id -u)" != 0 ]] || s=""
     case "$1" in
         decree)
             # The version the decree image pins, so host and container agree.
             v="$(sed -n 's/^ARG DECREE_TAG=//p' "$df")"
-            echo "       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- ${v}" ;;
+            echo "curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- ${v}" ;;
         yq)
             v="$(sed -n 's/^ARG YQ_VERSION=//p' "$df")"
-            echo "       mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq \\"
-            echo "         https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch} && chmod +x ~/.local/bin/yq"
-            [[ "$os" == darwin ]] && echo "       or: brew install yq" ;;
+            echo "mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch} && chmod +x ~/.local/bin/yq" ;;
         alloy)
             # The version loki-alloy runs, so every host ships with the same alloy.
             v="$(sed -n 's/^ *image: grafana\/alloy:v//p' "${SCRIPT_DIR}/hosting/loki/docker-compose.exist.yml")"
-            echo "       mkdir -p ~/.local/bin && curl -fsSL -o /tmp/alloy.zip \\"
-            echo "         https://github.com/grafana/alloy/releases/download/v${v}/alloy-${os}-${arch}.zip \\"
-            echo "         && unzip -p /tmp/alloy.zip > ~/.local/bin/alloy && chmod +x ~/.local/bin/alloy && rm /tmp/alloy.zip"
-            [[ "$os" == darwin ]] && echo "       or: brew install grafana/grafana/alloy" ;;
-        curl|tmux)
-            if [[ "$os" == darwin ]]; then echo "       brew install $1"
-            else echo "       with your package manager: sudo apt install $1, sudo dnf install $1, ..."; fi ;;
+            echo "mkdir -p ~/.local/bin && curl -fsSL -o /tmp/alloy.zip https://github.com/grafana/alloy/releases/download/v${v}/alloy-${os}-${arch}.zip && unzip -p /tmp/alloy.zip > ~/.local/bin/alloy && chmod +x ~/.local/bin/alloy && rm /tmp/alloy.zip" ;;
+        curl|tmux|unzip)
+            if [[ "$os" == darwin ]]; then command -v brew >/dev/null 2>&1 && echo "brew install $1"
+            elif command -v apt-get >/dev/null 2>&1; then echo "${s:+$s }apt-get install -y $1"
+            elif command -v dnf >/dev/null 2>&1;     then echo "${s:+$s }dnf install -y $1"
+            elif command -v pacman >/dev/null 2>&1;  then echo "${s:+$s }pacman -S --noconfirm $1"
+            elif command -v zypper >/dev/null 2>&1;  then echo "${s:+$s }zypper install -y $1"
+            elif command -v apk >/dev/null 2>&1;     then echo "${s:+$s }apk add $1"; fi ;;
     esac
+    return 0
+}
+
+# _tool_missing <tool> — 0 when it is not here, or (yq) is not mikefarah's v4.
+_tool_missing() {
+    command -v "$1" >/dev/null 2>&1 || return 0
+    [[ "$1" != yq || "$(yq --version 2>&1)" == *mikefarah* ]] && return 1
+    return 0
+}
+
+# _offer_install <tool>... — offer to install those of them that are missing, here and now, so
+# setup goes on with Enter: the commands are shown first, and a package manager's run through
+# sudo, which asks for its own password. Without a terminal, or on n, nothing runs. 0 when
+# every one of them is here afterwards.
+_offer_install() {
+    local t c a want="" cmds=""
+    for t in "$@"; do
+        _tool_missing "$t" || continue
+        # alloy comes as a zip.
+        if [[ "$t" == alloy ]] && _tool_missing unzip && [[ " $want " != *" unzip "* ]]; then
+            c="$(_install_cmd unzip)"; [[ -z "$c" ]] || { want="${want} unzip"; cmds="${cmds}${c}"$'\n'; }
+        fi
+        c="$(_install_cmd "$t")"; [[ -n "$c" ]] || continue
+        want="${want} ${t}"; cmds="${cmds}${c}"$'\n'
+    done
+    [[ -n "$want" && -t 0 ]] || { [[ -z "$want" ]]; return; }
+    echo "  Missing here:${want}. Install now? This runs:"
+    printf '%s' "$cmds" | sed 's/^/       /'
+    read -r -p "  Install [Y/n]: " a || a=n
+    case "$a" in n|N|no|No) return 1 ;; esac
+    while IFS= read -r c; do
+        [[ -n "$c" ]] || continue
+        bash -c "$c" || { echo "  ✗ That failed: $c"; return 1; }
+    done <<< "$cmds"
+    hash -r
+    for t in "$@"; do ! _tool_missing "$t" || return 1; done
 }
 
 # A worker without docker or podman: curl is how reporting sends (and how decree
@@ -489,18 +507,18 @@ _install_steps() {
 # is named with how to get it; 1 if any is.
 _worker_needs() {
     local t miss=0
-    # Every missing one is named in one go. alloy is named too but does not stop
-    # setup: without it reporting still sends, it just ships no decree runs.
+    # Offered first, all in one go; whatever is still missing after is named with how to get
+    # it. alloy is named too but does not stop setup: without it reporting still sends, it
+    # just ships no decree runs.
+    _offer_install curl decree yq tmux alloy || true
     for t in curl decree yq tmux alloy; do
-        if ! command -v "$t" >/dev/null 2>&1; then
-            echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
-            _install_steps "$t"
-        elif [[ "$t" == yq && "$(yq --version 2>&1)" != *mikefarah* ]]; then
+        _tool_missing "$t" || continue
+        if command -v "$t" >/dev/null 2>&1; then
             echo "  ✗ the yq here ($(command -v yq)) is not mikefarah's yq v4. Put that one first on PATH:"
-            _install_steps "$t"
         else
-            continue
+            echo "  ✗ ${t} is not here. Install it, then re-run ./existential.sh:"
         fi
+        _install_steps "$t"
         [[ "$t" == alloy ]] || miss=1
     done
     return "$miss"
@@ -532,14 +550,9 @@ _worker_only() {
 # and _host_plugins syncs the host project (.decree) with the host's yq and decree.
 _worker_without_engine() {
     local f="${SCRIPT_DIR}/.env.shared" ctl=""
-    [[ -f "$f" ]] || echo "A worker runs no containers: this host reports itself to a controller, with its own tools."
-    _worker_needs || return 1
-    if grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f" 2>/dev/null; then
-        echo "  ✗ Services are on in .env.shared, and they need docker: https://docs.docker.com/engine/install/"
-        echo "    Or, to make this host a worker only, set each EXIST_IS_*=true there to false."
-        return 1
-    fi
+    # The answers first, kept at once, so a tool still to install never costs them.
     if [[ ! -f "$f" ]]; then
+        echo "A worker runs no containers: this host reports itself to a controller, with its own tools."
         if [[ -t 0 ]]; then
             echo "Which host is the controller? This worker sends its reports there."
             echo "Give its Tailscale name (e.g. myserver) or IP address. Leave it blank to skip for now;"
@@ -548,16 +561,40 @@ _worker_without_engine() {
             [[ "$ctl" =~ ^[A-Za-z0-9.-]+$ ]] || ctl=""
         fi
         { grep -E '^EXIST_IS_' "${SCRIPT_DIR}/.env.exist.shared" | sed 's/=.*/=false/'
+          echo "EXIST_HOST_ROLE=worker"
           echo "EXIST_CONTROLLER=${ctl}"; } > "$f"
+        rm -f "${SCRIPT_DIR}/.env.role"
         # report_host on in the host project; _build's _host_plugins installs it.
         mkdir -p "${SCRIPT_DIR}/.decree/plugins"
         grep -qxF report_host "${SCRIPT_DIR}/.decree/plugins/.on" 2>/dev/null || echo report_host >> "${SCRIPT_DIR}/.decree/plugins/.on"
     fi
+    _worker_needs || return 1
+    if grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f" 2>/dev/null; then
+        echo "  ✗ Services are on in .env.shared, and they need docker: https://docs.docker.com/engine/install/"
+        echo "    Or, to make this host a worker only, set each EXIST_IS_*=true there to false."
+        return 1
+    fi
     _controller_answer
-    _fleet_gpu_plugin
     _build
     # The controller's answer, on 4480 or (your own network) from its Loki; it warns when neither answers.
     _controller_fetch
+    _worker_summary
+}
+
+# Where a worker stands, in one list, at the end of every run: what is done and the one
+# command for what is not.
+_worker_summary() {
+    local ctl
+    ctl="$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)" || true
+    echo ""
+    echo "This worker:"
+    if [[ -n "$ctl" ]]; then echo "  ✓ reports to ${ctl}"
+    else echo "  ✗ names no controller: set EXIST_CONTROLLER= in .env.shared (its Tailscale name or address)"; fi
+    if command -v alloy >/dev/null 2>&1; then echo "  ✓ ships its decree runs (alloy)"
+    else echo "  ⚠  sends reports but not its decree runs until alloy is here: ./existential.sh offers it"; fi
+    bash "${SCRIPT_DIR}/src/lib/host-daemon.sh" status | tail -n +2
+    echo "  The first report is within 5 minutes of the daemon starting; it then shows on the"
+    echo "  controller's Grafana, Hosts dashboard. Guide: https://existential.company/docs/hosting/controller-and-workers#add-a-worker"
 }
 
 # ── Service enablement ────────────────────────────────────────────────────────
@@ -705,6 +742,62 @@ _report_model() {
     echo "  LLM, or your controller's) and, for a hosted LLM, EXIST_MODEL_KEY. Then run this again."
 }
 
+# The first run's one question: what this computer is. The main one is Core and the
+# controller the others report to (src/lib/fleet.sh controller, after the build); a
+# worker reports this host to a controller and runs nothing else (_worker_without_engine,
+# which asks for the controller). Without a terminal nothing is asked: Core, as it ships.
+# The answer is EXIST_HOST_ROLE: main, worker or core.
+_ask_role() {
+    [[ -t 0 ]] || { echo core; return 0; }
+    local a
+    { echo ""
+      echo "What is this computer?"
+      echo "  a) The main one: Core, and the controller other computers report to (default)"
+      echo "  b) A worker: it reports this host to a controller, and runs nothing else"; } >&2
+    while :; do
+        read -r -p "a or b [a]: " a || a=""
+        case "$a" in
+            ""|a|A) echo main; return 0 ;;
+            b|B)    echo worker; return 0 ;;
+        esac
+        echo "  Type a or b." >&2
+    done
+}
+
+# The answer to the first run's question: .env.shared's EXIST_HOST_ROLE, else the .env.role the
+# question wrote before .env.shared existed. Blank: not asked.
+_host_role() {
+    local r
+    r=$(grep -m1 '^EXIST_HOST_ROLE=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
+    [[ -n "$r" ]] || r=$(cat "${SCRIPT_DIR}/.env.role" 2>/dev/null) || true
+    echo "$r"
+}
+
+# Into .env.shared once it exists, and only where it is blank. An install from before the
+# question gets what it already is: the controller is main, a worker with no services worker,
+# anything else core.
+_record_role() {
+    local f="${SCRIPT_DIR}/.env.shared" r="$1"
+    [[ -f "$f" ]] || return 0
+    if [[ -z "$r" ]]; then
+        if _is_controller; then r=main
+        elif _is_worker && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f"; then r=worker
+        else r=core; fi
+    fi
+    if grep -q '^EXIST_HOST_ROLE=$' "$f"; then _sed_i "s|^EXIST_HOST_ROLE=\$|EXIST_HOST_ROLE=${r}|" "$f"
+    elif ! grep -q '^EXIST_HOST_ROLE=' "$f"; then printf 'EXIST_HOST_ROLE=%s\n' "$r" >> "$f"; fi
+    rm -f "${SCRIPT_DIR}/.env.role"
+}
+
+# The main computer is the controller too (src/lib/fleet.sh controller, safe to repeat): done
+# by the run after its question, and by every run after one that stopped before it was. Set
+# EXIST_HOST_ROLE=core to keep Core without it. Containers only: nothing on the host itself.
+_finish_main() {
+    [[ "$(_host_role)" == main ]] && ! _is_controller || return 0
+    bash "${SCRIPT_DIR}/src/lib/fleet.sh" controller \
+        || echo "  ⚠  Setting this host up as the controller stopped (above); ./existential.sh tries again."
+}
+
 # The first run made the login (admin and a generated password): say it once, at
 # the end, where the next step (logging in) happens.
 _report_login() {
@@ -844,6 +937,8 @@ _run_general_utility() {
         # Host-side: edits .env.shared, runs ./existential.sh and starts the host daemon;
         # peers reads the repo's fleet lib and reaches the other hosts from here.
         fleet)          bash "${SCRIPT_DIR}/src/lib/fleet.sh" "$@" ;;
+        # Host-side: writes a systemd user unit or a LaunchAgent, and starts tmux on the host.
+        host-daemon)    bash "${SCRIPT_DIR}/src/lib/host-daemon.sh" "$@" ;;
         peers)          bash "${SCRIPT_DIR}/src/lib/peers.sh" "$@" ;;
         *)              run_adhoc bash "/src/lib/${name}.sh" "$@" ;;
     esac
@@ -1078,7 +1173,6 @@ _build() {
         _rename_machines
         if _is_worker; then
             _controller_answer
-            _fleet_gpu_plugin
             echo "A worker with no services, so nothing for docker compose. The host's decree daemon (.decree)"
             echo "reports this host to $(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" | cut -d= -f2- | grep . || echo 'nowhere: set EXIST_CONTROLLER in .env.shared')."
         else
@@ -1089,7 +1183,6 @@ _build() {
     fi
     if _tailscale_serve_core; then _core_bind 127.0.0.1; else _core_bind 0.0.0.0; fi
     _controller_answer
-    _fleet_gpu_plugin
     _controller_fetch
     _start_on_boot
     _check_nas || exit 1
@@ -1114,7 +1207,8 @@ Usage: $0 [action]
 Actions:
   (none)                 Render templates for enabled services, run their setup
                          scripts, generate docker-compose.yml. The first run
-                         asks Core or none; a login is asked when a service needs it.
+                         asks what this computer is (the main one: Core and the
+                         controller; or a worker), then a login or the controller.
   service [list|on|off] [slug...]
                          Turn single services on or off without opening
                          .env.shared, then the same.
@@ -1169,11 +1263,21 @@ case "$action" in
 
         ensure_git_hooks
         _check_local_bin
-        if _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
+        # The first run's question is answered once, and the answer kept the moment it is given
+        # (.env.role until .env.shared holds it), so a run that stops on a missing tool goes on
+        # from there next time.
+        _role="$(_host_role)"
+        if [[ -z "$_role" && "$_is_first_run" == "true" ]] && adhoc_find_runtime; then
+            _role="$(_ask_role)"
+            printf '%s\n' "$_role" > "${SCRIPT_DIR}/.env.role"
+        fi
+        if [[ "$_role" == worker ]] || _worker_only || ! adhoc_find_runtime; then _worker_without_engine; exit $?; fi
         ensure_adhoc_built
         _render
+        _record_role "$_role"
         _ask_hardware_if_needed
         _build
+        _finish_main
         [[ "$_is_first_run" == "true" ]] && _report_login
         _report_model
         echo ""

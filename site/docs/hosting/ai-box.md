@@ -11,7 +11,7 @@ router mode, ComfyUI, Qwen3-TTS, and a GLiNER classifier on CPU.
 
 Nothing on `<ai-box>` is part of the stack. It runs no existential compose file, and the stack
 only ever sees the addresses below. Which keys exist and how they fall back is in
-[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
+[Configuration → Endpoints](../configuration.md#endpoints--where-model-calls-go).
 
 ## One card, taken in turns
 
@@ -203,11 +203,11 @@ the Gradio UI and its API.
 
 ## Leases from another host
 
-For another host to take a lease, the box needs [decree-go-rest](../plugins/http.md) in front of
-its `.decree`, on `:8801` with the fleet's secret ([Leases](./controller-and-workers.md#leases)).
-One command writes its config (`.decree/decree-go-rest.yml`, the box's own), starts it, and adds
-it to `.decree/boot.sh` with `boot_daemon`, so it starts at boot; each plugin adds its
-endpoints at each `./existential.sh`:
+For another host to take a lease, the box needs its lease API, [fleet-api](./fleet-api.md):
+decree-go-rest, pulled as an image and run by Compose, in front of the box's `.decree` on
+`:8801` with the fleet's secret ([Leases](./controller-and-workers.md#leases)). One command turns
+it on and starts it; it comes back with the container engine after every reboot, and each host
+plugin adds its endpoints at each `./existential.sh`:
 
 ```bash
 ./existential.sh run fleet api

@@ -66,7 +66,7 @@ tmx claude                            # attach to it
 **pi** is set up on the stack's model (the `pi` plugin, on by default). **With `capture` on**
 (`./existential.sh plugin on capture`), what you type into `claude` and `opencode` is captured to
 `workspace/.capture/` (secrets redacted, never responses). `CODE_SERVER_CAPTURE=false` turns capture off. See
-[Capture](../getting-started.md#capture).
+[Capture](../flows/one-place.md#everything-you-typed-to-an-ai).
 
 **No telemetry.** code-server runs with `--disable-telemetry`, Claude Code with
 `DISABLE_TELEMETRY` and `DISABLE_ERROR_REPORTING`, opencode with sharing off. Your conversation

@@ -4,7 +4,7 @@ sidebar_position: 14
 
 # Updates
 
-An install can follow its branch on its own. The `pull_existential` [plugin](../flows/index.md), off until you
+An install can follow its branch on its own. The `pull_existential` [plugin](../plugins/index.md), off until you
 turn it on, runs on the host every 15 minutes:
 
 1. `git pull`, fast-forward only. A checkout with commits of its own, or an upstream that was

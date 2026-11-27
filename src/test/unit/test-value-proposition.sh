@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test-value-proposition.sh — the homepage, README and intro make one pitch.
 #
-# V1-V6 (migration 008) are exact copy: V1 is the site tagline, V2-V3 the hero lede and V4-V6
+# V1-V6 (order audience.md) are exact copy: V1 is the site tagline, V2-V3 the hero lede and V4-V6
 # the one section after the hero ("Intentional attention"). Retired pitches, claims the repo does
 # not back, and any name for where "Diagram" comes from must not creep back in.
 set -euo pipefail

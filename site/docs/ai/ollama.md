@@ -43,9 +43,9 @@ models can live on a different
 box — or a different server, such as llama.cpp — than the rest of the stack. Pulling, unloading
 and the ollama probes run only while `EXIST_IS_AI_OLLAMA=true`. The `ollama.<domain>` Caddy
 hostname is this host's ollama container. Details:
-[Configuration → Endpoints](../configuration.md#endpoints--putting-roles-on-different-hosts).
+[Configuration → Endpoints](../configuration.md#endpoints--where-model-calls-go).
 
-For GPU setup, see [Proxmox GPU](../hosting/proxmox.md#gpu).
+For GPU setup, see [Proxmox GPU](../hosting/proxmox.md).
 
 ## Diagnostics
 

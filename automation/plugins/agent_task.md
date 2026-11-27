@@ -182,7 +182,7 @@ state:
     ```
 
     `router` emits exactly that message after picking a department. Setup and reference:
-    <https://existential.company/docs/decree/routing>.
+    <https://existential.company/docs/plugins/routing>.
   departments/research.yml: |
     # The only department with web access.
     description: Investigation, fact-finding, competitive and market analysis, literature review.

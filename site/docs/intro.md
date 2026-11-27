@@ -6,8 +6,8 @@ slug: /intro
 # What It Is
 
 :::info[Start here]
-What it is and what it does for you. One step deeper: [Services](./how-it-works.md), what
-actually runs.
+What it is and what it does for you. Then [What It Does](./flows/index.md), one problem at a
+time.
 :::
 
 **Your best brain day now accessible.**
@@ -65,7 +65,7 @@ Everything reaches the same model:
 | **Not do a chore again** | A routine that runs on a trigger and only speaks up when it matters |
 
 All three use one OpenAI-compatible URL. Point it at a bigger model and all three change.
-Which projects provide each piece: [Services](./how-it-works.md).
+Which projects provide each piece: [How It's Built](./how-it-works.md).
 
 ## What Core installs
 
@@ -80,7 +80,7 @@ you log in; without it, it is on your network over HTTP.
 | [Search](./ai/qmd.md) | qmd over the whole work dir, a tool every agent has |
 | [Firecrawl](./ai/firecrawl.md) | The web, searched and read, a tool every agent has |
 
-Everything else is an add-on, one flow or one flag away: [Services](./how-it-works.md).
+Everything else is off until you turn it on: [What It Does](./flows/index.md).
 
 ## Try it
 
@@ -91,7 +91,7 @@ to host it. [Tailscale](https://tailscale.com/download) is optional: it gives Co
 git clone https://github.com/jtmckay/existential.git
 cd existential
 
-./existential.sh            # asks nothing; prints your login and where Core is
+./existential.sh            # asks what this computer is and your login; prints where Core is
 docker compose up -d
 ```
 

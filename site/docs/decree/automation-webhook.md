@@ -26,11 +26,11 @@ The endpoints are `workspace/.decree/decree-go-rest.yml`, copied once from
 
 | Endpoint | Runs |
 |---|---|
-| `/capture` | `capture`: a line in the [capture stream](../getting-started.md#capture) |
-| `/you-were-here` | `you_were_here`: [the digest](../getting-started.md#you-were-here), now |
-| `/look-back`, `/look-back/{period}`, `/look-back/{period}/{scope}` | `look_back`: [a look back](../getting-started.md#look-back) |
+| `/capture` | `capture`: a line in the [capture stream](../flows/one-place.md#everything-you-typed-to-an-ai) |
+| `/you-were-here` | `you_were_here`: [the digest](../flows/pick-up-the-thread.md#where-you-were-every-morning), now |
+| `/look-back`, `/look-back/{period}`, `/look-back/{period}/{scope}` | `look_back`: [a look back](../flows/pick-up-the-thread.md#what-did-i-even-do-this-year) |
 | `/notify`, `/notify/{title}` | `notify`: an ntfy push |
-| `/files` | `file_router`: Nextcloud's file events ([File Change Processing](./file-change-processing.md)) |
+| `/files` | `file_router`: Nextcloud's file events ([File Change Processing](../plugins/file-change-processing.md)) |
 
 Every request carries `Authorization: Bearer <secret>`. The default secret is
 `AUTOMATION_WEBHOOK_SECRET` in `services/automation-webhook/.env`; `/files` has its own.

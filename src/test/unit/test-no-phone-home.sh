@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-no-phone-home.sh — every service ships with its telemetry off (migration 015).
+# test-no-phone-home.sh — every service ships with its telemetry off (order nothing-phones-home.md).
 #
 # One line per upstream setting, read from the tracked template that sets it. A service
 # with no setting is recorded on its docs page instead, and the nip.io lookup on the page
@@ -47,7 +47,7 @@ _has "comfyui says it cannot"        site/docs/ai/comfyui.md "upstream offers no
 _has "qmd says it sends nothing"     site/docs/ai/qmd.md "none: qmd sends nothing"
 
 # Docs and the rule
-_has "nip.io lookup is disclosed"    site/docs/how-it-works.md "nip.io sees your host's IP and each service name you look up"
+_has "nip.io lookup is disclosed"    site/docs/networking.md "nip.io sees your host's IP and each service name you look up"
 _has "services.md records the rule"  .claude/reference/services.md "## Telemetry ships off"
 
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"

@@ -29,37 +29,37 @@ You'll need a Client ID and Client Secret from Google Cloud Console before runni
 
 Select an existing project or create a new one.
 
-![Select or create a project](../decree/image_1759883080104_0.png)
+![Select or create a project](./image_1759883080104_0.png)
 
-![Create new project](../decree/image_1759883095827_0.png)
+![Create new project](./image_1759883095827_0.png)
 
 Make sure the new project is selected before continuing.
 
-![Project selected](../decree/image_1759883153479_0.png)
+![Project selected](./image_1759883153479_0.png)
 
 ### 2. Enable the Gmail API
 
 Go to **APIs & Services → Library**.
 
-![APIs & Services menu](../decree/image_1759883188188_0.png)
+![APIs & Services menu](./image_1759883188188_0.png)
 
 Search for **Gmail API**.
 
-![Search for Gmail API](../decree/image_1759883423495_0.png)
+![Search for Gmail API](./image_1759883423495_0.png)
 
 Click **Enable**.
 
-![Enable Gmail API](../decree/image_1759883481121_0.png)
+![Enable Gmail API](./image_1759883481121_0.png)
 
 ### 3. Configure the OAuth Consent Screen
 
 Go to the **OAuth consent screen**.
 
-![OAuth consent screen](../decree/image_1759883549765_0.png)
+![OAuth consent screen](./image_1759883549765_0.png)
 
 Click **Get started**.
 
-![Get started](../decree/image_1759883573243_0.png)
+![Get started](./image_1759883573243_0.png)
 
 - Set the app to **External**
 - Fill in the app name and your email
@@ -93,4 +93,4 @@ Go to **APIs & Services → Credentials → Create Credentials → OAuth Client 
 
 Note your **Client ID** and **Client Secret** — you'll paste these into the setup script.
 
-![Credentials page](../decree/image_1759884031010_0.png)
+![Credentials page](./image_1759884031010_0.png)

@@ -116,7 +116,7 @@ Many integrations (HAwake, Tasker via TaskerHA, external scripts) need a long-li
 
 HA automations are defined in YAML or via the UI under **Settings → Automations & Scenes**.
 
-See [HAwake → Home Assistant → Tasker](../flows/hawake-homeassistant.md) for a complete example of using a custom wake word to trigger Tasker actions through HA.
+See [HAwake → Home Assistant → Tasker](../backlog/hawake-homeassistant.md) for a complete example of using a custom wake word to trigger Tasker actions through HA.
 
 ## Services
 

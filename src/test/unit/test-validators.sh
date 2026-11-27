@@ -130,7 +130,7 @@ expect_pass "drift: passes when rendered matches template" tsx "$DRIFT" "$insync
 
 # ── Plugins ───────────────────────────────────────────────────────────────────
 # A plugin is automation/plugins/<name>.md. One a person turns on (a machine
-# nothing needs) has its `plugin on` line on the Flows page, and every `plugin on`
+# nothing needs) has its `plugin on` line on a docs page, and every `plugin on`
 # and `service on` the docs give names what there is.
 
 pfix() {   # pfix <frontmatter lines> [flows page line]: one service folder, its page, and one plugin, foo
@@ -142,8 +142,8 @@ pfix() {   # pfix <frontmatter lines> [flows page line]: one service folder, its
     printf '# Flows\n\n%s\n' "${2-./existential.sh service on foo && ./existential.sh plugin on foo}" > "$d/site/docs/flows/index.md"
     echo "$d"
 }
-expect_pass "conventions: accepts a plugin whose row on the Flows page names it" tsx "$CONV" "$(pfix '')"
-expect_fail "conventions: rejects a plugin a person turns on with no row on the Flows page" tsx "$CONV" "$(pfix '' 'nothing here')"
+expect_pass "conventions: accepts a plugin a docs page turns on" tsx "$CONV" "$(pfix '')"
+expect_fail "conventions: rejects a plugin a person turns on that no docs page turns on" tsx "$CONV" "$(pfix '' 'nothing here')"
 expect_fail "conventions: rejects docs turning on a plugin that does not exist" tsx "$CONV" "$(pfix '' './existential.sh plugin on foo bar')"
 expect_fail "conventions: rejects docs turning on a service with no folder" tsx "$CONV" "$(pfix '' './existential.sh service on bar && ./existential.sh plugin on foo')"
 expect_fail "conventions: rejects a plugin needing one that does not exist" tsx "$CONV" "$(pfix $'needs:\n  - bar')"

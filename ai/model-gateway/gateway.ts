@@ -8,13 +8,18 @@
 //
 //   GET  /v1/models   every model a GPU host offers now
 //   POST /v1/...      to the host serving body.model (blank: the first one offered)
+//   GET  /plugins/fleet_gpu.md   the fleet lib as a decree plugin, for a project of your own
 //   GET  /health      200, for the healthcheck
+//
+// It reads nothing of the host's: the fleet lib is the workspace's (.decree/lib, read-only),
+// and the offers are the controller's Loki.
 import http from 'node:http';
 import https from 'node:https';
+import { readFileSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 
 const SECRET = process.env.EXIST_FLEET_SECRET ?? '';
-const LIB = process.env.FLEET_LIB ?? '/lib/fleet.sh';
+const LIB = process.env.FLEET_LIB ?? '/fleet/fleet.sh';
 const PORT = Number(process.env.PORT ?? 4400);
 const SERVICES = new Set(['llm', 'strata']);   // the offers that serve /v1
 
@@ -49,6 +54,49 @@ function lease(service: string): Promise<{ url: string; done: () => void }> {
   });
 }
 
+// fleet_gpu.md: the fleet lib this gateway leases through, as a decree plugin file. Data to
+// serve, never run here: no #! line, so decree check takes the script as data.
+function fleetGpu(): string {
+  const lib = readFileSync(LIB, 'utf8').split('\n').filter(l => !l.startsWith('#!')).map(l => (l ? `    ${l}` : l)).join('\n');
+  return `---
+name: fleet_gpu
+scripts:
+  requirements: |
+    # kind    name
+    command   curl
+    command   jq
+  fleet.sh: |
+${lib.replace(/\s+$/, '')}
+---
+# fleet_gpu
+
+The GPUs of an existential fleet, for a decree project of your own: llama.cpp (\`llm\`), Strata
+(\`strata\`), ComfyUI (\`comfy\`) and TTS (\`tts\`), each on whichever host offers it now, found by
+asking the fleet's controller, and used under that host's lease.
+
+In \`.decree/.env\`:
+
+    EXIST_CONTROLLER=<the controller's address>
+    EXIST_FLEET_SECRET=<the fleet's secret>
+
+Installed, and updated, from the project's root:
+
+    set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md" | decree install -
+
+In a script:
+
+    source .decree/machines/fleet_gpu/scripts/fleet.sh
+    fleet_use comfy || exit 1        # FLEET_URL is ComfyUI's address, under its lease
+    curl -fsS "\${FLEET_URL}/prompt" -d @workflow.json
+    fleet_done comfy
+
+The lease is taken by the first \`fleet_use\`, shared by every call after it, renewed while they
+come, and given back 5 seconds after the last \`fleet_done\` (ComfyUI: once its queue is empty).
+\`fleet_use\` returns 3 when no host offers the service, 1 when none would lease it.
+\`fleet_offers\` lists what every host offers. Needs curl and jq.
+`;
+}
+
 function send(res: http.ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
@@ -67,6 +115,10 @@ http.createServer(async (req, res) => {
   if (path === '/health') return send(res, 200, { ok: true });
   if (!SECRET) return fail(res, 503, 'no EXIST_FLEET_SECRET: this host is not in a fleet');
   if (req.headers.authorization !== `Bearer ${SECRET}`) return fail(res, 401, 'the key is the fleet secret (EXIST_FLEET_SECRET)');
+  if (req.method === 'GET' && path === '/plugins/fleet_gpu.md') {
+    try { res.writeHead(200, { 'content-type': 'text/markdown' }); return res.end(fleetGpu()); }
+    catch { return fail(res, 503, `no fleet lib at ${LIB} yet: ./existential.sh installs it with the model plugin`); }
+  }
   if (!path.startsWith('/v1/')) return fail(res, 404, 'not found: the API is under /v1');
 
   const all = await offers();

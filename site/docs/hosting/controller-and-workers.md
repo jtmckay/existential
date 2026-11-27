@@ -20,12 +20,15 @@ Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already
 
 ## The controller
 
-Pick **Controller** on the first run (or `./existential.sh plugin on report_host` later, with
-`EXIST_CONTROLLER` blank), then turn on where the reports land:
+Answer **a) the main one** on the first run, which does all of this, or later run
+`./existential.sh run fleet controller`. Either makes the fleet secret and turns on where the
+reports land, Loki and Grafana, with the [model gateway](../ai/model-gateway.md), the fleet's
+API. All three are containers: becoming the controller sets nothing up on the host itself, no
+systemd unit and no host daemon. To have the controller report itself too, make it a worker as
+well, by choice: `./existential.sh plugin on report_host`, which offers the
+[host daemon](./host-daemon.md). Then:
 
 ```bash
-./existential.sh service on loki grafana
-./existential.sh
 docker compose up -d
 ```
 
@@ -56,52 +59,102 @@ is back.
 
 ## Add a worker
 
-On the new host:
+A worker is another computer of yours that reports to the controller: its disks, CPU, RAM and
+VRAM, what it runs, and every decree run. It runs nothing in containers, so it needs no Docker.
+The whole setup is one command and a few Enters.
 
-1. **Get the tools**, only if the host has neither docker nor podman (with either, skip this:
-   the stack brings its own). `./existential.sh` checks for each and prints how to install
-   what's missing:
+### 1. Clone and run
 
-   | Tool | For |
-   |---|---|
-   | `curl` | sends the reports, and installs decree and yq, so it comes first |
-   | [decree](https://github.com/jtmckay/decree) | runs the worker's reporting: `curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh \| sh` |
-   | [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
-   | `tmux` | keeps the decree daemon running |
+On the new computer:
 
-   decree and yq install to `~/.local/bin`. If that isn't on your `PATH`, `./existential.sh`
-   prints the line that puts it there:
-   `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc`.
+```bash
+git clone https://github.com/jtmckay/existential && cd existential
+./existential.sh
+```
 
-   Every worker, docker or not, also needs [alloy](https://github.com/grafana/alloy) on the
-   host: it ships the decree runs. `./existential.sh` prints how to get it, the version the
-   stack's own `loki-alloy` runs, into `~/.local/bin`.
+### 2. Answer the questions
 
-2. **Clone and run.**
+```
+What is this computer?
+  a) The main one: Core, and the controller other computers report to (default)
+  b) A worker: it reports this host to a controller, and runs nothing else
+a or b [a]: b
+Which host is the controller? This worker sends its reports there.
+Controller: myserver
+```
 
-   ```bash
-   git clone https://github.com/jtmckay/existential && cd existential
-   ./existential.sh
-   ```
+Give the controller's Tailscale name (`myserver`) or its address. A computer with neither docker
+nor podman isn't asked the first question: it can only be a worker. Every answer is kept as soon
+as you give it, so nothing is asked twice, even if setup stops halfway.
 
-   Pick **Worker**, then give the controller's tailnet name or 100.x address. A host with no
-   docker or podman is not asked which: it can only be a worker, and goes straight to the
-   controller question. A worker set up this way has no services: nothing runs in containers.
+### 3. Let it install what's missing
 
-3. **Start [the host daemon](./host-daemon.md)**, and have it start at boot:
+A worker runs its reporting with its own tools. Whatever is missing is offered in one go, with
+the commands shown; Enter runs them:
 
-   ```bash
-   tmux new -d -s existential-host -c "$PWD/host" decree daemon
-   ```
+```
+  Missing here: decree yq tmux alloy. Install now? This runs:
+       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.1
+       mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/…
+       sudo apt-get install -y tmux
+       …
+  Install [Y/n]:
+```
 
-4. **Check it's reporting.** Within 5 minutes, `./existential.sh` prints what the newest report
-   said, as `Last report:`. So does the run's own log, `.decree/runs/<run>/0001-report.log`.
+| Tool | For |
+|---|---|
+| `curl` | sends the reports, and installs the others, so it comes first |
+| [decree](https://github.com/jtmckay/decree) | runs `report_host`, the plugin that reports |
+| [yq](https://github.com/mikefarah/yq) v4 (mikefarah's, not the Python one) | installs the plugins |
+| `tmux` | keeps the daemon running |
+| [alloy](https://github.com/grafana/alloy) | ships the decree runs; without it reports still send |
 
-   | It says | Which means |
-   |---|---|
-   | `<hostname> to http://…: 1 disks, {"cpu_pct":…}, 1 machines, runs shipped live by alloy …` | Sent. The host is on the **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`; its runs are on **Decree Overview**. |
-   | `no Loki named yet …, so nothing is sent` | The controller didn't answer, or names no Loki. Re-run `./existential.sh`: it warns when `http://<controller>:4480` doesn't answer. |
-   | `none yet` | No report has run. If that lasts past 5 minutes, the host daemon isn't running. |
+decree, yq and alloy go to `~/.local/bin` without sudo; `tmux` and `curl` come from your package
+manager, through `sudo`, which asks for your password. If `~/.local/bin` isn't on your `PATH`,
+the run prints the line that adds it. Without a terminal, or on `n`, the commands are printed
+for you to run, then `./existential.sh` again.
+
+### 4. Start the daemon, now and at every boot
+
+The reports come from a decree daemon on the worker itself. The run offers to start it:
+
+```
+  The host's plugins (report_host) run in a decree daemon on the host, and none runs here.
+  This starts it now, and at every boot (a systemd user unit; a LaunchAgent on a Mac).
+  Start it [Y/n]:
+```
+
+Enter installs it into systemd (details on [the host daemon](./host-daemon.md#start-it)): a user
+unit, `~/.config/systemd/user/existential-host.service`, enabled and started, with linger on so it
+starts at boot before anyone logs in. Turning linger on can take root; if it does, the run asks
+before it runs `sudo loginctl enable-linger`. To do it later, or again after moving the checkout:
+
+```bash
+./existential.sh run host-daemon install
+```
+
+### 5. Check it's reporting
+
+Every run ends with where the worker stands:
+
+```
+This worker:
+  ✓ reports to myserver
+  ✓ ships its decree runs (alloy)
+  ✓ running (tmux attach -t existential-host)
+  ✓ starts at boot (systemd user unit)
+  ✓ linger on: before anyone logs in
+  Last report: myworker to http://myserver:3100: 1 disks, {"cpu_pct":…}, 1 machines, runs shipped live by alloy
+```
+
+`./existential.sh run host-daemon status` prints the same at any time. The first report comes
+within 5 minutes of the daemon starting.
+
+| `Last report:` says | Which means |
+|---|---|
+| `<hostname> to http://…: 1 disks, {"cpu_pct":…}, …` | Sent. The host is on the controller's **Hosts** dashboard, and in Grafana's Explore as `{job="exist", host="<hostname>"}`; its runs are on **Decree Overview**. |
+| `no Loki named yet …, so nothing is sent` | The controller didn't answer, or names no Loki. Re-run `./existential.sh`: it warns when `http://<controller>:4480` doesn't answer. |
+| nothing at all | No report has run yet. If that lasts past 5 minutes, the daemon isn't running: `./existential.sh run host-daemon status` says why. |
 
 To name the controller later, or change it, edit the `EXIST_CONTROLLER=` line already in
 `.env.shared` (only the first one is read). The next report uses it: nothing to restart.
@@ -112,7 +165,7 @@ names. Both are served on the controller's tailnet, so in practice that's Tailsc
 ### A host that already runs services
 
 `./existential.sh plugin on report_host`, set `EXIST_CONTROLLER=<controller>` in `.env.shared`, then
-steps 3 and 4.
+`./existential.sh run host-daemon install` and step 5.
 
 ## Without Tailscale: your own network
 
@@ -127,7 +180,7 @@ missing:
 ```bash
 ./existential.sh run fleet controller                 # on the controller: prints the join line
 ./existential.sh run fleet join <controller> <secret> # on every other host, after ./existential.sh
-./existential.sh run fleet api                        # on a GPU box: the go-rest its leases are asked through
+./existential.sh run fleet api                        # on a GPU box: its lease API, the fleet-api container
 ./existential.sh run fleet status                     # on any host: controller, secret, daemon, last report
 ```
 
@@ -243,9 +296,9 @@ id=$(./existential.sh run peers lease <ai-box> comfy my-batch)
 ### A decree project of your own
 
 Any decree project, existential or not, can lease the fleet's GPUs through the `fleet_gpu` plugin,
-the same lib the stack uses, which the controller serves once it runs a decree-go-rest
-(`./existential.sh run fleet api`, which `fleet controller` runs). Two lines in the project's
-`.decree/.env`:
+the same lib the stack uses, which the controller's [model gateway](../ai/model-gateway.md) serves
+on `:4400` (built from the fleet lib it already leases through; it reads nothing of the host's).
+Two lines in the project's `.decree/.env`:
 
 ```bash
 EXIST_CONTROLLER=<the controller's address>
@@ -256,7 +309,7 @@ Then, from the project's root, one command installs it (or updates it) and lists
 offers:
 
 ```bash
-set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:8801/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
+set -a; . .decree/.env; set +a; curl -fsSL -H "Authorization: Bearer $EXIST_FLEET_SECRET" "http://$EXIST_CONTROLLER:4400/plugins/fleet_gpu.md" | decree install - && bash -c 'source .decree/machines/fleet_gpu/scripts/fleet.sh; fleet_offers | jq -c "{host, service, models}"'
 ```
 
 and in its scripts, the same calls as the stack's:

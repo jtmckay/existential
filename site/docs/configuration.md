@@ -181,7 +181,7 @@ What it changes, in `src/generate-compose.ts`:
 ## Hostnames, DNS and TLS
 
 - **`EXIST_TAILNET_NAME`**: Core's address (`box.tail1234.ts.net`), set once `tailscale serve`
-  works. ntfy and the digest's links use it. See [Core over Tailscale](./how-it-works.md#core-over-tailscale).
+  works. ntfy and the digest's links use it. See [Core over Tailscale](./networking.md#core-over-tailscale).
 - **`EXIST_CONTROLLER`**: with `report_host` on, the controller this host reports to, its
   tailnet name, 100.x address, or address on your own network. Blank, this host is the
   controller, and has Loki on. See [Controller and Workers](./hosting/controller-and-workers.md).
@@ -189,7 +189,7 @@ What it changes, in `src/generate-compose.ts`:
   ([Leases](./hosting/controller-and-workers.md#leases)) and every model call. Generated on the
   first run; copy the controller's to every other host (`fleet join` does).
 
-The rest are for Caddy ([Hostnames that just work](./how-it-works.md#hostnames-that-just-work)):
+The rest are for Caddy ([Hostnames that just work](./networking.md#every-other-app-caddy)):
 
 - **`EXIST_LOCAL_HOST_IP`**: detected (LAN address, or the tailnet address with Tailscale up).
   Keep it **above** `EXIST_DOMAIN` in the file; placeholders resolve top-down.
@@ -224,6 +224,6 @@ Generated on render, shared between services:
   service that is off here gets the controller's domain. See
   [Controller and Workers](./hosting/controller-and-workers.md#services-a-host-has-off).
 - **`EXIST_DECREE_FILES_WEBHOOK_AUTH_TOKEN`**: what Nextcloud's file-event webhooks send to
-  `/files`. See [File Processor](./decree/file-change-processing.md#setup).
+  `/files`. See [File Processor](./plugins/file-change-processing.md#setup).
 - **`EXIST_NEXTCLOUD_DOMAIN`, `_USER`, `_APP_PASSWORD`, `_WORKSPACE_DIR`**: the Nextcloud
-  `workspace/` syncs with. See [Syncing with a Nextcloud](./getting-started.md#syncing-with-a-nas-or-a-nextcloud-optional).
+  `workspace/` syncs with. See [Syncing with a Nextcloud](./flows/one-place.md#the-workspace-on-your-other-devices).

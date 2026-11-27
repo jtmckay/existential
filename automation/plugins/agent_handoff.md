@@ -53,7 +53,7 @@ x-exist-lib:
 
     # agent_task answers with pi's default tools. Add `--param department=research`
     # to use a department's toolset instead, or emit router to let the router
-    # pick the department. See site/docs/decree/routing.md. Either has to be in
+    # pick the department. See site/docs/plugins/routing.md. Either has to be in
     # file_processor's `emits:` (automation/plugins/file_processor.md).
     decree emit --machine agent_task \
         --param file_path="$_rel" \

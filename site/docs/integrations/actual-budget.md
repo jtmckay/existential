@@ -35,6 +35,27 @@ After setup, account IDs are printed to the terminal and saved to `accounts.json
 
 If you add accounts later, re-run `./existential.sh run actual-budget setup` to refresh credentials and the account list.
 
-## Next Steps
+## Another bank
 
-Set up automated transaction imports from bank alert emails: [Bank Alert → Gmail → Actual Budget](../flows/transaction-gmail-actual-budget.md)
+Each bank alert is read by a parse script: `workspace/.decree/lib/actual-budget/parse-<bank>.ts`.
+Chase's ships. A parser reads the email's `subject`, `date`, `from` and `to` from its environment
+and prints one JSON object:
+
+```json
+{ "amount": "-42.00", "payee": "Whole Foods", "date": "2026-04-21", "notes": "..." }
+```
+
+Copy `parse-chase.ts` for your bank, then run `./existential.sh run automation
+gmail-transactions-cron` again: it lists the new script.
+
+To try one without waiting for mail:
+
+```bash
+echo | docker exec -i automation decree emit --machine actual_budget_parse \
+  --param subject='You made a $42.00 transaction with WHOLE FOODS' \
+  --param date='Mon, 21 Apr 2026 12:00:00 +0000 (UTC)' \
+  --param parse_script=/work/.decree/lib/actual-budget/parse-chase.ts \
+  --param account_id=<your-account-id>
+```
+
+The whole flow, from the bank's side: [Money, Photos and the House](../flows/home.md#bank-alerts-become-budget-entries).

@@ -10,7 +10,7 @@ project, the checkout's own `.decree`: [`report_host`](./controller-and-workers.
 which runs your own script when the daemon starts, [`check_versions`](./updates.md#pinned-images),
 which says when a pinned image is behind, [`update_ubuntu`](./updates.md#ubuntu),
 which keeps an Ubuntu host patched, and [`lease_gpu`](./ai-box.md), which shares a GPU box's card. They run only while a decree
-daemon runs there, and nothing starts one for you. `./existential.sh` says so until one does.
+daemon runs there: `./existential.sh` offers to start one, now and at every boot.
 
 ## Turn one on
 
@@ -22,81 +22,61 @@ Each one is off until you turn it on, from the checkout:
 
 That puts it in the host project's list, `.decree/plugins/.on`, and installs it into the
 checkout's `.decree`. It works on a host with neither docker nor podman, with the host's own
-tools; anything missing is named, all of it at once, with how to install it. Then start the
-daemon, below. `./existential.sh plugin` shows every plugin, which are on, and the project that
+tools; anything missing is offered for install, all of it at once. Then start the daemon,
+below. `./existential.sh plugin` shows every plugin, which are on, and the project that
 runs each.
-
-## What it needs
-
-You need [decree](https://github.com/jtmckay/decree) on the host (the version
-`services/automation/decree/Dockerfile` pins), and `tmux`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.1
-```
-
-`./existential.sh` prints this line with the version it pins. It installs to `~/.local/bin`. If `decree --version` isn't found, that folder isn't on your
-`PATH`: `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc`, then open a new shell.
 
 ## Start it
 
 From the checkout:
 
 ```bash
-tmux new -d -s existential-host -c "$PWD" decree daemon
+./existential.sh run host-daemon install
 ```
 
-That lasts until the next reboot. To start it at boot, on Linux with systemd, a user unit,
-`~/.config/systemd/user/existential-host.service` (change the path to your checkout):
+It needs decree (the version the stack pins) and `tmux` on the host; `./existential.sh` offers to
+install both. Then it:
 
-```ini
-[Unit]
-Description=existential host decree daemon
+1. writes a systemd user unit, `~/.config/systemd/user/existential-host.service`, for this
+   checkout, with the `PATH` decree, git and docker are on (systemd does not read your shell's);
+2. enables and starts it (`systemctl --user enable --now existential-host`);
+3. turns linger on (`loginctl enable-linger`), so it starts at boot before anyone logs in. Where
+   that takes root, it asks before it runs `sudo loginctl enable-linger $USER`.
 
-[Service]
-# oneshot and KillMode=process: the tmux server outlives this unit, so stopping it
-# ends the daemon's session and no other.
-Type=oneshot
-RemainAfterExit=yes
-KillMode=process
-WorkingDirectory=%h/existential
-# Where decree, git and docker are: systemd does not read your shell's PATH.
-Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/tmux new -d -s existential-host "exec decree daemon"
-ExecStop=/usr/bin/tmux kill-session -t existential-host
+On a Mac it writes a LaunchAgent instead (`~/Library/LaunchAgents/company.existential.host.plist`),
+which starts it when you log in. Anywhere else it starts the daemon now and prints the line to
+start it at boot yourself.
 
-[Install]
-WantedBy=default.target
-```
+The daemon itself is a tmux session, `existential-host`: `tmux attach -t existential-host` shows
+it working, and what starts it at boot leaves one that already runs alone. Running `install`
+again changes nothing; run it after moving the checkout, since the unit names its folder.
 
 ```bash
-systemctl --user enable --now existential-host
-sudo loginctl enable-linger "$USER"     # start without a login
+./existential.sh run host-daemon status      # running? starts at boot? linger? the last report
+./existential.sh run host-daemon uninstall   # stop starting it at boot (the running daemon stays)
 ```
 
-On a Mac, a LaunchAgent that runs the same `tmux new` line at login does the same.
-`tmux attach -t existential-host` shows it working.
+`./existential.sh` offers the same install, with Enter, on any run where a host plugin is on and
+no daemon runs, and warns when one runs but nothing would start it after a reboot.
 
 An install from before the host's project was the checkout's `.decree` ran this daemon in
-`host/`. `./existential.sh` moves what was there, stops that daemon and says so: start it
-again as above, and change `WorkingDirectory` in the unit to the checkout.
+`host/`. `./existential.sh` moves what was there and stops that daemon: run `install` again.
 
 ## When decree's version changes
 
 A pull that pins a new decree leaves the host's `.decree` as it is, so the daemon you have
 keeps running what it runs (`pull_existential` included), and `./existential.sh` prints the steps
-until you take them: install that version as above, run `./existential.sh`, then restart the
-daemon:
+until you take them: install that version (the run offers it), run `./existential.sh`, then
+restart the daemon:
 
 ```bash
-tmux kill-session -t existential-host; tmux new -d -s existential-host -c "$PWD" decree daemon
+systemctl --user restart existential-host     # or, without the unit: tmux kill-session -t existential-host, then install
 ```
 
 ## Check it's working
 
 ```bash
-tmux has-session -t =existential-host && echo running
-tail -3 .decree/process.log
+./existential.sh run host-daemon status
 ```
 
 Each run ends in a line like `✓ <run> done in 0s`. A plugin's own output is in
@@ -104,7 +84,7 @@ Each run ends in a line like `✓ <run> done in 0s`. A plugin's own output is in
 
 ## Boot daemon
 
-With the unit above, the daemon is the one thing started at boot, and it can start the rest.
+With the daemon installed, it is the one thing started at boot, and it can start the rest.
 `./existential.sh plugin on boot_daemon`, then write `.decree/boot.sh`. It runs once each time the
 daemon starts (a cron file of the `boot_daemon` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
 in reach, so each process gets its own tmux session and is left alone if it already runs:

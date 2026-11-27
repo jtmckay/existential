@@ -69,9 +69,15 @@ const config: Config = {
         { to: '/tour', label: 'Tour', position: 'left' },
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'guide',
           position: 'left',
-          label: 'Docs',
+          label: 'Guide',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'tech',
+          position: 'left',
+          label: 'Technical',
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         { to: '/about', label: 'About', position: 'left' },
@@ -95,7 +101,15 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/docs/intro',
+              to: '/docs/getting-started',
+            },
+            {
+              label: 'What It Does',
+              to: '/docs/flows',
+            },
+            {
+              label: 'Technical',
+              to: '/docs/how-it-works',
             },
             {
               label: 'Blog',

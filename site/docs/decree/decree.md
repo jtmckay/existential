@@ -16,9 +16,9 @@ sidebar_position: 1
 | To… | Read |
 |---|---|
 | Write your own automation | [Writing a Plugin](../plugins/writing-a-plugin.md) — machines, scripts, triggers, chaining |
-| Run something when a file changes | [File Handlers](./file-handlers.md) |
-| Hand a task to a specific agent profile | [Routing to Departments](./routing.md) |
-| See it all assembled on a real problem | [Note → Action](../flows/note-to-action.md) |
+| Run something when a file changes | [File Handlers](../plugins/file-handlers.md) |
+| Hand a task to a specific agent profile | [Routing to Departments](../plugins/routing.md) |
+| See it all assembled on a real problem | [Note → Action](../plugins/note-to-action.md) |
 | Reach the stack from outside over HTTP | [Over HTTP](../plugins/http.md) |
 
 ## Running Decree
@@ -55,7 +55,7 @@ instead, set `AUTOMATION_ANTHROPIC_API_KEY` or `AUTOMATION_CLAUDE_CODE_OAUTH_TOK
 `services/automation/.env`, then `docker compose up -d`.
 
 Once it is signed in:
-- the [automations you write in a note](../flows/note-to-automation.md) are built by Claude rather
+- the [automations you write in a note](../flows/tell-it-once.md#write-next-time-and-it-offers-to-do-it) are built by Claude rather
   than the chat model;
 - a step of one can hand Claude a task;
 - every call adds a line to `.decree/ai-use.md`;
@@ -90,6 +90,6 @@ Gmail and rclone have interactive setup scripts: [Integrations](../integrations/
 ## File events
 
 - A change matching a handler in `workspace/.decree/handlers.yml` runs its machine:
-  [File Handlers](./file-handlers.md).
+  [File Handlers](../plugins/file-handlers.md).
 - Nextcloud uploads can post to the webhook's `/files` endpoint:
-  [File Change Processing](./file-change-processing.md).
+  [File Change Processing](../plugins/file-change-processing.md).

@@ -90,13 +90,13 @@ docker exec nextcloud php /var/www/html/occ config:system:set maintenance_window
 
 `hooks/before-starting/02-workspace.sh` mounts the `workspace_data` volume as a **Local**
 external storage at `/workspace`, applicable to every user. Sync that folder with the desktop client and you are editing the
-same tree code-server and decree see. See [Getting Started → Workspace](../getting-started.md#workspace).
+same tree code-server and decree see. See [Getting Started → Workspace](../workspace.md).
 
 - Nextcloud runs as `EXIST_PUID`, not `www-data`, because every writer of the volume must be the
   same uid.
-- Workspace automations don't need Nextcloud: [File Handlers](../decree/file-handlers.md) see every
+- Workspace automations don't need Nextcloud: [File Handlers](../plugins/file-handlers.md) see every
   change. Uploads anywhere in Nextcloud can also fire a file event:
-  [File Processor](../decree/file-change-processing.md).
+  [File Processor](../plugins/file-change-processing.md).
 
 ## Collabora (office document editing)
 

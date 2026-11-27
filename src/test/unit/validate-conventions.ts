@@ -595,7 +595,7 @@ function main(): number {
       const svc = fm?.[1].match(/^service:\s*(\S+)\s*$/m)?.[1];
       if (!svc) continue;
       if (!CATEGORY_DIRS.includes(svc.split("/")[0]) || !isServiceDir(path.join(REPO_ROOT, svc))) {
-        errors.push(`site/docs/${rel}.md: documents service ${svc}, which has no folder — move the page to graveyard/ or fix the path`);
+        errors.push(`site/docs/${rel}.md: documents service ${svc}, which has no folder — delete the page and give it a row in graveyard/index.md, or fix the path`);
       } else if ([...pageService.values()].includes(svc)) {
         errors.push(`site/docs/${rel}.md: documents ${svc}, which another page already claims — one page per service`);
       }
@@ -751,26 +751,26 @@ function main(): number {
     for (const n of names) if (!plugins.has(n) && !official(n)) errors.push(`automation/lib/plugin.sh: ${list} names ${n}, which is no plugin`);
   }
   // Every `plugin on|off` and `service on|off` the docs and README tell a person to
-  // run names what there is; and every plugin a person turns on (a machine nothing
-  // else needs, not the plugin system's) has its line on the Flows page.
+  // run names what there is (a made-up one is written `<name>`); and every plugin a
+  // person turns on (a machine nothing else needs, not the plugin system's) has its
+  // `plugin on` line on some docs page, in prose or a code block.
   const walkDocs = (dir: string): string[] => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e =>
-    e.isDirectory() ? (e.name === 'graveyard' ? [] : walkDocs(path.join(dir, e.name))) : e.name.endsWith('.md') ? [path.join(dir, e.name)] : []);
+    e.isDirectory() ? (['graveyard', 'backlog'].includes(e.name) ? [] : walkDocs(path.join(dir, e.name))) : e.name.endsWith('.md') ? [path.join(dir, e.name)] : []);
   const onLines = (text: string, kind: string): string[] =>
     [...text.matchAll(new RegExp(`existential\\.sh ${kind} (?:on|off)((?: [a-z0-9_-]+)+)`, 'g'))].flatMap(m => m[1].trim().split(/\s+/));
-  const catalogue = path.join(docsDir, 'flows/index.md');
   const turnedOn = new Set<string>();
   for (const f of [...(fs.existsSync(docsDir) ? walkDocs(docsDir) : []), path.join(REPO_ROOT, 'README.md')].filter(x => fs.existsSync(x))) {
-    const text = fs.readFileSync(f, 'utf8').replace(/^```[\s\S]*?^```/gm, '');   // an example in a code block names what it likes
+    const text = fs.readFileSync(f, 'utf8');
     const rel = path.relative(REPO_ROOT, f);
     for (const n of onLines(text, 'plugin')) {
       if (!plugins.has(n)) errors.push(`${rel}: \`plugin on ${n}\` — no plugin ${n} in automation/plugins/`);
-      if (f === catalogue) turnedOn.add(n);
+      if (f.startsWith(docsDir)) turnedOn.add(n);
     }
     for (const s of onLines(text, 'service')) if (!serviceSlugs.has(s)) errors.push(`${rel}: \`service on ${s}\` — no service folder ${s}`);
   }
   for (const [n, pl] of plugins) {
     if (!('machine' in pl.fm) || needed.has(n) || kernel.includes(n) || turnedOn.has(n)) continue;
-    errors.push(`${pl.where}: nothing needs it, and site/docs/flows/index.md has no \`./existential.sh plugin on ${n}\` — add its row there`);
+    errors.push(`${pl.where}: nothing needs it, and no page in site/docs/ has \`./existential.sh plugin on ${n}\` — add it where a person would look (site/docs/flows/ for what it does)`);
   }
 
   // (14) README.md and the intro page each list what Core installs, under a

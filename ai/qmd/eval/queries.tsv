@@ -16,9 +16,9 @@ concept	screens sleep	does avoiding devices at night help me rest	notes/sleep.md
 concept	lends pressure washer	who can I borrow cleaning equipment from	notes/people.md
 concept	tunnel packet size	why is the vpn link limited to smaller packets	notes/projects/home-server-runbook.md
 concept	"repo" mounted prompt injection	why is the container that talks to the model kept away from the source code	reference/CLAUDE.md|reference/decree.md|reference/services.md
-concept	certificate transparency	will strangers be able to see my computer's name once I turn on https	migrations/013-tailscale-https.md|docs/getting-started.md|docs/how-it-works.md|reference/networking.md
+concept	certificate transparency	will strangers be able to see my computer's name once I turn on https	migrations/networking.md|docs/networking.md|docs/getting-started.md|reference/networking.md
 concept	tmux session tmx	keep a long running program alive after I close the terminal	reference/services.md|reference/CLAUDE.md
-concept	n8n license	why did we stop using the visual workflow builder	docs/graveyard/automation/n8n.md
+concept	n8n license	why did we stop using the visual workflow builder	docs/graveyard/index.md
 history	notes phone sync	how do my notes get to my phone	decisions/2026-05-01-notes-sync.md
 history	syncthing decision	did we settle on syncthing	decisions/2026-05-01-notes-sync.md
 multi	syncthing nextcloud	sync tool discussion and final choice	ai/conversations/2026-04-10-claude-sync-tool.md decisions/2026-05-01-notes-sync.md

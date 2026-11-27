@@ -48,7 +48,7 @@ scripts:
 
     note_path="$DECREE_DATA_NOTE_PATH"
     note_reason="$DECREE_DATA_NOTE_REASON"
-    NOTES_DIR="${NOTES_DIR:-/data/notes}"
+    NOTES_DIR="${NOTES_DIR:-/workspace/notes}"
     WORKUP_MAX_CHARS="${WORKUP_MAX_CHARS:-6000}"
 
     if [ -z "$note_path" ]; then
@@ -78,8 +78,8 @@ scripts:
     # --- The three questions ---------------------------------------------------
     #
     # Each is one agent_task message in its department, the question and the note
-    # as its body. The note is embedded rather than referenced: it lives in
-    # /data/notes, outside the workspace pi runs in.
+    # as its body. The note is embedded rather than referenced, so the answer does
+    # not depend on what the department's tools can read.
 
     hand_off() {
         # hand_off <department> <suffix> <question>

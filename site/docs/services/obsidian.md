@@ -43,7 +43,7 @@ Task boards live in the vault as markdown, via the community **Kanban** plugin.
 Because the board is a `.md` file, the same automations that touch notes can add cards.
 Appending a checklist line to the file adds a card to that column.
 
-This replaces [Vikunja](../graveyard/tasks/vikunja.md), which was retired from the stack — it
+This replaces [Vikunja](../graveyard/index.md), which was retired from the stack — it
 was a second app, database, and backup sidecar for something the vault now does.
 
 ## Plugins in use
@@ -69,6 +69,6 @@ Obsidian's own paid sync is not required — Nextcloud handles it.
 
 This is about reading and editing your vault from other devices. To make it part of what the
 AI agent actually knows — searchable, citable — pull it into `workspace/notes/` instead; see
-[Workspace](../getting-started.md#workspace).
+[Workspace](../workspace.md).
 
 See [Nextcloud](../storage/nextcloud.md) for the server side.

@@ -63,6 +63,13 @@ assert_eq "a model no host offers is a 404" "404" \
 out="$(curl -fsS "${auth[@]}" -d '{"messages":[]}' "http://127.0.0.1:${GW}/v1/chat/completions")"
 assert_eq "no model named: the first one offered answers" "/v1/chat/completions" "$(jq -r .path <<<"$out")"
 
+# fleet_gpu.md: the fleet lib it leases through, as a plugin a decree project of its own installs.
+g="$(curl -fsS "${auth[@]}" "http://127.0.0.1:${GW}/plugins/fleet_gpu.md")"
+assert_eq "fleet_gpu.md is the fleet lib as a plugin" "name: fleet_gpu" "$(sed -n 2p <<<"$g")"
+assert_eq "...with no #! to run" "0" "$(grep -c '#!' <<<"$g")"
+assert_eq "...behind the fleet secret" "401" \
+    "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${GW}/plugins/fleet_gpu.md")"
+
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
 
 echo ""

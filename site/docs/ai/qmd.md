@@ -7,7 +7,7 @@ sidebar_position: 12
 
 - Source: https://github.com/tobi/qmd
 - License: [MIT](https://github.com/tobi/qmd/blob/main/LICENSE)
-- Alternatives: XERJ, ripgrep, [OpenViking](../graveyard/ai/openviking.md) (what this replaced)
+- Alternatives: XERJ, ripgrep, [OpenViking](../graveyard/index.md) (what this replaced)
 
 Search over everything you've written in the workspace, and the PDF and Word files you
 keep there. One query matches both exact words (names, commands, flags, identifiers)
@@ -97,7 +97,7 @@ What you type into `claude` or `opencode` (with capture on, the default) is appe
 with the session id, date and working directory in its frontmatter. Each prompt is a
 quote under its timestamp. Only your prompts are kept, never the AI's answers, and
 secrets are redacted first. The raw stream stays in `workspace/.capture/`
-(see [Capture](../getting-started.md#capture)).
+(see [Capture](../flows/one-place.md#everything-you-typed-to-an-ai)).
 
 ## How search behaves
 

@@ -54,7 +54,7 @@ scripts:
 
     set -euo pipefail
 
-    NOTES_DIR="${NOTES_DIR:-/data/notes}"
+    NOTES_DIR="${NOTES_DIR:-/workspace/notes}"
     STATE_DIR="${STATE_DIR:-/data/note-triage}"
     TRIAGE_ROUTINE="$DECREE_DATA_TRIAGE_ROUTINE"
     TRIAGE_CRITERIA="$DECREE_DATA_TRIAGE_CRITERIA"
@@ -72,7 +72,7 @@ scripts:
     # rejects its input if the sort order does not match the ambient locale.
     export LC_ALL=C
 
-    [ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — run the 'notes' machine first, or point NOTES_DIR at your vault" >&2; exit 1; }
+    [ -d "$NOTES_DIR" ] || { echo "NOTES_DIR ${NOTES_DIR} does not exist — is the workspace mounted? Or point NOTES_DIR at your vault" >&2; exit 1; }
 
     MANIFEST="${STATE_DIR}/seen.tsv"
     LEDGER="${STATE_DIR}/ideas.tsv"
@@ -288,7 +288,7 @@ cron:
     anything is handed off — writing the same thought down twice gets you one workup,
     not two.
 
-    Requires the 'notes' machine (or some other job) to be populating /data/notes.
+    Reads workspace/notes/ (read-only here); NOTES_DIR points it at another folder.
 ---
 # note_triage
 

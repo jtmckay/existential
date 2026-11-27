@@ -15,7 +15,7 @@ home IP stays out of DNS and Cloudflare terminates TLS. Read
 [A name is not a login](./caddy.md#a-name-is-not-a-login) first.
 
 For trusted certificates on your own network, with nothing exposed, see
-[Owned domain without exposing your network](../how-it-works.md#owned-domain-without-exposing-your-network).
+[Owned domain without exposing your network](../networking.md#a-domain-you-own).
 
 ## DNS
 
