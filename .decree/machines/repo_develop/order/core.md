@@ -23,22 +23,18 @@ is a chance to stall, and for this audience a stall on day one is often the end.
   putting the workspace under git with a remote the person chooses, or turning backups on.
 - **The default plugins need nothing beyond Core's services.**
 - **The first run asks one question: what is this computer?**
-  - **a) The main one** (the default, Enter): Core; then the login, asked the moment
+  - **a) Core** (the default, Enter): Core and nothing more; then the login, asked the moment
     `.env.shared` is made and before any service renders it: a username (Enter keeps `admin`)
     and a password (Enter generates one; a typed one is asked twice, unseen, at least 8 of
-    `A-Za-z0-9._-`), kept as `EXIST_USERNAME`/`EXIST_PASSWORD`; then, after the build, what
-    `./existential.sh run fleet controller` does: `EXIST_CONTROLLER` blank, the fleet secret,
-    and Loki, Grafana and the model gateway (the fleet's API, which serves `fleet_gpu.md` and
-    reads nothing of the host's `.decree`). All containers: **nothing is set up on the host
-    itself**, no systemd unit, no host daemon, no `report_host`; the controller reports itself
-    only once a person makes it a worker too (`plugin on report_host`).
+    `A-Za-z0-9._-`), kept as `EXIST_USERNAME`/`EXIST_PASSWORD`. **No controller**: Loki,
+    Grafana and the model gateway are not Core, and setup never turns them on; a person makes
+    a host the controller later with `./existential.sh run fleet controller`. **Nothing is set
+    up on the host itself**: no systemd unit, no host daemon, no `report_host`.
   - **b) A worker**: it asks for the controller's address and reports this host to it, with
     `report_host` and nothing else: no services, nothing in containers.
   - A host with no docker or podman is not asked: it can only be a worker.
   - With no terminal nothing is asked: Core as it ships, `admin` and a generated password.
-  - The answer is `EXIST_HOST_ROLE` (`main`, `worker` or `core`), kept the moment it is given;
-    a main computer whose controller step has not finished gets it on the next run, and
-    `EXIST_HOST_ROLE=core` keeps Core without it. An install from before the question is
+  - The answer is `EXIST_HOST_ROLE` (`core` or `worker`), kept the moment it is given. An install from before the question is
     recorded as what it already is, and not asked.
   The run prints the login once at its end with where it is stored, and where Core is. One
   step is left: the model (`EXIST_MODEL_URL`, `EXIST_MODEL_KEY`).
@@ -64,7 +60,7 @@ is a chance to stall, and for this audience a stall on day one is often the end.
   where they are kept
 - **Given** a first run that answers a, then Enter twice
   **Then** `EXIST_USERNAME=admin`, the generated password is kept, Loki, Grafana and the model
-  gateway are on, `.decree/plugins/.on` does not name `report_host`, and no
+  gateway are off, `.decree/plugins/.on` does not name `report_host`, and no
   `existential-host.service` was written
 - **Given** a first run that answers b and a controller's address
   **Then** every `EXIST_IS_*` is false, `EXIST_CONTROLLER` is that address, and `report_host`

@@ -753,22 +753,22 @@ _report_model() {
     echo "  LLM, or your controller's) and, for a hosted LLM, EXIST_MODEL_KEY. Then run this again."
 }
 
-# The first run's one question: what this computer is. The main one is Core and the
-# controller the others report to (src/lib/fleet.sh controller, after the build); a
+# The first run's one question: what this computer is. The default is Core, as it ships; a
 # worker reports this host to a controller and runs nothing else (_worker_without_engine,
-# which asks for the controller). Without a terminal nothing is asked: Core, as it ships.
-# The answer is EXIST_HOST_ROLE: main, worker or core.
+# which asks for the controller). Making a host the controller is never part of setup: it is
+# ./existential.sh run fleet controller, by choice. Without a terminal nothing is asked: Core.
+# The answer is EXIST_HOST_ROLE: core or worker.
 _ask_role() {
     [[ -t 0 ]] || { echo core; return 0; }
     local a
     { echo ""
       echo "What is this computer?"
-      echo "  a) The main one: Core, and the controller other computers report to (default)"
+      echo "  a) Core: your editor, notifications, automation and search (default)"
       echo "  b) A worker: it reports this host to a controller, and runs nothing else"; } >&2
     while :; do
         read -r -p "a or b [a]: " a || a=""
         case "$a" in
-            ""|a|A) echo main; return 0 ;;
+            ""|a|A) echo core; return 0 ;;
             b|B)    echo worker; return 0 ;;
         esac
         echo "  Type a or b." >&2
@@ -785,28 +785,17 @@ _host_role() {
 }
 
 # Into .env.shared once it exists, and only where it is blank. An install from before the
-# question gets what it already is: the controller is main, a worker with no services worker,
-# anything else core.
+# question gets what it already is: a worker with no services worker, anything else core.
 _record_role() {
     local f="${SCRIPT_DIR}/.env.shared" r="$1"
     [[ -f "$f" ]] || return 0
     if [[ -z "$r" ]]; then
-        if _is_controller; then r=main
-        elif _is_worker && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f"; then r=worker
+        if _is_worker && ! grep -qE '^EXIST_IS_[A-Z0-9_]+=true' "$f"; then r=worker
         else r=core; fi
     fi
     if grep -q '^EXIST_HOST_ROLE=$' "$f"; then _sed_i "s|^EXIST_HOST_ROLE=\$|EXIST_HOST_ROLE=${r}|" "$f"
     elif ! grep -q '^EXIST_HOST_ROLE=' "$f"; then printf 'EXIST_HOST_ROLE=%s\n' "$r" >> "$f"; fi
     rm -f "${SCRIPT_DIR}/.env.role"
-}
-
-# The main computer is the controller too (src/lib/fleet.sh controller, safe to repeat): done
-# by the run after its question, and by every run after one that stopped before it was. Set
-# EXIST_HOST_ROLE=core to keep Core without it. Containers only: nothing on the host itself.
-_finish_main() {
-    [[ "$(_host_role)" == main ]] && ! _is_controller || return 0
-    bash "${SCRIPT_DIR}/src/lib/fleet.sh" controller \
-        || echo "  ⚠  Setting this host up as the controller stopped (above); ./existential.sh tries again."
 }
 
 # The first run made the login (admin and a generated password): say it once, at
@@ -1218,8 +1207,8 @@ Usage: $0 [action]
 Actions:
   (none)                 Render templates for enabled services, run their setup
                          scripts, generate docker-compose.yml. The first run
-                         asks what this computer is (the main one: Core and the
-                         controller; or a worker), then a login or the controller.
+                         asks what this computer is (Core, the default, or a
+                         worker), then a login or the controller to report to.
   service [list|on|off] [slug...]
                          Turn single services on or off without opening
                          .env.shared, then the same.
@@ -1288,7 +1277,6 @@ case "$action" in
         _record_role "$_role"
         _ask_hardware_if_needed
         _build
-        _finish_main
         [[ "$_is_first_run" == "true" ]] && _report_login
         _report_model
         echo ""

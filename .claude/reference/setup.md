@@ -60,19 +60,17 @@ the adhoc container, which has no docker socket.
 
 ## The first run
 
-The first run, with a terminal and an engine, asks one question (`_ask_role`): **a)** the main
-computer, the default, or **b)** a worker. **a)** is Core, what `.env.exist.shared` ships on
+The first run, with a terminal and an engine, asks one question (`_ask_role`): **a)** Core, the
+default, or **b)** a worker. **a)** is Core, what `.env.exist.shared` ships on
 (code-server, ntfy, automation, qmd, Firecrawl); `templates.sh`'s `_ask_login` asks the login
 the moment `.env.shared` is made, before any service renders it (Enter keeps
 `EXIST_USERNAME=admin` and the generated `EXIST_PASSWORD`; a typed password is asked twice,
-unseen, 8+ of `A-Za-z0-9._-`); after the build the run does `src/lib/fleet.sh controller`
-(the fleet secret, and Loki, Grafana and the model gateway: containers only; no `report_host`,
-no host daemon, no systemd: the controller reports itself only once made a worker too). **b)** goes straight
+unseen, 8+ of `A-Za-z0-9._-`), and nothing else: no Loki, Grafana or model gateway. A
+controller is never made by setup, only by `run fleet controller`, by choice. **b)** goes straight
 to `_worker_without_engine`, which writes the answers (`EXIST_HOST_ROLE=worker`,
 `EXIST_CONTROLLER`) before it checks a tool. The first answer is `.env.role` until
 `.env.shared` exists, then `EXIST_HOST_ROLE` (`_record_role`, which records an older install as
-what it already is); `_finish_main` makes a `main` host the controller on any run where it is
-not yet. A missing tool is offered (`_offer_install`: `_install_cmd` per tool, shown, Enter
+what it already is: `core` or `worker`; a `main` from before means nothing now). A missing tool is offered (`_offer_install`: `_install_cmd` per tool, shown, Enter
 runs; sudo only for a package manager, on that yes), and `_host_plugins` offers to start the
 host daemon now and at every boot (`src/lib/host-daemon.sh install`: a systemd user unit,
 `existential-host.service`, enabled with linger, or a LaunchAgent; `status`, `uninstall`). A

@@ -23,8 +23,8 @@ actually needs it — three unused ones (`EXIST_64_CHAR_HEX_KEY`, `EXIST_UUID`,
 **Keep the first run's prompt count near zero.** Anything the machine can determine, it should:
 a prompt whose right answer is "press Enter" is not setup, and a blank answer to a prompt that
 *matters* is worse than no prompt at all. `.env.exist.shared` asks nothing, which a unit test holds it
-to; the first run's one question is what this computer is (`_ask_role` in `existential.sh`: the
-main one or a worker). `EXIST_USERNAME` ships `admin` and `EXIST_PASSWORD` a generated one;
+to; the first run's one question is what this computer is (`_ask_role` in `existential.sh`: Core
+or a worker). `EXIST_USERNAME` ships `admin` and `EXIST_PASSWORD` a generated one;
 `_ask_login` (`templates.sh`) offers to change both the moment `.env.shared` is made, before
 anything renders them (without a terminal both stay). `EXIST_EMAIL` ships blank and
 `_ask_if_needed` asks it once, the first run an enabled service uses it. A typed login is held to `A-Za-z0-9._-` (a password to 8+), because it is substituted unquoted into `.env`, YAML,

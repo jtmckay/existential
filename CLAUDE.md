@@ -221,11 +221,11 @@ fresh. → `setup.md`
 don't memorize the list here. The rest: `test` (bare `test` runs every suite),
 `validate [conventions|drift]`, `e2e` (Core, from a fresh clone), `service [list|on|off]` (a
 picker) and `plugin [list|on|off|sync|export]`. The
-first bare run asks one question, what this computer is: **the main one** (Core: code-server,
+first bare run asks one question, what this computer is: **Core**, the default (code-server,
 ntfy, automation, qmd, Firecrawl; then the login, Enter keeping `admin` and a generated
-password, printed once; then what `run fleet controller` does: the fleet secret and three
-containers, Loki, Grafana and the model gateway, which is the fleet's API; **nothing on the host
-itself**, no systemd unit, no host daemon, until the person makes it a worker too) or **a worker** (it asks the controller, and runs nothing but `report_host`). With
+password, printed once; no controller: Loki, Grafana and the model gateway come only with `run
+fleet controller`, by choice; **nothing on the host itself**, no systemd unit, no host daemon)
+or **a worker** (it asks the controller, and runs nothing but `report_host`). With
 no terminal it asks nothing and builds Core as it ships. **An answer is never asked twice**:
 each is kept the moment it is given (`EXIST_HOST_ROLE` and the rest in `.env.shared`), and a tool
 a step lacks is offered for install, commands shown, Enter to run (sudo only on that yes), so

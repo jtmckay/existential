@@ -20,8 +20,8 @@ Every host is in one [Tailscale](https://tailscale.com) tailnet, as Core already
 
 ## The controller
 
-Answer **a) the main one** on the first run, which does all of this, or later run
-`./existential.sh run fleet controller`. Either makes the fleet secret and turns on where the
+Setup never makes a controller: on the computer you choose, after its first run, run
+`./existential.sh run fleet controller`. It makes the fleet secret and turns on where the
 reports land, Loki and Grafana, with the [model gateway](../ai/model-gateway.md), the fleet's
 API. All three are containers: becoming the controller sets nothing up on the host itself, no
 systemd unit and no host daemon. To have the controller report itself too, make it a worker as
@@ -76,7 +76,7 @@ git clone https://github.com/jtmckay/existential && cd existential
 
 ```
 What is this computer?
-  a) The main one: Core, and the controller other computers report to (default)
+  a) Core: your editor, notifications, automation and search (default)
   b) A worker: it reports this host to a controller, and runs nothing else
 a or b [a]: b
 Which host is the controller? This worker sends its reports there.

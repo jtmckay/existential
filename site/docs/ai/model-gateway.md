@@ -15,7 +15,7 @@ when it needs it and hands it back when you stop.
 
 ## Turn it on
 
-On the controller, `./existential.sh run fleet controller` (or the first run's *main one*) turns
+On the controller, `./existential.sh run fleet controller` turns
 it on with Loki. Then `docker compose up -d`. It is the fleet's API: besides `/v1` it serves
 `GET /plugins/fleet_gpu.md`, the fleet lib as a decree plugin for a project of your own
 ([Controller and Workers](../hosting/controller-and-workers.md#a-decree-project-of-your-own)).
