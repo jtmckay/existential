@@ -204,7 +204,7 @@ _core_bind() {
 # Never sudo, never fail: whatever is missing is printed as the next step and the
 # run carries on. EXIST_TAILNET_NAME is only ever filled in, like EXIST_DOMAIN.
 _tailscale_serve_core() {
-    local f="${SCRIPT_DIR}/.env.shared" s scheme port target kind status name serving out
+    local f="${SCRIPT_DIR}/.env.shared" s scheme port target status name serving out
     local -a serves=()
     grep -q '^EXIST_IS_SERVICES_CODE_SERVER=true' "$f" 2>/dev/null && serves+=("https 443 http://127.0.0.1:42080")
     grep -q '^EXIST_IS_SERVICES_NTFY=true' "$f" 2>/dev/null && serves+=("https 8443 http://127.0.0.1:44680")
