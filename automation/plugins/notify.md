@@ -54,14 +54,16 @@ scripts:
     fi
 
     # No ntfy on this host: NTFY_URL is the controller's Loki (generate-compose sets
-    # it), the message goes there as {job="exist", kind="notify"}, and the
+    # it; on your own network its gateway, which takes the fleet secret), the message
+    # goes there as {job="exist", kind="notify"}, and the
     # controller's notify-relay publishes it to its ntfy (automation/plugins/report_host.md).
     if [[ "$ntfy_url" == */loki/api/v1/push ]]; then
         line="$(jq -nc --arg topic "$ntfy_topic" --arg title "$ntfy_title" --arg priority "$ntfy_priority" \
             --arg tags "$ntfy_tags" --arg body "$body" '{topic: $topic, title: $title, priority: $priority, tags: $tags, body: $body}')"
         jq -nc --arg host "${EXIST_TAILNET_NAME:-automation}" --arg ts "$(date +%s%N)" --arg line "$line" \
             '{streams: [{stream: {job: "exist", kind: "notify", host: $host}, values: [[$ts, $line]]}]}' |
-            curl -fsS --max-time 20 -H 'Content-Type: application/json' --data-binary @- "$ntfy_url" || {
+            curl -fsS --max-time 20 -H 'Content-Type: application/json' -H "Authorization: Bearer ${EXIST_FLEET_SECRET:-}" \
+                --data-binary @- "$ntfy_url" || {
             echo "Loki at ${ntfy_url} did not take the message: is it reachable from here?" >&2; exit 1; }
         # The line Grafana's Notifications dashboard reads, as ntfy's own reply would be.
         jq -nc --arg topic "$ntfy_topic" --arg title "$ntfy_title" --arg message "$body" \

@@ -24,7 +24,8 @@ scripts:
     # Runs in the host project (the repo's own .decree), so it runs in the repo and every
     # decree project on the box is in reach. With EXIST_CONTROLLER in .env.shared it
     # asks that controller at http://<controller>:4480, which serves .decree/exist.json
-    # over the tailnet, else (your own network) uses its Loki at http://<controller>:43100;
+    # over the tailnet, else (your own network) uses its Loki through its gateway,
+    # http://<controller>:4400/loki, which takes the fleet secret;
     # blank, this host is the controller and reads that file. The
     # answer is kept in $DECREE_STATE_DIR/loki for when the controller is away. No
     # answer is not a failure: nothing is sent and the run ends done.
@@ -40,15 +41,18 @@ scripts:
     repo="$(pwd)"
     store="${DECREE_STATE_DIR:-.decree/machines/report_host/state}"; mkdir -p "$store"
     env_get() { sed -n "s/^$1=//p" "${repo}/.env.shared" 2>/dev/null | head -1; }
+    # The fleet secret, the key the controller's gateway asks for (a tailnet Loki ignores it).
+    # In a file of the store's, never on a command line, where any user's ps would see it.
+    ( umask 077; printf 'Authorization: Bearer %s\n' "$(env_get EXIST_FLEET_SECRET)" > "${store}/loki-header"
+      s="$(env_get EXIST_FLEET_SECRET)"; printf '%s\n' "${s:-none}" > "${store}/loki-token" )
     loki_of() { sed -n 's/.*"loki"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'; }
 
     ctl="$(env_get EXIST_CONTROLLER)"
     if [[ -n "$ctl" ]]; then
         loki="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null | loki_of || true)"
-        # Without Tailscale, on your own network, the controller is the host whose Loki
-        # listens there, on 43100 (LOKI_BIND=0.0.0.0).
-        if [[ -z "$loki" ]] && curl -fsS --max-time 5 -o /dev/null "http://${ctl}:43100/loki/api/v1/status/buildinfo" 2>/dev/null; then
-            loki="http://${ctl}:43100"
+        # Without Tailscale, on your own network: the controller's Loki, through its gateway.
+        if [[ -z "$loki" ]] && curl -fsS --max-time 5 -o /dev/null -H @"${store}/loki-header" "http://${ctl}:4400/loki/api/v1/status/buildinfo" 2>/dev/null; then
+            loki="http://${ctl}:4400"
         fi
     else
         loki="$(loki_of < "${repo}/.decree/exist.json" 2>/dev/null || true)"
@@ -173,7 +177,7 @@ scripts:
             printf '%s\n' "$loki" > "${store}/alloy-loki"
         fi
         mkdir -p "${store}/alloy"
-        tmx -d reporting-alloy "EXIST_REPO='${repo}' EXIST_HOST='${host}' EXIST_LOKI='${loki%/}/loki/api/v1/push' exec alloy run '.decree/lib/reporting/decree.alloy' --storage.path='$(cd "${store}/alloy" && pwd)' --server.http.listen-addr=127.0.0.1:12346 --disable-reporting"
+        tmx -d reporting-alloy "EXIST_REPO='${repo}' EXIST_HOST='${host}' EXIST_LOKI='${loki%/}/loki/api/v1/push' EXIST_LOKI_TOKEN='$(cd "$store" && pwd)/loki-token' exec alloy run '.decree/lib/reporting/decree.alloy' --storage.path='$(cd "${store}/alloy" && pwd)' --server.http.listen-addr=127.0.0.1:12346 --disable-reporting"
         runs="runs shipped live by alloy (tmux attach -t reporting-alloy)"
     else
         runs="no runs shipped: alloy is not on PATH"
@@ -204,7 +208,7 @@ scripts:
         printf ']}'
     } > "${tmp}/body"
 
-    curl -fsS --max-time 20 -H 'Content-Type: application/json' \
+    curl -fsS --max-time 20 -H 'Content-Type: application/json' -H @"${store}/loki-header" \
         --data-binary @"${tmp}/body" "${loki%/}/loki/api/v1/push" >/dev/null
     echo "reporting: ${host} to ${loki}: $(wc -l < "${tmp}/disk" | tr -d ' ') disks, $(cat "${tmp}/load"), $(wc -l < "${tmp}/machine" | tr -d ' ') machines, $(wc -l < "${tmp}/plugin" | tr -d ' ') plugins, $(wc -l < "${tmp}/cron" | tr -d ' ') crons, $(wc -l < "${tmp}/container" | tr -d ' ') containers, $(wc -l < "${tmp}/offer" | tr -d ' ') offers, ${runs}"
 x-exist-lib:
@@ -240,6 +244,8 @@ x-exist-lib:
                     [[ -z "$v" ]] || set -- "$@" -H "${h%%:*}: $v"
                 done
                 topic="$(jq -r '.m.topic // "" | if . == "" then "decree" else . end' <<<"$e")"
+                # A topic is a name: anything else (a path, a query) goes to decree.
+                [[ "$topic" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || topic=decree
                 if jq -r '.m.body // ""' <<<"$e" | curl "$@" --data-binary @- "${ntfy}/${topic}" >/dev/null; then
                     jq -r .ts <<<"$e" > "$cursor"
                     echo "notify-relay: $(jq -r .host <<<"$e") → ${topic}"
@@ -330,6 +336,8 @@ x-exist-lib:
     loki.write "default" {
     	endpoint {
     		url = sys.env("EXIST_LOKI")
+    		// The fleet secret, for the controller's gateway on your own network.
+    		bearer_token_file = sys.env("EXIST_LOKI_TOKEN")
     	}
     }
 cron:

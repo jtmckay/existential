@@ -94,7 +94,7 @@ the commands shown; Enter runs them:
 
 ```
   Missing here: decree yq tmux alloy. Install now? This runs:
-       curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- v0.6.1
+       curl -fsSL https://github.com/jtmckay/decree/releases/download/v0.6.1/install.sh | sh -s -- v0.6.1
        mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/…
        sudo apt-get install -y tmux
        …
@@ -186,8 +186,10 @@ missing:
 
 By hand:
 
-On the controller, set `LOKI_BIND=0.0.0.0` in `hosting/loki/.env`, then `./existential.sh`
-and `docker compose up -d`. Loki's push address is now `http://<controller's-ip>:43100`.
+On the controller, turn on the model gateway (`./existential.sh service on model-gateway`), set
+`EXIST_FLEET_SECRET` in `.env.shared`, then `./existential.sh` and `docker compose up -d`. Loki
+itself stays on loopback: the other hosts reach it through the gateway, at
+`http://<controller's-ip>:4400/loki`, with the fleet secret as the key.
 
 Every other host follows [Add a worker](#add-a-worker) and answers the controller question with
 the controller's address:
@@ -197,8 +199,9 @@ EXIST_CONTROLLER=192.168.1.10   # the controller's address on your network
 ```
 
 A worker asks the controller at `:4480` first. With no answer there, it uses the controller's
-Loki on `:43100`, and reads the controller's answer (its domain) from that Loki, where the
-controller's own report puts it. Nothing else needs to be set on a worker.
+Loki through the gateway on `:4400`, and reads the controller's answer (its domain) from that
+Loki, where the controller's own report puts it. A worker needs the same `EXIST_FLEET_SECRET`
+(`fleet join` sets it); without it the gateway turns its reports away.
 
 ## Updating on its own
 
@@ -340,9 +343,16 @@ helper needs `jq` and `yq`.
 
 ## Things to know
 
-- **Loki has no login.** Anyone on your tailnet, and with `LOKI_BIND=0.0.0.0` anyone on your
-  network, can push to it and read every log it holds, which includes every container's output.
-  Use Tailscale's access controls, or a firewall rule for port 43100, to narrow it.
+- **Loki has no login of its own.** On your own network it is reached only through the
+  gateway, which asks for the fleet secret. Over Tailscale it is served on the tailnet at
+  `:3100` as it is, so anyone on your tailnet can push to it and read every log it holds,
+  which includes every container's output: use Tailscale's access controls to narrow it.
+  Never set `LOKI_BIND=0.0.0.0`: anyone on your network could then read those logs, and write
+  offers that send other hosts' calls, and the fleet secret with them, to a host of theirs.
+- **A controller set up before the gateway fronted Loki** has `LOKI_BIND=0.0.0.0`. Run
+  `./existential.sh run fleet controller` again (it sets `127.0.0.1` and turns the gateway on),
+  `docker compose up -d`, and update the workers (`git pull && ./existential.sh`), which then
+  report through `:4400`.
 - **An install from before this page** has Loki's compose file already rendered without the
   loopback port. Add `ports: ["${LOKI_BIND:-127.0.0.1}:43100:3100"]` to the `loki` service in
   `hosting/loki/docker-compose.yml`, or `./existential.sh reset`, then re-run.

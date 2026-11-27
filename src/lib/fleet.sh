@@ -73,9 +73,11 @@ cmd_controller() {
     # gateway). Nothing on the host itself: this host reports itself only if it is also made a
     # worker, by choice (./existential.sh plugin on report_host).
     exist service on loki grafana model-gateway
-    # Loki on the network, so the workers can push to it and ask it who the controller is.
-    env_set "$LOKI_ENV" LOKI_BIND 0.0.0.0
-    echo "  loki     on the network at :43100"
+    # Loki stays on loopback (it has no login): the hosts on your own network reach it through
+    # the model gateway, at :4400/loki, with the fleet secret; over Tailscale, at :3100 on the
+    # tailnet. A controller set up before this had it open on 43100: closed again here.
+    env_set "$LOKI_ENV" LOKI_BIND 127.0.0.1
+    echo "  loki     reached by the workers through the gateway at :4400/loki, with the secret"
     echo ""
     echo "Start Loki, Grafana and the model gateway:  docker compose up -d"
     echo "Then on every other host:"
@@ -113,15 +115,15 @@ cmd_status() {
     secret="$(env_get "$ENV" EXIST_FLEET_SECRET)"
     if [[ -z "$ctl" ]]; then
         if grep -q '^EXIST_IS_HOSTING_LOKI=true' "$ENV"; then
-            echo "  role        controller (Loki bind: $(env_get "$LOKI_ENV" LOKI_BIND))"
+            echo "  role        controller (Loki bind: $(env_get "$LOKI_ENV" LOKI_BIND); the workers reach it through :4400)"
         else
             echo "  role        NONE: no EXIST_CONTROLLER and no Loki here (fleet join <controller>)"
         fi
     elif curl -fsS --max-time 5 "http://${ctl}:4480/" >/dev/null 2>&1 ||
-        curl -fsS --max-time 5 "http://${ctl}:43100/loki/api/v1/labels" >/dev/null 2>&1; then
+        printf 'Authorization: Bearer %s\n' "$secret" | curl -fsS --max-time 5 -H @- "http://${ctl}:4400/loki/api/v1/labels" >/dev/null 2>&1; then
         echo "  role        worker of ${ctl} (it answers)"
     else
-        echo "  role        worker of ${ctl} (NO ANSWER on :4480 or :43100)"
+        echo "  role        worker of ${ctl} (NO ANSWER on :4480, or on :4400 with this secret)"
     fi
     echo "  address     $(address)"
     if [[ -n "$secret" ]]; then echo "  secret      set, starts ${secret:0:6}"; else echo "  secret      NOT SET: leases off"; fi

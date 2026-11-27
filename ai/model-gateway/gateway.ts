@@ -9,25 +9,55 @@
 //   GET  /v1/models   every model a GPU host offers now
 //   POST /v1/...      to the host serving body.model (blank: the first one offered)
 //   GET  /plugins/fleet_gpu.md   the fleet lib as a decree plugin, for a project of your own
-//   GET  /health      200, for the healthcheck
+//   *    /loki/api/v1/{push,query_range,labels,status/buildinfo}   this host's Loki, for the
+//                     hosts on your own network (Loki itself listens on loopback only)
+//   GET  /health, /ready   200, for the healthcheck; /ready is Loki's
 //
-// It reads nothing of the host's: the fleet lib is the workspace's (.decree/lib, read-only),
-// and the offers are the controller's Loki.
+// Everything else takes the fleet secret as its key. It reads nothing of the host's, and
+// nothing the workspace can change: the fleet lib is the repo's own plugin file
+// (automation/plugins/fleet.md, read-only), and the offers are this host's Loki.
 import http from 'node:http';
 import https from 'node:https';
 import { readFileSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 const SECRET = process.env.EXIST_FLEET_SECRET ?? '';
-const LIB = process.env.FLEET_LIB ?? '/fleet/fleet.sh';
+const LIB = process.env.FLEET_LIB ?? '/fleet/fleet.md';
+const LOKI = (process.env.FLEET_LOKI_UPSTREAM ?? 'http://loki:3100').replace(/\/$/, '');
 const PORT = Number(process.env.PORT ?? 4400);
+const MAX_BODY = 64 * 1024 * 1024;              // a chat with images in it, never more
 const SERVICES = new Set(['llm', 'strata']);   // the offers that serve /v1
+const LOKI_PATHS = new Set(['/loki/api/v1/push', '/loki/api/v1/query_range', '/loki/api/v1/labels', '/loki/api/v1/status/buildinfo']);
+
+// The fleet lib's source: fleet.sh as the plugin file holds it (x-exist-lib, indented four),
+// or a plain fleet.sh. Read on every call, so a pulled checkout needs no restart.
+function libSource(): string {
+  const text = readFileSync(LIB, 'utf8');
+  if (!LIB.endsWith('.md')) return text;
+  const lines = text.split('\n');
+  const start = lines.findIndex(l => l === '  fleet.sh: |');
+  if (start < 0) throw new Error(`no fleet.sh in ${LIB}`);
+  const out: string[] = [];
+  for (const l of lines.slice(start + 1)) {
+    if (l !== '' && !l.startsWith('    ')) break;
+    out.push(l.slice(4));
+  }
+  return out.join('\n');
+}
+
+// The key, compared in constant time.
+const digest = (s: string) => createHash('sha256').update(s).digest();
+const WANT = digest(`Bearer ${SECRET}`);
+const authorized = (req: http.IncomingMessage) => timingSafeEqual(digest(String(req.headers.authorization ?? '')), WANT);
 
 type Offer = { host: string; service: string; models?: { id: string }[] };
 
 function offers(): Promise<Offer[]> {
   return new Promise(resolve => {
-    execFile('bash', ['-c', 'source "$1"; fleet_offers', '_', LIB], { timeout: 20_000 }, (err, out) => {
+    let src: string;
+    try { src = libSource(); } catch { return resolve([]); }
+    execFile('bash', ['-c', 'eval "$1"; fleet_offers', '_', src], { timeout: 20_000 }, (err, out) => {
       if (err) return resolve([]);
       resolve(out.split('\n').flatMap(l => { try { return [JSON.parse(l) as Offer]; } catch { return []; } })
         .filter(o => SERVICES.has(o.service)));
@@ -39,7 +69,9 @@ function offers(): Promise<Offer[]> {
 // keeper counts the call in flight while it lives (fleet.sh's own rule).
 function lease(service: string): Promise<{ url: string; done: () => void }> {
   return new Promise((resolve, reject) => {
-    const p = spawn('bash', ['-c', 'source "$1"; fleet_use "$2" || exit $?; echo "$FLEET_URL"; read -r _; fleet_done "$2"', '_', LIB, service],
+    let src: string;
+    try { src = libSource(); } catch (e) { return reject(e); }
+    const p = spawn('bash', ['-c', 'eval "$1"; fleet_use "$2" || exit $?; echo "$FLEET_URL"; read -r _; fleet_done "$2"', '_', src, service],
       { stdio: ['pipe', 'pipe', 'inherit'] });
     let out = '', held = false;
     p.stdout.on('data', (d: Buffer) => {
@@ -57,7 +89,7 @@ function lease(service: string): Promise<{ url: string; done: () => void }> {
 // fleet_gpu.md: the fleet lib this gateway leases through, as a decree plugin file. Data to
 // serve, never run here: no #! line, so decree check takes the script as data.
 function fleetGpu(): string {
-  const lib = readFileSync(LIB, 'utf8').split('\n').filter(l => !l.startsWith('#!')).map(l => (l ? `    ${l}` : l)).join('\n');
+  const lib = libSource().split('\n').filter(l => !l.startsWith('#!')).map(l => (l ? `    ${l}` : l)).join('\n');
   return `---
 name: fleet_gpu
 scripts:
@@ -106,18 +138,40 @@ const fail = (res: http.ServerResponse, status: number, message: string) => send
 function body(req: http.IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const parts: Buffer[] = [];
-    req.on('data', (d: Buffer) => parts.push(d)).on('end', () => resolve(Buffer.concat(parts))).on('error', reject);
+    let size = 0;
+    req.on('data', (d: Buffer) => {
+      size += d.length;
+      if (size > MAX_BODY) { req.removeAllListeners('data'); req.resume(); return reject(new Error('too large')); }
+      parts.push(d);
+    }).on('end', () => resolve(Buffer.concat(parts))).on('error', reject);
   });
+}
+
+// This host's Loki, for the hosts on your own network: the request as it came, minus its key.
+function toLoki(req: http.IncomingMessage, res: http.ServerResponse, url: string): void {
+  const headers = { ...req.headers };
+  delete headers.authorization; delete headers.host;
+  const up = http.request(`${LOKI}${url}`, { method: req.method, headers }, upRes => {
+    res.writeHead(upRes.statusCode ?? 502, upRes.headers);
+    upRes.pipe(res);
+  });
+  up.on('error', e => { if (!res.headersSent) fail(res, 502, `loki: ${e.message}`); else res.end(); });
+  let size = 0;
+  req.on('data', (d: Buffer) => { size += d.length; if (size > MAX_BODY) { up.destroy(); req.destroy(); } });
+  req.pipe(up);
 }
 
 http.createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0];
   if (path === '/health') return send(res, 200, { ok: true });
+  if (path === '/ready' && req.method === 'GET') return toLoki(req, res, '/ready');
   if (!SECRET) return fail(res, 503, 'no EXIST_FLEET_SECRET: this host is not in a fleet');
-  if (req.headers.authorization !== `Bearer ${SECRET}`) return fail(res, 401, 'the key is the fleet secret (EXIST_FLEET_SECRET)');
+  if (!authorized(req)) return fail(res, 401, 'the key is the fleet secret (EXIST_FLEET_SECRET)');
+  if (LOKI_PATHS.has(path)) return toLoki(req, res, req.url ?? path);
   if (req.method === 'GET' && path === '/plugins/fleet_gpu.md') {
-    try { res.writeHead(200, { 'content-type': 'text/markdown' }); return res.end(fleetGpu()); }
-    catch { return fail(res, 503, `no fleet lib at ${LIB} yet: ./existential.sh installs it with the model plugin`); }
+    let md: string;
+    try { md = fleetGpu(); } catch { return fail(res, 503, `no fleet lib at ${LIB}`); }
+    res.writeHead(200, { 'content-type': 'text/markdown' }); return res.end(md);
   }
   if (!path.startsWith('/v1/')) return fail(res, 404, 'not found: the API is under /v1');
 
@@ -127,7 +181,8 @@ http.createServer(async (req, res) => {
     return send(res, 200, { object: 'list', data: ids.map(id => ({ id, object: 'model', owned_by: 'fleet' })) });
   }
 
-  const raw = await body(req);
+  let raw: Buffer;
+  try { raw = await body(req); } catch { res.setHeader('connection', 'close'); return fail(res, 413, `the body is over ${MAX_BODY / 1024 / 1024} MB`); }
   let model = '';
   try { model = String(JSON.parse(raw.toString() || '{}').model ?? ''); } catch { return fail(res, 400, 'the body is not JSON'); }
   const offer = model ? all.find(o => (o.models ?? []).some(m => m.id === model)) : all.find(o => (o.models ?? []).length);
@@ -146,4 +201,4 @@ http.createServer(async (req, res) => {
   res.on('close', held.done);
   up.on('error', e => { held.done(); if (!res.headersSent) fail(res, 502, `${offer.host}: ${e.message}`); else res.end(); });
   up.end(raw);
-}).listen(PORT, () => console.log(`model-gateway: /v1 on :${PORT}, leasing through ${LIB}`));
+}).listen(PORT, () => console.log(`model-gateway: /v1 and Loki on :${PORT}, leasing through ${LIB}`));

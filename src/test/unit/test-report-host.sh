@@ -39,18 +39,22 @@ printf '{"type":"transition","machine":"notify"}\n{"type":"run_finished","machin
 printf '{"type":"transition","machine":"look_back"}\n' > "${W}/runs/r2/events.jsonl"
 ( source "${REPO_DIR}/automation/lib/plugin.sh"
   plugin_unpack report_host "${I}" ) >/dev/null
-printf 'EXIST_CONTROLLER=ctl\n' > "${I}/.env.shared"
+printf 'EXIST_CONTROLLER=ctl\nEXIST_FLEET_SECRET=s3cret\n' > "${I}/.env.shared"
 
-# curl: a GET of the controller prints $TMP/answer (fails without one); its Loki on
-# 43100 answers when $TMP/lan exists; a push keeps its body in $TMP/body.
+# curl: a GET of the controller prints $TMP/answer (fails without one); its Loki behind the
+# gateway on 4400 answers when $TMP/lan exists; a header file is kept in $TMP/header; a push
+# keeps its body in $TMP/body.
 mkdir -p "${TMP}/bin"
 cat > "${TMP}/bin/curl" <<EOF
 #!/usr/bin/env bash
+prev=""
 for a in "\$@"; do
-    case "\$a" in
-        @*) cp "\${a#@}" "${TMP}/body"; echo "\${@: -1}" > "${TMP}/pushed-to"; exit 0 ;;
-        *:43100/*) [[ -f "${TMP}/lan" ]]; exit \$? ;;
+    case "\$prev|\$a" in
+        -H\|@*) cp "\${a#@}" "${TMP}/header" ;;
+        *\|@*) cp "\${a#@}" "${TMP}/body"; echo "\${@: -1}" > "${TMP}/pushed-to"; exit 0 ;;
+        *\|*:4400/*) [[ -f "${TMP}/lan" ]]; exit \$? ;;
     esac
+    prev="\$a"
 done
 [[ -f "${TMP}/answer" ]] && cat "${TMP}/answer" || exit 7
 EOF
@@ -139,7 +143,9 @@ echo ""; echo "=== your own network ==="
 find "${I}/.decree/machines/report_host/state/" -mindepth 1 -delete
 touch "${TMP}/lan"
 report >/dev/null
-assert_eq "no answer on 4480: the controller's Loki on 43100" "http://ctl:43100/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "no answer on 4480: the controller's Loki through its gateway on 4400" "http://ctl:4400/loki/api/v1/push" "$(cat "${TMP}/pushed-to" 2>/dev/null)"
+assert_eq "...with the fleet secret as the key, from a file" "Authorization: Bearer s3cret" "$(cat "${TMP}/header" 2>/dev/null)"
+assert_eq "...which only its owner reads" "600" "$(stat -c %a "${I}/.decree/machines/report_host/state/loki-header" 2>/dev/null || stat -f %Lp "${I}/.decree/machines/report_host/state/loki-header")"
 rm -f "${TMP}/lan"
 
 echo ""; echo "=== nowhere ==="

@@ -30,6 +30,15 @@ through Caddy, and nothing is ever exposed to the internet.
   once per device. A certificate in `hosting/caddy/certs/` that the stack did not mint is left
   alone, which is how a domain you own (DNS challenge, no inbound connection) works.
   `Caddyfile.exist.Caddyfile` is the single source of truth for which hostnames exist.
+- **Nothing without a login listens on the LAN.** Loki has none, and the offers in it decide
+  where every host sends its calls and the fleet secret, so it stays on loopback
+  (`LOKI_BIND=127.0.0.1`, which `run fleet controller` sets). The hosts on your own network
+  reach it only through the controller's model gateway (`:4400/loki`: push, query_range,
+  labels, buildinfo), which takes the fleet secret, compared in constant time, and never passes
+  it on to Loki. Over Tailscale, Loki is on the tailnet at `:3100`, where the tailnet's own
+  access controls are the boundary. A host sends the secret from a file or stdin, never on a
+  command line. The gateway runs the fleet lib from the repo's own plugin file, never from the
+  workspace, which anything with write access to the workspace could change.
 - **Nothing is published to the internet.** There is no peer or front-door mode
   (`EXIST_PEER_HOST_IP`, `Caddyfile.frontdoor-*`), no `run caddy public-domain`, no
   `EXIST_PUBLIC_DOMAIN`. A public hostname is a block a person adds to their own Caddyfile.
@@ -54,3 +63,9 @@ through Caddy, and nothing is ever exposed to the internet.
   **When** `git grep` runs for `EXIST_PEER_HOST_IP`, `frontdoor` or `EXIST_PUBLIC_DOMAIN`
   outside `archive/`, `.decree/` and `src/test/` (which asserts their absence)
   **Then** nothing is found
+- **Given** `./existential.sh test model-gateway`
+  **Then** it exits 0: `/loki/...` is 401 without the fleet secret or with a wrong one, a query
+  with it reaches Loki without the secret, and no other Loki path is reachable
+- **Given** `./existential.sh test report-host`
+  **Then** a worker on your own network pushes to `http://<controller>:4400` with the secret
+  from a file only its owner reads

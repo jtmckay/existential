@@ -292,6 +292,11 @@ _controller_answer() {
     printf '{"loki":"%s","domain":"%s"}\n' "$url" "$domain" > "${SCRIPT_DIR}/.decree/exist.json"
 }
 
+# The fleet secret as a header, for curl -H @- (never on a command line, where ps shows it).
+_fleet_header() {
+    printf 'Authorization: Bearer %s\n' "$(grep -m1 '^EXIST_FLEET_SECRET=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-)"
+}
+
 # Another host's copy of its controller's answer, .decree/controller.json, for
 # generate-compose's .env (the controller reads its own .decree/exist.json). The
 # last answer stays while the controller is away.
@@ -300,18 +305,19 @@ _controller_fetch() {
     ctl=$(grep -m1 '^EXIST_CONTROLLER=' "${SCRIPT_DIR}/.env.shared" 2>/dev/null | cut -d= -f2-) || true
     [[ -n "$ctl" ]] || return 0
     ans="$(curl -fsS --max-time 5 "http://${ctl}:4480/" 2>/dev/null)" || true
-    # Without Tailscale, on your own network: the controller's Loki, on 43100, holds its
-    # answer (reporting pushes it as kind=answer); with none yet, that Loki is the answer.
-    if [[ "$ans" != "{"* ]] && curl -fsS --max-time 5 -o /dev/null "http://${ctl}:43100/loki/api/v1/status/buildinfo" 2>/dev/null; then
-        ans="$(curl -fsSG --max-time 10 "http://${ctl}:43100/loki/api/v1/query_range" \
+    # Without Tailscale, on your own network: the controller's Loki, behind its gateway on
+    # 4400 (the fleet secret is the key), holds its answer (reporting pushes it as
+    # kind=answer); with none yet, that Loki is the answer.
+    if [[ "$ans" != "{"* ]] && _fleet_header | curl -fsS --max-time 5 -o /dev/null -H @- "http://${ctl}:4400/loki/api/v1/status/buildinfo" 2>/dev/null; then
+        ans="$(_fleet_header | curl -fsSG --max-time 10 -H @- "http://${ctl}:4400/loki/api/v1/query_range" \
             --data-urlencode 'query={job="exist", kind="answer"}' --data-urlencode direction=backward \
             --data-urlencode limit=1 --data-urlencode "start=$(( $(date +%s) - 86400 ))000000000" 2>/dev/null |
             sed -n 's/.*"values":\[\["[0-9]*","\({.*}\)"\]\].*/\1/p' | sed 's/\\"/"/g' |
-            sed "s#\"loki\":\"[^\"]*\"#\"loki\":\"http://${ctl}:43100\"#")" || true
-        [[ "$ans" == "{"* ]] || ans="{\"loki\":\"http://${ctl}:43100\",\"domain\":\"\"}"
+            sed "s#\"loki\":\"[^\"]*\"#\"loki\":\"http://${ctl}:4400\"#")" || true
+        [[ "$ans" == "{"* ]] || ans="{\"loki\":\"http://${ctl}:4400\",\"domain\":\"\"}"
     fi
     if [[ "$ans" == "{"* ]]; then mkdir -p "${SCRIPT_DIR}/.decree"; printf '%s\n' "$ans" > "${SCRIPT_DIR}/.decree/controller.json"
-    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480 or :43100; using its last answer, if any."; fi
+    else echo "  ⚠  The controller (${ctl}) did not answer at http://${ctl}:4480 or :4400; using its last answer, if any."; fi
 }
 
 _tailscale_serve_steps() {
@@ -439,22 +445,27 @@ _install_steps() {
 # is known. decree, yq and alloy go to ~/.local/bin without sudo; a package (curl, tmux,
 # unzip) goes through this host's package manager, with sudo unless this is root.
 _install_cmd() {
-    local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch s=sudo
+    local df="${SCRIPT_DIR}/services/automation/decree/Dockerfile" v os arch s=sudo sum
     os="$(uname -s | tr 'A-Z' 'a-z')"
     case "$(uname -m)" in x86_64|amd64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) arch="$(uname -m)" ;; esac
     [[ "$(id -u)" != 0 ]] || s=""
     case "$1" in
         decree)
-            # The version the decree image pins, so host and container agree.
+            # The version the decree image pins, so host and container agree, with that release's
+            # own install.sh (which checks the binary's sha256), never the branch's, which can change.
             v="$(sed -n 's/^ARG DECREE_TAG=//p' "$df")"
-            echo "curl -fsSL https://raw.githubusercontent.com/jtmckay/decree/main/install.sh | sh -s -- ${v}" ;;
+            echo "curl -fsSL https://github.com/jtmckay/decree/releases/download/${v}/install.sh | sh -s -- ${v}" ;;
         yq)
             v="$(sed -n 's/^ARG YQ_VERSION=//p' "$df")"
-            echo "mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch} && chmod +x ~/.local/bin/yq" ;;
+            # On linux/amd64, checked against the sha256 the decree image pins (the one build it records).
+            sum=""; [[ "${os}_${arch}" != linux_amd64 ]] ||
+                sum=" && { echo '$(sed -n 's/^ARG YQ_SHA256=//p' "$df")  '\"\$HOME/.local/bin/yq\" | sha256sum -c --quiet - || { rm -f ~/.local/bin/yq; false; }; }"
+            echo "mkdir -p ~/.local/bin && curl -fsSL -o ~/.local/bin/yq https://github.com/mikefarah/yq/releases/download/v${v}/yq_${os}_${arch}${sum} && chmod +x ~/.local/bin/yq" ;;
         alloy)
             # The version loki-alloy runs, so every host ships with the same alloy.
             v="$(sed -n 's/^ *image: grafana\/alloy:v//p' "${SCRIPT_DIR}/hosting/loki/docker-compose.exist.yml")"
-            echo "mkdir -p ~/.local/bin && curl -fsSL -o /tmp/alloy.zip https://github.com/grafana/alloy/releases/download/v${v}/alloy-${os}-${arch}.zip && unzip -p /tmp/alloy.zip > ~/.local/bin/alloy && chmod +x ~/.local/bin/alloy && rm /tmp/alloy.zip" ;;
+            # Into a folder of its own (mktemp -d), never a fixed name in /tmp another user could plant.
+            echo "mkdir -p ~/.local/bin && d=\$(mktemp -d) && curl -fsSL -o \"\$d/alloy.zip\" https://github.com/grafana/alloy/releases/download/v${v}/alloy-${os}-${arch}.zip && unzip -p \"\$d/alloy.zip\" > ~/.local/bin/alloy && chmod +x ~/.local/bin/alloy && rm -rf \"\$d\"" ;;
         curl|tmux|unzip)
             if [[ "$os" == darwin ]]; then command -v brew >/dev/null 2>&1 && echo "brew install $1"
             elif command -v apt-get >/dev/null 2>&1; then echo "${s:+$s }apt-get install -y $1"

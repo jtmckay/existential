@@ -26,20 +26,21 @@ x-exist-lib:
     #   fleet_lease <offer> <holder>      ask, wait until held (FLEET_WAIT s, default 2400), print the id
     #   fleet_answer <offer> <id> <release|renew>
     #
-    # Env: EXIST_FLEET_SECRET (every host's decree-go-rest takes it) and EXIST_CONTROLLER (its
-    # Loki, on :43100, holds the offers; the stack sets EXIST_FLEET_LOKI instead), FLEET_HOLDER
+    # Env: EXIST_FLEET_SECRET (every host's decree-go-rest takes it, and the controller's
+    # gateway, in front of its Loki on your own network) and EXIST_CONTROLLER (its Loki holds
+    # the offers, at :4400/loki; the stack sets EXIST_FLEET_LOKI instead), FLEET_HOLDER
     # (default this host's name), FLEET_STATE_DIR.
     # Needs curl and jq. bash 3.2: the host's `./existential.sh run peers` sources it too.
 
     FLEET_IDLE="${FLEET_IDLE:-5}"
     FLEET_STATE_DIR="${FLEET_STATE_DIR:-${TMPDIR:-/tmp}/fleet}"
 
-    _fleet_loki() { echo "${EXIST_FLEET_LOKI:-${EXIST_CONTROLLER:+http://${EXIST_CONTROLLER}:43100}}"; }
+    _fleet_loki() { echo "${EXIST_FLEET_LOKI:-${EXIST_CONTROLLER:+http://${EXIST_CONTROLLER}:4400}}"; }
     fleet_on() { [ -n "${EXIST_FLEET_SECRET:-}" ] && [ -n "$(_fleet_loki)" ]; }
 
     fleet_offers() {
         local out
-        out="$(curl -fsSG --max-time 15 "$(_fleet_loki)/loki/api/v1/query_range" \
+        out="$(curl --proto =http,https -fsSG --max-time 15 -H "$(_fleet_auth)" "$(_fleet_loki)/loki/api/v1/query_range" \
             --data-urlencode 'query={job="exist", kind="offer"}' \
             --data-urlencode "start=$(( $(date +%s) - 900 ))000000000" \
             --data-urlencode direction=backward --data-urlencode limit=2000)" || return 1
@@ -55,11 +56,11 @@ x-exist-lib:
         local offer="$1" holder="$2" url api id state waited=0
         url="$(jq -r '.lease // empty' <<<"$offer")"; api="$(jq -r '.api // empty' <<<"$offer")"
         [ -n "$url" ] && [ -n "$api" ] || return 1
-        id="$(curl -fsS --max-time 15 -X POST -H "$(_fleet_auth)" "${url}/${holder}" | jq -r '.id // empty')" || return 1
+        id="$(curl --proto =http,https -fsS --max-time 15 -X POST -H "$(_fleet_auth)" "${url}/${holder}" | jq -r '.id // empty')" || return 1
         [ -n "$id" ] || return 1
         echo "fleet: asked $(jq -r .host <<<"$offer") for its $(jq -r .service <<<"$offer"), lease ${id}" >&2
         while [ "$waited" -lt "${FLEET_WAIT:-2400}" ]; do
-            state="$(curl -fsS --max-time 10 -H "$(_fleet_auth)" "${api}/gpu/lease/${id}" 2>/dev/null | jq -r '.state // empty' || true)"
+            state="$(curl --proto =http,https -fsS --max-time 10 -H "$(_fleet_auth)" "${api}/gpu/lease/${id}" 2>/dev/null | jq -r '.state // empty' || true)"
             case "$state" in
                 granted|held) echo "$id"; return 0 ;;
                 released|expired|failed|cancelled) echo "fleet: lease ${id} ended: ${state}" >&2; return 1 ;;
@@ -72,7 +73,7 @@ x-exist-lib:
     }
 
     fleet_answer() {
-        curl -fsS --max-time 15 -X POST -H "$(_fleet_auth)" \
+        curl --proto =http,https -fsS --max-time 15 -X POST -H "$(_fleet_auth)" \
             "$(jq -r '.api' <<<"$1")/gpu/lease/${2}/${3}" >/dev/null 2>&1
     }
 
@@ -148,7 +149,7 @@ x-exist-lib:
                 if kill -0 "${t%%.*}" 2>/dev/null; then busy=1; else rm -f "$d/inflight/$t"; fi
             done
             if [ -z "$busy" ] && [ "$svc" = comfy ] &&
-                curl -fsS --max-time 5 "$(cat "$d/url")/queue" 2>/dev/null |
+                curl --proto =http,https -fsS --max-time 5 "$(cat "$d/url")/queue" 2>/dev/null |
                     jq -e '(.queue_running + .queue_pending) | length > 0' >/dev/null 2>&1; then
                 busy=1; date +%s > "$d/last"
             fi
@@ -164,7 +165,7 @@ x-exist-lib:
             fi
             # Every 30 s: still held? Renew it in its last two minutes.
             if [ $((n % 30)) -eq 0 ]; then
-                st="$(curl -fsS --max-time 10 -H "$(_fleet_auth)" "$(jq -r .api <<<"$offer")/gpu/lease/${id}" 2>/dev/null || true)"
+                st="$(curl --proto =http,https -fsS --max-time 10 -H "$(_fleet_auth)" "$(jq -r .api <<<"$offer")/gpu/lease/${id}" 2>/dev/null || true)"
                 case "$(jq -r '.state // empty' <<<"$st" 2>/dev/null)" in
                     granted|held)
                         exp="$(jq -r '.expires // empty' <<<"$st" | cut -c1-19)"

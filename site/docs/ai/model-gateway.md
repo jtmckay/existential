@@ -19,7 +19,12 @@ On the controller, `./existential.sh run fleet controller` (or the first run's *
 it on with Loki. Then `docker compose up -d`. It is the fleet's API: besides `/v1` it serves
 `GET /plugins/fleet_gpu.md`, the fleet lib as a decree plugin for a project of your own
 ([Controller and Workers](../hosting/controller-and-workers.md#a-decree-project-of-your-own)).
-It reads the workspace's fleet lib, read-only, and nothing of the host's.
+It also fronts the controller's Loki for the hosts on your own network (`/loki/api/v1/push`,
+`query_range`, `labels`, `status/buildinfo`), so Loki itself, which has no login, never leaves
+loopback. Every path but `/health` and `/ready` takes the fleet secret, and a body is capped at
+64 MB. It reads the fleet lib from the repo's own plugin file (`automation/plugins/fleet.md`,
+read-only), never the workspace's copy, which an automation or a synced device could change,
+and nothing of the host's.
 
 On every host that should use it, in `.env.shared`:
 
