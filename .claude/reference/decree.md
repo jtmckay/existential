@@ -19,7 +19,7 @@ the repo's own `.decree` included (but for its order files and their record, bel
 | `x-exist-project` | `automation` | `backup` | `host` |
 |---|---|---|---|
 | project (`.decree`) | `workspace/.decree` (`volumes/workspace_data/.decree`) | `services/automation-backup/`, mounted as `/work/.decree` | the repo's own `.decree`, run by a decree daemon on the host |
-| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `pull_existential`, `report_host`, `boot_daemon`, `check_versions`, `update_ubuntu`, `lease_gpu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
+| runs | everything that reasons, routes, or calls a service API | backups, `triage`, `notes_pull`, `workspace_sync`: bulk mounts and master credentials, no AI | `pull_existential`, `report_host`, `boot_services`, `check_versions`, `update_ubuntu`, `lease_gpu`, and the machines that develop this repo (`repo_develop`, `repo_qa`) |
 | always has | the plugin system: `notify`, `skill`, `decree_prune` | `notify`, `decree_prune` | `decree_prune`, once anything is on |
 | crons | each plugin's own (`cron:`), installed with it; yours are a plugin of cron files in `.decree/plugins/` | the same: `triage`'s, `workspace_sync`'s, `notes_pull`'s, and each backup plugin's nightly and weekly, listing every service it knows | each plugin's own |
 | order files | each plugin's own (`order:`), run by decree's `decree_order` plugin | none | **the repo's**, tracked in `.decree/machines/repo_develop/order/` with `state/order.git.txt`; a host plugin carries none (validate conventions) |

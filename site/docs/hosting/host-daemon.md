@@ -6,7 +6,7 @@ sidebar_position: 13
 
 Most of the stack runs in containers. Six plugins run on the host itself, in the host's decree
 project, the checkout's own `.decree`: [`report_host`](./controller-and-workers.md), which reports the host,
-[`pull_existential`](./updates.md), which keeps the install current, [`boot_daemon`](#boot-daemon),
+[`pull_existential`](./updates.md), which keeps the install current, [`boot_services`](#boot-services),
 which runs your own script when the daemon starts, [`check_versions`](./updates.md#pinned-images),
 which says when a pinned image is behind, [`update_ubuntu`](./updates.md#ubuntu),
 which keeps an Ubuntu host patched, and [`lease_gpu`](./ai-box.md), which shares a GPU box's card. They run only while a decree
@@ -17,7 +17,7 @@ daemon runs there: `./existential.sh` offers to start one, now and at every boot
 Each one is off until you turn it on, from the checkout:
 
 ```bash
-./existential.sh plugin on pull_existential     # or report_host, boot_daemon, check_versions, update_ubuntu, lease_gpu
+./existential.sh plugin on pull_existential     # or report_host, boot_services, check_versions, update_ubuntu, lease_gpu
 ```
 
 That puts it in the host project's list, `.decree/plugins/.on`, and installs it into the
@@ -79,11 +79,11 @@ systemctl --user restart existential-host     # or, without the unit: tmux kill-
 Each run ends in a line like `✓ <run> done in 0s`. A plugin's own output is in
 `.decree/runs/<run>/`. `./existential.sh` also warns while no daemon runs.
 
-## Boot daemon
+## Boot services
 
 With the daemon installed, it is the one thing started at boot, and it can start the rest.
-`./existential.sh plugin on boot_daemon`, then write `.decree/boot.sh`. It runs once each time the
-daemon starts (a cron file of the `boot_daemon` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
+`./existential.sh plugin on boot_services`, then write `.decree/boot.sh`. It runs once each time the
+daemon starts (a cron file of the `boot_services` machine's, `cron: "@reboot"`), with [`tmx`](https://github.com/jtmckay/existential/blob/main/services/automation/decree/tmx.sh)
 in reach, so each process gets its own tmux session and is left alone if it already runs:
 
 ```bash

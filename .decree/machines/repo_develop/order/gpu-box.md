@@ -22,7 +22,7 @@ so the card is taken in turns.
   - GPU containers under rootless podman with CDI;
   - llama.cpp's router-mode command and presets, including why the V-cache type sits per
     model in the preset rather than on the command line;
-  - ComfyUI, Strata and TTS, each a lease like the others, started at boot by `boot_daemon`
+  - ComfyUI, Strata and TTS, each a lease like the others, started at boot by `boot_services`
     (`.decree/boot.sh`, one `tmx` line per process);
   - checking it works, GLiNER on CPU, and which stack keys to set (`AI_BOX_*` in the box's
     `.decree/.env`; the stack reaches models through the controller's offers, `04-models.md`).

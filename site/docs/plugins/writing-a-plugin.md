@@ -19,7 +19,7 @@ example: [Note → Action](./note-to-action.md).
 
 ## The file
 
-`boot_daemon` is the shortest one to read beside this page:
+`boot_services` is the shortest one to read beside this page:
 
 ```markdown
 ---

@@ -139,7 +139,7 @@ python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-Then start it at boot with `boot_daemon` (`./existential.sh plugin on boot_daemon`): one line in
+Then start it at boot with `boot_services` (`./existential.sh plugin on boot_services`): one line in
 `.decree/boot.sh`, which runs once each time the host daemon starts.
 
 ```bash

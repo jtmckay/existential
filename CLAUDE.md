@@ -207,7 +207,7 @@ rendered compose file whose service `image:` differs from its template's is list
 when its build context changed) without touching running containers, so the next `up -d` gets
 them. Every run also installs each decree project's plugins at this checkout's version. The
 optional `pull_existential` plugin pulls, re-runs and `up -d`s on its own, `report_host`
-reports the host to its controller, `boot_daemon` runs `.decree/boot.sh` once when that daemon
+reports the host to its controller, `boot_services` runs `.decree/boot.sh` once when that daemon
 starts, `check_versions` says weekly which pinned images are behind, `update_ubuntu` patches an
 Ubuntu host, and `lease_gpu` (a `decree_lease`) has a GPU box's llama.cpp, ComfyUI and TTS take
 turns on its card (with `comfy` on there too, the box runs ComfyUI workflows for any host behind
