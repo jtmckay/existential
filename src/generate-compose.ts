@@ -87,6 +87,8 @@ interface VolumeContext {
   repoRoot: string;
   /** EXIST_GPU_VENDOR — nvidia leaves templates alone; amd/none rewrite them. */
   gpuVendor: string;
+  /** Rootless podman (ROOTLESS_PODMAN=true from existential.sh): applies x-exist-engine.rootless-podman. */
+  rootlessPodman: boolean;
 }
 
 /**
@@ -355,7 +357,7 @@ function adjustEnvFile(
  * satisfy a `driver: nvidia` reservation than no card at all, and an `external`
  * host has no card to reserve because the models are on another machine. What
  * AMD gets instead comes from the service's own `x-exist-gpu.amd` block — see
- * applyGpuOverlay.
+ * applyOverlay.
  *
  * This only makes the containers *start*. A service whose whole job is GPU work
  * (comfyui; whisperx and chatterbox with their cuda settings) is still not
@@ -398,6 +400,7 @@ function stripGpuReservations(svc: Record<string, unknown>): Record<string, unkn
 
 /** The per-service, per-vendor overlay key. */
 const GPU_OVERLAY_KEY = 'x-exist-gpu';
+const ENGINE_OVERLAY_KEY = 'x-exist-engine';
 
 /** Vendors this generator knows how to wire. Mirrors src/utils/gpu-vendor.sh. */
 const GPU_VENDORS = ['nvidia', 'amd', 'none', 'external'] as const;
@@ -465,14 +468,17 @@ function resolveGpuVendor(env: Record<string, string>): string {
  * so a template can use either style and an overlay still lands correctly.
  *
  * nvidia is deliberately not an overlay: it is what the templates already say.
+ *
+ * `x-exist-engine.rootless-podman` is the same merge, keyed by the container engine: what a
+ * service needs only under rootless podman (`userns_mode: keep-id`, which docker refuses).
  */
-function applyGpuOverlay(svc: Record<string, unknown>, vendor: string): Record<string, unknown> {
-  const overlay = svc[GPU_OVERLAY_KEY] as Record<string, unknown> | undefined;
+function applyOverlay(svc: Record<string, unknown>, key: string, variant: string): Record<string, unknown> {
+  const overlay = svc[key] as Record<string, unknown> | undefined;
   const out = { ...svc };
-  delete out[GPU_OVERLAY_KEY];
+  delete out[key];
   if (!overlay || typeof overlay !== 'object') return out;
 
-  const block = overlay[vendor] as Record<string, unknown> | undefined;
+  const block = overlay[variant] as Record<string, unknown> | undefined;
   if (!block || typeof block !== 'object') return out;
 
   for (const [key, value] of Object.entries(block)) {
@@ -512,9 +518,10 @@ function adjustServicePaths(svc: Record<string, unknown>, ctx: VolumeContext): R
   // nvidia is the templates' own default, so it is a pure no-op beyond dropping
   // the overlay key. Anything else cannot satisfy a `driver: nvidia`
   // reservation, so the reservation goes and the vendor's overlay comes in.
-  const out = ctx.gpuVendor === 'nvidia'
-    ? applyGpuOverlay(svc, ctx.gpuVendor)
-    : applyGpuOverlay(stripGpuReservations(svc), ctx.gpuVendor);
+  const gpu = ctx.gpuVendor === 'nvidia'
+    ? applyOverlay(svc, GPU_OVERLAY_KEY, ctx.gpuVendor)
+    : applyOverlay(stripGpuReservations(svc), GPU_OVERLAY_KEY, ctx.gpuVendor);
+  const out = applyOverlay(gpu, ENGINE_OVERLAY_KEY, ctx.rootlessPodman ? 'rootless-podman' : '');
   if (Array.isArray(out['volumes'])) {
     out['volumes'] = (out['volumes'] as VolumeEntry[]).map(v => adjustVolume(v, ctx));
   }
@@ -535,6 +542,7 @@ function merge(
   enabled: string[],
   env: Record<string, string>,
   gpuVendor = 'nvidia',
+  rootlessPodman = false,
 ): Record<string, unknown> {
   const address = (env['EXIST_NFS_ADDRESS'] ?? '').trim();
   const nfsAddress = address === 'none' ? '' : address;
@@ -564,7 +572,7 @@ function merge(
     }
     const config = (yaml.load(fs.readFileSync(composePath, 'utf8')) ?? {}) as Record<string, unknown>;
 
-    const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsAddress, env, nfsPaths, repoRoot, gpuVendor };
+    const ctx: VolumeContext = { servicePrefix: relPath, volumeSpec, hostRepoRoot, nfsAddress, env, nfsPaths, repoRoot, gpuVendor, rootlessPodman };
 
     for (const [name, svc] of Object.entries((config['services'] ?? {}) as Record<string, Record<string, unknown>>)) {
       services[name] = { logging: LOG_CAP, ...adjustServicePaths(svc ?? {}, ctx) };
@@ -751,7 +759,7 @@ function main(): void {
     );
   }
 
-  const merged = merge(repoRoot, hostRepoRoot, enabled, env, gpuVendor);
+  const merged = merge(repoRoot, hostRepoRoot, enabled, env, gpuVendor, process.env['ROOTLESS_PODMAN'] === 'true');
 
   mergeEnv(repoRoot, enabled);
 

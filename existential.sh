@@ -1110,7 +1110,7 @@ _build() {
     _check_nas || exit 1
     echo ""
     echo "Generating docker-compose.yml..."
-    run_adhoc tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
+    run_adhoc env ROOTLESS_PODMAN="${ROOTLESS_PODMAN:-false}" tsx /src/generate-compose.ts /repo docker-compose.yml "${SCRIPT_DIR}"
     _warn_if_no_gateway
     run_initials
     _host_plugins

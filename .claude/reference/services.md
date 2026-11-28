@@ -179,6 +179,11 @@ docker cannot satisfy and loses the entire `up`. Guessing wrong the safe way cos
 host acceleration until it answers the question; the other way costs everyone else a stack that
 will not start.
 
+**What only rootless podman needs** goes in the same kind of block, `x-exist-engine.rootless-podman`,
+applied when `existential.sh` finds rootless podman (`ROOTLESS_PODMAN`): fleet-api's
+`userns_mode: keep-id`, without which its `user:` is a sub-uid that cannot read `.decree`. Opt-in per
+service: a blanket keep-id would change who owns the files of volumes that already exist.
+
 **Vendor config lives with the service**, as an `x-exist-gpu.<vendor>` block in its
 `docker-compose.exist.yml` — never as a table of container names in the generator, which would
 mean editing two places to add a GPU service:

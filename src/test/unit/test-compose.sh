@@ -391,6 +391,28 @@ assert_contains "a misspelled vendor is reported" "not one of" "$err"
     || _fail "a misspelled vendor exits non-zero" "render continued with an unknown vendor"
 assert_no_file "a misspelled vendor writes no compose file" "$repo/docker-compose.yml"
 
+# ── Rootless podman: x-exist-engine.rootless-podman ─────────────────────────
+# userns_mode: keep-id is what rootless podman needs and what docker refuses, so it
+# lands only when existential.sh says the engine is rootless podman.
+repo="$(mktemp -d "$TMP/engrepo.XXXXXX")"; mkdir -p "$repo/hosting/eng"
+cat > "$repo/hosting/eng/docker-compose.yml" <<'YAML'
+services:
+  eng:
+    image: eng:1
+    x-exist-engine:
+      rootless-podman:
+        userns_mode: keep-id
+YAML
+printf 'EXIST_IS_HOSTING_ENG=true\n' > "$repo/.env.shared"
+ROOTLESS_PODMAN=true tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+out="$(cat "$repo/docker-compose.yml")"
+assert_contains     "rootless podman applies x-exist-engine.rootless-podman" "userns_mode: keep-id" "$out"
+assert_not_contains "rootless podman drops the x-exist-engine key"           "x-exist-engine"       "$out"
+ROOTLESS_PODMAN=false tsx "$GC" "$repo" docker-compose.yml "/host/realrepo" >/dev/null 2>&1 || true
+out="$(cat "$repo/docker-compose.yml")"
+assert_not_contains "docker does not get keep-id"            "userns_mode" "$out"
+assert_not_contains "docker drops the x-exist-engine key"    "x-exist-engine" "$out"
+
 # Self-check canary: TEST_SELFCHECK=1 forces one failure so this suite's own
 # FAIL→non-zero-exit path is itself testable (src/test/run-all.sh selfcheck).
 [[ "${TEST_SELFCHECK:-}" == 1 ]] && _fail "selfcheck canary (deliberate failure)"
